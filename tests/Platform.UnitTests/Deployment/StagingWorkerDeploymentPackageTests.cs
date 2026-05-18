@@ -963,6 +963,27 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Product_spine_smoke_supports_authenticated_remote_cookie_sources()
+    {
+        var script = ReadRepoFile("deploy/staging/smoke-product-spine.ps1");
+
+        Assert.Contains("[string]$SessionCookiePath", script);
+        Assert.Contains("[switch]$RequireAuthenticatedSession", script);
+        Assert.Contains("$env:STAGING_SESSION_COOKIE", script);
+        Assert.Contains("Resolve-SessionCookie", script);
+        Assert.Contains("SessionCookie and SessionCookiePath cannot both be supplied", script);
+        Assert.Contains("Get-Content -Raw -LiteralPath $SessionCookiePath", script);
+        Assert.Contains("Authenticated product-spine session proof required", script);
+        Assert.Contains("Authenticated product-spine session cookie source resolved.", script);
+        Assert.Contains("/auth/csrf", script);
+        Assert.Contains("X-CSRF-TOKEN", script);
+        Assert.Contains("remoteCookieAuthenticated", script);
+        Assert.Contains("Cookie = $resolvedAuth.CookieHeader", script);
+        Assert.DoesNotContain("Write-Host $SessionCookie", script);
+        Assert.DoesNotContain("Write-Host \"$SessionCookie", script);
+    }
+
+    [Fact]
     public void Product_spine_smoke_writes_operational_notification_admin_evidence()
     {
         var script = ReadRepoFile("deploy/staging/smoke-product-spine.ps1");

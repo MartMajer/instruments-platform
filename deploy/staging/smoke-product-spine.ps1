@@ -5,6 +5,9 @@ param(
     [string]$UserId,
     [string]$ParticipantCodePrefix,
     [switch]$SkipWebCheck,
+    [string]$SessionCookie,
+    [string]$SessionCookiePath,
+    [switch]$RequireAuthenticatedSession,
     [string]$EvidencePath = ''
 )
 
@@ -112,6 +115,68 @@ function Get-HttpErrorMessage {
     return "$Method $Url failed. $detail"
 }
 
+function Invoke-HttpClientRequest {
+    param(
+        [ValidateSet('GET', 'POST', 'PUT', 'PATCH')]
+        [string]$Method,
+        [string]$Url,
+        [hashtable]$Headers = @{},
+        [object]$Body = $null,
+        [int]$TimeoutSec = 30,
+        [switch]$AllowHttpError
+    )
+
+    $handler = New-Object System.Net.Http.HttpClientHandler
+    $handler.UseCookies = $false
+    $client = New-Object System.Net.Http.HttpClient($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec)
+    $request = New-Object System.Net.Http.HttpRequestMessage(
+        (New-Object System.Net.Http.HttpMethod($Method)),
+        $Url)
+
+    try {
+        foreach ($key in $Headers.Keys) {
+            if ($null -ne $Headers[$key]) {
+                [void]$request.Headers.TryAddWithoutValidation([string]$key, [string]$Headers[$key])
+            }
+        }
+
+        if ($null -ne $Body) {
+            $request.Content = New-Object System.Net.Http.StringContent(
+                (ConvertTo-JsonPayload $Body),
+                [System.Text.Encoding]::UTF8,
+                'application/json')
+        }
+
+        $response = $client.SendAsync($request).GetAwaiter().GetResult()
+        $bytes = $response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
+        $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+        $responseHeaders = @{}
+        foreach ($header in $response.Headers) {
+            $responseHeaders[$header.Key] = ($header.Value -join ',')
+        }
+
+        foreach ($header in $response.Content.Headers) {
+            $responseHeaders[$header.Key] = ($header.Value -join ',')
+        }
+
+        if (-not $AllowHttpError -and -not $response.IsSuccessStatusCode) {
+            throw "$Method $Url failed. HTTP $([int]$response.StatusCode). Body: $content"
+        }
+
+        return [pscustomobject]@{
+            StatusCode = [int]$response.StatusCode
+            Content = $content
+            Headers = $responseHeaders
+            RawContentBytes = $bytes
+        }
+    } finally {
+        $request.Dispose()
+        $client.Dispose()
+        $handler.Dispose()
+    }
+}
+
 function Invoke-Json {
     param(
         [ValidateSet('GET', 'POST', 'PUT', 'PATCH')]
@@ -136,6 +201,20 @@ function Invoke-Json {
         $parameters.Body = ConvertTo-JsonPayload $Body
     }
 
+    if ($Headers.ContainsKey('Cookie')) {
+        $response = Invoke-HttpClientRequest `
+            -Method $Method `
+            -Url $url `
+            -Headers $Headers `
+            -Body $Body `
+            -TimeoutSec $TimeoutSec
+        if ([string]::IsNullOrWhiteSpace($response.Content)) {
+            return $null
+        }
+
+        return $response.Content | ConvertFrom-Json
+    }
+
     try {
         return Invoke-RestMethod @parameters
     } catch {
@@ -143,17 +222,150 @@ function Invoke-Json {
     }
 }
 
-function Invoke-AuthenticatedDevSession {
+function Resolve-SessionCookie {
+    param(
+        [string]$DirectSessionCookie,
+        [string]$SessionCookiePath,
+        [switch]$RequireAuthenticatedSession
+    )
+
+    if (![string]::IsNullOrWhiteSpace($DirectSessionCookie) -and
+        ![string]::IsNullOrWhiteSpace($SessionCookiePath)) {
+        throw 'SessionCookie and SessionCookiePath cannot both be supplied.'
+    }
+
+    $resolved = $DirectSessionCookie
+    if (![string]::IsNullOrWhiteSpace($SessionCookiePath)) {
+        if (!(Test-Path -LiteralPath $SessionCookiePath -PathType Leaf)) {
+            throw 'SessionCookiePath file was not found. Do not commit cookie files; keep them local and ignored.'
+        }
+
+        $resolved = Get-Content -Raw -LiteralPath $SessionCookiePath
+    } elseif ([string]::IsNullOrWhiteSpace($resolved) -and
+        ![string]::IsNullOrWhiteSpace($env:STAGING_SESSION_COOKIE)) {
+        $resolved = $env:STAGING_SESSION_COOKIE
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolved)) {
+        if ($RequireAuthenticatedSession) {
+            throw 'Authenticated product-spine session proof required but no SessionCookie, SessionCookiePath, or STAGING_SESSION_COOKIE was supplied.'
+        }
+
+        return $null
+    }
+
+    Write-Host 'Authenticated product-spine session cookie source resolved.'
+    return $resolved.Trim()
+}
+
+function Merge-CookieHeader {
+    param(
+        [string]$CookieHeader,
+        [object]$SetCookieHeader
+    )
+
+    $cookies = [ordered]@{}
+    foreach ($part in ($CookieHeader -split ';')) {
+        $trimmed = $part.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            continue
+        }
+
+        $pair = $trimmed.Split('=', 2)
+        if ($pair.Length -eq 2 -and ![string]::IsNullOrWhiteSpace($pair[0])) {
+            $cookies[$pair[0].Trim()] = $pair[1]
+        }
+    }
+
+    foreach ($header in @($SetCookieHeader)) {
+        if ([string]::IsNullOrWhiteSpace([string]$header)) {
+            continue
+        }
+
+        $cookiePair = ([string]$header).Split(';', 2)[0].Trim()
+        $pair = $cookiePair.Split('=', 2)
+        if ($pair.Length -eq 2 -and ![string]::IsNullOrWhiteSpace($pair[0])) {
+            $cookies[$pair[0].Trim()] = $pair[1]
+        }
+    }
+
+    return (($cookies.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join '; ')
+}
+
+function Resolve-RemoteAuthenticatedRequestState {
+    param([string]$CookieHeader)
+
+    $csrfUrl = Join-Url $ApiBaseUrl '/auth/csrf'
+    $csrfHeaders = @{
+        Origin = $WebBaseUrl
+        'X-Tenant-Id' = $TenantId
+        Cookie = $CookieHeader
+    }
+
+    $csrfResponse = Invoke-HttpClientRequest `
+        -Method GET `
+        -Url $csrfUrl `
+        -Headers $csrfHeaders `
+        -TimeoutSec 30
+
+    $csrfJson = $csrfResponse.Content | ConvertFrom-Json
+    if ([string]::IsNullOrWhiteSpace($csrfJson.csrfToken)) {
+        throw 'Authenticated product-spine session proof failed because /auth/csrf did not return a csrfToken.'
+    }
+
+    return [pscustomobject]@{
+        CookieHeader = Merge-CookieHeader -CookieHeader $CookieHeader -SetCookieHeader $csrfResponse.Headers['Set-Cookie']
+        CsrfToken = $csrfJson.csrfToken
+    }
+}
+
+function Get-SessionTenantId {
+    param([object]$Session)
+
+    if ($Session.PSObject.Properties.Name -contains 'tenantId') {
+        return $Session.tenantId
+    }
+
+    if ($Session.PSObject.Properties.Name -contains 'tenant' -and $Session.tenant) {
+        return $Session.tenant.id
+    }
+
+    return $null
+}
+
+function Get-SessionPermissions {
+    param([object]$Session)
+
+    if ($Session.PSObject.Properties.Name -contains 'permissions' -and $Session.permissions) {
+        return @($Session.permissions)
+    }
+
+    return @()
+}
+
+function Invoke-AuthenticatedProductSpineSession {
+    param([bool]$RemoteCookieAuthenticated)
+
     try {
         return Invoke-Json GET '/auth/session' $headers
     } catch {
         $message = [string]$_
         if ($message -match '401|403') {
-            throw "Authenticated product-spine smoke failed because development authentication is disabled. Recreate local staging with Authentication__Dev__Enabled=true and PUBLIC_DEV_AUTH_ENABLED=true before running this smoke."
+            if ($RemoteCookieAuthenticated) {
+                throw 'Authenticated product-spine smoke failed because the supplied browser session cookie was not accepted by /auth/session.'
+            }
+
+            throw 'Authenticated product-spine smoke failed because development authentication is disabled. Recreate local staging with Authentication__Dev__Enabled=true and PUBLIC_DEV_AUTH_ENABLED=true before running this smoke.'
         }
 
         throw
     }
+}
+
+function Invoke-AuthenticatedDevSession {
+    param([bool]$RemoteCookieAuthenticated)
+
+    return Invoke-AuthenticatedProductSpineSession -RemoteCookieAuthenticated:$RemoteCookieAuthenticated
 }
 
 function Wait-HttpOk {
@@ -970,11 +1182,27 @@ if (-not $ParticipantCodePrefix) {
     $ParticipantCodePrefix = 'qa01'
 }
 
-$headers = @{
-    'X-Tenant-Id' = $TenantId
-    'X-Dev-User-Id' = $UserId
-    'X-Dev-Tenant-Memberships' = $TenantId
-    'X-Dev-Permissions' = 'setup.manage'
+$resolvedSessionCookie = Resolve-SessionCookie `
+    -DirectSessionCookie $SessionCookie `
+    -SessionCookiePath $SessionCookiePath `
+    -RequireAuthenticatedSession:$RequireAuthenticatedSession
+$remoteCookieAuthenticated = ![string]::IsNullOrWhiteSpace($resolvedSessionCookie)
+
+if ($remoteCookieAuthenticated) {
+    $resolvedAuth = Resolve-RemoteAuthenticatedRequestState -CookieHeader $resolvedSessionCookie
+    $headers = @{
+        'X-Tenant-Id' = $TenantId
+        Origin = $WebBaseUrl
+        Cookie = $resolvedAuth.CookieHeader
+        'X-CSRF-TOKEN' = $resolvedAuth.CsrfToken
+    }
+} else {
+    $headers = @{
+        'X-Tenant-Id' = $TenantId
+        'X-Dev-User-Id' = $UserId
+        'X-Dev-Tenant-Memberships' = $TenantId
+        'X-Dev-Permissions' = 'setup.manage'
+    }
 }
 
 Write-Host "QA01 live product-spine smoke"
@@ -988,8 +1216,11 @@ Assert-True ($healthJson.status -eq 'ok') "Unexpected health status: $($health.C
 $unauthenticatedStatus = Get-HttpStatus -Url (Join-Url $ApiBaseUrl '/auth/session')
 Assert-True ($unauthenticatedStatus -eq 401) "Expected unauthenticated /auth/session to return 401, got $unauthenticatedStatus."
 
-$session = Invoke-AuthenticatedDevSession
-Assert-True ($session.tenantId -eq $TenantId) "Expected dev auth tenant $TenantId, got $($session.tenantId)."
+$session = Invoke-AuthenticatedProductSpineSession -RemoteCookieAuthenticated:$remoteCookieAuthenticated
+$sessionTenantId = Get-SessionTenantId -Session $session
+$sessionPermissions = Get-SessionPermissions -Session $session
+Assert-True ($sessionTenantId -eq $TenantId) "Expected authenticated tenant $TenantId, got $sessionTenantId."
+Assert-True ($sessionPermissions -contains 'setup.manage') 'Authenticated product-spine session did not include setup.manage permission.'
 
 $suffix = [Guid]::NewGuid().ToString('N').Substring(0, 8)
 $ruleKey = "qa01.$suffix.total"
@@ -1094,11 +1325,20 @@ function Assert-ReportPdfArtifactDeliveryState {
     param([object]$Artifact)
 
     if ($Artifact.status -eq 'succeeded') {
-        $download = Invoke-WebRequest `
-            -Uri (Join-Url $ApiBaseUrl "/export-artifacts/$($Artifact.id)/download") `
-            -Headers $headers `
-            -UseBasicParsing `
-            -TimeoutSec 30
+        if ($headers.ContainsKey('Cookie')) {
+            $download = Invoke-HttpClientRequest `
+                -Method GET `
+                -Url (Join-Url $ApiBaseUrl "/export-artifacts/$($Artifact.id)/download") `
+                -Headers $headers `
+                -TimeoutSec 30
+        } else {
+            $download = Invoke-WebRequest `
+                -Uri (Join-Url $ApiBaseUrl "/export-artifacts/$($Artifact.id)/download") `
+                -Headers $headers `
+                -UseBasicParsing `
+                -TimeoutSec 30
+        }
+
         Assert-True ($download.StatusCode -eq 200) "Report PDF download returned $($download.StatusCode)."
         $contentType = [string]$download.Headers['Content-Type']
         Assert-True ($contentType -match 'application/pdf') "Report PDF download returned content type $contentType."
@@ -1111,6 +1351,15 @@ function Assert-ReportPdfArtifactDeliveryState {
 
 function Invoke-WebRequestAllowHttpError {
     param([string]$Path)
+
+    if ($headers.ContainsKey('Cookie')) {
+        return Invoke-HttpClientRequest `
+            -Method GET `
+            -Url (Join-Url $ApiBaseUrl $Path) `
+            -Headers $headers `
+            -TimeoutSec 30 `
+            -AllowHttpError
+    }
 
     try {
         return Invoke-WebRequest `
@@ -1340,6 +1589,13 @@ $productSpineEvidence = [ordered]@{
     generatedAt = [DateTimeOffset]::UtcNow.ToString('o')
     runner = 'deploy/staging/smoke-product-spine.ps1'
     status = 'passed'
+    authProof = [ordered]@{
+        mode = $(if ($remoteCookieAuthenticated) { 'remoteCookieAuthenticated' } else { 'localDevelopmentAuth' })
+        authenticatedSessionProven = $true
+        setupManagePermissionProven = $true
+        csrfTokenProven = $remoteCookieAuthenticated
+        cookieSourceProven = $remoteCookieAuthenticated
+    }
     ownerInspectionRoutes = $ownerInspectionRoutes
     productMilestones = [ordered]@{
         campaignSeriesCreated = $true
@@ -1460,8 +1716,8 @@ $productSpineEvidence = [ordered]@{
     limitations = @(
         'Q-053 blocks real-person production legal/GDPR/DPA claims; this evidence is engineering proof only.',
         'Q-054 blocks outbound operational-notification email routing and claims that operational events are emailed.',
-        'The product-spine evidence omits raw withdrawal tokens, participant codes, answers, storage keys, credential values, connection strings, and raw remote origins.',
-        'Remote VPS proof requires owner-supplied origins and a remote preflight run.'
+        'The product-spine evidence omits cookies, raw headers, session bodies, raw withdrawal tokens, participant codes, answers, storage keys, credential values, connection strings, tenant ids, and email addresses.',
+        'Remote VPS product-spine proof requires owner-supplied origins and a current browser session cookie supplied through an ignored file or STAGING_SESSION_COOKIE.'
     )
 }
 
