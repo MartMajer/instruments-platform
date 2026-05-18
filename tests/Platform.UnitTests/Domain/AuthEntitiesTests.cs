@@ -214,4 +214,106 @@ public sealed class AuthEntitiesTests
         Assert.Throws<ArgumentException>(() => session.Revoke(FixedNow, ""));
         Assert.Throws<ArgumentException>(() => session.Revoke(FixedNow, new string('x', 65)));
     }
+
+    [Fact]
+    public void Registration_intent_starts_pending_with_safe_metadata()
+    {
+        var intentId = Guid.NewGuid();
+        var expiresAt = FixedNow.AddMinutes(15);
+
+        var intent = new RegistrationIntent(
+            intentId,
+            "registration-token-hash",
+            "owner@example.test",
+            "Croatian Research Lab",
+            "croatian-research-lab",
+            FixedNow,
+            expiresAt);
+
+        Assert.Equal(intentId, intent.Id);
+        Assert.Equal("registration-token-hash", intent.RegistrationTokenHash);
+        Assert.Equal("owner@example.test", intent.Email);
+        Assert.Equal("Croatian Research Lab", intent.OrganizationName);
+        Assert.Equal("croatian-research-lab", intent.Slug);
+        Assert.Equal(RegistrationIntentStatuses.Pending, intent.Status);
+        Assert.Equal(FixedNow, intent.CreatedAt);
+        Assert.Equal(expiresAt, intent.ExpiresAt);
+        Assert.Null(intent.ConsumedAt);
+        Assert.Null(intent.ConsumedTenantId);
+        Assert.True(intent.IsPending(FixedNow.AddMinutes(1)));
+    }
+
+    [Fact]
+    public void Registration_intent_is_pending_only_before_expiry()
+    {
+        var intent = new RegistrationIntent(
+            Guid.NewGuid(),
+            "registration-token-hash",
+            "owner@example.test",
+            "Croatian Research Lab",
+            "croatian-research-lab",
+            FixedNow,
+            FixedNow.AddMinutes(15));
+
+        Assert.True(intent.IsPending(FixedNow.AddMinutes(14)));
+        Assert.False(intent.IsPending(FixedNow.AddMinutes(15)));
+        Assert.False(intent.IsPending(FixedNow.AddMinutes(16)));
+    }
+
+    [Fact]
+    public void Registration_intent_consumes_once_with_tenant_reference()
+    {
+        var tenantId = Guid.NewGuid();
+        var consumedAt = FixedNow.AddMinutes(5);
+        var intent = new RegistrationIntent(
+            Guid.NewGuid(),
+            "registration-token-hash",
+            "owner@example.test",
+            "Croatian Research Lab",
+            "croatian-research-lab",
+            FixedNow,
+            FixedNow.AddMinutes(15));
+
+        intent.Consume(tenantId, consumedAt);
+
+        Assert.Equal(RegistrationIntentStatuses.Consumed, intent.Status);
+        Assert.Equal(consumedAt, intent.ConsumedAt);
+        Assert.Equal(tenantId, intent.ConsumedTenantId);
+        Assert.False(intent.IsPending(consumedAt.AddSeconds(1)));
+        Assert.Throws<InvalidOperationException>(() => intent.Consume(Guid.NewGuid(), consumedAt.AddSeconds(1)));
+    }
+
+    [Theory]
+    [InlineData("", "owner@example.test", "Croatian Research Lab", "croatian-research-lab")]
+    [InlineData("registration-token-hash", "", "Croatian Research Lab", "croatian-research-lab")]
+    [InlineData("registration-token-hash", "owner@example.test", "", "croatian-research-lab")]
+    [InlineData("registration-token-hash", "owner@example.test", "Croatian Research Lab", "")]
+    public void Registration_intent_rejects_missing_required_metadata(
+        string tokenHash,
+        string email,
+        string organizationName,
+        string slug)
+    {
+        Assert.Throws<ArgumentException>(() => new RegistrationIntent(
+            Guid.NewGuid(),
+            tokenHash,
+            email,
+            organizationName,
+            slug,
+            FixedNow,
+            FixedNow.AddMinutes(15)));
+    }
+
+    [Fact]
+    public void Registration_intent_rejects_non_future_expiry()
+    {
+        Assert.Throws<ArgumentException>(() => new RegistrationIntent(
+            Guid.NewGuid(),
+            "registration-token-hash",
+            "owner@example.test",
+            "Croatian Research Lab",
+            "croatian-research-lab",
+            FixedNow,
+            FixedNow));
+    }
 }
