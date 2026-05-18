@@ -15,6 +15,7 @@ services:
       Authentication__Oidc__RequireHttpsMetadata: ${Authentication__Oidc__RequireHttpsMetadata:-true}
       Authentication__Oidc__RequireVerifiedEmail: ${Authentication__Oidc__RequireVerifiedEmail:-true}
       Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:?set staging web CORS origin}
+      ReverseProxy__ForwardedHeaders__Enabled: ${ReverseProxy__ForwardedHeaders__Enabled:-true}
     ports: !override
       - "127.0.0.1:${API_HTTP_PORT:-5055}:8080"
 

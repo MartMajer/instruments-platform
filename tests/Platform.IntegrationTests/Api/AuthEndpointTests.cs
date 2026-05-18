@@ -106,6 +106,33 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_uses_forwarded_https_scheme_for_oidc_callback()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test",
+            ["ReverseProxy:ForwardedHeaders:Enabled"] = "true"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/app");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"/auth/login?tenantId={tenantId}&returnUrl={returnUrl}");
+        request.Headers.Host = "api.example.test";
+        request.Headers.TryAddWithoutValidation("X-Forwarded-Proto", "https");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains(
+            "redirect_uri=https%3A%2F%2Fapi.example.test%2Fauth%2Fcallback",
+            response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_forwards_allowed_prompt_to_provider_challenge()
     {
         var tenantId = Guid.NewGuid();

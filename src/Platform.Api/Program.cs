@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.AspNetCore.HttpOverrides;
 using Platform.Api.Auth;
 using Platform.Api.Health;
 using Platform.Api.RateLimiting;
@@ -24,6 +25,18 @@ var developmentAuthenticationEnabled =
 var browserCorsOrigins = PlatformAuthServiceCollectionExtensions.GetBrowserCorsOrigins(
     builder.Configuration,
     developmentAuthenticationEnabled);
+var reverseProxyForwardedHeadersEnabled =
+    builder.Configuration.GetValue("ReverseProxy:ForwardedHeaders:Enabled", false);
+
+if (reverseProxyForwardedHeadersEnabled)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 
 builder.Services.AddPlatformAuthentication(builder.Configuration, builder.Environment);
 builder.Services.AddPlatformApplication();
@@ -48,6 +61,11 @@ if (browserCorsOrigins.Length > 0)
 }
 
 var app = builder.Build();
+
+if (reverseProxyForwardedHeadersEnabled)
+{
+    app.UseForwardedHeaders();
+}
 
 app.Use(async (context, next) =>
 {
