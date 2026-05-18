@@ -65,6 +65,7 @@ public static class PlatformAuthServiceCollectionExtensions
         services.AddScoped<PlatformOidcEvents>();
         services.AddScoped<PlatformSessionCookieEvents>();
         services.AddScoped<IPlatformOidcLoginResolver, EfPlatformOidcLoginResolver>();
+        services.AddScoped<IPlatformRegistrationLoginResolver, EfPlatformRegistrationLoginResolver>();
         services.AddScoped<IPlatformSessionValidator, EfPlatformSessionValidator>();
         services.AddScoped<IPlatformSessionRevoker, PlatformSessionRevoker>();
         services.AddScoped<IPlatformSessionRevocationStore, EfPlatformSessionRevocationStore>();

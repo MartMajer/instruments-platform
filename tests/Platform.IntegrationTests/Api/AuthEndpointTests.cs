@@ -773,6 +773,76 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Empty(store.Calls);
     }
 
+    [Fact]
+    public async Task Login_endpoint_allows_registration_token_without_tenant_id()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/app");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registrationToken=registration-token&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+    }
+
+    [Fact]
+    public async Task Login_endpoint_rejects_conflicting_tenant_and_registration_context()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateInteractiveOidcFactory().CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        var response = await client.GetAsync(
+            $"/auth/login?tenantId={tenantId}&registrationToken=registration-token&returnUrl=/app");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+    [Fact]
+    public async Task Oidc_token_validation_projects_platform_claims_from_registration_token()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var tenantResolver = new FakeOidcLoginResolver();
+        var registrationResolver = new FakeRegistrationLoginResolver
+        {
+            Resolution = new PlatformOidcLoginResolution(
+                userId,
+                tenantId,
+                sessionId,
+                [PlatformPermissions.SetupManage, PlatformPermissions.TeamManage])
+        };
+        var events = CreateOidcEvents(tenantResolver, registrationResolver: registrationResolver);
+        var context = CreateTokenValidatedContext(
+            "  Owner@Example.Test  ",
+            emailVerified: true,
+            registrationToken: "registration-token");
+
+        await events.TokenValidated(context);
+
+        Assert.Null(context.Result?.Failure);
+        Assert.Empty(tenantResolver.Calls);
+        Assert.Equal([("registration-token", "owner@example.test", "auth0", "auth0|subject")], registrationResolver.Calls);
+        Assert.Contains(context.Principal!.Claims, claim =>
+            claim.Type == PlatformClaimTypes.UserId && claim.Value == userId.ToString());
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.TenantMembership && claim.Value == tenantId.ToString());
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.SessionId && claim.Value == sessionId.ToString());
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.Permission && claim.Value == PlatformPermissions.SetupManage);
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.Permission && claim.Value == PlatformPermissions.TeamManage);
+    }
     private HttpClient CreateClient()
     {
         return factory.WithWebHostBuilder(builder =>
@@ -886,12 +956,14 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
 
     private static PlatformOidcEvents CreateOidcEvents(
         FakeOidcLoginResolver resolver,
-        Dictionary<string, string?>? configurationOverrides = null)
+        Dictionary<string, string?>? configurationOverrides = null,
+        FakeRegistrationLoginResolver? registrationResolver = null)
     {
         var configuration = CreateInteractiveOidcConfiguration(configurationOverrides);
 
         return new PlatformOidcEvents(
             resolver,
+            registrationResolver ?? new FakeRegistrationLoginResolver(),
             configuration,
             NullLogger<PlatformOidcEvents>.Instance);
     }
@@ -922,7 +994,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         string? email,
         bool emailVerified,
         Guid? tenantId = null,
-        string? providerSubject = "auth0|subject")
+        string? providerSubject = "auth0|subject",
+        string? registrationToken = null)
     {
         var claims = new List<Claim>
         {
@@ -944,6 +1017,12 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         {
             properties.Items[AuthEndpointRouteBuilderExtensions.TenantIdPropertyName] =
                 tenantId.Value.ToString();
+        }
+
+        if (!string.IsNullOrWhiteSpace(registrationToken))
+        {
+            properties.Items[AuthEndpointRouteBuilderExtensions.RegistrationTokenPropertyName] =
+                registrationToken;
         }
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, OidcScheme));
@@ -1067,6 +1146,24 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
             CancellationToken cancellationToken)
         {
             Calls.Add((tenantId, email, provider, providerSubject));
+            return Task.FromResult(Resolution);
+        }
+    }
+
+    private sealed class FakeRegistrationLoginResolver : IPlatformRegistrationLoginResolver
+    {
+        public PlatformOidcLoginResolution? Resolution { get; init; }
+
+        public List<(string RegistrationToken, string Email, string Provider, string ProviderSubject)> Calls { get; } = [];
+
+        public Task<PlatformOidcLoginResolution?> ResolveAsync(
+            string registrationToken,
+            string email,
+            string provider,
+            string providerSubject,
+            CancellationToken cancellationToken)
+        {
+            Calls.Add((registrationToken, email, provider, providerSubject));
             return Task.FromResult(Resolution);
         }
     }
