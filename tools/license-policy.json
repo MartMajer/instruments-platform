@@ -1,0 +1,84 @@
+{
+  "allowedLicenseExpressions": [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSD-0-Clause",
+    "0BSD",
+    "ISC"
+  ],
+  "conditionalLicenseExpressions": [
+    "MPL-2.0",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "GPL-2.0-only WITH Classpath-exception-2.0",
+    "GPL-2.0-or-later WITH Classpath-exception-2.0",
+    "PostgreSQL",
+    "BlueOak-1.0.0",
+    "licenseUrl:https://github.com/dotnet/corefx/blob/master/LICENSE.TXT",
+    "licenseUrl:https://raw.githubusercontent.com/xunit/xunit/master/license.txt"
+  ],
+  "forbiddenLicensePatterns": [
+    "AGPL",
+    "SSPL",
+    "BUSL",
+    "GPL-"
+  ],
+  "reviewedDependencies": [
+    {
+      "ecosystem": "npm",
+      "name": "minimatch",
+      "license": "BlueOak-1.0.0",
+      "approvedAs": "BlueOak-1.0.0",
+      "reason": "Permissive npm tooling dependency; no copyleft/source-disclosure obligation identified."
+    },
+    {
+      "ecosystem": "npm",
+      "namePattern": "^lightningcss($|-)",
+      "license": "MPL-2.0",
+      "approvedAs": "MPL-2.0",
+      "reason": "CSS build tooling dependency; MPL obligations stay with package files and attribution, not platform source."
+    },
+    {
+      "ecosystem": "nuget",
+      "name": "Npgsql",
+      "license": "PostgreSQL",
+      "approvedAs": "PostgreSQL",
+      "reason": "Permissive PostgreSQL license; accepted for database driver usage with attribution."
+    },
+    {
+      "ecosystem": "nuget",
+      "name": "Npgsql.EntityFrameworkCore.PostgreSQL",
+      "license": "PostgreSQL",
+      "approvedAs": "PostgreSQL",
+      "reason": "Permissive PostgreSQL license; accepted for EF Core provider usage with attribution."
+    },
+    {
+      "ecosystem": "nuget",
+      "name": "System.Reflection.Metadata",
+      "version": "1.6.0",
+      "license": "licenseUrl:https://github.com/dotnet/corefx/blob/master/LICENSE.TXT",
+      "approvedAs": "MIT",
+      "reason": "Legacy package metadata uses licenseUrl; linked dotnet/corefx license is MIT."
+    },
+    {
+      "ecosystem": "nuget",
+      "name": "System.Memory",
+      "version": "4.5.4",
+      "license": "licenseUrl:https://github.com/dotnet/corefx/blob/master/LICENSE.TXT",
+      "approvedAs": "MIT",
+      "reason": "Transitive .NET hosting dependency; legacy package metadata uses licenseUrl and the package LICENSE.TXT is MIT."
+    },
+    {
+      "ecosystem": "nuget",
+      "name": "xunit.abstractions",
+      "version": "2.0.3",
+      "license": "licenseUrl:https://raw.githubusercontent.com/xunit/xunit/master/license.txt",
+      "approvedAs": "Apache-2.0",
+      "reason": "Legacy package metadata uses licenseUrl; xUnit license is Apache-2.0."
+    }
+  ]
+}

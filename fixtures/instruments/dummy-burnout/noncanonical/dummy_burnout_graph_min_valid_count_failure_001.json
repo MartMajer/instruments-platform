@@ -1,0 +1,40 @@
+{
+  "fixture_id": "dummy_burnout_graph_min_valid_count_failure_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic.graph-missing",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "schema_version": "1.0.0",
+    "engine_min_version": "1.0.0",
+    "rule_id": "dummy-burnout.synthetic.graph-missing",
+    "rule_version": "1.0.0",
+    "inputs": [
+      { "id": "core_items", "kind": "answers", "items": ["q01", "q02", "q03"] }
+    ],
+    "nodes": [
+      { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+      { "id": "total", "op": "mean", "input": "core_answers" }
+    ],
+    "outputs": [
+      { "code": "total", "node": "total" }
+    ],
+    "missing_data": {
+      "defaults": { "strategy": "min_valid_count", "min_valid_count": 2 }
+    },
+    "metadata": {
+      "provenance": "Synthetic non-canonical fixture for A49b missing-data failure replay."
+    }
+  },
+  "produces": {
+    "scores": ["total"]
+  },
+  "compatibility": {},
+  "answers": {
+    "q01": 4
+  },
+  "expected_outputs": [],
+  "expected_error_code": "score.answer_missing",
+  "tolerance": { "numeric_abs": 0.0001 }
+}

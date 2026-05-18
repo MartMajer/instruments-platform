@@ -1,0 +1,878 @@
+<script lang="ts">
+	import { env } from '$env/dynamic/public';
+	import { onDestroy } from 'svelte';
+	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, UserRound } from 'lucide-svelte';
+	import type {
+		SubjectDirectoryItemResponse,
+		SubjectDirectoryResponse,
+		SubjectGroupListResponse,
+		SubjectGroupResponse
+	} from '$lib/api/product';
+	import type { AuthSessionResponse } from '$lib/api/setup';
+	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
+	import InlineAlert from '$lib/components/InlineAlert.svelte';
+	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
+	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
+	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
+	import { createProductApiFromEnv, createProductRequestGate } from '$lib/product/route-state';
+	import {
+		getProductAuthContext,
+		hasProductPermission,
+		setupManagePermission
+	} from '$lib/product/auth-context';
+	import { toProductRouteGuidance } from '$lib/product/route-guidance';
+	import { toProductApiErrorMessage } from '$lib/product/view-models';
+
+	type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+
+	const productApi = createProductApiFromEnv(env);
+	const requestGate = createProductRequestGate();
+	const authContext = getProductAuthContext();
+
+	let authSession = $state<AuthSessionResponse | null>(null);
+	let loadState = $state<LoadState>('idle');
+	let directory = $state<SubjectDirectoryResponse | null>(null);
+	let groupList = $state<SubjectGroupListResponse | null>(null);
+	let errorMessage = $state<string | null>(null);
+	let newSubjectDisplayName = $state('');
+	let newSubjectEmail = $state('');
+	let newSubjectExternalId = $state('');
+	let newSubjectLocale = $state('en');
+	let newSubjectAttributes = $state('{}');
+	let creatingSubject = $state(false);
+	let subjectMutationError = $state<string | null>(null);
+	let editSubjectSourceId = $state('');
+	let editSubjectDisplayName = $state('');
+	let editSubjectEmail = $state('');
+	let editSubjectExternalId = $state('');
+	let editSubjectLocale = $state('en');
+	let editSubjectAttributes = $state('{}');
+	let savingSubject = $state(false);
+	let editSubjectError = $state<string | null>(null);
+	let newGroupType = $state('department');
+	let newGroupName = $state('');
+	let newGroupParentId = $state('');
+	let newGroupAttributes = $state('{}');
+	let creatingGroup = $state(false);
+	let groupMutationError = $state<string | null>(null);
+	let selectedSubjectId = $state('');
+	let selectedGroupId = $state('');
+	let membershipRole = $state('');
+	let addingMembership = $state(false);
+	let membershipError = $state<string | null>(null);
+	let managerSubjectId = $state('');
+	let managerValidFrom = $state('');
+	let savingManager = $state(false);
+	let managerError = $state<string | null>(null);
+
+	const unsubscribeAuth = authContext.session.subscribe((value) => {
+		authSession = value;
+	});
+	onDestroy(unsubscribeAuth);
+
+	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
+	const subjects = $derived(directory?.subjects ?? []);
+	const groups = $derived(groupList?.groups ?? []);
+	const membershipCount = $derived(
+		subjects.reduce((total, subject) => total + subject.groups.length, 0)
+	);
+	const routeGuidance = $derived(
+		toProductRouteGuidance('directory', {
+			canManageSetup,
+			isEmpty:
+				canManageSetup && loadState === 'ready' && subjects.length === 0 && groups.length === 0
+		})
+	);
+	const selectedSubject = $derived(
+		subjects.find((subject) => subject.id === selectedSubjectId) ?? null
+	);
+	const managerOptions = $derived(subjects.filter((subject) => subject.id !== selectedSubjectId));
+
+	$effect(() => {
+		if (canManageSetup && loadState === 'idle') {
+			void loadDirectory();
+		}
+	});
+
+	$effect(() => {
+		if ((selectedSubject?.id ?? '') !== editSubjectSourceId) {
+			syncSelectedSubjectFields(subjects);
+		}
+	});
+
+	async function loadDirectory() {
+		const requestId = requestGate.next();
+
+		loadState = 'loading';
+		errorMessage = null;
+
+		try {
+			const [nextDirectory, nextGroupList] = await Promise.all([
+				productApi.listSubjects(),
+				productApi.listSubjectGroups()
+			]);
+
+			if (!requestGate.isCurrent(requestId)) {
+				return;
+			}
+
+			directory = nextDirectory;
+			groupList = nextGroupList;
+			syncSelections(nextDirectory.subjects, nextGroupList.groups);
+			syncSelectedSubjectFields(nextDirectory.subjects);
+			loadState = 'ready';
+		} catch (error) {
+			if (!requestGate.isCurrent(requestId)) {
+				return;
+			}
+
+			directory = null;
+			groupList = null;
+			errorMessage = toProductApiErrorMessage(error, 'Subject directory could not be loaded.');
+			loadState = 'error';
+		}
+	}
+
+	async function createSubject() {
+		if (!canManageSetup) {
+			return;
+		}
+
+		if (!newSubjectDisplayName.trim() && !newSubjectEmail.trim() && !newSubjectExternalId.trim()) {
+			subjectMutationError = 'Enter a display name, email, or external id.';
+			return;
+		}
+
+		creatingSubject = true;
+		subjectMutationError = null;
+
+		try {
+			const created = await productApi.createSubject({
+				displayName: optionalText(newSubjectDisplayName),
+				email: optionalText(newSubjectEmail),
+				externalId: optionalText(newSubjectExternalId),
+				locale: newSubjectLocale.trim() || 'en',
+				attributes: newSubjectAttributes.trim() || '{}'
+			});
+			newSubjectDisplayName = '';
+			newSubjectEmail = '';
+			newSubjectExternalId = '';
+			newSubjectAttributes = '{}';
+			await loadDirectory();
+			selectedSubjectId = created.id;
+			syncSelectedSubjectFields(directory?.subjects ?? []);
+		} catch (error) {
+			subjectMutationError = toProductApiErrorMessage(error, 'Subject could not be created.');
+		} finally {
+			creatingSubject = false;
+		}
+	}
+
+	async function saveSelectedSubject() {
+		if (!canManageSetup || !selectedSubjectId) {
+			editSubjectError = 'Select a subject.';
+			return;
+		}
+
+		if (
+			!editSubjectDisplayName.trim() &&
+			!editSubjectEmail.trim() &&
+			!editSubjectExternalId.trim()
+		) {
+			editSubjectError = 'Enter a display name, email, or external id.';
+			return;
+		}
+
+		savingSubject = true;
+		editSubjectError = null;
+
+		try {
+			await productApi.updateSubject(selectedSubjectId, {
+				displayName: optionalText(editSubjectDisplayName),
+				email: optionalText(editSubjectEmail),
+				externalId: optionalText(editSubjectExternalId),
+				locale: editSubjectLocale.trim() || 'en',
+				attributes: editSubjectAttributes.trim() || '{}'
+			});
+			await loadDirectory();
+		} catch (error) {
+			editSubjectError = toProductApiErrorMessage(error, 'Subject could not be updated.');
+		} finally {
+			savingSubject = false;
+		}
+	}
+
+	async function createSubjectGroup() {
+		if (!canManageSetup) {
+			return;
+		}
+
+		if (!newGroupType.trim() || !newGroupName.trim()) {
+			groupMutationError = 'Enter a group type and name.';
+			return;
+		}
+
+		creatingGroup = true;
+		groupMutationError = null;
+
+		try {
+			const created = await productApi.createSubjectGroup({
+				type: newGroupType.trim(),
+				name: newGroupName.trim(),
+				parentGroupId: optionalText(newGroupParentId),
+				attributes: newGroupAttributes.trim() || '{}'
+			});
+			newGroupName = '';
+			newGroupParentId = '';
+			newGroupAttributes = '{}';
+			await loadDirectory();
+			selectedGroupId = created.id;
+		} catch (error) {
+			groupMutationError = toProductApiErrorMessage(error, 'Subject group could not be created.');
+		} finally {
+			creatingGroup = false;
+		}
+	}
+
+	async function addSubjectGroupMember() {
+		if (!canManageSetup || !selectedSubjectId || !selectedGroupId) {
+			membershipError = 'Select a subject and group.';
+			return;
+		}
+
+		addingMembership = true;
+		membershipError = null;
+
+		try {
+			await productApi.addSubjectGroupMember(selectedGroupId, {
+				subjectId: selectedSubjectId,
+				roleInGroup: optionalText(membershipRole)
+			});
+			membershipRole = '';
+			await loadDirectory();
+		} catch (error) {
+			membershipError = toProductApiErrorMessage(error, 'Group membership could not be saved.');
+		} finally {
+			addingMembership = false;
+		}
+	}
+
+	async function setSubjectManager() {
+		if (!canManageSetup || !selectedSubjectId) {
+			managerError = 'Select a subject.';
+			return;
+		}
+
+		savingManager = true;
+		managerError = null;
+
+		try {
+			await productApi.setSubjectManager(selectedSubjectId, {
+				managerSubjectId: optionalText(managerSubjectId),
+				validFrom: optionalText(managerValidFrom)
+			});
+			managerValidFrom = '';
+			await loadDirectory();
+		} catch (error) {
+			managerError = toProductApiErrorMessage(error, 'Manager relationship could not be saved.');
+		} finally {
+			savingManager = false;
+		}
+	}
+
+	function syncSelections(
+		nextSubjects: SubjectDirectoryItemResponse[],
+		nextGroups: SubjectGroupResponse[]
+	) {
+		if (!nextSubjects.some((subject) => subject.id === selectedSubjectId)) {
+			selectedSubjectId = nextSubjects[0]?.id ?? '';
+		}
+
+		if (!nextGroups.some((group) => group.id === selectedGroupId)) {
+			selectedGroupId = nextGroups[0]?.id ?? '';
+		}
+	}
+
+	function syncSelectedSubjectFields(nextSubjects: SubjectDirectoryItemResponse[]) {
+		const subject = nextSubjects.find((candidate) => candidate.id === selectedSubjectId) ?? null;
+		if (!subject) {
+			editSubjectSourceId = '';
+			editSubjectDisplayName = '';
+			editSubjectEmail = '';
+			editSubjectExternalId = '';
+			editSubjectLocale = 'en';
+			editSubjectAttributes = '{}';
+			managerSubjectId = '';
+			return;
+		}
+
+		editSubjectSourceId = subject.id;
+		editSubjectDisplayName = subject.displayName ?? '';
+		editSubjectEmail = subject.email ?? '';
+		editSubjectExternalId = subject.externalId ?? '';
+		editSubjectLocale = subject.locale;
+		editSubjectAttributes = subject.attributes;
+		managerSubjectId = subject.managerSubjectId ?? '';
+	}
+
+	function optionalText(value: string) {
+		const trimmed = value.trim();
+		return trimmed.length > 0 ? trimmed : null;
+	}
+
+	function subjectLabel(subject: SubjectDirectoryItemResponse | null) {
+		if (!subject) {
+			return 'No subject selected';
+		}
+
+		return subject.displayName || subject.email || subject.externalId || subject.id;
+	}
+
+	function groupParentLabel(group: SubjectGroupResponse) {
+		if (!group.parentGroupId) {
+			return 'Root group';
+		}
+
+		return (
+			groups.find((candidate) => candidate.id === group.parentGroupId)?.name ?? group.parentGroupId
+		);
+	}
+</script>
+
+<SurfaceHeader
+	eyebrow="Tenant graph"
+	title="Directory"
+	description="Tenant subjects, groups, and manager relationships for launch targeting and reporting context."
+/>
+
+<RouteGuidancePanel guidance={routeGuidance} />
+
+{#if !canManageSetup}
+	<InlineAlert
+		variant="warning"
+		title="Directory access requires setup management"
+		message="Subject directory data is only available to setup managers."
+	/>
+{:else}
+	<section class="product-panel" aria-label="People and targeting overview">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">People and targeting</p>
+				<h2 class="product-title">People and targeting overview</h2>
+				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+					Directory connects people, groups, and manager relationships so studies can target the
+					right respondents and support hierarchy-aware evaluation paths.
+				</p>
+			</div>
+			<button type="button" class="secondary-button" onclick={loadDirectory}>
+				<RefreshCcw size={16} aria-hidden="true" />
+				<span>Refresh</span>
+			</button>
+		</div>
+
+		<dl class="directory-count-list" role="group" aria-label="People and targeting counts">
+			<div class="directory-count-row">
+				<dt class="directory-count-row__label">Subjects</dt>
+				<dd class="directory-count-row__value">{directory?.summary.subjectCount ?? 0}</dd>
+			</div>
+			<div class="directory-count-row">
+				<dt class="directory-count-row__label">Groups</dt>
+				<dd class="directory-count-row__value">{directory?.summary.groupCount ?? 0}</dd>
+			</div>
+			<div class="directory-count-row">
+				<dt class="directory-count-row__label">Memberships</dt>
+				<dd class="directory-count-row__value">{membershipCount}</dd>
+			</div>
+			<div class="directory-count-row">
+				<dt class="directory-count-row__label">Manager links</dt>
+				<dd class="directory-count-row__value">
+					{directory?.summary.managerRelationshipCount ?? 0}
+				</dd>
+			</div>
+		</dl>
+
+		<div class="record-list">
+			<article class="record-row" aria-label="Study targeting">
+				<span class="record-row__header">
+					<span class="record-row__title">Study targeting</span>
+					<span class="status-badge" data-status="neutral">Groups</span>
+				</span>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Use subjects and groups when a study should target a department, cohort, team, role, or
+					other defined audience.
+				</p>
+			</article>
+			<article class="record-row" aria-label="Group respondent rules">
+				<span class="record-row__header">
+					<span class="record-row__title">Group respondent rules</span>
+					<span class="status-badge" data-status="neutral">Respondents</span>
+				</span>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Group memberships feed respondent rules so setup can preview who answers for a selected
+					target population.
+				</p>
+			</article>
+			<article class="record-row" aria-label="Manager relationships">
+				<span class="record-row__header">
+					<span class="record-row__title">Manager relationships</span>
+					<span class="status-badge" data-status="neutral">Hierarchy</span>
+				</span>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Manager links make manager-of-target review possible without mixing workplace hierarchy
+					with app login roles.
+				</p>
+			</article>
+			<article class="record-row" aria-label="Reports-of-target paths">
+				<span class="record-row__header">
+					<span class="record-row__title">Reports-of-target paths</span>
+					<span class="status-badge" data-status="neutral">Evaluation</span>
+				</span>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Direct-report counts support reports-of-target evaluation paths for hierarchy-aware
+					studies.
+				</p>
+			</article>
+		</div>
+	</section>
+
+	<section class="product-panel" aria-label="Subject directory">
+		<LoadingBoundary loading={loadState === 'loading'} label="Loading subject directory">
+			{#if loadState === 'error' && errorMessage}
+				<ErrorPanel
+					title="Subject directory unavailable"
+					message={errorMessage}
+					retryLabel="Retry directory"
+					onRetry={loadDirectory}
+				/>
+			{:else if directory && groupList}
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">Tenant read model</p>
+						<h2 class="product-title">Directory graph</h2>
+					</div>
+				</div>
+
+				<dl class="directory-count-list" role="group" aria-label="Directory graph counts">
+					<div class="directory-count-row">
+						<dt class="directory-count-row__label">Subjects</dt>
+						<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
+					</div>
+					<div class="directory-count-row">
+						<dt class="directory-count-row__label">Groups</dt>
+						<dd class="directory-count-row__value">{directory.summary.groupCount}</dd>
+					</div>
+					<div class="directory-count-row">
+						<dt class="directory-count-row__label">Manager links</dt>
+						<dd class="directory-count-row__value">
+							{directory.summary.managerRelationshipCount}
+						</dd>
+					</div>
+				</dl>
+
+				{#if subjects.length === 0}
+					<EmptyState
+						title="No subjects"
+						description="Create subjects before configuring hierarchy."
+					/>
+				{:else}
+					<div class="record-list">
+						{#each subjects as subject (subject.id)}
+							<article class="record-row" aria-label={subjectLabel(subject)}>
+								<span class="record-row__header">
+									<span class="record-row__title">{subjectLabel(subject)}</span>
+									<span
+										class="status-badge"
+										data-status={subject.managerSubjectId ? 'ready' : 'pending'}
+									>
+										{subject.managerSubjectId ? 'Managed' : 'No manager'}
+									</span>
+								</span>
+								<span class="record-grid">
+									<span class="record-field">
+										<span class="record-field__label">Email</span>
+										<span class="record-field__value">{subject.email ?? 'Not available'}</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">External id</span>
+										<span class="record-field__value">{subject.externalId ?? 'Not available'}</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">Locale</span>
+										<span class="record-field__value">{subject.locale}</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">Manager</span>
+										<span class="record-field__value">{subject.managerDisplayName ?? 'None'}</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">Direct reports</span>
+										<span class="record-field__value">{subject.directReportCount}</span>
+									</span>
+								</span>
+								<div>
+									<p class="record-field__label">Groups</p>
+									<div class="mt-2 flex flex-wrap gap-2">
+										{#if subject.groups.length === 0}
+											<span class="text-xs text-[var(--color-text-muted)]">No memberships</span>
+										{:else}
+											{#each subject.groups as membership (membership.groupId)}
+												<span
+													class="inline-flex items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold"
+												>
+													<UserRound size={13} aria-hidden="true" />
+													{membership.groupName}
+													{#if membership.roleInGroup}
+														<span class="text-[var(--color-text-muted)]"
+															>({membership.roleInGroup})</span
+														>
+													{/if}
+												</span>
+											{/each}
+										{/if}
+									</div>
+								</div>
+							</article>
+						{/each}
+					</div>
+				{/if}
+			{/if}
+		</LoadingBoundary>
+	</section>
+
+	<section class="product-panel" aria-label="Subject groups">
+		{#if groupList}
+			<div class="product-panel__header">
+				<div>
+					<p class="product-kicker">Tenant groups</p>
+					<h2 class="product-title">Group directory</h2>
+				</div>
+			</div>
+
+			{#if groups.length === 0}
+				<EmptyState title="No groups" description="Create groups before assigning subjects." />
+			{:else}
+				<div class="record-list">
+					{#each groups as group (group.id)}
+						<article class="record-row" aria-label={group.name}>
+							<span class="record-row__header">
+								<span class="record-row__title">{group.name}</span>
+								<span class="status-badge" data-status="neutral">{group.type}</span>
+							</span>
+							<span class="record-grid">
+								<span class="record-field">
+									<span class="record-field__label">Parent</span>
+									<span class="record-field__value">{groupParentLabel(group)}</span>
+								</span>
+								<span class="record-field">
+									<span class="record-field__label">Members</span>
+									<span class="record-field__value">{group.memberCount}</span>
+								</span>
+							</span>
+						</article>
+					{/each}
+				</div>
+			{/if}
+		{/if}
+	</section>
+
+	<section class="product-panel" aria-label="Create directory records">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">Directory setup</p>
+				<h2 class="product-title">Subjects and groups</h2>
+			</div>
+			<button type="button" class="secondary-button" onclick={loadDirectory}>
+				<RefreshCcw size={16} aria-hidden="true" />
+				<span>Refresh</span>
+			</button>
+		</div>
+
+		<div class="grid gap-4 xl:grid-cols-2">
+			<form
+				class="grid gap-3"
+				onsubmit={(event) => {
+					event.preventDefault();
+					void createSubject();
+				}}
+			>
+				<div>
+					<p class="product-kicker">Subject</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">New subject</h3>
+				</div>
+				<div class="grid gap-3 md:grid-cols-2">
+					<label class="field">
+						<span>Display name</span>
+						<input bind:value={newSubjectDisplayName} disabled={creatingSubject} />
+					</label>
+					<label class="field">
+						<span>Email</span>
+						<input type="email" bind:value={newSubjectEmail} disabled={creatingSubject} />
+					</label>
+					<label class="field">
+						<span>External id</span>
+						<input bind:value={newSubjectExternalId} disabled={creatingSubject} />
+					</label>
+					<label class="field">
+						<span>Locale</span>
+						<input bind:value={newSubjectLocale} disabled={creatingSubject} />
+					</label>
+				</div>
+				<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+						Advanced attributes
+					</summary>
+					<label class="field mt-3">
+						<span>Attributes JSON</span>
+						<textarea rows="3" bind:value={newSubjectAttributes} disabled={creatingSubject}
+						></textarea>
+					</label>
+				</details>
+				<button type="submit" class="primary-button" disabled={creatingSubject}>
+					{#if creatingSubject}
+						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Plus size={17} aria-hidden="true" />
+					{/if}
+					<span>{creatingSubject ? 'Creating...' : 'Create subject'}</span>
+				</button>
+				{#if subjectMutationError}
+					<p class="error-line" role="alert">{subjectMutationError}</p>
+				{/if}
+			</form>
+
+			<form
+				class="grid gap-3"
+				onsubmit={(event) => {
+					event.preventDefault();
+					void createSubjectGroup();
+				}}
+			>
+				<div>
+					<p class="product-kicker">Group</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">New group</h3>
+				</div>
+				<div class="grid gap-3 md:grid-cols-2">
+					<label class="field">
+						<span>Type</span>
+						<input bind:value={newGroupType} disabled={creatingGroup} />
+					</label>
+					<label class="field">
+						<span>Name</span>
+						<input bind:value={newGroupName} disabled={creatingGroup} />
+					</label>
+				</div>
+				<label class="field">
+					<span>Parent group</span>
+					<select bind:value={newGroupParentId} disabled={creatingGroup || groups.length === 0}>
+						<option value="">No parent</option>
+						{#each groups as group (group.id)}
+							<option value={group.id}>{group.name}</option>
+						{/each}
+					</select>
+				</label>
+				<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+						Advanced attributes
+					</summary>
+					<label class="field mt-3">
+						<span>Attributes JSON</span>
+						<textarea rows="3" bind:value={newGroupAttributes} disabled={creatingGroup}></textarea>
+					</label>
+				</details>
+				<button type="submit" class="primary-button" disabled={creatingGroup}>
+					{#if creatingGroup}
+						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Plus size={17} aria-hidden="true" />
+					{/if}
+					<span>{creatingGroup ? 'Creating...' : 'Create group'}</span>
+				</button>
+				{#if groupMutationError}
+					<p class="error-line" role="alert">{groupMutationError}</p>
+				{/if}
+			</form>
+		</div>
+	</section>
+
+	<section class="product-panel" aria-label="Directory relationships">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">Hierarchy setup</p>
+				<h2 class="product-title">Membership and manager</h2>
+			</div>
+		</div>
+
+		<form
+			class="grid gap-3 border-b border-[var(--color-border)] pb-4"
+			onsubmit={(event) => {
+				event.preventDefault();
+				void saveSelectedSubject();
+			}}
+		>
+			<div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+				<label class="field">
+					<span>Selected subject</span>
+					<select bind:value={selectedSubjectId} disabled={subjects.length === 0 || savingSubject}>
+						{#each subjects as subject (subject.id)}
+							<option value={subject.id}>{subjectLabel(subject)}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="field">
+					<span>Display name</span>
+					<input bind:value={editSubjectDisplayName} disabled={savingSubject || !selectedSubject} />
+				</label>
+				<label class="field">
+					<span>Email</span>
+					<input
+						type="email"
+						bind:value={editSubjectEmail}
+						disabled={savingSubject || !selectedSubject}
+					/>
+				</label>
+				<label class="field">
+					<span>External id</span>
+					<input bind:value={editSubjectExternalId} disabled={savingSubject || !selectedSubject} />
+				</label>
+				<label class="field">
+					<span>Locale</span>
+					<input bind:value={editSubjectLocale} disabled={savingSubject || !selectedSubject} />
+				</label>
+			</div>
+			<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+				<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+					Advanced attributes
+				</summary>
+				<label class="field mt-3">
+					<span>Attributes JSON</span>
+					<textarea
+						rows="3"
+						bind:value={editSubjectAttributes}
+						disabled={savingSubject || !selectedSubject}
+					></textarea>
+				</label>
+			</details>
+			<button type="submit" class="secondary-button" disabled={savingSubject || !selectedSubject}>
+				{#if savingSubject}
+					<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+				{:else}
+					<Save size={16} aria-hidden="true" />
+				{/if}
+				<span>{savingSubject ? 'Saving...' : 'Save subject'}</span>
+			</button>
+			{#if editSubjectError}
+				<p class="error-line" role="alert">{editSubjectError}</p>
+			{/if}
+		</form>
+
+		<div class="grid gap-4 xl:grid-cols-2">
+			<form
+				class="grid gap-3"
+				onsubmit={(event) => {
+					event.preventDefault();
+					void addSubjectGroupMember();
+				}}
+			>
+				<div class="grid gap-3 md:grid-cols-2">
+					<label class="field">
+						<span>Subject</span>
+						<select
+							bind:value={selectedSubjectId}
+							disabled={subjects.length === 0 || addingMembership}
+						>
+							{#each subjects as subject (subject.id)}
+								<option value={subject.id}>{subjectLabel(subject)}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="field">
+						<span>Group</span>
+						<select bind:value={selectedGroupId} disabled={groups.length === 0 || addingMembership}>
+							{#each groups as group (group.id)}
+								<option value={group.id}>{group.name}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+				<label class="field">
+					<span>Role in group</span>
+					<input bind:value={membershipRole} disabled={addingMembership} />
+				</label>
+				<button
+					type="submit"
+					class="secondary-button"
+					disabled={addingMembership || subjects.length === 0 || groups.length === 0}
+				>
+					{#if addingMembership}
+						<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Link2 size={16} aria-hidden="true" />
+					{/if}
+					<span>{addingMembership ? 'Saving...' : 'Add membership'}</span>
+				</button>
+				{#if membershipError}
+					<p class="error-line" role="alert">{membershipError}</p>
+				{/if}
+			</form>
+
+			<form
+				class="grid gap-3"
+				onsubmit={(event) => {
+					event.preventDefault();
+					void setSubjectManager();
+				}}
+			>
+				<div class="grid gap-3 md:grid-cols-2">
+					<label class="field">
+						<span>Subject</span>
+						<select
+							bind:value={selectedSubjectId}
+							disabled={subjects.length === 0 || savingManager}
+						>
+							{#each subjects as subject (subject.id)}
+								<option value={subject.id}>{subjectLabel(subject)}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="field">
+						<span>Manager</span>
+						<select
+							bind:value={managerSubjectId}
+							disabled={managerOptions.length === 0 || savingManager}
+						>
+							<option value="">No manager</option>
+							{#each managerOptions as subject (subject.id)}
+								<option value={subject.id}>{subjectLabel(subject)}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
+				<label class="field">
+					<span>Valid from</span>
+					<input type="date" bind:value={managerValidFrom} disabled={savingManager} />
+				</label>
+				<button
+					type="submit"
+					class="secondary-button"
+					disabled={savingManager || subjects.length === 0}
+				>
+					{#if savingManager}
+						<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Save size={16} aria-hidden="true" />
+					{/if}
+					<span>{savingManager ? 'Saving...' : 'Save manager'}</span>
+				</button>
+				{#if selectedSubject}
+					<p class="text-sm text-[var(--color-text-muted)]">
+						Current manager: {selectedSubject.managerDisplayName ?? 'None'}
+					</p>
+				{/if}
+				{#if managerError}
+					<p class="error-line" role="alert">{managerError}</p>
+				{/if}
+			</form>
+		</div>
+	</section>
+{/if}

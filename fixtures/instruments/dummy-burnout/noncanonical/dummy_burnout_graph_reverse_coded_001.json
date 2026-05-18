@@ -1,0 +1,67 @@
+{
+  "fixture_id": "dummy_burnout_graph_reverse_coded_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic.graph",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "schema_version": "1.0.0",
+    "engine_min_version": "1.0.0",
+    "rule_id": "dummy-burnout.synthetic.graph",
+    "rule_version": "1.0.0",
+    "scale_defaults": {
+      "agreement": { "min": 1, "max": 5 }
+    },
+    "inputs": [
+      { "id": "core_items", "kind": "answers", "items": ["q01", "q02", "q03"] }
+    ],
+    "nodes": [
+      { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+      {
+        "id": "scored_answers",
+        "op": "reverse_code",
+        "input": "core_answers",
+        "scale": "agreement",
+        "reverse_flag_source": "explicit_list",
+        "explicit_reverse_items": ["q03"]
+      },
+      { "id": "total", "op": "mean", "input": "scored_answers" }
+    ],
+    "outputs": [
+      { "code": "total", "node": "total" }
+    ],
+    "missing_data": {
+      "defaults": { "strategy": "require_all" }
+    }
+  },
+  "produces": {
+    "scores": ["total"]
+  },
+  "compatibility": {
+    "output_equivalent_with": [
+      {
+        "rule_id": "dummy-burnout.synthetic.graph",
+        "rule_version_range": ">=1.0.0 <1.1.0",
+        "scope": "all_outputs",
+        "evidence": "Synthetic fixture replay for non-canonical graph parity."
+      }
+    ]
+  },
+  "answers": {
+    "q01": 2,
+    "q02": 3,
+    "q03": 5
+  },
+  "expected_outputs": [
+    {
+      "dimension_code": "total",
+      "value": 2.0000,
+      "n_valid": 3,
+      "n_expected": 3,
+      "missing_policy_status": "ok"
+    }
+  ],
+  "expected_error_code": null,
+  "tolerance": { "numeric_abs": 0.0001 }
+}

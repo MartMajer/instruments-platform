@@ -1,0 +1,17 @@
+.git
+.worktrees
+**/bin
+**/obj
+**/node_modules
+apps/web/.svelte-kit
+apps/web/build
+artifacts
+.vs
+.vscode
+.env
+.env.*
+.dotnet-cli
+.dotnet-home
+.dotnet
+.home
+docs/Design.MockToAdapt-UseWhatYouWant

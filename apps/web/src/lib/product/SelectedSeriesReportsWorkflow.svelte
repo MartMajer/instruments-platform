@@ -1,0 +1,717 @@
+<script lang="ts">
+	import { env } from '$env/dynamic/public';
+	import { Download, FileSearch, LoaderCircle, Send } from 'lucide-svelte';
+	import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
+	import type {
+		CampaignReportProofResponse,
+		ExportArtifactDownloadResponse,
+		ReportProofExportArtifactResponse
+	} from '$lib/api/setup';
+	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import {
+		toSelectedSeriesReportsPath,
+		type SelectedSeriesReportsPathStepState,
+		type SelectedSeriesReportsWorkflowActionId
+	} from './reports-workflow';
+	import { createSetupApiFromEnv } from './route-state';
+	import { formatScoreOutputMetadata, toProductApiErrorMessage } from './view-models';
+
+	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
+
+	let {
+		workspace,
+		canManageSetup = true,
+		onWorkspaceRefresh
+	}: {
+		workspace: CampaignSeriesReportsWorkspaceResponse;
+		canManageSetup?: boolean;
+		onWorkspaceRefresh?: () => Promise<boolean>;
+	} = $props();
+
+	const setupApi = createSetupApiFromEnv(env);
+
+	let reportProofResult = $state<CampaignReportProofResponse | null>(null);
+	let exportResult = $state<ReportProofExportArtifactResponse | null>(null);
+	let responseExportResult = $state<ReportProofExportArtifactResponse | null>(null);
+	let storedExportResult = $state<ReportProofExportArtifactResponse | null>(null);
+	let downloadResult = $state<ExportArtifactDownloadResponse | null>(null);
+	let refreshWarning = $state<string | null>(null);
+	let actionStates = $state<Record<SelectedSeriesReportsWorkflowActionId, StepState>>({
+		reportProof: 'idle',
+		exportArtifact: 'idle',
+		responseExport: 'idle',
+		fetchArtifact: 'idle',
+		downloadCsv: 'idle'
+	});
+	let actionErrors = $state<Record<SelectedSeriesReportsWorkflowActionId, string | null>>({
+		reportProof: null,
+		exportArtifact: null,
+		responseExport: null,
+		fetchArtifact: null,
+		downloadCsv: null
+	});
+
+	const selectedCampaign = $derived(workspace.selectedCampaign);
+	const latestResponseExportArtifact = $derived(
+		workspace.exportArtifacts.find(
+			(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
+		) ?? null
+	);
+	const latestDownloadableExportArtifact = $derived(
+		workspace.exportArtifacts.find((artifact) => artifact.canDownload) ?? null
+	);
+	const latestResponseExportArtifactId = $derived(latestResponseExportArtifact?.id ?? null);
+	const currentExportArtifactId = $derived(
+		storedExportResult?.id ??
+			responseExportResult?.id ??
+			exportResult?.id ??
+			latestResponseExportArtifactId ??
+			selectedCampaign?.latestExportArtifactId ??
+			null
+	);
+	const currentDownloadableExportArtifactId = $derived(
+		(storedExportResult?.canDownload ? storedExportResult.id : null) ??
+			(responseExportResult?.canDownload ? responseExportResult.id : null) ??
+			(exportResult?.canDownload ? exportResult.id : null) ??
+			latestDownloadableExportArtifact?.id ??
+			(selectedCampaign?.latestExportArtifactCanDownload
+				? selectedCampaign.latestExportArtifactId
+				: null) ??
+			null
+	);
+	const localState = $derived({
+		reportProofViewed: Boolean(reportProofResult),
+		exportCreated: Boolean(exportResult),
+		responseExportCreated: Boolean(responseExportResult),
+		artifactFetched: Boolean(storedExportResult),
+		csvDownloaded: Boolean(downloadResult)
+	});
+	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
+	const workflowActions = $derived(reportsPath.steps);
+	const currentAction = $derived(reportsPath.currentAction);
+	const hasReportResults = $derived(
+		Boolean(
+			reportProofResult ||
+			exportResult ||
+			responseExportResult ||
+			storedExportResult ||
+			downloadResult
+		)
+	);
+
+	function scoreInterpretationMeta(
+		interpretation:
+			| {
+					status: string;
+					source: string;
+					isValidated: boolean;
+					isOfficial: boolean;
+			  }
+			| null
+			| undefined
+	) {
+		if (!interpretation) {
+			return null;
+		}
+
+		return [
+			interpretation.status.replaceAll('_', ' '),
+			interpretation.source.replaceAll('_', ' '),
+			interpretation.isValidated ? 'validated' : 'not validated',
+			interpretation.isOfficial ? 'official' : 'not official'
+		].join(' / ');
+	}
+
+	async function viewReportProof() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				reportProof: 'Create or select a campaign before reviewing the report preview.'
+			};
+			return;
+		}
+
+		const result = await runAction('reportProof', () =>
+			setupApi.getCampaignReportProof(selectedCampaign.id)
+		);
+
+		if (result) {
+			reportProofResult = result;
+			exportResult = null;
+			responseExportResult = null;
+			storedExportResult = null;
+			downloadResult = null;
+		}
+	}
+
+	async function createExportArtifact() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				exportArtifact: 'Create or select a campaign before creating an export artifact.'
+			};
+			return;
+		}
+
+		const result = await runAction(
+			'exportArtifact',
+			() => setupApi.createCampaignReportProofExport(selectedCampaign.id),
+			{ refreshAfter: true }
+		);
+
+		if (result) {
+			exportResult = result;
+			responseExportResult = null;
+			storedExportResult = null;
+			downloadResult = null;
+		}
+	}
+
+	async function createResponseExportArtifact() {
+		if (!workspace.series.id) {
+			actionErrors = {
+				...actionErrors,
+				responseExport:
+					'Create or select a campaign series before creating a response export artifact.'
+			};
+			return;
+		}
+
+		const result = await runAction(
+			'responseExport',
+			() => setupApi.createCampaignSeriesResponseExport(workspace.series.id),
+			{ refreshAfter: true }
+		);
+
+		if (result) {
+			responseExportResult = result;
+			storedExportResult = null;
+			downloadResult = null;
+		}
+	}
+
+	async function fetchStoredArtifact() {
+		if (!currentExportArtifactId) {
+			actionErrors = {
+				...actionErrors,
+				fetchArtifact: 'Create or select an export artifact before fetching it.'
+			};
+			return;
+		}
+
+		const result = await runAction('fetchArtifact', () =>
+			setupApi.getExportArtifact(currentExportArtifactId)
+		);
+
+		if (result) {
+			storedExportResult = result;
+			downloadResult = null;
+		}
+	}
+
+	async function downloadCsv() {
+		if (!currentDownloadableExportArtifactId) {
+			actionErrors = {
+				...actionErrors,
+				downloadCsv: currentExportArtifactId
+					? 'Select a downloadable export artifact before downloading CSV.'
+					: 'Create or select an export artifact before downloading CSV.'
+			};
+			return;
+		}
+
+		const result = await runAction('downloadCsv', () =>
+			setupApi.downloadExportArtifactCsv(currentDownloadableExportArtifactId)
+		);
+
+		if (result) {
+			downloadResult = result;
+		}
+	}
+
+	async function runAction<T>(
+		actionId: SelectedSeriesReportsWorkflowActionId,
+		action: () => Promise<T>,
+		options: { refreshAfter?: boolean } = {}
+	) {
+		actionStates = { ...actionStates, [actionId]: 'submitting' };
+		actionErrors = { ...actionErrors, [actionId]: null };
+		refreshWarning = null;
+
+		try {
+			const result = await action();
+			actionStates = { ...actionStates, [actionId]: 'succeeded' };
+			if (options.refreshAfter) {
+				const refreshed = await onWorkspaceRefresh?.();
+				if (refreshed === false) {
+					refreshWarning = 'Reports action saved, but the reports workspace refresh failed.';
+				}
+			}
+			return result;
+		} catch (error) {
+			actionStates = { ...actionStates, [actionId]: 'failed' };
+			actionErrors = {
+				...actionErrors,
+				[actionId]: toProductApiErrorMessage(error, 'Reports action failed.')
+			};
+			return null;
+		}
+	}
+
+	function workflowAction(id: SelectedSeriesReportsWorkflowActionId) {
+		return workflowActions.find((action) => action.id === id) ?? workflowActions[0];
+	}
+
+	function isActionDisabled(id: SelectedSeriesReportsWorkflowActionId) {
+		const action = workflowAction(id);
+		return !action.available || actionStates[id] === 'submitting';
+	}
+
+	function stepLabel(state: StepState) {
+		if (state === 'submitting') {
+			return 'Working';
+		}
+
+		if (state === 'succeeded') {
+			return 'Saved';
+		}
+
+		if (state === 'failed') {
+			return 'Failed';
+		}
+
+		return 'Ready';
+	}
+
+	function pathStateLabel(state: SelectedSeriesReportsPathStepState) {
+		if (state === 'done') {
+			return 'Done';
+		}
+
+		if (state === 'current') {
+			return 'Current';
+		}
+
+		return 'Blocked';
+	}
+
+	function formatNullableScoreValue(value: number | null) {
+		return value === null ? 'suppressed' : value.toFixed(2);
+	}
+
+	function csvPreview(content: string | null | undefined) {
+		return (content ?? '').trim().split(/\r?\n/).slice(0, 6).join('\n');
+	}
+</script>
+
+<section class="product-panel" role="group" aria-label="Review and export actions">
+	<div class="product-panel__header">
+		<div>
+			<p class="product-kicker">Review workflow</p>
+			<h3 class="product-title">Selected-series review and export workflow</h3>
+			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+				Actions target the selected result campaign and keep preview/export outputs local.
+			</p>
+		</div>
+		<StatusBadge status="proof_only" label="Proof/local" />
+	</div>
+
+	{#if refreshWarning}
+		<p class="error-line">{refreshWarning}</p>
+	{/if}
+
+	<div class="setup-path" role="list" aria-label="Review and export path">
+		{#each reportsPath.steps as action, index (action.id)}
+			<div
+				class="setup-path__item"
+				data-state={action.pathState}
+				role="listitem"
+				aria-current={action.pathState === 'current' ? 'step' : undefined}
+			>
+				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
+				<div class="setup-path__content">
+					<p class="setup-path__title">{action.title}</p>
+					<p class="setup-path__description">{action.description}</p>
+				</div>
+				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
+			</div>
+		{/each}
+	</div>
+
+	{#if !canManageSetup}
+		<p class="record-row text-sm text-[var(--color-text-muted)]">
+			<strong class="record-row__title">Read-only access</strong>
+			<span>Review/export actions require setup management access.</span>
+		</p>
+	{:else}
+		<article class="record-row setup-current-task" role="region" aria-label="Current review task">
+			<div class="setup-current-task__header">
+				<div>
+					<p class="record-field__label">
+						{reportsPath.completedCount} of {reportsPath.totalCount} review/export tasks done
+					</p>
+					<h4 class="setup-current-task__title">Current review task</h4>
+					<p class="record-row__title">{currentAction.title}</p>
+					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
+				</div>
+				<StatusBadge status={currentAction.status} />
+			</div>
+			{#if currentAction.disabledReason}
+				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
+			{/if}
+
+			<div class="setup-current-task__body">
+				{#if currentAction.id === 'reportProof'}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Selected campaign</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Report status</dt>
+							<dd class="record-field__value">{selectedCampaign?.reportStatus ?? 'Missing'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Interpretation</dt>
+							<dd class="record-field__value">
+								{reportProofResult?.interpretationStatus ??
+									selectedCampaign?.interpretationStatus ??
+									'Missing'}
+							</dd>
+						</div>
+					</dl>
+					{#if reportProofResult}
+						{@render ReportProofResult()}
+					{/if}
+					{@render ActionFooter({
+						id: 'reportProof',
+						label: 'View report preview',
+						resultLabel: 'Campaign',
+						resultValue: reportProofResult?.campaignId ?? selectedCampaign?.id ?? null,
+						onclick: viewReportProof
+					})}
+				{:else if currentAction.id === 'exportArtifact'}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Latest export</dt>
+							<dd class="record-field__value">
+								{exportResult?.fileName ??
+									selectedCampaign?.latestExportArtifactFileName ??
+									'Not available'}
+							</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Export count</dt>
+							<dd class="record-field__value">{selectedCampaign?.exportArtifactCount ?? 0}</dd>
+						</div>
+					</dl>
+					{#if exportResult}
+						{@render ExportArtifactResult({
+							result: exportResult,
+							ariaLabel: 'Export artifact result',
+							kicker: 'Proof/local export',
+							title: 'CSV and codebook artifact'
+						})}
+					{/if}
+					{@render ActionFooter({
+						id: 'exportArtifact',
+						label: 'Create export artifact',
+						resultLabel: 'Artifact',
+						resultValue: exportResult?.id ?? selectedCampaign?.latestExportArtifactId ?? null,
+						onclick: createExportArtifact
+					})}
+				{:else if currentAction.id === 'responseExport'}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Series</dt>
+							<dd class="record-field__value">{workspace.series.name}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Latest response export</dt>
+							<dd class="record-field__value">
+								{responseExportResult?.fileName ??
+									latestResponseExportArtifact?.fileName ??
+									'Not available'}
+							</dd>
+						</div>
+					</dl>
+					{#if responseExportResult}
+						{@render ExportArtifactResult({
+							result: responseExportResult,
+							ariaLabel: 'Response export result',
+							kicker: 'Proof/local response export',
+							title: 'Response CSV and codebook artifact'
+						})}
+					{/if}
+					{@render ActionFooter({
+						id: 'responseExport',
+						label: 'Create response export',
+						resultLabel: 'Response artifact',
+						resultValue: responseExportResult?.id ?? latestResponseExportArtifactId,
+						onclick: createResponseExportArtifact
+					})}
+				{:else if currentAction.id === 'fetchArtifact'}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Export artifact</dt>
+							<dd class="record-field__value">{currentExportArtifactId ?? 'Not available'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Downloadable artifact</dt>
+							<dd class="record-field__value">
+								{currentDownloadableExportArtifactId ?? 'Not available'}
+							</dd>
+						</div>
+					</dl>
+					{#if storedExportResult}
+						{@render StoredArtifactResult()}
+					{/if}
+					{@render ActionFooter({
+						id: 'fetchArtifact',
+						label: 'Fetch stored artifact',
+						resultLabel: 'Stored artifact',
+						resultValue: storedExportResult?.id ?? currentExportArtifactId,
+						onclick: fetchStoredArtifact
+					})}
+				{:else}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Downloadable artifact</dt>
+							<dd class="record-field__value">
+								{currentDownloadableExportArtifactId ?? 'Not available'}
+							</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Latest file</dt>
+							<dd class="record-field__value">
+								{downloadResult?.fileName ??
+									latestDownloadableExportArtifact?.fileName ??
+									selectedCampaign?.latestExportArtifactFileName ??
+									'Not available'}
+							</dd>
+						</div>
+					</dl>
+					{#if downloadResult}
+						{@render CsvDownloadResult()}
+					{/if}
+					{@render ActionFooter({
+						id: 'downloadCsv',
+						label: 'Download CSV',
+						resultLabel: 'Downloaded artifact',
+						resultValue: downloadResult?.artifactId ?? currentDownloadableExportArtifactId,
+						onclick: downloadCsv
+					})}
+				{/if}
+			</div>
+		</article>
+
+		{#if hasReportResults}
+			<div class="record-list" aria-label="Latest reports results">
+				{#if reportProofResult}
+					<article class="record-row" aria-label="Latest report preview result">
+						{@render ReportProofResult()}
+					</article>
+				{/if}
+				{#if exportResult}
+					<article class="record-row" aria-label="Latest export artifact result">
+						{@render ExportArtifactResult({
+							result: exportResult,
+							ariaLabel: 'Export artifact result',
+							kicker: 'Proof/local export',
+							title: 'CSV and codebook artifact'
+						})}
+					</article>
+				{/if}
+				{#if responseExportResult}
+					<article class="record-row" aria-label="Latest response export result">
+						{@render ExportArtifactResult({
+							result: responseExportResult,
+							ariaLabel: 'Response export result',
+							kicker: 'Proof/local response export',
+							title: 'Response CSV and codebook artifact'
+						})}
+					</article>
+				{/if}
+				{#if storedExportResult}
+					<article class="record-row" aria-label="Latest stored artifact result">
+						{@render StoredArtifactResult()}
+					</article>
+				{/if}
+				{#if downloadResult}
+					<article class="record-row" aria-label="Latest CSV download result">
+						{@render CsvDownloadResult()}
+					</article>
+				{/if}
+			</div>
+		{/if}
+	{/if}
+</section>
+
+{#snippet ReportProofResult()}
+	{#if reportProofResult}
+		<section class="score-result-panel report-proof-panel" aria-label="Report preview">
+			<div class="score-result-panel__header">
+				<div>
+					<p class="product-kicker">Proof/local report</p>
+					<h4 class="record-row__title">Aggregate score projection</h4>
+				</div>
+				<StatusBadge status="proof_only" label="Proof/local" />
+			</div>
+			<div class="response-lab__meta">
+				<span>{reportProofResult.proofStatus}</span>
+				<span>{reportProofResult.launchSnapshot.responseIdentityMode}</span>
+				<span>Disclosure k={reportProofResult.disclosurePolicy.kMin}</span>
+			</div>
+			<div class="score-card-list" aria-label="Report preview scores">
+				{#each reportProofResult.scores as score (score.dimensionCode)}
+					{@const scoreMetadata =
+						score.disclosure === 'visible'
+							? formatScoreOutputMetadata(
+									score.nValidTotal,
+									score.nExpectedTotal,
+									score.missingPolicyStatusSummary
+								)
+							: null}
+					<article class="score-card" aria-label={`Report score ${score.dimensionCode}`}>
+						<div>
+							<p class="score-card__label">{score.dimensionCode}</p>
+							<p
+								class={score.disclosure === 'visible'
+									? 'score-card__value'
+									: 'score-card__interpretation'}
+							>
+								{formatNullableScoreValue(score.mean)}
+							</p>
+						</div>
+						<p class="score-card__meta">{score.disclosure}</p>
+						<p class="score-card__interpretation">
+							scores={score.scoreCount ?? 'suppressed'}
+						</p>
+						{#if scoreMetadata}
+							<p class="score-card__interpretation">{scoreMetadata}</p>
+						{/if}
+						{#if score.interpretation}
+							<p class="score-card__interpretation">{score.interpretation.label}</p>
+							<p class="score-card__interpretation">
+								{scoreInterpretationMeta(score.interpretation)}
+							</p>
+						{/if}
+					</article>
+				{/each}
+			</div>
+		</section>
+	{/if}
+{/snippet}
+
+{#snippet ExportArtifactResult({
+	result,
+	ariaLabel,
+	kicker,
+	title
+}: {
+	result: ReportProofExportArtifactResponse;
+	ariaLabel: string;
+	kicker: string;
+	title: string;
+})}
+	<section class="score-result-panel report-proof-panel" aria-label={ariaLabel}>
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">{kicker}</p>
+				<h4 class="record-row__title">{title}</h4>
+			</div>
+			<StatusBadge status="proof_only" label="Proof/local" />
+		</div>
+		<div class="response-lab__meta">
+			<span>{result.artifactType}</span>
+			<span>{result.status}</span>
+			<span>rows {result.rowCount}</span>
+		</div>
+		<div class="score-result-panel__footer">
+			{@render ResultLine({ label: 'Artifact', value: result.id })}
+			{@render ResultLine({ label: 'File', value: result.fileName })}
+			{@render ResultLine({ label: 'Checksum', value: result.checksumSha256 })}
+		</div>
+		{#if csvPreview(result.csvContent)}
+			<pre class="csv-preview">{csvPreview(result.csvContent)}</pre>
+		{/if}
+	</section>
+{/snippet}
+
+{#snippet StoredArtifactResult()}
+	{#if storedExportResult}
+		<dl class="record-grid">
+			<div class="record-field">
+				<dt class="record-field__label">Stored artifact</dt>
+				<dd class="record-field__value">{storedExportResult.id}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">Stored file</dt>
+				<dd class="record-field__value">{storedExportResult.fileName}</dd>
+			</div>
+		</dl>
+	{/if}
+{/snippet}
+
+{#snippet CsvDownloadResult()}
+	{#if downloadResult}
+		<div class="response-lab__meta">
+			<span>Downloaded CSV</span>
+			<span>{downloadResult.contentType}</span>
+			<span>{downloadResult.byteSize} bytes</span>
+		</div>
+		{@render ResultLine({ label: 'Downloaded file', value: downloadResult.fileName })}
+		{#if csvPreview(downloadResult.content)}
+			<pre class="csv-preview">{csvPreview(downloadResult.content)}</pre>
+		{/if}
+	{/if}
+{/snippet}
+
+{#snippet ActionFooter({
+	id,
+	label,
+	resultLabel,
+	resultValue,
+	onclick
+}: {
+	id: SelectedSeriesReportsWorkflowActionId;
+	label: string;
+	resultLabel: string;
+	resultValue: string | null | undefined;
+	onclick: () => void | Promise<void>;
+})}
+	<div class="action-row">
+		<button
+			type="button"
+			class="primary-button"
+			disabled={isActionDisabled(id)}
+			title={workflowAction(id).disabledReason ?? undefined}
+			{onclick}
+		>
+			{#if actionStates[id] === 'submitting'}
+				<LoaderCircle size={17} aria-hidden="true" />
+			{:else if id === 'reportProof' || id === 'fetchArtifact'}
+				<FileSearch size={17} aria-hidden="true" />
+			{:else if id === 'downloadCsv'}
+				<Download size={17} aria-hidden="true" />
+			{:else}
+				<Send size={17} aria-hidden="true" />
+			{/if}
+			<span>{label}</span>
+		</button>
+		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
+		{@render ResultLine({ label: resultLabel, value: resultValue })}
+	</div>
+	{#if actionErrors[id]}
+		<p class="error-line">{actionErrors[id]}</p>
+	{/if}
+{/snippet}
+
+{#snippet ResultLine({ label, value }: { label: string; value: string | null | undefined })}
+	{#if value}
+		<p class="result-line">
+			<span>{label}</span>
+			<code>{value}</code>
+		</p>
+	{/if}
+{/snippet}

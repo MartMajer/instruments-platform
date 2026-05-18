@@ -1,0 +1,132 @@
+{
+  "fixture_id": "dummy_burnout_graph_parity_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic.graph-parity",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "schema_version": "1.0.0",
+    "engine_min_version": "1.0.0",
+    "rule_id": "dummy-burnout.synthetic.graph-parity",
+    "rule_version": "1.0.0",
+    "scale_defaults": {
+      "agreement": { "min": 1, "max": 5 }
+    },
+    "inputs": [
+      { "id": "recovery_items", "kind": "answers", "items": ["q01", "q02", "q03"] },
+      { "id": "pressure_items", "kind": "answers", "items": ["q04", "q05", "q06", "q07"] }
+    ],
+    "nodes": [
+      { "id": "recovery_answers", "op": "select_answers", "input": "recovery_items" },
+      {
+        "id": "recovery_scored",
+        "op": "reverse_code",
+        "input": "recovery_answers",
+        "scale": "agreement",
+        "reverse_flag_source": "explicit_list",
+        "explicit_reverse_items": ["q03"]
+      },
+      { "id": "recovery_mean", "op": "mean", "input": "recovery_scored" },
+      { "id": "pressure_answers", "op": "select_answers", "input": "pressure_items" },
+      { "id": "pressure_sum", "op": "sum", "input": "pressure_answers" },
+      {
+        "id": "pressure_mean",
+        "op": "subscale_aggregate",
+        "input": "pressure_answers",
+        "aggregator": "mean",
+        "subscale_code": "pressure"
+      },
+      { "id": "pressure_valid_count", "op": "count_valid", "input": "pressure_answers" }
+    ],
+    "outputs": [
+      { "code": "recovery_mean", "node": "recovery_mean" },
+      { "code": "pressure_sum", "node": "pressure_sum" },
+      { "code": "pressure_mean", "node": "pressure_mean" },
+      { "code": "pressure_valid_count", "node": "pressure_valid_count" }
+    ],
+    "missing_data": {
+      "defaults": { "strategy": "min_valid_count", "min_valid_count": 2 }
+    },
+    "metadata": {
+      "provenance": "Synthetic non-canonical fixture for A49b graph parity."
+    }
+  },
+  "produces": {
+    "scores": ["recovery_mean", "pressure_sum", "pressure_mean", "pressure_valid_count"],
+    "interpretation": {
+      "status": "tenant_attested",
+      "source": "tenant_defined",
+      "provenance": "Tenant-defined synthetic bands for fixture replay only; not validated or official.",
+      "scores": {
+        "recovery_mean": [
+          { "code": "low", "label": "Lower synthetic band", "min": 1, "max": 2.49 },
+          { "code": "middle", "label": "Middle synthetic band", "min": 2.5, "max": 3.49 },
+          { "code": "high", "label": "Higher synthetic band", "min": 3.5, "max": 5 }
+        ],
+        "pressure_mean": [
+          { "code": "low", "label": "Lower synthetic band", "min": 1, "max": 2.49 },
+          { "code": "middle", "label": "Middle synthetic band", "min": 2.5, "max": 3.49 },
+          { "code": "high", "label": "Higher synthetic band", "min": 3.5, "max": 5 }
+        ]
+      }
+    }
+  },
+  "compatibility": {
+    "output_equivalent_with": [
+      {
+        "rule_id": "dummy-burnout.synthetic.graph-parity",
+        "rule_version_range": ">=1.0.0 <1.1.0",
+        "scope": ["recovery_mean", "pressure_mean"],
+        "evidence": "Synthetic fixture values are unchanged within the A49b parity baseline."
+      }
+    ],
+    "descriptive_only_with": [
+      {
+        "rule_id": "dummy-burnout.synthetic.graph-parity",
+        "rule_version_range": ">=1.1.0 <2.0.0",
+        "scope": ["pressure_sum", "pressure_valid_count"],
+        "rationale": "Synthetic future versions may change pressure composition; keep these descriptive only."
+      }
+    ]
+  },
+  "answers": {
+    "q01": 2,
+    "q02": 4,
+    "q03": 5,
+    "q04": 4,
+    "q05": 2
+  },
+  "expected_outputs": [
+    {
+      "dimension_code": "recovery_mean",
+      "value": 2.3333,
+      "n_valid": 3,
+      "n_expected": 3,
+      "missing_policy_status": "ok"
+    },
+    {
+      "dimension_code": "pressure_sum",
+      "value": 6.0000,
+      "n_valid": 2,
+      "n_expected": 4,
+      "missing_policy_status": "ok"
+    },
+    {
+      "dimension_code": "pressure_mean",
+      "value": 3.0000,
+      "n_valid": 2,
+      "n_expected": 4,
+      "missing_policy_status": "ok"
+    },
+    {
+      "dimension_code": "pressure_valid_count",
+      "value": 2.0000,
+      "n_valid": 2,
+      "n_expected": 4,
+      "missing_policy_status": "ok"
+    }
+  ],
+  "expected_error_code": null,
+  "tolerance": { "numeric_abs": 0.0001 }
+}

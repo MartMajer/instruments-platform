@@ -1,0 +1,2 @@
+apps/web/scripts/*.mjs text eol=lf
+apps/web/src/lib/build-gates/*.js text eol=lf

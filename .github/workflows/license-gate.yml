@@ -1,0 +1,52 @@
+name: License Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-licenses:
+    name: Dependency license scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore frontend dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Restore .NET dependencies
+        run: dotnet restore Platform.slnx
+
+      - name: Test license gate
+        run: node --test tests/license-gate/check-licenses.test.mjs
+
+      - name: Run license gate
+        run: node tools/check-licenses.mjs
+
+      - name: Upload attribution artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-license-attribution
+          path: artifacts/dependency-licenses/
+          if-no-files-found: error

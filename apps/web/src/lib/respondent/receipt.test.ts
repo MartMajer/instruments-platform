@@ -1,0 +1,117 @@
+import { describe, expect, it } from 'vitest';
+import type {
+	OpenLinkEntryResponse,
+	ResponseSessionResponse,
+	SaveAnswersResponse,
+	SubmitResponseSessionResponse
+} from '$lib/api/setup';
+import { toRespondentReceiptView } from './receipt';
+
+describe('respondent receipt view', () => {
+	it('summarizes an ordinary anonymous submitted response without participant-code guidance', () => {
+		const view = toRespondentReceiptView({
+			entry: sampleEntry(),
+			session: sampleSession({ locale: 'en' }),
+			savedAnswers: sampleSavedAnswers(3),
+			submitted: sampleSubmitted()
+		});
+
+		expect(view.title).toBe('Response submitted');
+		expect(view.headline).toBe('Your response for Wave 1 was received.');
+		expect(view.submittedAt).toBe('2026-05-07T12:05:00Z');
+		expect(view.metrics).toEqual([
+			{ label: 'Study', value: 'Wave 1' },
+			{ label: 'Response mode', value: 'anonymous' },
+			{ label: 'Locale', value: 'en' },
+			{ label: 'Consent version', value: '1.0.0' },
+			{ label: 'Answers received', value: '3' }
+		]);
+		expect(view.guidance).toContain('You can close this page.');
+		expect(view.guidance).toContain('This page does not show scores or interpretation.');
+		expect(view.guidance).not.toContain('Keep your participant code. The platform cannot recover it later.');
+	});
+
+	it('adds participant-code retention guidance for anonymous longitudinal receipts', () => {
+		const view = toRespondentReceiptView({
+			entry: sampleEntry({
+				responseIdentityMode: 'anonymous_longitudinal',
+				requiresParticipantCode: true
+			}),
+			session: sampleSession({ locale: 'hr' }),
+			savedAnswers: sampleSavedAnswers(1),
+			submitted: sampleSubmitted()
+		});
+
+		expect(view.metrics).toContainEqual({ label: 'Response mode', value: 'anonymous longitudinal' });
+		expect(view.metrics).toContainEqual({ label: 'Locale', value: 'hr' });
+		expect(view.guidance).toContain('Keep your participant code. The platform cannot recover it later.');
+	});
+
+	it('omits answer count when saved-answer state is unavailable', () => {
+		const view = toRespondentReceiptView({
+			entry: sampleEntry(),
+			session: sampleSession({ locale: null }),
+			savedAnswers: null,
+			submitted: sampleSubmitted()
+		});
+
+		expect(view.metrics).not.toContainEqual({ label: 'Answers received', value: '0' });
+		expect(view.metrics).toContainEqual({ label: 'Locale', value: 'en' });
+	});
+});
+
+function sampleEntry(
+	overrides: Partial<OpenLinkEntryResponse> = {}
+): OpenLinkEntryResponse {
+	return {
+		campaignId: '018f9d3d-7415-7000-9000-000000000001',
+		assignmentId: '018f9d3d-7415-7000-9000-000000000002',
+		templateVersionId: '018f9d3d-7415-7000-9000-000000000003',
+		name: 'Wave 1',
+		status: 'live',
+		responseIdentityMode: 'anonymous',
+		requiresParticipantCode: false,
+		defaultLocale: 'en',
+		consentDocument: {
+			id: '018f9d3d-7415-7000-9000-000000000004',
+			locale: 'en',
+			version: '1.0.0',
+			title: 'Default participant disclosure',
+			bodyMarkdown: 'Participant disclosure body.',
+			requiredGrants: ['data_processing', 'research_participation'],
+			optionalGrants: []
+		},
+		questions: [],
+		...overrides
+	};
+}
+
+function sampleSession({
+	locale
+}: {
+	locale: string | null;
+}): ResponseSessionResponse {
+	return {
+		id: '018f9d3d-7415-7000-9000-000000000005',
+		assignmentId: '018f9d3d-7415-7000-9000-000000000002',
+		locale: locale ?? '',
+		startedAt: '2026-05-07T12:00:00Z',
+		submittedAt: null,
+		timeTakenMs: null,
+		publicHandle: 'rsh_018f9d3d7415700009000000000000005_abcdefghijklmnopqrstuvwxyz'
+	};
+}
+
+function sampleSavedAnswers(savedAnswerCount: number): SaveAnswersResponse {
+	return {
+		sessionId: '018f9d3d-7415-7000-9000-000000000005',
+		savedAnswerCount
+	};
+}
+
+function sampleSubmitted(): SubmitResponseSessionResponse {
+	return {
+		id: '018f9d3d-7415-7000-9000-000000000005',
+		submittedAt: '2026-05-07T12:05:00Z'
+	};
+}

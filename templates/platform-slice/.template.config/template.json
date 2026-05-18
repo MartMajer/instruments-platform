@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Instruments Platform",
+  "classifications": [
+    "Platform",
+    "Vertical Slice",
+    "CQRS"
+  ],
+  "identity": "InstrumentsPlatform.PlatformSlice",
+  "name": "Instruments Platform vertical slice",
+  "shortName": "platform-slice",
+  "sourceName": "SliceName",
+  "preferNameDirectory": false,
+  "tags": {
+    "language": "C#",
+    "type": "item"
+  },
+  "symbols": {
+    "feature": {
+      "type": "parameter",
+      "description": "Feature folder and namespace segment, for example Campaigns.",
+      "datatype": "text",
+      "defaultValue": "FeatureName",
+      "replaces": "FeatureName",
+      "fileRename": "FeatureName"
+    },
+    "requestKind": {
+      "type": "parameter",
+      "description": "MediatR request suffix.",
+      "datatype": "choice",
+      "defaultValue": "Command",
+      "replaces": "Command",
+      "fileRename": "Command",
+      "choices": [
+        {
+          "choice": "Command",
+          "description": "Mutating slice request."
+        },
+        {
+          "choice": "Query",
+          "description": "Read-only slice request."
+        }
+      ]
+    },
+    "httpVerb": {
+      "type": "parameter",
+      "description": "ASP.NET minimal API Map method suffix.",
+      "datatype": "choice",
+      "defaultValue": "Post",
+      "replaces": "Post",
+      "choices": [
+        {
+          "choice": "Get",
+          "description": "Generate app.MapGet."
+        },
+        {
+          "choice": "Post",
+          "description": "Generate app.MapPost."
+        },
+        {
+          "choice": "Put",
+          "description": "Generate app.MapPut."
+        },
+        {
+          "choice": "Delete",
+          "description": "Generate app.MapDelete."
+        }
+      ]
+    }
+  }
+}

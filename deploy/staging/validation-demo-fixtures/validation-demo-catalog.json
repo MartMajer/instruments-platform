@@ -1,0 +1,1099 @@
+{
+  "environmentLabel": "proof_demo",
+  "productionData": false,
+  "platformCanonicalInstruments": false,
+  "legalLabel": "Proof-of-concept demo fixtures only; not a production legal, GDPR, or compliance package.",
+  "hostLabel": "Designed for local staging or the current demo VPS; not final production hosting.",
+  "tenants": [
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "slug": "validation-oh-research",
+      "displayName": "Validation Demo - Occupational Health Research",
+      "defaultLocale": "en",
+      "region": "eu",
+      "productionData": false,
+      "platformCanonical": false,
+      "legalLabel": "Proof-of-concept demo tenant with synthetic occupational-health fixtures only.",
+      "story": {
+        "setupSeriesName": "OH burnout setup readiness sample",
+        "inCollectionSeriesName": "OH burnout collection in progress sample",
+        "mainSeriesName": "OH burnout baseline and ergonomics proof",
+        "linkedWaveSeriesName": "OH two-wave recovery trajectory proof",
+        "sampleScenarios": {
+          "setupSeries": "setup",
+          "inCollectionSeries": "in_collection",
+          "mainSeries": "mixed_lifecycle",
+          "linkedWaveSeries": "longitudinal"
+        },
+        "campaignNames": {
+          "draft": "Burnout and ergonomics draft review",
+          "liveNoResponses": "Burnout baseline live empty wave",
+          "partial": "Burnout baseline partial response",
+          "completed": "Burnout baseline completed cohort",
+          "wave1": "Recovery trajectory wave 1",
+          "wave2": "Recovery trajectory wave 2"
+        },
+        "responseProfiles": {
+          "partial": [2],
+          "completed": [2, 3, 4, 4, 5],
+          "waveBaseline": [2, 2, 3, 3, 4],
+          "waveComparison": [3, 3, 4, 4, 5]
+        }
+      },
+      "directory": {
+        "subjects": [
+          {
+            "key": "oh-director",
+            "displayName": "Dr. Mira Horvat",
+            "email": "mira.horvat@example.invalid",
+            "externalId": "OH-001",
+            "locale": "en",
+            "attributes": {
+              "title": "Principal researcher",
+              "track": "occupational-health"
+            }
+          },
+          {
+            "key": "oh-ergonomist",
+            "displayName": "Leo Novak",
+            "email": "leo.novak@example.invalid",
+            "externalId": "OH-002",
+            "locale": "en",
+            "attributes": {
+              "title": "Ergonomics specialist",
+              "track": "ergonomics"
+            }
+          },
+          {
+            "key": "oh-analyst",
+            "displayName": "Iva Maric",
+            "email": "iva.maric@example.invalid",
+            "externalId": "OH-003",
+            "locale": "en",
+            "attributes": {
+              "title": "Research analyst",
+              "track": "reporting"
+            }
+          },
+          {
+            "key": "oh-clinician",
+            "displayName": "Nina Kovac",
+            "email": "nina.kovac@example.invalid",
+            "externalId": "OH-004",
+            "locale": "en",
+            "attributes": {
+              "title": "Occupational health advisor",
+              "track": "field-review"
+            }
+          },
+          {
+            "key": "oh-field",
+            "displayName": "Petar Basic",
+            "email": "petar.basic@example.invalid",
+            "externalId": "OH-005",
+            "locale": "en",
+            "attributes": {
+              "title": "Field coordinator",
+              "track": "field-review"
+            }
+          }
+        ],
+        "groups": [
+          {
+            "key": "oh-research",
+            "type": "department",
+            "name": "Occupational Health Research",
+            "attributes": {
+              "scope": "tenant-wide"
+            }
+          },
+          {
+            "key": "oh-ergonomics",
+            "type": "project",
+            "name": "Ergonomics Lab",
+            "parentKey": "oh-research",
+            "attributes": {
+              "scope": "workstation-review"
+            }
+          },
+          {
+            "key": "oh-reporting",
+            "type": "cohort",
+            "name": "Analysis And Reports",
+            "parentKey": "oh-research",
+            "attributes": {
+              "scope": "report-preparation"
+            }
+          }
+        ],
+        "memberships": [
+          {
+            "subjectKey": "oh-director",
+            "groupKey": "oh-research",
+            "roleInGroup": "lead"
+          },
+          {
+            "subjectKey": "oh-ergonomist",
+            "groupKey": "oh-ergonomics",
+            "roleInGroup": "specialist"
+          },
+          {
+            "subjectKey": "oh-field",
+            "groupKey": "oh-ergonomics",
+            "roleInGroup": "coordinator"
+          },
+          {
+            "subjectKey": "oh-analyst",
+            "groupKey": "oh-reporting",
+            "roleInGroup": "analyst"
+          },
+          {
+            "subjectKey": "oh-clinician",
+            "groupKey": "oh-research",
+            "roleInGroup": "advisor"
+          }
+        ],
+        "managerRelationships": [
+          {
+            "managerKey": "oh-director",
+            "subjectKey": "oh-ergonomist"
+          },
+          {
+            "managerKey": "oh-director",
+            "subjectKey": "oh-analyst"
+          },
+          {
+            "managerKey": "oh-director",
+            "subjectKey": "oh-clinician"
+          },
+          {
+            "managerKey": "oh-ergonomist",
+            "subjectKey": "oh-field"
+          }
+        ]
+      },
+      "instruments": [
+        {
+          "code": "BURNOUT_EXHAUSTION_DEMO",
+          "name": "Burnout Exhaustion Demo",
+          "domain": "psychometric",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic burnout demo score; not official and not platform-canonical.",
+          "provenanceNote": "Custom demo items written for validator walkthroughs; not a standardized scale.",
+          "scoreOutputs": [
+            "personal_exhaustion",
+            "work_exhaustion",
+            "client_work_exhaustion"
+          ],
+          "questions": [
+            {
+              "code": "energy_after_work",
+              "prompt": "After a demanding work period, my energy recovers at a sustainable pace."
+            },
+            {
+              "code": "task_load_fit",
+              "prompt": "My current task load leaves enough room for focused work and recovery."
+            },
+            {
+              "code": "people_work_drain",
+              "prompt": "Interactions with people I support require more recovery time than usual."
+            },
+            {
+              "code": "capacity_next_day",
+              "prompt": "I usually start the next workday with enough capacity for the main priorities."
+            },
+            {
+              "code": "task_switching_cost",
+              "prompt": "Switching between urgent tasks leaves me with enough focus for careful decisions."
+            },
+            {
+              "code": "recovery_after_people_work",
+              "prompt": "After intensive people-facing work, I can recover before the next demanding interaction."
+            },
+            {
+              "code": "emotional_load_fit",
+              "prompt": "Emotionally demanding work fits within the support and recovery available to me."
+            },
+            {
+              "code": "end_week_capacity",
+              "prompt": "By the end of the work week, I still have capacity for personal recovery and obligations."
+            }
+          ]
+        },
+        {
+          "code": "PSYCHOSOCIAL_WORK_PULSE",
+          "name": "Psychosocial Work Pulse Demo",
+          "domain": "psychometric",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic work environment pulse; not official and not platform-canonical.",
+          "provenanceNote": "Custom short pulse for demoing private tenant instruments.",
+          "scoreOutputs": [
+            "demand_control_fit",
+            "support_clarity",
+            "recovery_support"
+          ],
+          "questions": [
+            {
+              "code": "priority_clarity",
+              "prompt": "Important work priorities are clear enough to decide what to do first."
+            },
+            {
+              "code": "autonomy_fit",
+              "prompt": "I can choose a workable method for completing key tasks."
+            },
+            {
+              "code": "support_access",
+              "prompt": "Support is accessible when workload or role expectations become unclear."
+            },
+            {
+              "code": "recovery_norms",
+              "prompt": "Team norms make it realistic to pause or recover after intense work."
+            },
+            {
+              "code": "workload_predictability",
+              "prompt": "Upcoming workload changes are visible early enough to plan realistic work."
+            },
+            {
+              "code": "role_conflict",
+              "prompt": "Different role expectations can be reconciled without constant trade-off stress."
+            },
+            {
+              "code": "manager_checkin",
+              "prompt": "Managers check whether demands, control, and support are still in balance."
+            },
+            {
+              "code": "interruption_load",
+              "prompt": "Interruptions are managed well enough to protect focused work time."
+            }
+          ]
+        },
+        {
+          "code": "ERGO_MSK_DEMO",
+          "name": "Ergonomic Discomfort Screening Demo",
+          "domain": "ergonomic",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic ergonomic screening; not official and not platform-canonical.",
+          "provenanceNote": "Custom demonstration checklist for discomfort and work setup signals.",
+          "scoreOutputs": [
+            "setup_risk",
+            "discomfort_signal",
+            "adjustment_priority"
+          ],
+          "questions": [
+            {
+              "code": "screen_position_fit",
+              "prompt": "My screen and input setup allow a neutral posture during focused work."
+            },
+            {
+              "code": "break_variation",
+              "prompt": "The work routine includes enough movement variation during long task blocks."
+            },
+            {
+              "code": "discomfort_trend",
+              "prompt": "Physical discomfort has increased during recent work periods."
+            },
+            {
+              "code": "adjustment_needed",
+              "prompt": "Small workstation changes would likely improve my work comfort."
+            },
+            {
+              "code": "seating_support",
+              "prompt": "Seating or standing support can be adjusted to fit longer work blocks."
+            },
+            {
+              "code": "input_device_comfort",
+              "prompt": "Keyboard, mouse, or tool use stays comfortable during repeated tasks."
+            },
+            {
+              "code": "reach_frequency",
+              "prompt": "Frequently used items are within a comfortable reach during normal work."
+            },
+            {
+              "code": "end_day_discomfort",
+              "prompt": "End-of-day discomfort is low enough that recovery feels manageable."
+            }
+          ]
+        }
+      ],
+      "proofStates": [
+        {
+          "kind": "draft",
+          "label": "Draft campaign prepared for owner inspection"
+        },
+        {
+          "kind": "live_no_responses",
+          "label": "Launched campaign with no submitted responses"
+        },
+        {
+          "kind": "partial_response",
+          "label": "Started response that is not submitted"
+        },
+        {
+          "kind": "completed_scored",
+          "label": "Submitted responses with score outputs and report proof"
+        },
+        {
+          "kind": "closed_wave",
+          "label": "Closed campaign wave for finality checks"
+        },
+        {
+          "kind": "export",
+          "label": "Report and response export proof"
+        },
+        {
+          "kind": "anonymous_longitudinal",
+          "label": "Two linked anonymous waves for comparison proof"
+        }
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "slug": "validation-se-education",
+      "displayName": "Validation Demo - Student Experience Research",
+      "defaultLocale": "en",
+      "region": "eu",
+      "productionData": false,
+      "platformCanonical": false,
+      "legalLabel": "Proof-of-concept demo tenant with synthetic education fixtures only.",
+      "story": {
+        "setupSeriesName": "SE course pulse setup readiness sample",
+        "inCollectionSeriesName": "SE course pulse collection in progress sample",
+        "mainSeriesName": "SE course pulse and assessment proof",
+        "linkedWaveSeriesName": "SE gamification pre/post proof",
+        "sampleScenarios": {
+          "setupSeries": "setup",
+          "inCollectionSeries": "in_collection",
+          "mainSeries": "mixed_lifecycle",
+          "linkedWaveSeries": "longitudinal"
+        },
+        "campaignNames": {
+          "draft": "Programming course draft study",
+          "liveNoResponses": "Course pulse live empty cohort",
+          "partial": "Course pulse partial student response",
+          "completed": "Course pulse completed cohort",
+          "wave1": "Gamification pre-module wave",
+          "wave2": "Gamification post-module wave"
+        },
+        "responseProfiles": {
+          "partial": [3],
+          "completed": [2, 3, 3, 4, 5],
+          "waveBaseline": [2, 3, 3, 3, 4],
+          "waveComparison": [3, 4, 4, 4, 5]
+        }
+      },
+      "directory": {
+        "subjects": [
+          {
+            "key": "se-course-lead",
+            "displayName": "Prof. Marko Vidovic",
+            "email": "marko.vidovic@example.invalid",
+            "externalId": "SE-001",
+            "locale": "en",
+            "attributes": {
+              "title": "Course lead",
+              "track": "programming-course"
+            }
+          },
+          {
+            "key": "se-research-coordinator",
+            "displayName": "Lana Horvat",
+            "email": "lana.horvat@example.invalid",
+            "externalId": "SE-002",
+            "locale": "en",
+            "attributes": {
+              "title": "Research coordinator",
+              "track": "student-experience"
+            }
+          },
+          {
+            "key": "se-lab-assistant",
+            "displayName": "Ivan Kralj",
+            "email": "ivan.kralj@example.invalid",
+            "externalId": "SE-003",
+            "locale": "en",
+            "attributes": {
+              "title": "Lab assistant",
+              "track": "lab-support"
+            }
+          },
+          {
+            "key": "se-student-rep",
+            "displayName": "Marta Babic",
+            "email": "marta.babic@example.invalid",
+            "externalId": "SE-004",
+            "locale": "en",
+            "attributes": {
+              "title": "Student cohort representative",
+              "track": "cohort-feedback"
+            }
+          },
+          {
+            "key": "se-methods-mentor",
+            "displayName": "Tomislav Peric",
+            "email": "tomislav.peric@example.invalid",
+            "externalId": "SE-005",
+            "locale": "en",
+            "attributes": {
+              "title": "Methods mentor",
+              "track": "research-methods"
+            }
+          }
+        ],
+        "groups": [
+          {
+            "key": "se-programming",
+            "type": "course",
+            "name": "Programming Course",
+            "attributes": {
+              "scope": "course"
+            }
+          },
+          {
+            "key": "se-lab-a",
+            "type": "section",
+            "name": "Lab Section A",
+            "parentKey": "se-programming",
+            "attributes": {
+              "scope": "lab"
+            }
+          },
+          {
+            "key": "se-research",
+            "type": "cohort",
+            "name": "Student Research Cohort",
+            "parentKey": "se-programming",
+            "attributes": {
+              "scope": "research"
+            }
+          }
+        ],
+        "memberships": [
+          {
+            "subjectKey": "se-course-lead",
+            "groupKey": "se-programming",
+            "roleInGroup": "lead"
+          },
+          {
+            "subjectKey": "se-research-coordinator",
+            "groupKey": "se-research",
+            "roleInGroup": "coordinator"
+          },
+          {
+            "subjectKey": "se-lab-assistant",
+            "groupKey": "se-lab-a",
+            "roleInGroup": "assistant"
+          },
+          {
+            "subjectKey": "se-student-rep",
+            "groupKey": "se-research",
+            "roleInGroup": "cohort-representative"
+          },
+          {
+            "subjectKey": "se-methods-mentor",
+            "groupKey": "se-research",
+            "roleInGroup": "methods"
+          }
+        ],
+        "managerRelationships": [
+          {
+            "managerKey": "se-course-lead",
+            "subjectKey": "se-research-coordinator"
+          },
+          {
+            "managerKey": "se-course-lead",
+            "subjectKey": "se-lab-assistant"
+          },
+          {
+            "managerKey": "se-research-coordinator",
+            "subjectKey": "se-student-rep"
+          },
+          {
+            "managerKey": "se-research-coordinator",
+            "subjectKey": "se-methods-mentor"
+          }
+        ]
+      },
+      "instruments": [
+        {
+          "code": "PROGRAMMING_COURSE_PULSE",
+          "name": "Programming Course Pulse Demo",
+          "domain": "educational",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic course pulse; no real student data and not official.",
+          "provenanceNote": "Custom student-experience items for demoing university research workflows.",
+          "scoreOutputs": [
+            "course_load_fit",
+            "feedback_usefulness",
+            "lab_confidence"
+          ],
+          "questions": [
+            {
+              "code": "weekly_load",
+              "prompt": "The weekly workload fits the learning outcomes for this course segment."
+            },
+            {
+              "code": "feedback_actionable",
+              "prompt": "Feedback on assignments helps me decide what to improve next."
+            },
+            {
+              "code": "lab_confidence",
+              "prompt": "Lab exercises build confidence for solving similar problems independently."
+            },
+            {
+              "code": "support_path",
+              "prompt": "When I get stuck, I know which support path to use first."
+            },
+            {
+              "code": "examples_bridge",
+              "prompt": "Worked examples help me connect syntax details with the larger programming concept."
+            },
+            {
+              "code": "pacing_fit",
+              "prompt": "The course pace leaves enough time to practice before new topics are introduced."
+            },
+            {
+              "code": "debugging_confidence",
+              "prompt": "I can use debugging feedback to narrow down mistakes without guessing randomly."
+            },
+            {
+              "code": "assessment_alignment",
+              "prompt": "Assessment tasks reflect the skills emphasized in lectures and labs."
+            }
+          ]
+        },
+        {
+          "code": "AI_LEARNING_ASSESSMENT_SURVEY",
+          "name": "AI Learning Assessment Demo",
+          "domain": "educational",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic AI learning survey; no real student data and not official.",
+          "provenanceNote": "Custom demo items for research on AI-supported learning activities.",
+          "scoreOutputs": [
+            "tool_clarity",
+            "learning_transfer",
+            "assessment_trust"
+          ],
+          "questions": [
+            {
+              "code": "ai_task_clarity",
+              "prompt": "AI-assisted tasks have clear boundaries for acceptable use."
+            },
+            {
+              "code": "ai_transfer",
+              "prompt": "Using AI support helps me explain the underlying concept without the tool."
+            },
+            {
+              "code": "assessment_fairness",
+              "prompt": "Assessment rules make the evaluation of AI-assisted work understandable."
+            },
+            {
+              "code": "reflection_quality",
+              "prompt": "Reflection prompts help me notice where the tool improved or weakened my reasoning."
+            },
+            {
+              "code": "ai_guidance_useful",
+              "prompt": "Guidelines make it clear when AI support is useful for learning rather than shortcuts."
+            },
+            {
+              "code": "source_checking",
+              "prompt": "I know how to check AI-generated explanations against course material or references."
+            },
+            {
+              "code": "feedback_timing",
+              "prompt": "AI-assisted feedback arrives at a point where I can still improve the work."
+            },
+            {
+              "code": "authorship_confidence",
+              "prompt": "I can explain which parts of an AI-supported task are my own decisions."
+            }
+          ]
+        },
+        {
+          "code": "GAMIFICATION_MOTIVATION_STUDY",
+          "name": "Gamification Motivation Study Demo",
+          "domain": "educational",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic motivation study; no real student data and not official.",
+          "provenanceNote": "Custom demo items for classroom intervention and metaheuristic-style research examples.",
+          "scoreOutputs": [
+            "challenge_fit",
+            "progress_visibility",
+            "collaboration_signal"
+          ],
+          "questions": [
+            {
+              "code": "challenge_fit",
+              "prompt": "The activity challenge level fits my current skill and effort."
+            },
+            {
+              "code": "progress_visibility",
+              "prompt": "Progress indicators make my learning trajectory easier to understand."
+            },
+            {
+              "code": "peer_learning",
+              "prompt": "Collaborative elements make it easier to learn from different solution paths."
+            },
+            {
+              "code": "motivation_carryover",
+              "prompt": "The activity increases my motivation to continue with related tasks."
+            },
+            {
+              "code": "goal_visibility",
+              "prompt": "Activity goals are visible enough to understand what progress means."
+            },
+            {
+              "code": "difficulty_adjustment",
+              "prompt": "The challenge level adapts or can be chosen so effort feels productive."
+            },
+            {
+              "code": "peer_comparison_safety",
+              "prompt": "Comparison with peers is framed in a way that supports learning rather than pressure."
+            },
+            {
+              "code": "effort_reflection",
+              "prompt": "The activity helps me reflect on effort, strategy, and persistence."
+            }
+          ]
+        }
+      ],
+      "proofStates": [
+        {
+          "kind": "draft",
+          "label": "Draft study campaign prepared for owner inspection"
+        },
+        {
+          "kind": "live_no_responses",
+          "label": "Launched study with no submitted responses"
+        },
+        {
+          "kind": "partial_response",
+          "label": "Started student response that is not submitted"
+        },
+        {
+          "kind": "completed_scored",
+          "label": "Submitted synthetic responses with score outputs"
+        },
+        {
+          "kind": "closed_wave",
+          "label": "Closed study wave for finality checks"
+        },
+        {
+          "kind": "export",
+          "label": "Report and response export proof"
+        },
+        {
+          "kind": "anonymous_longitudinal",
+          "label": "Two linked anonymous waves for classroom comparison proof"
+        }
+      ]
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "slug": "validation-osh-consulting",
+      "displayName": "Validation Demo - Work Safety Consulting",
+      "defaultLocale": "en",
+      "region": "eu",
+      "productionData": false,
+      "platformCanonical": false,
+      "legalLabel": "Proof-of-concept demo tenant with synthetic work-safety fixtures only.",
+      "story": {
+        "setupSeriesName": "OSH safety training setup readiness sample",
+        "inCollectionSeriesName": "OSH safety training collection in progress sample",
+        "mainSeriesName": "OSH client safety training and ergonomics proof",
+        "linkedWaveSeriesName": "OSH before-after safety learning proof",
+        "sampleScenarios": {
+          "setupSeries": "setup",
+          "inCollectionSeries": "in_collection",
+          "mainSeries": "mixed_lifecycle",
+          "linkedWaveSeries": "longitudinal"
+        },
+        "campaignNames": {
+          "draft": "Client ergonomics draft check",
+          "liveNoResponses": "Safety training live empty group",
+          "partial": "Safety training partial worker response",
+          "completed": "Safety training completed group",
+          "wave1": "Safety learning before session",
+          "wave2": "Safety learning after session"
+        },
+        "responseProfiles": {
+          "partial": [2],
+          "completed": [2, 3, 3, 4, 5],
+          "waveBaseline": [2, 2, 3, 3, 4],
+          "waveComparison": [3, 3, 4, 4, 5]
+        }
+      },
+      "directory": {
+        "subjects": [
+          {
+            "key": "osh-consultant",
+            "displayName": "Sara Juric",
+            "email": "sara.juric@example.invalid",
+            "externalId": "OSH-001",
+            "locale": "en",
+            "attributes": {
+              "title": "Lead safety consultant",
+              "track": "training"
+            }
+          },
+          {
+            "key": "osh-client-manager",
+            "displayName": "Dario Vuk",
+            "email": "dario.vuk@example.invalid",
+            "externalId": "OSH-002",
+            "locale": "en",
+            "attributes": {
+              "title": "Client operations manager",
+              "track": "client-leadership"
+            }
+          },
+          {
+            "key": "osh-supervisor",
+            "displayName": "Tea Pavic",
+            "email": "tea.pavic@example.invalid",
+            "externalId": "OSH-003",
+            "locale": "en",
+            "attributes": {
+              "title": "Shift supervisor",
+              "track": "shop-floor"
+            }
+          },
+          {
+            "key": "osh-worker-rep",
+            "displayName": "Nikola Radic",
+            "email": "nikola.radic@example.invalid",
+            "externalId": "OSH-004",
+            "locale": "en",
+            "attributes": {
+              "title": "Worker representative",
+              "track": "shop-floor"
+            }
+          },
+          {
+            "key": "osh-training-lead",
+            "displayName": "Klara Matic",
+            "email": "klara.matic@example.invalid",
+            "externalId": "OSH-005",
+            "locale": "en",
+            "attributes": {
+              "title": "Training lead",
+              "track": "training"
+            }
+          }
+        ],
+        "groups": [
+          {
+            "key": "osh-client",
+            "type": "client",
+            "name": "Client Safety Program",
+            "attributes": {
+              "scope": "client"
+            }
+          },
+          {
+            "key": "osh-training",
+            "type": "training-cohort",
+            "name": "Safety Training Cohort",
+            "parentKey": "osh-client",
+            "attributes": {
+              "scope": "training"
+            }
+          },
+          {
+            "key": "osh-shop-floor",
+            "type": "site-area",
+            "name": "Shop Floor Team",
+            "parentKey": "osh-client",
+            "attributes": {
+              "scope": "site"
+            }
+          }
+        ],
+        "memberships": [
+          {
+            "subjectKey": "osh-consultant",
+            "groupKey": "osh-client",
+            "roleInGroup": "consultant"
+          },
+          {
+            "subjectKey": "osh-client-manager",
+            "groupKey": "osh-client",
+            "roleInGroup": "client-lead"
+          },
+          {
+            "subjectKey": "osh-supervisor",
+            "groupKey": "osh-shop-floor",
+            "roleInGroup": "supervisor"
+          },
+          {
+            "subjectKey": "osh-worker-rep",
+            "groupKey": "osh-shop-floor",
+            "roleInGroup": "worker-representative"
+          },
+          {
+            "subjectKey": "osh-training-lead",
+            "groupKey": "osh-training",
+            "roleInGroup": "trainer"
+          }
+        ],
+        "managerRelationships": [
+          {
+            "managerKey": "osh-consultant",
+            "subjectKey": "osh-training-lead"
+          },
+          {
+            "managerKey": "osh-client-manager",
+            "subjectKey": "osh-supervisor"
+          },
+          {
+            "managerKey": "osh-supervisor",
+            "subjectKey": "osh-worker-rep"
+          },
+          {
+            "managerKey": "osh-client-manager",
+            "subjectKey": "osh-consultant"
+          }
+        ]
+      },
+      "instruments": [
+        {
+          "code": "OSH_TRAINING_FEEDBACK",
+          "name": "Work Safety Training Feedback Demo",
+          "domain": "regulatory",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic safety training feedback; not legal compliance advice and not official.",
+          "provenanceNote": "Custom demo items for educational work-safety walkthroughs.",
+          "scoreOutputs": [
+            "training_clarity",
+            "procedure_transfer",
+            "confidence_signal"
+          ],
+          "questions": [
+            {
+              "code": "hazard_examples",
+              "prompt": "Training examples make typical hazards in the workplace easy to recognize."
+            },
+            {
+              "code": "procedure_steps",
+              "prompt": "The required safety procedure steps are clear enough to follow without guessing."
+            },
+            {
+              "code": "reporting_path",
+              "prompt": "I know which reporting path to use when a safety concern appears."
+            },
+            {
+              "code": "practice_confidence",
+              "prompt": "Practice activities increased my confidence in applying safety procedures."
+            },
+            {
+              "code": "ppe_confidence",
+              "prompt": "I understand when and how to use required protective equipment correctly."
+            },
+            {
+              "code": "evacuation_clarity",
+              "prompt": "Emergency movement and evacuation expectations are clear enough to follow."
+            },
+            {
+              "code": "incident_reporting_practice",
+              "prompt": "Training included enough practice on how to report hazards or incidents."
+            },
+            {
+              "code": "refresher_need",
+              "prompt": "I know which safety topics would benefit from a short refresher later."
+            }
+          ]
+        },
+        {
+          "code": "SAFETY_CLIMATE_PULSE",
+          "name": "Safety Climate Pulse Demo",
+          "domain": "regulatory",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic safety climate pulse; not legal compliance advice and not official.",
+          "provenanceNote": "Custom pulse for demoing organizational safety-learning workflows.",
+          "scoreOutputs": [
+            "leadership_signal",
+            "peer_norms",
+            "learning_response"
+          ],
+          "questions": [
+            {
+              "code": "leadership_attention",
+              "prompt": "Supervisors give safety topics practical attention during regular work."
+            },
+            {
+              "code": "peer_norms",
+              "prompt": "Coworkers remind each other about safe work practices in a constructive way."
+            },
+            {
+              "code": "near_miss_learning",
+              "prompt": "Near-miss discussions lead to practical learning instead of blame."
+            },
+            {
+              "code": "resource_fit",
+              "prompt": "People have the tools and time needed to follow safety expectations."
+            },
+            {
+              "code": "hazard_reporting_norm",
+              "prompt": "Reporting hazards is treated as a normal part of improving work."
+            },
+            {
+              "code": "management_followthrough",
+              "prompt": "When safety concerns are raised, follow-up actions are visible to workers."
+            },
+            {
+              "code": "learning_without_blame",
+              "prompt": "Safety discussions focus on learning and prevention rather than blame."
+            },
+            {
+              "code": "workload_safety_fit",
+              "prompt": "Workload pressure does not routinely force shortcuts around safety expectations."
+            }
+          ]
+        },
+        {
+          "code": "OSH_ERGO_CHECK",
+          "name": "Workstation Safety Check Demo",
+          "domain": "ergonomic",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic workstation safety check; not legal compliance advice and not official.",
+          "provenanceNote": "Custom ergonomic and training-readiness checklist for proof demos.",
+          "scoreOutputs": [
+            "workstation_fit",
+            "adjustment_need",
+            "training_followup"
+          ],
+          "questions": [
+            {
+              "code": "workspace_clearance",
+              "prompt": "The workspace layout gives enough clearance to move and handle materials safely."
+            },
+            {
+              "code": "tool_height_fit",
+              "prompt": "Frequently used tools are positioned at a comfortable height and reach distance."
+            },
+            {
+              "code": "task_rotation",
+              "prompt": "Task rotation or pauses reduce strain during repeated work activities."
+            },
+            {
+              "code": "followup_needed",
+              "prompt": "A short follow-up session would help apply safe workstation practices."
+            },
+            {
+              "code": "manual_handling_fit",
+              "prompt": "Manual handling tasks are arranged so strain stays within manageable limits."
+            },
+            {
+              "code": "lighting_visibility",
+              "prompt": "Lighting and visibility are sufficient for safe and comfortable task execution."
+            },
+            {
+              "code": "repeated_movement_load",
+              "prompt": "Repeated movements are balanced with variation, pauses, or task rotation."
+            },
+            {
+              "code": "improvement_priority",
+              "prompt": "The most useful workstation improvement can be identified and prioritized."
+            }
+          ]
+        },
+        {
+          "code": "NEAR_MISS_LEARNING_PULSE",
+          "name": "Near-Miss Learning Pulse Demo",
+          "domain": "regulatory",
+          "rightsBasis": "synthetic_demo",
+          "platformCanonical": false,
+          "availableToOtherTenants": false,
+          "reportLabel": "Synthetic near-miss learning pulse; not legal compliance advice and not official.",
+          "provenanceNote": "Custom demo items for learning-oriented safety reviews.",
+          "scoreOutputs": [
+            "reporting_comfort",
+            "review_quality",
+            "action_followthrough"
+          ],
+          "questions": [
+            {
+              "code": "reporting_comfort",
+              "prompt": "People feel comfortable raising near-miss situations for learning purposes."
+            },
+            {
+              "code": "review_quality",
+              "prompt": "Near-miss reviews focus on causes that can be improved."
+            },
+            {
+              "code": "action_owner",
+              "prompt": "Follow-up actions from safety reviews have clear owners."
+            },
+            {
+              "code": "feedback_loop",
+              "prompt": "People hear what changed after a reported safety concern."
+            },
+            {
+              "code": "action_visibility",
+              "prompt": "Actions from near-miss reviews are visible enough to build trust in reporting."
+            },
+            {
+              "code": "reporting_time",
+              "prompt": "People have enough time during work to report near misses properly."
+            },
+            {
+              "code": "shared_learning",
+              "prompt": "Lessons from near misses are shared in a way that helps other teams prevent repeats."
+            },
+            {
+              "code": "prevention_confidence",
+              "prompt": "Recent learning activities increase confidence that similar situations can be prevented."
+            }
+          ]
+        }
+      ],
+      "proofStates": [
+        {
+          "kind": "draft",
+          "label": "Draft training campaign prepared for owner inspection"
+        },
+        {
+          "kind": "live_no_responses",
+          "label": "Launched training campaign with no submitted responses"
+        },
+        {
+          "kind": "partial_response",
+          "label": "Started training response that is not submitted"
+        },
+        {
+          "kind": "completed_scored",
+          "label": "Submitted synthetic responses with score outputs"
+        },
+        {
+          "kind": "closed_wave",
+          "label": "Closed safety campaign wave for finality checks"
+        },
+        {
+          "kind": "export",
+          "label": "Report and response export proof"
+        },
+        {
+          "kind": "anonymous_longitudinal",
+          "label": "Two linked anonymous waves for before-after proof"
+        }
+      ]
+    }
+  ]
+}

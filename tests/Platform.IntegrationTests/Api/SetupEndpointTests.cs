@@ -1,0 +1,1702 @@
+using System.Net;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Platform.Application.Features.Notifications;
+using Platform.Application.Features.Setup;
+using Platform.IntegrationTests.Support;
+using Platform.SharedKernel;
+
+namespace Platform.IntegrationTests.Api;
+
+public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
+    : IClassFixture<WebApplicationFactory<Program>>
+{
+    [Fact]
+    public async Task Private_import_endpoint_creates_tenant_private_instrument()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/instruments/private-imports",
+            tenantId,
+            new CreatePrivateInstrumentImportRequest(
+                "custom-olbi",
+                "1.0.0",
+                "Custom OLBI",
+                "psychometric",
+                "Tenant attested source",
+                "attested_by_tenant",
+                "tenant_provided"));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<InstrumentSummaryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("custom-olbi", payload.Code);
+        Assert.Equal("attested_by_tenant", payload.RightsStatus);
+    }
+
+    [Fact]
+    public async Task Private_import_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/instruments/private-imports",
+            tenantId,
+            new CreatePrivateInstrumentImportRequest(
+                "custom-olbi",
+                "1.0.0",
+                "Custom OLBI",
+                "psychometric",
+                "Tenant attested source",
+                "attested_by_tenant",
+                "tenant_provided"),
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Private_import_endpoint_maps_duplicate_code_version_to_conflict()
+    {
+        var tenantId = Guid.NewGuid();
+        var duplicate = Result.Failure<InstrumentSummaryResponse>(
+            Error.Conflict(
+                "instrument.duplicate_code_version",
+                "An instrument with this code and version already exists for this tenant."));
+        using var client = CreateClient(new FakeSetupWorkflowStore(createInstrumentResult: duplicate));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/instruments/private-imports",
+            tenantId,
+            new CreatePrivateInstrumentImportRequest(
+                "custom-pulse",
+                "1.0.0",
+                "Custom Pulse",
+                "psychometric",
+                "Tenant attested source",
+                "attested_by_tenant",
+                "tenant_provided"));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("instrument.duplicate_code_version", payload.Title);
+    }
+
+    [Fact]
+    public async Task Instruments_endpoint_lists_visible_instruments()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(HttpMethod.Get, "/instruments", tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<InstrumentSummaryResponse[]>();
+        Assert.NotNull(payload);
+        Assert.NotEmpty(payload);
+    }
+
+    [Fact]
+    public async Task Instruments_endpoint_allows_tenant_member_without_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/instruments",
+            tenantId,
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Template_version_endpoint_creates_template_graph()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/template-versions",
+            tenantId,
+            SampleTemplateVersionRequest());
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionDetailResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("Private burnout pulse", payload.TemplateName);
+        Assert.Single(payload.Sections);
+        Assert.Single(payload.Scales);
+        Assert.Single(payload.Questions);
+    }
+
+    [Fact]
+    public async Task Template_version_detail_endpoint_returns_template_graph()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(templateVersionId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/template-versions/{templateVersionId}",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionDetailResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(templateVersionId, payload.TemplateVersionId);
+        Assert.Single(payload.Questions);
+    }
+
+    [Fact]
+    public async Task Scoring_rule_endpoint_creates_draft_rule()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/scoring-rules",
+            tenantId,
+            new CreateScoringRuleRequest(
+                Guid.NewGuid(),
+                "tenant-burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                ValidGraphDocument,
+                """{"scores":["total"]}"""));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<SetupIdResponse>();
+        Assert.NotNull(payload);
+        Assert.NotEqual(Guid.Empty, payload.Id);
+    }
+
+    [Fact]
+    public async Task Scoring_rule_endpoint_maps_validation_failure_to_bad_request()
+    {
+        var tenantId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore();
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/scoring-rules",
+            tenantId,
+            new CreateScoringRuleRequest(
+                Guid.NewGuid(),
+                "tenant-burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                ValidGraphDocument,
+                """{"scores":["other"]}"""));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("score.rule_produces_mismatch", payload.Title);
+        Assert.Equal(0, store.CreateScoringRuleCallCount);
+    }
+
+    [Fact]
+    public async Task Campaign_series_endpoint_creates_series()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/campaign-series",
+            tenantId,
+            new CreateCampaignSeriesRequest("Private study"));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Campaign_series_two_wave_proof_endpoint_returns_counts()
+    {
+        var tenantId = Guid.NewGuid();
+        var seriesId = Guid.NewGuid();
+        var proof = new CampaignSeriesTwoWaveProofResponse(
+            seriesId,
+            "ready",
+            ExpectedWaveCount: 2,
+            LaunchedWaveCount: 2,
+            SubmittedWaveCount: 2,
+            LinkedTrajectoryCount: 1,
+            CompleteTrajectoryCount: 1,
+            Waves:
+            [
+                new TwoWaveProofWaveResponse(
+                    Guid.NewGuid(),
+                    "Wave 1",
+                    "live",
+                    "anonymous_longitudinal",
+                    SubmittedResponseCount: 1),
+                new TwoWaveProofWaveResponse(
+                    Guid.NewGuid(),
+                    "Wave 2",
+                    "live",
+                    "anonymous_longitudinal",
+                    SubmittedResponseCount: 1)
+            ]);
+        var proofStore = new FakeCampaignSeriesProofStore(seriesId, Result.Success(proof));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            campaignSeriesProofStore: proofStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/campaign-series/{seriesId}/two-wave-proof",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignSeriesTwoWaveProofResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("ready", payload.ProofStatus);
+        Assert.Equal(2, payload.LaunchedWaveCount);
+        Assert.Equal(1, payload.CompleteTrajectoryCount);
+        Assert.Equal(tenantId, proofStore.TenantId);
+        Assert.Equal(seriesId, proofStore.CampaignSeriesId);
+    }
+
+    [Fact]
+    public async Task Campaign_endpoint_creates_draft_with_identity_mode()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/campaigns",
+            tenantId,
+            new CreateCampaignRequest(
+                Guid.NewGuid(),
+                "Wave 1",
+                "anonymous_longitudinal",
+                CampaignSeriesId: Guid.NewGuid()));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignDraftResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("draft", payload.Status);
+        Assert.Equal("anonymous_longitudinal", payload.ResponseIdentityMode);
+    }
+
+    [Fact]
+    public async Task Launch_readiness_endpoint_returns_structured_issues()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/launch-readiness",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<LaunchReadinessResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Contains(
+            payload.Issues,
+            issue => issue.Code == "template.no_questions");
+        Assert.DoesNotContain(
+            payload.Issues,
+            issue => issue.Code == "identity.participant_codes_not_implemented");
+    }
+
+    [Fact]
+    public async Task Launch_campaign_endpoint_returns_snapshot_response()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/launch",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<LaunchCampaignResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal("live", payload.Status);
+        Assert.NotEqual(Guid.Empty, payload.LaunchSnapshotId);
+        Assert.NotEqual(Guid.Empty, payload.RetentionPolicyId);
+        Assert.NotEqual(Guid.Empty, payload.DisclosurePolicyId);
+    }
+
+    [Fact]
+    public async Task Campaign_respondent_rules_endpoint_saves_ordered_rules()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore(campaignId: campaignId);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            $"/campaigns/{campaignId}/respondent-rules",
+            tenantId,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}"""),
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"all_in_group","role":"group_member","group_id":"{{groupId:D}}"}""")
+            ]));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignRespondentRuleListResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal([1, 2], payload.Rules.Select(rule => rule.Ordinal).ToArray());
+        Assert.Equal(tenantId, store.UpdateRespondentRulesTenantId);
+        Assert.Equal(campaignId, store.UpdateRespondentRulesCampaignId);
+        Assert.Equal(2, store.UpdateRespondentRulesRequest?.Rules.Count);
+    }
+
+    [Fact]
+    public async Task Campaign_respondent_rules_endpoint_requires_setup_manage_permission_for_save()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore(campaignId: campaignId);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            $"/campaigns/{campaignId}/respondent-rules",
+            tenantId,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self"}""")
+            ]),
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(store.UpdateRespondentRulesRequest);
+    }
+
+    [Fact]
+    public async Task Campaign_respondent_rules_endpoint_lists_saved_rules()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore(campaignId: campaignId);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/respondent-rules",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignRespondentRuleListResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        var rule = Assert.Single(payload.Rules);
+        Assert.Equal("self", rule.RuleKind);
+        Assert.Equal("self", rule.Role);
+        Assert.Equal(1, rule.AssignmentPairCount);
+        Assert.Equal(tenantId, store.ListRespondentRulesTenantId);
+        Assert.Equal(campaignId, store.ListRespondentRulesCampaignId);
+    }
+
+    [Fact]
+    public async Task Campaign_assignments_endpoint_returns_safe_roster()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore(campaignId: campaignId);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/assignments",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignAssignmentListResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        var assignment = Assert.Single(payload.Assignments);
+        Assert.Equal("self", assignment.Role);
+        Assert.False(assignment.Anonymous);
+        Assert.NotNull(assignment.Target);
+        Assert.NotNull(assignment.Respondent);
+        Assert.Equal(tenantId, store.ListAssignmentsTenantId);
+        Assert.Equal(campaignId, store.ListAssignmentsCampaignId);
+
+        var serialized = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("token", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("hash", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("answer", serialized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Campaign_open_link_endpoint_returns_raw_token_and_respondent_path()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/open-link",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignOpenLinkResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.StartsWith("opn_", payload.Token, StringComparison.Ordinal);
+        Assert.Equal($"/r/{payload.Token}", payload.RespondentPath);
+    }
+
+    [Fact]
+    public async Task Campaign_identified_entry_endpoint_returns_raw_token_subject_and_respondent_path()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/identified-entry",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignIdentifiedEntryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.NotEqual(Guid.Empty, payload.AssignmentId);
+        Assert.NotEqual(Guid.Empty, payload.SubjectId);
+        Assert.StartsWith("idn_", payload.Token, StringComparison.Ordinal);
+        Assert.Equal($"/r/{payload.Token}", payload.RespondentPath);
+    }
+
+    [Fact]
+    public async Task Campaign_invitation_batch_endpoint_returns_raw_invite_paths()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/invitation-batches",
+            tenantId,
+            new CreateCampaignInvitationBatchRequest(
+            [
+                new InvitationRecipientRequest("ada@example.com"),
+                new InvitationRecipientRequest("bo@example.com")
+            ]));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignInvitationBatchResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal(2, payload.CreatedInvitationCount);
+        Assert.All(payload.Invitations, invitation =>
+        {
+            Assert.StartsWith("inv_", invitation.Token, StringComparison.Ordinal);
+            Assert.Equal($"/r/{invitation.Token}", invitation.RespondentPath);
+            Assert.Equal("queued", invitation.Status);
+        });
+    }
+
+    [Fact]
+    public async Task Campaign_notification_deliveries_endpoint_processes_queued_notifications()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(new ProcessCampaignEmailDeliveriesResponse(
+                campaignId,
+                RequestedBatchSize: 5,
+                ProcessedCount: 1,
+                SentCount: 1,
+                FailedCount: 0,
+                Deliveries:
+                [
+                    new NotificationDeliveryProofResponse(
+                        notificationId,
+                        "ada@example.com",
+                        "sent",
+                        "local-dev",
+                        "local-dev-message",
+                        "/r/inv_example",
+                        Error: null)
+                ])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(campaignId: campaignId),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/notification-deliveries/process",
+            tenantId,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 5));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProcessCampaignEmailDeliveriesResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal(1, payload.SentCount);
+        Assert.Equal("/r/inv_example", Assert.Single(payload.Deliveries).RespondentPath);
+        Assert.Equal(tenantId, deliveryStore.TenantId);
+        Assert.Equal(campaignId, deliveryStore.CampaignId);
+        Assert.Equal(5, deliveryStore.Request!.BatchSize);
+    }
+
+    [Fact]
+    public async Task Campaign_notification_deliveries_requeue_failed_endpoint_requeues_failed_notifications()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(campaignId)),
+            Result.Success(new RequeueFailedCampaignEmailDeliveriesResponse(
+                campaignId,
+                RequestedBatchSize: 7,
+                RequeuedCount: 2)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(campaignId: campaignId),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/notification-deliveries/requeue-failed",
+            tenantId,
+            new RequeueFailedCampaignEmailDeliveriesRequest(BatchSize: 7));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<RequeueFailedCampaignEmailDeliveriesResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal(7, payload.RequestedBatchSize);
+        Assert.Equal(2, payload.RequeuedCount);
+        Assert.Equal(tenantId, deliveryStore.RequeueTenantId);
+        Assert.Equal(campaignId, deliveryStore.RequeueCampaignId);
+        Assert.Equal(7, deliveryStore.RequeueRequest!.BatchSize);
+    }
+
+    [Fact]
+    public async Task Campaign_notification_deliveries_requeue_failed_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(campaignId)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(campaignId: campaignId),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/notification-deliveries/requeue-failed",
+            tenantId,
+            new RequeueFailedCampaignEmailDeliveriesRequest(BatchSize: 5),
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(deliveryStore.RequeueRequest);
+    }
+
+    [Fact]
+    public async Task Campaign_notification_deliveries_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(new ProcessCampaignEmailDeliveriesResponse(
+                campaignId,
+                RequestedBatchSize: 5,
+                ProcessedCount: 0,
+                SentCount: 0,
+                FailedCount: 0,
+                Deliveries: [])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(campaignId: campaignId),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/notification-deliveries/process",
+            tenantId,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 5),
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(deliveryStore.Request);
+    }
+
+    [Fact]
+    public async Task Campaign_notification_deliveries_endpoint_maps_store_failure_to_bad_request()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Failure<ProcessCampaignEmailDeliveriesResponse>(
+                Error.Validation("notification_delivery.invalid", "Delivery request was invalid.")));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(campaignId: campaignId),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/notification-deliveries/process",
+            tenantId,
+            new ProcessCampaignEmailDeliveriesRequest());
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("notification_delivery.invalid", payload.Title);
+    }
+
+    [Fact]
+    public async Task Operational_notifications_endpoint_returns_safe_pointer_rows()
+    {
+        var tenantId = Guid.NewGuid();
+        var exportArtifactId = Guid.NewGuid();
+        var campaignSeriesId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(
+                RequestedLimit: 10,
+                Notifications:
+                [
+                    new OperationalNotificationResponse(
+                        Guid.NewGuid(),
+                        "report_pdf_artifact_terminal",
+                        "warning",
+                        "unread",
+                        exportArtifactId,
+                        "ReportPdfArtifactTerminalStateReached",
+                        DateTimeOffset.Parse("2026-05-18T20:30:00+00:00"),
+                        CampaignSeriesId: campaignSeriesId,
+                        ArtifactStatus: "failed",
+                        SourceStatus: "failed",
+                        FailureReasonCode: "export_artifact.object_store_unavailable")
+                ])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/operational-notifications?limit=10",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<ListOperationalNotificationsResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(10, payload.RequestedLimit);
+        var notification = Assert.Single(payload.Notifications);
+        Assert.Equal(exportArtifactId, notification.SourceAggregateId);
+        Assert.Equal(campaignSeriesId, notification.CampaignSeriesId);
+        Assert.Equal("failed", notification.ArtifactStatus);
+        Assert.Equal("failed", notification.SourceStatus);
+        Assert.Contains("\"sourceStatus\":\"failed\"", body, StringComparison.Ordinal);
+        Assert.Equal("export_artifact.object_store_unavailable", notification.FailureReasonCode);
+        Assert.Equal(tenantId, operationalNotificationStore.TenantId);
+        Assert.Equal(10, operationalNotificationStore.Limit);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("storage", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("X-Amz", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Operational_notifications_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/operational-notifications",
+            tenantId,
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(0, operationalNotificationStore.Limit);
+    }
+
+    [Fact]
+    public async Task Operational_notifications_summary_endpoint_returns_unread_counts_without_internals()
+    {
+        var tenantId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])),
+            summaryResponse: Result.Success(new OperationalNotificationSummaryResponse(
+                UnreadCount: 2,
+                InfoUnreadCount: 1,
+                WarningUnreadCount: 1,
+                LatestUnreadAt: DateTimeOffset.Parse("2026-05-18T21:15:00+00:00"))));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/operational-notifications/summary",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<OperationalNotificationSummaryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(2, payload.UnreadCount);
+        Assert.Equal(1, payload.InfoUnreadCount);
+        Assert.Equal(1, payload.WarningUnreadCount);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-18T21:15:00+00:00"), payload.LatestUnreadAt);
+        Assert.Equal(tenantId, operationalNotificationStore.SummaryTenantId);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("storage", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("X-Amz", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Operational_notifications_summary_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])),
+            summaryResponse: Result.Success(new OperationalNotificationSummaryResponse(
+                0,
+                0,
+                0,
+                LatestUnreadAt: null)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/operational-notifications/summary",
+            tenantId,
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(Guid.Empty, operationalNotificationStore.SummaryTenantId);
+    }
+
+    [Fact]
+    public async Task Operational_notification_mark_read_endpoint_returns_read_notification()
+    {
+        var tenantId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var readAt = DateTimeOffset.Parse("2026-05-18T21:05:00+00:00");
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])),
+            markReadResponse: Result.Success(new OperationalNotificationResponse(
+                notificationId,
+                "report_pdf_artifact_terminal",
+                "info",
+                "read",
+                Guid.NewGuid(),
+                "ReportPdfArtifactTerminalStateReached",
+                DateTimeOffset.Parse("2026-05-18T20:30:00+00:00"),
+                ReadAt: readAt,
+                UpdatedAt: readAt)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/operational-notifications/{notificationId}/mark-read",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<OperationalNotificationResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(notificationId, payload.Id);
+        Assert.Equal("read", payload.Status);
+        Assert.Equal(readAt, payload.ReadAt);
+        Assert.Equal(readAt, payload.UpdatedAt);
+        Assert.Equal(tenantId, operationalNotificationStore.MarkReadTenantId);
+        Assert.Equal(notificationId, operationalNotificationStore.MarkReadNotificationId);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("storage", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("X-Amz", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Operational_notification_mark_read_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/operational-notifications/{notificationId}/mark-read",
+            tenantId,
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(Guid.Empty, operationalNotificationStore.MarkReadNotificationId);
+    }
+
+    [Fact]
+    public async Task Operational_notification_mark_all_read_endpoint_returns_safe_count()
+    {
+        var tenantId = Guid.NewGuid();
+        var readAt = DateTimeOffset.Parse("2026-05-18T21:35:00+00:00");
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])),
+            markAllReadResponse: Result.Success(new MarkAllOperationalNotificationsReadResponse(
+                MarkedReadCount: 3,
+                ReadAt: readAt)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/operational-notifications/mark-all-read",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<MarkAllOperationalNotificationsReadResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(3, payload.MarkedReadCount);
+        Assert.Equal(readAt, payload.ReadAt);
+        Assert.Equal(tenantId, operationalNotificationStore.MarkAllReadTenantId);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("storage", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("X-Amz", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("sourceAggregateId", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Operational_notification_mark_all_read_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var operationalNotificationStore = new FakeOperationalNotificationStore(
+            Result.Success(new ListOperationalNotificationsResponse(25, [])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            operationalNotificationStore: operationalNotificationStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/operational-notifications/mark-all-read",
+            tenantId,
+            permissions: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(Guid.Empty, operationalNotificationStore.MarkAllReadTenantId);
+    }
+
+    [Fact]
+    public async Task Campaign_invitation_batch_endpoint_maps_validation_failure_to_bad_request()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/invitation-batches",
+            tenantId,
+            new CreateCampaignInvitationBatchRequest(
+                Enumerable.Range(0, 26)
+                    .Select(index => new InvitationRecipientRequest($"person{index}@example.com"))
+                    .ToArray()));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("validation.failed", payload.Title);
+    }
+
+    [Fact]
+    public async Task Campaign_invitation_batch_endpoint_maps_identity_mode_block_to_bad_request()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var blocked = Result.Failure<CampaignInvitationBatchResponse>(
+            Error.Validation(
+                "invitation_batch.identity_mode_not_supported",
+                "Email invitation batches support anonymous campaigns only."));
+        using var client = CreateClient(new FakeSetupWorkflowStore(
+            campaignId: campaignId,
+            invitationBatchResult: blocked));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/invitation-batches",
+            tenantId,
+            new CreateCampaignInvitationBatchRequest(
+            [
+                new InvitationRecipientRequest("ada@example.com")
+            ]));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("invitation_batch.identity_mode_not_supported", payload.Title);
+    }
+
+    private static ProcessCampaignEmailDeliveriesResponse CreateEmptyProcessResponse(Guid campaignId)
+    {
+        return new ProcessCampaignEmailDeliveriesResponse(
+            campaignId,
+            RequestedBatchSize: 25,
+            ProcessedCount: 0,
+            SentCount: 0,
+            FailedCount: 0,
+            Deliveries: []);
+    }
+
+
+    private HttpClient CreateClient(
+        ISetupWorkflowStore store,
+        INotificationDeliveryStore? notificationDeliveryStore = null,
+        ICampaignSeriesProofStore? campaignSeriesProofStore = null,
+        IOperationalNotificationStore? operationalNotificationStore = null)
+    {
+        return factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddAuthentication(options =>
+                    {
+                        options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                        options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                    })
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        TestAuthHandler.SchemeName,
+                        _ => { });
+
+                services.AddSingleton(store);
+                if (notificationDeliveryStore is not null)
+                {
+                    services.AddSingleton(notificationDeliveryStore);
+                }
+
+                if (campaignSeriesProofStore is not null)
+                {
+                    services.AddSingleton(campaignSeriesProofStore);
+                }
+
+                if (operationalNotificationStore is not null)
+                {
+                    services.AddSingleton(operationalNotificationStore);
+                }
+            });
+        }).CreateClient();
+    }
+
+    private static HttpRequestMessage AuthenticatedRequest(
+        HttpMethod method,
+        string url,
+        Guid tenantId,
+        object? body = null,
+        string? permissions = "setup.manage")
+    {
+        var request = new HttpRequestMessage(method, url);
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        request.Headers.Add(TestAuthHandler.UserIdHeader, Guid.NewGuid().ToString());
+        request.Headers.Add(TestAuthHandler.TenantMembershipsHeader, tenantId.ToString());
+        if (permissions is not null)
+        {
+            request.Headers.Add(TestAuthHandler.PermissionsHeader, permissions);
+        }
+
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return request;
+    }
+
+    private static CreateTemplateVersionRequest SampleTemplateVersionRequest()
+    {
+        return new CreateTemplateVersionRequest(
+            "Private burnout pulse",
+            "1.0.0",
+            "en",
+            InstrumentId: null,
+            Sections:
+            [
+                new CreateTemplateSectionRequest(1, "core", "Core")
+            ],
+            Scales:
+            [
+                new CreateQuestionScaleRequest(
+                    "agreement",
+                    "likert",
+                    1,
+                    5,
+                    1,
+                    NaAllowed: false,
+                    """[{"value":1,"label":"Strongly disagree"},{"value":5,"label":"Strongly agree"}]""")
+            ],
+            Questions:
+            [
+                new CreateTemplateQuestionRequest(
+                    1,
+                    "q01",
+                    "likert",
+                    "I feel depleted after work.",
+                    SectionCode: "core",
+                    ScaleCode: "agreement",
+                    MeasurementLevel: "ordinal")
+            ]);
+    }
+
+    private const string ValidGraphDocument = """
+        {
+          "schema_version": "1.0.0",
+          "engine_min_version": "1.0.0",
+          "rule_id": "tenant-burnout.total",
+          "rule_version": "1.0.0",
+          "scale_defaults": {
+            "agreement": { "min": 1, "max": 5 }
+          },
+          "inputs": [
+            { "id": "core_items", "kind": "answers", "items": ["q01", "q02", "q03"] }
+          ],
+          "nodes": [
+            { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+            {
+              "id": "scored_answers",
+              "op": "reverse_code",
+              "input": "core_answers",
+              "scale": "agreement",
+              "reverse_flag_source": "explicit_list",
+              "explicit_reverse_items": ["q03"]
+            },
+            { "id": "total", "op": "mean", "input": "scored_answers" }
+          ],
+          "outputs": [
+            { "code": "total", "node": "total" }
+          ],
+          "missing_data": {
+            "defaults": { "strategy": "require_all" }
+          }
+        }
+        """;
+
+    private sealed class FakeSetupWorkflowStore : ISetupWorkflowStore
+    {
+        private readonly Guid _instrumentId = Guid.NewGuid();
+        private readonly Guid _templateVersionId;
+        private readonly Guid _campaignId;
+        private readonly Result<InstrumentSummaryResponse>? _createInstrumentResult;
+        private readonly Result<CampaignOpenLinkResponse>? _openLinkResult;
+        private readonly Result<CampaignIdentifiedEntryResponse>? _identifiedEntryResult;
+        private readonly Result<CampaignInvitationBatchResponse>? _invitationBatchResult;
+
+        public FakeSetupWorkflowStore(
+            Guid? templateVersionId = null,
+            Guid? campaignId = null,
+            Result<InstrumentSummaryResponse>? createInstrumentResult = null,
+            Result<CampaignOpenLinkResponse>? openLinkResult = null,
+            Result<CampaignIdentifiedEntryResponse>? identifiedEntryResult = null,
+            Result<CampaignInvitationBatchResponse>? invitationBatchResult = null)
+        {
+            _templateVersionId = templateVersionId ?? Guid.NewGuid();
+            _campaignId = campaignId ?? Guid.NewGuid();
+            _createInstrumentResult = createInstrumentResult;
+            _openLinkResult = openLinkResult;
+            _identifiedEntryResult = identifiedEntryResult;
+            _invitationBatchResult = invitationBatchResult;
+        }
+
+        public Task<Result<InstrumentSummaryResponse>> CreatePrivateInstrumentImportAsync(
+            Guid tenantId,
+            CreatePrivateInstrumentImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (_createInstrumentResult.HasValue)
+            {
+                return Task.FromResult(_createInstrumentResult.Value);
+            }
+
+            return Task.FromResult(Result.Success(new InstrumentSummaryResponse(
+                _instrumentId,
+                request.Code,
+                request.Version,
+                request.FullName,
+                request.RightsStatus,
+                request.ValidityLabel,
+                CanStartNewCampaign: true)));
+        }
+
+        public Task<IReadOnlyList<InstrumentSummaryResponse>> ListInstrumentsAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<InstrumentSummaryResponse> instruments =
+            [
+                new(
+                    _instrumentId,
+                    "custom-olbi",
+                    "1.0.0",
+                    "Custom OLBI",
+                    "attested_by_tenant",
+                    "tenant_provided",
+                    true)
+            ];
+
+            return Task.FromResult(instruments);
+        }
+
+        public Task<Result<TemplateVersionDetailResponse>> CreateTemplateVersionAsync(
+            Guid tenantId,
+            Guid? actorId,
+            CreateTemplateVersionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(CreateTemplateVersionResponse(
+                request.TemplateName,
+                _templateVersionId)));
+        }
+
+        public Task<Result<TemplateVersionDetailResponse>> GetTemplateVersionAsync(
+            Guid tenantId,
+            Guid templateVersionId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(CreateTemplateVersionResponse(
+                "Private burnout pulse",
+                templateVersionId)));
+        }
+
+        public Task<Result<SetupIdResponse>> CreateScoringRuleAsync(
+            Guid tenantId,
+            CreateScoringRuleRequest request,
+            CancellationToken cancellationToken)
+        {
+            CreateScoringRuleCallCount++;
+
+            return Task.FromResult(Result.Success(new SetupIdResponse(Guid.NewGuid())));
+        }
+
+        public int CreateScoringRuleCallCount { get; private set; }
+
+        public Guid? ListRespondentRulesTenantId { get; private set; }
+
+        public Guid? ListRespondentRulesCampaignId { get; private set; }
+
+        public Guid? UpdateRespondentRulesTenantId { get; private set; }
+
+        public Guid? UpdateRespondentRulesCampaignId { get; private set; }
+
+        public UpdateCampaignRespondentRulesRequest? UpdateRespondentRulesRequest { get; private set; }
+
+        public Guid? ListAssignmentsTenantId { get; private set; }
+
+        public Guid? ListAssignmentsCampaignId { get; private set; }
+
+        public Task<Result<SetupIdResponse>> CreateCampaignSeriesAsync(
+            Guid tenantId,
+            CreateCampaignSeriesRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new SetupIdResponse(Guid.NewGuid())));
+        }
+
+        public Task<Result<CampaignDraftResponse>> CreateCampaignAsync(
+            Guid tenantId,
+            Guid? actorId,
+            CreateCampaignRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new CampaignDraftResponse(
+                Guid.NewGuid(),
+                request.CampaignSeriesId,
+                request.TemplateVersionId,
+                request.Name,
+                "draft",
+                request.ResponseIdentityMode)));
+        }
+
+        public Task<Result<LaunchReadinessResponse>> GetLaunchReadinessAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new LaunchReadinessResponse(
+                campaignId,
+                Ready: false,
+                Issues:
+                [
+                    new LaunchReadinessIssueResponse(
+                        "template.no_questions",
+                        "blocker",
+                        "Template version must contain at least one question before launch.")
+                ])));
+        }
+
+        public Task<Result<CampaignRespondentRuleListResponse>> ListCampaignRespondentRulesAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            ListRespondentRulesTenantId = tenantId;
+            ListRespondentRulesCampaignId = campaignId;
+
+            return Task.FromResult(Result.Success(new CampaignRespondentRuleListResponse(
+                campaignId,
+                [
+                    new CampaignRespondentRuleResponse(
+                        Guid.NewGuid(),
+                        1,
+                        """{"kind":"self","role":"self"}""",
+                        "self",
+                        "self",
+                        TargetSubjectId: null,
+                        GroupId: null,
+                        AssignmentPairCount: 1,
+                        Issues: [])
+                ])));
+        }
+
+        public Task<Result<CampaignRespondentRuleListResponse>> UpdateCampaignRespondentRulesAsync(
+            Guid tenantId,
+            Guid campaignId,
+            UpdateCampaignRespondentRulesRequest request,
+            CancellationToken cancellationToken)
+        {
+            UpdateRespondentRulesTenantId = tenantId;
+            UpdateRespondentRulesCampaignId = campaignId;
+            UpdateRespondentRulesRequest = request;
+
+            return Task.FromResult(Result.Success(new CampaignRespondentRuleListResponse(
+                campaignId,
+                request.Rules
+                    .Select((rule, index) => new CampaignRespondentRuleResponse(
+                        Guid.NewGuid(),
+                        index + 1,
+                        rule.Rule,
+                        index == 0 ? "self" : "all_in_group",
+                        index == 0 ? "self" : "group_member",
+                        TargetSubjectId: null,
+                        GroupId: null,
+                        AssignmentPairCount: 1,
+                        Issues: []))
+                    .ToArray())));
+        }
+
+        public Task<Result<CampaignAssignmentListResponse>> ListCampaignAssignmentsAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            ListAssignmentsTenantId = tenantId;
+            ListAssignmentsCampaignId = campaignId;
+
+            var targetSubjectId = Guid.NewGuid();
+            var respondentSubjectId = Guid.NewGuid();
+
+            return Task.FromResult(Result.Success(new CampaignAssignmentListResponse(
+                campaignId,
+                AssignmentCount: 1,
+                Assignments:
+                [
+                    new CampaignAssignmentResponse(
+                        Guid.NewGuid(),
+                        "self",
+                        "pending",
+                        Anonymous: false,
+                        targetSubjectId,
+                        new CampaignAssignmentSubjectResponse(
+                            targetSubjectId,
+                            "Ana Example",
+                            "Ana Example",
+                            "ana@example.invalid",
+                            "ANA-001"),
+                        respondentSubjectId,
+                        new CampaignAssignmentSubjectResponse(
+                            respondentSubjectId,
+                            "Ana Example",
+                            "Ana Example",
+                            "ana@example.invalid",
+                            "ANA-001"),
+                        DueAt: null,
+                        CreatedAt: DateTimeOffset.Parse("2026-05-15T12:00:00+00:00"))
+                ])));
+        }
+
+        public Task<Result<LaunchCampaignResponse>> LaunchCampaignAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new LaunchCampaignResponse(
+                campaignId,
+                Status: "live",
+                LaunchSnapshotId: Guid.NewGuid(),
+                TemplateVersionId: _templateVersionId,
+                ScoringRuleId: Guid.NewGuid(),
+                RetentionPolicyId: Guid.NewGuid(),
+                DisclosurePolicyId: Guid.NewGuid(),
+                ResponseIdentityMode: "anonymous",
+                DefaultLocale: "en",
+                LaunchedAt: DateTimeOffset.Parse("2026-05-07T10:15:00+00:00"))));
+        }
+
+        public Task<Result<CampaignOpenLinkResponse>> CreateCampaignOpenLinkAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            if (_openLinkResult.HasValue)
+            {
+                return Task.FromResult(_openLinkResult.Value);
+            }
+
+            var token = $"opn_{tenantId:N}_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+
+            return Task.FromResult(Result.Success(new CampaignOpenLinkResponse(
+                campaignId,
+                Guid.NewGuid(),
+                token,
+                $"/r/{token}")));
+        }
+
+        public Task<Result<CampaignIdentifiedEntryResponse>> CreateCampaignIdentifiedEntryAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            if (_identifiedEntryResult.HasValue)
+            {
+                return Task.FromResult(_identifiedEntryResult.Value);
+            }
+
+            var token = $"idn_{tenantId:N}_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+
+            return Task.FromResult(Result.Success(new CampaignIdentifiedEntryResponse(
+                campaignId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                token,
+                $"/r/{token}")));
+        }
+
+        public Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CreateCampaignInvitationBatchRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (_invitationBatchResult.HasValue)
+            {
+                return Task.FromResult(_invitationBatchResult.Value);
+            }
+
+            var invitations = request.Recipients
+                .Select((recipient, index) =>
+                {
+                    var token = $"inv_{tenantId:N}_abcdefghijklmnopqrstuvwxyz{index:D2}ABCDEFGHIJKLMNO";
+
+                    return new CampaignInvitationResponse(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        recipient.Email.Trim().ToLowerInvariant(),
+                        token,
+                        $"/r/{token}",
+                        "queued");
+                })
+                .ToArray();
+
+            return Task.FromResult(Result.Success(new CampaignInvitationBatchResponse(
+                campaignId,
+                request.Recipients.Count,
+                invitations.Length,
+                invitations)));
+        }
+
+        private static TemplateVersionDetailResponse CreateTemplateVersionResponse(
+            string templateName,
+            Guid templateVersionId)
+        {
+            var sectionId = Guid.NewGuid();
+            var scaleId = Guid.NewGuid();
+
+            return new TemplateVersionDetailResponse(
+                TemplateId: Guid.NewGuid(),
+                TemplateVersionId: templateVersionId,
+                TemplateName: templateName,
+                Semver: "1.0.0",
+                Status: "draft",
+                DefaultLocale: "en",
+                InstrumentId: null,
+                Sections:
+                [
+                    new TemplateSectionResponse(sectionId, 1, "core", "Core")
+                ],
+                Scales:
+                [
+                    new QuestionScaleResponse(
+                        scaleId,
+                        "agreement",
+                        "likert",
+                        1,
+                        5,
+                        1,
+                        NaAllowed: false,
+                        """[{"value":1,"label":"Strongly disagree"},{"value":5,"label":"Strongly agree"}]""")
+                ],
+                Questions:
+                [
+                    new TemplateQuestionResponse(
+                        Guid.NewGuid(),
+                        1,
+                        "q01",
+                        "likert",
+                        scaleId,
+                        "I feel depleted after work.",
+                        Required: true,
+                        ReverseCoded: false,
+                        MeasurementLevel: "ordinal")
+                ]);
+        }
+    }
+
+    private sealed class FakeNotificationDeliveryStore(
+        Result<ProcessCampaignEmailDeliveriesResponse> response,
+        Result<RequeueFailedCampaignEmailDeliveriesResponse>? requeueResponse = null) : INotificationDeliveryStore
+    {
+        public Guid TenantId { get; private set; }
+
+        public Guid CampaignId { get; private set; }
+
+        public ProcessCampaignEmailDeliveriesRequest? Request { get; private set; }
+
+        public Guid RequeueTenantId { get; private set; }
+
+        public Guid RequeueCampaignId { get; private set; }
+
+        public RequeueFailedCampaignEmailDeliveriesRequest? RequeueRequest { get; private set; }
+
+        public Task<Result<ProcessCampaignEmailDeliveriesResponse>> ProcessCampaignEmailDeliveriesAsync(
+            Guid tenantId,
+            Guid campaignId,
+            ProcessCampaignEmailDeliveriesRequest request,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+            CampaignId = campaignId;
+            Request = request;
+
+            return Task.FromResult(response);
+        }
+
+        public Task<Result<RequeueFailedCampaignEmailDeliveriesResponse>> RequeueFailedCampaignEmailDeliveriesAsync(
+            Guid tenantId,
+            Guid campaignId,
+            RequeueFailedCampaignEmailDeliveriesRequest request,
+            CancellationToken cancellationToken)
+        {
+            RequeueTenantId = tenantId;
+            RequeueCampaignId = campaignId;
+            RequeueRequest = request;
+
+            return Task.FromResult(requeueResponse ?? Result.Success(new RequeueFailedCampaignEmailDeliveriesResponse(
+                campaignId,
+                request.BatchSize,
+                RequeuedCount: 0)));
+        }
+    }
+
+    private sealed class FakeOperationalNotificationStore(
+        Result<ListOperationalNotificationsResponse> response,
+        Result<OperationalNotificationResponse>? markReadResponse = null,
+        Result<OperationalNotificationSummaryResponse>? summaryResponse = null,
+        Result<MarkAllOperationalNotificationsReadResponse>? markAllReadResponse = null) : IOperationalNotificationStore
+    {
+        public Guid TenantId { get; private set; }
+
+        public int Limit { get; private set; }
+
+        public Guid SummaryTenantId { get; private set; }
+
+        public Guid MarkReadTenantId { get; private set; }
+
+        public Guid MarkReadNotificationId { get; private set; }
+
+        public Guid MarkAllReadTenantId { get; private set; }
+
+        public Task<Result<OperationalNotificationResponse>> RecordReportPdfArtifactTerminalStateAsync(
+            Guid tenantId,
+            Guid exportArtifactId,
+            Guid campaignSeriesId,
+            string status,
+            string? failureReasonCode,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Result<ListOperationalNotificationsResponse>> ListOperationalNotificationsAsync(
+            Guid tenantId,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+            Limit = limit;
+
+            return Task.FromResult(response);
+        }
+
+        public Task<Result<OperationalNotificationSummaryResponse>> GetOperationalNotificationSummaryAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            SummaryTenantId = tenantId;
+
+            return Task.FromResult(
+                summaryResponse ??
+                Result.Success(new OperationalNotificationSummaryResponse(
+                    0,
+                    0,
+                    0,
+                    LatestUnreadAt: null)));
+        }
+
+        public Task<Result<OperationalNotificationResponse>> MarkOperationalNotificationReadAsync(
+            Guid tenantId,
+            Guid notificationId,
+            DateTimeOffset readAt,
+            CancellationToken cancellationToken)
+        {
+            MarkReadTenantId = tenantId;
+            MarkReadNotificationId = notificationId;
+
+            return Task.FromResult(
+                markReadResponse ??
+                Result.Failure<OperationalNotificationResponse>(
+                    Error.NotFound(
+                        "operational_notification.not_found",
+                        "Operational notification was not found.")));
+        }
+
+        public Task<Result<MarkAllOperationalNotificationsReadResponse>> MarkAllOperationalNotificationsReadAsync(
+            Guid tenantId,
+            DateTimeOffset readAt,
+            CancellationToken cancellationToken)
+        {
+            MarkAllReadTenantId = tenantId;
+
+            return Task.FromResult(
+                markAllReadResponse ??
+                Result.Success(new MarkAllOperationalNotificationsReadResponse(
+                    MarkedReadCount: 0,
+                    ReadAt: readAt)));
+        }
+    }
+
+    private sealed class FakeCampaignSeriesProofStore(
+        Guid expectedCampaignSeriesId,
+        Result<CampaignSeriesTwoWaveProofResponse> result) : ICampaignSeriesProofStore
+    {
+        public Guid TenantId { get; private set; }
+
+        public Guid CampaignSeriesId { get; private set; }
+
+        public Task<Result<CampaignSeriesTwoWaveProofResponse>> GetTwoWaveProofAsync(
+            Guid tenantId,
+            Guid campaignSeriesId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(expectedCampaignSeriesId, campaignSeriesId);
+            TenantId = tenantId;
+            CampaignSeriesId = campaignSeriesId;
+
+            return Task.FromResult(result);
+        }
+    }
+}

@@ -1,0 +1,73 @@
+{
+  "environmentLabel": "proof_demo",
+  "productionData": false,
+  "localCopy": "validation-demo-auth-users.local.json",
+  "tenants": [
+    {
+      "slug": "validation-oh-research",
+      "tenantId": "33333333-3333-4333-8333-333333333333",
+      "users": [
+        {
+          "role": "tenant_owner",
+          "email": "owner.validation-oh-research@demo.test"
+        },
+        {
+          "role": "researcher",
+          "email": "researcher.validation-oh-research@demo.test"
+        },
+        {
+          "role": "analyst",
+          "email": "analyst.validation-oh-research@demo.test"
+        },
+        {
+          "role": "viewer",
+          "email": "viewer.validation-oh-research@demo.test"
+        }
+      ]
+    },
+    {
+      "slug": "validation-se-education",
+      "tenantId": "44444444-4444-4444-8444-444444444444",
+      "users": [
+        {
+          "role": "tenant_owner",
+          "email": "owner.validation-se-education@demo.test"
+        },
+        {
+          "role": "researcher",
+          "email": "researcher.validation-se-education@demo.test"
+        },
+        {
+          "role": "analyst",
+          "email": "analyst.validation-se-education@demo.test"
+        },
+        {
+          "role": "viewer",
+          "email": "viewer.validation-se-education@demo.test"
+        }
+      ]
+    },
+    {
+      "slug": "validation-osh-consulting",
+      "tenantId": "55555555-5555-4555-8555-555555555555",
+      "users": [
+        {
+          "role": "tenant_owner",
+          "email": "owner.validation-osh-consulting@demo.test"
+        },
+        {
+          "role": "researcher",
+          "email": "researcher.validation-osh-consulting@demo.test"
+        },
+        {
+          "role": "analyst",
+          "email": "analyst.validation-osh-consulting@demo.test"
+        },
+        {
+          "role": "viewer",
+          "email": "viewer.validation-osh-consulting@demo.test"
+        }
+      ]
+    }
+  ]
+}

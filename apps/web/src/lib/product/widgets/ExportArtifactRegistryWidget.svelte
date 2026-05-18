@@ -1,0 +1,109 @@
+<script lang="ts">
+	import type { ReportWidget } from '$lib/api/product';
+	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { isExportArtifactRegistryWidgetData } from './report-widget-data';
+	import {
+		formatBooleanLabel,
+		formatBytes,
+		formatCodeLabel,
+		formatNullableDate
+	} from './report-widget-format';
+	import ReportWidgetShell from './ReportWidgetShell.svelte';
+
+	let { widget }: { widget: ReportWidget } = $props();
+
+	const data = $derived(isExportArtifactRegistryWidgetData(widget.data) ? widget.data : null);
+</script>
+
+<ReportWidgetShell {widget}>
+	{#if data}
+		<dl class="record-grid">
+			<div class="metric-card">
+				<dt class="metric-card__label">Artifacts</dt>
+				<dd class="metric-card__value">{data.exportArtifactCount}</dd>
+			</div>
+			<div class="metric-card">
+				<dt class="metric-card__label">Listed</dt>
+				<dd class="metric-card__value">{data.artifacts.length}</dd>
+			</div>
+		</dl>
+
+		{#if data.artifacts.length > 0}
+			<div class="record-list" aria-label="Export artifacts">
+				{#each data.artifacts as artifact (artifact.id)}
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-row__title">{artifact.fileName}</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{artifact.targetLabel} / {formatCodeLabel(artifact.format)}
+								</p>
+							</div>
+							<StatusBadge status="neutral" label={formatCodeLabel(artifact.status)} />
+						</div>
+
+						<dl class="record-grid">
+							<div class="record-field">
+								<dt class="record-field__label">Rows</dt>
+								<dd class="record-field__value">{artifact.rowCount}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Size</dt>
+								<dd class="record-field__value">{formatBytes(artifact.byteSize)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Created</dt>
+								<dd class="record-field__value">{artifact.createdAt}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Completed</dt>
+								<dd class="record-field__value">{formatNullableDate(artifact.completedAt)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Download</dt>
+								<dd class="record-field__value">{formatBooleanLabel(artifact.canDownload)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Failure reason</dt>
+								<dd class="record-field__value">
+									{formatCodeLabel(artifact.failureReasonCode)}
+								</dd>
+							</div>
+						</dl>
+					</div>
+				{/each}
+			</div>
+		{:else}
+			<p class="text-sm text-[var(--color-text-muted)]">No export artifacts recorded.</p>
+		{/if}
+
+		{#if widget.actions.length > 0}
+			<div class="record-list" aria-label="Report widget actions">
+				{#each widget.actions as action (action.id)}
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-row__title">{action.label}</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{action.method}
+									{formatCodeLabel(action.kind)}
+								</p>
+							</div>
+							<StatusBadge
+								status={action.enabled ? 'ready' : 'blocked'}
+								label={action.enabled ? 'Enabled' : 'Disabled'}
+							/>
+						</div>
+						{#if !action.enabled && action.disabledReason}
+							<p class="text-sm text-[var(--color-text-muted)]">{action.disabledReason}</p>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+	{:else}
+		<p class="text-sm text-[var(--color-text-muted)]">
+			Export artifact registry data is unavailable.
+		</p>
+	{/if}
+</ReportWidgetShell>

@@ -1,0 +1,42 @@
+{
+  "fixture_id": "dummy_burnout_multi_output_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "operations": [
+      { "op": "mean", "items": ["q01", "q02"], "output": "recovery" },
+      { "op": "sum", "items": ["q03", "q04"], "output": "load" }
+    ]
+  },
+  "produces": {
+    "scores": ["recovery", "load"]
+  },
+  "compatibility": {},
+  "answers": {
+    "q01": 2,
+    "q02": 4,
+    "q03": 3,
+    "q04": 4
+  },
+  "expected_outputs": [
+    {
+      "dimension_code": "recovery",
+      "value": 3.0000,
+      "n_valid": 2,
+      "n_expected": 2,
+      "missing_policy_status": "ok"
+    },
+    {
+      "dimension_code": "load",
+      "value": 7.0000,
+      "n_valid": 2,
+      "n_expected": 2,
+      "missing_policy_status": "ok"
+    }
+  ],
+  "expected_error_code": null,
+  "tolerance": { "numeric_abs": 0.0001 }
+}

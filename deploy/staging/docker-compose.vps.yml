@@ -1,0 +1,33 @@
+services:
+  postgres:
+    ports: !reset []
+
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Authentication__Dev__Enabled: "false"
+      Authentication__Oidc__InteractiveEnabled: ${Authentication__Oidc__InteractiveEnabled:-true}
+      Authentication__Oidc__Authority: ${Authentication__Oidc__Authority:?set Auth0 authority}
+      Authentication__Oidc__ClientId: ${Authentication__Oidc__ClientId:?set Auth0 client id}
+      Authentication__Oidc__ClientSecret: ${Authentication__Oidc__ClientSecret:?set Auth0 client secret}
+      Authentication__Oidc__CallbackPath: ${Authentication__Oidc__CallbackPath:-/auth/callback}
+      Authentication__Oidc__SignedOutCallbackPath: ${Authentication__Oidc__SignedOutCallbackPath:-/auth/signout-callback}
+      Authentication__Oidc__RequireHttpsMetadata: ${Authentication__Oidc__RequireHttpsMetadata:-true}
+      Authentication__Oidc__RequireVerifiedEmail: ${Authentication__Oidc__RequireVerifiedEmail:-true}
+      Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:?set staging web CORS origin}
+    ports: !override
+      - "127.0.0.1:${API_HTTP_PORT:-5055}:8080"
+
+  worker:
+    environment:
+      DOTNET_ENVIRONMENT: Production
+
+  web:
+    environment:
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://staging-api.example.com}
+      PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-false}
+      PUBLIC_TENANT_ID: ${PUBLIC_TENANT_ID:?set validation tenant id}
+      PUBLIC_AUTH_LOGIN_URL: ${PUBLIC_AUTH_LOGIN_URL:?set API auth login URL with allowed web returnUrl}
+      PUBLIC_AUTH_LOGOUT_URL: ${PUBLIC_AUTH_LOGOUT_URL:?set API auth logout URL with allowed web returnUrl}
+    ports: !override
+      - "127.0.0.1:${WEB_HTTP_PORT:-5174}:3000"

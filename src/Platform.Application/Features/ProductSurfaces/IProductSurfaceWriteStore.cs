@@ -1,0 +1,92 @@
+using Platform.SharedKernel;
+
+namespace Platform.Application.Features.ProductSurfaces;
+
+public interface IProductSurfaceWriteStore
+{
+    Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        RenameCampaignSeriesRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<CampaignSeriesDuplicateResponse>> DuplicateCampaignSeriesAsync(
+        Guid tenantId,
+        Guid sourceCampaignSeriesId,
+        Guid actorUserId,
+        DuplicateCampaignSeriesRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<CampaignSeriesArchiveStateResponse>> ArchiveCampaignSeriesAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        Guid actorUserId,
+        ArchiveCampaignSeriesRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<CampaignSeriesArchiveStateResponse>> RestoreCampaignSeriesAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
+    Task<Result<CampaignCloseStateResponse>> CloseCampaignAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        Guid campaignId,
+        Guid actorUserId,
+        CloseCampaignRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<CampaignSeriesScoreRemediationResponse>> RemediateCampaignSeriesScoresAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
+    Task<Result<TenantMemberMutationResponse>> CreateTenantMemberAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CreateTenantMemberRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<TenantMemberMutationResponse>> ChangeTenantMemberRoleAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        ChangeTenantMemberRoleRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubjectDirectoryItemResponse>> CreateSubjectAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CreateSubjectRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubjectDirectoryItemResponse>> UpdateSubjectAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        UpdateSubjectRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CreateSubjectGroupRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubjectGroupMembershipResponse>> AddSubjectGroupMemberAsync(
+        Guid tenantId,
+        Guid groupId,
+        Guid actorUserId,
+        AddSubjectGroupMemberRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubjectDirectoryItemResponse>> SetSubjectManagerAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        SetSubjectManagerRequest request,
+        CancellationToken cancellationToken);
+}

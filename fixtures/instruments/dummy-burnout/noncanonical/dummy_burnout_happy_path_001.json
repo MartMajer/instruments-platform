@@ -1,0 +1,33 @@
+{
+  "fixture_id": "dummy_burnout_happy_path_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "operations": [
+      { "op": "mean", "items": ["q01", "q02", "q03"], "output": "total" }
+    ]
+  },
+  "produces": {
+    "scores": ["total"]
+  },
+  "compatibility": {},
+  "answers": {
+    "q01": 2,
+    "q02": 4,
+    "q03": 5
+  },
+  "expected_outputs": [
+    {
+      "dimension_code": "total",
+      "value": 3.6667,
+      "n_valid": 3,
+      "n_expected": 3,
+      "missing_policy_status": "ok"
+    }
+  ],
+  "expected_error_code": null,
+  "tolerance": { "numeric_abs": 0.0001 }
+}
