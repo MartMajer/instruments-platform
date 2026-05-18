@@ -80,14 +80,15 @@ public static class AuthEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var prompt = NormalizePrompt(context.Request.Query["prompt"].SingleOrDefault());
-        if (prompt is null)
+        var requestedPrompt = NormalizePrompt(context.Request.Query["prompt"].SingleOrDefault());
+        if (requestedPrompt is null)
         {
             return Results.Problem(
                 title: "Invalid login prompt",
                 detail: "prompt must be login, consent, or select_account when provided.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
+        var prompt = hasTenantId ? requestedPrompt : "login";
 
         var properties = new AuthenticationProperties
         {

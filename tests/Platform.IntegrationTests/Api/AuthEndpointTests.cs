@@ -774,7 +774,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task Login_endpoint_allows_registration_token_without_tenant_id()
+    public async Task Login_endpoint_forces_login_prompt_for_registration_token_without_tenant_id()
     {
         using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
         {
@@ -790,6 +790,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+        Assert.Contains("prompt=login", response.Headers.Location?.Query);
     }
 
     [Fact]

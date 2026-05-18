@@ -92,7 +92,8 @@ public sealed class RegistrationIntentService(
             new Dictionary<string, string?>
             {
                 ["registrationToken"] = token.RawToken,
-                ["returnUrl"] = returnUrl
+                ["returnUrl"] = returnUrl,
+                ["prompt"] = "login"
             });
 
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
