@@ -63,6 +63,12 @@ public sealed class PlatformOidcEvents(
         {
             context.ProtocolMessage.SetParameter("screen_hint", screenHintValue);
         }
+        if (context.Properties.Parameters.TryGetValue("login_hint", out var loginHint) &&
+            loginHint is string loginHintValue &&
+            !string.IsNullOrWhiteSpace(loginHintValue))
+        {
+            context.ProtocolMessage.SetParameter("login_hint", loginHintValue);
+        }
 
         return Task.CompletedTask;
     }

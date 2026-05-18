@@ -123,6 +123,45 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task RegistrationWorkspaceService_CreateAsync_bootstraps_owner_without_preseeded_permissions()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+
+        await using var db = new ApplicationDbContext(options);
+        var currentTenant = new CurrentTenant();
+        var service = new RegistrationWorkspaceService(
+            CreateWorkspaceConfiguration(),
+            db,
+            new TenantDbScope(db),
+            currentTenant,
+            new AcceptingBetaAccessCodeVerifier());
+
+        var result = await service.CreateAsync(
+            new RegistrationIdentity("owner@example.test", "auth0", "hashed-subject"),
+            new CreateRegistrationWorkspaceRequest(
+                "Owner Lab",
+                "martin-beta-2026",
+                "https://app.example.test/app"),
+            CancellationToken.None);
+
+        Assert.False(result.IsFailure);
+        Assert.Equal("owner@example.test", result.Value.Resolution.Email);
+        Assert.Contains(PlatformPermissions.SetupManage, result.Value.Resolution.Permissions);
+        Assert.NotEqual(Guid.Empty, result.Value.Resolution.SessionId);
+
+        await using var verificationDb = new ApplicationDbContext(options);
+        await using var _ = await new TenantDbScope(verificationDb)
+            .BeginTransactionAsync(result.Value.Resolution.TenantId);
+        Assert.True(await verificationDb.AuthSessions.AnyAsync(session =>
+            session.Id == result.Value.Resolution.SessionId));
+        Assert.True(await verificationDb.RolePermissions.AnyAsync());
+        Assert.DoesNotContain(
+            await verificationDb.AuditEvents.Select(audit => audit.EntityType).ToListAsync(),
+            entityType => entityType == "Permission");
+    }
+
+    [DockerFact]
     public async Task ResolveAsync_rejects_mismatched_provider_email_without_consuming_intent()
     {
         var options = CreateOptions();
@@ -199,6 +238,23 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
                 ["Authentication:Oidc:SessionMinutes"] = "30"
             })
             .Build();
+    }
+
+    private static IConfiguration CreateWorkspaceConfiguration()
+    {
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Registration:Enabled"] = "true",
+                ["Authentication:Oidc:SessionMinutes"] = "30",
+                ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+            })
+            .Build();
+    }
+
+    private sealed class AcceptingBetaAccessCodeVerifier : IBetaAccessCodeVerifier
+    {
+        public bool Verify(string accessCode) => true;
     }
 }
 

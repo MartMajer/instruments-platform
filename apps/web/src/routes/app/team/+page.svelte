@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { browser } from '$app/environment';
+	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
 	import { Check, LoaderCircle, Plus } from 'lucide-svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -50,8 +52,10 @@
 	let newMemberLocale = $state('en');
 	let creatingMember = $state(false);
 	let createMemberError = $state<string | null>(null);
+	let createMemberNotice = $state<string | null>(null);
 	let changingRoleUserId = $state<string | null>(null);
 	let changeRoleError = $state<string | null>(null);
+	let copiedMemberUserId = $state<string | null>(null);
 	let roleSelections = $state<Record<string, string>>({});
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
@@ -145,11 +149,13 @@
 
 		creatingMember = true;
 		createMemberError = null;
+		createMemberNotice = null;
 
 		try {
-			await productApi.createTenantMember({ email, roleCode, locale });
+			const response = await productApi.createTenantMember({ email, roleCode, locale });
 			newMemberEmail = '';
 			newMemberLocale = locale;
+			createMemberNotice = `Member access prepared for ${response.member.email}. Share the first sign-in link from the roster.`;
 			await loadTenantMembers();
 		} catch (error) {
 			createMemberError = toProductApiErrorMessage(error, 'Tenant member could not be prepared.');
@@ -363,6 +369,64 @@
 		return member.identityStatus === 'active' ? 'ready' : 'pending';
 	}
 
+	function memberSignInUrl(member: TenantMemberResponse) {
+		const tenantId = roster?.tenantId ?? authSession?.tenantId ?? '';
+		const loginUrl =
+			`/auth/login?tenantId=${encodeURIComponent(tenantId)}` +
+			`&returnUrl=${encodeURIComponent(absoluteWebUrl(resolve('/app')))}` +
+			`&prompt=login&login_hint=${encodeURIComponent(member.email)}`;
+
+		return resolveAuthRedirectUrl(loginUrl);
+	}
+
+	async function copyMemberSignInUrl(member: TenantMemberResponse) {
+		createMemberError = null;
+		try {
+			await navigator.clipboard.writeText(memberSignInUrl(member));
+			copiedMemberUserId = member.userId;
+		} catch {
+			createMemberError = 'Could not copy the sign-in link. Open the link and copy it from the address bar.';
+		}
+	}
+
+	function absoluteWebUrl(path: string) {
+		if (!browser) {
+			return path;
+		}
+
+		return new URL(path, window.location.origin).toString();
+	}
+
+	function resolveAuthRedirectUrl(loginUrl: string) {
+		if (/^https?:\/\//i.test(loginUrl)) {
+			return loginUrl;
+		}
+
+		const authOrigin = absoluteOrigin(env.PUBLIC_AUTH_LOGIN_URL);
+		if (authOrigin) {
+			return new URL(loginUrl, authOrigin).toString();
+		}
+
+		const apiOrigin = absoluteOrigin(env.PUBLIC_API_BASE_URL);
+		if (apiOrigin) {
+			return new URL(loginUrl, apiOrigin).toString();
+		}
+
+		return loginUrl;
+	}
+
+	function absoluteOrigin(value: string | undefined) {
+		if (!value || !/^https?:\/\//i.test(value)) {
+			return null;
+		}
+
+		try {
+			return new URL(value).origin;
+		} catch {
+			return null;
+		}
+	}
+
 	function isCurrentUser(userId: string) {
 		return authSession?.userId === userId;
 	}
@@ -495,6 +559,10 @@
 			{#if createMemberError}
 				<p class="error-line" role="alert">{createMemberError}</p>
 			{/if}
+
+			{#if createMemberNotice}
+				<p class="text-sm text-[var(--color-text-muted)]" role="status">{createMemberNotice}</p>
+			{/if}
 		{/if}
 	</section>
 {:else}
@@ -607,6 +675,25 @@
 									</div>
 								</div>
 							</div>
+
+							{#if canManageTeam && member.identityStatus !== 'active'}
+								<div class="grid gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
+									<div>
+										<p class="record-field__label">First sign-in</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											Send this link to {member.email}. They must use this email when creating or choosing their account.
+										</p>
+									</div>
+									<a class="secondary-button" href={memberSignInUrl(member)}>Open link</a>
+									<button
+										type="button"
+										class="secondary-button"
+										onclick={() => void copyMemberSignInUrl(member)}
+									>
+										{copiedMemberUserId === member.userId ? 'Copied' : 'Copy link'}
+									</button>
+								</div>
+							{/if}
 
 							{#if canManageTeam && !isCurrentUser(member.userId) && tenantRoles.length > 0}
 								<form

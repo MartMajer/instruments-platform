@@ -103,6 +103,16 @@ public static class AuthEndpointRouteBuilderExtensions
                 detail: "screen_hint must be signup when provided.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
+        var loginHint = NormalizeLoginHint(
+            context.Request.Query["loginHint"].SingleOrDefault() ??
+            context.Request.Query["login_hint"].SingleOrDefault());
+        if (loginHint is null)
+        {
+            return Results.Problem(
+                title: "Invalid login hint",
+                detail: "login_hint must be an email-sized value without control characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         var prompt = hasTenantId ? requestedPrompt : "login";
         if (hasRegistrationBootstrap && string.IsNullOrEmpty(screenHint))
@@ -134,6 +144,10 @@ public static class AuthEndpointRouteBuilderExtensions
         if (!string.IsNullOrEmpty(screenHint))
         {
             properties.SetParameter("screen_hint", screenHint);
+        }
+        if (!string.IsNullOrEmpty(loginHint))
+        {
+            properties.SetParameter("login_hint", loginHint);
         }
 
         return Results.Challenge(properties, [PlatformAuthenticationSchemes.Oidc]);
@@ -201,5 +215,21 @@ public static class AuthEndpointRouteBuilderExtensions
         var screenHint = value.Trim();
 
         return screenHint is "signup" ? screenHint : null;
+    }
+
+    private static string? NormalizeLoginHint(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var loginHint = value.Trim();
+        if (loginHint.Length > 320 || loginHint.Any(char.IsControl))
+        {
+            return null;
+        }
+
+        return loginHint;
     }
 }

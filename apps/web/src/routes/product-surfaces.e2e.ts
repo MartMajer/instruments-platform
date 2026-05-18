@@ -1031,6 +1031,11 @@ test('creates tenant members from the team page and refreshes the roster', async
 	await expect(page.getByText('new.member@example.test', { exact: true })).toBeVisible();
 	const created = page.getByRole('article', { name: 'new.member@example.test' });
 	await expect(created.getByText('Pending provider link', { exact: true })).toBeVisible();
+	await expect(created.getByRole('link', { name: 'Open link' })).toHaveAttribute(
+		'href',
+		/login_hint=new\.member%40example\.test/
+	);
+	await expect(created.getByRole('button', { name: 'Copy link' })).toBeVisible();
 	expect(createBodies).toEqual([
 		{
 			email: 'new.member@example.test',

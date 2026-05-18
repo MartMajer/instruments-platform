@@ -175,6 +175,27 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_forwards_login_hint_to_provider_challenge()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/app");
+        var loginHint = Uri.EscapeDataString("member@example.test");
+
+        var response = await client.GetAsync(
+            $"/auth/login?tenantId={tenantId}&returnUrl={returnUrl}&login_hint={loginHint}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("login_hint=member%40example.test", response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_starts_registration_bootstrap_with_signup_hint()
     {
         using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>

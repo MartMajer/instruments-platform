@@ -13,8 +13,8 @@
 	const loginUrl = createLoginUrlFromEnv(env);
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
 	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
-	const unauthenticatedActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
-	const unauthenticatedActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
+	const primaryAuthActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
+	const primaryAuthActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
 
 	const setupApi = createSetupApi(
 		createApiClient({
@@ -66,7 +66,11 @@
 
 	function formatError(error: unknown) {
 		if (error instanceof ApiError) {
-			return `Session check failed with status ${error.status}.`;
+			if (error.status >= 500) {
+				return 'The API could not confirm workspace access. Retry, then sign out and sign in again if it continues.';
+			}
+
+			return 'The app could not confirm workspace access. Sign out and sign in again if retry does not recover.';
 		}
 
 		if (error instanceof Error) {
@@ -89,11 +93,11 @@
 	<section class="setup-panel" aria-labelledby="auth-boundary-title">
 		<div class="setup-panel__header">
 			<div>
-				<p class="setup-panel__eyebrow">Tenant session</p>
-				<h1 id="auth-boundary-title" class="setup-panel__title">Checking access</h1>
+				<p class="setup-panel__eyebrow">Workspace access</p>
+				<h1 id="auth-boundary-title" class="setup-panel__title">Checking workspace access</h1>
 			</div>
 		</div>
-		<p class="text-sm text-[var(--color-text-muted)]">Loading authenticated workspace access.</p>
+		<p class="text-sm text-[var(--color-text-muted)]">Confirming your signed-in account and workspace membership.</p>
 	</section>
 {:else if authState === 'authenticated' && authSession}
 	<div class="grid gap-6">
@@ -101,7 +105,7 @@
 			{#if sessionProfile}
 				<div class="session-callout__header">
 					<div>
-						<p class="setup-callout__key">Tenant session</p>
+						<p class="setup-callout__key">Workspace session</p>
 						<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 						<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 					</div>
@@ -132,43 +136,49 @@
 	<section class="setup-panel" aria-labelledby="auth-boundary-title">
 		<div class="setup-panel__header">
 			<div>
-				<p class="setup-panel__eyebrow">Tenant session</p>
-				<h1 id="auth-boundary-title" class="setup-panel__title">Sign in required</h1>
+				<p class="setup-panel__eyebrow">Workspace access</p>
+				<h1 id="auth-boundary-title" class="setup-panel__title">Workspace sign-in needed</h1>
 			</div>
 		</div>
 		<p class="text-sm text-[var(--color-text-muted)]">
 			{hasTenantLoginTarget
-				? 'Sign in before opening tenant product surfaces.'
-				: 'Create a workspace first, then the app will open with your tenant session.'}
+				? 'Sign in with an account that belongs to this workspace before opening product screens.'
+				: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
 		</p>
-		<a class="primary-button" href={unauthenticatedActionUrl}>{unauthenticatedActionLabel}</a>
+		<div class="flex flex-wrap gap-3">
+			<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
+			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
+		</div>
 	</section>
 {:else if authState === 'forbidden'}
 	<section class="setup-panel" aria-labelledby="auth-boundary-title">
 		<div class="setup-panel__header">
 			<div>
-				<p class="setup-panel__eyebrow">Tenant session</p>
-				<h1 id="auth-boundary-title" class="setup-panel__title">Tenant access unavailable</h1>
+				<p class="setup-panel__eyebrow">Workspace access</p>
+				<h1 id="auth-boundary-title" class="setup-panel__title">Workspace access unavailable</h1>
 			</div>
 		</div>
 		<p class="text-sm text-[var(--color-text-muted)]">
-			Your session does not have access to this tenant workspace.
+			This account is signed in, but it is not a member of the workspace the app tried to open.
 		</p>
-		<button type="button" class="secondary-button" onclick={checkSession}
-			>Retry session check</button
-		>
+		<div class="flex flex-wrap gap-3">
+			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
+			<a class="secondary-button" href={logoutUrl}>Sign out</a>
+			<a class="primary-button" href={resolve('/register')}>Create workspace</a>
+		</div>
 	</section>
 {:else}
 	<section class="setup-panel" aria-labelledby="auth-boundary-title" role="alert">
 		<div class="setup-panel__header">
 			<div>
-				<p class="setup-panel__eyebrow">Tenant session</p>
-				<h1 id="auth-boundary-title" class="setup-panel__title">Session check failed</h1>
+				<p class="setup-panel__eyebrow">Workspace access</p>
+				<h1 id="auth-boundary-title" class="setup-panel__title">Could not verify workspace access</h1>
 			</div>
 		</div>
 		<p class="text-sm text-[var(--color-text-muted)]">{authMessage}</p>
-		<button type="button" class="secondary-button" onclick={checkSession}
-			>Retry session check</button
-		>
+		<div class="flex flex-wrap gap-3">
+			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
+			<a class="secondary-button" href={logoutUrl}>Sign out</a>
+		</div>
 	</section>
 {/if}

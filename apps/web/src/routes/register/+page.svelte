@@ -12,6 +12,7 @@
 	let organizationName = $state('');
 	let accessCode = $state('');
 	let errorMessage = $state('');
+	let sessionErrorMessage = $state('');
 	let statusMessage = $state('');
 	let isSubmitting = $state(false);
 	let pendingEmail = $state('');
@@ -27,6 +28,7 @@
 
 	async function loadRegistrationSession() {
 		errorMessage = '';
+		sessionErrorMessage = '';
 
 		try {
 			const session = await registrationApi.getSession();
@@ -39,7 +41,8 @@
 			}
 
 			sessionState = 'signed-out';
-			errorMessage = 'Registration session check failed. Start account sign-up again.';
+			sessionErrorMessage =
+				'We could not confirm the account step. Continue with account setup again before creating the workspace.';
 		}
 	}
 
@@ -108,6 +111,18 @@
 				return 'Private beta sign-up is not open on this environment. Sign in if you already have a workspace.';
 			}
 
+			if (error.status === 401) {
+				return 'Your account step expired. Continue with account setup again, then create the workspace.';
+			}
+
+			if (error.status === 403) {
+				return 'This account cannot create a workspace. Sign out and use the approved owner account, or ask for beta access.';
+			}
+
+			if (error.status === 409) {
+				return 'This account or workspace is already set up. Sign in instead.';
+			}
+
 			if (code === 'registration.invalid_access_code') {
 				return 'That access code does not match the private beta list.';
 			}
@@ -121,7 +136,7 @@
 			}
 		}
 
-		return 'Registration is unavailable right now. Try again or sign in if you already have a workspace.';
+		return 'We could not create the workspace. Check the beta access code and try again.';
 	}
 </script>
 
@@ -154,25 +169,25 @@
 	<div class="registration-grid">
 		<section class="registration-copy">
 			<p class="launchpad-kicker">Private beta access</p>
-			<h1 id="registration-title">Create the workspace you will use for studies.</h1>
+			<h1 id="registration-title">Create your workspace.</h1>
 			<p>
-				Create or choose your account first, then name the workspace that account will own.
+				Use the email that should own the workspace. Password and MFA stay with the identity provider; this page only names the workspace and checks beta access.
 			</p>
 			<div class="registration-steps" aria-label="Registration steps">
 				<div>
 					<span>01</span>
-					<strong>Create account</strong>
-					<p>Use Auth0 to create or choose the owner identity.</p>
+					<strong>Create or choose account</strong>
+					<p>Set the owner email and password with the identity provider.</p>
 				</div>
 				<div>
 					<span>02</span>
 					<strong>Name workspace</strong>
-					<p>Return here to enter workspace name and beta access code.</p>
+					<p>Return here signed in as the owner and enter the beta code.</p>
 				</div>
 				<div>
 					<span>03</span>
-					<strong>Start setup</strong>
-					<p>Prepare studies, team access, collection, reports, and exports.</p>
+					<strong>Open the app</strong>
+					<p>The new workspace opens immediately with the owner session.</p>
 				</div>
 			</div>
 		</section>
@@ -180,7 +195,7 @@
 		<section class="registration-panel" aria-label="Create workspace form">
 			<div class="registration-panel__header">
 				<span>Workspace signup</span>
-				<strong>Create your account, then your workspace</strong>
+				<strong>Account first, workspace second</strong>
 				<p>Already have a workspace? <a href={signInUrl}>Sign in instead</a>.</p>
 			</div>
 
@@ -188,15 +203,19 @@
 				<p class="registration-alert" role="status">Checking account status...</p>
 			{:else if sessionState === 'signed-out'}
 				<div class="registration-form">
-					<p class="registration-alert" role="status">
-						Start with your identity provider. You will create or choose the email account there, then return here to name the workspace.
-					</p>
-					<a class="registration-submit" href={registrationSignInUrl || signInUrl}>Create account</a>
+					{#if sessionErrorMessage}
+						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
+					{:else}
+						<p class="registration-alert" role="status">
+							Continue with the owner account. After sign-in, you will return here to enter the workspace name and beta code.
+						</p>
+					{/if}
+					<a class="registration-submit" href={registrationSignInUrl || signInUrl}>Continue with account</a>
 				</div>
 			{:else}
 				<form class="registration-form" onsubmit={submitWorkspace}>
 					<div class="registration-alert" role="status">
-						Signed in as <strong>{pendingEmail}</strong>. This email will become the workspace owner.
+						Account ready: <strong>{pendingEmail}</strong>. This email becomes the workspace owner.
 					</div>
 
 					<label>
@@ -236,7 +255,7 @@
 			{/if}
 
 			<div class="registration-boundary">
-				<strong>Beta boundary</strong>
+				<strong>Private beta</strong>
 				<p>Use demo or owner-controlled data only until production review is closed.</p>
 			</div>
 		</section>
