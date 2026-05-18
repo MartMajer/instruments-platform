@@ -190,6 +190,28 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Oidc_remote_failure_without_redirect_uri_uses_configured_web_origin()
+    {
+        var resolver = new FakeOidcLoginResolver();
+        var events = CreateOidcEvents(
+            resolver,
+            new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+            });
+        var context = CreateRemoteFailureContext(
+            null,
+            new Exception("access_denied"));
+
+        await events.RemoteFailure(context);
+
+        Assert.Equal(StatusCodes.Status302Found, context.Response.StatusCode);
+        Assert.Equal(
+            "https://app.example.test/app?auth=failed",
+            context.Response.Headers.Location.ToString());
+    }
+
+    [Fact]
     public async Task Session_check_returns_unauthorized_instead_of_oidc_redirect_when_cookie_missing()
     {
         var tenantId = Guid.NewGuid();

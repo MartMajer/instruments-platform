@@ -45,13 +45,24 @@ public sealed class PlatformOidcEvents(
 
         var returnUrl = AuthReturnUrl.Normalize(
                 context.Properties?.RedirectUri,
-                "/app",
+                GetFallbackWebReturnUrl(configuration),
                 configuration) ??
-            "/app";
+            GetFallbackWebReturnUrl(configuration);
 
         context.Response.Redirect(AuthReturnUrl.AppendQuery(returnUrl, "auth", "failed"));
 
         return Task.CompletedTask;
+    }
+
+    private static string GetFallbackWebReturnUrl(IConfiguration configuration)
+    {
+        var origin = PlatformAuthServiceCollectionExtensions
+            .GetBrowserCorsOrigins(configuration, includeDevelopmentFallback: false)
+            .FirstOrDefault();
+
+        return string.IsNullOrWhiteSpace(origin)
+            ? "/app"
+            : $"{origin.TrimEnd('/')}/app";
     }
 
     public override async Task TokenValidated(TokenValidatedContext context)
