@@ -215,6 +215,27 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Remote_staging_smoke_checks_public_auth_cors_and_optional_authenticated_session()
+    {
+        var script = ReadRepoFile("deploy/staging/smoke-remote-staging.ps1");
+
+        Assert.Contains("[string]$ApiOrigin", script);
+        Assert.Contains("[string]$WebOrigin", script);
+        Assert.Contains("[string]$TenantId", script);
+        Assert.Contains("[string]$SessionCookie", script);
+        Assert.Contains("/health", script);
+        Assert.Contains("/auth/session", script);
+        Assert.Contains("Access-Control-Request-Method", script);
+        Assert.Contains("Access-Control-Allow-Origin", script);
+        Assert.Contains("/auth/login", script);
+        Assert.Contains("redirect_uri", script);
+        Assert.Contains("/auth/callback", script);
+        Assert.Contains("setup.manage", script);
+        Assert.Contains("No SessionCookie supplied", script);
+        Assert.DoesNotContain("servok01+oh-owner@gmail.com", script);
+    }
+
+    [Fact]
     public void Staging_release_check_runner_writes_release_evidence_artifact()
     {
         var script = ReadRepoFile("deploy/staging/run-release-checks.ps1");
