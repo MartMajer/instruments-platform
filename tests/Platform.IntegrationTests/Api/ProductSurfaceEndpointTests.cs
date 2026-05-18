@@ -458,6 +458,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal(1, payload.Summary.DownloadableCount);
         Assert.Equal(1, payload.Summary.FailedCount);
         Assert.Equal(0, payload.Summary.PendingCount);
+        Assert.Equal(0, payload.Summary.RetryableCount);
         var artifact = Assert.Single(payload.Artifacts);
         Assert.Equal(artifactId, artifact.Id);
         Assert.Equal(campaignId, artifact.TargetId);
@@ -466,6 +467,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal("succeeded", artifact.Status);
         Assert.Equal(2048, artifact.ByteSize);
         Assert.True(artifact.CanDownload);
+        Assert.False(artifact.CanRetry);
         var serialized = await httpResponse.Content.ReadAsStringAsync();
         Assert.DoesNotContain("csvContent", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("codebookJson", serialized, StringComparison.OrdinalIgnoreCase);

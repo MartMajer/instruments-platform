@@ -75,7 +75,8 @@ public sealed record ExportArtifactLibrarySummaryResponse(
     int TotalCount,
     int DownloadableCount,
     int FailedCount,
-    int PendingCount);
+    int PendingCount,
+    int RetryableCount = 0);
 
 public sealed record CampaignSeriesListResponse(
     IReadOnlyList<CampaignSeriesListItemResponse> Items);
@@ -533,7 +534,8 @@ public sealed record CampaignSeriesReportsExportArtifactResponse(
     bool CanDownload,
     string? CampaignStatus = null,
     DateTimeOffset? CampaignClosedAt = null,
-    string? DataFinality = null);
+    string? DataFinality = null,
+    bool CanRetry = false);
 
 public sealed record CampaignSeriesReportsWidgetManifestResponse(
     Guid CampaignSeriesId,
@@ -652,7 +654,8 @@ public sealed record ExportArtifactRegistryItemResponse(
     bool CanDownload,
     string? CampaignStatus,
     DateTimeOffset? CampaignClosedAt,
-    string? DataFinality);
+    string? DataFinality,
+    bool CanRetry = false);
 
 public sealed record VisualAnalyticsEntryWidgetDataResponse(
     Guid? SelectedCampaignId,

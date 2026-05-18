@@ -179,9 +179,21 @@ public sealed class ProductSurfaceReadStore(
                 group.Count(artifact => artifact.Status == ExportArtifactStatuses.Failed),
                 group.Count(artifact =>
                     artifact.Status == ExportArtifactStatuses.Queued ||
-                    artifact.Status == ExportArtifactStatuses.Rendering)))
+                    artifact.Status == ExportArtifactStatuses.Rendering),
+                0))
             .SingleOrDefaultAsync(cancellationToken) ??
             new ExportArtifactLibrarySummaryResponse(0, 0, 0, 0);
+        var retryableCount = canManageSetup
+            ? await artifactQuery.CountAsync(
+                artifact =>
+                    artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                    artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesReportPdf &&
+                    artifact.Format == ExportArtifactFormats.Pdf &&
+                    artifact.Status == ExportArtifactStatuses.Failed &&
+                    artifact.CampaignSeriesId != null,
+                cancellationToken)
+            : 0;
+        summary = summary with { RetryableCount = retryableCount };
 
         var artifactRows = await artifactQuery
             .OrderByDescending(artifact => artifact.CreatedAt)
@@ -291,7 +303,8 @@ public sealed class ProductSurfaceReadStore(
 
                 return response with
                 {
-                    CanDownload = CanAdvertiseExportArtifactDownload(response, canManageSetup)
+                    CanDownload = CanAdvertiseExportArtifactDownload(response, canManageSetup),
+                    CanRetry = CanAdvertiseExportArtifactRetry(response, canManageSetup)
                 };
             })
             .ToArray();
@@ -2032,7 +2045,8 @@ public sealed class ProductSurfaceReadStore(
                     CanAdvertiseExportArtifactDownload(artifact, canManageSetup),
                     artifact.CampaignStatus,
                     artifact.CampaignClosedAt,
-                    artifact.DataFinality)).ToArray()),
+                    artifact.DataFinality,
+                    CanAdvertiseExportArtifactRetry(artifact, canManageSetup))).ToArray()),
             DataSource: null,
             CreateExportActions(workspace, canManageSetup, selectedCampaignIsReportable)));
 
@@ -2104,8 +2118,20 @@ public sealed class ProductSurfaceReadStore(
             ExportArtifactTypes.ReportProofCsvCodebook => IsReportableDataFinality(artifact.DataFinality),
             ExportArtifactTypes.CampaignSeriesResponseCsvCodebook => true,
             ExportArtifactTypes.CampaignSeriesReportHtml => true,
+            ExportArtifactTypes.CampaignSeriesReportPdf => true,
             _ => false
         };
+    }
+
+    private static bool CanAdvertiseExportArtifactRetry(
+        CampaignSeriesReportsExportArtifactResponse artifact,
+        bool canManageSetup)
+    {
+        return canManageSetup &&
+            artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+            artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesReportPdf &&
+            artifact.Format == ExportArtifactFormats.Pdf &&
+            artifact.Status == ExportArtifactStatuses.Failed;
     }
 
     private static IReadOnlyList<ReportWidgetActionResponse> CreateExportActions(

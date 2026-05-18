@@ -99,6 +99,102 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Export_artifact_library_advertises_pdf_download_and_failed_pdf_retry_safely()
+    {
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-export-library-actions");
+        var otherTemplate = await SeedTenantShellAsync(runtimeOptions, otherTenantId, "tenant-export-library-actions-b");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Export library study");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Export library wave",
+            CampaignStatuses.Closed);
+        await SeedExportArtifactAsync(
+            runtimeOptions,
+            tenantId,
+            campaign.Id,
+            series.Id,
+            ExportArtifactTypes.CampaignSeriesReportPdf,
+            "export-library-report.pdf",
+            DateTimeOffset.Parse("2026-05-06T12:00:00+00:00"));
+        await SeedExportArtifactAsync(
+            runtimeOptions,
+            tenantId,
+            campaign.Id,
+            series.Id,
+            ExportArtifactTypes.CampaignSeriesReportPdf,
+            "export-library-report-failed.pdf",
+            DateTimeOffset.Parse("2026-05-06T12:01:00+00:00"),
+            ExportArtifactStatuses.Failed,
+            failedAt: DateTimeOffset.Parse("2026-05-06T12:01:01+00:00"),
+            failureReasonCode: "report_pdf.render_failed");
+        var otherSeries = await SeedSeriesAsync(runtimeOptions, otherTenantId, "Other tenant hidden");
+        var otherCampaign = await SeedCampaignAsync(
+            runtimeOptions,
+            otherTenantId,
+            otherTemplate.TemplateVersionId,
+            otherSeries.Id,
+            "Other tenant hidden wave");
+        await SeedExportArtifactAsync(
+            runtimeOptions,
+            otherTenantId,
+            otherCampaign.Id,
+            otherSeries.Id,
+            ExportArtifactTypes.CampaignSeriesReportPdf,
+            "other-tenant-hidden.pdf",
+            DateTimeOffset.Parse("2026-05-06T12:02:00+00:00"));
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var managerResult = await store.ListExportArtifactsAsync(
+            tenantId,
+            canManageSetup: true,
+            CancellationToken.None);
+
+        Assert.Equal(tenantId, managerResult.TenantId);
+        Assert.Equal(2, managerResult.Summary.TotalCount);
+        Assert.Equal(1, managerResult.Summary.DownloadableCount);
+        Assert.Equal(1, managerResult.Summary.FailedCount);
+        Assert.Equal(0, managerResult.Summary.PendingCount);
+        Assert.Equal(1, managerResult.Summary.RetryableCount);
+        Assert.DoesNotContain(managerResult.Artifacts, artifact => artifact.FileName == "other-tenant-hidden.pdf");
+        var succeededPdf = Assert.Single(
+            managerResult.Artifacts,
+            artifact => artifact.FileName == "export-library-report.pdf");
+        Assert.True(succeededPdf.CanDownload);
+        Assert.False(succeededPdf.CanRetry);
+        var failedPdf = Assert.Single(
+            managerResult.Artifacts,
+            artifact => artifact.FileName == "export-library-report-failed.pdf");
+        Assert.False(failedPdf.CanDownload);
+        Assert.True(failedPdf.CanRetry);
+
+        var serialized = JsonSerializer.Serialize(managerResult);
+        Assert.DoesNotContain(SensitiveExportContent, serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain(SensitiveCodebookContent, serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("storageKey", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("codebookJson", serialized, StringComparison.OrdinalIgnoreCase);
+
+        var viewerResult = await store.ListExportArtifactsAsync(
+            tenantId,
+            canManageSetup: false,
+            CancellationToken.None);
+
+        Assert.Equal(0, viewerResult.Summary.RetryableCount);
+        Assert.All(viewerResult.Artifacts, artifact => Assert.False(artifact.CanDownload));
+        Assert.All(viewerResult.Artifacts, artifact => Assert.False(artifact.CanRetry));
+    }
+
+    [DockerFact]
     public async Task Workspace_overview_separates_sample_and_own_study_collections()
     {
         var tenantId = Guid.NewGuid();
