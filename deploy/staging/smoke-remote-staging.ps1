@@ -2,7 +2,9 @@
     [string]$ApiOrigin = 'https://validatedscale-api-staging.croat.dev',
     [string]$WebOrigin = 'https://validatedscale-staging.croat.dev',
     [string]$TenantId = '11111111-1111-4111-8111-111111111111',
-    [string]$SessionCookie
+    [string]$SessionCookie,
+    [string]$SessionCookiePath,
+    [switch]$RequireAuthenticatedSession
 )
 
 Set-StrictMode -Version Latest
@@ -97,8 +99,49 @@ function Assert-StatusCode {
     Write-Host "$Label=$actual"
 }
 
+function Resolve-SessionCookie {
+    param(
+        [string]$DirectSessionCookie,
+        [string]$SessionCookiePath,
+        [switch]$RequireAuthenticatedSession
+    )
+
+    if (![string]::IsNullOrWhiteSpace($DirectSessionCookie) -and
+        ![string]::IsNullOrWhiteSpace($SessionCookiePath)) {
+        throw 'SessionCookie and SessionCookiePath cannot both be supplied.'
+    }
+
+    $resolved = $DirectSessionCookie
+    if (![string]::IsNullOrWhiteSpace($SessionCookiePath)) {
+        if (!(Test-Path -LiteralPath $SessionCookiePath -PathType Leaf)) {
+            throw 'SessionCookiePath file was not found. Do not commit cookie files; keep them local and ignored.'
+        }
+
+        $resolved = Get-Content -Raw -LiteralPath $SessionCookiePath
+    }
+    elseif ([string]::IsNullOrWhiteSpace($resolved) -and
+        ![string]::IsNullOrWhiteSpace($env:STAGING_SESSION_COOKIE)) {
+        $resolved = $env:STAGING_SESSION_COOKIE
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolved)) {
+        if ($RequireAuthenticatedSession) {
+            throw 'Authenticated session proof required but no SessionCookie, SessionCookiePath, or STAGING_SESSION_COOKIE was supplied.'
+        }
+
+        return $null
+    }
+
+    Write-Host 'Authenticated session cookie source resolved.'
+    return $resolved.Trim()
+}
+
 $ApiOrigin = Normalize-Origin -Origin $ApiOrigin
 $WebOrigin = Normalize-Origin -Origin $WebOrigin
+$ResolvedSessionCookie = Resolve-SessionCookie `
+    -DirectSessionCookie $SessionCookie `
+    -SessionCookiePath $SessionCookiePath `
+    -RequireAuthenticatedSession:$RequireAuthenticatedSession
 
 $apiHealthResponse = Invoke-RemoteRequest -Uri "$ApiOrigin/health"
 Assert-StatusCode -Response $apiHealthResponse -Expected @(200) -Label 'apiHealth'
@@ -142,7 +185,7 @@ if ($location -notmatch $redirectUriPattern) {
     throw "authLoginRedirect Location did not include redirect_uri=$ApiOrigin/auth/callback."
 }
 
-if ([string]::IsNullOrWhiteSpace($SessionCookie)) {
+if ([string]::IsNullOrWhiteSpace($ResolvedSessionCookie)) {
     Write-Host 'No SessionCookie supplied; authenticated session proof skipped.'
     exit 0
 }
@@ -150,7 +193,7 @@ if ([string]::IsNullOrWhiteSpace($SessionCookie)) {
 $authenticatedHeaders = @{
     Origin = $WebOrigin
     'X-Tenant-Id' = $TenantId
-    Cookie = $SessionCookie
+    Cookie = $ResolvedSessionCookie
 }
 
 $authenticatedSessionResponse = Invoke-RemoteRequest -Uri "$ApiOrigin/auth/session" -Headers $authenticatedHeaders

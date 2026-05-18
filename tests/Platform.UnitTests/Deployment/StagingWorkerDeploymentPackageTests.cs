@@ -236,6 +236,24 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Remote_staging_smoke_supports_safe_authenticated_cookie_sources()
+    {
+        var script = ReadRepoFile("deploy/staging/smoke-remote-staging.ps1");
+
+        Assert.Contains("[string]$SessionCookiePath", script);
+        Assert.Contains("[switch]$RequireAuthenticatedSession", script);
+        Assert.Contains("$env:STAGING_SESSION_COOKIE", script);
+        Assert.Contains("Resolve-SessionCookie", script);
+        Assert.Contains("Do not commit cookie files", script);
+        Assert.Contains("Authenticated session proof required", script);
+        Assert.Contains("SessionCookie and SessionCookiePath cannot both be supplied", script);
+        Assert.Contains("Get-Content -Raw -LiteralPath $SessionCookiePath", script);
+        Assert.Contains("Authenticated session cookie source resolved.", script);
+        Assert.DoesNotContain("Write-Host $SessionCookie", script);
+        Assert.DoesNotContain("Write-Host \"$SessionCookie", script);
+    }
+
+    [Fact]
     public void Staging_release_check_runner_writes_release_evidence_artifact()
     {
         var script = ReadRepoFile("deploy/staging/run-release-checks.ps1");
