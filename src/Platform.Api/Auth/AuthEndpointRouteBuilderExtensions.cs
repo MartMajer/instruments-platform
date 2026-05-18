@@ -156,16 +156,10 @@ public static class AuthEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var properties = new AuthenticationProperties
-        {
-            RedirectUri = returnUrl
-        };
-
         await revoker.RevokeAsync(context.User, context.RequestAborted);
 
-        return Results.SignOut(
-            properties,
-            [PlatformAuthenticationSchemes.AppCookie, PlatformAuthenticationSchemes.Oidc]);
+        await context.SignOutAsync(PlatformAuthenticationSchemes.AppCookie);
+        return Results.Redirect(returnUrl);
     }
 
     private static IResult GetCsrf(

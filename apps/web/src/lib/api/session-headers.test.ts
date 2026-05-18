@@ -6,15 +6,12 @@ describe('createSessionHeadersFromEnv', () => {
 		expect(createSessionHeadersFromEnv({})).toBeUndefined();
 	});
 
-	it('creates tenant header for non-development cookie sessions', () => {
-		const headers = new Headers(
+	it('does not create tenant headers for cookie sessions', () => {
+		expect(
 			createSessionHeadersFromEnv({
 				PUBLIC_TENANT_ID: 'tenant-a'
 			})
-		);
-
-		expect(headers.get('x-tenant-id')).toBe('tenant-a');
-		expect(headers.has('x-dev-user-id')).toBe(false);
+		).toBeUndefined();
 	});
 
 	it('creates development auth headers when development auth is enabled', () => {

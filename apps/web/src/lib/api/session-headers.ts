@@ -16,14 +16,7 @@ export function createSessionHeadersFromEnv(
 		};
 	}
 
-	const tenantId = env.PUBLIC_TENANT_ID?.trim();
-	if (!tenantId) {
-		return undefined;
-	}
-
-	return {
-		'X-Tenant-Id': tenantId
-	};
+	return undefined;
 }
 
 export function createLoginUrlFromEnv(env: Record<string, string | undefined>) {
