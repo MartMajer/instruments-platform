@@ -870,6 +870,39 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Vps_rollback_smoke_round_trips_revision_and_runs_release_checks()
+    {
+        var script = ReadRepoFile("deploy/staging/rollback-vps-stack.sh");
+
+        Assert.Contains("set -euo pipefail", script);
+        Assert.Contains("deploy/staging/.env", script);
+        Assert.Contains("deploy/staging/docker-compose.yml", script);
+        Assert.Contains("deploy/staging/docker-compose.vps.yml", script);
+        Assert.Contains("git diff --quiet", script);
+        Assert.Contains("git rev-parse HEAD~1", script);
+        Assert.Contains("git checkout --detach \"$rollback_revision\"", script);
+        Assert.Contains("git checkout \"$restore_checkout_ref\"", script);
+        Assert.Contains("docker compose", script);
+        Assert.Contains("up -d --build", script);
+        Assert.Contains("run-vps-release-checks.sh", script);
+        Assert.Contains("rollback-evidence.json", script);
+        Assert.Contains("rollback-release-evidence", script);
+        Assert.Contains("restore-release-evidence", script);
+        Assert.Contains("rollbackProven", script);
+        Assert.Contains("restoreProven", script);
+        Assert.Contains("releaseChecksAfterRollbackProven", script);
+        Assert.Contains("releaseChecksAfterRestoreProven", script);
+        Assert.Contains("legalGdprReady", script);
+        Assert.Contains("operationalNotificationEmailReady", script);
+        Assert.Contains("Q-053", script);
+        Assert.Contains("Q-054", script);
+        Assert.DoesNotContain("git reset --hard", script);
+        Assert.DoesNotContain("cat deploy/staging/.env", script);
+        Assert.DoesNotContain("POSTGRES_PASSWORD", script);
+        Assert.DoesNotContain("Authentication__Oidc__ClientSecret", script);
+    }
+
+    [Fact]
     public void Validation_demo_preflight_writes_safe_structured_remote_preflight_evidence()
     {
         var script = ReadRepoFile("deploy/staging/smoke-validation-demo-preflight.ps1");
