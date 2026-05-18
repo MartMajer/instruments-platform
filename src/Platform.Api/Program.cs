@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Platform.Api.Auth;
 using Platform.Api.Health;
 using Platform.Api.RateLimiting;
+using Platform.Api.Registration;
 using Platform.Application;
 using Platform.Application.Features.Auth.GetCurrentSession;
 using Platform.Application.Features.Notifications;
@@ -45,6 +46,7 @@ builder.Services.AddSingleton<IPlatformHealthCheck, RequiredConfigurationHealthC
 builder.Services.AddSingleton<IPlatformHealthCheck, DevelopmentAuthenticationHealthCheck>();
 builder.Services.AddSingleton<IPlatformHealthCheck, OidcConfigurationHealthCheck>();
 builder.Services.AddPublicRespondentRateLimiting(builder.Configuration);
+builder.Services.AddPlatformRegistration();
 
 if (browserCorsOrigins.Length > 0)
 {
@@ -103,6 +105,7 @@ app.UseAuthorization();
 
 app.MapGetHealth();
 app.MapPlatformAuthEndpoints();
+app.MapRegistrationEndpoints();
 app.MapGetCurrentSession();
 app.MapSetupEndpoints();
 app.MapProductSurfaceEndpoints();

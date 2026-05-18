@@ -11,6 +11,8 @@ public static class AuthEndpointRouteBuilderExtensions
 {
     public const string TenantIdPropertyName = "tenant_id";
 
+    public const string RegistrationTokenPropertyName = "registration_token";
+
     public static IEndpointRouteBuilder MapPlatformAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/auth/login", Login)
@@ -37,11 +39,32 @@ public static class AuthEndpointRouteBuilderExtensions
         [FromServices] IConfiguration configuration)
     {
         var tenantIdValue = context.Request.Query["tenantId"].SingleOrDefault();
-        if (!Guid.TryParse(tenantIdValue, out var tenantId))
+        var registrationToken = context.Request.Query["registrationToken"].SingleOrDefault()?.Trim();
+        var hasTenantId = !string.IsNullOrWhiteSpace(tenantIdValue);
+        var hasRegistrationToken = !string.IsNullOrWhiteSpace(registrationToken);
+
+        if (hasTenantId == hasRegistrationToken)
+        {
+            return Results.Problem(
+                title: "Invalid login context",
+                detail: "Provide either tenantId for existing tenant login or registrationToken for new tenant registration.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        Guid tenantId = default;
+        if (hasTenantId && !Guid.TryParse(tenantIdValue, out tenantId))
         {
             return Results.Problem(
                 title: "Invalid login tenant",
                 detail: "tenantId must be a UUID value.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (hasRegistrationToken && registrationToken!.Length > 512)
+        {
+            return Results.Problem(
+                title: "Invalid registration token",
+                detail: "registrationToken is invalid.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -70,7 +93,15 @@ public static class AuthEndpointRouteBuilderExtensions
         {
             RedirectUri = returnUrl
         };
-        properties.Items[TenantIdPropertyName] = tenantId.ToString();
+        if (hasTenantId)
+        {
+            properties.Items[TenantIdPropertyName] = tenantId.ToString();
+        }
+        else
+        {
+            properties.Items[RegistrationTokenPropertyName] = registrationToken!;
+        }
+
         if (!string.IsNullOrEmpty(prompt))
         {
             properties.SetParameter("prompt", prompt);

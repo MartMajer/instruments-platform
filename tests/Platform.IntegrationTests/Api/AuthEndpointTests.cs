@@ -773,6 +773,39 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Empty(store.Calls);
     }
 
+    [Fact]
+    public async Task Login_endpoint_allows_registration_token_without_tenant_id()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/app");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registrationToken=registration-token&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+    }
+
+    [Fact]
+    public async Task Login_endpoint_rejects_conflicting_tenant_and_registration_context()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateInteractiveOidcFactory().CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        var response = await client.GetAsync(
+            $"/auth/login?tenantId={tenantId}&registrationToken=registration-token&returnUrl=/app");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
     private HttpClient CreateClient()
     {
         return factory.WithWebHostBuilder(builder =>
