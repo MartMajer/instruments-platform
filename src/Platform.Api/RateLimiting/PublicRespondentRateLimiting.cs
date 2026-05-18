@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -45,6 +45,11 @@ public static class PublicRespondentRateLimitingServiceCollectionExtensions
                 httpContext => RateLimitPartition.GetFixedWindowLimiter(
                     PublicRespondentRateLimitPartitionKeys.ForSession(httpContext),
                     _ => CreateFixedWindowLimiter(settings.SubmitPermitLimit, settings.Window)));
+            options.AddPolicy(
+                RegistrationRateLimitPolicies.Intent,
+                httpContext => RateLimitPartition.GetFixedWindowLimiter(
+                    RegistrationRateLimitPartitionKeys.ForIntent(httpContext),
+                    _ => CreateFixedWindowLimiter(settings.RegistrationPermitLimit, settings.Window)));
         });
 
         return services;
@@ -69,6 +74,7 @@ internal sealed record PublicRespondentRateLimitingSettings(
     int EntryPermitLimit,
     int SessionPermitLimit,
     int SubmitPermitLimit,
+    int RegistrationPermitLimit,
     TimeSpan Window)
 {
     private const string SectionName = "PublicRespondentRateLimiting";
@@ -79,6 +85,7 @@ internal sealed record PublicRespondentRateLimitingSettings(
             ReadPositiveInt(configuration, "EntryPermitLimit", 60),
             ReadPositiveInt(configuration, "SessionPermitLimit", 180),
             ReadPositiveInt(configuration, "SubmitPermitLimit", 30),
+            ReadPositiveInt(configuration, "RegistrationPermitLimit", 10),
             TimeSpan.FromSeconds(ReadPositiveInt(configuration, "WindowSeconds", 60)));
     }
 
@@ -119,7 +126,8 @@ internal static class PublicRespondentRateLimitPartitionKeys
         var sessionHash = includeSessionId
             ? HashRouteValue(context, "sessionId")
             : "none";
-        var remoteAddressHash = HashString(context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+        var remoteAddressHash = PublicEndpointRateLimitHash.HashString(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
         return $"{remoteAddressHash}:{credentialName}:{credentialHash}:session:{sessionHash}";
     }
@@ -132,10 +140,29 @@ internal static class PublicRespondentRateLimitPartitionKeys
             return "missing";
         }
 
-        return HashString(value.ToString() ?? string.Empty);
+        return PublicEndpointRateLimitHash.HashString(value.ToString() ?? string.Empty);
     }
+}
 
-    private static string HashString(string value)
+public static class RegistrationRateLimitPolicies
+{
+    public const string Intent = "registration.intent";
+}
+
+internal static class RegistrationRateLimitPartitionKeys
+{
+    public static string ForIntent(HttpContext context)
+    {
+        var remoteAddressHash = PublicEndpointRateLimitHash.HashString(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+
+        return $"registration:intent:{remoteAddressHash}";
+    }
+}
+
+internal static class PublicEndpointRateLimitHash
+{
+    public static string HashString(string value)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
 

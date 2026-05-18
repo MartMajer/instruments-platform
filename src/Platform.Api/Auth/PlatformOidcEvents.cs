@@ -28,8 +28,19 @@ public interface IPlatformOidcLoginResolver
         CancellationToken cancellationToken);
 }
 
+public interface IPlatformRegistrationLoginResolver
+{
+    Task<PlatformOidcLoginResolution?> ResolveAsync(
+        string registrationToken,
+        string email,
+        string provider,
+        string providerSubject,
+        CancellationToken cancellationToken);
+}
+
 public sealed class PlatformOidcEvents(
     IPlatformOidcLoginResolver loginResolver,
+    IPlatformRegistrationLoginResolver registrationLoginResolver,
     IConfiguration configuration,
     ILogger<PlatformOidcEvents> logger) : OpenIdConnectEvents
 {
@@ -67,10 +78,13 @@ public sealed class PlatformOidcEvents(
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {
-        if (!TryGetLoginTenantId(context, out var tenantId))
+        var hasTenantLogin = TryGetLoginTenantId(context, out var tenantId);
+        var registrationToken = GetRegistrationToken(context);
+        var hasRegistrationLogin = !string.IsNullOrWhiteSpace(registrationToken);
+        if (hasTenantLogin == hasRegistrationLogin)
         {
-            logger.LogWarning("OIDC login rejected because login tenant was missing or invalid.");
-            context.Fail("platform_login_tenant_required");
+            logger.LogWarning("OIDC login rejected because login context was missing or ambiguous.");
+            context.Fail("platform_login_context_required");
             return;
         }
 
@@ -99,12 +113,19 @@ public sealed class PlatformOidcEvents(
 
         var normalizedEmail = email.ToLowerInvariant();
 
-        var resolution = await loginResolver.ResolveAsync(
-            tenantId,
-            normalizedEmail,
-            Provider,
-            providerSubject,
-            context.HttpContext.RequestAborted);
+        var resolution = hasRegistrationLogin
+            ? await registrationLoginResolver.ResolveAsync(
+                registrationToken!,
+                normalizedEmail,
+                Provider,
+                providerSubject,
+                context.HttpContext.RequestAborted)
+            : await loginResolver.ResolveAsync(
+                tenantId,
+                normalizedEmail,
+                Provider,
+                providerSubject,
+                context.HttpContext.RequestAborted);
 
         if (resolution is null)
         {
@@ -129,6 +150,15 @@ public sealed class PlatformOidcEvents(
                 AuthEndpointRouteBuilderExtensions.TenantIdPropertyName,
                 out var value) == true &&
             Guid.TryParse(value, out tenantId);
+    }
+
+    private static string? GetRegistrationToken(TokenValidatedContext context)
+    {
+        return context.Properties?.Items.TryGetValue(
+                AuthEndpointRouteBuilderExtensions.RegistrationTokenPropertyName,
+                out var value) == true
+            ? value
+            : null;
     }
 
     private static bool IsEmailVerified(ClaimsPrincipal? principal)

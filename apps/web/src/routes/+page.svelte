@@ -29,6 +29,7 @@
 		<nav class="launchpad-nav__links" aria-label="Product entry actions">
 			<a href="#workflow">Workflow</a>
 			<a href="#proof">Beta boundary</a>
+			<a href={resolve('/register')}>Create workspace</a>
 			<a href={loginUrl}>Sign in</a>
 		</nav>
 	</header>
@@ -42,7 +43,7 @@
 				forcing researchers to stitch together forms, spreadsheets, scripts, and screenshots.
 			</p>
 			<div class="launchpad-actions">
-				<a class="launchpad-button launchpad-button--primary" href={resolve('/app')}>Open workspace</a>
+				<a class="launchpad-button launchpad-button--primary" href={resolve('/register')}>Create workspace</a>
 				<a class="launchpad-button launchpad-button--secondary" href={loginUrl}>Sign in</a>
 			</div>
 		</div>
@@ -117,7 +118,7 @@
 	</section>
 
 	<section class="proof-ribbon" id="proof" aria-label="Beta boundary">
-		<div><span>Runtime</span><strong>Setup ? collect ? score ? report ? export</strong></div>
+		<div><span>Runtime</span><strong>Setup to collection, scoring, reports, and exports</strong></div>
 		<div><span>Access</span><strong>Tenant-scoped authenticated workspace</strong></div>
 		<div><span>Operations</span><strong>Backup, restore, and release recovery prepared</strong></div>
 		<div><span>Beta boundary</span><strong>Demo and owner-controlled data only</strong></div>

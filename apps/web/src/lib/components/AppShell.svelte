@@ -11,31 +11,37 @@
 	const stageIcons = [LibraryBig, FileStack, Gauge, Send, ClipboardCheck];
 	const isProductShell = $derived(page.url.pathname.startsWith('/app'));
 	const isProductEntry = $derived(page.url.pathname === '/');
+	const isRegistrationEntry = $derived(page.url.pathname === '/register');
+	const isPublicEntry = $derived(isProductEntry || isRegistrationEntry);
 	const shellLabel = $derived(
-		isProductShell ? 'Product workspace' : isProductEntry ? 'Private beta' : 'Tenant setup'
+		isProductShell ? 'Product workspace' : isPublicEntry ? 'Private beta' : 'Tenant setup'
 	);
 	const headerKicker = $derived(
-		isProductShell ? 'Tenant workspace' : isProductEntry ? 'Product entry' : 'Tenant setup path'
+		isProductShell ? 'Tenant workspace' : isProductEntry ? 'Product entry' : isRegistrationEntry ? 'Registration' : 'Tenant setup path'
 	);
 	const headerTitle = $derived(
 		isProductShell
 			? 'Tenant command workspace'
 			: isProductEntry
 				? 'Authenticated workspace gateway'
-				: 'Setup APIs and launch readiness'
+				: isRegistrationEntry
+					? 'Create workspace'
+					: 'Setup APIs and launch readiness'
 	);
 	const mainLabel = $derived(
 		isProductShell
 			? 'Product workspace'
 			: isProductEntry
 				? 'Product entry'
-				: 'Tenant setup workspace'
+				: isRegistrationEntry
+					? 'Registration'
+					: 'Tenant setup workspace'
 	);
 </script>
 
-<div class="app-shell" class:app-shell--entry={isProductEntry}>
-	<div class="app-shell__grid" class:app-shell__grid--entry={isProductEntry}>
-		{#if !isProductEntry}
+<div class="app-shell" class:app-shell--entry={isPublicEntry}>
+	<div class="app-shell__grid" class:app-shell__grid--entry={isPublicEntry}>
+		{#if !isPublicEntry}
 			<aside class="app-sidebar">
 				<div class="app-brand">
 					<div class="app-brand__mark" aria-hidden="true">
@@ -84,7 +90,7 @@
 		{/if}
 
 		<div class="min-w-0">
-			{#if !isProductShell && !isProductEntry}
+			{#if !isProductShell && !isPublicEntry}
 				<header class="app-topbar">
 					<div class="app-topbar__inner">
 						<div>

@@ -90,3 +90,20 @@
 **Files:** no new files unless verification exposes gaps.
 
 **Steps:** run focused backend registration/auth tests; run `dotnet build --no-restore`; run web `svelte-check` and `vite build`; audit objective against real evidence; commit scoped files.
+## Progress update - 2026-05-18
+
+Implemented in `feature/registration-onboarding`:
+
+- Added `RegistrationIntent` domain model, EF mapping, and migration.
+- Added anonymous `POST /registration/intents` with disabled-by-default config, hashed beta access-code validation, hashed one-time registration tokens, slug allocation, and rate limiting.
+- Extended `/auth/login` to accept exactly one context: existing `tenantId` login or new `registrationToken` login.
+- Extended OIDC token validation to route registration callbacks through a separate resolver.
+- Added `EfPlatformRegistrationLoginResolver` to create tenant, owner roles, permissions, owner user, role assignment, external identity binding, auth session, and consumed intent in one transaction.
+- Added `/register` Svelte page and landing-page CTA for private-beta workspace creation.
+- Added frontend registration API helper and unit-test coverage for request shape/no tenant headers.
+
+Known remaining work before merge:
+
+- Run targeted backend and web verification.
+- Commit the current registration slice once verification passes.
+- If the ignored `docs/v2` handoff tree is restored in this worktree, update `SESSION-LOG.md`, `NEXT-ACTIONS.md`, and `NEXT-SESSION-PLAN.md` with this branch status.
