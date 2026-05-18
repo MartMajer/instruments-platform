@@ -13,6 +13,8 @@ public static class AuthEndpointRouteBuilderExtensions
 
     public const string RegistrationTokenPropertyName = "registration_token";
 
+    public const string RegistrationBootstrapPropertyName = "registration_bootstrap";
+
     public static IEndpointRouteBuilder MapPlatformAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/auth/login", Login)
@@ -40,14 +42,19 @@ public static class AuthEndpointRouteBuilderExtensions
     {
         var tenantIdValue = context.Request.Query["tenantId"].SingleOrDefault();
         var registrationToken = context.Request.Query["registrationToken"].SingleOrDefault()?.Trim();
+        var hasRegistrationBootstrap = IsRegistrationBootstrap(
+            context.Request.Query["registration"].SingleOrDefault());
         var hasTenantId = !string.IsNullOrWhiteSpace(tenantIdValue);
         var hasRegistrationToken = !string.IsNullOrWhiteSpace(registrationToken);
 
-        if (hasTenantId == hasRegistrationToken)
+        var loginContextCount = Convert.ToInt32(hasTenantId) +
+            Convert.ToInt32(hasRegistrationToken) +
+            Convert.ToInt32(hasRegistrationBootstrap);
+        if (loginContextCount != 1)
         {
             return Results.Problem(
                 title: "Invalid login context",
-                detail: "Provide either tenantId for existing tenant login or registrationToken for new tenant registration.",
+                detail: "Provide tenantId for existing tenant login, registrationToken for legacy registration completion, or registration=1 for new workspace signup.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -70,7 +77,7 @@ public static class AuthEndpointRouteBuilderExtensions
 
         var returnUrl = AuthReturnUrl.Normalize(
             context.Request.Query["returnUrl"].SingleOrDefault(),
-            "/app",
+            hasRegistrationBootstrap ? "/register" : "/app",
             configuration);
         if (returnUrl is null)
         {
@@ -88,7 +95,20 @@ public static class AuthEndpointRouteBuilderExtensions
                 detail: "prompt must be login, consent, or select_account when provided.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
+        var screenHint = NormalizeScreenHint(context.Request.Query["screen_hint"].SingleOrDefault());
+        if (screenHint is null)
+        {
+            return Results.Problem(
+                title: "Invalid login screen hint",
+                detail: "screen_hint must be signup when provided.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var prompt = hasTenantId ? requestedPrompt : "login";
+        if (hasRegistrationBootstrap && string.IsNullOrEmpty(screenHint))
+        {
+            screenHint = "signup";
+        }
 
         var properties = new AuthenticationProperties
         {
@@ -98,14 +118,22 @@ public static class AuthEndpointRouteBuilderExtensions
         {
             properties.Items[TenantIdPropertyName] = tenantId.ToString();
         }
-        else
+        else if (hasRegistrationToken)
         {
             properties.Items[RegistrationTokenPropertyName] = registrationToken!;
+        }
+        else
+        {
+            properties.Items[RegistrationBootstrapPropertyName] = "true";
         }
 
         if (!string.IsNullOrEmpty(prompt))
         {
             properties.SetParameter("prompt", prompt);
+        }
+        if (!string.IsNullOrEmpty(screenHint))
+        {
+            properties.SetParameter("screen_hint", screenHint);
         }
 
         return Results.Challenge(properties, [PlatformAuthenticationSchemes.Oidc]);
@@ -161,5 +189,23 @@ public static class AuthEndpointRouteBuilderExtensions
         return prompt is "login" or "consent" or "select_account"
             ? prompt
             : null;
+    }
+
+    private static bool IsRegistrationBootstrap(string? value)
+    {
+        return string.Equals(value?.Trim(), "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? NormalizeScreenHint(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var screenHint = value.Trim();
+
+        return screenHint is "signup" ? screenHint : null;
     }
 }

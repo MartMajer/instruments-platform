@@ -24,6 +24,11 @@ public sealed class PlatformSessionCookieEvents(
     {
         if (!TryGetPlatformSessionClaims(context.Principal, out var sessionId, out var userId, out var tenantId))
         {
+            if (IsRegistrationBootstrapPrincipal(context.Principal))
+            {
+                return;
+            }
+
             await RejectAsync(context);
             return;
         }
@@ -38,6 +43,18 @@ public sealed class PlatformSessionCookieEvents(
         {
             await RejectAsync(context);
         }
+    }
+
+    private static bool IsRegistrationBootstrapPrincipal(ClaimsPrincipal? principal)
+    {
+        return principal?.Identity?.IsAuthenticated == true &&
+            string.Equals(
+                principal.FindFirst(PlatformRegistrationClaimTypes.Pending)?.Value,
+                "true",
+                StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(principal.FindFirst(PlatformRegistrationClaimTypes.Email)?.Value) &&
+            !string.IsNullOrWhiteSpace(principal.FindFirst(PlatformRegistrationClaimTypes.Provider)?.Value) &&
+            !string.IsNullOrWhiteSpace(principal.FindFirst(PlatformRegistrationClaimTypes.ProviderSubjectHash)?.Value);
     }
 
     public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> context)

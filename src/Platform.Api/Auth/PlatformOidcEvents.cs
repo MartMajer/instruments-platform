@@ -38,13 +38,34 @@ public interface IPlatformRegistrationLoginResolver
         CancellationToken cancellationToken);
 }
 
+public static class PlatformRegistrationClaimTypes
+{
+    public const string Pending = "registration_pending";
+    public const string Email = "registration_email";
+    public const string Provider = "registration_provider";
+    public const string ProviderSubjectHash = "registration_provider_subject_hash";
+}
+
 public sealed class PlatformOidcEvents(
     IPlatformOidcLoginResolver loginResolver,
     IPlatformRegistrationLoginResolver registrationLoginResolver,
+    IProviderSubjectHasher providerSubjectHasher,
     IConfiguration configuration,
     ILogger<PlatformOidcEvents> logger) : OpenIdConnectEvents
 {
     private const string Provider = "auth0";
+
+    public override Task RedirectToIdentityProvider(RedirectContext context)
+    {
+        if (context.Properties.Parameters.TryGetValue("screen_hint", out var screenHint) &&
+            screenHint is string screenHintValue &&
+            !string.IsNullOrWhiteSpace(screenHintValue))
+        {
+            context.ProtocolMessage.SetParameter("screen_hint", screenHintValue);
+        }
+
+        return Task.CompletedTask;
+    }
 
     public override Task RemoteFailure(RemoteFailureContext context)
     {
@@ -81,7 +102,11 @@ public sealed class PlatformOidcEvents(
         var hasTenantLogin = TryGetLoginTenantId(context, out var tenantId);
         var registrationToken = GetRegistrationToken(context);
         var hasRegistrationLogin = !string.IsNullOrWhiteSpace(registrationToken);
-        if (hasTenantLogin == hasRegistrationLogin)
+        var hasRegistrationBootstrap = IsRegistrationBootstrap(context);
+        var loginContextCount = Convert.ToInt32(hasTenantLogin) +
+            Convert.ToInt32(hasRegistrationLogin) +
+            Convert.ToInt32(hasRegistrationBootstrap);
+        if (loginContextCount != 1)
         {
             logger.LogWarning("OIDC login rejected because login context was missing or ambiguous.");
             context.Fail("platform_login_context_required");
@@ -112,6 +137,16 @@ public sealed class PlatformOidcEvents(
         }
 
         var normalizedEmail = email.ToLowerInvariant();
+
+        if (hasRegistrationBootstrap)
+        {
+            ProjectRegistrationBootstrapClaims(
+                context,
+                normalizedEmail,
+                Provider,
+                providerSubjectHasher.Hash(Provider, providerSubject));
+            return;
+        }
 
         var resolution = hasRegistrationLogin
             ? await registrationLoginResolver.ResolveAsync(
@@ -161,6 +196,14 @@ public sealed class PlatformOidcEvents(
             : null;
     }
 
+    private static bool IsRegistrationBootstrap(TokenValidatedContext context)
+    {
+        return context.Properties?.Items.TryGetValue(
+                AuthEndpointRouteBuilderExtensions.RegistrationBootstrapPropertyName,
+                out var value) == true &&
+            string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool IsEmailVerified(ClaimsPrincipal? principal)
     {
         var value = principal?.FindFirst("email_verified")?.Value;
@@ -200,6 +243,30 @@ public sealed class PlatformOidcEvents(
         {
             identity.AddClaim(new Claim(PlatformClaimTypes.Permission, permission));
         }
+    }
+
+    private static void ProjectRegistrationBootstrapClaims(
+        TokenValidatedContext context,
+        string normalizedEmail,
+        string provider,
+        string providerSubjectHash)
+    {
+        if (context.Principal?.Identity is not ClaimsIdentity identity)
+        {
+            context.Fail("platform_login_identity_required");
+            return;
+        }
+
+        foreach (var claim in identity.Claims.ToArray())
+        {
+            identity.RemoveClaim(claim);
+        }
+
+        identity.AddClaim(new Claim(ClaimTypes.Email, normalizedEmail));
+        identity.AddClaim(new Claim(PlatformRegistrationClaimTypes.Pending, "true"));
+        identity.AddClaim(new Claim(PlatformRegistrationClaimTypes.Email, normalizedEmail));
+        identity.AddClaim(new Claim(PlatformRegistrationClaimTypes.Provider, provider));
+        identity.AddClaim(new Claim(PlatformRegistrationClaimTypes.ProviderSubjectHash, providerSubjectHash));
     }
 
 }

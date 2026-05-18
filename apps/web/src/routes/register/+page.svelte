@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { env } from '$env/dynamic/public';
 	import { ApiError } from '$lib/api/client';
@@ -8,33 +9,63 @@
 	const registrationApi = createRegistrationApi();
 	const signInUrl = createLoginUrlFromEnv(env);
 
-	let email = $state('');
 	let organizationName = $state('');
 	let accessCode = $state('');
 	let errorMessage = $state('');
 	let statusMessage = $state('');
 	let isSubmitting = $state(false);
+	let pendingEmail = $state('');
+	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
+	let registrationSignInUrl = $state('');
 
-	async function submitRegistration(event: SubmitEvent) {
+	onMount(() => {
+		registrationSignInUrl = resolveAuthRedirectUrl(
+			`/auth/login?registration=1&returnUrl=${encodeURIComponent(absoluteWebUrl(resolve('/register')))}`
+		);
+		void loadRegistrationSession();
+	});
+
+	async function loadRegistrationSession() {
+		errorMessage = '';
+
+		try {
+			const session = await registrationApi.getSession();
+			pendingEmail = session.email;
+			sessionState = 'ready';
+		} catch (error) {
+			if (error instanceof ApiError && error.status === 401) {
+				sessionState = 'signed-out';
+				return;
+			}
+
+			sessionState = 'signed-out';
+			errorMessage = 'Registration session check failed. Start account sign-up again.';
+		}
+	}
+
+	async function submitWorkspace(event: SubmitEvent) {
 		event.preventDefault();
 		errorMessage = '';
 		statusMessage = '';
 		isSubmitting = true;
 
 		try {
-			const response = await registrationApi.createIntent({
-				email,
+			const response = await registrationApi.createWorkspace({
 				organizationName,
 				accessCode,
-				returnUrl: resolve('/app')
+				returnUrl: absoluteWebUrl(resolve('/app'))
 			});
 
-			statusMessage = 'Workspace reserved. Redirecting to sign-in.';
-			window.location.assign(resolveAuthRedirectUrl(response.loginUrl));
+			statusMessage = 'Workspace created. Opening your app.';
+			window.location.assign(response.appUrl);
 		} catch (error) {
 			errorMessage = toRegistrationError(error);
 			isSubmitting = false;
 		}
+	}
+
+	function absoluteWebUrl(path: string) {
+		return new URL(path, window.location.origin).toString();
 	}
 
 	function resolveAuthRedirectUrl(loginUrl: string) {
@@ -81,10 +112,6 @@
 				return 'That access code does not match the private beta list.';
 			}
 
-			if (code === 'registration.email_invalid') {
-				return 'Enter a valid work email address.';
-			}
-
 			if (code === 'registration.organization_invalid') {
 				return 'Enter the workspace or organization name you want to use.';
 			}
@@ -129,18 +156,18 @@
 			<p class="launchpad-kicker">Private beta access</p>
 			<h1 id="registration-title">Create the workspace you will use for studies.</h1>
 			<p>
-				Use your beta access code, confirm your identity, and land in a tenant workspace with owner permissions already assigned.
+				Create or choose your account first, then name the workspace that account will own.
 			</p>
 			<div class="registration-steps" aria-label="Registration steps">
 				<div>
 					<span>01</span>
-					<strong>Reserve workspace</strong>
-					<p>Name the tenant and bind it to your email.</p>
+					<strong>Create account</strong>
+					<p>Use Auth0 to create or choose the owner identity.</p>
 				</div>
 				<div>
 					<span>02</span>
-					<strong>Sign in</strong>
-					<p>Finish authentication with the configured identity provider.</p>
+					<strong>Name workspace</strong>
+					<p>Return here to enter workspace name and beta access code.</p>
 				</div>
 				<div>
 					<span>03</span>
@@ -153,56 +180,60 @@
 		<section class="registration-panel" aria-label="Create workspace form">
 			<div class="registration-panel__header">
 				<span>Workspace signup</span>
-				<strong>Create a private beta workspace</strong>
+				<strong>Create your account, then your workspace</strong>
 				<p>Already have a workspace? <a href={signInUrl}>Sign in instead</a>.</p>
 			</div>
 
-			<form class="registration-form" onsubmit={submitRegistration}>
-				<label>
-					<span>Work email</span>
-					<input
-						type="email"
-						bind:value={email}
-						autocomplete="email"
-						placeholder="name@organization.com"
-						required
-					/>
-				</label>
+			{#if sessionState === 'checking'}
+				<p class="registration-alert" role="status">Checking account status...</p>
+			{:else if sessionState === 'signed-out'}
+				<div class="registration-form">
+					<p class="registration-alert" role="status">
+						Start with your identity provider. You will create or choose the email account there, then return here to name the workspace.
+					</p>
+					<a class="registration-submit" href={registrationSignInUrl || signInUrl}>Create account</a>
+				</div>
+			{:else}
+				<form class="registration-form" onsubmit={submitWorkspace}>
+					<div class="registration-alert" role="status">
+						Signed in as <strong>{pendingEmail}</strong>. This email will become the workspace owner.
+					</div>
 
-				<label>
-					<span>Workspace name</span>
-					<input
-						type="text"
-						bind:value={organizationName}
-						autocomplete="organization"
-						placeholder="Your lab, team, or company"
-						required
-					/>
-				</label>
+					<label>
+						<span>Workspace name</span>
+						<input
+							type="text"
+							bind:value={organizationName}
+							autocomplete="organization"
+							placeholder="Your lab, team, or company"
+							required
+						/>
+					</label>
 
-				<label>
-					<span>Beta access code</span>
-					<input
-						type="password"
-						bind:value={accessCode}
-						autocomplete="one-time-code"
-						placeholder="Access code"
-						required
-					/>
-				</label>
+					<label>
+						<span>Beta access code</span>
+						<input
+							type="password"
+							bind:value={accessCode}
+							autocomplete="one-time-code"
+							placeholder="Access code"
+							required
+						/>
+					</label>
 
-				{#if errorMessage}
-					<p class="registration-alert registration-alert--error" role="alert">{errorMessage}</p>
-				{/if}
+					{#if errorMessage}
+						<p class="registration-alert registration-alert--error" role="alert">{errorMessage}</p>
+					{/if}
 
-				{#if statusMessage}
-					<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
-				{/if}
+					{#if statusMessage}
+						<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
+					{/if}
 
-				<button class="registration-submit" type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Preparing sign-in...' : 'Continue to sign in'}
-				</button>
-			</form>
+					<button class="registration-submit" type="submit" disabled={isSubmitting}>
+						{isSubmitting ? 'Creating workspace...' : 'Create workspace'}
+					</button>
+				</form>
+			{/if}
 
 			<div class="registration-boundary">
 				<strong>Beta boundary</strong>

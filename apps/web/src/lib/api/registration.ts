@@ -12,14 +12,46 @@ export type CreateRegistrationIntentResponse = {
 	expiresAt: string;
 };
 
+export type RegistrationSessionResponse = {
+	email: string;
+};
+
+export type CreateRegistrationWorkspaceRequest = {
+	organizationName: string;
+	accessCode: string;
+	returnUrl?: string;
+};
+
+export type CreateRegistrationWorkspaceResponse = {
+	appUrl: string;
+	tenantId: string;
+	email: string;
+};
+
 export type RegistrationApi = {
 	createIntent(request: CreateRegistrationIntentRequest): Promise<CreateRegistrationIntentResponse>;
+	getSession(): Promise<RegistrationSessionResponse>;
+	createWorkspace(
+		request: CreateRegistrationWorkspaceRequest
+	): Promise<CreateRegistrationWorkspaceResponse>;
 };
 
 export function createRegistrationApi(client: ApiClient = createApiClient()): RegistrationApi {
 	return {
 		createIntent(request) {
 			return client.request<CreateRegistrationIntentResponse>('/registration/intents', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify(request)
+			});
+		},
+		getSession() {
+			return client.request<RegistrationSessionResponse>('/registration/session');
+		},
+		createWorkspace(request) {
+			return client.request<CreateRegistrationWorkspaceResponse>('/registration/workspaces', {
 				method: 'POST',
 				headers: {
 					'content-type': 'application/json'

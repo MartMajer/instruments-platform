@@ -36,4 +36,55 @@ describe('registration api', () => {
 		});
 		expect(new Headers(capturedInit?.headers).has('X-Tenant-Id')).toBe(false);
 	});
+
+	it('loads the pending registration session', async () => {
+		let capturedPath = '';
+		const client: ApiClient = {
+			async request<T>(path: string) {
+				capturedPath = path;
+				return { email: 'owner@example.test' } as T;
+			},
+			async requestText() {
+				throw new Error('not used');
+			}
+		};
+
+		const api = createRegistrationApi(client);
+		const session = await api.getSession();
+
+		expect(capturedPath).toBe('/registration/session');
+		expect(session.email).toBe('owner@example.test');
+	});
+
+	it('creates a workspace from the pending registration session', async () => {
+		expect.assertions(4);
+		let capturedPath = '';
+		let capturedInit: RequestInit | undefined;
+		const client: ApiClient = {
+			async request<T>(path: string, init?: RequestInit) {
+				capturedPath = path;
+				capturedInit = init;
+				return { appUrl: '/app', tenantId: 'tenant-id', email: 'owner@example.test' } as T;
+			},
+			async requestText() {
+				throw new Error('not used');
+			}
+		};
+
+		const api = createRegistrationApi(client);
+		await api.createWorkspace({
+			organizationName: 'Example Lab',
+			accessCode: 'beta-code',
+			returnUrl: '/app'
+		});
+
+		expect(capturedPath).toBe('/registration/workspaces');
+		expect(capturedInit?.method).toBe('POST');
+		expect(JSON.parse(String(capturedInit?.body))).toEqual({
+			organizationName: 'Example Lab',
+			accessCode: 'beta-code',
+			returnUrl: '/app'
+		});
+		expect(new Headers(capturedInit?.headers).has('X-Tenant-Id')).toBe(false);
+	});
 });

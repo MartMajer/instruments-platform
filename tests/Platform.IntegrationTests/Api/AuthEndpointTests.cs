@@ -153,6 +153,27 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_starts_registration_bootstrap_with_signup_hint()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/register");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registration=1&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+        Assert.Contains("prompt=login", response.Headers.Location?.Query);
+        Assert.Contains("screen_hint=signup", response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_rejects_unsupported_prompt()
     {
         var tenantId = Guid.NewGuid();
@@ -415,6 +436,35 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Null(context.Result?.Failure);
         Assert.Contains(context.Principal!.Claims, claim =>
             claim.Type == PlatformClaimTypes.SessionId && claim.Value == sessionId.ToString());
+    }
+
+    [Fact]
+    public async Task Oidc_token_validation_projects_registration_bootstrap_claims_without_tenant_session()
+    {
+        var tenantResolver = new FakeOidcLoginResolver();
+        var registrationResolver = new FakeRegistrationLoginResolver();
+        var events = CreateOidcEvents(tenantResolver, registrationResolver: registrationResolver);
+        var context = CreateTokenValidatedContext(
+            "Owner@Example.Test",
+            emailVerified: true,
+            registrationBootstrap: true,
+            providerSubject: "auth0|abc123");
+
+        await events.TokenValidated(context);
+
+        Assert.Null(context.Result?.Failure);
+        Assert.Empty(tenantResolver.Calls);
+        Assert.Empty(registrationResolver.Calls);
+        Assert.Contains(context.Principal!.Claims, claim =>
+            claim.Type == PlatformRegistrationClaimTypes.Pending && claim.Value == "true");
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformRegistrationClaimTypes.Email && claim.Value == "owner@example.test");
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformRegistrationClaimTypes.Provider && claim.Value == "auth0");
+        Assert.DoesNotContain(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.TenantMembership);
+        Assert.DoesNotContain(context.Principal.Claims, claim =>
+            claim.Type == "sub" || claim.Value == "auth0|abc123");
     }
 
     [Fact]
@@ -965,6 +1015,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         return new PlatformOidcEvents(
             resolver,
             registrationResolver ?? new FakeRegistrationLoginResolver(),
+            new Sha256ProviderSubjectHasher(),
             configuration,
             NullLogger<PlatformOidcEvents>.Instance);
     }
@@ -996,7 +1047,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         bool emailVerified,
         Guid? tenantId = null,
         string? providerSubject = "auth0|subject",
-        string? registrationToken = null)
+        string? registrationToken = null,
+        bool registrationBootstrap = false)
     {
         var claims = new List<Claim>
         {
@@ -1024,6 +1076,11 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         {
             properties.Items[AuthEndpointRouteBuilderExtensions.RegistrationTokenPropertyName] =
                 registrationToken;
+        }
+        if (registrationBootstrap)
+        {
+            properties.Items[AuthEndpointRouteBuilderExtensions.RegistrationBootstrapPropertyName] =
+                "true";
         }
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, OidcScheme));
