@@ -25,6 +25,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 
+    public DbSet<RegistrationIntent> RegistrationIntents => Set<RegistrationIntent>();
+
     public DbSet<Role> Roles => Set<Role>();
 
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -299,6 +301,65 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<RegistrationIntent>(builder =>
+        {
+            builder.ToTable("registration_intent", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_registration_intent_status",
+                    "status IN ('pending','consumed')");
+                table.HasCheckConstraint(
+                    "ck_registration_intent_expiry",
+                    "expires_at > created_at");
+                table.HasCheckConstraint(
+                    "ck_registration_intent_consumed_shape",
+                    "(status = 'pending' AND consumed_at IS NULL AND consumed_tenant_id IS NULL) OR (status = 'consumed' AND consumed_at IS NOT NULL AND consumed_tenant_id IS NOT NULL)");
+            });
+            builder.HasKey(intent => intent.Id).HasName("pk_registration_intent");
+
+            builder.Property(intent => intent.Id).HasColumnName("id");
+            builder.Property(intent => intent.RegistrationTokenHash)
+                .HasColumnName("registration_token_hash")
+                .HasMaxLength(RegistrationIntent.TokenHashMaxLength)
+                .IsRequired();
+            builder.Property(intent => intent.Email)
+                .HasColumnName("email")
+                .HasColumnType("citext")
+                .HasMaxLength(RegistrationIntent.EmailMaxLength)
+                .IsRequired();
+            builder.Property(intent => intent.OrganizationName)
+                .HasColumnName("organization_name")
+                .HasMaxLength(RegistrationIntent.OrganizationNameMaxLength)
+                .IsRequired();
+            builder.Property(intent => intent.Slug)
+                .HasColumnName("slug")
+                .HasMaxLength(RegistrationIntent.SlugMaxLength)
+                .IsRequired();
+            builder.Property(intent => intent.Status)
+                .HasColumnName("status")
+                .HasMaxLength(32)
+                .IsRequired();
+            builder.Property(intent => intent.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(intent => intent.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            builder.Property(intent => intent.ConsumedAt).HasColumnName("consumed_at");
+            builder.Property(intent => intent.ConsumedTenantId).HasColumnName("consumed_tenant_id");
+
+            builder.HasIndex(intent => intent.RegistrationTokenHash)
+                .HasDatabaseName("ix_registration_intent_registration_token_hash")
+                .IsUnique();
+            builder.HasIndex(intent => intent.Email)
+                .HasDatabaseName("ix_registration_intent_email");
+            builder.HasIndex(intent => new { intent.Status, intent.ExpiresAt })
+                .HasDatabaseName("ix_registration_intent_status_expires_at");
+            builder.HasIndex(intent => intent.ConsumedTenantId)
+                .HasDatabaseName("ix_registration_intent_consumed_tenant_id");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(intent => intent.ConsumedTenantId)
+                .HasConstraintName("fk_registration_intent_tenant_consumed_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         modelBuilder.Entity<Role>(builder =>
         {
             builder.ToTable("role");
