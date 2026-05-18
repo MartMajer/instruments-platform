@@ -57,6 +57,7 @@ public sealed class AuditSaveChangesInterceptor(
     {
         return entry.Entity is not AuditEvent &&
                entry.Entity is not OutboxEvent &&
+               entry.Entity is not Permission &&
                entry.Entity is not RegistrationIntent &&
                entry.Entity is not WorkerHeartbeat &&
                entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
