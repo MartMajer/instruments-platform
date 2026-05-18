@@ -1332,6 +1332,9 @@ public sealed class WithdrawalRuntimeStore(
 
     private static WithdrawalRequestReviewResponse ToReviewResponse(WithdrawalEvent withdrawal)
     {
+        var canDecide = withdrawal.Status == WithdrawalEventStatuses.Requested;
+        var canExecute = withdrawal.Status is WithdrawalEventStatuses.Planned or WithdrawalEventStatuses.Processing;
+
         return new WithdrawalRequestReviewResponse(
             withdrawal.Id,
             withdrawal.TargetKind,
@@ -1344,7 +1347,10 @@ public sealed class WithdrawalRuntimeStore(
             withdrawal.ResponseSessionCount,
             withdrawal.AnswerCount,
             withdrawal.ScoreRunCount,
-            withdrawal.ScoreCount);
+            withdrawal.ScoreCount,
+            CanApprove: canDecide,
+            CanDeny: canDecide,
+            CanExecute: canExecute);
     }
 
     private static WithdrawalDryRunResponse ToDryRunResponse(

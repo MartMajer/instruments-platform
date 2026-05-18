@@ -312,6 +312,9 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         var item = Assert.Single(payload);
         Assert.Equal(requestId, item.RequestId);
         Assert.Equal(targetId, item.TargetId);
+        Assert.True(item.CanApprove);
+        Assert.True(item.CanDeny);
+        Assert.False(item.CanExecute);
         Assert.Equal(tenantId, store.TenantId);
         Assert.Equal(1, store.ListCallCount);
     }
@@ -444,6 +447,9 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         Assert.NotNull(payload);
         Assert.Equal(requestId, payload.RequestId);
         Assert.Equal(WithdrawalEventStatuses.Planned, payload.Status);
+        Assert.False(payload.CanApprove);
+        Assert.False(payload.CanDeny);
+        Assert.True(payload.CanExecute);
         Assert.Equal(tenantId, store.TenantId);
         Assert.Equal(requestId, store.ApproveRequestId);
         Assert.Equal(actorUserId, store.ApproveCommand?.ActorUserId);
@@ -480,6 +486,9 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         Assert.Equal(requestId, payload.RequestId);
         Assert.Equal(WithdrawalEventStatuses.Denied, payload.Status);
         Assert.NotNull(payload.ProcessedAt);
+        Assert.False(payload.CanApprove);
+        Assert.False(payload.CanDeny);
+        Assert.False(payload.CanExecute);
         Assert.Equal(tenantId, store.TenantId);
         Assert.Equal(requestId, store.DenyRequestId);
         Assert.Equal(actorUserId, store.DenyCommand?.ActorUserId);
@@ -647,6 +656,9 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         string status = WithdrawalEventStatuses.Requested,
         DateTimeOffset? processedAt = null)
     {
+        var canDecide = status == WithdrawalEventStatuses.Requested;
+        var canExecute = status is WithdrawalEventStatuses.Planned or WithdrawalEventStatuses.Processing;
+
         return new WithdrawalRequestReviewResponse(
             requestId,
             WithdrawalTargetKinds.ResponseSession,
@@ -659,7 +671,10 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
             ResponseSessionCount: 1,
             AnswerCount: 1,
             ScoreRunCount: 1,
-            ScoreCount: 1);
+            ScoreCount: 1,
+            CanApprove: canDecide,
+            CanDeny: canDecide,
+            CanExecute: canExecute);
     }
 
     private static WithdrawalExecutionStateResponse SampleExecutionResponse(

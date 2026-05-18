@@ -75,7 +75,10 @@ public sealed record WithdrawalRequestReviewResponse(
     int ResponseSessionCount,
     int AnswerCount,
     int ScoreRunCount,
-    int ScoreCount);
+    int ScoreCount,
+    bool CanApprove = false,
+    bool CanDeny = false,
+    bool CanExecute = false);
 
 public sealed record WithdrawalEventResponse(
     Guid Id,

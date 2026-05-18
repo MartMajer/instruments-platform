@@ -855,6 +855,73 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Withdrawal_request_review_advertises_status_safe_admin_actions()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var fixture = await SeedIdentifiedResponseAsync(runtimeOptions, tenantId);
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new WithdrawalRuntimeStore(db, new TenantDbScope(db), new DeterministicParticipantCodeHasher());
+        var requested = await store.CreateWithdrawalRequestAsync(
+            tenantId,
+            new CreateWithdrawalRequestCommand(
+                WithdrawalTargetKinds.ResponseSession,
+                fixture.ResponseSessionId,
+                RetentionPolicy.Delete,
+                actorUserId,
+                "owner_requested"),
+            CancellationToken.None);
+
+        Assert.True(requested.IsSuccess, requested.Error.ToString());
+
+        var requestedReview = await store.GetWithdrawalRequestAsync(
+            tenantId,
+            requested.Value.RequestId,
+            CancellationToken.None);
+
+        Assert.True(requestedReview.IsSuccess, requestedReview.Error.ToString());
+        Assert.True(requestedReview.Value.CanApprove);
+        Assert.True(requestedReview.Value.CanDeny);
+        Assert.False(requestedReview.Value.CanExecute);
+
+        var planned = await store.ApproveWithdrawalRequestAsync(
+            tenantId,
+            requested.Value.RequestId,
+            new WithdrawalRequestDecisionCommand(actorUserId, "owner_confirmed"),
+            CancellationToken.None);
+
+        Assert.True(planned.IsSuccess, planned.Error.ToString());
+        Assert.False(planned.Value.CanApprove);
+        Assert.False(planned.Value.CanDeny);
+        Assert.True(planned.Value.CanExecute);
+
+        var requestedForDenial = await store.CreateWithdrawalRequestAsync(
+            tenantId,
+            new CreateWithdrawalRequestCommand(
+                WithdrawalTargetKinds.ResponseSession,
+                fixture.ResponseSessionId,
+                RetentionPolicy.Anonymize,
+                actorUserId,
+                "owner_requested"),
+            CancellationToken.None);
+        Assert.True(requestedForDenial.IsSuccess, requestedForDenial.Error.ToString());
+
+        var denied = await store.DenyWithdrawalRequestAsync(
+            tenantId,
+            requestedForDenial.Value.RequestId,
+            new WithdrawalRequestDecisionCommand(actorUserId, "owner_denied"),
+            CancellationToken.None);
+
+        Assert.True(denied.IsSuccess, denied.Error.ToString());
+        Assert.False(denied.Value.CanApprove);
+        Assert.False(denied.Value.CanDeny);
+        Assert.False(denied.Value.CanExecute);
+    }
+
+    [DockerFact]
     public async Task Withdrawal_request_review_gets_tenant_request_detail()
     {
         var tenantId = Guid.NewGuid();
