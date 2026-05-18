@@ -842,6 +842,34 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Vps_redeploy_smoke_records_revision_and_runs_release_checks()
+    {
+        var script = ReadRepoFile("deploy/staging/redeploy-vps-stack.sh");
+
+        Assert.Contains("set -euo pipefail", script);
+        Assert.Contains("deploy/staging/.env", script);
+        Assert.Contains("deploy/staging/docker-compose.yml", script);
+        Assert.Contains("deploy/staging/docker-compose.vps.yml", script);
+        Assert.Contains("git rev-parse HEAD", script);
+        Assert.Contains("git rev-parse --abbrev-ref HEAD", script);
+        Assert.Contains("docker compose", script);
+        Assert.Contains("up -d --build", script);
+        Assert.Contains("run-vps-release-checks.sh", script);
+        Assert.Contains("redeploy-evidence.json", script);
+        Assert.Contains("release-evidence", script);
+        Assert.Contains("redeployProven", script);
+        Assert.Contains("releaseChecksProven", script);
+        Assert.Contains("rollbackProven", script);
+        Assert.Contains("legalGdprReady", script);
+        Assert.Contains("operationalNotificationEmailReady", script);
+        Assert.Contains("Q-053", script);
+        Assert.Contains("Q-054", script);
+        Assert.DoesNotContain("cat deploy/staging/.env", script);
+        Assert.DoesNotContain("POSTGRES_PASSWORD", script);
+        Assert.DoesNotContain("Authentication__Oidc__ClientSecret", script);
+    }
+
+    [Fact]
     public void Validation_demo_preflight_writes_safe_structured_remote_preflight_evidence()
     {
         var script = ReadRepoFile("deploy/staging/smoke-validation-demo-preflight.ps1");
