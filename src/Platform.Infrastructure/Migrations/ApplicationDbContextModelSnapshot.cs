@@ -331,7 +331,7 @@ namespace Platform.Infrastructure.Migrations
 
                     b.ToTable("role_assignment", null, t =>
                         {
-                            t.HasCheckConstraint("ck_role_assignment_scope", "(scope_type = 'tenant' AND scope_id IS NULL)\r\nOR (scope_type IN ('workspace', 'campaign', 'campaign_series') AND scope_id IS NOT NULL)");
+                            t.HasCheckConstraint("ck_role_assignment_scope", "(scope_type = 'tenant' AND scope_id IS NULL)\nOR (scope_type IN ('workspace', 'campaign', 'campaign_series') AND scope_id IS NOT NULL)");
                         });
                 });
 
@@ -2365,7 +2365,7 @@ namespace Platform.Infrastructure.Migrations
 
                     b.ToTable("translation", null, t =>
                         {
-                            t.HasCheckConstraint("ck_translation_exactly_one_target", "((instrument_id IS NOT NULL)::int\r\n+ (instrument_subscale_id IS NOT NULL)::int\r\n+ (instrument_item_id IS NOT NULL)::int\r\n+ (survey_template_id IS NOT NULL)::int\r\n+ (template_section_id IS NOT NULL)::int\r\n+ (template_question_id IS NOT NULL)::int\r\n+ (choice_option_id IS NOT NULL)::int) = 1");
+                            t.HasCheckConstraint("ck_translation_exactly_one_target", "((instrument_id IS NOT NULL)::int\n+ (instrument_subscale_id IS NOT NULL)::int\n+ (instrument_item_id IS NOT NULL)::int\n+ (survey_template_id IS NOT NULL)::int\n+ (template_section_id IS NOT NULL)::int\n+ (template_question_id IS NOT NULL)::int\n+ (choice_option_id IS NOT NULL)::int) = 1");
 
                             t.HasCheckConstraint("ck_translation_status", "status IN ('draft_translation','back_translated','reconciled','approved_canonical_equivalent','approved_derivative','rejected')");
                         });

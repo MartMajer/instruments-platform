@@ -370,10 +370,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             {
                 table.HasCheckConstraint(
                     "ck_role_assignment_scope",
-                    """
-                    (scope_type = 'tenant' AND scope_id IS NULL)
-                    OR (scope_type IN ('workspace', 'campaign', 'campaign_series') AND scope_id IS NOT NULL)
-                    """);
+                    "(scope_type = 'tenant' AND scope_id IS NULL)\n"
+                    + "OR (scope_type IN ('workspace', 'campaign', 'campaign_series') AND scope_id IS NOT NULL)");
             });
             builder.HasKey(roleAssignment => roleAssignment.Id).HasName("pk_role_assignment");
 
@@ -2906,15 +2904,13 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             {
                 table.HasCheckConstraint(
                     "ck_translation_exactly_one_target",
-                    """
-                    ((instrument_id IS NOT NULL)::int
-                    + (instrument_subscale_id IS NOT NULL)::int
-                    + (instrument_item_id IS NOT NULL)::int
-                    + (survey_template_id IS NOT NULL)::int
-                    + (template_section_id IS NOT NULL)::int
-                    + (template_question_id IS NOT NULL)::int
-                    + (choice_option_id IS NOT NULL)::int) = 1
-                    """);
+                    "((instrument_id IS NOT NULL)::int\n"
+                    + "+ (instrument_subscale_id IS NOT NULL)::int\n"
+                    + "+ (instrument_item_id IS NOT NULL)::int\n"
+                    + "+ (survey_template_id IS NOT NULL)::int\n"
+                    + "+ (template_section_id IS NOT NULL)::int\n"
+                    + "+ (template_question_id IS NOT NULL)::int\n"
+                    + "+ (choice_option_id IS NOT NULL)::int) = 1");
                 table.HasCheckConstraint(
                     "ck_translation_status",
                     "status IN ('draft_translation','back_translated','reconciled','approved_canonical_equivalent','approved_derivative','rejected')");
