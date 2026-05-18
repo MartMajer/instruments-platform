@@ -804,6 +804,44 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Vps_release_check_runner_collects_safe_target_evidence()
+    {
+        var script = ReadRepoFile("deploy/staging/run-vps-release-checks.sh");
+
+        Assert.Contains("set -euo pipefail", script);
+        Assert.Contains("validatedscale-api-staging.croat.dev", script);
+        Assert.Contains("validatedscale-staging.croat.dev", script);
+        Assert.Contains("curl", script);
+        Assert.Contains("/health", script);
+        Assert.Contains("/auth/session", script);
+        Assert.Contains("Access-Control-Request-Method", script);
+        Assert.Contains("/auth/login", script);
+        Assert.Contains("tenant_id=", script);
+        Assert.Contains("returnUrl=%2Fapp", script);
+        Assert.Contains("tenantId=$tenant_id", script);
+        Assert.Contains("X-Tenant-Id: $tenant_id", script);
+        Assert.Contains("backup-restore-vps-smoke.sh", script);
+        Assert.Contains("backup-restore.json", script);
+        Assert.Contains("release-evidence.json", script);
+        Assert.Contains("STAGING_SESSION_COOKIE", script);
+        Assert.Contains("--session-cookie-file", script);
+        Assert.Contains("--require-authenticated-session", script);
+        Assert.Contains("Authenticated session proof required", script);
+        Assert.Contains("remotePublicSmokeProven", script);
+        Assert.Contains("vpsBackupRestoreProven", script);
+        Assert.Contains("authenticatedRemoteSmokeProven", script);
+        Assert.Contains("legalGdprReady", script);
+        Assert.Contains("operationalNotificationEmailReady", script);
+        Assert.Contains("Q-053", script);
+        Assert.Contains("Q-054", script);
+        Assert.DoesNotContain("cat deploy/staging/.env", script);
+        Assert.DoesNotContain("echo $STAGING_SESSION_COOKIE", script);
+        Assert.DoesNotContain("echo \"$STAGING_SESSION_COOKIE", script);
+        Assert.DoesNotContain("echo $session_cookie", script);
+        Assert.DoesNotContain("echo \"$session_cookie", script);
+    }
+
+    [Fact]
     public void Validation_demo_preflight_writes_safe_structured_remote_preflight_evidence()
     {
         var script = ReadRepoFile("deploy/staging/smoke-validation-demo-preflight.ps1");
