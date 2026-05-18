@@ -107,3 +107,8 @@ Known remaining work before merge:
 - Run targeted backend and web verification.
 - Commit the current registration slice once verification passes.
 - If the ignored `docs/v2` handoff tree is restored in this worktree, update `SESSION-LOG.md`, `NEXT-ACTIONS.md`, and `NEXT-SESSION-PLAN.md` with this branch status.
+
+Additional verification coverage:
+
+- Added `RegistrationLoginResolverTests` with Postgres-backed Docker coverage for successful tenant-owner bootstrap and email-mismatch rejection.
+- Verified with `RUN_POSTGRES_INTEGRATION_TESTS=1 dotnet test tests\Platform.IntegrationTests\Platform.IntegrationTests.csproj --filter RegistrationLoginResolverTests`.
