@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Application;
+using Platform.Application.Auth;
 using Platform.Application.Tenancy;
 
 namespace Platform.UnitTests.Application;
@@ -41,6 +43,60 @@ public sealed class TenantContextTests
         Assert.True(currentTenant.HasTenant);
         Assert.Equal(tenantId, currentTenant.TenantId);
         Assert.Equal("header", currentTenant.Source);
+    }
+
+    [Fact]
+    public async Task Middleware_sets_current_tenant_from_single_authenticated_membership_when_header_is_missing()
+    {
+        var tenantId = Guid.NewGuid();
+        var currentTenant = new CurrentTenant();
+        var context = CreateHttpContext();
+        var nextCalled = false;
+
+        context.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [new Claim(PlatformClaimTypes.TenantMembership, tenantId.ToString())],
+                "test"));
+
+        var middleware = new TenantContextMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, currentTenant);
+
+        Assert.True(nextCalled);
+        Assert.True(currentTenant.HasTenant);
+        Assert.Equal(tenantId, currentTenant.TenantId);
+        Assert.Equal("claim", currentTenant.Source);
+    }
+
+    [Fact]
+    public async Task Middleware_does_not_infer_tenant_from_multiple_memberships()
+    {
+        var currentTenant = new CurrentTenant();
+        var context = CreateHttpContext();
+        var nextCalled = false;
+
+        context.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [
+                    new Claim(PlatformClaimTypes.TenantMembership, Guid.NewGuid().ToString()),
+                    new Claim(PlatformClaimTypes.TenantMembership, Guid.NewGuid().ToString())
+                ],
+                "test"));
+
+        var middleware = new TenantContextMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, currentTenant);
+
+        Assert.True(nextCalled);
+        Assert.False(currentTenant.HasTenant);
     }
 
     [Fact]

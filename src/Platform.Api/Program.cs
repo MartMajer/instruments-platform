@@ -92,7 +92,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseRouting();
-app.UseTenantContext();
 if (browserCorsOrigins.Length > 0)
 {
     app.UseCors(PlatformAuthServiceCollectionExtensions.BrowserCorsPolicyName);
@@ -100,6 +99,7 @@ if (browserCorsOrigins.Length > 0)
 
 app.UseRateLimiter();
 app.UseAuthentication();
+app.UseTenantContext();
 app.UseCookieCsrfProtection();
 app.UseAuthorization();
 

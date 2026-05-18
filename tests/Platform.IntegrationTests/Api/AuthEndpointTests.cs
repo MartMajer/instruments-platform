@@ -550,6 +550,29 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Session_endpoint_infers_tenant_context_from_single_membership_when_header_is_missing()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/auth/session");
+
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId.ToString());
+        request.Headers.Add(TestAuthHandler.TenantMembershipsHeader, tenantId.ToString());
+        request.Headers.Add(TestAuthHandler.PermissionsHeader, "setup.manage");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<SessionResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(userId, payload.UserId);
+        Assert.Equal(tenantId, payload.TenantId);
+        Assert.Contains("setup.manage", payload.Permissions);
+    }
+
+    [Fact]
     public async Task Session_endpoint_returns_current_actor_email_when_claim_is_present()
     {
         var tenantId = Guid.NewGuid();

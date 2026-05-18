@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import { ApiError, createApiClient } from '$lib/api/client';
 	import { createLoginUrlFromEnv, createSessionHeadersFromEnv } from '$lib/api/session-headers';
@@ -11,6 +12,9 @@
 
 	const loginUrl = createLoginUrlFromEnv(env);
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
+	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
+	const unauthenticatedActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
+	const unauthenticatedActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
 
 	const setupApi = createSetupApi(
 		createApiClient({
@@ -133,9 +137,11 @@
 			</div>
 		</div>
 		<p class="text-sm text-[var(--color-text-muted)]">
-			Sign in before opening tenant product surfaces.
+			{hasTenantLoginTarget
+				? 'Sign in before opening tenant product surfaces.'
+				: 'Create a workspace first, then the app will open with your tenant session.'}
 		</p>
-		<a class="primary-button" href={loginUrl}>Sign in</a>
+		<a class="primary-button" href={unauthenticatedActionUrl}>{unauthenticatedActionLabel}</a>
 	</section>
 {:else if authState === 'forbidden'}
 	<section class="setup-panel" aria-labelledby="auth-boundary-title">
