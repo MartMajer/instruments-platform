@@ -780,6 +780,30 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Vps_backup_restore_smoke_runs_safe_linux_target_rehearsal()
+    {
+        var script = ReadRepoFile("deploy/staging/backup-restore-vps-smoke.sh");
+
+        Assert.Contains("set -euo pipefail", script);
+        Assert.Contains("deploy/staging/.env", script);
+        Assert.Contains("deploy/staging/docker-compose.yml", script);
+        Assert.Contains("deploy/staging/docker-compose.vps.yml", script);
+        Assert.Contains("mktemp -d", script);
+        Assert.Contains("trap cleanup EXIT", script);
+        Assert.Contains("pg_dump", script);
+        Assert.Contains("createdb", script);
+        Assert.Contains("pg_restore", script);
+        Assert.Contains("dropdb", script);
+        Assert.Contains("restore_db=", script);
+        Assert.Contains("public.tenant", script);
+        Assert.Contains("public.audit_event", script);
+        Assert.Contains("Q-053", script);
+        Assert.DoesNotContain("cat deploy/staging/.env", script);
+        Assert.DoesNotContain("echo $POSTGRES_PASSWORD", script);
+        Assert.DoesNotContain("echo \"$POSTGRES_PASSWORD", script);
+    }
+
+    [Fact]
     public void Validation_demo_preflight_writes_safe_structured_remote_preflight_evidence()
     {
         var script = ReadRepoFile("deploy/staging/smoke-validation-demo-preflight.ps1");
