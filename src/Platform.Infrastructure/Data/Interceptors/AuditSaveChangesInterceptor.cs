@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Platform.Application.Auditing;
 using Platform.Application.Tenancy;
 using Platform.Domain.Auditing;
+using Platform.Domain.Auth;
 using Platform.Domain.Outbox;
 using Platform.Domain.Operations;
 using Platform.SharedKernel;
@@ -56,6 +57,7 @@ public sealed class AuditSaveChangesInterceptor(
     {
         return entry.Entity is not AuditEvent &&
                entry.Entity is not OutboxEvent &&
+               entry.Entity is not RegistrationIntent &&
                entry.Entity is not WorkerHeartbeat &&
                entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
     }

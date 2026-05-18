@@ -80,6 +80,9 @@ services:
       Authentication__Oidc__RequireHttpsMetadata: ${Authentication__Oidc__RequireHttpsMetadata:-true}
       Authentication__Oidc__RequireVerifiedEmail: ${Authentication__Oidc__RequireVerifiedEmail:-true}
       Authentication__Oidc__SessionMinutes: ${Authentication__Oidc__SessionMinutes:-480}
+      Registration__Enabled: ${Registration__Enabled:-false}
+      Registration__IntentMinutes: ${Registration__IntentMinutes:-15}
+      Registration__BetaAccessCodeSha256Hashes__0: ${Registration__BetaAccessCodeSha256Hashes__0:-}
       Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:-http://127.0.0.1:5174}
       Cors__AllowedOrigins__1: ${Cors__AllowedOrigins__1:-http://localhost:5174}
       EmailDelivery__Provider: ${EmailDelivery__Provider:-local-dev}

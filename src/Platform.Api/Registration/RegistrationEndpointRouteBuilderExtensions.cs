@@ -74,7 +74,7 @@ public sealed class RegistrationIntentService(
         var now = timeProvider.GetUtcNow();
         var expiresAt = now.AddMinutes(Math.Max(1, configuration.GetValue("Registration:IntentMinutes", 15)));
         var token = tokenProtector.Create();
-        var slug = await AllocateSlugAsync(Slugify(organizationName.Value), now, cancellationToken);
+        var slug = AllocateSlug(Slugify(organizationName.Value), token.Hash);
 
         var intent = new RegistrationIntent(
             PlatformIds.NewId(),
@@ -98,42 +98,16 @@ public sealed class RegistrationIntentService(
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
     }
 
-    private async Task<string> AllocateSlugAsync(
-        string baseSlug,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
+    private static string AllocateSlug(string baseSlug, string tokenHash)
     {
-        var candidate = baseSlug;
-        var suffix = 2;
-        while (await SlugExistsAsync(candidate, now, cancellationToken))
-        {
-            var suffixText = $"-{suffix}";
-            var rootLength = Math.Min(
-                RegistrationIntent.SlugMaxLength - suffixText.Length,
-                baseSlug.Length);
-            candidate = baseSlug[..rootLength].Trim('-') + suffixText;
-            suffix++;
-        }
+        const int suffixLength = 8;
 
-        return candidate;
-    }
-
-    private async Task<bool> SlugExistsAsync(
-        string slug,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
-    {
-        if (await db.Tenants.AnyAsync(tenant => tenant.Slug == slug, cancellationToken))
-        {
-            return true;
-        }
-
-        return await db.RegistrationIntents.AnyAsync(
-            intent =>
-                intent.Slug == slug &&
-                intent.Status == RegistrationIntentStatuses.Pending &&
-                intent.ExpiresAt > now,
-            cancellationToken);
+        var suffix = tokenHash[..suffixLength].ToLowerInvariant();
+        var rootLength = Math.Min(
+            RegistrationIntent.SlugMaxLength - suffixLength - 1,
+            baseSlug.Length);
+        var root = baseSlug[..rootLength].Trim('-');
+        return $"{(string.IsNullOrWhiteSpace(root) ? "workspace" : root)}-{suffix}";
     }
 
     private static Result<string> NormalizeEmail(string email)

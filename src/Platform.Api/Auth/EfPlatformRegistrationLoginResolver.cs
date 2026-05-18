@@ -63,11 +63,11 @@ public sealed class EfPlatformRegistrationLoginResolver(
         var exportPermission = await EnsurePermissionAsync(PlatformPermissions.ExportRead, cancellationToken);
 
         var tenantId = PlatformIds.NewId();
-        db.Tenants.Add(new Tenant(tenantId, intent.Slug, intent.OrganizationName));
-        await db.SaveChangesAsync(cancellationToken);
-
         currentTenant.SetTenant(tenantId, "registration");
         await tenantDbScope.SetTenantAsync(tenantId, cancellationToken: cancellationToken);
+
+        db.Tenants.Add(new Tenant(tenantId, intent.Slug, intent.OrganizationName));
+        await db.SaveChangesAsync(cancellationToken);
 
         var ownerRole = new Role(PlatformIds.NewId(), tenantId, OwnerRoleCode, "Tenant owner");
         var researcherRole = new Role(PlatformIds.NewId(), tenantId, ResearcherRoleCode, "Researcher");
