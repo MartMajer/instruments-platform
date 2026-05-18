@@ -1093,6 +1093,33 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Compose_persists_api_data_protection_keys()
+    {
+        var compose = ReadRepoFile("deploy/staging/docker-compose.yml");
+        var api = ExtractServiceSection(compose, "api");
+
+        Assert.Contains("platform_staging_data_protection_keys:/root/.aspnet/DataProtection-Keys", api);
+        Assert.Contains("platform_staging_data_protection_keys:", compose);
+    }
+
+    [Fact]
+    public void Staging_admin_seed_script_is_parameterized_and_idempotent()
+    {
+        var script = ReadRepoFile("deploy/staging/seed-staging-admin.ps1");
+
+        Assert.Contains("[Parameter(Mandatory = $true)]", script);
+        Assert.Contains("[string]$Email", script);
+        Assert.Contains("staging-admin", script);
+        Assert.Contains("setup.manage", script);
+        Assert.Contains("team.manage", script);
+        Assert.Contains("ON CONFLICT (code) DO NOTHING", script);
+        Assert.Contains("ON CONFLICT (tenant_id, email) DO UPDATE", script);
+        Assert.Contains("WHERE NOT EXISTS", script);
+        Assert.Contains("docker compose --env-file deploy/staging/.env", script);
+        Assert.DoesNotContain("servok01+oh-owner@gmail.com", script);
+    }
+
+    [Fact]
     public void Env_examples_expose_export_artifact_object_store_defaults()
     {
         foreach (var path in new[] { "deploy/staging/env.example", "deploy/staging/vps.env.example" })

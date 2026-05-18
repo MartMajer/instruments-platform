@@ -101,6 +101,7 @@ services:
       Reports__PdfRenderer__DisableSandbox: ${Reports__PdfRenderer__DisableSandbox:-true}
     volumes:
       - platform_staging_export_artifacts:/var/lib/instruments-platform/export-artifacts
+      - platform_staging_data_protection_keys:/root/.aspnet/DataProtection-Keys
     ports:
       - "${API_HTTP_PORT:-5055}:8080"
     depends_on:
@@ -164,3 +165,4 @@ services:
 volumes:
   platform_staging_postgres_data:
   platform_staging_export_artifacts:
+  platform_staging_data_protection_keys:
