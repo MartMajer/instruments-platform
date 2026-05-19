@@ -18841,3 +18841,11 @@ Verification:
 - Updated the scoring engine so aggregate nodes can override the default missing-answer policy.
 - Verification passed: focused template-authoring Vitest 9/9, focused scoring engine and validator tests 2/2, focused setup-authoring Playwright test 1/1 against direct Vite preview after production build, and `git diff --check` with only CRLF warnings.
 - Queue moves to VAL08 validation packet refresh. Remaining risk: partial-output scoring resilience and deeper node-local missing-policy validation remain future hardening; DIR04 Docker-backed store proof still needs Docker before deployment.
+
+## 2026-05-20 - D356 post-VAL08 validation packet refresh assessment
+
+- Completed VAL08 locally: refreshed current proof brief, validation walkthrough packet, and owner blocker action pack to match the current private-beta product path.
+- The packet now covers registration/sign-in, workspace/study creation, five-step setup, questionnaire formats, multi-output Results setup, CSV audience import, recipient selection, collection, respondent completion, Results CSV download, Waves, Team, Directory, Settings, and VPS proof boundaries.
+- Kept Q-053/Q-054, proof-only data, non-canonical named-instrument, no-norms/no-interpretation, final-UX, and final-PDF-product limits explicit.
+- Verification passed: docs-only `git diff --check` with only CRLF warnings.
+- D350 follow-up queue is locally complete. Next default move is owner validation using refreshed packet, deployment/runtime proof by explicit request, or a new owner-prioritized slice based on evidence.

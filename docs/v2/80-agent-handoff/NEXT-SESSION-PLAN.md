@@ -1,3 +1,13 @@
+# Next Session Plan - Post-D356
+
+Current queue head: no agent-executable D350 follow-up slice is selected by default.
+
+Recommended next move: either owner-run validation using the refreshed packet, or an explicit deployment/runtime proof pass if the owner wants these local commits on staging before calls. Do not invent another product slice without validator feedback, a deployment need, or a new owner priority.
+
+If deployment is requested, remember the open gate: DIR04 CSV audience import has Docker-backed store tests that could not run locally because Testcontainers could not connect to Docker. Run a Docker-enabled proof or include the risk explicitly in release notes.
+
+O01/O02/O03 remain owner-only. Q-053 still blocks real-person production legal/GDPR/DPA claims. Q-054 still blocks outbound operational-notification email claims.
+
 # Next Session Plan - Post-D355
 
 Current queue head: VAL08 validation packet refresh.

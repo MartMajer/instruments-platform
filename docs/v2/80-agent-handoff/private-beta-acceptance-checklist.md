@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline plus QB01, DIR04 local implementation, AUD01 recipient-selection UX, and RSLT01 multi-output Results setup.
+Status: BR01 baseline plus QB01, DIR04 local implementation, AUD01 recipient-selection UX, RSLT01 multi-output Results setup, and VAL08 validation-packet refresh.
 Last reviewed: 2026-05-20.
 
 ## Purpose
