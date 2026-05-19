@@ -18704,3 +18704,11 @@ Verification: First VPS redeploy attempt failed at `npm run build` with the Svel
 Task: Deployed the widget-led Results hub cleanup and real CSV browser download to staging.
 
 Verification: Initial deploy attempt at commit `cbe0092` failed during Docker web build on invalid Svelte `{@const}` placement. Follow-up fix commit `f6e3b07` deployed successfully. Docker web production build passed with the existing large-chunk warning, VPS release checks passed, remote public smoke and backup/restore passed, authenticated remote smoke was skipped, and public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Evidence: `/tmp/results-hub-export-vps-release-20260519-rerun`. Running web image: `sha256:aeaf5fa3d5cc01e335cc0c4077ab5915d38de85e69ae1321495233ec2b96a863`.
+
+## 2026-05-19 - Waves hub comparison-led cleanup
+
+Assessment: Owner asked to apply the same production cleanup to Waves after Results. The Waves surface still had the comparison workflow, a separate dashboard/snapshot panel, separate guidance, and a technical reference competing for attention. It also exposed proof-style and provenance wording in the normal researcher path.
+
+Task: Embedded the wave comparison preview inside the Review comparison workflow step, removed duplicate latest-action details, renamed workflow copy toward comparison readiness and review, added final handoff links back to Results and Setup next wave, converted the standalone wave snapshot into an embeddable preview, and collapsed the outer Waves page into one Waves details section with guidance/reference/dashboard panels removed from the normal flow.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.

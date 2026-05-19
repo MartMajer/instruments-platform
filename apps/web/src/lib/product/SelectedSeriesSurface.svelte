@@ -20,7 +20,6 @@
 	import SelectedSeriesOperationsWorkflow from '$lib/product/SelectedSeriesOperationsWorkflow.svelte';
 	import SelectedSeriesReportsWorkflow from '$lib/product/SelectedSeriesReportsWorkflow.svelte';
 	import SelectedSeriesSetupWorkflow from '$lib/product/SelectedSeriesSetupWorkflow.svelte';
-	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import SelectedSeriesWavesWorkflow from '$lib/product/SelectedSeriesWavesWorkflow.svelte';
 	import {
 		createProductApiFromEnv,
@@ -100,14 +99,6 @@
 		setupWorkspaceView
 			? toProductRouteGuidance('setup', {
 					isSample: setupWorkspaceView.ownership.isSample,
-					canManageSetup
-				})
-			: null
-	);
-	const wavesRouteGuidance = $derived(
-		wavesWorkspaceView
-			? toProductRouteGuidance('waves', {
-					isSample: wavesWorkspaceView.ownership.isSample,
 					canManageSetup
 				})
 			: null
@@ -881,261 +872,186 @@
 					onWorkspaceRefresh={() => refreshWavesWorkspace()}
 				/>
 
-				<details class="product-panel reference-context" aria-label="Longitudinal comparison status">
-					<summary class="record-row__title">Longitudinal comparison status</summary>
+				<details class="product-panel reference-context" aria-label="Waves details">
+					<summary class="record-row__title">Waves details</summary>
 					<div class="product-panel__header mt-4">
 						<div>
-							<p class="product-kicker">Advanced study lifecycle</p>
-							<h2 class="product-title">Wave comparison status</h2>
+							<p class="product-kicker">Waves details</p>
+							<h2 class="product-title">Comparison details</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-								Waves compares repeated waves in the same study when change over time
-								matters.
+								Use these details when a wave comparison is blocked or needs audit context.
+								Normal comparison work should happen in the workflow above.
 							</p>
 						</div>
 					</div>
 
 					<dl class="metric-grid">
-						<div class="metric-card">
-							<dt class="metric-card__label">Longitudinal waves</dt>
-							<dd class="metric-card__value">
-								{wavesWorkspace.summary.longitudinalWaveCount}
-							</dd>
-						</div>
-						<div class="metric-card">
-							<dt class="metric-card__label">Complete trajectories</dt>
-							<dd class="metric-card__value">
-								{wavesWorkspace.summary.completeTrajectoryCount}
-							</dd>
-						</div>
-						<div class="metric-card">
-							<dt class="metric-card__label">Visible comparisons</dt>
-							<dd class="metric-card__value">
-								{wavesWorkspace.summary.visibleComparisonCount}
-							</dd>
-						</div>
-						<div class="metric-card">
-							<dt class="metric-card__label">Suppressed comparisons</dt>
-							<dd class="metric-card__value">
-								{wavesWorkspace.summary.suppressedComparisonCount}
-							</dd>
-						</div>
-						<div class="metric-card">
-							<dt class="metric-card__label">Blocked comparisons</dt>
-							<dd class="metric-card__value">
-								{wavesWorkspace.summary.blockedComparisonCount}
-							</dd>
-						</div>
+						{#each wavesWorkspaceView.summaryRows as row}
+							<div class="metric-card">
+								<dt class="metric-card__label">{row.label}</dt>
+								<dd class="metric-card__value">{row.value}</dd>
+							</div>
+						{/each}
 					</dl>
 
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">Baseline wave</dt>
-							<dd class="record-field__value">
-								{wavesWorkspace.selectedBaselineWave?.name ?? 'Missing'}
-							</dd>
+					<div
+						role="group"
+						aria-label="Compared waves"
+						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+					>
+						<div>
+							<p class="product-kicker">Compared waves</p>
+							<h3 class="text-base font-semibold text-[var(--color-text)]">
+								Selected comparison
+							</h3>
 						</div>
-						<div class="record-field">
-							<dt class="record-field__label">Comparison wave</dt>
-							<dd class="record-field__value">
-								{wavesWorkspace.selectedComparisonWave?.name ?? 'Missing'}
-							</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">Comparison availability</dt>
-							<dd class="record-field__value">{wavesWorkspace.comparison.status}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">Disclosure</dt>
-							<dd class="record-field__value">{wavesWorkspace.comparison.disclosureState}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">Compatibility</dt>
-							<dd class="record-field__value">
-								{wavesWorkspace.comparison.compatibilityState}
-							</dd>
-						</div>
-					</dl>
-
-					<div class="record-list">
-						<article class="record-row" aria-label="Repeated-wave studies">
-							<h3 class="record-row__title">Repeated-wave studies</h3>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								Use Waves when the same study is launched in repeated waves and the
-								review depends on linked trajectories or change over time.
-							</p>
-						</article>
-						<article class="record-row" aria-label="Single-wave studies">
-							<h3 class="record-row__title">Single-wave studies</h3>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								Use Review results or Use exports when the study has only one wave and
-								does not need longitudinal comparison.
-							</p>
-						</article>
-					</div>
-				</details>
-
-				<details class="product-panel reference-context" aria-label="Wave dashboard">
-					<summary class="record-row__title">Wave dashboard and snapshot</summary>
-					<div class="mt-4">
-						<SelectedSeriesWaveComparisonSnapshot workspace={wavesWorkspace} />
-					</div>
-				</details>
-			{/if}
-
-			{#if wavesRouteGuidance}
-				<details class="product-panel reference-context" aria-label="Waves guidance">
-					<summary class="record-row__title">Waves guidance</summary>
-					<div class="mt-4">
-						<RouteGuidancePanel guidance={wavesRouteGuidance} />
-					</div>
-				</details>
-			{/if}
-
-			<details
-				class="product-panel reference-context"
-				aria-label={`${wavesWorkspaceView.surfaceLabel} selected-series context`}
-			>
-				<summary class="record-row__title">Technical waves reference</summary>
-				<div class="product-panel__header mt-4">
-					<div>
-						<p class="product-kicker">{wavesWorkspaceView.surfaceEyebrow}</p>
-						<h2 class="product-title">{wavesWorkspaceView.title}</h2>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							Waves for {wavesWorkspaceView.subtitle}.
-						</p>
-					</div>
-				</div>
-
-<dl class="metric-grid">
-					{#each wavesWorkspaceView.summaryRows as row}
-						<div class="metric-card">
-							<dt class="metric-card__label">{row.label}</dt>
-							<dd class="metric-card__value">{row.value}</dd>
-						</div>
-					{/each}
-				</dl>
-
-				<div
-					role="group"
-					aria-label="Waves selected waves"
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">Selected waves</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Comparison state</h3>
+						<dl class="record-grid">
+							<div class="record-field">
+								<dt class="record-field__label">Baseline wave</dt>
+								<dd class="record-field__value">
+									{wavesWorkspace.selectedBaselineWave?.name ?? 'Missing'}
+								</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Comparison wave</dt>
+								<dd class="record-field__value">
+									{wavesWorkspace.selectedComparisonWave?.name ?? 'Missing'}
+								</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Comparison status</dt>
+								<dd class="record-field__value">{wavesWorkspace.comparison.status}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Disclosure</dt>
+								<dd class="record-field__value">{wavesWorkspace.comparison.disclosureState}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Compatibility</dt>
+								<dd class="record-field__value">{wavesWorkspace.comparison.compatibilityState}</dd>
+							</div>
+						</dl>
 					</div>
 
 					{#if wavesWorkspaceView.selectedWaveRows.length > 0}
-						<dl class="record-grid">
-							{#each wavesWorkspaceView.selectedWaveRows as row}
-								<div class="record-field">
-									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">{row.value}</dd>
-								</div>
-							{/each}
-						</dl>
+						<div
+							role="group"
+							aria-label="Wave readiness"
+							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+						>
+							<div>
+								<p class="product-kicker">Comparison readiness</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">
+									What is available?
+								</h3>
+							</div>
+							<dl class="record-grid">
+								{#each wavesWorkspaceView.selectedWaveRows as row}
+									<div class="record-field">
+										<dt class="record-field__label">{row.label}</dt>
+										<dd class="record-field__value">{row.value}</dd>
+									</div>
+								{/each}
+							</dl>
+						</div>
 					{:else if wavesWorkspaceView.emptyState}
 						<p class="record-row text-sm text-[var(--color-text-muted)]">
 							<strong class="record-row__title">{wavesWorkspaceView.emptyState.title}</strong>
 							<span>{wavesWorkspaceView.emptyState.message}</span>
 						</p>
 					{/if}
-				</div>
 
-				{#if wavesWorkspaceView.provenanceRows.length > 0}
-					<div
-						role="group"
-						aria-label="Waves provenance"
-						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-					>
-						<div>
-							<p class="product-kicker">Provenance</p>
-							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Launch and policy state
-							</h3>
-						</div>
-						<dl class="record-grid">
-							{#each wavesWorkspaceView.provenanceRows as row}
-								<div class="record-field">
-									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">{row.value}</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				{/if}
-
-				{#if wavesWorkspaceView.missingPrerequisiteRows.length > 0}
-					<div
-						role="group"
-						aria-label="Missing waves prerequisites"
-						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-					>
-						<div>
-							<p class="product-kicker">Prerequisites</p>
-							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Missing wave requirements
-							</h3>
-						</div>
-						<div class="record-list">
-							{#each wavesWorkspaceView.missingPrerequisiteRows as row}
-								<article class="record-row" aria-label={row.label}>
-									<div class="record-row__header">
-										<div>
-											<h4 class="record-row__title">{row.label}</h4>
-											<p class="text-sm text-[var(--color-text-muted)]">{row.message}</p>
-										</div>
-										<StatusBadge status={row.status} label={row.severity} />
+					{#if wavesWorkspaceView.provenanceRows.length > 0}
+						<div
+							role="group"
+							aria-label="Wave source context"
+							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+						>
+							<div>
+								<p class="product-kicker">Based on</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">
+									Launch and policy context
+								</h3>
+							</div>
+							<dl class="record-grid">
+								{#each wavesWorkspaceView.provenanceRows as row}
+									<div class="record-field">
+										<dt class="record-field__label">{row.label}</dt>
+										<dd class="record-field__value">{row.value}</dd>
 									</div>
-									<p class="result-line">
-										<span>Code</span>
-										<code>{row.code}</code>
-									</p>
-								</article>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<div
-					role="group"
-					aria-label="Waves campaign rows"
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">Wave rows</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Longitudinal campaign context
-						</h3>
-					</div>
-
-					{#if wavesWorkspaceView.emptyState}
-						<p class="record-row text-sm text-[var(--color-text-muted)]">
-							<strong class="record-row__title">{wavesWorkspaceView.emptyState.title}</strong>
-							<span>{wavesWorkspaceView.emptyState.message}</span>
-						</p>
-					{:else}
-						<div class="record-list">
-							{#each wavesWorkspaceView.campaignRows as campaign (campaign.id)}
-								<article aria-label={campaign.title} class="record-row">
-									<div class="record-row__header">
-										<h4 class="record-row__title">{campaign.title}</h4>
-										<StatusBadge status={campaign.status} />
-									</div>
-									<dl class="record-grid">
-										{#each campaign.rows as row}
-											<div class="record-field">
-												<dt class="record-field__label">{row.label}</dt>
-												<dd class="record-field__value">{row.value}</dd>
-											</div>
-										{/each}
-									</dl>
-								</article>
-							{/each}
+								{/each}
+							</dl>
 						</div>
 					{/if}
-				</div>
-			</details>
+
+					{#if wavesWorkspaceView.missingPrerequisiteRows.length > 0}
+						<div
+							role="group"
+							aria-label="Missing wave prerequisites"
+							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+						>
+							<div>
+								<p class="product-kicker">Blocked comparison</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">
+									What needs attention?
+								</h3>
+							</div>
+							<div class="record-list">
+								{#each wavesWorkspaceView.missingPrerequisiteRows as row}
+									<article class="record-row" aria-label={row.label}>
+										<div class="record-row__header">
+											<div>
+												<h4 class="record-row__title">{row.label}</h4>
+												<p class="text-sm text-[var(--color-text-muted)]">{row.message}</p>
+											</div>
+											<StatusBadge status={row.status} label={row.severity} />
+										</div>
+									</article>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<div
+						role="group"
+						aria-label="Available waves"
+						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+					>
+						<div>
+							<p class="product-kicker">Available waves</p>
+							<h3 class="text-base font-semibold text-[var(--color-text)]">
+								Wave history
+							</h3>
+						</div>
+
+						{#if wavesWorkspaceView.emptyState}
+							<p class="record-row text-sm text-[var(--color-text-muted)]">
+								<strong class="record-row__title">{wavesWorkspaceView.emptyState.title}</strong>
+								<span>{wavesWorkspaceView.emptyState.message}</span>
+							</p>
+						{:else}
+							<div class="record-list">
+								{#each wavesWorkspaceView.campaignRows as campaign (campaign.id)}
+									<article aria-label={campaign.title} class="record-row">
+										<div class="record-row__header">
+											<h4 class="record-row__title">{campaign.title}</h4>
+											<StatusBadge status={campaign.status} />
+										</div>
+										<dl class="record-grid">
+											{#each campaign.rows as row}
+												<div class="record-field">
+													<dt class="record-field__label">{row.label}</dt>
+													<dd class="record-field__value">{row.value}</dd>
+												</div>
+											{/each}
+										</dl>
+									</article>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</details>
+			{/if}
 		{:else if surfaceView}
 			<section
 				class="product-panel"

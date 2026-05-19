@@ -15,7 +15,10 @@
 
 	type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
-	let { workspace }: { workspace: CampaignSeriesWavesWorkspaceResponse } = $props();
+	let {
+		workspace,
+		embedded = false
+	}: { workspace: CampaignSeriesWavesWorkspaceResponse; embedded?: boolean } = $props();
 
 	const setupApi = createSetupApiFromEnv(env);
 
@@ -127,28 +130,34 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Wave comparison snapshot">
-	<div class="product-panel__header">
+<section
+	class={embedded ? 'score-result-panel report-proof-panel' : 'product-panel'}
+	role="group"
+	aria-label="Wave comparison preview"
+>
+	<div class={embedded ? 'score-result-panel__header' : 'product-panel__header'}>
 		<div>
-			<p class="product-kicker">Wave dashboard</p>
-			<h3 class="product-title">Wave comparison snapshot</h3>
-			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Disclosure-safe comparison for the selected baseline and comparison waves.
-			</p>
+			<p class="product-kicker">Wave comparison</p>
+			<h3 class={embedded ? 'record-row__title' : 'product-title'}>Compared waves</h3>
+			{#if !embedded}
+				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+					Disclosure-safe comparison for the selected baseline and comparison waves.
+				</p>
+			{/if}
 		</div>
 		<StatusBadge status={snapshotBadgeStatus} label={snapshotBadgeLabel} />
 	</div>
 
 	<section
 		role="group"
-		aria-label="Wave dashboard"
+		aria-label="Wave comparison summary"
 		class="grid gap-4 border-t border-[var(--color-border)] pt-4"
 	>
 		<div>
-			<p class="product-kicker">Wave dashboard</p>
-			<h4 class="record-row__title">Selected-series wave dashboard</h4>
+			<p class="product-kicker">Comparison readiness</p>
+			<h4 class="record-row__title">Can these waves be compared?</h4>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Latest governed wave comparison preview for the selected series.
+				Checks whether the selected waves can be compared without exposing small groups.
 			</p>
 		</div>
 
@@ -165,16 +174,10 @@
 				<h5 class="text-base font-semibold text-[var(--color-text)]">Wave readiness</h5>
 			</div>
 			<dl class="record-grid">
-				{#each dashboardView.readinessRows as row}
+				{#each dashboardView.readinessRows.filter((row) => !row.mono) as row}
 					<div class="record-field">
 						<dt class="record-field__label">{row.label}</dt>
-						<dd class="record-field__value">
-							{#if row.mono}
-								<code>{row.value}</code>
-							{:else}
-								{row.value}
-							{/if}
-						</dd>
+						<dd class="record-field__value">{row.value}</dd>
 					</div>
 				{/each}
 			</dl>
@@ -227,24 +230,20 @@
 		{#if dashboardView.provenanceRows.length > 0}
 			<div
 				role="group"
-				aria-label="Wave provenance"
+				aria-label="Wave source context"
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Provenance</p>
-					<h5 class="text-base font-semibold text-[var(--color-text)]">Wave provenance</h5>
+					<p class="product-kicker">Based on</p>
+					<h5 class="text-base font-semibold text-[var(--color-text)]">
+						Launch and policy context
+					</h5>
 				</div>
 				<dl class="record-grid">
-					{#each dashboardView.provenanceRows as row}
+					{#each dashboardView.provenanceRows.filter((row) => !row.mono) as row}
 						<div class="record-field">
 							<dt class="record-field__label">{row.label}</dt>
-							<dd class="record-field__value">
-								{#if row.mono}
-									<code>{row.value}</code>
-								{:else}
-									{row.value}
-								{/if}
-							</dd>
+							<dd class="record-field__value">{row.value}</dd>
 						</div>
 					{/each}
 				</dl>
@@ -255,33 +254,35 @@
 			<p class="text-sm text-[var(--color-text-muted)]">{snapshotState.disabledReason}</p>
 		{/if}
 
-		<div class="action-row">
-			<button
-				type="button"
-				class="primary-button"
-				disabled={!snapshotState.available || loadState === 'loading'}
-				title={snapshotState.disabledReason ?? undefined}
-				onclick={() => loadWaveComparisonSnapshot()}
-			>
-				{#if loadState === 'loading'}
-					<LoaderCircle size={17} aria-hidden="true" />
-				{:else if snapshotView}
-					<RefreshCw size={17} aria-hidden="true" />
-				{:else}
-					<GitCompareArrows size={17} aria-hidden="true" />
-				{/if}
-				<span
-					>{loadState === 'loading'
-						? 'Loading snapshot'
-						: 'Refresh wave comparison snapshot'}</span
+		{#if !embedded}
+			<div class="action-row">
+				<button
+					type="button"
+					class="primary-button"
+					disabled={!snapshotState.available || loadState === 'loading'}
+					title={snapshotState.disabledReason ?? undefined}
+					onclick={() => loadWaveComparisonSnapshot()}
 				>
-			</button>
-			<p class="step-pill" data-state={snapshotStepState}>{snapshotStepLabel}</p>
-			<p class="result-line">
-				<span>Study</span>
-				<span>{workspace.series.name}</span>
-			</p>
-		</div>
+					{#if loadState === 'loading'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else if snapshotView}
+						<RefreshCw size={17} aria-hidden="true" />
+					{:else}
+						<GitCompareArrows size={17} aria-hidden="true" />
+					{/if}
+					<span
+						>{loadState === 'loading'
+							? 'Loading comparison'
+							: 'Refresh wave comparison'}</span
+					>
+				</button>
+				<p class="step-pill" data-state={snapshotStepState}>{snapshotStepLabel}</p>
+				<p class="result-line">
+					<span>Study</span>
+					<span>{workspace.series.name}</span>
+				</p>
+			</div>
+		{/if}
 
 		{#if errorMessage}
 			<p class="error-line">{errorMessage}</p>
@@ -299,9 +300,9 @@
 				<div class="score-result-panel__header">
 					<div>
 						<p class="product-kicker">Wave comparison</p>
-						<h4 class="record-row__title">Disclosure-gated wave comparison</h4>
+						<h4 class="record-row__title">Change over time</h4>
 					</div>
-					<StatusBadge status="ready" label="Ready" />
+					<StatusBadge status="ready" label="Comparison ready" />
 				</div>
 
 				<div class="response-lab__meta">

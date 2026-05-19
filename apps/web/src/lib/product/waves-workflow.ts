@@ -50,18 +50,18 @@ export function toSelectedSeriesWavesWorkflowActions(
 		{
 			id: 'twoWaveProof',
 			step: 'Step 1',
-			title: 'Check linked trajectories',
-			description: 'Confirm this study has enough linked responses to compare waves.',
+			title: 'Check comparison readiness',
+			description: 'Confirm this study has repeated waves and linked responses for comparison.',
 			status: toTwoWaveProofStatus(hasTwoLongitudinalWaves, twoWaveProofViewed),
 			available: hasTwoLongitudinalWaves,
 			disabledReason: hasTwoLongitudinalWaves
 				? null
-				: 'Create at least two anonymous-longitudinal waves before checking linked trajectories.'
+				: 'Add at least two repeated waves before comparing change over time.'
 		},
 		{
 			id: 'waveComparisonProof',
 			step: 'Step 2',
-			title: 'Compare selected waves',
+			title: 'Review comparison',
 			description: 'Review disclosure-safe change over time between the selected waves.',
 			status: toWaveComparisonStatus(
 				hasSelectedComparison,
@@ -130,12 +130,12 @@ function toWaveComparisonDisabledReason(
 	comparisonProofReady: boolean
 ) {
 	if (!hasSelectedComparison) {
-		return 'Select two comparable waves before viewing the wave comparison preview.';
+		return 'Choose baseline and comparison waves before reviewing change over time.';
 	}
 
 	return comparisonProofReady
 		? null
-		: 'Run the linked trajectory check before viewing the wave comparison preview.';
+		: 'Check comparison readiness before reviewing change over time.';
 }
 
 function toPathStepState(

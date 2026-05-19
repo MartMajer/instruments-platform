@@ -7,6 +7,7 @@
 		CampaignSeriesWaveComparisonProofResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
 		toSelectedSeriesWavesPath,
 		type SelectedSeriesWavesPathStepState,
@@ -46,7 +47,8 @@
 	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
-	const hasWavesResults = $derived(Boolean(twoWaveProofResult || waveComparisonProofResult));
+	const resultsHref = $derived(`/app/campaign-series/${workspace.series.id}/reports`);
+	const setupHref = $derived(`/app/campaign-series/${workspace.series.id}/setup`);
 
 	function scoreInterpretationMeta(
 		interpretation:
@@ -64,8 +66,8 @@
 		}
 
 		return [
-			interpretation.status.replaceAll('_', ' '),
-			interpretation.source.replaceAll('_', ' '),
+			humanize(interpretation.status),
+			humanize(interpretation.source),
 			interpretation.isValidated ? 'validated' : 'not validated',
 			interpretation.isOfficial ? 'official' : 'not official'
 		].join(' / ');
@@ -165,6 +167,10 @@
 	function formatNullableScoreValue(value: number | null) {
 		return value === null ? 'suppressed' : value.toFixed(2);
 	}
+
+	function humanize(value: string | null | undefined) {
+		return value ? value.replaceAll('_', ' ') : 'Not available';
+	}
 </script>
 
 <section class="product-panel" role="group" aria-label="Waves action workflow">
@@ -205,9 +211,9 @@
 		<div class="setup-current-task__header">
 			<div>
 				<p class="record-field__label">
-					{wavesPath.completedCount} of {wavesPath.totalCount} waves tasks done
+					{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
 				</p>
-				<h4 class="setup-current-task__title">Current waves task</h4>
+				<h4 class="setup-current-task__title">Current comparison task</h4>
 				<p class="record-row__title">{currentAction.title}</p>
 				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 			</div>
@@ -225,7 +231,7 @@
 						<dd class="record-field__value">{workspace.series.name}</dd>
 					</div>
 					<div class="record-field">
-						<dt class="record-field__label">Longitudinal waves</dt>
+						<dt class="record-field__label">Repeated waves</dt>
 						<dd class="record-field__value">{workspace.summary.longitudinalWaveCount}</dd>
 					</div>
 					<div class="record-field">
@@ -257,40 +263,20 @@
 					</div>
 					<div class="record-field">
 						<dt class="record-field__label">Compatibility</dt>
-						<dd class="record-field__value">{workspace.comparison.compatibilityState}</dd>
+						<dd class="record-field__value">{humanize(workspace.comparison.compatibilityState)}</dd>
 					</div>
 				</dl>
-				{#if waveComparisonProofResult}
-					{@render WaveComparisonProofResult()}
-				{/if}
+				<SelectedSeriesWaveComparisonSnapshot {workspace} embedded={true} />
 				{@render ActionFooter({
 					id: 'waveComparisonProof',
-					label: 'View wave comparison preview',
-					resultLabel: 'Study',
-					resultValue: waveComparisonProofResult ? workspace.series.name : null,
+					label: 'Review comparison',
+					resultLabel: 'Comparison',
+					resultValue: waveComparisonProofResult ? 'Reviewed' : null,
 					onclick: viewWaveComparisonProof
 				})}
 			{/if}
 		</div>
 	</article>
-
-	{#if hasWavesResults}
-		<details class="record-row" aria-label="Latest waves action details">
-			<summary class="record-row__title">Latest action details</summary>
-			<div class="record-list mt-4" aria-label="Latest waves results">
-				{#if twoWaveProofResult}
-					<article class="record-row" aria-label="Latest linked trajectory check result">
-						{@render TwoWaveProofResult()}
-					</article>
-				{/if}
-				{#if waveComparisonProofResult}
-					<article class="record-row" aria-label="Latest wave comparison preview result">
-						{@render WaveComparisonProofResult()}
-					</article>
-				{/if}
-			</div>
-		</details>
-	{/if}
 </section>
 
 {#snippet TwoWaveProofResult()}
@@ -304,22 +290,22 @@
 				<StatusBadge status="ready" label="Ready" />
 			</div>
 			<div class="response-lab__meta">
-				<span>launched waves {twoWaveProofResult.launchedWaveCount}</span>
-				<span>submitted waves {twoWaveProofResult.submittedWaveCount}</span>
-				<span>linked trajectories {twoWaveProofResult.linkedTrajectoryCount}</span>
-				<span>complete trajectories {twoWaveProofResult.completeTrajectoryCount}</span>
+				<span>{twoWaveProofResult.launchedWaveCount} launched waves</span>
+				<span>{twoWaveProofResult.submittedWaveCount} waves with responses</span>
+				<span>{twoWaveProofResult.linkedTrajectoryCount} linked trajectories</span>
+				<span>{twoWaveProofResult.completeTrajectoryCount} complete trajectories</span>
 			</div>
 			<div class="record-list">
 				{#each twoWaveProofResult.waves as wave (wave.campaignId)}
 					<article class="record-row" aria-label={`Wave ${wave.name}`}>
 						<div class="record-row__header">
 							<h5 class="record-row__title">{wave.name}</h5>
-							<StatusBadge status="proof_only" label={wave.status} />
+							<StatusBadge status="ready" label={humanize(wave.status)} />
 						</div>
 						<dl class="record-grid">
 							<div class="record-field">
-								<dt class="record-field__label">Identity mode</dt>
-								<dd class="record-field__value">{wave.responseIdentityMode}</dd>
+								<dt class="record-field__label">Response mode</dt>
+								<dd class="record-field__value">{humanize(wave.responseIdentityMode)}</dd>
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Submitted responses</dt>
@@ -453,6 +439,10 @@
 		</button>
 		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
 		{@render ResultLine({ label: resultLabel, value: resultValue })}
+		{#if id === 'waveComparisonProof'}
+			<a class="secondary-button" href={resultsHref}>Back to results</a>
+			<a class="secondary-button" href={setupHref}>Set up next wave</a>
+		{/if}
 	</div>
 	{#if actionErrors[id]}
 		<p class="error-line">{actionErrors[id]}</p>
@@ -463,7 +453,7 @@
 	{#if value}
 		<p class="result-line">
 			<span>{label}</span>
-			<code>{value}</code>
+			<span>{value}</span>
 		</p>
 	{/if}
 {/snippet}
