@@ -7,9 +7,9 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Study preparation"
-	title="Prepare study"
-	description="Check what is ready, what is missing, and the next setup task before this study moves into collection."
+	eyebrow="Setup"
+	title="Study setup"
+	description="Work through the setup steps in order before collection starts."
 />
 
 <SelectedSeriesSurface seriesId={seriesId} surface="setup" ariaLabel="Setup workspace" />

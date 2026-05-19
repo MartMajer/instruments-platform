@@ -443,57 +443,6 @@
 				</section>
 			{/if}
 
-			{#if setupRouteGuidance}
-				<RouteGuidancePanel guidance={setupRouteGuidance} />
-			{/if}
-
-			<section class="product-panel" aria-label="Study preparation">
-				<div class="product-panel__header">
-					<div>
-						<p class="product-kicker">{setupWorkspaceView.surfaceEyebrow}</p>
-						<h2 class="product-title">Preparation checklist</h2>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{setupWorkspaceView.surfaceDescription}
-						</p>
-					</div>
-					<StatusBadge
-						status={setupWorkspaceView.readiness.status}
-						label={setupWorkspaceView.readiness.badgeLabel}
-					/>
-				</div>
-
-				<div class="record-list">
-					{#each setupWorkspaceView.preparationChecklist as item (item.id)}
-						<article class="record-row" aria-label={item.label}>
-							<div class="record-row__header">
-								<div>
-									<h3 class="record-row__title">{item.label}</h3>
-									<p class="text-sm text-[var(--color-text-muted)]">{item.summary}</p>
-								</div>
-								<StatusBadge status={item.status} label={item.badgeLabel} />
-							</div>
-							<p class="text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
-							{#if item.detailRows.length > 0}
-								<dl class="record-grid">
-									{#each item.detailRows as row}
-										<div class="record-field">
-											<dt class="record-field__label">{row.label}</dt>
-											<dd class="record-field__value">
-												{#if row.mono}
-													<code>{row.value}</code>
-												{:else}
-													{row.value}
-												{/if}
-											</dd>
-										</div>
-									{/each}
-								</dl>
-							{/if}
-						</article>
-					{/each}
-				</div>
-			</section>
-
 			{#if setupWorkspace}
 				<SelectedSeriesSetupWorkflow
 					workspace={setupWorkspace}

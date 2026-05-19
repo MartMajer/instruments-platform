@@ -18526,3 +18526,11 @@ Assessment: Owner identified the setup reference panel as non-product debug/proo
 Task: Removed the setup reference panel from the normal selected-series setup surface. The setup page now keeps the wizard and active step content as the default setup flow.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+
+## 2026-05-19 - setup surface duplicate preparation clutter cleanup
+
+Assessment: Owner identified the remaining setup route guidance and preparation checklist as another duplicated layer before the actual setup wizard. The page still repeated readiness, policy, prerequisite, and proof-foundation text that made the product feel like an internal checklist instead of a step-by-step setup flow.
+
+Task: Simplified the setup route header, removed the setup route-guidance panel, removed the separate preparation checklist panel from the setup surface, and fixed the setup path button/list accessibility warning by dropping invalid list roles. The setup wizard is now the visible source of truth for setup progress and next action.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.

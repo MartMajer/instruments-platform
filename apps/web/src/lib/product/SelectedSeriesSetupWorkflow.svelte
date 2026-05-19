@@ -1420,13 +1420,12 @@
 </section>
 
 {#snippet SetupPath()}
-	<div class="setup-path" role="list" aria-label="Setup path">
+	<div class="setup-path" aria-label="Setup path">
 		{#each setupPath.steps as step}
 			<button
 				type="button"
 				class="setup-path__item"
 				data-state={step.id === activeActionId ? 'current' : step.pathState}
-				role="listitem"
 				disabled={!canSelectSetupAction(step.id)}
 				aria-current={step.id === activeActionId ? 'step' : undefined}
 				onclick={() => selectSetupAction(step.id)}
