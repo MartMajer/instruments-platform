@@ -6,13 +6,15 @@
 	import { ApiError } from '$lib/api/client';
 	import {
 		createLoginUrlFromEnv,
+		readLastWorkspaceEmail,
+		readLastTenantId,
 		rememberLastWorkspaceEmail,
 		rememberLastTenantId
 	} from '$lib/api/session-headers';
 	import { createRegistrationApi } from '$lib/api/registration';
 
 	const registrationApi = createRegistrationApi();
-	const signInUrl = createLoginUrlFromEnv(env);
+	let signInUrl = $state(createLoginUrlFromEnv(env));
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
@@ -35,6 +37,11 @@
 	);
 
 	onMount(() => {
+		signInUrl = createLoginUrlFromEnv(
+			env,
+			readLastTenantId(window.localStorage),
+			readLastWorkspaceEmail(window.localStorage)
+		);
 		loadPendingRegistrationLoginUrl();
 		switchAccountUrl = resolveAuthRedirectUrl(
 			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(`${resolve('/')}?postLogout=register`))}`

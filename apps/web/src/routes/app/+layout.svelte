@@ -6,6 +6,7 @@
 	import { ApiError, createApiClient } from '$lib/api/client';
 	import {
 		createLoginUrlFromEnv,
+		createLogoutUrlFromEnv,
 		createSessionHeadersFromEnv,
 		readLastWorkspaceEmail,
 		readLastTenantId,
@@ -22,7 +23,7 @@
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
 	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
 	let loginUrl = $state(createLoginUrlFromEnv(env, initialTenantIdFromUrl));
-	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
+	const logoutUrl = createLogoutUrlFromEnv(env);
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;

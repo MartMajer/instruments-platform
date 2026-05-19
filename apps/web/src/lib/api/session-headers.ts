@@ -26,33 +26,56 @@ export function createLoginUrlFromEnv(
 	tenantIdOverride?: string | null,
 	loginHintOverride?: string | null
 ) {
-	const loginUrl = env.PUBLIC_AUTH_LOGIN_URL?.trim() || '/auth/login';
-	const tenantId = tenantIdOverride?.trim() || env.PUBLIC_TENANT_ID?.trim();
+	const loginUrl = createAuthEndpointUrl(env, env.PUBLIC_AUTH_LOGIN_URL, '/auth/login');
+	const tenantId = normalizeTenantId(tenantIdOverride);
 	const loginHint = loginHintOverride?.trim();
 
-	if ((!tenantId || /[?&]tenantId=/.test(loginUrl)) && !loginHint) {
-		return loginUrl;
+	return setLoginQueryParameters(loginUrl, tenantId, loginHint);
+}
+
+export function createLogoutUrlFromEnv(env: Record<string, string | undefined>) {
+	return createAuthEndpointUrl(env, env.PUBLIC_AUTH_LOGOUT_URL, '/auth/logout');
+}
+
+function createAuthEndpointUrl(
+	env: Record<string, string | undefined>,
+	configuredUrl: string | undefined,
+	fallbackPath: string
+) {
+	const configured = configuredUrl?.trim();
+	if (configured) {
+		return configured;
 	}
 
-	const hashIndex = loginUrl.indexOf('#');
-	const pathAndQuery = hashIndex >= 0 ? loginUrl.slice(0, hashIndex) : loginUrl;
-	const hash = hashIndex >= 0 ? loginUrl.slice(hashIndex) : '';
-	const parameters: string[] = [];
-
-	if (tenantId && !/[?&]tenantId=/.test(loginUrl)) {
-		parameters.push(`tenantId=${encodeURIComponent(tenantId)}`);
+	const apiBaseUrl = env.PUBLIC_API_BASE_URL?.trim();
+	if (apiBaseUrl && /^https?:\/\//i.test(apiBaseUrl)) {
+		return new URL(fallbackPath, `${apiBaseUrl.replace(/\/+$/, '')}/`).toString();
 	}
 
-	if (loginHint && !/[?&]login_hint=/.test(loginUrl)) {
-		parameters.push(`login_hint=${encodeURIComponent(loginHint)}`);
+	return fallbackPath;
+}
+
+function setLoginQueryParameters(loginUrl: string, tenantId: string, loginHint: string | undefined) {
+	const isAbsoluteUrl = /^https?:\/\//i.test(loginUrl);
+	const parsedUrl = new URL(loginUrl, 'http://localhost');
+
+	if (tenantId) {
+		parsedUrl.searchParams.set('tenantId', tenantId);
+	} else {
+		parsedUrl.searchParams.delete('tenantId');
 	}
 
-	if (parameters.length === 0) {
-		return loginUrl;
+	if (loginHint) {
+		parsedUrl.searchParams.set('login_hint', loginHint);
+	} else {
+		parsedUrl.searchParams.delete('login_hint');
 	}
 
-	const separator = pathAndQuery.includes('?') ? '&' : '?';
-	return `${pathAndQuery}${separator}${parameters.join('&')}${hash}`;
+	if (isAbsoluteUrl) {
+		return parsedUrl.toString();
+	}
+
+	return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
 }
 
 export function readLastTenantId(storage: Storage | undefined) {

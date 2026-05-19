@@ -27,8 +27,5 @@ services:
     environment:
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://staging-api.example.com}
       PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-false}
-      PUBLIC_TENANT_ID: ${PUBLIC_TENANT_ID:?set validation tenant id}
-      PUBLIC_AUTH_LOGIN_URL: ${PUBLIC_AUTH_LOGIN_URL:?set API auth login URL with allowed web returnUrl}
-      PUBLIC_AUTH_LOGOUT_URL: ${PUBLIC_AUTH_LOGOUT_URL:?set API auth logout URL with allowed web returnUrl}
     ports: !override
       - "127.0.0.1:${WEB_HTTP_PORT:-5174}:3000"

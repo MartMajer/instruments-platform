@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
 	createLoginUrlFromEnv,
+	createLogoutUrlFromEnv,
 	createSessionHeadersFromEnv,
 	readLastWorkspaceEmail,
 	rememberLastWorkspaceEmail
 } from './session-headers';
+
+const tenantA = '11111111-1111-4111-8111-111111111111';
+const tenantB = '22222222-2222-4222-8222-222222222222';
 
 describe('createSessionHeadersFromEnv', () => {
 	it('does not create headers when no auth mode is configured', () => {
@@ -47,41 +51,55 @@ describe('createSessionHeadersFromEnv', () => {
 		expect(headers.get('x-tenant-id')).toBe('dev-tenant');
 	});
 
-	it('adds public tenant id to the default login URL', () => {
-		expect(createLoginUrlFromEnv({ PUBLIC_TENANT_ID: 'tenant-a' })).toBe(
-			'/auth/login?tenantId=tenant-a'
-		);
+	it('does not use the public tenant id as an implicit login target', () => {
+		expect(createLoginUrlFromEnv({ PUBLIC_TENANT_ID: tenantA })).toBe('/auth/login');
 	});
 
-	it('adds public tenant id to custom login URLs without replacing existing query', () => {
+	it('adds explicit tenant id to custom login URLs without replacing existing query', () => {
 		expect(
-			createLoginUrlFromEnv({
-				PUBLIC_AUTH_LOGIN_URL: '/auth/login?returnUrl=/app',
-				PUBLIC_TENANT_ID: 'tenant-a'
-			})
-		).toBe('/auth/login?returnUrl=/app&tenantId=tenant-a');
+			createLoginUrlFromEnv(
+				{
+					PUBLIC_AUTH_LOGIN_URL: '/auth/login?returnUrl=/app'
+				},
+				tenantA
+			)
+		).toBe(`/auth/login?returnUrl=%2Fapp&tenantId=${tenantA}`);
 	});
 
-	it('does not add public tenant id when the configured login URL already has one', () => {
+	it('replaces configured tenant id with the explicit workspace tenant', () => {
 		expect(
-			createLoginUrlFromEnv({
-				PUBLIC_AUTH_LOGIN_URL: '/auth/login?tenantId=tenant-b',
-				PUBLIC_TENANT_ID: 'tenant-a'
-			})
-		).toBe('/auth/login?tenantId=tenant-b');
+			createLoginUrlFromEnv(
+				{
+					PUBLIC_AUTH_LOGIN_URL: `/auth/login?tenantId=${tenantB}`
+				},
+				tenantA
+			)
+		).toBe(`/auth/login?tenantId=${tenantA}`);
 	});
 
 	it('adds login hint when workspace email is known', () => {
 		expect(
 			createLoginUrlFromEnv(
 				{
-					PUBLIC_AUTH_LOGIN_URL: '/auth/login?returnUrl=/app',
-					PUBLIC_TENANT_ID: 'tenant-a'
+					PUBLIC_AUTH_LOGIN_URL: '/auth/login?returnUrl=/app'
 				},
-				null,
+				tenantA,
 				'owner@example.test'
 			)
-		).toBe('/auth/login?returnUrl=/app&tenantId=tenant-a&login_hint=owner%40example.test');
+		).toBe(
+			`/auth/login?returnUrl=%2Fapp&tenantId=${tenantA}&login_hint=owner%40example.test`
+		);
+	});
+
+	it('derives auth endpoints from the public API base URL', () => {
+		const env = {
+			PUBLIC_API_BASE_URL: 'https://api.example.test'
+		};
+
+		expect(createLoginUrlFromEnv(env, tenantA)).toBe(
+			`https://api.example.test/auth/login?tenantId=${tenantA}`
+		);
+		expect(createLogoutUrlFromEnv(env)).toBe('https://api.example.test/auth/logout');
 	});
 
 	it('remembers the last workspace email for account-targeted sign-in', () => {
