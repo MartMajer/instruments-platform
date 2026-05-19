@@ -21,6 +21,7 @@
 	let pendingEmail = $state('');
 	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
 	let pendingRegistrationLoginUrl = $state('');
+	let existingWorkspaceSignInUrl = $state('');
 	let switchAccountUrl = $state('');
 	const emailVerificationRequired = $derived(
 		page.url.searchParams.get('auth') === 'email_unverified'
@@ -59,6 +60,7 @@
 		event.preventDefault();
 		errorMessage = '';
 		statusMessage = '';
+		existingWorkspaceSignInUrl = '';
 		isSubmitting = true;
 
 		try {
@@ -74,6 +76,10 @@
 			statusMessage = 'Opening account setup.';
 			window.location.assign(loginUrl);
 		} catch (error) {
+			const signInUrl = getExistingWorkspaceSignInUrl(error);
+			if (signInUrl) {
+				existingWorkspaceSignInUrl = signInUrl;
+			}
 			errorMessage = toRegistrationError(error);
 			isSubmitting = false;
 		}
@@ -115,8 +121,15 @@
 		window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
 	}
 
+	function clearExistingWorkspaceSignIn() {
+		existingWorkspaceSignInUrl = '';
+		errorMessage = '';
+		statusMessage = '';
+	}
+
 	function restartRegistration() {
 		clearPendingRegistrationLoginUrl();
+		clearExistingWorkspaceSignIn();
 		errorMessage = '';
 		sessionErrorMessage = '';
 		statusMessage = '';
@@ -152,6 +165,24 @@
 		} catch {
 			return loginUrl;
 		}
+	}
+
+	function getExistingWorkspaceSignInUrl(error: unknown) {
+		if (!(error instanceof ApiError)) {
+			return '';
+		}
+
+		const problem = error.body as { title?: unknown; loginUrl?: unknown } | null;
+		if (
+			typeof problem?.title === 'string' &&
+			problem.title === 'registration.email_exists' &&
+			typeof problem.loginUrl === 'string' &&
+			problem.loginUrl.length > 0
+		) {
+			return resolveAuthRedirectUrl(problem.loginUrl);
+		}
+
+		return '';
 	}
 
 	function absoluteOrigin(value: string | undefined) {
@@ -190,6 +221,10 @@
 
 			if (code === 'registration.invalid_access_code') {
 				return 'That access code does not match the private beta list.';
+			}
+
+			if (code === 'registration.email_exists') {
+				return 'A workspace already exists for this email. Sign in instead.';
 			}
 
 			if (code === 'registration.organization_invalid') {
@@ -325,9 +360,16 @@
 							<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
 						{/if}
 
-						<button class="registration-submit" type="submit" disabled={isSubmitting}>
-							{isSubmitting ? 'Opening account setup...' : 'Create account'}
-						</button>
+						{#if existingWorkspaceSignInUrl}
+							<a class="registration-submit" href={existingWorkspaceSignInUrl}>Sign in instead</a>
+							<button class="secondary-button" type="button" onclick={clearExistingWorkspaceSignIn}>
+								Use a different email
+							</button>
+						{:else}
+							<button class="registration-submit" type="submit" disabled={isSubmitting}>
+								{isSubmitting ? 'Opening account setup...' : 'Create account'}
+							</button>
+						{/if}
 					{/if}
 				</form>
 			{:else}

@@ -106,6 +106,31 @@ public sealed class RegistrationIntentService(
                 Error.Validation("registration.invalid_return_url", "Return URL must be a local application path."));
         }
 
+        var existingTenantId = await (
+                from user in db.UserAccounts
+                join tenant in db.Tenants on user.TenantId equals tenant.Id
+                where user.Email == email.Value &&
+                    user.DeletedAt == null &&
+                    tenant.DeletedAt == null &&
+                    tenant.Status == "active"
+                orderby user.TenantId
+                select (Guid?)user.TenantId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingTenantId.HasValue)
+        {
+            return Result.Failure<CreateRegistrationIntentResponse>(
+                Error.Conflict(
+                    "registration.email_exists",
+                    "A workspace already exists for this email. Sign in instead.",
+                    new Dictionary<string, object?>
+                    {
+                        ["loginUrl"] = BuildExistingWorkspaceLoginUrl(
+                            existingTenantId.Value,
+                            returnUrl,
+                            email.Value)
+                    }));
+        }
+
         var now = timeProvider.GetUtcNow();
         var expiresAt = now.AddMinutes(Math.Max(1, configuration.GetValue("Registration:IntentMinutes", 15)));
         var token = tokenProtector.Create();
@@ -134,6 +159,19 @@ public sealed class RegistrationIntentService(
                 });
 
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
+    }
+
+    private static string BuildExistingWorkspaceLoginUrl(Guid tenantId, string returnUrl, string email)
+    {
+        return QueryHelpers.AddQueryString(
+            "/auth/login",
+            new Dictionary<string, string?>
+            {
+                ["tenantId"] = tenantId.ToString(),
+                ["returnUrl"] = returnUrl,
+                ["prompt"] = "login",
+                ["login_hint"] = email
+            });
     }
 
     internal static string AllocateSlug(string baseSlug, string tokenHash)
@@ -578,6 +616,9 @@ public static class RegistrationEndpointRouteBuilderExtensions
         return Results.Problem(
             title: error.Code,
             detail: error.Message,
-            statusCode: statusCode);
+            statusCode: statusCode,
+            extensions: error.Extensions.Count > 0
+                ? new Dictionary<string, object?>(error.Extensions, StringComparer.Ordinal)
+                : null);
     }
 }

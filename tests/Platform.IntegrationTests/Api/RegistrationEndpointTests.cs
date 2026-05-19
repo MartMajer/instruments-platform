@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -67,6 +68,36 @@ public sealed class RegistrationEndpointTests(WebApplicationFactory<Program> fac
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("registration.invalid_access_code", json, StringComparison.Ordinal);
         Assert.Contains("Private beta access code is invalid.", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Registration_intent_endpoint_returns_existing_workspace_sign_in_url_on_conflict()
+    {
+        var service = new FakeRegistrationIntentService
+        {
+            Result = Result.Failure<CreateRegistrationIntentResponse>(
+                Error.Conflict(
+                    "registration.email_exists",
+                    "A workspace already exists for this email. Sign in instead.",
+                    new Dictionary<string, object?>
+                    {
+                        ["loginUrl"] = "/auth/login?tenantId=tenant-id&login_hint=owner%40example.test"
+                    }))
+        };
+        using var client = CreateClient(service);
+
+        var response = await client.PostAsJsonAsync("/registration/intents", new CreateRegistrationIntentRequest(
+            "owner@example.test",
+            "Croatian Research Lab",
+            "beta-code"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, JsonElement>>();
+        Assert.NotNull(payload);
+        Assert.Equal("registration.email_exists", payload["title"].GetString());
+        Assert.Equal(
+            "/auth/login?tenantId=tenant-id&login_hint=owner%40example.test",
+            payload["loginUrl"].GetString());
     }
 
     [Fact]

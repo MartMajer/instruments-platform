@@ -1,10 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Platform.Api.Auth;
 using Platform.Api.Registration;
 using Platform.Application.Auth;
 using Platform.Application.Tenancy;
 using Platform.Domain.Auth;
+using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Tenancy;
 using Platform.IntegrationTests.Support;
@@ -159,6 +161,58 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
         Assert.DoesNotContain(
             await verificationDb.AuditEvents.Select(audit => audit.EntityType).ToListAsync(),
             entityType => entityType == "Permission");
+    }
+
+    [DockerFact]
+    public async Task RegistrationIntentService_CreateAsync_rejects_email_that_already_belongs_to_workspace()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+        var tenantId = PlatformIds.NewId();
+        var userId = PlatformIds.NewId();
+        var roleId = PlatformIds.NewId();
+        await using (var seedDb = new ApplicationDbContext(options))
+        {
+            seedDb.Tenants.Add(new Tenant(tenantId, "existing-workspace", "Existing Workspace"));
+            seedDb.Roles.Add(new Role(roleId, tenantId, "tenant_owner", "Tenant owner"));
+            seedDb.UserAccounts.Add(new UserAccount(userId, tenantId, "owner@example.test"));
+            seedDb.RoleAssignments.Add(new RoleAssignment(
+                PlatformIds.NewId(),
+                tenantId,
+                userId,
+                roleId,
+                RoleAssignmentScopes.Tenant));
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var service = new RegistrationIntentService(
+            CreateWorkspaceConfiguration(),
+            db,
+            new AcceptingBetaAccessCodeVerifier(),
+            new Sha256RegistrationTokenProtector(),
+            TimeProvider.System);
+
+        var result = await service.CreateAsync(
+            new CreateRegistrationIntentRequest(
+                "Owner@Example.Test",
+                "Duplicate Workspace",
+                "martin-beta-2026",
+                "https://app.example.test/app"),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("registration.email_exists", result.Error.Code);
+        Assert.True(result.Error.Extensions.TryGetValue("loginUrl", out var loginUrlValue));
+        var loginUrl = Assert.IsType<string>(loginUrlValue);
+        var query = QueryHelpers.ParseQuery(new Uri(new Uri("https://app.example.test"), loginUrl).Query);
+        Assert.Equal(tenantId.ToString(), query["tenantId"].Single());
+        Assert.Equal("owner@example.test", query["login_hint"].Single());
+        Assert.DoesNotContain("registrationToken", loginUrl, StringComparison.Ordinal);
+
+        await using var verificationDb = new ApplicationDbContext(options);
+        Assert.Empty(await verificationDb.RegistrationIntents.ToListAsync());
     }
 
     [DockerFact]
