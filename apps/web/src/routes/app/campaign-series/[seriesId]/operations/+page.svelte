@@ -9,7 +9,7 @@
 <SurfaceHeader
 	eyebrow="Study collection"
 	title="Collect responses"
-	description="Monitor respondent access, response progress, and collection actions for this study."
+	description="Start collection, share respondent access, monitor submissions, and close the response window."
 />
 
 <SelectedSeriesSurface seriesId={seriesId} surface="operations" ariaLabel="Collection workspace" />

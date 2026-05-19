@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import { CircleStop, LoaderCircle, SearchCheck, Send } from 'lucide-svelte';
+	import { CircleStop, LoaderCircle, RefreshCw, SearchCheck, Send } from 'lucide-svelte';
 	import type {
 		CampaignCloseStateResponse,
 		CampaignSeriesOperationsWorkspaceResponse
 	} from '$lib/api/product';
 	import type {
 		CampaignIdentifiedEntryResponse,
-		CampaignInvitationBatchResponse,
 		CampaignOpenLinkResponse,
 		LaunchCampaignResponse,
-		LaunchReadinessResponse,
-		ProcessCampaignEmailDeliveriesResponse
+		LaunchReadinessResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import {
 		toSelectedSeriesOperationsPath,
+		type SelectedSeriesOperationsPathStep,
 		type SelectedSeriesOperationsWorkflowActionId
 	} from './operations-workflow';
 	import { createProductApiFromEnv, createSetupApiFromEnv } from './route-state';
@@ -35,65 +34,81 @@
 
 	const productApi = createProductApiFromEnv(env);
 	const setupApi = createSetupApiFromEnv(env);
-	const recipientSuffix = generateOperationsRunSuffix();
+	const countFormatter = new Intl.NumberFormat('hr-HR');
+	const dateTimeFormatter = new Intl.DateTimeFormat('hr-HR', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	});
 
 	let readinessResult = $state<LaunchReadinessResponse | null>(null);
 	let launchResult = $state<LaunchCampaignResponse | null>(null);
 	let openLinkResult = $state<CampaignOpenLinkResponse | null>(null);
 	let identifiedEntryResult = $state<CampaignIdentifiedEntryResponse | null>(null);
-	let invitationBatchResult = $state<CampaignInvitationBatchResponse | null>(null);
-	let deliveryResult = $state<ProcessCampaignEmailDeliveriesResponse | null>(null);
 	let closeResult = $state<CampaignCloseStateResponse | null>(null);
 	let refreshWarning = $state<string | null>(null);
+	let activeActionId = $state<SelectedSeriesOperationsWorkflowActionId | null>(null);
 	let actionStates = $state<Record<SelectedSeriesOperationsWorkflowActionId, StepState>>({
 		readiness: 'idle',
 		launch: 'idle',
 		openLink: 'idle',
-		invitations: 'idle',
-		delivery: 'idle',
+		monitor: 'idle',
 		close: 'idle'
 	});
 	let actionErrors = $state<Record<SelectedSeriesOperationsWorkflowActionId, string | null>>({
 		readiness: null,
 		launch: null,
 		openLink: null,
-		invitations: null,
-		delivery: null,
+		monitor: null,
 		close: null
 	});
 
 	const selectedCampaign = $derived(workspace.selectedCampaign);
+	const selectedCampaignIsIdentified = $derived(
+		selectedCampaign?.responseIdentityMode === 'identified'
+	);
 	const localState = $derived({
 		readinessReady: readinessResult?.ready === true,
 		launched: Boolean(launchResult),
 		openLinkCreated: Boolean(openLinkResult || identifiedEntryResult),
-		invitationsQueued: Boolean(invitationBatchResult),
-		deliveryProcessed: Boolean(deliveryResult),
 		closed: Boolean(closeResult)
 	});
 	const operationsPath = $derived(toSelectedSeriesOperationsPath(workspace, localState));
 	const workflowActions = $derived(operationsPath.steps);
-	const currentAction = $derived(operationsPath.currentAction);
-	const hasOperationResults = $derived(
-		Boolean(
-			readinessResult ||
-			launchResult ||
-			openLinkResult ||
-			invitationBatchResult ||
-			deliveryResult ||
-			identifiedEntryResult ||
-			closeResult
+	const recommendedAction = $derived(operationsPath.currentAction);
+	const activeAction = $derived(
+		workflowActions.find((action) => action.id === activeActionId) ?? recommendedAction
+	);
+	const activeActionIndex = $derived(
+		Math.max(
+			0,
+			workflowActions.findIndex((action) => action.id === activeAction.id)
 		)
 	);
-	const selectedCampaignIsIdentified = $derived(
-		selectedCampaign?.responseIdentityMode === 'identified'
+	const respondentEntry = $derived(identifiedEntryResult ?? openLinkResult);
+	const latestResponseActivity = $derived(
+		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
+	);
+	const hasTechnicalDetails = $derived(
+		Boolean(
+			readinessResult?.campaignId ||
+				launchResult?.launchSnapshotId ||
+				selectedCampaign?.latestLaunchSnapshotId ||
+				respondentEntry?.assignmentId ||
+				identifiedEntryResult?.subjectId ||
+				closeResult?.closedByUserId ||
+				selectedCampaign?.closedByUserId
+		)
 	);
 
 	async function checkLaunchReadiness() {
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				readiness: 'Create or select a campaign before running operations.'
+				readiness: 'Create a collection wave before running the pre-launch check.'
 			};
 			return;
 		}
@@ -111,7 +126,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				launch: 'Create or select a campaign before launch.'
+				launch: 'Create a collection wave before starting collection.'
 			};
 			return;
 		}
@@ -122,17 +137,15 @@
 			launchResult = result;
 			openLinkResult = null;
 			identifiedEntryResult = null;
-			invitationBatchResult = null;
-			deliveryResult = null;
 			closeResult = null;
 		}
 	}
 
-	async function createOpenLink() {
+	async function createRespondentAccess() {
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create or select a campaign before creating an open link.'
+				openLink: 'Create a collection wave before creating respondent access.'
 			};
 			return;
 		}
@@ -154,45 +167,23 @@
 		}
 	}
 
-	async function queueEmailInvitations() {
-		if (!selectedCampaign) {
+	async function refreshCollectionStatus() {
+		actionStates = { ...actionStates, monitor: 'submitting' };
+		actionErrors = { ...actionErrors, monitor: null };
+		refreshWarning = null;
+
+		try {
+			const refreshed = await onWorkspaceRefresh?.();
+			if (refreshed === false) {
+				throw new Error('Collection status could not be refreshed.');
+			}
+			actionStates = { ...actionStates, monitor: 'succeeded' };
+		} catch (error) {
+			actionStates = { ...actionStates, monitor: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				invitations: 'Create or select a campaign before queuing invitations.'
+				monitor: toProductApiErrorMessage(error, 'Collection status refresh failed.')
 			};
-			return;
-		}
-
-		const result = await runAction('invitations', () =>
-			setupApi.createCampaignInvitationBatch(selectedCampaign.id, {
-				recipients: [
-					{ email: `ada.ops.${recipientSuffix}@example.com` },
-					{ email: `bo.ops.${recipientSuffix}@example.com` }
-				]
-			})
-		);
-
-		if (result) {
-			invitationBatchResult = result;
-			deliveryResult = null;
-		}
-	}
-
-	async function processLocalDelivery() {
-		if (!selectedCampaign) {
-			actionErrors = {
-				...actionErrors,
-				delivery: 'Create or select a campaign before processing delivery.'
-			};
-			return;
-		}
-
-		const result = await runAction('delivery', () =>
-			setupApi.processCampaignEmailDeliveries(selectedCampaign.id, { batchSize: 25 })
-		);
-
-		if (result) {
-			deliveryResult = result;
 		}
 	}
 
@@ -200,7 +191,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				close: 'Create or select a campaign before closing collection.'
+				close: 'Create a collection wave before closing collection.'
 			};
 			return;
 		}
@@ -227,16 +218,27 @@
 			actionStates = { ...actionStates, [actionId]: 'succeeded' };
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				refreshWarning = 'Operations action saved, but the operations workspace refresh failed.';
+				refreshWarning = 'The action was saved, but this collection view could not refresh.';
 			}
 			return result;
 		} catch (error) {
 			actionStates = { ...actionStates, [actionId]: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				[actionId]: toProductApiErrorMessage(error, 'Operations action failed.')
+				[actionId]: toProductApiErrorMessage(error, 'Collection action failed.')
 			};
 			return null;
+		}
+	}
+
+	function selectAction(id: SelectedSeriesOperationsWorkflowActionId) {
+		activeActionId = id;
+	}
+
+	function selectRelativeAction(offset: number) {
+		const nextAction = workflowActions[activeActionIndex + offset];
+		if (nextAction) {
+			activeActionId = nextAction.id;
 		}
 	}
 
@@ -247,6 +249,10 @@
 	function isActionDisabled(id: SelectedSeriesOperationsWorkflowActionId) {
 		const action = workflowAction(id);
 		return !action.available || actionStates[id] === 'submitting';
+	}
+
+	function displayedPathState(action: SelectedSeriesOperationsPathStep) {
+		return action.id === activeAction.id ? 'current' : action.pathState;
 	}
 
 	function stepLabel(state: StepState) {
@@ -277,28 +283,42 @@
 		return 'Blocked';
 	}
 
-	function generateOperationsRunSuffix() {
-		if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-			return crypto.randomUUID().slice(0, 8).toLowerCase();
+	function formatCount(value: number | null | undefined) {
+		return countFormatter.format(value ?? 0);
+	}
+
+	function formatDateTime(value: string | null | undefined) {
+		if (!value) {
+			return 'Not available';
 		}
 
-		return Math.random().toString(36).slice(2, 10);
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) {
+			return value;
+		}
+
+		return dateTimeFormatter.format(date);
+	}
+
+	function humanize(value: string | null | undefined) {
+		return value ? value.replaceAll('_', ' ') : 'Not available';
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Collection actions">
+<section class="product-panel" role="group" aria-label="Collection workflow">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Collection workflow</p>
-			<h3 class="product-title">Selected-series collection workflow</h3>
+			<p class="product-kicker">Study collection</p>
+			<h3 class="product-title">Collect responses</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				The path targets the selected campaign and keeps only the current collection task active.
+				Start the wave, share respondent access, monitor submissions, and close collection when
+				the study is finished.
 			</p>
 		</div>
 		<div class="grid justify-items-end gap-2">
-			<StatusBadge status="proof_only" label="Proof/local" />
+			<StatusBadge status={recommendedAction.status} label={recommendedAction.title} />
 			<p class="text-xs font-semibold text-[var(--color-text-muted)]">
-				{operationsPath.completedCount}/{operationsPath.totalCount} done
+				{operationsPath.completedCount}/{operationsPath.totalCount} steps complete
 			</p>
 		</div>
 	</div>
@@ -307,345 +327,256 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<div class="setup-path" role="list" aria-label="Collection action path">
+	<div class="setup-path" role="list" aria-label="Collection path">
 		{#each operationsPath.steps as action, index (action.id)}
-			<div
+			<button
+				type="button"
 				class="setup-path__item"
-				data-state={action.pathState}
+				data-state={displayedPathState(action)}
 				role="listitem"
-				aria-current={action.pathState === 'current' ? 'step' : undefined}
+				aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
+				onclick={() => selectAction(action.id)}
 			>
 				<span class="setup-path__marker">{index + 1}</span>
-				<div class="setup-path__content">
-					<p class="setup-path__title">{action.title}</p>
-					<p class="setup-path__description">{action.description}</p>
-				</div>
-				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
-			</div>
+				<span class="setup-path__content">
+					<span class="setup-path__title">{action.title}</span>
+					<span class="setup-path__description">{action.description}</span>
+				</span>
+				<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
+			</button>
 		{/each}
 	</div>
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
 			<strong class="record-row__title">Read-only access</strong>
-			<span>Collection actions require setup management access.</span>
+			<span>Collection actions require workspace management access.</span>
 		</p>
 	{:else}
-		<article
-			class="record-row setup-current-task"
-			role="region"
-			aria-label="Current collection task"
-		>
+		<article class="record-row setup-current-task" role="region" aria-label="Collection step">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">{currentAction.step}</p>
-					<h4 class="setup-current-task__title">Current collection task</h4>
-					<p class="record-row__title">{currentAction.title}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
+					<p class="record-field__label">{activeAction.step}</p>
+					<h4 class="setup-current-task__title">{activeAction.title}</h4>
+					<p class="text-sm text-[var(--color-text-muted)]">{activeAction.description}</p>
 				</div>
-				<StatusBadge status={currentAction.status} />
+				<StatusBadge status={activeAction.status} />
 			</div>
-			{#if currentAction.disabledReason}
-				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
+			{#if activeAction.disabledReason}
+				<p class="text-sm text-[var(--color-text-muted)]">{activeAction.disabledReason}</p>
 			{/if}
 
 			<div class="setup-current-task__body">
-				{#if currentAction.id === 'readiness'}
+				{#if activeAction.id === 'readiness'}
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+						Use this before opening collection. The check confirms that the questionnaire, scoring,
+						audience, and policy setup can support responses and reporting.
+					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Selected campaign</dt>
+							<dt class="record-field__label">Collection wave</dt>
 							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Campaign id</dt>
-							<dd class="record-field__value">{selectedCampaign?.id ?? 'Missing'}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">Readiness</dt>
+							<dt class="record-field__label">Setup check</dt>
 							<dd class="record-field__value">
-								{readinessResult ? (readinessResult.ready ? 'ready' : 'blocked') : 'not checked'}
+								{readinessResult ? (readinessResult.ready ? 'Ready' : 'Needs attention') : 'Not checked'}
 							</dd>
 						</div>
 					</dl>
 					{#if readinessResult?.issues.length}
-						<ul class="grid gap-2" aria-label="Launch readiness issues">
-							{#each readinessResult.issues as issue}
-								<li class="text-sm text-[var(--color-text-muted)]">
-									<strong>{issue.code}</strong>: {issue.message}
-								</li>
-							{/each}
-						</ul>
+						<div class="record-row" aria-label="Readiness issues">
+							<h5 class="record-row__title">Before collection can start</h5>
+							<ul class="grid gap-2">
+								{#each readinessResult.issues as issue}
+									<li class="text-sm text-[var(--color-text-muted)]">{issue.message}</li>
+								{/each}
+							</ul>
+						</div>
 					{/if}
 					{@render ActionFooter({
 						id: 'readiness',
-						label: 'Check launch readiness',
-						resultLabel: 'Campaign',
-						resultValue: readinessResult?.campaignId ?? selectedCampaign?.id ?? null,
+						label: 'Run pre-launch check',
+						resultLabel: 'Setup check',
+						resultValue: readinessResult ? (readinessResult.ready ? 'Ready' : 'Needs attention') : null,
 						onclick: checkLaunchReadiness
 					})}
-				{:else if currentAction.id === 'launch'}
+				{:else if activeAction.id === 'launch'}
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+						Starting collection opens the selected wave for responses and records the setup version
+						that reports will use later.
+					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Launch status</dt>
+							<dt class="record-field__label">Collection wave</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Status</dt>
 							<dd class="record-field__value">
-								{launchResult?.status ?? selectedCampaign?.status ?? 'Missing'}
+								{humanize(launchResult?.status ?? selectedCampaign?.status)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Launch snapshot</dt>
+							<dt class="record-field__label">Started</dt>
 							<dd class="record-field__value">
-								{launchResult?.launchSnapshotId ??
-									selectedCampaign?.latestLaunchSnapshotId ??
-									'Not available'}
+								{formatDateTime(selectedCampaign?.latestLaunchAt)}
 							</dd>
 						</div>
 					</dl>
 					{@render ActionFooter({
 						id: 'launch',
-						label: 'Launch campaign',
-						resultLabel: 'Launch snapshot',
-						resultValue:
-							launchResult?.launchSnapshotId ?? selectedCampaign?.latestLaunchSnapshotId ?? null,
+						label: 'Start collection',
+						resultLabel: 'Collection',
+						resultValue: launchResult?.status ? humanize(launchResult.status) : null,
 						onclick: launchCampaign
 					})}
-				{:else if currentAction.id === 'openLink'}
-					{#if openLinkResult || identifiedEntryResult}
-						<dl class="record-grid">
-							<div class="record-field">
-								<dt class="record-field__label">Assignment</dt>
-								<dd class="record-field__value">
-									{(identifiedEntryResult ?? openLinkResult)?.assignmentId}
-								</dd>
+				{:else if activeAction.id === 'openLink'}
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+						Create the respondent entry link for this collection wave. Share it with the intended
+						respondents once collection is live.
+					</p>
+					{#if respondentEntry}
+						<div class="record-row">
+							<div class="record-row__header">
+								<h5 class="record-row__title">Respondent link ready</h5>
+								<span class="step-pill" data-state="succeeded">Created</span>
 							</div>
-							{#if identifiedEntryResult}
-								<div class="record-field">
-									<dt class="record-field__label">Subject</dt>
-									<dd class="record-field__value">{identifiedEntryResult.subjectId}</dd>
-								</div>
-							{/if}
-							<div class="record-field">
-								<dt class="record-field__label">Proof/local path</dt>
-								<dd class="record-field__value">
-									{(identifiedEntryResult ?? openLinkResult)?.respondentPath}
-								</dd>
-							</div>
-						</dl>
+							<p class="result-line">
+								<span>Share link</span>
+								<code>{respondentEntry.respondentPath}</code>
+							</p>
+						</div>
 					{/if}
 					{@render ActionFooter({
 						id: 'openLink',
-						label: selectedCampaignIsIdentified ? 'Create identified entry' : 'Create open link',
-						resultLabel: 'Proof/local path',
-						resultValue: (identifiedEntryResult ?? openLinkResult)?.respondentPath ?? null,
-						onclick: createOpenLink
+						label: selectedCampaignIsIdentified ? 'Create identified entry' : 'Create respondent link',
+						resultLabel: 'Share link',
+						resultValue: respondentEntry?.respondentPath ?? null,
+						onclick: createRespondentAccess
 					})}
-				{:else if currentAction.id === 'invitations'}
-					{#if invitationBatchResult}
-						{@render InvitationResults()}
-					{/if}
-					{@render ActionFooter({
-						id: 'invitations',
-						label: 'Queue email invitations',
-						resultLabel: 'Queued invitations',
-						resultValue: invitationBatchResult
-							? String(invitationBatchResult.createdInvitationCount)
-							: null,
-						onclick: queueEmailInvitations
-					})}
-				{:else if currentAction.id === 'delivery'}
-					{#if deliveryResult}
-						{@render DeliveryResults()}
-					{/if}
-					{@render ActionFooter({
-						id: 'delivery',
-						label: 'Process local delivery',
-						resultLabel: 'Sent',
-						resultValue: deliveryResult ? String(deliveryResult.sentCount) : null,
-						onclick: processLocalDelivery
-					})}
-				{:else}
+				{:else if activeAction.id === 'monitor'}
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+						Watch response movement while collection is open. These numbers refresh from the
+						workspace state and do not change study setup.
+					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Campaign status</dt>
+							<dt class="record-field__label">Started</dt>
+							<dd class="record-field__value">{formatCount(workspace.summary.startedResponseCount)}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">In progress</dt>
+							<dd class="record-field__value">{formatCount(workspace.summary.draftResponseCount)}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Submitted</dt>
 							<dd class="record-field__value">
-								{closeResult?.status ?? selectedCampaign?.status ?? 'Missing'}
+								{formatCount(workspace.summary.submittedResponseCount)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Closed at</dt>
+							<dt class="record-field__label">Latest activity</dt>
+							<dd class="record-field__value">{formatDateTime(latestResponseActivity)}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Report readiness</dt>
+							<dd class="record-field__value">{humanize(workspace.summary.reportVisibilityStatus)}</dd>
+						</div>
+					</dl>
+					{@render ActionFooter({
+						id: 'monitor',
+						label: 'Refresh status',
+						resultLabel: 'Latest activity',
+						resultValue: formatDateTime(latestResponseActivity),
+						onclick: refreshCollectionStatus
+					})}
+				{:else}
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+						Close collection when the response window is finished. Submitted responses remain
+						available for scoring and reports.
+					</p>
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Collection wave</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Status</dt>
 							<dd class="record-field__value">
-								{closeResult?.closedAt ?? selectedCampaign?.closedAt ?? 'Not available'}
+								{humanize(closeResult?.status ?? selectedCampaign?.status)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Closed by</dt>
+							<dt class="record-field__label">Closed</dt>
 							<dd class="record-field__value">
-								{closeResult?.closedByUserId ?? selectedCampaign?.closedByUserId ?? 'Not available'}
+								{formatDateTime(closeResult?.closedAt ?? selectedCampaign?.closedAt)}
 							</dd>
 						</div>
 					</dl>
 					{@render ActionFooter({
 						id: 'close',
-						label: 'Close campaign',
-						resultLabel: 'Closed at',
-						resultValue: closeResult?.closedAt ?? selectedCampaign?.closedAt ?? null,
+						label: 'Close collection',
+						resultLabel: 'Closed',
+						resultValue: closeResult?.closedAt
+							? formatDateTime(closeResult.closedAt)
+							: selectedCampaign?.closedAt
+								? formatDateTime(selectedCampaign.closedAt)
+								: null,
 						onclick: closeCampaign
 					})}
 				{/if}
+
+				<div class="action-row" aria-label="Collection step navigation">
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={activeActionIndex === 0}
+						onclick={() => selectRelativeAction(-1)}
+					>
+						Previous step
+					</button>
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={activeActionIndex >= workflowActions.length - 1}
+						onclick={() => selectRelativeAction(1)}
+					>
+						Next step
+					</button>
+				</div>
 			</div>
 		</article>
 
-		{#if hasOperationResults}
-			<div class="record-list" aria-label="Latest operations results">
-				{#if readinessResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Launch readiness result</h4>
-							<span class="step-pill" data-state={readinessResult.ready ? 'succeeded' : 'failed'}>
-								{readinessResult.ready ? 'ready' : 'blocked'}
-							</span>
-						</div>
-						{@render ResultLine({
-							label: 'Campaign',
-							value: readinessResult.campaignId
-						})}
-					</article>
-				{/if}
-				{#if launchResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Launch result</h4>
-							<span class="step-pill" data-state="succeeded">{launchResult.status}</span>
-						</div>
-						{@render ResultLine({
-							label: 'Launch snapshot',
-							value: launchResult.launchSnapshotId
-						})}
-					</article>
-				{/if}
-				{#if openLinkResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Open-link result</h4>
-							<span class="step-pill" data-state="succeeded">created</span>
-						</div>
-						<dl class="record-grid">
-							<div class="record-field">
-								<dt class="record-field__label">Assignment</dt>
-								<dd class="record-field__value">{openLinkResult.assignmentId}</dd>
-							</div>
-							<div class="record-field">
-								<dt class="record-field__label">Proof/local path</dt>
-								<dd class="record-field__value">{openLinkResult.respondentPath}</dd>
-							</div>
-						</dl>
-					</article>
-				{/if}
-				{#if invitationBatchResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Invitation batch result</h4>
-							<span class="step-pill" data-state="succeeded">
-								{invitationBatchResult.createdInvitationCount} queued
-							</span>
-						</div>
-						{@render InvitationResults()}
-					</article>
-				{/if}
-				{#if deliveryResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Local delivery result</h4>
-							<span class="step-pill" data-state="succeeded">{deliveryResult.sentCount} sent</span>
-						</div>
-						{@render DeliveryResults()}
-					</article>
-				{/if}
-				{#if closeResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Close result</h4>
-							<span class="step-pill" data-state="succeeded">{closeResult.status}</span>
-						</div>
-						<dl class="record-grid">
-							<div class="record-field">
-								<dt class="record-field__label">Closed at</dt>
-								<dd class="record-field__value">{closeResult.closedAt ?? 'Not available'}</dd>
-							</div>
-							<div class="record-field">
-								<dt class="record-field__label">Closed by</dt>
-								<dd class="record-field__value">{closeResult.closedByUserId ?? 'Not available'}</dd>
-							</div>
-						</dl>
-					</article>
-				{/if}
-				{#if identifiedEntryResult}
-					<article class="record-row">
-						<div class="record-row__header">
-							<h4 class="record-row__title">Identified entry result</h4>
-							<span class="step-pill" data-state="succeeded">created</span>
-						</div>
-						<dl class="record-grid">
-							<div class="record-field">
-								<dt class="record-field__label">Assignment</dt>
-								<dd class="record-field__value">{identifiedEntryResult.assignmentId}</dd>
-							</div>
-							<div class="record-field">
-								<dt class="record-field__label">Subject</dt>
-								<dd class="record-field__value">{identifiedEntryResult.subjectId}</dd>
-							</div>
-							<div class="record-field">
-								<dt class="record-field__label">Proof/local path</dt>
-								<dd class="record-field__value">{identifiedEntryResult.respondentPath}</dd>
-							</div>
-						</dl>
-					</article>
-				{/if}
-			</div>
+		{#if hasTechnicalDetails}
+			<details class="record-row">
+				<summary class="record-row__title">Technical details</summary>
+				<dl class="record-grid mt-4">
+					{@render ResultField({
+						label: 'Campaign record',
+						value: readinessResult?.campaignId ?? selectedCampaign?.id ?? null
+					})}
+					{@render ResultField({
+						label: 'Launch record',
+						value: launchResult?.launchSnapshotId ?? selectedCampaign?.latestLaunchSnapshotId ?? null
+					})}
+					{@render ResultField({
+						label: 'Assignment record',
+						value: respondentEntry?.assignmentId ?? null
+					})}
+					{@render ResultField({
+						label: 'Subject record',
+						value: identifiedEntryResult?.subjectId ?? null
+					})}
+					{@render ResultField({
+						label: 'Closed by',
+						value: closeResult?.closedByUserId ?? selectedCampaign?.closedByUserId ?? null
+					})}
+				</dl>
+			</details>
 		{/if}
 	{/if}
 </section>
-
-{#snippet InvitationResults()}
-	<div class="record-list" aria-label="Queued invitation intents">
-		{#each invitationBatchResult?.invitations ?? [] as invitation (invitation.notificationId)}
-			<div class="record-row">
-				<p class="font-semibold text-[var(--color-text)]">{invitation.recipient}</p>
-				<p class="result-line">
-					<span>Proof/local path</span>
-					<code>{invitation.respondentPath}</code>
-				</p>
-				<span class="step-pill" data-state="succeeded">{invitation.status}</span>
-			</div>
-		{/each}
-	</div>
-{/snippet}
-
-{#snippet DeliveryResults()}
-	<div class="record-list" aria-label="Local delivery">
-		{#each deliveryResult?.deliveries ?? [] as delivery (delivery.notificationId)}
-			<div class="record-row">
-				<div class="record-row__header">
-					<div>
-						<p class="font-semibold text-[var(--color-text)]">{delivery.recipient}</p>
-						<p class="text-xs text-[var(--color-text-muted)]">{delivery.provider}</p>
-					</div>
-					<span class="step-pill" data-state={delivery.status === 'sent' ? 'succeeded' : 'failed'}>
-						{delivery.status}
-					</span>
-				</div>
-				{#if delivery.respondentPath ?? delivery.providerMessageId}
-					<p class="result-line">
-						<span>Proof/local output</span>
-						<code>{delivery.respondentPath ?? delivery.providerMessageId}</code>
-					</p>
-				{/if}
-				{#if delivery.error}
-					<p class="error-line">{delivery.error}</p>
-				{/if}
-			</div>
-		{/each}
-	</div>
-{/snippet}
 
 {#snippet ActionFooter({
 	id,
@@ -672,6 +603,8 @@
 				<LoaderCircle size={17} aria-hidden="true" />
 			{:else if id === 'readiness'}
 				<SearchCheck size={17} aria-hidden="true" />
+			{:else if id === 'monitor'}
+				<RefreshCw size={17} aria-hidden="true" />
 			{:else if id === 'close'}
 				<CircleStop size={17} aria-hidden="true" />
 			{:else}
@@ -688,10 +621,19 @@
 {/snippet}
 
 {#snippet ResultLine({ label, value }: { label: string; value: string | null | undefined })}
-	{#if value}
+	{#if value && value !== 'Not available'}
 		<p class="result-line">
 			<span>{label}</span>
 			<code>{value}</code>
 		</p>
+	{/if}
+{/snippet}
+
+{#snippet ResultField({ label, value }: { label: string; value: string | null | undefined })}
+	{#if value}
+		<div class="record-field">
+			<dt class="record-field__label">{label}</dt>
+			<dd class="record-field__value">{value}</dd>
+		</div>
 	{/if}
 {/snippet}

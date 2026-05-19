@@ -5,16 +5,13 @@ export type SelectedSeriesOperationsWorkflowActionId =
 	| 'readiness'
 	| 'launch'
 	| 'openLink'
-	| 'invitations'
-	| 'delivery'
+	| 'monitor'
 	| 'close';
 
 export type SelectedSeriesOperationsWorkflowLocalState = {
 	readinessReady?: boolean;
 	launched?: boolean;
 	openLinkCreated?: boolean;
-	invitationsQueued?: boolean;
-	deliveryProcessed?: boolean;
 	closed?: boolean;
 };
 
@@ -50,9 +47,6 @@ export function toSelectedSeriesOperationsWorkflowActions(
 	const hasCampaign = Boolean(selectedCampaign);
 	const isLive = selectedCampaign?.status === 'live';
 	const isClosed = selectedCampaign?.status === 'closed' || Boolean(selectedCampaign?.closedAt);
-	const isIdentified = selectedCampaign?.responseIdentityMode === 'identified';
-	const supportsAnonymousInvitationFlow = selectedCampaign?.responseIdentityMode === 'anonymous';
-	const skipsInvitationFlow = hasCampaign && !supportsAnonymousInvitationFlow;
 	const closed = Boolean(localState.closed || isClosed);
 	const closeable = isLive || Boolean(localState.launched);
 	const hasLaunchEvidence = Boolean(
@@ -60,35 +54,34 @@ export function toSelectedSeriesOperationsWorkflowActions(
 	);
 	const launched = Boolean(localState.launched || isLive || closed || hasLaunchEvidence);
 	const readinessReady = Boolean(localState.readinessReady || launched);
-	const hasOpenLink = Boolean(
-		localState.openLinkCreated || selectedCampaign?.openLinkAssignmentCount
+	const hasRespondentAccess = Boolean(
+		localState.openLinkCreated ||
+			selectedCampaign?.openLinkAssignmentCount ||
+			selectedCampaign?.sentInvitationCount
 	);
-	const hasQueuedInvitations = Boolean(
-		localState.invitationsQueued || selectedCampaign?.queuedInvitationCount
+	const hasResponseActivity = Boolean(
+		workspace.summary.startedResponseCount ||
+			workspace.summary.draftResponseCount ||
+			workspace.summary.submittedResponseCount
 	);
-	const deliveryProcessed = Boolean(
-		localState.deliveryProcessed || selectedCampaign?.deliveryAttemptCount
-	);
-	const entryTitle = isIdentified ? 'Identified entry' : 'Open-link entry';
-	const entryDescription = isIdentified
-		? 'Create an identified entry token for the selected assignment.'
-		: 'Create a public entry link for the selected campaign.';
 
 	return [
 		{
 			id: 'readiness',
 			step: 'Step 1',
-			title: 'Launch readiness',
-			description: 'Run launch-readiness diagnostics for the selected campaign.',
+			title: 'Pre-launch check',
+			description: 'Confirm the questionnaire, scoring, audience, and policies are ready.',
 			status: !hasCampaign ? 'not_available' : readinessReady ? 'ready' : 'pending',
 			available: hasCampaign,
-			disabledReason: hasCampaign ? null : 'Create or select a campaign before running operations.'
+			disabledReason: hasCampaign
+				? null
+				: 'Create a collection wave in setup before checking readiness.'
 		},
 		{
 			id: 'launch',
 			step: 'Step 2',
-			title: 'Launch campaign',
-			description: 'Freeze launch provenance and move the selected campaign live.',
+			title: 'Start collection',
+			description: 'Open this wave for responses and record the setup used for reporting.',
 			status: toLaunchStatus(hasCampaign, isLive, closed, launched, localState),
 			available: hasCampaign && readinessReady && !launched && !closed,
 			disabledReason: toLaunchDisabledReason(hasCampaign, isLive, closed, launched, localState)
@@ -96,78 +89,53 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		{
 			id: 'openLink',
 			step: 'Step 3',
-			title: entryTitle,
-			description: entryDescription,
+			title: 'Respondent access',
+			description: 'Create the entry link respondents use to answer this wave.',
 			status: !hasCampaign
 				? 'not_available'
-				: launched && hasOpenLink
+				: launched && hasRespondentAccess
 					? 'ready'
 					: launched
 						? 'pending'
 						: 'blocked',
 			available: launched && !closed,
 			disabledReason: !launched
-				? 'Launch the selected campaign before creating an open link.'
+				? 'Start collection before creating respondent access.'
 				: closed
-					? 'Selected campaign is closed.'
+					? 'This collection wave is closed.'
 					: null
 		},
 		{
-			id: 'invitations',
+			id: 'monitor',
 			step: 'Step 4',
-			title: 'Invitation batch',
-			description: 'Queue email invitation intents for the selected campaign.',
-			status: !hasCampaign || skipsInvitationFlow
+			title: 'Monitor responses',
+			description: 'Track starts, drafts, submissions, and report readiness while collection runs.',
+			status: !hasCampaign
 				? 'not_available'
-				: launched && hasQueuedInvitations
-					? 'ready'
-					: launched
-						? 'pending'
-						: 'blocked',
-			available: launched && !closed && supportsAnonymousInvitationFlow,
-			disabledReason: skipsInvitationFlow
-				? 'Email invitation batches support anonymous campaigns only.'
-				: !launched
-				? 'Launch the selected campaign before queuing invitations.'
 				: closed
-					? 'Selected campaign is closed.'
-					: null
-		},
-		{
-			id: 'delivery',
-			step: 'Step 5',
-			title: 'Local delivery',
-			description: 'Process queued invitations through the local/dev delivery boundary.',
-			status: !hasCampaign || skipsInvitationFlow
-				? 'not_available'
-				: deliveryProcessed
-					? 'ready'
-					: hasQueuedInvitations
-					? 'pending'
-					: 'blocked',
-			available: hasQueuedInvitations && !closed && supportsAnonymousInvitationFlow,
-			disabledReason: skipsInvitationFlow
-				? 'Local delivery requires queued anonymous invitations.'
-				: !hasQueuedInvitations
-				? 'Queue invitations before processing local delivery.'
-				: closed
-					? 'Selected campaign is closed.'
-					: null
+					? 'closed'
+					: launched && hasResponseActivity
+						? 'ready'
+						: launched
+							? 'pending'
+							: 'blocked',
+			available: launched,
+			disabledReason: !launched ? 'Start collection before monitoring responses.' : null
 		},
 		{
 			id: 'close',
-			step: 'Step 6',
-			title: 'Close campaign',
-			description: 'Stop public collection while keeping submitted data reportable.',
+			step: 'Step 5',
+			title: 'Close collection',
+			description: 'Stop accepting new responses while keeping submitted data reportable.',
 			status: !hasCampaign ? 'not_available' : closed ? 'closed' : closeable ? 'pending' : 'blocked',
 			available: closeable && !closed,
 			disabledReason: !hasCampaign
-				? 'Launch the selected campaign before closing collection.'
+				? 'Create a collection wave before closing collection.'
 				: closed
-				? null
-				: closeable
 					? null
-					: 'Only live campaigns can be closed.'
+					: closeable
+						? null
+						: 'Only a live collection wave can be closed.'
 		}
 	];
 }
@@ -180,29 +148,27 @@ export function toSelectedSeriesOperationsPath(
 	const selectedCampaign = workspace.selectedCampaign;
 	const isLive = selectedCampaign?.status === 'live';
 	const isClosed = selectedCampaign?.status === 'closed' || Boolean(selectedCampaign?.closedAt);
-	const supportsAnonymousInvitationFlow = selectedCampaign?.responseIdentityMode === 'anonymous';
-	const skipsInvitationFlow = Boolean(selectedCampaign) && !supportsAnonymousInvitationFlow;
 	const closed = Boolean(localState.closed || isClosed);
 	const hasLaunchEvidence = Boolean(
 		selectedCampaign?.latestLaunchSnapshotId || selectedCampaign?.latestLaunchAt
 	);
 	const launched = Boolean(localState.launched || isLive || closed || hasLaunchEvidence);
 	const readinessReady = Boolean(localState.readinessReady || launched);
-	const hasOpenLink = Boolean(
-		localState.openLinkCreated || selectedCampaign?.openLinkAssignmentCount
+	const hasRespondentAccess = Boolean(
+		localState.openLinkCreated ||
+			selectedCampaign?.openLinkAssignmentCount ||
+			selectedCampaign?.sentInvitationCount
 	);
-	const hasQueuedInvitations = Boolean(
-		localState.invitationsQueued || selectedCampaign?.queuedInvitationCount
-	);
-	const deliveryProcessed = Boolean(
-		localState.deliveryProcessed || selectedCampaign?.deliveryAttemptCount
+	const hasResponseActivity = Boolean(
+		workspace.summary.startedResponseCount ||
+			workspace.summary.draftResponseCount ||
+			workspace.summary.submittedResponseCount
 	);
 	const doneByActionId: Record<SelectedSeriesOperationsWorkflowActionId, boolean> = {
 		readiness: readinessReady,
 		launch: launched,
-		openLink: hasOpenLink,
-		invitations: skipsInvitationFlow || hasQueuedInvitations,
-		delivery: skipsInvitationFlow || deliveryProcessed,
+		openLink: hasRespondentAccess,
+		monitor: closed || hasResponseActivity,
 		close: closed
 	};
 	const currentAction =
@@ -258,22 +224,22 @@ function toLaunchDisabledReason(
 	localState: SelectedSeriesOperationsWorkflowLocalState
 ) {
 	if (!hasCampaign) {
-		return 'Create or select a campaign before launch.';
+		return 'Create a collection wave before starting collection.';
 	}
 
 	if (closed) {
-		return 'Selected campaign is closed.';
+		return 'This collection wave is closed.';
 	}
 
 	if (isLive) {
-		return 'Selected campaign is already live.';
+		return 'Collection is already live.';
 	}
 
 	if (launched || localState.launched) {
-		return 'Selected campaign was launched in this session.';
+		return 'Collection was started in this session.';
 	}
 
-	return localState.readinessReady ? null : 'Run launch readiness and resolve blockers first.';
+	return localState.readinessReady ? null : 'Run the pre-launch check and resolve blockers first.';
 }
 
 function toPathStepState(

@@ -15287,7 +15287,8 @@ Next: run SEC01. Start with a public-boundary inventory and then harden missing 
 
 **Did:** Added requested-event regression coverage to 	ests/Platform.IntegrationTests/Infrastructure/WithdrawalRuntimeStoreTests.cs. Added EF model assertions to 	ests/Platform.IntegrationTests/Infrastructure/ApplicationDbContextModelTests.cs. Added migration/RLS script assertions to 	ests/Platform.IntegrationTests/Infrastructure/RlsMigrationScriptTests.cs. Updated NEXT-ACTIONS.md, NEXT-SESSION-PLAN.md, and 60-roadmap/current-roadmap.md.
 
-**Decisions:** No production behavior patch was needed. Existing runtime guards already exclude equested withdrawal events from dry-run/claim/execute mutation paths; QA07 made that boundary explicit and covered the RET16 response-session schema extension in model/migration/RLS tests.
+**Decisions:** No production behavior patch was needed. Existing runtime guards already exclude
+equested withdrawal events from dry-run/claim/execute mutation paths; QA07 made that boundary explicit and covered the RET16 response-session schema extension in model/migration/RLS tests.
 
 **Verification:** Docker-backed WithdrawalRuntimeStoreTests passed 58/58. Endpoint/model/RLS filter FullyQualifiedName~WithdrawalEndpoint|FullyQualifiedName~ApplicationDbContextModelTests|FullyQualifiedName~RlsMigrationScriptTests passed 35/35. dotnet build --no-restore passed with 0 warnings and 0 errors.
 
@@ -18598,3 +18599,15 @@ Task: Replaced delivery-details internals with summarized saved-audience and del
 Verification: Commit `4ecd299` deployed to staging. Docker web production build passed during redeploy. The first redeploy proof hit a transient web-root 502 during warm-up, then follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/setup-delivery-internals-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:3ecaf8b46ee6dcf8b5df32bde0e29a115739db165d61360dbdf62b56f9a9f5dd`.
 
 Remaining risk: The operations/launch surface may still need its own product cleanup; this slice only fixes the setup wizard handoff.
+
+## 2026-05-19 - Collection hub production UX pass
+
+Assessment: The Study collection / Collect responses surface still exposed implementation details in the researcher path: proof/local wording, fake invitation recipients, launch snapshot and assignment identifiers, raw readiness codes, local delivery language, and repeated operation-result records. This made the collection hub feel like a developer proof surface rather than a production workflow.
+
+Task: Reframed the selected-series operations workflow as a researcher-facing collection path: pre-launch check, start collection, respondent access, monitor responses, and close collection. Removed the fake email invitation and local delivery steps from the primary workflow, added step navigation, moved IDs and audit records behind collapsed technical details, and localized visible collection timestamps with Croatian-style day/month/year and 24-hour time.
+
+Files changed: apps/web/src/lib/product/operations-workflow.ts, apps/web/src/lib/product/SelectedSeriesOperationsWorkflow.svelte, apps/web/src/routes/app/campaign-series/[seriesId]/operations/+page.svelte, apps/web/src/lib/product/view-models.ts.
+
+Verification: Not run in this pass per current instruction to avoid tests or validation unless explicitly requested. Needs a targeted web build/check before deploy.
+
+Remaining risk: The invitation backend path still exists but is no longer exposed as a primary collection action. Real email invitation management should become a separate production slice with recipient entry, audience selection, send state, retries, and user-visible failure handling.

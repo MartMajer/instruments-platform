@@ -486,21 +486,20 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		surfaceLabel: 'Collect responses',
 		surfaceEyebrow: 'Study collection',
 		surfaceDescription:
-			'Track respondent access, response progress, and score/report readiness for the selected campaign.',
-		referenceTitle: 'Collection reference',
+			'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.',
+		referenceTitle: 'Technical collection details',
 		referenceDescription:
-			'Campaign ids, launch snapshot fields, prerequisite codes, and campaign rows for audit and troubleshooting.',
+			'Audit records, launch snapshots, prerequisite codes, and campaign fields stay here for troubleshooting.',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
 			{
-				label: 'Open-link assignments',
+				label: 'Respondent links',
 				value: formatCount(workspace.summary.openLinkAssignmentCount)
 			},
-			{ label: 'Queued invitations', value: formatCount(workspace.summary.queuedInvitationCount) },
-			{ label: 'Sent invitations', value: formatCount(workspace.summary.sentInvitationCount) },
-			{ label: 'Failed invitations', value: formatCount(workspace.summary.failedInvitationCount) },
-			{ label: 'Delivery attempts', value: formatCount(workspace.summary.deliveryAttemptCount) },
+			{ label: 'Queued emails', value: formatCount(workspace.summary.queuedInvitationCount) },
+			{ label: 'Sent emails', value: formatCount(workspace.summary.sentInvitationCount) },
+			{ label: 'Failed emails', value: formatCount(workspace.summary.failedInvitationCount) },
 			{
 				label: 'Started responses',
 				value: formatCount(workspace.summary.startedResponseCount)
@@ -523,7 +522,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 			}
 		],
 		collectionMonitor: {
-			title: 'Collection monitor',
+			title: 'Response monitor',
 			status: workspace.summary.collectionStatus,
 			reportVisibilityStatus: workspace.summary.reportVisibilityStatus,
 			guidance: workspace.summary.collectionGuidance,
@@ -542,11 +541,11 @@ export function toCampaignSeriesOperationsWorkspaceView(
 				},
 				{
 					label: 'Latest started',
-					value: workspace.summary.latestResponseStartedAt ?? 'Not available'
+					value: formatCollectionDateTime(workspace.summary.latestResponseStartedAt)
 				},
 				{
 					label: 'Latest submitted',
-					value: workspace.summary.latestResponseSubmittedAt ?? 'Not available'
+					value: formatCollectionDateTime(workspace.summary.latestResponseSubmittedAt)
 				}
 			]
 		},
@@ -574,13 +573,13 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		emptyState:
 			workspace.campaigns.length === 0
 				? {
-						title: 'No campaign operations yet',
-						message: 'Create and launch a campaign before running operations.'
+						title: 'No collection wave yet',
+						message: 'Create a campaign draft in setup, then start collection here.'
 					}
 				: null,
-		proofActionTitle: 'Collection actions',
+		proofActionTitle: 'Collection workflow',
 		proofActionDescription:
-			'Launch readiness, campaign launch, entry links, invitation batches, and local delivery stay available below.'
+			'Run the pre-launch check, start collection, share respondent access, monitor submissions, and close the wave.'
 	};
 }
 
@@ -1470,10 +1469,8 @@ function toOperationsCampaignDetailRows(
 		{ label: 'Status', value: humanizeValue(campaign.status) },
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
-		operationLaunchSnapshotRow(campaign),
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
-		{ label: 'Closed at', value: campaign.closedAt ?? 'Not available' },
-		{ label: 'Closed by', value: campaign.closedByUserId ?? 'Not available' },
+		{ label: 'Collection started', value: formatCollectionDateTime(campaign.latestLaunchAt) },
+		{ label: 'Closed', value: formatCollectionDateTime(campaign.closedAt) },
 		{ label: 'Close reason', value: campaign.closeReason ?? 'Not available' },
 		{ label: 'Started responses', value: formatCount(campaign.startedResponseCount) },
 		{ label: 'Draft responses', value: formatCount(campaign.draftResponseCount) },
@@ -1481,7 +1478,6 @@ function toOperationsCampaignDetailRows(
 		{ label: 'Latest response activity', value: latestResponseActivity(campaign) },
 		{ label: 'Collection status', value: humanizeValue(campaign.collectionStatus) },
 		{ label: 'Report visibility', value: humanizeValue(campaign.reportVisibilityStatus) },
-		operationScoringRuleRow(campaign),
 		{
 			label: 'Score coverage',
 			value: humanizeValue(campaign.scoreCoverageStatus ?? 'no_submissions')
@@ -1497,13 +1493,13 @@ function toOperationsCampaignDetailRows(
 		},
 		{
 			label: 'Latest scoring activity',
-			value: campaign.latestScoringActivityAt ?? 'Not available'
+			value: formatCollectionDateTime(campaign.latestScoringActivityAt)
 		},
-		{ label: 'Open-link assignments', value: formatCount(campaign.openLinkAssignmentCount) },
-		{ label: 'Delivery attempts', value: formatCount(campaign.deliveryAttemptCount) },
+		{ label: 'Respondent links', value: formatCount(campaign.openLinkAssignmentCount) },
+		{ label: 'Sent emails', value: formatCount(campaign.sentInvitationCount) },
 		{
-			label: 'Latest delivery attempt',
-			value: campaign.latestDeliveryAttemptAt ?? 'Not available'
+			label: 'Latest email activity',
+			value: formatCollectionDateTime(campaign.latestDeliveryAttemptAt)
 		}
 	];
 }
@@ -1514,17 +1510,15 @@ function toOperationsCampaignSummaryRows(
 	return [
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
-		operationLaunchSnapshotRow(campaign),
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
-		{ label: 'Closed at', value: campaign.closedAt ?? 'Not available' },
-		{ label: 'Open-link assignments', value: formatCount(campaign.openLinkAssignmentCount) },
-		{ label: 'Queued invitations', value: formatCount(campaign.queuedInvitationCount) },
-		{ label: 'Sent invitations', value: formatCount(campaign.sentInvitationCount) },
-		{ label: 'Failed invitations', value: formatCount(campaign.failedInvitationCount) },
-		{ label: 'Delivery attempts', value: formatCount(campaign.deliveryAttemptCount) },
+		{ label: 'Collection started', value: formatCollectionDateTime(campaign.latestLaunchAt) },
+		{ label: 'Closed', value: formatCollectionDateTime(campaign.closedAt) },
+		{ label: 'Respondent links', value: formatCount(campaign.openLinkAssignmentCount) },
+		{ label: 'Queued emails', value: formatCount(campaign.queuedInvitationCount) },
+		{ label: 'Sent emails', value: formatCount(campaign.sentInvitationCount) },
+		{ label: 'Failed emails', value: formatCount(campaign.failedInvitationCount) },
 		{
-			label: 'Latest delivery attempt',
-			value: campaign.latestDeliveryAttemptAt ?? 'Not available'
+			label: 'Latest email activity',
+			value: formatCollectionDateTime(campaign.latestDeliveryAttemptAt)
 		},
 		{ label: 'Started responses', value: formatCount(campaign.startedResponseCount) },
 		{ label: 'Draft responses', value: formatCount(campaign.draftResponseCount) },
@@ -1688,7 +1682,7 @@ function toOperationsCollectionStateItem(
 			detailRows: [
 				{ label: 'Selected campaign', value: 'Missing' },
 				{ label: 'Status', value: humanizeValue(workspace.summary.collectionStatus) },
-				{ label: 'Latest launch', value: 'Not available' },
+				{ label: 'Collection started', value: 'Not available' },
 				{
 					label: 'Missing prerequisites',
 					value: formatCount(workspace.summary.missingPrerequisiteCount)
@@ -1701,7 +1695,7 @@ function toOperationsCollectionStateItem(
 
 	return {
 		id: 'collection_state',
-		label: 'Collection state',
+		label: 'Collection status',
 		status,
 		badgeLabel: sentenceCase(humanizeValue(campaign.status)),
 		summary: `${campaign.name.trim() || 'Untitled campaign'} is ${humanizeValue(campaign.status)}`,
@@ -1709,7 +1703,7 @@ function toOperationsCollectionStateItem(
 		detailRows: [
 			{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
 			{ label: 'Status', value: humanizeValue(campaign.status) },
-			{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
+			{ label: 'Collection started', value: formatCollectionDateTime(campaign.latestLaunchAt) },
 			{
 				label: 'Missing prerequisites',
 				value: formatCount(workspace.summary.missingPrerequisiteCount)
@@ -1744,19 +1738,18 @@ function toOperationsRespondentAccessItem(
 		status,
 		badgeLabel:
 			status === 'ready' ? 'Access ready' : status === 'pending' ? 'Preparing access' : 'Blocked',
-		summary: `${formatAccessCount(openLinkAssignments, 'open link')}, ${formatSentInvitationCount(sentInvitations)}, ${formatAccessCount(deliveryAttempts, 'delivery attempt')}`,
+		summary: `${formatAccessCount(openLinkAssignments, 'respondent link')}, ${formatAccessCount(sentInvitations, 'sent email')}`,
 		guidance: toRespondentAccessGuidance(openLinkAssignments, sentInvitations, deliveryAttempts),
 		detailRows: [
 			{
 				label: 'Identity mode',
 				value: campaign ? humanizeValue(campaign.responseIdentityMode) : 'Missing'
 			},
-			{ label: 'Open-link assignments', value: formatCount(openLinkAssignments) },
-			{ label: 'Queued invitations', value: formatCount(queuedInvitations) },
-			{ label: 'Sent invitations', value: formatCount(sentInvitations) },
-			{ label: 'Failed invitations', value: formatCount(failedInvitations) },
-			{ label: 'Delivery attempts', value: formatCount(deliveryAttempts) },
-			{ label: 'Latest delivery attempt', value: latestDeliveryAttempt ?? 'Not available' }
+			{ label: 'Respondent links', value: formatCount(openLinkAssignments) },
+			{ label: 'Queued emails', value: formatCount(queuedInvitations) },
+			{ label: 'Sent emails', value: formatCount(sentInvitations) },
+			{ label: 'Failed emails', value: formatCount(failedInvitations) },
+			{ label: 'Latest email activity', value: formatCollectionDateTime(latestDeliveryAttempt) }
 		]
 	};
 }
@@ -1888,18 +1881,38 @@ function toRespondentAccessGuidance(
 	deliveryAttempts: number
 ) {
 	if (openLinkAssignments > 0 && (sentInvitations > 0 || deliveryAttempts > 0)) {
-		return 'Respondents can enter through open links and invitations.';
+		return 'Respondents can enter through shared links and sent emails.';
 	}
 
 	if (openLinkAssignments > 0) {
-		return 'Respondents can enter through open links.';
+		return 'Respondents can enter through shared links.';
 	}
 
 	if (sentInvitations > 0 || deliveryAttempts > 0) {
-		return 'Respondents can enter through sent invitations.';
+		return 'Respondents can enter through sent emails.';
 	}
 
-	return 'Create an open link or send invitations before collecting responses.';
+	return 'Create a respondent link before collecting responses.';
+}
+
+function formatCollectionDateTime(value: string | null | undefined) {
+	if (!value) {
+		return 'Not available';
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('hr-HR', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	}).format(date);
 }
 
 function formatAccessCount(count: number, singular: string) {
