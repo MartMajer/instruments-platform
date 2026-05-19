@@ -106,14 +106,6 @@
 				})
 			: null
 	);
-	const operationsRouteGuidance = $derived(
-		operationsWorkspaceView
-			? toProductRouteGuidance('operations', {
-					isSample: operationsWorkspaceView.ownership.isSample,
-					canManageSetup
-				})
-			: null
-	);
 	const reportsRouteGuidance = $derived(
 		reportsWorkspaceView
 			? toProductRouteGuidance('reports', {
@@ -475,81 +467,20 @@
 				/>
 			{/if}
 
-			{#if operationsWorkspaceView.collectionOverview.length > 0}
-				<details class="product-panel reference-context" aria-label="Collection progress">
-					<summary class="record-row__title">Collection status details</summary>
-					<div class="product-panel__header mt-4">
-						<div>
-							<p class="product-kicker">{operationsWorkspaceView.surfaceEyebrow}</p>
-							<h2 class="product-title">Collection status</h2>
-							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-								{operationsWorkspaceView.surfaceDescription}
-							</p>
-						</div>
-					</div>
-
-					<div class="record-list">
-						{#each operationsWorkspaceView.collectionOverview as item (item.id)}
-							<article class="record-row" aria-label={item.label}>
-								<div class="record-row__header">
-									<div>
-										<h3 class="record-row__title">{item.label}</h3>
-										<p class="mt-1 text-sm font-semibold text-[var(--color-text)]">
-											{item.summary}
-										</p>
-										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
-									</div>
-									<StatusBadge status={item.status} label={item.badgeLabel} />
-								</div>
-
-								<dl class="record-grid">
-									{#each item.detailRows as row}
-										<div class="record-field">
-											<dt class="record-field__label">{row.label}</dt>
-											<dd class="record-field__value">
-												{#if row.mono}
-													<code>{row.value}</code>
-												{:else}
-													{row.value}
-												{/if}
-											</dd>
-										</div>
-									{/each}
-								</dl>
-							</article>
-						{/each}
-					</div>
-				</details>
-			{/if}
-
-			{#if operationsRouteGuidance}
-				<details class="product-panel reference-context" aria-label="Collection guidance">
-					<summary class="record-row__title">Collection guidance</summary>
-					<div class="mt-4">
-						<RouteGuidancePanel guidance={operationsRouteGuidance} />
-					</div>
-				</details>
-			{/if}
-
-			<details
-				class="product-panel reference-context"
-				aria-label={operationsWorkspaceView.referenceTitle}
-			>
-				<summary class="record-row__title">Technical collection reference</summary>
+			<details class="product-panel reference-context" aria-label="Collection details">
+				<summary class="record-row__title">Collection details</summary>
 				<div class="product-panel__header mt-4">
 					<div>
-						<p class="product-kicker">Collection reference</p>
-						<h2 class="product-title">{operationsWorkspaceView.referenceTitle}</h2>
+						<p class="product-kicker">Collection details</p>
+						<h2 class="product-title">Operational details</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{operationsWorkspaceView.referenceDescription}
-						</p>
-						<p class="mt-2 text-sm font-semibold text-[var(--color-text)]">
-							{operationsWorkspaceView.title} / {operationsWorkspaceView.subtitle}
+							Audit and troubleshooting details for this collection wave. Most collection work
+							should happen in the workflow above.
 						</p>
 					</div>
 				</div>
 
-<dl class="metric-grid">
+				<dl class="metric-grid">
 					{#each operationsWorkspaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>
@@ -691,65 +622,6 @@
 					</div>
 				{/if}
 
-				<div
-					role="group"
-					aria-label="Collection selected campaign"
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">Selected campaign</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Collection state detail
-						</h3>
-					</div>
-
-					{#if operationsWorkspaceView.selectedCampaignRows.length > 0}
-						<dl class="record-grid">
-							{#each operationsWorkspaceView.selectedCampaignRows as row}
-								<div class="record-field">
-									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">{row.value}</dd>
-								</div>
-							{/each}
-						</dl>
-					{:else if operationsWorkspaceView.emptyState}
-						<p class="record-row text-sm text-[var(--color-text-muted)]">
-							<strong class="record-row__title">{operationsWorkspaceView.emptyState.title}</strong>
-							<span>{operationsWorkspaceView.emptyState.message}</span>
-						</p>
-					{/if}
-				</div>
-
-				{#if operationsWorkspaceView.launchSnapshotRows.length > 0}
-					<div
-						role="group"
-						aria-label="Launch snapshot review"
-						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-					>
-						<div>
-							<p class="product-kicker">Launch snapshot</p>
-							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Frozen launch configuration
-							</h3>
-						</div>
-
-						<dl class="record-grid">
-							{#each operationsWorkspaceView.launchSnapshotRows as row}
-								<div class="record-field">
-									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">
-										{#if row.mono}
-											<code>{row.value}</code>
-										{:else}
-											{row.value}
-										{/if}
-									</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				{/if}
-
 				{#if operationsWorkspaceView.missingPrerequisiteRows.length > 0}
 					<div
 						role="group"
@@ -772,50 +644,11 @@
 										</div>
 										<StatusBadge status={row.status} label={row.severity} />
 									</div>
-									<p class="result-line">
-										<span>Code</span>
-										<code>{row.code}</code>
-									</p>
 								</article>
 							{/each}
 						</div>
 					</div>
 				{/if}
-
-				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
-					<div>
-						<p class="product-kicker">Campaign rows</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Collection campaign context
-						</h3>
-					</div>
-
-					{#if operationsWorkspaceView.emptyState}
-						<p class="record-row text-sm text-[var(--color-text-muted)]">
-							<strong class="record-row__title">{operationsWorkspaceView.emptyState.title}</strong>
-							<span>{operationsWorkspaceView.emptyState.message}</span>
-						</p>
-					{:else}
-						<div class="record-list">
-							{#each operationsWorkspaceView.campaignRows as campaign (campaign.id)}
-								<article aria-label={campaign.title} class="record-row">
-									<div class="record-row__header">
-										<h4 class="record-row__title">{campaign.title}</h4>
-										<StatusBadge status={campaign.status} />
-									</div>
-									<dl class="record-grid">
-										{#each campaign.rows as row}
-											<div class="record-field">
-												<dt class="record-field__label">{row.label}</dt>
-												<dd class="record-field__value">{row.value}</dd>
-											</div>
-										{/each}
-									</dl>
-								</article>
-							{/each}
-						</div>
-					{/if}
-				</div>
 			</details>
 		{:else if reportsWorkspaceView}
 			{#if reportsWorkspaceView.readOnlyMessage}

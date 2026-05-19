@@ -104,6 +104,7 @@
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
 	const setupHref = $derived(`/app/campaign-series/${workspace.series.id}/setup`);
+	const resultsHref = $derived(`/app/campaign-series/${workspace.series.id}/reports`);
 	const readinessIssueGuidance = $derived(
 		readinessResult?.issues.length
 			? readinessResult.issues.map(toReadinessIssueGuidance)
@@ -733,14 +734,18 @@
 					>
 						Previous step
 					</button>
-					<button
-						type="button"
-						class="secondary-button"
-						disabled={activeActionIndex >= workflowActions.length - 1}
-						onclick={() => selectRelativeAction(1)}
-					>
-						Next step
-					</button>
+					{#if activeAction.id === 'close'}
+						<a class="secondary-button" href={resultsHref}>Go to results</a>
+					{:else}
+						<button
+							type="button"
+							class="secondary-button"
+							disabled={activeActionIndex >= workflowActions.length - 1}
+							onclick={() => selectRelativeAction(1)}
+						>
+							Next step
+						</button>
+					{/if}
 				</div>
 			</div>
 		</article>

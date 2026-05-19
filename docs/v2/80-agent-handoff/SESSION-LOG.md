@@ -18668,3 +18668,10 @@ Assessment: Owner clarified that selected audience and anonymous answers must co
 Task: Proposed ADR-0013 for anonymous invite-only distribution, updated the custom study builder feature doc, changed launch readiness so anonymous saved-audience rules validate recipient emails instead of blocking, materialized anonymous email invitation assignments from saved audience rules at launch, kept anonymous repeat-participation saved-audience invitations blocked until designed, treated queued invitations as respondent access in the Collection workflow, and clarified Setup/Collection wording around distribution identity versus response identity.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Collection details consolidation
+
+Assessment: Owner found the Collection status details, Collection guidance, and Technical collection reference sections confusing and not helpful in normal collection flow. The Collection workflow also dead-ended on the final Close collection step because Next step was disabled instead of handing off to Results.
+
+Task: Removed the separate Collection status details and Collection guidance panels from the normal Collection hub. Replaced Technical collection reference with a single collapsed Collection details panel focused on operational/troubleshooting details, removed raw prerequisite codes from that panel, and changed the final Collection workflow navigation from disabled Next step to a Go to results link.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
