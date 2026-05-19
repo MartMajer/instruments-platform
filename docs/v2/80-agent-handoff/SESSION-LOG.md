@@ -18617,3 +18617,9 @@ Assessment: The collection page still put guidance and status overview ahead of 
 Task: Reordered the operations surface so the collection workflow appears before route guidance and collection status details. Collapsed collection status, guidance, and technical reference sections below the workflow. Reordered the workflow component so the current action card appears before the step map, and fixed the step-path accessibility warning by removing the invalid button/listitem role combination.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Collection action-first staging deploy
+
+Task: Deployed the action-first collection layout to staging after commit 3666766.
+
+Verification: Initial redeploy rebuilt images and restarted containers but hit a transient web-root 502 during immediate warm-up. Follow-up checks returned API ready 200, web root 200, and /app 200. Follow-up VPS release checks passed with evidence in /tmp/collection-action-first-20260519-followup. Running web image: sha256:8327f43acd55a4a07915476405bbe40cb7342d37e25cc2ff77c431bab35ed42d.
