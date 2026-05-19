@@ -134,6 +134,11 @@ test('shows email verification recovery on registration with sign-in-specific co
 });
 
 test('shows email verification recovery after unverified workspace sign-in', async ({ page }) => {
+	const lastTenantId = '22222222-2222-4222-8222-222222222222';
+	await page.addInitScript((tenantId) => {
+		window.localStorage.setItem('instruments-platform.last-tenant-id', tenantId);
+	}, lastTenantId);
+
 	await page.unroute('**/auth/session');
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
@@ -145,7 +150,10 @@ test('shows email verification recovery after unverified workspace sign-in', asy
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
 		'Open the verification email from Auth0, then sign in again with the same account.'
 	);
-	await expect(page.getByRole('link', { name: 'Sign in after verifying email' })).toBeVisible();
+	const signInAfterVerify = page.getByRole('link', { name: 'Sign in after verifying email' });
+	await expect(signInAfterVerify).toBeVisible();
+	await expect(signInAfterVerify).toHaveAttribute('href', new RegExp(`[?&]tenantId=${lastTenantId}`));
+	await expect(signInAfterVerify).toHaveAttribute('href', /[?&]prompt=login(?:&|$)/);
 	await expect(page.getByRole('link', { name: 'Sign out completely' })).toBeVisible();
 	await expect(page.getByText('does not have access to this workspace')).toHaveCount(0);
 });

@@ -27,6 +27,7 @@
 	const primaryAuthActionLabel = $derived(hasTenantLoginTarget ? 'Sign in' : 'Create workspace');
 	const completeLogoutUrl = $derived(createProviderLogoutUrl());
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
+	const emailVerificationSignInUrl = $derived(withPromptLogin(authFailedPrimaryUrl));
 	const authFailedPrimaryLabel = $derived(
 		pendingRegistrationLoginUrl
 			? 'Try registration sign-in again'
@@ -187,6 +188,21 @@
 		window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
 	}
 
+	function withPromptLogin(url: string) {
+		try {
+			const parsedUrl = new URL(url, page.url.origin);
+			parsedUrl.searchParams.set('prompt', 'login');
+
+			if (/^https?:\/\//i.test(url)) {
+				return parsedUrl.toString();
+			}
+
+			return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+		} catch {
+			return url;
+		}
+	}
+
 	function createProviderLogoutUrl() {
 		const providerLogoutUrl = new URL(logoutUrl, page.url.origin);
 		const returnUrl = new URL(resolve('/'), page.url.origin).toString();
@@ -326,7 +342,10 @@
 		</p>
 		<div class="flex flex-wrap gap-3">
 			{#if authRecoveryRedirect}
-				<a class="primary-button" href={authFailedPrimaryUrl}>
+				<a
+					class="primary-button"
+					href={authEmailUnverifiedRedirect ? emailVerificationSignInUrl : authFailedPrimaryUrl}
+				>
 					{authEmailUnverifiedRedirect ? 'Sign in after verifying email' : authFailedPrimaryLabel}
 				</a>
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
