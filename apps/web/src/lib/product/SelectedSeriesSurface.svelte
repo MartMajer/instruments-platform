@@ -18,12 +18,10 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import ProofWorkflowSurface from '$lib/product/ProofWorkflowSurface.svelte';
 	import SelectedSeriesOperationsWorkflow from '$lib/product/SelectedSeriesOperationsWorkflow.svelte';
-	import SelectedSeriesReportSnapshot from '$lib/product/SelectedSeriesReportSnapshot.svelte';
 	import SelectedSeriesReportsWorkflow from '$lib/product/SelectedSeriesReportsWorkflow.svelte';
 	import SelectedSeriesSetupWorkflow from '$lib/product/SelectedSeriesSetupWorkflow.svelte';
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import SelectedSeriesWavesWorkflow from '$lib/product/SelectedSeriesWavesWorkflow.svelte';
-	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
 		createProductApiFromEnv,
 		createProductRequestGate,
@@ -102,14 +100,6 @@
 		setupWorkspaceView
 			? toProductRouteGuidance('setup', {
 					isSample: setupWorkspaceView.ownership.isSample,
-					canManageSetup
-				})
-			: null
-	);
-	const reportsRouteGuidance = $derived(
-		reportsWorkspaceView
-			? toProductRouteGuidance('reports', {
-					isSample: reportsWorkspaceView.ownership.isSample,
 					canManageSetup
 				})
 			: null
@@ -669,108 +659,64 @@
 			{#if reportsWorkspace}
 				<SelectedSeriesReportsWorkflow
 					workspace={reportsWorkspace}
+					widgetManifest={reportsWidgetManifest}
+					widgetWarning={reportsWidgetManifestWarning}
 					{canManageSetup}
 					onWorkspaceRefresh={() => refreshReportsWorkspace()}
 				/>
 
-				<details class="product-panel reference-context" aria-label="Results overview">
-					<summary class="record-row__title">Results status details</summary>
+				<details class="product-panel reference-context" aria-label="Results details">
+					<summary class="record-row__title">Results details</summary>
 					<div class="product-panel__header mt-4">
 						<div>
-							<p class="product-kicker">{reportsWorkspaceView.surfaceEyebrow}</p>
-							<h2 class="product-title">Results status</h2>
+							<p class="product-kicker">Results details</p>
+							<h2 class="product-title">Audit and troubleshooting</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-								{reportsWorkspaceView.surfaceDescription}
+								Use these details when results or exports are blocked. Normal review and
+								export work should happen in the workflow above.
 							</p>
 						</div>
-						<StatusBadge
-							status={reportsWorkspaceView.resultsOverview[0]?.status ?? 'not_available'}
-							label={reportsWorkspaceView.resultsOverview[0]?.badgeLabel ?? 'Unavailable'}
-						/>
 					</div>
 
-					<div class="record-list">
-						{#each reportsWorkspaceView.resultsOverview as item (item.id)}
-							<article class="record-row" aria-label={item.label}>
-								<div class="record-row__header">
-									<div>
-										<h3 class="record-row__title">{item.label}</h3>
-										<p class="text-sm text-[var(--color-text-muted)]">{item.summary}</p>
-									</div>
-									<StatusBadge status={item.status} label={item.badgeLabel} />
-								</div>
-								<p class="text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
-								{#if item.detailRows.length > 0}
-									<dl class="record-grid">
-										{#each item.detailRows as row}
-											<div class="record-field">
-												<dt class="record-field__label">{row.label}</dt>
-												<dd class="record-field__value">
-													{#if row.mono}
-														<code>{row.value}</code>
-													{:else}
-														{row.value}
-													{/if}
-												</dd>
-											</div>
-										{/each}
-									</dl>
-								{/if}
-							</article>
+					<dl class="metric-grid">
+						{#each reportsWorkspaceView.summaryRows as row}
+							<div class="metric-card">
+								<dt class="metric-card__label">{row.label}</dt>
+								<dd class="metric-card__value">{row.value}</dd>
+							</div>
 						{/each}
-					</div>
-				</details>
+					</dl>
 
-				<details class="product-panel reference-context" aria-label="Report widgets">
-					<summary class="record-row__title">Configured report widgets</summary>
-					<div class="mt-4">
-						<ReportWidgetsSection
-							manifest={reportsWidgetManifest}
-							warning={reportsWidgetManifestWarning}
-						/>
-					</div>
-				</details>
-
-				<details class="product-panel reference-context" aria-label="Report dashboard">
-					<summary class="record-row__title">Report dashboard and snapshot</summary>
-					<div class="mt-4">
-						<SelectedSeriesReportSnapshot workspace={reportsWorkspace} />
-					</div>
-				</details>
-			{/if}
-
-			{#if reportsRouteGuidance}
-				<details class="product-panel reference-context" aria-label="Results guidance">
-					<summary class="record-row__title">Results guidance</summary>
-					<div class="mt-4">
-						<RouteGuidancePanel guidance={reportsRouteGuidance} />
-					</div>
-				</details>
-			{/if}
-
-			<details
-				class="product-panel reference-context"
-				aria-label={reportsWorkspaceView.referenceTitle}
-			>
-				<summary class="record-row__title">Technical results reference</summary>
-				<div class="product-panel__header mt-4">
-					<div>
-						<p class="product-kicker">Results reference</p>
-						<h2 class="product-title">{reportsWorkspaceView.referenceTitle}</h2>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{reportsWorkspaceView.referenceDescription}
-						</p>
-					</div>
-				</div>
-
-<dl class="metric-grid">
-					{#each reportsWorkspaceView.summaryRows as row}
-						<div class="metric-card">
-							<dt class="metric-card__label">{row.label}</dt>
-							<dd class="metric-card__value">{row.value}</dd>
+					{#if reportsWorkspaceView.resultsOverview.length > 0}
+						<div
+							role="group"
+							aria-label="Results readiness"
+							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+						>
+							<div>
+								<p class="product-kicker">Readiness</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">
+									What is ready?
+								</h3>
+							</div>
+							<div class="record-list">
+								{#each reportsWorkspaceView.resultsOverview as item (item.id)}
+									<article class="record-row" aria-label={item.label}>
+										<div class="record-row__header">
+											<div>
+												<h4 class="record-row__title">{item.label}</h4>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{item.summary}
+												</p>
+											</div>
+											<StatusBadge status={item.status} label={item.badgeLabel} />
+										</div>
+										<p class="text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
+									</article>
+								{/each}
+							</div>
 						</div>
-					{/each}
-				</dl>
+					{/if}
 
 				{#if reportsWorkspaceView.scoreCoverageSignal}
 					<div
@@ -805,22 +751,19 @@
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Selected campaign</p>
+						<p class="product-kicker">Selected wave</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">Report state</h3>
 					</div>
 
-					{#if reportsWorkspaceView.selectedCampaignRows.length > 0}
+					{@const visibleSelectedCampaignRows = reportsWorkspaceView.selectedCampaignRows.filter(
+						(row) => !row.mono
+					)}
+					{#if visibleSelectedCampaignRows.length > 0}
 						<dl class="record-grid">
-							{#each reportsWorkspaceView.selectedCampaignRows as row}
+							{#each visibleSelectedCampaignRows as row}
 								<div class="record-field">
 									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">
-										{#if row.mono}
-											<code>{row.value}</code>
-										{:else}
-											{row.value}
-										{/if}
-									</dd>
+									<dd class="record-field__value">{row.value}</dd>
 								</div>
 							{/each}
 						</dl>
@@ -835,26 +778,23 @@
 				{#if reportsWorkspaceView.provenanceRows.length > 0}
 					<div
 						role="group"
-						aria-label="Results provenance"
+						aria-label="Results source context"
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Provenance</p>
+							<p class="product-kicker">Based on</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Launch, policy, and export state
+								Launch, policy, and export context
 							</h3>
 						</div>
+						{@const visibleProvenanceRows = reportsWorkspaceView.provenanceRows.filter(
+							(row) => !row.mono
+						)}
 						<dl class="record-grid">
-							{#each reportsWorkspaceView.provenanceRows as row}
+							{#each visibleProvenanceRows as row}
 								<div class="record-field">
 									<dt class="record-field__label">{row.label}</dt>
-									<dd class="record-field__value">
-										{#if row.mono}
-											<code>{row.value}</code>
-										{:else}
-											{row.value}
-										{/if}
-									</dd>
+									<dd class="record-field__value">{row.value}</dd>
 								</div>
 							{/each}
 						</dl>
@@ -883,10 +823,6 @@
 										</div>
 										<StatusBadge status={row.status} label={row.severity} />
 									</div>
-									<p class="result-line">
-										<span>Code</span>
-										<code>{row.code}</code>
-									</p>
 								</article>
 							{/each}
 						</div>
@@ -895,9 +831,9 @@
 
 				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
 					<div>
-						<p class="product-kicker">Campaign rows</p>
+						<p class="product-kicker">Waves</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Results campaign context
+							Included result waves
 						</h3>
 					</div>
 
@@ -914,17 +850,12 @@
 										<h4 class="record-row__title">{campaign.title}</h4>
 										<StatusBadge status={campaign.status} />
 									</div>
+									{@const visibleCampaignRows = campaign.rows.filter((row) => !row.mono)}
 									<dl class="record-grid">
-										{#each campaign.rows as row}
+										{#each visibleCampaignRows as row}
 											<div class="record-field">
 												<dt class="record-field__label">{row.label}</dt>
-												<dd class="record-field__value">
-													{#if row.mono}
-														<code>{row.value}</code>
-													{:else}
-														{row.value}
-													{/if}
-												</dd>
+												<dd class="record-field__value">{row.value}</dd>
 											</div>
 										{/each}
 									</dl>
@@ -934,6 +865,7 @@
 					{/if}
 				</div>
 			</details>
+			{/if}
 		{:else if wavesWorkspaceView}
 			{#if wavesWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">

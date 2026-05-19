@@ -18675,3 +18675,18 @@ Assessment: Owner found the Collection status details, Collection guidance, and 
 Task: Removed the separate Collection status details and Collection guidance panels from the normal Collection hub. Replaced Technical collection reference with a single collapsed Collection details panel focused on operational/troubleshooting details, removed raw prerequisite codes from that panel, and changed the final Collection workflow navigation from disabled Next step to a Go to results link.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Results hub widget-led cleanup
+
+Assessment: Owner wanted the Results hub cleaned up like Collection, but did not want to lose the widget design. The competing Results status, widget, snapshot, guidance, and technical-reference panels made the page feel like admin/debug UI instead of a researcher workflow.
+
+Task: Moved result widgets into the Review results workflow step as the primary preview, renamed proof/artifact language to results/export-file wording, removed raw ids from the normal Results workflow, changed the final CSV step to hand off to Waves, and consolidated the separate Results panels into one collapsed Results details section with codes and mono/id rows hidden from normal display.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Results CSV browser download
+
+Assessment: The Results workflow Download CSV action fetched CSV content from the API and showed a preview, but it did not trigger the browser download behavior researchers expect.
+
+Task: Updated the Download CSV action to create a CSV Blob from the API response, click a temporary download link with the returned file name, and revoke the object URL after the browser receives it. The preview remains available after download.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.

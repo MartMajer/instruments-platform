@@ -4,24 +4,49 @@
 
 	let {
 		manifest,
-		warning
+		warning,
+		embedded = false
 	}: {
 		manifest: CampaignSeriesReportsWidgetManifestResponse | null;
 		warning?: string | null;
+		embedded?: boolean;
 	} = $props();
 </script>
 
-<section class="product-panel" data-priority="trust" aria-label="Report widgets">
-	<div class="product-panel__header">
-		<div>
-			<p class="product-kicker">Report dashboard</p>
-			<h3 class="product-title">Configured result widgets</h3>
+{#if embedded}
+	<div
+		class="score-result-panel report-proof-panel"
+		data-priority="trust"
+		role="group"
+		aria-label="Results preview widgets"
+	>
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">Results preview</p>
+				<h4 class="record-row__title">Current result widgets</h4>
+			</div>
+			{#if manifest}
+				<span class="status-badge" data-status="ready">Preview ready</span>
+			{/if}
 		</div>
-		{#if manifest}
-			<span class="status-badge" data-status="ready">{manifest.layout.density}</span>
-		{/if}
+		{@render WidgetBody()}
 	</div>
+{:else}
+	<section class="product-panel" data-priority="trust" aria-label="Report widgets">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">Results preview</p>
+				<h3 class="product-title">Result widgets</h3>
+			</div>
+			{#if manifest}
+				<span class="status-badge" data-status="ready">Ready</span>
+			{/if}
+		</div>
+		{@render WidgetBody()}
+	</section>
+{/if}
 
+{#snippet WidgetBody()}
 	{#if warning}
 		<p class="error-line">{warning}</p>
 	{/if}
@@ -35,8 +60,12 @@
 		</div>
 	{:else}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
-			<strong class="record-row__title">Widget manifest unavailable</strong>
-			<span>Existing report panels remain available.</span>
+			<strong class="record-row__title">Results preview unavailable</strong>
+			<span>
+				{warning
+					? 'The export workflow can still be used while the preview is unavailable.'
+					: 'The results preview is loading.'}
+			</span>
 		</p>
 	{/if}
-</section>
+{/snippet}

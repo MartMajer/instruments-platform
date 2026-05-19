@@ -81,7 +81,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			id: 'reportProof',
 			step: 'Step 1',
 			title: 'Review results',
-			description: 'Open the disclosure-safe aggregate result view for the selected wave.',
+			description: 'Preview disclosure-safe result widgets for the selected wave.',
 			status: toReportProofStatus(hasCampaign, reportable, reportProofViewed),
 			available: reportable,
 			disabledReason: toReportProofDisabledReason(hasCampaign, reportable)
@@ -90,7 +90,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			id: 'exportArtifact',
 			step: 'Step 2',
 			title: 'Create report export',
-			description: 'Create the governed CSV and codebook for the aggregate report.',
+			description: 'Create the aggregate results CSV and codebook.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -109,7 +109,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			id: 'responseExport',
 			step: 'Step 3',
 			title: 'Create response export',
-			description: 'Create the governed response-level CSV and codebook for this study.',
+			description: 'Create analysis-ready response rows and a codebook for this study.',
 			status: toResponseExportStatus(hasCampaign, reportable, reportProofViewed, hasResponseExport),
 			available:
 				reportable && reportProofViewed && !responseExportCreated && !hasExistingResponseExport,
@@ -129,7 +129,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			status: toArtifactStatus(hasCampaign, hasExport, artifactFetched),
 			available: hasCampaign && hasExport,
 			disabledReason:
-				hasCampaign && hasExport ? null : 'Create or select an export artifact before fetching it.'
+				hasCampaign && hasExport ? null : 'Create or select an export file before reviewing it.'
 		},
 		{
 			id: 'downloadCsv',
@@ -141,10 +141,10 @@ export function toSelectedSeriesReportsWorkflowActions(
 			disabledReason: hasDownloadableExport
 				? hasCampaign
 					? null
-					: 'Create or select an export artifact before downloading CSV.'
+					: 'Create or select an export file before downloading CSV.'
 				: hasExport
-					? 'Select a downloadable export artifact before downloading CSV.'
-					: 'Create or select an export artifact before downloading CSV.'
+					? 'Select a downloadable export file before downloading CSV.'
+					: 'Create or select an export file before downloading CSV.'
 		}
 	];
 }
@@ -215,22 +215,22 @@ function toResponseExportDisabledReason(
 	hasExistingResponseExport: boolean
 ) {
 	if (!hasCampaign) {
-		return 'View report preview before creating a response export artifact.';
+		return 'Review results before creating a response export.';
 	}
 
 	if (!reportable) {
-		return 'Resolve report prerequisites before creating a response export artifact.';
+		return 'Resolve report prerequisites before creating a response export.';
 	}
 
 	if (responseExportCreated) {
-		return 'Response export artifact was created in this session.';
+		return 'Response export was created in this session.';
 	}
 
 	if (hasExistingResponseExport) {
-		return 'Response export artifact already exists for this series.';
+		return 'Response export already exists for this study.';
 	}
 
-	return reportProofViewed ? null : 'View report preview before creating a response export artifact.';
+	return reportProofViewed ? null : 'Review results before creating a response export.';
 }
 
 function toReportProofStatus(
@@ -251,10 +251,10 @@ function toReportProofStatus(
 
 function toReportProofDisabledReason(hasCampaign: boolean, reportable: boolean) {
 	if (!hasCampaign) {
-		return 'Create or select a campaign before reviewing the report preview.';
+		return 'Create or select a wave before reviewing results.';
 	}
 
-	return reportable ? null : 'Resolve report prerequisites before reviewing the report preview.';
+	return reportable ? null : 'Resolve report prerequisites before reviewing results.';
 }
 
 function toExportStatus(
@@ -285,18 +285,18 @@ function toExportDisabledReason(
 	exportCreated: boolean
 ) {
 	if (!hasCampaign) {
-		return 'View report preview before creating an export artifact.';
+		return 'Review results before creating a report export.';
 	}
 
 	if (!reportable) {
-		return 'Resolve report prerequisites before creating an export artifact.';
+		return 'Resolve report prerequisites before creating a report export.';
 	}
 
 	if (exportCreated) {
-		return 'Export artifact was created in this session.';
+		return 'Report export was created in this session.';
 	}
 
-	return reportProofViewed ? null : 'View report preview before creating an export artifact.';
+	return reportProofViewed ? null : 'Review results before creating a report export.';
 }
 
 function toArtifactStatus(

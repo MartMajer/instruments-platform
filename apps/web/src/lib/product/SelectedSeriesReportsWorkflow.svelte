@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { Download, FileSearch, LoaderCircle, Send } from 'lucide-svelte';
-	import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
+	import type {
+		CampaignSeriesReportsWidgetManifestResponse,
+		CampaignSeriesReportsWorkspaceResponse
+	} from '$lib/api/product';
 	import type {
 		CampaignReportProofResponse,
 		ExportArtifactDownloadResponse,
 		ReportProofExportArtifactResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
 		toSelectedSeriesReportsPath,
 		type SelectedSeriesReportsPathStepState,
@@ -20,10 +24,14 @@
 
 	let {
 		workspace,
+		widgetManifest = null,
+		widgetWarning = null,
 		canManageSetup = true,
 		onWorkspaceRefresh
 	}: {
 		workspace: CampaignSeriesReportsWorkspaceResponse;
+		widgetManifest?: CampaignSeriesReportsWidgetManifestResponse | null;
+		widgetWarning?: string | null;
 		canManageSetup?: boolean;
 		onWorkspaceRefresh?: () => Promise<boolean>;
 	} = $props();
@@ -79,6 +87,15 @@
 				: null) ??
 			null
 	);
+	const currentExportFileName = $derived(
+		storedExportResult?.fileName ??
+			responseExportResult?.fileName ??
+			exportResult?.fileName ??
+			latestResponseExportArtifact?.fileName ??
+			selectedCampaign?.latestExportArtifactFileName ??
+			latestDownloadableExportArtifact?.fileName ??
+			null
+	);
 	const localState = $derived({
 		reportProofViewed: Boolean(reportProofResult),
 		exportCreated: Boolean(exportResult),
@@ -89,15 +106,7 @@
 	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
-	const hasReportResults = $derived(
-		Boolean(
-			reportProofResult ||
-			exportResult ||
-			responseExportResult ||
-			storedExportResult ||
-			downloadResult
-		)
-	);
+	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);
 
 	function scoreInterpretationMeta(
 		interpretation:
@@ -115,8 +124,8 @@
 		}
 
 		return [
-			interpretation.status.replaceAll('_', ' '),
-			interpretation.source.replaceAll('_', ' '),
+			humanize(interpretation.status),
+			humanize(interpretation.source),
 			interpretation.isValidated ? 'validated' : 'not validated',
 			interpretation.isOfficial ? 'official' : 'not official'
 		].join(' / ');
@@ -126,7 +135,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				reportProof: 'Create or select a campaign before reviewing the report preview.'
+				reportProof: 'Create or select a wave before reviewing results.'
 			};
 			return;
 		}
@@ -148,7 +157,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				exportArtifact: 'Create or select a campaign before creating an export artifact.'
+				exportArtifact: 'Create or select a wave before creating a report export.'
 			};
 			return;
 		}
@@ -172,7 +181,7 @@
 			actionErrors = {
 				...actionErrors,
 				responseExport:
-					'Create or select a campaign series before creating a response export artifact.'
+					'Create or select a study before creating a response export.'
 			};
 			return;
 		}
@@ -194,7 +203,7 @@
 		if (!currentExportArtifactId) {
 			actionErrors = {
 				...actionErrors,
-				fetchArtifact: 'Create or select an export artifact before fetching it.'
+				fetchArtifact: 'Create or select an export file before reviewing it.'
 			};
 			return;
 		}
@@ -214,8 +223,8 @@
 			actionErrors = {
 				...actionErrors,
 				downloadCsv: currentExportArtifactId
-					? 'Select a downloadable export artifact before downloading CSV.'
-					: 'Create or select an export artifact before downloading CSV.'
+					? 'Select a downloadable export file before downloading CSV.'
+					: 'Create or select an export file before downloading CSV.'
 			};
 			return;
 		}
@@ -226,6 +235,7 @@
 
 		if (result) {
 			downloadResult = result;
+			triggerCsvDownload(result);
 		}
 	}
 
@@ -299,8 +309,31 @@
 		return value === null ? 'suppressed' : value.toFixed(2);
 	}
 
+	function humanize(value: string | null | undefined) {
+		return value ? value.replaceAll('_', ' ') : 'Not available';
+	}
+
 	function csvPreview(content: string | null | undefined) {
 		return (content ?? '').trim().split(/\r?\n/).slice(0, 6).join('\n');
+	}
+
+	function triggerCsvDownload(result: ExportArtifactDownloadResponse) {
+		if (typeof document === 'undefined') {
+			return;
+		}
+
+		const blob = new Blob([result.content ?? ''], {
+			type: result.contentType || 'text/csv;charset=utf-8'
+		});
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = result.fileName || 'results.csv';
+		anchor.rel = 'noopener';
+		document.body.append(anchor);
+		anchor.click();
+		anchor.remove();
+		window.setTimeout(() => URL.revokeObjectURL(url), 0);
 	}
 </script>
 
@@ -364,30 +397,39 @@
 				{#if currentAction.id === 'reportProof'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Selected campaign</dt>
+							<dt class="record-field__label">Selected wave</dt>
 							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Report status</dt>
-							<dd class="record-field__value">{selectedCampaign?.reportStatus ?? 'Missing'}</dd>
+							<dt class="record-field__label">Preview status</dt>
+							<dd class="record-field__value">
+								{selectedCampaign?.reportStatus === 'proof_only'
+									? 'Ready for review'
+									: 'Finish setup first'}
+							</dd>
 						</div>
 						<div class="record-field">
 							<dt class="record-field__label">Interpretation</dt>
 							<dd class="record-field__value">
-								{reportProofResult?.interpretationStatus ??
-									selectedCampaign?.interpretationStatus ??
-									'Missing'}
+								{humanize(
+									reportProofResult?.interpretationStatus ?? selectedCampaign?.interpretationStatus
+								)}
 							</dd>
 						</div>
 					</dl>
+					<ReportWidgetsSection
+						manifest={widgetManifest}
+						warning={widgetWarning}
+						embedded={true}
+					/>
 					{#if reportProofResult}
 						{@render ReportProofResult()}
 					{/if}
 					{@render ActionFooter({
 						id: 'reportProof',
-						label: 'View report preview',
-						resultLabel: 'Campaign',
-						resultValue: reportProofResult?.campaignId ?? selectedCampaign?.id ?? null,
+						label: 'Review results',
+						resultLabel: 'Preview',
+						resultValue: reportProofResult ? 'Ready' : null,
 						onclick: viewReportProof
 					})}
 				{:else if currentAction.id === 'exportArtifact'}
@@ -408,16 +450,17 @@
 					{#if exportResult}
 						{@render ExportArtifactResult({
 							result: exportResult,
-							ariaLabel: 'Export artifact result',
-							kicker: 'Proof/local export',
-							title: 'CSV and codebook artifact'
+							ariaLabel: 'Report export result',
+							kicker: 'Report export',
+							title: 'Aggregate CSV and codebook'
 						})}
 					{/if}
 					{@render ActionFooter({
 						id: 'exportArtifact',
-						label: 'Create export artifact',
-						resultLabel: 'Artifact',
-						resultValue: exportResult?.id ?? selectedCampaign?.latestExportArtifactId ?? null,
+						label: 'Create report export',
+						resultLabel: 'Export file',
+						resultValue:
+							exportResult?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null,
 						onclick: createExportArtifact
 					})}
 				{:else if currentAction.id === 'responseExport'}
@@ -439,27 +482,28 @@
 						{@render ExportArtifactResult({
 							result: responseExportResult,
 							ariaLabel: 'Response export result',
-							kicker: 'Proof/local response export',
-							title: 'Response CSV and codebook artifact'
+							kicker: 'Response export',
+							title: 'Response CSV and codebook'
 						})}
 					{/if}
 					{@render ActionFooter({
 						id: 'responseExport',
 						label: 'Create response export',
-						resultLabel: 'Response artifact',
-						resultValue: responseExportResult?.id ?? latestResponseExportArtifactId,
+						resultLabel: 'Response file',
+						resultValue:
+							responseExportResult?.fileName ?? latestResponseExportArtifact?.fileName ?? null,
 						onclick: createResponseExportArtifact
 					})}
 				{:else if currentAction.id === 'fetchArtifact'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Export artifact</dt>
-							<dd class="record-field__value">{currentExportArtifactId ?? 'Not available'}</dd>
+							<dt class="record-field__label">Export file</dt>
+							<dd class="record-field__value">{currentExportFileName ?? 'Not available'}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Downloadable artifact</dt>
+							<dt class="record-field__label">Download status</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ?? 'Not available'}
+								{currentDownloadableExportArtifactId ? 'Ready to download' : 'Not ready'}
 							</dd>
 						</div>
 					</dl>
@@ -468,17 +512,17 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'fetchArtifact',
-						label: 'Fetch stored artifact',
-						resultLabel: 'Stored artifact',
-						resultValue: storedExportResult?.id ?? currentExportArtifactId,
+						label: 'Review export file',
+						resultLabel: 'Reviewed file',
+						resultValue: storedExportResult?.fileName ?? currentExportFileName,
 						onclick: fetchStoredArtifact
 					})}
 				{:else}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Downloadable artifact</dt>
+							<dt class="record-field__label">Download status</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ?? 'Not available'}
+								{currentDownloadableExportArtifactId ? 'Ready to download' : 'Not ready'}
 							</dd>
 						</div>
 						<div class="record-field">
@@ -497,56 +541,17 @@
 					{@render ActionFooter({
 						id: 'downloadCsv',
 						label: 'Download CSV',
-						resultLabel: 'Downloaded artifact',
-						resultValue: downloadResult?.artifactId ?? currentDownloadableExportArtifactId,
+						resultLabel: 'Downloaded file',
+						resultValue:
+							downloadResult?.fileName ??
+							latestDownloadableExportArtifact?.fileName ??
+							selectedCampaign?.latestExportArtifactFileName ??
+							null,
 						onclick: downloadCsv
 					})}
 				{/if}
 			</div>
 		</article>
-
-		{#if hasReportResults}
-			<details class="record-row" aria-label="Latest results action details">
-				<summary class="record-row__title">Latest action details</summary>
-				<div class="record-list mt-4" aria-label="Latest reports results">
-				{#if reportProofResult}
-					<article class="record-row" aria-label="Latest report preview result">
-						{@render ReportProofResult()}
-					</article>
-				{/if}
-				{#if exportResult}
-					<article class="record-row" aria-label="Latest export artifact result">
-						{@render ExportArtifactResult({
-							result: exportResult,
-							ariaLabel: 'Export artifact result',
-							kicker: 'Proof/local export',
-							title: 'CSV and codebook artifact'
-						})}
-					</article>
-				{/if}
-				{#if responseExportResult}
-					<article class="record-row" aria-label="Latest response export result">
-						{@render ExportArtifactResult({
-							result: responseExportResult,
-							ariaLabel: 'Response export result',
-							kicker: 'Proof/local response export',
-							title: 'Response CSV and codebook artifact'
-						})}
-					</article>
-				{/if}
-				{#if storedExportResult}
-					<article class="record-row" aria-label="Latest stored artifact result">
-						{@render StoredArtifactResult()}
-					</article>
-				{/if}
-				{#if downloadResult}
-					<article class="record-row" aria-label="Latest CSV download result">
-						{@render CsvDownloadResult()}
-					</article>
-				{/if}
-				</div>
-			</details>
-		{/if}
 	{/if}
 </section>
 
@@ -555,15 +560,15 @@
 		<section class="score-result-panel report-proof-panel" aria-label="Report preview">
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Proof/local report</p>
-					<h4 class="record-row__title">Aggregate score projection</h4>
+					<p class="product-kicker">Results preview</p>
+					<h4 class="record-row__title">Aggregate result preview</h4>
 				</div>
-				<StatusBadge status="proof_only" label="Proof/local" />
+				<StatusBadge status="ready" label="Preview ready" />
 			</div>
 			<div class="response-lab__meta">
-				<span>{reportProofResult.proofStatus}</span>
-				<span>{reportProofResult.launchSnapshot.responseIdentityMode}</span>
-				<span>Disclosure k={reportProofResult.disclosurePolicy.kMin}</span>
+				<span>Preview ready</span>
+				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} responses</span>
+				<span>Minimum group {reportProofResult.disclosurePolicy.kMin}</span>
 			</div>
 			<div class="score-card-list" aria-label="Report preview scores">
 				{#each reportProofResult.scores as score (score.dimensionCode)}
@@ -586,7 +591,7 @@
 								{formatNullableScoreValue(score.mean)}
 							</p>
 						</div>
-						<p class="score-card__meta">{score.disclosure}</p>
+						<p class="score-card__meta">{humanize(score.disclosure)}</p>
 						<p class="score-card__interpretation">
 							scores={score.scoreCount ?? 'suppressed'}
 						</p>
@@ -618,22 +623,23 @@
 	title: string;
 })}
 	<section class="score-result-panel report-proof-panel" aria-label={ariaLabel}>
-		<div class="score-result-panel__header">
-			<div>
-				<p class="product-kicker">{kicker}</p>
-				<h4 class="record-row__title">{title}</h4>
-			</div>
-			<StatusBadge status="proof_only" label="Proof/local" />
+			<div class="score-result-panel__header">
+				<div>
+					<p class="product-kicker">{kicker}</p>
+					<h4 class="record-row__title">{title}</h4>
+				</div>
+			<StatusBadge
+				status={result.canDownload ? 'ready' : 'pending'}
+				label={result.canDownload ? 'Export ready' : 'Preparing'}
+			/>
 		</div>
 		<div class="response-lab__meta">
-			<span>{result.artifactType}</span>
-			<span>{result.status}</span>
-			<span>rows {result.rowCount}</span>
+			<span>Export file</span>
+			<span>{result.canDownload ? 'Ready to download' : humanize(result.status)}</span>
+			<span>{result.rowCount} rows</span>
 		</div>
 		<div class="score-result-panel__footer">
-			{@render ResultLine({ label: 'Artifact', value: result.id })}
 			{@render ResultLine({ label: 'File', value: result.fileName })}
-			{@render ResultLine({ label: 'Checksum', value: result.checksumSha256 })}
 		</div>
 		{#if csvPreview(result.csvContent)}
 			<pre class="csv-preview">{csvPreview(result.csvContent)}</pre>
@@ -645,12 +651,18 @@
 	{#if storedExportResult}
 		<dl class="record-grid">
 			<div class="record-field">
-				<dt class="record-field__label">Stored artifact</dt>
-				<dd class="record-field__value">{storedExportResult.id}</dd>
+				<dt class="record-field__label">Export file</dt>
+				<dd class="record-field__value">{storedExportResult.fileName}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Stored file</dt>
-				<dd class="record-field__value">{storedExportResult.fileName}</dd>
+				<dt class="record-field__label">Rows</dt>
+				<dd class="record-field__value">{storedExportResult.rowCount}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">Download status</dt>
+				<dd class="record-field__value">
+					{storedExportResult.canDownload ? 'Ready to download' : humanize(storedExportResult.status)}
+				</dd>
 			</div>
 		</dl>
 	{/if}
@@ -704,6 +716,9 @@
 		</button>
 		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
 		{@render ResultLine({ label: resultLabel, value: resultValue })}
+		{#if id === 'downloadCsv'}
+			<a class="secondary-button" href={wavesHref}>Go to waves</a>
+		{/if}
 	</div>
 	{#if actionErrors[id]}
 		<p class="error-line">{actionErrors[id]}</p>
@@ -714,7 +729,7 @@
 	{#if value}
 		<p class="result-line">
 			<span>{label}</span>
-			<code>{value}</code>
+			<span>{value}</span>
 		</p>
 	{/if}
 {/snippet}
