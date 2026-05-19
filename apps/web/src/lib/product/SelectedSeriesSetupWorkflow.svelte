@@ -91,8 +91,9 @@
 		validityLabel: 'tenant_provided',
 		licenseType: 'unknown'
 	});
-	let templateName = $state(`Tenant burnout pulse template ${initialSetupRunSuffix}`);
-	let sectionTitle = $state('Core');
+	let templateName = $state('Study questionnaire');
+	let questionnaireLocale = $state('en');
+	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
 	let scoringDocumentManuallyEdited = $state(false);
 	let scoringForm = $state({
@@ -164,6 +165,9 @@
 	const selectedCampaignLabel = $derived(
 		workspace.selectedCampaign?.name?.trim() ||
 			(selectedCampaignId ? 'Draft campaign selected' : 'No campaign selected')
+	);
+	const questionnaireQuestionCount = $derived(
+		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
 	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
 	const previewRequiresTarget = $derived(
@@ -499,7 +503,7 @@
 		return {
 			templateName,
 			semver: '1.0.0',
-			defaultLocale: 'en',
+			defaultLocale: questionnaireLocale,
 			instrumentId: instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
 			sections: [{ ordinal: 1, code: 'core', titleDefault: sectionTitle }],
 			scales: [
@@ -871,133 +875,183 @@
 						})}
 					{/if}
 				{:else if activeActionId === 'template'}
-					<div class="grid gap-4 lg:grid-cols-2">
-						<label class="field">
-							<span>Template name</span>
-							<input bind:value={templateName} />
-						</label>
-						<label class="field">
-							<span>Section title</span>
-							<input bind:value={sectionTitle} />
-						</label>
-					</div>
-					<div class="mt-4 grid gap-3">
-						{#each templateQuestionRows as question, index (question.ordinal)}
-							<div class="question-row">
-								<div class="grid gap-3 lg:grid-cols-[minmax(6rem,8rem)_minmax(7rem,9rem)_minmax(0,1fr)]">
-									<label class="field">
-										<span>Code</span>
-										<input
-											value={question.code}
-											oninput={(event) =>
-												updateTemplateQuestionRow(index, {
-													code: event.currentTarget.value
-												})}
-										/>
-									</label>
-									<label class="field">
-										<span>Type</span>
-										<select
-											value={question.type}
-											onchange={(event) =>
-												updateTemplateQuestionRow(index, {
-													type: event.currentTarget.value
-												})}
-										>
-											<option value="likert">Likert</option>
-											<option value="text">Text</option>
-											<option value="number">Number</option>
-										</select>
-									</label>
-									<label class="field">
-										<span>Question {question.ordinal}</span>
-										<textarea
-											rows="2"
-											value={question.textDefault}
-											oninput={(event) =>
-												updateTemplateQuestionRow(index, {
-													textDefault: event.currentTarget.value
-												})}
-										></textarea>
-									</label>
+					{#if activeStep.pathState === 'done'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<h5 class="record-row__title">Questionnaire ready</h5>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{questionnaireQuestionCount}
+										{questionnaireQuestionCount === 1 ? 'question is' : 'questions are'} saved.
+										Continue to scoring.
+									</p>
 								</div>
-								<div class="action-row">
-									<label class="checkbox-field">
-										<input
-											type="checkbox"
-											checked={question.required}
-											onchange={(event) =>
-												updateTemplateQuestionRow(index, {
-													required: event.currentTarget.checked
-												})}
-										/>
-										<span>Required</span>
-									</label>
-									<label class="checkbox-field">
-										<input
-											type="checkbox"
-											checked={question.reverseCoded}
-											disabled={question.type !== 'likert'}
-											onchange={(event) =>
-												updateTemplateQuestionRow(index, {
-													reverseCoded: event.currentTarget.checked
-												})}
-										/>
-										<span>Reverse coded</span>
-									</label>
-									<button
-										type="button"
-										class="secondary-button"
-										disabled={index === 0}
-										title="Move question up"
-										onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
-									>
-										<ArrowUp size={16} aria-hidden="true" />
-										<span>Move up</span>
-									</button>
-									<button
-										type="button"
-										class="secondary-button"
-										disabled={index === templateQuestionRows.length - 1}
-										title="Move question down"
-										onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
-									>
-										<ArrowDown size={16} aria-hidden="true" />
-										<span>Move down</span>
-									</button>
-									<button
-										type="button"
-										class="secondary-button"
-										disabled={templateQuestionRows.length <= 1}
-										title="Remove question"
-										onclick={() => deleteTemplateQuestionRow(question.code)}
-									>
-										<Trash2 size={16} aria-hidden="true" />
-										<span>Remove</span>
-									</button>
-								</div>
+								<StatusBadge status="ready" label="Done" />
 							</div>
-						{/each}
-					</div>
-					<div class="action-row">
-						<button type="button" class="secondary-button" onclick={addTemplateQuestionRow}>
-							<Plus size={16} aria-hidden="true" />
-							<span>Add question</span>
-						</button>
-					</div>
-					{#if templateQuestionErrors.length > 0}
-						<ul class="grid gap-1" aria-label="Template question errors">
-							{#each templateQuestionErrors as error}
-								<li class="error-line">{error}</li>
+						</div>
+					{:else}
+						<div class="grid gap-4 lg:grid-cols-2">
+							<label class="field">
+								<span>Questionnaire name</span>
+								<input bind:value={templateName} />
+							</label>
+							<label class="field">
+								<span>Language</span>
+								<select bind:value={questionnaireLocale}>
+									<option value="en">English</option>
+									<option value="hr">Croatian</option>
+								</select>
+							</label>
+						</div>
+						<div class="mt-4 grid gap-4">
+							{#each templateQuestionRows as question, index (question.ordinal)}
+								<div class="question-row">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">Question {index + 1}</p>
+											<h5 class="record-row__title">
+												{question.textDefault.trim() || 'Untitled question'}
+											</h5>
+										</div>
+										<StatusBadge
+											status="neutral"
+											label={question.type === 'likert'
+												? '1-5 scale'
+												: question.type === 'number'
+													? 'Number'
+													: 'Text'}
+										/>
+									</div>
+									<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
+										<label class="field">
+											<span>Question text</span>
+											<textarea
+												rows="2"
+												value={question.textDefault}
+												oninput={(event) =>
+													updateTemplateQuestionRow(index, {
+														textDefault: event.currentTarget.value
+													})}
+											></textarea>
+										</label>
+										<label class="field">
+											<span>Answer format</span>
+											<select
+												value={question.type}
+												onchange={(event) =>
+													updateTemplateQuestionRow(index, {
+														type: event.currentTarget.value,
+														reverseCoded:
+															event.currentTarget.value === 'likert' ? question.reverseCoded : false
+													})}
+											>
+												<option value="likert">1-5 agreement scale</option>
+												<option value="text">Open text</option>
+												<option value="number">Number</option>
+											</select>
+										</label>
+									</div>
+									<div class="action-row">
+										<label class="checkbox-field">
+											<input
+												type="checkbox"
+												checked={question.required}
+												onchange={(event) =>
+													updateTemplateQuestionRow(index, {
+														required: event.currentTarget.checked
+													})}
+											/>
+											<span>Required</span>
+										</label>
+										{#if question.type === 'likert'}
+											<label class="checkbox-field">
+												<input
+													type="checkbox"
+													checked={question.reverseCoded}
+													onchange={(event) =>
+														updateTemplateQuestionRow(index, {
+															reverseCoded: event.currentTarget.checked
+														})}
+												/>
+												<span>Reverse scored</span>
+											</label>
+										{/if}
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={index === 0}
+											title="Move question up"
+											onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
+										>
+											<ArrowUp size={16} aria-hidden="true" />
+											<span>Move up</span>
+										</button>
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={index === templateQuestionRows.length - 1}
+											title="Move question down"
+											onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
+										>
+											<ArrowDown size={16} aria-hidden="true" />
+											<span>Move down</span>
+										</button>
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={templateQuestionRows.length <= 1}
+											title="Remove question"
+											onclick={() => deleteTemplateQuestionRow(question.code)}
+										>
+											<Trash2 size={16} aria-hidden="true" />
+											<span>Remove</span>
+										</button>
+									</div>
+								</div>
 							{/each}
-						</ul>
+						</div>
+						<div class="action-row">
+							<button type="button" class="secondary-button" onclick={addTemplateQuestionRow}>
+								<Plus size={16} aria-hidden="true" />
+								<span>Add question</span>
+							</button>
+						</div>
+						<div class="record-row">
+							<h5 class="record-row__title">Respondent preview</h5>
+							<div class="grid gap-3">
+								{#each templateQuestionRows as question, index (question.ordinal)}
+									<div class="record-field">
+										<p class="record-field__label">Question {index + 1}</p>
+										<p class="record-field__value">
+											{question.textDefault.trim() || 'Question text'}
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{#if question.type === 'likert'}
+												1 to 5 agreement scale
+											{:else if question.type === 'number'}
+												Number response
+											{:else}
+												Open text response
+											{/if}
+										</p>
+									</div>
+								{/each}
+							</div>
+						</div>
+						{#if templateQuestionErrors.length > 0}
+							<ul class="grid gap-1" aria-label="Questionnaire errors">
+								{#each templateQuestionErrors as error}
+									<li class="error-line">{error}</li>
+								{/each}
+							</ul>
+						{/if}
+						{@render ActionFooter({
+							id: 'template',
+							label: 'Save questionnaire',
+							icon: 'send',
+							onclick: createTemplateVersion
+						})}
 					{/if}
-					{@render ActionFooter({
-						id: 'template',
-						label: 'Create instrument template',
-						icon: 'send',
-						onclick: createTemplateVersion
-					})}
 				{:else if activeActionId === 'scoring'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">

@@ -18550,3 +18550,11 @@ Assessment: Owner identified the first setup step as still reading like a develo
 Task: Reframed the first setup step as `Instrument`, changed the description to user-facing study setup language, hid internal code/rights/validity/provenance fields from the normal form, showed a compact `Instrument ready` state when the step is already done, changed the action to `Save instrument`, and removed the generated setup defaults drawer from the wizard.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+
+## 2026-05-19 - setup questionnaire step reimagining
+
+Assessment: Owner identified the second setup step as too hard and unintuitive. The visible form exposed template/version/section-code style concepts instead of helping the user build the actual respondent questionnaire.
+
+Task: Reframed the step from `Instrument template` to `Questionnaire`, changed setup blockers to refer to saving the questionnaire, reduced the top form to questionnaire name and language, redesigned question editing as plain question cards with answer format, required, reverse-scored, ordering, and removal controls, added a compact respondent preview, changed the action to `Save questionnaire`, and added a `Questionnaire ready` done state.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.

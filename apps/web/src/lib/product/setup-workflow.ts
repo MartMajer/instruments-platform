@@ -62,9 +62,9 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'template',
 			step: 'Step 2',
-			title: 'Instrument template',
+			title: 'Questionnaire',
 			description:
-				'Create the first questionnaire template. Campaigns use a selected template, and you can add more templates or versions later.',
+				'Build the questions respondents will answer in this study.',
 			status: templateVersionId ? 'ready' : 'blocked',
 			available: true,
 			disabledReason: null
@@ -73,10 +73,10 @@ export function toSelectedSeriesSetupWorkflowActions(
 			id: 'scoring',
 			step: 'Step 3',
 			title: 'Scoring rule',
-			description: 'Attach a scoring rule to the selected or newly created instrument template.',
+			description: 'Attach a scoring rule to the questionnaire.',
 			status: scoringConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Create or select an instrument template first.'
+			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
 		},
 		{
 			id: 'campaign',
@@ -85,7 +85,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 			description: 'Create a draft campaign inside the selected route campaign series.',
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Create or select an instrument template first.'
+			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
 		},
 		{
 			id: 'readiness',
