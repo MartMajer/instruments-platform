@@ -48,6 +48,9 @@
 - Run the focused tests created for QB01.
 - Run frontend build or type check only if touched frontend behavior requires it.
 
+**Result - 2026-05-20:**
+- Complete. Added respondent payload to the API contract, rendered all exposed beta formats through the respondent SurveyJS adapter, normalized JSON-array answers for multiple-choice and ranking, updated D352, and moved DIR04 to the queue head.
+
 ### Task 3: DIR04 CSV audience import MVP
 
 **Files:**

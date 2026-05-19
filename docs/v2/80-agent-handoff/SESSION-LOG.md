@@ -18811,3 +18811,11 @@ Next:
 
 Verification:
 - Pending docs diff/whitespace verification in this session.
+
+## 2026-05-20 - D352/QB01 respondent-format parity
+
+- Assessment: QB01 exposed a real contract/runtime gap. The builder stored choice/ranking options in question payload, but respondent questions did not expose payload, and the SurveyJS adapter rendered every question as a text input.
+- Task: Added respondent question payload to the API contract and response capture store; updated the web respondent type; mapped likert/NPS/single/multi/number/text/date/ranking to SurveyJS controls; serialized multi/ranking answers as JSON-array strings; restricted the Svelte input bridge to text-like controls.
+- Verification passed: focused respondent adapter Vitest run passed 5/5 using the explicit Node executable path; targeted .NET respondent endpoint test passed 1/1.
+- Verification note: broader direct svelte-check ran but failed on existing unrelated TypeScript/Svelte errors outside the QB01 adapter/runtime files; D352 records the affected areas.
+- Queue: QB01 moved to Done. DIR04 CSV audience import MVP is now the agent-executable queue head.

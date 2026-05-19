@@ -1,3 +1,13 @@
+# Next Session Plan - Post-D352
+
+Current queue head: DIR04 CSV audience import MVP for people and groups.
+
+Recommended next slice: implement the smallest production-shaped CSV import that lets a researcher prepare a normal study audience without manually creating every person and group. The import should be tenant-scoped, explicit about accepted columns, safe on duplicates, and understandable from the Directory/collection preparation path.
+
+Keep the scope narrow. Do not build a full HRIS integration, background import pipeline, enrichment system, or complex merge wizard. The beta need is: upload/paste a CSV, validate rows, create/update people and group memberships predictably, show row-level failures, and leave enough audit/session-log context for a researcher to trust the audience before launch.
+
+QB01 is complete for respondent-format renderer parity. Remaining broader web check issues are unrelated existing TypeScript/Svelte errors captured in D352; do not mix those cleanup items into DIR04 unless they block the import path directly.
+
 # Next Session Plan - Post-D351
 
 Current queue head: QB01 respondent-rendering parity for every exposed question format.

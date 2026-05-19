@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline.
+Status: BR01 baseline plus QB01 respondent-format parity.
 Last reviewed: 2026-05-20.
 
 ## Purpose
@@ -31,7 +31,7 @@ Each row uses one of these classifications:
 | Study creation | Researcher creates a study from `/app/campaign-series` with a normal name. | Required | Implemented. |
 | Setup navigation | Researcher sees a five-step setup path and can move previous/next without scrolling through debug panels. | Required | Implemented after setup cleanup. |
 | Instrument step | Researcher gets a tenant-private instrument shell without raw IDs or fake validation claims. | Required | Implemented at UI level. |
-| Questionnaire step | Researcher can add questions with rating, recommendation, single choice, multiple choice, number, text, date, and ranking formats. | Required | UI exposes these formats; respondent parity must be proven by QB01. |
+| Questionnaire step | Researcher can add questions with rating, recommendation, single choice, multiple choice, number, text, date, and ranking formats. | Required | QB01 added respondent renderer parity for these exposed beta formats. |
 | Results setup | Researcher can define at least one score from rating/recommendation/number answers. | Required | Implemented. |
 | Results dimensions | Researcher can define multiple dimensions/subscales. | Beta known limit | Not implemented; RSLT01 selected. |
 | Collection setup | Researcher can create a wave and choose response mode. | Required | Implemented. |
@@ -42,7 +42,7 @@ Each row uses one of these classifications:
 | Anonymous invite-only collection | Researcher can invite a selected audience while keeping answers anonymous in reports/exports. | Required | Implemented by anonymous invite-only distribution slice; needs audience UX hardening. |
 | Anonymous longitudinal | Respondent can use participant code across waves. | Required for M1 target | Supported by proof spine; not necessarily first beta walkthrough path. |
 | Identified collection | Identified entry works for identified campaigns. | Beta known limit | Foundation exists; full resolver depth remains future. |
-| Respondent completion | Respondent can consent, answer, review, submit, and see completion/receipt state. | Required | Proof spine exists; exposed new formats need QB01 parity. |
+| Respondent completion | Respondent can consent, answer, review, submit, and see completion/receipt state. | Required | Proof spine exists; QB01 covers exposed beta-format rendering and answer normalization. |
 | Submit-time scoring | Submitted responses produce scores when scoring is configured. | Required | Implemented. |
 | Collection close | Researcher can close collection and still review/export data. | Required | Implemented. |
 | Results review | Researcher can see widgets and understand preliminary/final state. | Required | Implemented with widget-led Results cleanup. |
@@ -60,11 +60,10 @@ Each row uses one of these classifications:
 
 | Rank | ID | Blocker | Reason |
 |---:|---|---|---|
-| 1 | QB01 | Respondent parity for all exposed question formats | The UI now promises formats that need proof. |
-| 2 | DIR04 | CSV audience import MVP | Manual directory entry blocks normal studies. |
-| 3 | AUD01 | Researcher-facing audience selection | Saved rules must read as recipient selection. |
-| 4 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
-| 5 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
+| 1 | DIR04 | CSV audience import MVP | Manual directory entry blocks normal studies. |
+| 2 | AUD01 | Researcher-facing audience selection | Saved rules must read as recipient selection. |
+| 3 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
+| 4 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
 
 ## Known limits to say out loud
 

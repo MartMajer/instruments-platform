@@ -9,13 +9,23 @@ export type RespondentSurveyJson = {
 };
 
 export type RespondentSurveyElement = {
-	type: 'text';
+	type: 'text' | 'rating' | 'radiogroup' | 'checkbox' | 'ranking';
 	name: string;
 	title: string;
 	isRequired: boolean;
-	inputType?: 'number';
+	inputType?: 'number' | 'date';
 	min?: number;
 	max?: number;
+	rateMin?: number;
+	rateMax?: number;
+	minRateDescription?: string;
+	maxRateDescription?: string;
+	choices?: RespondentSurveyChoice[];
+};
+
+export type RespondentSurveyChoice = {
+	value: string;
+	text: string;
 };
 
 export function buildRespondentSurveyJson(
@@ -37,7 +47,9 @@ export function toSurveyInitialData(
 	questions: RespondentQuestionResponse[],
 	answers: Record<string, string>
 ) {
-	return Object.fromEntries(questions.map((question) => [question.id, answers[question.id] ?? '']));
+	return Object.fromEntries(
+		questions.map((question) => [question.id, toSurveyInitialValue(question, answers[question.id])])
+	);
 }
 
 export function normalizeSurveyDataToAnswers(
@@ -48,7 +60,7 @@ export function normalizeSurveyDataToAnswers(
 		questions.map((question) => {
 			const value = data[question.id];
 
-			return [question.id, value === undefined || value === null ? '' : String(value)];
+			return [question.id, normalizeSurveyValueToAnswer(question, value)];
 		})
 	);
 }
@@ -61,14 +73,159 @@ function toSurveyElement(question: RespondentQuestionResponse): RespondentSurvey
 		isRequired: question.required
 	};
 
-	if (
-		typeof question.scaleMinValue === 'number' &&
-		typeof question.scaleMaxValue === 'number'
-	) {
+	if (question.type === 'likert' || question.type === 'nps') {
+		const scale = scaleDefinition(question);
+		return {
+			...element,
+			type: 'rating',
+			rateMin: scale.min,
+			rateMax: scale.max,
+			minRateDescription: scale.lowLabel,
+			maxRateDescription: scale.highLabel
+		};
+	}
+
+	if (question.type === 'single') {
+		return {
+			...element,
+			type: 'radiogroup',
+			choices: questionChoices(question)
+		};
+	}
+
+	if (question.type === 'multi') {
+		return {
+			...element,
+			type: 'checkbox',
+			choices: questionChoices(question)
+		};
+	}
+
+	if (question.type === 'ranking') {
+		return {
+			...element,
+			type: 'ranking',
+			choices: questionChoices(question)
+		};
+	}
+
+	if (question.type === 'number') {
 		element.inputType = 'number';
-		element.min = question.scaleMinValue;
-		element.max = question.scaleMaxValue;
+	}
+
+	if (question.type === 'date') {
+		element.inputType = 'date';
 	}
 
 	return element;
+}
+
+export function normalizeSurveyValueToAnswer(
+	question: RespondentQuestionResponse,
+	value: unknown
+): string {
+	if (value === undefined || value === null || value === '') {
+		return '';
+	}
+
+	if (usesArrayAnswer(question)) {
+		return JSON.stringify(Array.isArray(value) ? value.map(String) : [String(value)]);
+	}
+
+	return String(value);
+}
+
+function toSurveyInitialValue(question: RespondentQuestionResponse, value: string | undefined) {
+	if (value === undefined || value === '') {
+		return usesArrayAnswer(question) ? [] : '';
+	}
+
+	if (!usesArrayAnswer(question)) {
+		if (question.type === 'likert' || question.type === 'nps' || question.type === 'number') {
+			const numericValue = Number(value);
+			return Number.isFinite(numericValue) ? numericValue : '';
+		}
+
+		return value;
+	}
+
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed.map(String) : [];
+	} catch {
+		return [];
+	}
+}
+
+function usesArrayAnswer(question: RespondentQuestionResponse): boolean {
+	return question.type === 'multi' || question.type === 'ranking';
+}
+
+function scaleDefinition(question: RespondentQuestionResponse) {
+	const fallbackMin = question.type === 'nps' ? 0 : 1;
+	const fallbackMax = question.type === 'nps' ? 10 : 5;
+	const anchors = parseScaleAnchors(question.scaleAnchors);
+	const lowAnchor = anchors.find((anchor) => anchor.value === (question.scaleMinValue ?? fallbackMin));
+	const highAnchor = anchors.find((anchor) => anchor.value === (question.scaleMaxValue ?? fallbackMax));
+
+	return {
+		min: question.scaleMinValue ?? fallbackMin,
+		max: question.scaleMaxValue ?? fallbackMax,
+		lowLabel: lowAnchor?.label,
+		highLabel: highAnchor?.label
+	};
+}
+
+function questionChoices(question: RespondentQuestionResponse): RespondentSurveyChoice[] {
+	const payload = parseObject(question.payload);
+	const options = Array.isArray(payload.options) ? payload.options : [];
+	return options
+		.map((option, index) => {
+			const candidate = option && typeof option === 'object' ? option : {};
+			const code = readString(candidate, 'code') || `o${String(index + 1).padStart(2, '0')}`;
+			const label = readString(candidate, 'label') || code;
+			return { value: code, text: label };
+		})
+		.filter((choice) => choice.value.trim() && choice.text.trim());
+}
+
+function parseScaleAnchors(value: string | null | undefined) {
+	try {
+		const parsed = JSON.parse(value ?? '[]');
+		if (!Array.isArray(parsed)) {
+			return [];
+		}
+
+		return parsed
+			.map((anchor) => {
+				const candidate = anchor && typeof anchor === 'object' ? anchor : {};
+				const rawValue = readNumber(candidate, 'value');
+				const label = readString(candidate, 'label');
+				return rawValue === null || !label ? null : { value: rawValue, label };
+			})
+			.filter((anchor): anchor is { value: number; label: string } => anchor !== null);
+	} catch {
+		return [];
+	}
+}
+
+function parseObject(value: string | null | undefined): Record<string, unknown> {
+	try {
+		const parsed = JSON.parse(value ?? '{}');
+		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: {};
+	} catch {
+		return {};
+	}
+}
+
+function readString(source: object, key: string): string | null {
+	const value = (source as Record<string, unknown>)[key];
+	return typeof value === 'string' ? value : null;
+}
+
+function readNumber(source: object, key: string): number | null {
+	const value = (source as Record<string, unknown>)[key];
+	return typeof value === 'number' ? value : null;
 }

@@ -4,6 +4,7 @@
 	import type { RespondentQuestionResponse } from '$lib/api/setup';
 	import {
 		buildRespondentSurveyJson,
+		normalizeSurveyValueToAnswer,
 		normalizeSurveyDataToAnswers,
 		toSurveyInitialData
 	} from '$lib/respondent/surveyjs-adapter';
@@ -70,9 +71,14 @@
 			model.showCompleteButton = false;
 			model.showNavigationButtons = false;
 			model.onValueChanging.add((sender, options) => {
+				const question = questions.find((candidate) => candidate.id === options.name);
 				onAnswersChange?.({
 					...normalizeSurveyDataToAnswers(questions, sender.data as Record<string, unknown>),
-					[options.name]: options.value === undefined || options.value === null ? '' : String(options.value)
+					[options.name]: question
+						? normalizeSurveyValueToAnswer(question, options.value)
+						: options.value === undefined || options.value === null
+							? ''
+							: String(options.value)
 				});
 			});
 			model.onValueChanged.add((sender) => {
@@ -116,14 +122,17 @@
 			questions,
 			model.data as Record<string, unknown>
 		);
-		const sortedQuestions = questions.slice().sort((left, right) => left.ordinal - right.ordinal);
+		const textInputQuestions = questions
+			.slice()
+			.sort((left, right) => left.ordinal - right.ordinal)
+			.filter((question) => question.type === 'text' || question.type === 'number' || question.type === 'date');
 		const inputs = Array.from(
 			target.querySelectorAll<HTMLInputElement>(
-				'input:not([type="button"]):not([type="submit"]):not([type="hidden"])'
+				'input[type="text"], input[type="number"], input[type="date"], textarea'
 			)
 		);
 
-		for (const [index, question] of sortedQuestions.entries()) {
+		for (const [index, question] of textInputQuestions.entries()) {
 			const input = inputs[index];
 			if (input) {
 				nextAnswers[question.id] = input.value;

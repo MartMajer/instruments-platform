@@ -21,7 +21,8 @@ public sealed record RespondentQuestionResponse(
     int? ScaleMinValue = null,
     int? ScaleMaxValue = null,
     bool? ScaleNaAllowed = null,
-    string? ScaleAnchors = null);
+    string? ScaleAnchors = null,
+    string Payload = "{}");
 
 public sealed record OpenLinkEntryResponse(
     Guid CampaignId,

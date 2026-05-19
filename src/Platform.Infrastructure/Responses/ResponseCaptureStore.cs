@@ -1670,7 +1670,8 @@ public sealed class ResponseCaptureStore(
             scale?.MinValue,
             scale?.MaxValue,
             scale?.NaAllowed,
-            scale?.Anchors);
+            scale?.Anchors,
+            question.Payload);
     }
 
     private static ResponseSessionResponse ToSessionResponse(

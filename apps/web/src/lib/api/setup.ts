@@ -403,6 +403,7 @@ export type RespondentQuestionResponse = {
 	scaleMaxValue?: number | null;
 	scaleNaAllowed?: boolean | null;
 	scaleAnchors?: string | null;
+	payload?: string | null;
 };
 
 export type OpenLinkEntryResponse = {
