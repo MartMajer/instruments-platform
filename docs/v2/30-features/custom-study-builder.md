@@ -23,6 +23,18 @@ The selected-study setup flow has five ordered steps:
 - Collection setup: name the collection wave and choose how respondents will answer.
 - Launch check: verify prerequisites before collection starts.
 
+## Response identity and distribution
+
+🟡 Proposed by [ADR-0013](../70-decisions/0013-anonymous-invite-only-distribution.md): selected audience and answer identity are separate concerns.
+
+Response modes mean:
+
+- Anonymous: answers are treated as anonymous in product reports and exports. The wave can use a general respondent link or saved audience invitations.
+- Anonymous with repeat participation: respondents enter their own repeat-participation code. Saved audience invitations are not supported until participant-code and invitation semantics are designed together.
+- Identified invite-only: answers remain connected to named respondents for workflows that require identified response handling.
+
+Saved audience rules answer "who receives access." They do not automatically make answers identified. For anonymous invite-only waves, launch creates anonymous invitation assignments and email notifications for selected recipients. The platform still has operational delivery metadata for sending, retry, audit, and withdrawal workflows; this is not cryptographic unlinkability.
+
 The Questionnaire step currently exposes these answer formats:
 
 - Rating scale with custom min, max, and endpoint labels.

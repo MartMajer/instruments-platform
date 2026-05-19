@@ -691,7 +691,7 @@ public sealed class SetupWorkflowStore(
         var launchedAt = DateTimeOffset.UtcNow;
         var launchedBy = await GetPersistedActorIdAsync(actorId, cancellationToken);
 
-        var materializedAssignments = await MaterializeIdentifiedAssignmentsFromRespondentRulesAsync(
+        var materializedAssignments = await MaterializeAssignmentsFromRespondentRulesAsync(
             tenantId,
             campaign,
             cancellationToken);
@@ -1465,11 +1465,11 @@ public sealed class SetupWorkflowStore(
             return;
         }
 
-        if (campaign.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        if (campaign.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal)
         {
             issues.Add(Blocker(
                 "respondent_rule.identity_mode_not_supported",
-                "Saved respondent rules can launch assignments only for identified campaigns in this release."));
+                "Saved audience invitations are not available for anonymous repeat-participation waves yet."));
             return;
         }
 
@@ -1490,19 +1490,32 @@ public sealed class SetupWorkflowStore(
             }
 
             issues.AddRange(resolution.Value.Issues.Select(ToLaunchReadinessIssue));
+
+            if (campaign.ResponseIdentityMode == ResponseIdentityModes.Anonymous)
+            {
+                if (resolution.Value.Candidates.Count == 0)
+                {
+                    issues.Add(Blocker(
+                        "respondent_rule.no_recipients",
+                        "Saved audience rules must resolve at least one recipient before anonymous invite-only collection can start."));
+                }
+
+                if (resolution.Value.Candidates.Any(candidate =>
+                    !TryNormalizeEmail(candidate.Respondent.Email, out _)))
+                {
+                    issues.Add(Blocker(
+                        "respondent_rule.email_required",
+                        "Every saved audience recipient needs an email address before anonymous invite-only collection can start."));
+                }
+            }
         }
     }
 
-    private async Task<Result<IReadOnlyList<Assignment>>> MaterializeIdentifiedAssignmentsFromRespondentRulesAsync(
+    private async Task<Result<IReadOnlyList<Assignment>>> MaterializeAssignmentsFromRespondentRulesAsync(
         Guid tenantId,
         Campaign campaign,
         CancellationToken cancellationToken)
     {
-        if (campaign.ResponseIdentityMode != ResponseIdentityModes.Identified)
-        {
-            return Result.Success<IReadOnlyList<Assignment>>([]);
-        }
-
         var rules = await db.RespondentRules
             .AsNoTracking()
             .Where(rule => rule.CampaignId == campaign.Id)
@@ -1511,6 +1524,23 @@ public sealed class SetupWorkflowStore(
         if (rules.Count == 0)
         {
             return Result.Success<IReadOnlyList<Assignment>>([]);
+        }
+
+        if (campaign.ResponseIdentityMode == ResponseIdentityModes.Anonymous)
+        {
+            return await MaterializeAnonymousInvitationAssignmentsFromRespondentRulesAsync(
+                tenantId,
+                campaign,
+                rules,
+                cancellationToken);
+        }
+
+        if (campaign.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return Result.Failure<IReadOnlyList<Assignment>>(
+                Error.Validation(
+                    "respondent_rule.identity_mode_not_supported",
+                    "Saved audience rules are not supported for this response mode."));
         }
 
         var existingPairs = await db.Assignments
@@ -1555,6 +1585,83 @@ public sealed class SetupWorkflowStore(
                     resolution.Value.Role,
                     candidate.Respondent.Id,
                     candidate.Target?.Id));
+            }
+        }
+
+        return Result.Success<IReadOnlyList<Assignment>>(assignments);
+    }
+
+    private async Task<Result<IReadOnlyList<Assignment>>> MaterializeAnonymousInvitationAssignmentsFromRespondentRulesAsync(
+        Guid tenantId,
+        Campaign campaign,
+        IReadOnlyList<RespondentRule> rules,
+        CancellationToken cancellationToken)
+    {
+        var assignments = new List<Assignment>();
+        var seenRecipients = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var rule in rules)
+        {
+            var resolution = await _respondentRuleResolver.ResolveAsync(
+                new RespondentRuleResolutionRequest(
+                    tenantId,
+                    campaign.Id,
+                    campaign.CampaignSeriesId,
+                    rule.Rule),
+                cancellationToken);
+            if (resolution.IsFailure)
+            {
+                return Result.Failure<IReadOnlyList<Assignment>>(resolution.Error);
+            }
+
+            if (resolution.Value.Candidates.Count == 0)
+            {
+                return Result.Failure<IReadOnlyList<Assignment>>(
+                    Error.Validation(
+                        "respondent_rule.no_recipients",
+                        "Saved audience rules must resolve at least one recipient before anonymous invite-only collection can start."));
+            }
+
+            foreach (var candidate in resolution.Value.Candidates)
+            {
+                if (!TryNormalizeEmail(candidate.Respondent.Email, out var recipient))
+                {
+                    return Result.Failure<IReadOnlyList<Assignment>>(
+                        Error.Validation(
+                            "respondent_rule.email_required",
+                            "Every saved audience recipient needs an email address before anonymous invite-only collection can start."));
+                }
+
+                if (!seenRecipients.Add(recipient))
+                {
+                    continue;
+                }
+
+                var issued = OpenLinkTokens.IssueInvitation(tenantId);
+                var invitationToken = new InvitationToken(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    campaign.Id,
+                    issued.TokenHash,
+                    InvitationTokenChannels.Email,
+                    recipient);
+                var assignment = Assignment.CreateAnonymous(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    campaign.Id,
+                    resolution.Value.Role,
+                    invitationToken.Id);
+                var notification = Notification.QueueEmailInvitation(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    campaign.Id,
+                    assignment.Id,
+                    recipient);
+
+                db.InvitationTokens.Add(invitationToken);
+                db.Notifications.Add(notification);
+                outboxEventBuffer?.Enqueue(CreateInvitationEmailQueuedMessage(notification, invitationToken, assignment));
+                assignments.Add(assignment);
             }
         }
 
@@ -1816,9 +1923,13 @@ public sealed class SetupWorkflowStore(
             },
             ["respondent_rules"] = new Dictionary<string, object?>
             {
-                ["materialization"] = campaign.ResponseIdentityMode == ResponseIdentityModes.Identified
-                    ? "identified_assignments"
-                    : "not_applicable",
+                ["materialization"] = campaign.ResponseIdentityMode switch
+                {
+                    ResponseIdentityModes.Identified => "identified_assignments",
+                    ResponseIdentityModes.Anonymous when materializedAssignments.Count > 0 =>
+                        "anonymous_invitation_assignments",
+                    _ => "not_applicable"
+                },
                 ["materialized_assignment_count"] = materializedAssignments.Count
             },
             ["launch_readiness"] = new Dictionary<string, object?>

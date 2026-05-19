@@ -1005,10 +1005,22 @@
 		}
 
 		if (value === 'identified') {
-			return 'Identified';
+			return 'Identified invite-only';
 		}
 
 		return 'Anonymous';
+	}
+
+	function responseModeHelp(value: string) {
+		if (value === 'identified') {
+			return 'Use this when answers must remain connected to named respondents.';
+		}
+
+		if (value === 'anonymous_longitudinal') {
+			return 'Use this when respondents enter their own repeat-participation code. Saved audience invitations are not supported yet.';
+		}
+
+		return 'Use a public link, or save an audience below to send invite-only access while keeping answers anonymous in reports.';
 	}
 
 	function audienceRuleLabel(value: PreviewRuleKind) {
@@ -1050,6 +1062,18 @@
 
 		if (issue.code.includes('scoring')) {
 			return issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup');
+		}
+
+		if (issue.code === 'respondent_rule.email_required') {
+			return 'Every saved audience recipient needs an email address before anonymous invite-only collection can start.';
+		}
+
+		if (issue.code === 'respondent_rule.no_recipients') {
+			return 'Saved audience rules must find at least one active recipient before launch.';
+		}
+
+		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
+			return 'Saved audience invitations are not available for repeat-participation waves yet. Use Anonymous or Identified collection, or remove the saved audience rule.';
 		}
 
 		return issue.message;
@@ -1533,8 +1557,11 @@
 								<select bind:value={campaignForm.responseIdentityMode}>
 									<option value="anonymous">Anonymous</option>
 									<option value="anonymous_longitudinal">Anonymous with repeat participation</option>
-									<option value="identified">Identified</option>
+									<option value="identified">Identified invite-only</option>
 								</select>
+								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+									{responseModeHelp(campaignForm.responseIdentityMode)}
+								</span>
 							</label>
 							<label class="field">
 								<span>Respondent language</span>
@@ -1626,6 +1653,10 @@
 					<p class="record-field__label">Collection audience</p>
 					<h4 id="audience-preview-heading" class="record-row__title">Who will receive this study?</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						For anonymous waves, this controls who receives an invitation. It does not make answers
+						identified in reports.
+					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
 			</div>

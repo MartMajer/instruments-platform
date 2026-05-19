@@ -1245,7 +1245,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
-    public async Task Setup_store_launch_readiness_blocks_saved_rules_on_anonymous_campaign()
+    public async Task Setup_store_launch_readiness_allows_anonymous_saved_rules_and_launch_queues_invitations()
     {
         var tenantId = Guid.NewGuid();
         var migratorOptions = CreateMigratorOptions();
@@ -1254,7 +1254,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         await CreateRuntimeRoleAsync(migratorOptions);
 
         await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
-        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var store = new SetupWorkflowStore(tenantDb, tenantDbScope);
         var scoringRule = await store.CreateScoringRuleAsync(
             tenantId,
             new CreateScoringRuleRequest(
@@ -1266,6 +1267,17 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
                 """{"scores":["total"]}"""),
             CancellationToken.None);
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(new Subject(
+                Guid.NewGuid(),
+                tenantId,
+                email: "respondent@example.com",
+                displayName: "Respondent"));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
         var seriesId = await CreateSetupCampaignSeriesAsync(
             store,
             tenantId,
@@ -1296,10 +1308,29 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
         Assert.True(saved.IsSuccess, saved.Error.ToString());
         Assert.True(readiness.IsSuccess, readiness.Error.ToString());
-        Assert.False(readiness.Value.Ready);
-        Assert.Contains(
-            readiness.Value.Issues,
-            issue => issue.Code == "respondent_rule.identity_mode_not_supported");
+        Assert.True(readiness.Value.Ready, string.Join(", ", readiness.Value.Issues.Select(issue => issue.Code)));
+
+        var launch = await store.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(launch.IsSuccess, launch.Error.ToString());
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(1, await tenantDb.Assignments.CountAsync(assignment =>
+            assignment.CampaignId == campaign.Value.Id &&
+            assignment.Anonymous &&
+            assignment.RespondentSubjectId == null &&
+            assignment.InviteTokenId != null));
+        Assert.Equal(1, await tenantDb.InvitationTokens.CountAsync(token =>
+            token.CampaignId == campaign.Value.Id &&
+            token.Channel == InvitationTokenChannels.Email));
+        Assert.Equal(1, await tenantDb.Notifications.CountAsync(notification =>
+            notification.CampaignId == campaign.Value.Id &&
+            notification.TemplateCode == Notification.InvitationTemplateCode &&
+            notification.Status == NotificationStatuses.Queued));
+        await verificationTransaction.CommitAsync();
     }
 
     [DockerFact]

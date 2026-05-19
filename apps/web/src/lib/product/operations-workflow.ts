@@ -57,6 +57,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 	const hasRespondentAccess = Boolean(
 		localState.openLinkCreated ||
 			selectedCampaign?.openLinkAssignmentCount ||
+			selectedCampaign?.queuedInvitationCount ||
 			selectedCampaign?.sentInvitationCount
 	);
 	const hasResponseActivity = Boolean(
@@ -157,6 +158,7 @@ export function toSelectedSeriesOperationsPath(
 	const hasRespondentAccess = Boolean(
 		localState.openLinkCreated ||
 			selectedCampaign?.openLinkAssignmentCount ||
+			selectedCampaign?.queuedInvitationCount ||
 			selectedCampaign?.sentInvitationCount
 	);
 	const hasResponseActivity = Boolean(

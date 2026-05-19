@@ -95,6 +95,11 @@
 		)
 	);
 	const respondentEntry = $derived(identifiedEntryResult ?? openLinkResult);
+	const preparedInvitationCount = $derived(
+		(selectedCampaign?.queuedInvitationCount ?? 0) +
+			(selectedCampaign?.sentInvitationCount ?? 0) +
+			(selectedCampaign?.failedInvitationCount ?? 0)
+	);
 	const latestResponseActivity = $derived(
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
@@ -370,9 +375,27 @@
 
 		if (code === 'respondent_rule.identity_mode_not_supported') {
 			return {
-				title: 'Fix response mode or audience rule',
+				title: 'Switch response mode',
 				detail:
-					'Saved audience rules currently require identified collection. Open Setup and either switch the response mode to identified or remove the saved audience rule.',
+					'Saved audience invitations are not available for repeat-participation waves yet. Open Setup and use Anonymous or Identified collection, or remove the saved audience rule.',
+				severity: issue.severity
+			};
+		}
+
+		if (code === 'respondent_rule.email_required') {
+			return {
+				title: 'Add recipient email addresses',
+				detail:
+					'Open Directory and add email addresses for everyone in the saved audience, then rerun the pre-launch check.',
+				severity: issue.severity
+			};
+		}
+
+		if (code === 'respondent_rule.no_recipients') {
+			return {
+				title: 'Select at least one recipient',
+				detail:
+					'Open Setup and adjust the saved audience until it resolves at least one active person.',
 				severity: issue.severity
 			};
 		}
@@ -571,9 +594,41 @@
 					})}
 				{:else if activeAction.id === 'openLink'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Create the respondent entry link for this collection wave. Share it with the intended
-						respondents once collection is live.
+						Prepare respondent access for this collection wave. Anonymous invite-only waves can use
+						prepared invitations without exposing respondent identity in reports.
 					</p>
+					{#if preparedInvitationCount > 0}
+						<div class="record-row">
+							<div class="record-row__header">
+								<h5 class="record-row__title">Audience invitations prepared</h5>
+								<span class="step-pill" data-state="succeeded">Ready</span>
+							</div>
+							<dl class="record-grid">
+								<div class="record-field">
+									<dt class="record-field__label">Queued</dt>
+									<dd class="record-field__value">
+										{formatCount(selectedCampaign?.queuedInvitationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Sent</dt>
+									<dd class="record-field__value">
+										{formatCount(selectedCampaign?.sentInvitationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Needs attention</dt>
+									<dd class="record-field__value">
+										{formatCount(selectedCampaign?.failedInvitationCount)}
+									</dd>
+								</div>
+							</dl>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								The app can track delivery state, but anonymous responses stay disconnected from
+								named respondent identity in product reports and exports.
+							</p>
+						</div>
+					{/if}
 					{#if respondentEntry}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -588,7 +643,11 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'openLink',
-						label: selectedCampaignIsIdentified ? 'Create identified entry' : 'Create respondent link',
+						label: selectedCampaignIsIdentified
+							? 'Create identified entry'
+							: preparedInvitationCount > 0
+								? 'Create additional link'
+								: 'Create respondent link',
 						resultLabel: 'Share link',
 						resultValue: respondentEntry?.respondentPath ?? null,
 						onclick: createRespondentAccess

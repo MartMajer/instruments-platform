@@ -18661,3 +18661,10 @@ Assessment: Owner hit the Collection state where Start collection is disabled, P
 Task: Made the Collection pre-launch panel map readiness issue codes into researcher-facing recovery items, distinguish blocking items from warnings, add a direct Open Setup recovery link, add a fallback when a blocked check returns no itemized issues, and make the disabled Start collection reason point to the same Setup recovery path.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Anonymous invite-only audience distribution
+
+Assessment: Owner clarified that selected audience and anonymous answers must coexist: a researcher needs to invite a known set of people without exposing who gave which answers in reports/exports. The previous backend readiness blocker incorrectly treated saved audience rules as identified-only.
+
+Task: Proposed ADR-0013 for anonymous invite-only distribution, updated the custom study builder feature doc, changed launch readiness so anonymous saved-audience rules validate recipient emails instead of blocking, materialized anonymous email invitation assignments from saved audience rules at launch, kept anonymous repeat-participation saved-audience invitations blocked until designed, treated queued invitations as respondent access in the Collection workflow, and clarified Setup/Collection wording around distribution identity versus response identity.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
