@@ -180,28 +180,36 @@
 			>
 				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 				<div class="email-verification-reminder__body">
-					<h2 class="email-verification-reminder__title">Check your email before retrying</h2>
+					<h2 class="email-verification-reminder__title">Verify email, then finish setup</h2>
 					<p class="email-verification-reminder__text">
 						If you just created an account, open the verification email from Auth0, confirm
-						the address, then come back and sign in again.
+						the address, then continue workspace setup. Email verification alone does not
+						create the workspace membership.
 					</p>
 					<p class="email-verification-reminder__note">
-						If the address is already verified, retry here. If Auth0 keeps using the wrong
-						account, sign out completely and sign in again.
+						If Auth0 keeps using the wrong account, sign out completely and choose the owner
+						account again.
 					</p>
 				</div>
 			</div>
 		{/if}
 		<p class="text-sm text-[var(--color-text-muted)]">
-			{hasTenantLoginTarget
-				? 'Sign in with an account that belongs to this workspace before opening product screens.'
-				: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
+			{authFailedRedirect
+				? 'This account does not have an active workspace membership yet. Finish workspace setup for a new account, or sign in with an account that already belongs to this workspace.'
+				: hasTenantLoginTarget
+					? 'Sign in with an account that belongs to this workspace before opening product screens.'
+					: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
 		</p>
 		<div class="flex flex-wrap gap-3">
-			<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
-			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
 			{#if authFailedRedirect}
+				<a class="primary-button" href={resolve('/register')}>Continue workspace setup</a>
+				<a class="secondary-button" href={primaryAuthActionUrl}>
+					{hasTenantLoginTarget ? 'Sign in to existing workspace' : primaryAuthActionLabel}
+				</a>
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
+			{:else}
+				<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
+				<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
 			{/if}
 		</div>
 	</section>

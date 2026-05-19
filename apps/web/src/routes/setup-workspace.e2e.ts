@@ -61,16 +61,24 @@ test('shows an email verification reminder after failed workspace sign-in', asyn
 	await page.goto('/app?auth=failed');
 
 	await expect(
-		page.getByRole('heading', { name: 'Check your email before retrying' })
+		page.getByRole('heading', { name: 'Verify email, then finish setup' })
 	).toBeVisible();
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
 		'open the verification email from Auth0'
 	);
+	await expect(page.getByLabel('Email verification reminder')).toContainText(
+		'continue workspace setup'
+	);
 	await expect(page.getByRole('heading', { name: 'Workspace sign-in needed' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Continue workspace setup' })).toHaveAttribute(
+		'href',
+		'/register'
+	);
 	await expect(page.getByRole('link', { name: 'Sign out completely' })).toHaveAttribute(
 		'href',
 		/\/auth\/logout\?.*provider=1.*returnUrl=/
 	);
+	await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
 });
 
 test('hides setup controls when the tenant session is forbidden', async ({ page }) => {
