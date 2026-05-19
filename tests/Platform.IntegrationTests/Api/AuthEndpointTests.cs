@@ -310,7 +310,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         var context = CreateRemoteFailureContext(
             "https://app.example.test/register",
             new Exception("platform_login_verified_email_required"));
-        context.Properties.Items[PlatformOidcEvents.AuthFailureReasonPropertyName] =
+        Assert.NotNull(context.Properties);
+        context.Properties!.Items[PlatformOidcEvents.AuthFailureReasonPropertyName] =
             PlatformOidcEvents.EmailUnverifiedFailureReason;
 
         await events.RemoteFailure(context);
@@ -393,9 +394,10 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         await events.TokenValidated(context);
 
         Assert.NotNull(context.Result?.Failure);
+        Assert.NotNull(context.Properties);
         Assert.Equal(
             PlatformOidcEvents.EmailUnverifiedFailureReason,
-            context.Properties.Items[PlatformOidcEvents.AuthFailureReasonPropertyName]);
+            context.Properties!.Items[PlatformOidcEvents.AuthFailureReasonPropertyName]);
         Assert.Empty(resolver.Calls);
     }
 
