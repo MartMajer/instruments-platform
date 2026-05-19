@@ -18473,3 +18473,16 @@ Deployment update:
 - Running API image after rebuild: `sha256:f9adec17dab2bd7b5e3ed606a06f1e7013c34196eb718a29a691c697c09782e7`.
 - Running web image after rebuild: `sha256:9e8095a3cccd40fd95405bcaf71db2cf3fe351d3b75f49ea23dade094360fc35`.
 - Clean VPS release evidence passed at `/tmp/auth-cleanup-vps-release-20260519`: public smoke passed, backup/restore passed, authenticated remote smoke skipped.
+
+## 2026-05-19 - sign-in chrome and email-verification recovery fix
+Assessment: Owner found two staging defects after the dedicated `/signin` deploy. `/signin` still showed the setup sidebar/header because `AppShell` treated it as a tenant setup route instead of a public entry route. `/app?auth=email_unverified` could send users to `/register` when no remembered tenant login target existed because app auth recovery still used registration as the no-context fallback.
+
+Task: Mark `/signin` as a public entry route in `AppShell`, so it uses the same chrome-free treatment as `/` and `/register`. Change no-context app auth recovery to `/signin` instead of `/register`, keep tenant-context email verification recovery as direct `/auth/login` with `prompt=login`, and add Playwright regressions for both paths.
+
+Verification: Web production build passed; existing large chunk warning only. Focused Playwright auth/registration recovery coverage passed 8/8 locally. VPS staging rebuilt/recreated from `988f003`; the first redeploy proof hit a transient web root `502` during warm-up, then follow-up checks returned API `/health/ready` 200, web `/` 200, and web `/signin` 200. `/signin` HTML no longer contained setup-stage/sidebar text. Clean VPS release evidence passed at `/tmp/auth-recovery-vps-release-20260519`: public smoke passed, backup/restore passed, authenticated remote smoke skipped.
+
+Deployment update:
+- Commit pushed to `origin/main` and `origin/staging`: `988f003 fix(auth): clean sign-in recovery chrome`.
+- VPS staging checkout fast-forwarded to `988f003`.
+- Running web image after rebuild: `sha256:79662ff785d42a324ebb309f1d3bd695dae40bb2c311608279fc8e2c29660995`.
+- Running API image after rebuild: `sha256:f9adec17dab2bd7b5e3ed606a06f1e7013c34196eb718a29a691c697c09782e7`.
