@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline plus QB01, DIR04 local implementation, and AUD01 recipient-selection UX.
+Status: BR01 baseline plus QB01, DIR04 local implementation, AUD01 recipient-selection UX, and RSLT01 multi-output Results setup.
 Last reviewed: 2026-05-20.
 
 ## Purpose
@@ -32,8 +32,8 @@ Each row uses one of these classifications:
 | Setup navigation | Researcher sees a five-step setup path and can move previous/next without scrolling through debug panels. | Required | Implemented after setup cleanup. |
 | Instrument step | Researcher gets a tenant-private instrument shell without raw IDs or fake validation claims. | Required | Implemented at UI level. |
 | Questionnaire step | Researcher can add questions with rating, recommendation, single choice, multiple choice, number, text, date, and ranking formats. | Required | QB01 added respondent renderer parity for these exposed beta formats. |
-| Results setup | Researcher can define at least one score from rating/recommendation/number answers. | Required | Implemented. |
-| Results dimensions | Researcher can define multiple dimensions/subscales. | Beta known limit | Not implemented; RSLT01 selected. |
+| Results setup | Researcher can define one or more scores from rating/recommendation/number answers. | Required | RSLT01 implemented default total score plus multiple named outputs with per-output question selection, calculation, and missing-answer policy. |
+| Results dimensions | Researcher can define multiple dimensions/subscales. | Required | RSLT01 implemented multi-output result setup for custom-study dimensions/subscales. |
 | Collection setup | Researcher can create a wave and choose response mode. | Required | Implemented. |
 | Audience setup | Researcher can choose who receives the study in understandable language. | Required | AUD01 reworked setup into plain-language recipient selection, preview, save, and invitation roster. |
 | Audience import | Researcher can import a normal study audience without manual record-by-record entry. | Required for realistic beta | DIR04 added CSV import locally; Docker-backed store proof must run before deployment. |
@@ -60,8 +60,7 @@ Each row uses one of these classifications:
 
 | Rank | ID | Blocker | Reason |
 |---:|---|---|---|
-| 1 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
-| 2 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
+| 1 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
 
 ## Known limits to say out loud
 

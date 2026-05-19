@@ -31,14 +31,23 @@
 		type SelectedSeriesSetupWorkflowActionId
 	} from './setup-workflow';
 	import {
+		appendScoreOutputRow,
 		appendTemplateQuestionRow,
-		buildMeanScoringDocument,
+		buildScoreProduces,
+		buildScoringDocument,
+		createDefaultScoreOutputRows,
 		createDefaultTemplateQuestionRows,
 		isMeanScoreEligible,
 		moveTemplateQuestionRow,
+		removeScoreOutputRow,
 		removeTemplateQuestionRow,
+		syncScoreOutputQuestionCodes,
 		toCreateQuestionScales,
 		toCreateTemplateQuestions,
+		validateScoreOutputRows,
+		type ScoreCalculation,
+		type ScoreMissingStrategy,
+		type ScoreOutputAuthoringRow,
 		validateTemplateQuestionRows,
 		type TemplateQuestionAnswerType,
 		type TemplateQuestionAuthoringRow
@@ -64,6 +73,7 @@
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
+	const initialScoreOutputs = createDefaultScoreOutputRows(initialTemplateQuestionRows);
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
@@ -99,21 +109,19 @@
 	let questionnaireLocale = $state('en');
 	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
-	let scoreName = $state('Total score');
-	let scoreCalculation = $state<'mean' | 'sum'>('mean');
-	let scoreMissingStrategy = $state<'require_all' | 'min_valid_count'>('require_all');
-	let scoreMinValidCount = $state(1);
-	let includedScoreQuestionCodes = $state<string[]>(
-		initialTemplateQuestionRows.filter(isMeanScoreEligible).map((row) => row.code)
-	);
+	let scoreOutputs = $state<ScoreOutputAuthoringRow[]>(initialScoreOutputs);
 	let scoringDocumentManuallyEdited = $state(false);
 	let scoringForm = $state({
 		ruleKey: initialScoringRuleKey,
 		ruleVersion: '1.0.0',
 		schemaVersion: 'scoring-rule/v1',
 		engineMinVersion: 'engine/v1',
-		document: buildDefaultScoringDocument(initialScoringRuleKey, initialTemplateQuestionRows),
-		produces: buildDefaultProduces(),
+		document: buildScoringDocument(
+			initialScoringRuleKey,
+			initialTemplateQuestionRows,
+			initialScoreOutputs
+		),
+		produces: buildScoreProduces(initialScoreOutputs),
 		compatibility: '{}'
 	});
 	let campaignForm = $state({
@@ -185,8 +193,11 @@
 	const nonScoreableQuestionRows = $derived(
 		templateQuestionRows.filter((row) => !isMeanScoreEligible(row))
 	);
+	const scoreOutputErrors = $derived(validateScoreOutputRows(scoreOutputs, templateQuestionRows));
 	const selectedScoreQuestionRows = $derived(
-		scoreableQuestionRows.filter((row) => includedScoreQuestionCodes.includes(row.code))
+		scoreableQuestionRows.filter((row) =>
+			scoreOutputs.some((output) => output.includedQuestionCodes.includes(row.code))
+		)
 	);
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
@@ -286,10 +297,10 @@
 			return;
 		}
 
-		if (selectedScoreQuestionRows.length === 0) {
+		if (scoreOutputErrors.length > 0) {
 			actionErrors = {
 				...actionErrors,
-				scoring: 'Select at least one rating, recommendation, or number question to score.'
+				scoring: scoreOutputErrors[0]
 			};
 			return;
 		}
@@ -592,7 +603,7 @@
 			!action.available ||
 			actionStates[id] === 'submitting' ||
 			(id === 'template' && templateQuestionErrors.length > 0) ||
-			(id === 'scoring' && selectedScoreQuestionRows.length === 0)
+			(id === 'scoring' && scoreOutputErrors.length > 0)
 		);
 	}
 
@@ -601,8 +612,8 @@
 			return templateQuestionErrors[0];
 		}
 
-		if (id === 'scoring' && selectedScoreQuestionRows.length === 0) {
-			return 'Select at least one rating, recommendation, or number question to score.';
+		if (id === 'scoring' && scoreOutputErrors.length > 0) {
+			return scoreOutputErrors[0];
 		}
 
 		return workflowAction(id).disabledReason ?? undefined;
@@ -730,44 +741,50 @@
 	}
 
 	function syncIncludedScoreQuestions(rows: TemplateQuestionAuthoringRow[]) {
-		const eligibleCodes = rows.filter(isMeanScoreEligible).map((row) => row.code);
-		const retainedCodes = includedScoreQuestionCodes.filter((code) => eligibleCodes.includes(code));
-		const newCodes = eligibleCodes.filter((code) => !includedScoreQuestionCodes.includes(code));
-		includedScoreQuestionCodes = [...retainedCodes, ...newCodes];
+		scoreOutputs = syncScoreOutputQuestionCodes(scoreOutputs, rows);
 	}
 
-	function toggleScoreQuestion(code: string, checked: boolean) {
-		includedScoreQuestionCodes = checked
-			? [...includedScoreQuestionCodes.filter((candidate) => candidate !== code), code]
-			: includedScoreQuestionCodes.filter((candidate) => candidate !== code);
+	function addScoreOutput() {
+		scoreOutputs = appendScoreOutputRow(scoreOutputs, templateQuestionRows);
 		syncGeneratedScoringIfPristine(templateQuestionRows);
 	}
 
-	function updateScoreName(value: string) {
-		scoreName = value;
-		const ruleKey = `custom.${scoreCodeFromName(value)}`;
+	function deleteScoreOutput(localId: string) {
+		scoreOutputs = removeScoreOutputRow(scoreOutputs, localId);
+		syncGeneratedScoringIfPristine(templateQuestionRows);
+	}
+
+	function updateScoreOutput(localId: string, patch: Partial<ScoreOutputAuthoringRow>) {
+		scoreOutputs = scoreOutputs.map((output) =>
+			output.localId === localId ? { ...output, ...patch } : output
+		);
+		const firstOutput = scoreOutputs[0];
+		const ruleKey = firstOutput ? `custom.${scoreCodeFromName(firstOutput.code || firstOutput.name)}` : 'custom.total';
 		scoringForm = {
 			...scoringForm,
 			ruleKey,
-			produces: buildDefaultProduces()
+			produces: buildDefaultProduces(scoreOutputs)
 		};
 		syncGeneratedScoringIfPristine(templateQuestionRows, ruleKey);
 	}
 
-	function updateScoreCalculation(value: 'mean' | 'sum') {
-		scoreCalculation = value;
+	function toggleScoreQuestion(outputLocalId: string, code: string, checked: boolean) {
+		scoreOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId
+				? {
+						...output,
+						includedQuestionCodes: checked
+							? [...output.includedQuestionCodes.filter((candidate) => candidate !== code), code]
+							: output.includedQuestionCodes.filter((candidate) => candidate !== code)
+					}
+				: output
+		);
 		syncGeneratedScoringIfPristine(templateQuestionRows);
 	}
 
-	function updateScoreMissingStrategy(value: 'require_all' | 'min_valid_count') {
-		scoreMissingStrategy = value;
-		syncGeneratedScoringIfPristine(templateQuestionRows);
-	}
-
-	function updateScoreMinValidCount(value: string) {
+	function parseScoreMinValidCount(value: string) {
 		const parsed = Number.parseInt(value, 10);
-		scoreMinValidCount = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
-		syncGeneratedScoringIfPristine(templateQuestionRows);
+		return Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
 	}
 
 	function updateScoringRuleKey(ruleKey: string) {
@@ -790,7 +807,8 @@
 		scoringDocumentManuallyEdited = false;
 		scoringForm = {
 			...scoringForm,
-			document: buildDefaultScoringDocument(scoringForm.ruleKey, templateQuestionRows)
+			document: buildDefaultScoringDocument(scoringForm.ruleKey, templateQuestionRows),
+			produces: buildDefaultProduces(scoreOutputs)
 		};
 	}
 
@@ -806,7 +824,7 @@
 			...scoringForm,
 			ruleKey,
 			document: buildDefaultScoringDocument(ruleKey, rows),
-			produces: buildDefaultProduces()
+			produces: buildDefaultProduces(scoreOutputs)
 		};
 	}
 
@@ -992,24 +1010,11 @@
 		ruleId: string,
 		rows: TemplateQuestionAuthoringRow[] = templateQuestionRows
 	) {
-		return buildMeanScoringDocument(ruleId, rows, {
-			outputCode: scoreCodeFromName(scoreName),
-			aggregation: scoreCalculation,
-			includedQuestionCodes: includedScoreQuestionCodes,
-			missingStrategy: scoreMissingStrategy,
-			minValidCount: scoreMinValidCount
-		});
+		return buildScoringDocument(ruleId, rows, scoreOutputs);
 	}
 
-	function buildDefaultProduces() {
-		const outputCode = scoreCodeFromName(scoreName);
-		return JSON.stringify(
-			{
-				scores: [outputCode]
-			},
-			null,
-			2
-		);
+	function buildDefaultProduces(outputs: ScoreOutputAuthoringRow[] = scoreOutputs) {
+		return buildScoreProduces(outputs);
 	}
 
 	function scoreCodeFromName(value: string) {
@@ -1021,18 +1026,18 @@
 		return normalized || 'total';
 	}
 
-	function scoreCalculationLabel() {
-		return scoreCalculation === 'sum' ? 'sum' : 'average';
+	function scoreCalculationLabel(value: ScoreCalculation) {
+		return value === 'sum' ? 'sum' : 'average';
 	}
 
-	function missingPolicyLabel() {
-		if (scoreMissingStrategy === 'min_valid_count') {
-			return ` A score is allowed when at least ${scoreMinValidCount} selected ${
-				scoreMinValidCount === 1 ? 'question is' : 'questions are'
+	function missingPolicyLabel(output: ScoreOutputAuthoringRow) {
+		if (output.missingStrategy === 'min_valid_count') {
+			return `A score is allowed when at least ${output.minValidCount} selected ${
+				output.minValidCount === 1 ? 'question is' : 'questions are'
 			} answered.`;
 		}
 
-		return ' Every selected question must be answered.';
+		return 'Every selected question must be answered.';
 	}
 
 	function responseModeLabel(value: string) {
@@ -1472,92 +1477,158 @@
 							<h5 class="record-row__title">Results setup ready</h5>
 							<div class="record-grid">
 								<div class="record-field">
-									<p class="record-field__label">Result</p>
-									<p class="record-field__value">{scoreName || 'Total score'}</p>
+									<p class="record-field__label">Result outputs</p>
+									<p class="record-field__value">{scoreOutputs.length}</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Calculation</p>
-									<p class="record-field__value">{scoreCalculationLabel()}</p>
+									<p class="record-field__label">Outputs</p>
+									<p class="record-field__value">
+										{scoreOutputs.map((output) => output.name.trim() || output.code).join(', ')}
+									</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Included questions</p>
+									<p class="record-field__label">Unique scored questions</p>
 									<p class="record-field__value">{selectedScoreQuestionRows.length}</p>
 								</div>
 							</div>
 						</div>
 					{:else}
-						<div class="grid gap-4 lg:grid-cols-2">
-							<label class="field">
-								<span>Result name</span>
-								<input
-									value={scoreName}
-									oninput={(event) => updateScoreName(event.currentTarget.value)}
-								/>
-							</label>
-							<label class="field">
-								<span>Calculation</span>
-								<select
-									value={scoreCalculation}
-									onchange={(event) =>
-										updateScoreCalculation(event.currentTarget.value as 'mean' | 'sum')}
-								>
-									<option value="mean">Average selected answers</option>
-									<option value="sum">Sum selected answers</option>
-								</select>
-							</label>
-							<label class="field">
-								<span>Missing answers</span>
-								<select
-									value={scoreMissingStrategy}
-									onchange={(event) =>
-										updateScoreMissingStrategy(
-											event.currentTarget.value as 'require_all' | 'min_valid_count'
-										)}
-								>
-									<option value="require_all">Require every selected answer</option>
-									<option value="min_valid_count">Allow a score after enough answers</option>
-								</select>
-							</label>
-							{#if scoreMissingStrategy === 'min_valid_count'}
-								<label class="field">
-									<span>Minimum answered</span>
-									<input
-										type="number"
-										min="1"
-										max={Math.max(1, scoreableQuestionRows.length)}
-										value={scoreMinValidCount}
-										oninput={(event) => updateScoreMinValidCount(event.currentTarget.value)}
-									/>
-								</label>
-							{/if}
+						<div class="record-row">
+							<h5 class="record-row__title">Result outputs</h5>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Create one total score or several dimensions/subscales. Each output chooses its own
+								questions, calculation, and missing-answer rule.
+							</p>
 						</div>
 
-						<div class="record-row">
-							<h5 class="record-row__title">Questions included in the result</h5>
-							{#if scoreableQuestionRows.length}
-								<div class="grid gap-2">
-									{#each scoreableQuestionRows as question (question.code)}
-										<div class="record-field">
-											<label class="checkbox-field">
-												<input
-													type="checkbox"
-													checked={includedScoreQuestionCodes.includes(question.code)}
-													onchange={() => toggleScoreQuestion(question.code)}
-												/>
-												<span>{question.textDefault.trim() || question.code}</span>
-											</label>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{questionPreviewDetail(question)}
-												{question.reverseCoded ? ' Reverse scored.' : ''}
+						<div class="grid gap-4">
+							{#each scoreOutputs as output, outputIndex (output.localId)}
+								<div class="record-row">
+									<div class="setup-current-task__header">
+										<div>
+											<p class="record-field__label">Result {outputIndex + 1}</p>
+											<h5 class="record-row__title">{output.name.trim() || `Result ${outputIndex + 1}`}</h5>
+											<p class="setup-current-task__title">
+												{output.includedQuestionCodes.length}
+												selected {output.includedQuestionCodes.length === 1 ? 'question' : 'questions'}
 											</p>
 										</div>
-									{/each}
+										{#if scoreOutputs.length > 1}
+											<button
+												type="button"
+												class="secondary-button"
+												onclick={() => deleteScoreOutput(output.localId)}
+											>
+												<Trash2 size={16} aria-hidden="true" />
+												<span>Remove result</span>
+											</button>
+										{/if}
+									</div>
+
+									<div class="grid gap-4 lg:grid-cols-2">
+										<label class="field">
+											<span>Result name</span>
+											<input
+												value={output.name}
+												oninput={(event) =>
+													updateScoreOutput(output.localId, { name: event.currentTarget.value })}
+											/>
+										</label>
+										<label class="field">
+											<span>Result code</span>
+											<input
+												value={output.code}
+												oninput={(event) =>
+													updateScoreOutput(output.localId, { code: event.currentTarget.value })}
+											/>
+											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+												Used as the report/export dimension code.
+											</span>
+										</label>
+										<label class="field">
+											<span>Calculation</span>
+											<select
+												value={output.calculation}
+												onchange={(event) =>
+													updateScoreOutput(output.localId, {
+														calculation: event.currentTarget.value as ScoreCalculation
+													})}
+											>
+												<option value="mean">Average selected answers</option>
+												<option value="sum">Sum selected answers</option>
+											</select>
+										</label>
+										<label class="field">
+											<span>Missing answers</span>
+											<select
+												value={output.missingStrategy}
+												onchange={(event) =>
+													updateScoreOutput(output.localId, {
+														missingStrategy: event.currentTarget.value as ScoreMissingStrategy
+													})}
+											>
+												<option value="require_all">Require every selected answer</option>
+												<option value="min_valid_count">Allow a score after enough answers</option>
+											</select>
+										</label>
+										{#if output.missingStrategy === 'min_valid_count'}
+											<label class="field">
+												<span>Minimum answered</span>
+												<input
+													type="number"
+													min="1"
+													max={Math.max(1, output.includedQuestionCodes.length)}
+													value={output.minValidCount}
+													oninput={(event) =>
+														updateScoreOutput(output.localId, {
+															minValidCount: parseScoreMinValidCount(event.currentTarget.value)
+														})}
+												/>
+											</label>
+										{/if}
+									</div>
+
+									<div class="record-row">
+										<h6 class="record-row__title">Questions in this result</h6>
+										{#if scoreableQuestionRows.length}
+											<div class="grid gap-2">
+												{#each scoreableQuestionRows as question (question.code)}
+													<div class="record-field">
+														<label class="checkbox-field">
+															<input
+																type="checkbox"
+																checked={output.includedQuestionCodes.includes(question.code)}
+																onchange={(event) =>
+																	toggleScoreQuestion(
+																		output.localId,
+																		question.code,
+																		event.currentTarget.checked
+																	)}
+															/>
+															<span>{question.textDefault.trim() || question.code}</span>
+														</label>
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{questionPreviewDetail(question)}
+															{question.reverseCoded ? ' Reverse scored.' : ''}
+														</p>
+													</div>
+												{/each}
+											</div>
+										{:else}
+											<p class="text-sm text-[var(--color-text-muted)]">
+												Add a rating scale, recommendation scale, or number question before saving results.
+											</p>
+										{/if}
+									</div>
 								</div>
-							{:else}
-								<p class="text-sm text-[var(--color-text-muted)]">
-									Add a rating scale, recommendation scale, or number question before saving results.
-								</p>
-							{/if}
+							{/each}
+						</div>
+
+						<div class="action-row">
+							<button type="button" class="secondary-button" onclick={addScoreOutput}>
+								<Plus size={16} aria-hidden="true" />
+								<span>Add result output</span>
+							</button>
 						</div>
 
 						{#if nonScoreableQuestionRows.length}
@@ -1578,13 +1649,28 @@
 
 						<div class="record-row">
 							<h5 class="record-row__title">Result preview</h5>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{scoreName || 'Total score'} will be saved as the {scoreCalculationLabel()} of
-								{selectedScoreQuestionRows.length}
-								selected {selectedScoreQuestionRows.length === 1 ? 'question' : 'questions'}.
-								{missingPolicyLabel()}
-							</p>
+							<div class="grid gap-2">
+								{#each scoreOutputs as output (output.localId)}
+									<div class="record-field">
+										<p class="record-field__label">{output.code || scoreCodeFromName(output.name)}</p>
+										<p class="record-field__value">
+											{output.name || 'Result'} uses the {scoreCalculationLabel(output.calculation)} of
+											{output.includedQuestionCodes.length}
+											selected {output.includedQuestionCodes.length === 1 ? 'question' : 'questions'}.
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">{missingPolicyLabel(output)}</p>
+									</div>
+								{/each}
+							</div>
 						</div>
+
+						{#if scoreOutputErrors.length > 0}
+							<ul class="grid gap-1" aria-label="Results setup errors">
+								{#each scoreOutputErrors as error}
+									<li class="error-line">{error}</li>
+								{/each}
+							</ul>
+						{/if}
 
 						{@render ActionFooter({
 							id: 'scoring',

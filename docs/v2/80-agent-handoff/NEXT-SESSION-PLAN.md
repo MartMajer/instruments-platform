@@ -1,3 +1,11 @@
+# Next Session Plan - Post-D355
+
+Current queue head: VAL08 validation packet refresh.
+
+Recommended next slice: update the owner-facing validation materials so they match the current app after registration/auth hardening, setup cleanup, collection/results/waves/settings/sidebar cleanup, QB01 respondent-format parity, DIR04 CSV import, AUD01 recipient selection, and RSLT01 multi-output Results setup.
+
+Keep the packet honest. The app is still an owner-controlled private-beta proof, Q-053 still blocks real-person production legal/GDPR/DPA claims, Q-054 still blocks outbound operational-notification email claims, and DIR04 Docker-backed store proof still needs a Docker-enabled run before deployment. Do not imply platform-canonical named instruments, norms, interpretation bands, or a multi-workspace account picker exist.
+
 # Next Session Plan - Post-D354
 
 Current queue head: RSLT01 multi-output Results setup for dimensions/subscales.

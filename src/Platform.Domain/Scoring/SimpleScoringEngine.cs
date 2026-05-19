@@ -274,8 +274,8 @@ public static class SimpleScoringEngine
         {
             "select_answers" => EvaluateSelectAnswers(node, inputs, answersByCode),
             "reverse_code" => EvaluateReverseCode(node, scales, nodeValues),
-            "mean" => EvaluateAggregate(node, "mean", missingPolicy, nodeValues),
-            "sum" => EvaluateAggregate(node, "sum", missingPolicy, nodeValues),
+            "mean" => EvaluateAggregateWithNodePolicy(node, "mean", missingPolicy, nodeValues),
+            "sum" => EvaluateAggregateWithNodePolicy(node, "sum", missingPolicy, nodeValues),
             "subscale_aggregate" => EvaluateSubscaleAggregate(node, missingPolicy, nodeValues),
             "count_valid" => EvaluateCountValid(node, nodeValues),
             var op => Result.Failure<ScoreNodeValue>(
@@ -407,11 +407,23 @@ public static class SimpleScoringEngine
 
         return NormalizeCode(aggregatorResult.Value) switch
         {
-            "mean" => EvaluateAggregate(node, "mean", missingPolicy, nodeValues),
-            "sum" => EvaluateAggregate(node, "sum", missingPolicy, nodeValues),
+            "mean" => EvaluateAggregateWithNodePolicy(node, "mean", missingPolicy, nodeValues),
+            "sum" => EvaluateAggregateWithNodePolicy(node, "sum", missingPolicy, nodeValues),
             var aggregator => Result.Failure<ScoreNodeValue>(
                 Error.Validation("score.aggregator_unsupported", $"Subscale aggregator '{aggregator}' is not supported."))
         };
+    }
+
+    private static Result<ScoreNodeValue> EvaluateAggregateWithNodePolicy(
+        JsonElement node,
+        string aggregate,
+        MissingPolicy defaultMissingPolicy,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var missingPolicy = ReadNodeMissingPolicy(node, defaultMissingPolicy);
+        return missingPolicy.IsFailure
+            ? Result.Failure<ScoreNodeValue>(missingPolicy.Error)
+            : EvaluateAggregate(node, aggregate, missingPolicy.Value, nodeValues);
     }
 
     private static Result<ScoreNodeValue> EvaluateAggregate(
@@ -658,6 +670,38 @@ public static class SimpleScoringEngine
         }
 
         return Result.Success(new MissingPolicy(MissingPolicyStrategies.MinValidCount, minValidCount));
+    }
+
+    private static Result<MissingPolicy> ReadNodeMissingPolicy(
+        JsonElement node,
+        MissingPolicy defaultMissingPolicy)
+    {
+        if (!node.TryGetProperty("missing_data", out var missingData))
+        {
+            return Result.Success(defaultMissingPolicy);
+        }
+
+        if (missingData.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<MissingPolicy>(
+                Error.Validation("score.missing_policy_invalid", "Scoring node missing_data must be an object."));
+        }
+
+        var strategy = defaultMissingPolicy.Strategy;
+        if (missingData.TryGetProperty("strategy", out var strategyElement) &&
+            strategyElement.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(strategyElement.GetString()))
+        {
+            strategy = NormalizeCode(strategyElement.GetString()!);
+        }
+
+        return strategy switch
+        {
+            MissingPolicyStrategies.RequireAll => Result.Success(new MissingPolicy(strategy, null)),
+            MissingPolicyStrategies.MinValidCount => ReadMinValidCount(missingData),
+            _ => Result.Failure<MissingPolicy>(
+                Error.Validation("score.missing_policy_unsupported", $"Missing-data strategy '{strategy}' is not supported."))
+        };
     }
 
     private static HashSet<string> ReadOptionalStringSet(JsonElement element, string propertyName)

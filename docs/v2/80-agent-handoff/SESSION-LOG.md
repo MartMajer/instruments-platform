@@ -18833,3 +18833,11 @@ Verification:
 - Verification passed for the focused frontend product API test and product-surface endpoint binding/authorization test.
 - Added Docker-backed store coverage for upsert/idempotency, but the Docker-enabled run could not start because the local Docker engine was unavailable to Testcontainers. Treat Docker store proof as a deployment gate before staging.
 - Updated the private-beta checklist and active queue so AUD01 is next: the import path now exists, but audience selection still needs to read like researcher-facing recipient selection instead of respondent-rule programming.
+
+## 2026-05-20 - D355 post-RSLT01 multi-output Results setup assessment
+
+- Completed RSLT01 locally: Setup Results can now define multiple named outputs from one questionnaire instead of only one total score.
+- Each output supports result name/code, question inclusion, mean/sum calculation, require-all or minimum-answered missing policy, and generated scoring graph/output metadata.
+- Updated the scoring engine so aggregate nodes can override the default missing-answer policy.
+- Verification passed: focused template-authoring Vitest 9/9, focused scoring engine and validator tests 2/2, focused setup-authoring Playwright test 1/1 against direct Vite preview after production build, and `git diff --check` with only CRLF warnings.
+- Queue moves to VAL08 validation packet refresh. Remaining risk: partial-output scoring resilience and deeper node-local missing-policy validation remain future hardening; DIR04 Docker-backed store proof still needs Docker before deployment.

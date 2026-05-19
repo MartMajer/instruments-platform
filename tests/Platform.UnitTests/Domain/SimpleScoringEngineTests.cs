@@ -197,6 +197,62 @@ public sealed class SimpleScoringEngineTests
     }
 
     [Fact]
+    public void Graph_aggregate_nodes_can_override_missing_policy()
+    {
+        var result = SimpleScoringEngine.Evaluate(
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-burnout.multi",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "exhaustion_items", "kind": "answers", "items": ["q01", "q02"] },
+                { "id": "recovery_items", "kind": "answers", "items": ["q03", "q04"] }
+              ],
+              "nodes": [
+                { "id": "exhaustion_answers", "op": "select_answers", "input": "exhaustion_items" },
+                {
+                  "id": "exhaustion_score",
+                  "op": "mean",
+                  "input": "exhaustion_answers",
+                  "missing_data": { "strategy": "require_all" }
+                },
+                { "id": "recovery_answers", "op": "select_answers", "input": "recovery_items" },
+                {
+                  "id": "recovery_score",
+                  "op": "mean",
+                  "input": "recovery_answers",
+                  "missing_data": { "strategy": "min_valid_count", "min_valid_count": 1 }
+                }
+              ],
+              "outputs": [
+                { "code": "exhaustion", "node": "exhaustion_score" },
+                { "code": "recovery", "node": "recovery_score" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            [
+                new SimpleScoreInput("q01", "3"),
+                new SimpleScoreInput("q02", "4"),
+                new SimpleScoreInput("q03", "5")
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(2, result.Value.Count);
+        Assert.Equal("exhaustion", result.Value[0].DimensionCode);
+        Assert.Equal(3.5000m, result.Value[0].Value);
+        Assert.Equal(2, result.Value[0].NValid);
+        Assert.Equal("recovery", result.Value[1].DimensionCode);
+        Assert.Equal(5.0000m, result.Value[1].Value);
+        Assert.Equal(1, result.Value[1].NValid);
+        Assert.Equal(2, result.Value[1].NExpected);
+    }
+
+    [Fact]
     public void Graph_unknown_node_returns_validation_error()
     {
         var result = SimpleScoringEngine.Evaluate(

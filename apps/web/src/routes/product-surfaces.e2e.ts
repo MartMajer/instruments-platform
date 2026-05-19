@@ -4797,7 +4797,7 @@ test('setup workflow exposes one current setup task for an empty series', async 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const workflow = setup.getByRole('group', { name: 'Preparation actions' });
+	const workflow = setup.getByRole('group', { name: 'Study setup progress' });
 	await expect(workflow.getByRole('heading', { name: 'Current setup task' })).toBeVisible();
 	await expect(workflow.getByRole('region', { name: 'Current setup task' })).toContainText(
 		'Instrument import'
@@ -4824,7 +4824,7 @@ test('setup template authoring edits question rows and generated scoring default
 			reverseCoded: boolean;
 		}>;
 	}> = [];
-	const scoringBodies: Array<{ document: string }> = [];
+	const scoringBodies: Array<{ document: string; produces: string }> = [];
 	const createdInstrumentId = '7e4d44f0-4b2a-472a-9e0c-57218f49bcb9';
 
 	await page.route(`**/campaign-series/${sampleSeriesId}/setup-workspace`, async (route) => {
@@ -4890,26 +4890,23 @@ test('setup template authoring edits question rows and generated scoring default
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const workflow = setup.getByRole('group', { name: 'Preparation actions' });
-	await workflow.getByRole('button', { name: 'Create instrument import' }).click();
-	await expect(workflow.getByRole('region', { name: 'Current setup task' })).toContainText(
-		'Template version'
-	);
+	const workflow = setup.getByRole('group', { name: 'Study setup progress' });
+	await workflow.getByRole('button', { name: 'Save instrument' }).click();
+	await expect(workflow).toContainText('Questionnaire');
 
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
 	await workflow.getByRole('button', { name: 'Add question' }).click();
 	await expect(questionRows).toHaveCount(4);
 
-	await questionRows.nth(3).getByLabel('Code', { exact: true }).fill('focus_recovery');
 	await questionRows
 		.nth(3)
-		.getByLabel('Question 4')
+		.getByLabel('Question text')
 		.fill('I can recover focus after a difficult interruption.');
-	await questionRows.nth(3).getByLabel('Reverse coded', { exact: true }).check();
+	await questionRows.nth(3).getByLabel('Reverse scored', { exact: true }).check();
 	await questionRows.nth(1).getByRole('button', { name: 'Remove' }).click();
 
-	await workflow.getByRole('button', { name: 'Create template version' }).click();
+	await workflow.getByRole('button', { name: 'Save questionnaire' }).click();
 	await expect.poll(() => templateBodies).toHaveLength(1);
 	expect(templateBodies[0]).toMatchObject({
 		instrumentId: createdInstrumentId,
@@ -4928,7 +4925,7 @@ test('setup template authoring edits question rows and generated scoring default
 			},
 			{
 				ordinal: 3,
-				code: 'focus_recovery',
+				code: 'q04',
 				textDefault: 'I can recover focus after a difficult interruption.',
 				type: 'likert',
 				required: true,
@@ -4938,24 +4935,47 @@ test('setup template authoring edits question rows and generated scoring default
 	});
 	expect(templateBodies[0].questions.map((question) => question.code)).not.toContain('q02');
 
-	await expect(workflow.getByRole('region', { name: 'Current setup task' })).toContainText(
-		'Scoring rule'
-	);
-	const scoringDocument = JSON.parse(await workflow.getByLabel('Document').inputValue()) as {
-		inputs: Array<{ items: string[] }>;
-		nodes: Array<{ id: string; explicit_reverse_items?: string[] }>;
-	};
-	expect(scoringDocument.inputs[0]?.items).toEqual(['q01', 'q03', 'focus_recovery']);
-	expect(
-		scoringDocument.nodes.find((node) => node.id === 'scored_answers')?.explicit_reverse_items
-	).toEqual(['q03', 'focus_recovery']);
+	await expect(workflow).toContainText('Results setup');
+	await workflow.getByRole('button', { name: 'Add result output' }).click();
+	const recoveryOutput = workflow
+		.getByText('Result 2', { exact: true })
+		.locator('xpath=ancestor::div[contains(@class, "record-row")][1]');
+	await recoveryOutput.getByLabel('Result name').fill('Recovery');
+	await recoveryOutput.getByLabel('Result code').fill('recovery');
+	await recoveryOutput.getByLabel('Calculation').selectOption('sum');
+	await recoveryOutput.getByLabel('Missing answers').selectOption('min_valid_count');
+	await recoveryOutput.getByLabel('Minimum answered').fill('1');
+	await recoveryOutput.getByLabel('After work, I need time to recover mentally.').uncheck();
+	await recoveryOutput.getByLabel('I can usually regain focus after a short break.').uncheck();
 
-	await workflow.getByRole('button', { name: 'Create scoring rule' }).click();
+	await workflow.getByRole('button', { name: 'Save results setup' }).click();
 	await expect.poll(() => scoringBodies).toHaveLength(1);
 	const submittedScoringDocument = JSON.parse(scoringBodies[0].document) as {
-		inputs: Array<{ items: string[] }>;
+		inputs: Array<{ id: string; items: string[] }>;
+		nodes: Array<{ id: string; op: string; explicit_reverse_items?: string[]; missing_data?: unknown }>;
+		outputs: Array<{ code: string; node: string }>;
 	};
-	expect(submittedScoringDocument.inputs[0]?.items).toEqual(['q01', 'q03', 'focus_recovery']);
+	expect(submittedScoringDocument.inputs.find((input) => input.id === 'total_items')?.items).toEqual([
+		'q01',
+		'q03',
+		'q04'
+	]);
+	expect(submittedScoringDocument.inputs.find((input) => input.id === 'recovery_items')?.items).toEqual([
+		'q04'
+	]);
+	expect(
+		submittedScoringDocument.nodes.find((node) => node.id === 'total_scored_answers')?.explicit_reverse_items
+	).toEqual(['q03', 'q04']);
+	expect(submittedScoringDocument.nodes.find((node) => node.id === 'recovery_score')).toMatchObject({
+		op: 'sum',
+		missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
+	});
+	expect(submittedScoringDocument.outputs).toEqual([
+		{ code: 'total', node: 'total_score' },
+		{ code: 'recovery', node: 'recovery_score' }
+	]);
+	expect(submittedScoringDocument.outputs.map((output) => output.code)).toEqual(['total', 'recovery']);
+	expect(JSON.parse(scoringBodies[0].produces)).toEqual({ scores: ['total', 'recovery'] });
 });
 
 test('setup workflow previews respondent-rule audience from the selected campaign', async ({

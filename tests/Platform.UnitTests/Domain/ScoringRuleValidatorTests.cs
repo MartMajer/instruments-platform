@@ -49,6 +49,55 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Valid_graph_rule_with_multiple_outputs_and_node_missing_policies_passes()
+    {
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-burnout.multi",
+            document:
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-burnout.multi",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "exhaustion_items", "kind": "answers", "items": ["q01", "q02"] },
+                { "id": "recovery_items", "kind": "answers", "items": ["q03", "q04"] }
+              ],
+              "nodes": [
+                { "id": "exhaustion_answers", "op": "select_answers", "input": "exhaustion_items" },
+                {
+                  "id": "exhaustion_score",
+                  "op": "mean",
+                  "input": "exhaustion_answers",
+                  "missing_data": { "strategy": "require_all" }
+                },
+                { "id": "recovery_answers", "op": "select_answers", "input": "recovery_items" },
+                {
+                  "id": "recovery_score",
+                  "op": "sum",
+                  "input": "recovery_answers",
+                  "missing_data": { "strategy": "min_valid_count", "min_valid_count": 1 }
+                }
+              ],
+              "outputs": [
+                { "code": "exhaustion", "node": "exhaustion_score" },
+                { "code": "recovery", "node": "recovery_score" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            produces: """{"scores":["exhaustion","recovery"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(["exhaustion", "recovery"], result.Value.ScoreCodes);
+    }
+
+    [Fact]
     public void Produces_interpretation_metadata_matches_score_band()
     {
         var result = ScoreInterpretationMetadataParser.ParseProduces(ValidInterpretationProduces);

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	appendTemplateQuestionRow,
+	buildScoreProduces,
+	buildScoringDocument,
 	buildMeanScoringDocument,
+	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
 	moveTemplateQuestionRow,
 	removeTemplateQuestionRow,
@@ -75,7 +78,7 @@ describe('template authoring helpers', () => {
 				{ ...createDefaultTemplateQuestionRows()[2], code: 'q02', textDefault: 'Duplicate code' }
 			])
 		).toEqual([
-			'Question 1 needs a code.',
+			'Question 1 needs an internal code.',
 			'Question 2 needs question text.',
 			'Question code q02 is duplicated.'
 		]);
@@ -98,11 +101,18 @@ describe('template authoring helpers', () => {
 				type: 'likert',
 				textDefault: 'I have enough energy after work.',
 				sectionCode: 'core',
-				scaleCode: 'agreement',
+				scaleCode: 'scale_energy',
 				required: false,
 				reverseCoded: false,
 				measurementLevel: 'ordinal',
-				payload: '{}',
+				payload: JSON.stringify({
+					scale: {
+						min: 1,
+						max: 5,
+						lowLabel: 'Strongly disagree',
+						highLabel: 'Strongly agree'
+					}
+				}),
 				missingCodes: '[]'
 			}
 		]);
@@ -120,9 +130,60 @@ describe('template authoring helpers', () => {
 
 		expect(document.rule_id).toBe('tenant-rule.total');
 		expect(document.inputs[0]?.items).toEqual(['q01', 'q02', 'q03', 'q04']);
-		expect(document.nodes.find((node) => node.id === 'scored_answers')?.explicit_reverse_items).toEqual([
+		expect(document.nodes.find((node) => node.id === 'total_scored_answers')?.explicit_reverse_items).toEqual([
 			'q03',
 			'q04'
 		]);
+	});
+
+	it('builds multiple scoring outputs with per-output question sets and missing policies', () => {
+		const rows = appendTemplateQuestionRow(createDefaultTemplateQuestionRows()).map((row) =>
+			row.code === 'q04'
+				? { ...row, code: 'recovery', textDefault: 'I recover quickly.', reverseCoded: false }
+				: row
+		);
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Exhaustion',
+				code: 'exhaustion',
+				includedQuestionCodes: ['q01', 'q03'],
+				missingStrategy: 'require_all' as const
+			},
+			{
+				localId: 'score-recovery',
+				name: 'Recovery',
+				code: 'recovery',
+				calculation: 'sum' as const,
+				missingStrategy: 'min_valid_count' as const,
+				minValidCount: 1,
+				includedQuestionCodes: ['recovery']
+			}
+		];
+		const document = JSON.parse(buildScoringDocument('tenant-rule.multi', rows, outputs)) as {
+			inputs: Array<{ id: string; items: string[] }>;
+			nodes: Array<{ id: string; op: string; input: string; missing_data?: Record<string, unknown> }>;
+			outputs: Array<{ code: string; node: string }>;
+		};
+
+		expect(document.inputs).toEqual([
+			{ id: 'exhaustion_items', kind: 'answers', items: ['q01', 'q03'] },
+			{ id: 'recovery_items', kind: 'answers', items: ['recovery'] }
+		]);
+		expect(document.nodes.find((node) => node.id === 'exhaustion_score')).toMatchObject({
+			op: 'mean',
+			input: 'exhaustion_scored_answers',
+			missing_data: { strategy: 'require_all' }
+		});
+		expect(document.nodes.find((node) => node.id === 'recovery_score')).toMatchObject({
+			op: 'sum',
+			input: 'recovery_answers',
+			missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
+		});
+		expect(document.outputs).toEqual([
+			{ code: 'exhaustion', node: 'exhaustion_score' },
+			{ code: 'recovery', node: 'recovery_score' }
+		]);
+		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({ scores: ['exhaustion', 'recovery'] });
 	});
 });

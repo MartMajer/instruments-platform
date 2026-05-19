@@ -106,6 +106,10 @@
 - Run focused scoring-rule and setup workflow tests.
 - Run frontend build/type check for touched UI.
 
+**Result - 2026-05-20:**
+- Complete locally. Added multi-output Results setup for dimensions/subscales, generated multi-output scoring graph documents and `produces.scores`, added aggregate node-local missing-policy support in the scoring engine, and updated D355/checklist/queue handoff.
+- Verification passed: focused template-authoring Vitest 9/9; focused scoring engine and validator tests 2/2; focused setup-authoring Playwright test 1/1 against direct Vite preview after production build; `git diff --check` passed with only CRLF warnings.
+
 ### Task 6: VAL08 validation packet refresh
 
 **Files:**

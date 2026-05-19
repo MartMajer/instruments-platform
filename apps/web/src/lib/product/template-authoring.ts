@@ -34,6 +34,19 @@ export type MeanScoringDocumentOptions = {
 	minValidCount?: number;
 };
 
+export type ScoreCalculation = 'mean' | 'sum';
+export type ScoreMissingStrategy = 'require_all' | 'min_valid_count';
+
+export type ScoreOutputAuthoringRow = {
+	localId: string;
+	name: string;
+	code: string;
+	calculation: ScoreCalculation;
+	missingStrategy: ScoreMissingStrategy;
+	minValidCount: number;
+	includedQuestionCodes: string[];
+};
+
 const defaultQuestionText = [
 	'After work, I need time to recover mentally.',
 	'During demanding weeks, small interruptions feel harder to handle.',
@@ -193,41 +206,193 @@ export function buildMeanScoringDocument(
 	rows: TemplateQuestionAuthoringRow[],
 	options: MeanScoringDocumentOptions = {}
 ): string {
-	const includedCodes = new Set(
-		options.includedQuestionCodes?.map((code) => code.trim().toLowerCase()).filter(Boolean)
+	return buildScoringDocument(ruleId, rows, [
+		{
+			localId: 'score-total',
+			name: options.outputCode ?? 'Total score',
+			code: scoreCode(options.outputCode ?? 'total'),
+			calculation: options.aggregation ?? 'mean',
+			missingStrategy: options.missingStrategy ?? 'require_all',
+			minValidCount: Math.max(1, options.minValidCount ?? 1),
+			includedQuestionCodes: options.includedQuestionCodes ?? rows.filter(isMeanScoreEligible).map((row) => row.code)
+		}
+	]);
+}
+
+export function createDefaultScoreOutputRows(
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	return [
+		{
+			localId: createScoreOutputLocalId(),
+			name: 'Total score',
+			code: 'total',
+			calculation: 'mean',
+			missingStrategy: 'require_all',
+			minValidCount: 1,
+			includedQuestionCodes: rows.filter(isMeanScoreEligible).map((row) => row.code)
+		}
+	];
+}
+
+export function appendScoreOutputRow(
+	outputs: ScoreOutputAuthoringRow[],
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	const index = outputs.length + 1;
+	const defaultCode = nextScoreCode(outputs, `dimension_${index}`);
+	return [
+		...outputs,
+		{
+			localId: createScoreOutputLocalId(),
+			name: `Dimension ${index}`,
+			code: defaultCode,
+			calculation: 'mean',
+			missingStrategy: 'require_all',
+			minValidCount: 1,
+			includedQuestionCodes: rows.filter(isMeanScoreEligible).map((row) => row.code)
+		}
+	];
+}
+
+export function removeScoreOutputRow(
+	outputs: ScoreOutputAuthoringRow[],
+	localId: string
+): ScoreOutputAuthoringRow[] {
+	if (outputs.length <= 1) {
+		return outputs;
+	}
+
+	return outputs.filter((output) => output.localId !== localId);
+}
+
+export function syncScoreOutputQuestionCodes(
+	outputs: ScoreOutputAuthoringRow[],
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	const eligibleCodes = rows.filter(isMeanScoreEligible).map((row) => row.code);
+	const eligibleCodeSet = new Set(eligibleCodes.map((code) => code.trim().toLowerCase()));
+
+	return outputs.map((output, index) => {
+		const retainedCodes = output.includedQuestionCodes.filter((code) =>
+			eligibleCodeSet.has(code.trim().toLowerCase())
+		);
+		const newCodes =
+			index === 0
+				? eligibleCodes.filter(
+						(code) =>
+							!retainedCodes.some(
+								(candidate) => candidate.trim().toLowerCase() === code.trim().toLowerCase()
+							)
+					)
+				: [];
+
+		return {
+			...output,
+			includedQuestionCodes: [...retainedCodes, ...newCodes]
+		};
+	});
+}
+
+export function validateScoreOutputRows(
+	outputs: ScoreOutputAuthoringRow[],
+	rows: TemplateQuestionAuthoringRow[]
+): string[] {
+	const errors: string[] = [];
+	const eligibleCodeSet = new Set(
+		rows
+			.filter(isMeanScoreEligible)
+			.map((row) => row.code.trim().toLowerCase())
+			.filter(Boolean)
 	);
-	const eligibleRows = rows.filter(
-		(row) =>
-			isMeanScoreEligible(row) &&
-			row.code.trim() &&
-			(includedCodes.size === 0 || includedCodes.has(row.code.trim().toLowerCase()))
-	);
-	const itemCodes = eligibleRows.map((row) => row.code.trim());
-	const reverseCodedRows = eligibleRows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
-	const reverseScale = reverseCodedRows[0] ?? eligibleRows.find((row) => isScaleBackedType(row.type));
-	const outputCode = scoreCode(options.outputCode ?? 'total');
-	const aggregation = options.aggregation ?? 'mean';
-	const missingDefaults =
-		options.missingStrategy === 'min_valid_count'
-			? { strategy: 'min_valid_count', min_valid_count: Math.max(1, options.minValidCount ?? 1) }
-			: { strategy: 'require_all' };
-	const nodes = reverseScale
-		? [
-				{ id: 'core_answers', op: 'select_answers', input: 'core_items' },
-				{
-					id: 'scored_answers',
-					op: 'reverse_code',
-					input: 'core_answers',
-					scale: 'default_rating',
-					reverse_flag_source: 'explicit_list',
-					explicit_reverse_items: reverseCodedRows.map((row) => row.code.trim())
-				},
-				{ id: 'total', op: aggregation, input: 'scored_answers' }
-			]
-		: [
-				{ id: 'core_answers', op: 'select_answers', input: 'core_items' },
-				{ id: 'total', op: aggregation, input: 'core_answers' }
-			];
+	const seenCodes = new Set<string>();
+
+	if (!outputs.length) {
+		errors.push('Add at least one result output.');
+		return errors;
+	}
+
+	outputs.forEach((output, index) => {
+		const label = output.name.trim() || `Result ${index + 1}`;
+		const code = scoreCode(output.code || output.name);
+
+		if (!output.name.trim()) {
+			errors.push(`Result ${index + 1} needs a name.`);
+		}
+
+		if (!code) {
+			errors.push(`${label} needs a result code.`);
+		} else if (seenCodes.has(code)) {
+			errors.push(`Result code ${code} is duplicated.`);
+		} else {
+			seenCodes.add(code);
+		}
+
+		const selectedCodes = output.includedQuestionCodes.filter((questionCode) =>
+			eligibleCodeSet.has(questionCode.trim().toLowerCase())
+		);
+		if (!selectedCodes.length) {
+			errors.push(`${label} needs at least one rating, recommendation, or number question.`);
+		}
+
+		if (
+			output.missingStrategy === 'min_valid_count' &&
+			(!Number.isFinite(output.minValidCount) || Math.trunc(output.minValidCount) < 1)
+		) {
+			errors.push(`${label} needs a positive minimum answered count.`);
+		}
+	});
+
+	return errors;
+}
+
+export function buildScoringDocument(
+	ruleId: string,
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): string {
+	const normalizedOutputs = normalizeScoreOutputs(outputs, rows);
+	const reverseCodedRows = rows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
+	const reverseScale = reverseCodedRows[0] ?? rows.find((row) => isScaleBackedType(row.type));
+	const inputs = [];
+	const nodes = [];
+	const outputDefinitions = [];
+
+	for (const output of normalizedOutputs) {
+		const inputId = `${output.code}_items`;
+		const answersId = `${output.code}_answers`;
+		const reverseId = `${output.code}_scored_answers`;
+		const scoreNodeId = `${output.code}_score`;
+		const outputRows = rows.filter((row) =>
+			output.includedQuestionCodes.some(
+				(code) => code.trim().toLowerCase() === row.code.trim().toLowerCase()
+			)
+		);
+		const outputReverseRows = outputRows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
+		const aggregateInput = reverseScale && outputReverseRows.length > 0 ? reverseId : answersId;
+
+		inputs.push({ id: inputId, kind: 'answers', items: outputRows.map((row) => row.code.trim()) });
+		nodes.push({ id: answersId, op: 'select_answers', input: inputId });
+
+		if (reverseScale && outputReverseRows.length > 0) {
+			nodes.push({
+				id: reverseId,
+				op: 'reverse_code',
+				input: answersId,
+				scale: 'default_rating',
+				reverse_flag_source: 'explicit_list',
+				explicit_reverse_items: outputReverseRows.map((row) => row.code.trim())
+			});
+		}
+
+		nodes.push({
+			id: scoreNodeId,
+			op: output.calculation,
+			input: aggregateInput,
+			missing_data: missingPolicyDocument(output)
+		});
+		outputDefinitions.push({ code: output.code, node: scoreNodeId });
+	}
 
 	return JSON.stringify(
 		{
@@ -240,16 +405,81 @@ export function buildMeanScoringDocument(
 						default_rating: { min: reverseScale.scaleMin, max: reverseScale.scaleMax }
 					}
 				: {},
-			inputs: [{ id: 'core_items', kind: 'answers', items: itemCodes }],
+			inputs,
 			nodes,
-			outputs: [{ code: outputCode, node: 'total' }],
+			outputs: outputDefinitions,
 			missing_data: {
-				defaults: missingDefaults
+				defaults: { strategy: 'require_all' }
 			}
 		},
 		null,
 		2
 	);
+}
+
+export function buildScoreProduces(outputs: ScoreOutputAuthoringRow[]): string {
+	return JSON.stringify(
+		{
+			scores: normalizeScoreCodes(outputs)
+		},
+		null,
+		2
+	);
+}
+
+function normalizeScoreOutputs(
+	outputs: ScoreOutputAuthoringRow[],
+	rows: TemplateQuestionAuthoringRow[]
+): Array<ScoreOutputAuthoringRow & { code: string }> {
+	const eligibleRows = rows.filter(isMeanScoreEligible);
+	const eligibleCodeSet = new Set(eligibleRows.map((row) => row.code.trim().toLowerCase()));
+
+	return outputs.map((output) => ({
+		...output,
+		code: scoreCode(output.code || output.name),
+		minValidCount: Math.max(1, Math.trunc(output.minValidCount || 1)),
+		includedQuestionCodes: output.includedQuestionCodes.filter((code) =>
+			eligibleCodeSet.has(code.trim().toLowerCase())
+		)
+	}));
+}
+
+function normalizeScoreCodes(outputs: ScoreOutputAuthoringRow[]) {
+	return outputs.map((output) => scoreCode(output.code || output.name)).filter(Boolean);
+}
+
+function missingPolicyDocument(output: ScoreOutputAuthoringRow) {
+	if (output.missingStrategy === 'min_valid_count') {
+		return {
+			strategy: 'min_valid_count',
+			min_valid_count: Math.max(1, Math.trunc(output.minValidCount || 1))
+		};
+	}
+
+	return { strategy: 'require_all' };
+}
+
+function createScoreOutputLocalId() {
+	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+		return crypto.randomUUID();
+	}
+
+	return `score-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function nextScoreCode(outputs: ScoreOutputAuthoringRow[], fallback: string) {
+	const usedCodes = new Set(normalizeScoreCodes(outputs));
+	const baseCode = scoreCode(fallback);
+	if (!usedCodes.has(baseCode)) {
+		return baseCode;
+	}
+
+	let index = 2;
+	while (usedCodes.has(`${baseCode}_${index}`)) {
+		index += 1;
+	}
+
+	return `${baseCode}_${index}`;
 }
 
 export function isMeanScoreEligible(row: TemplateQuestionAuthoringRow): boolean {
