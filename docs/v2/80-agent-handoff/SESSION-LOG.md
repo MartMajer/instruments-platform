@@ -18435,3 +18435,10 @@ Assessment: Owner inspected the staging home page source after sign-out and saw 
 Task: Changed the web auth URL helper so normal login no longer falls back to `PUBLIC_TENANT_ID`; it only uses an explicit tenant id from URL/storage/session. Login/logout endpoints are derived from `PUBLIC_API_BASE_URL` when no explicit auth URL override is supplied. Register sign-in now uses remembered workspace context when available. Staging compose no longer injects public seeded tenant/user ids or full public auth URLs into the web container.
 Verification: Session-header unit tests passed 10/10. Web production Vite build passed through direct Node invocation; existing large chunk warning only. Focused Playwright coverage for home sign-in after sign-out, registration workspace memory, and failed-auth recovery passed 3/3 against a direct preview server.
 Remaining risk: First-time "sign in" without a known workspace still has no product-grade workspace discovery/account picker. That is a separate design slice; this change prevents silent fallback to the seeded tenant.
+
+Deployment update:
+- Commit pushed: `82865e2 fix(auth): remove public default tenant fallback` to `origin/main` and `origin/staging`.
+- VPS staging web rebuilt/recreated from `82865e2`.
+- Running web image after rebuild: `sha256:747fd747d816b145adc4388587dacd904c07f276444ec6b534eadce2b51b4300`.
+- Public web checks returned `/` 200 and `/app` 200 after warm-up.
+- Home page source env payload now only includes `PUBLIC_API_BASE_URL=https://validatedscale-api-staging.croat.dev` and `PUBLIC_DEV_AUTH_ENABLED=false`; seeded `PUBLIC_TENANT_ID`, `PUBLIC_DEV_TENANT_ID`, `PUBLIC_DEV_USER_ID`, `PUBLIC_AUTH_LOGIN_URL`, and `PUBLIC_AUTH_LOGOUT_URL` are no longer published by the web container.
