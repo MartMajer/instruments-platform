@@ -34,10 +34,13 @@
 		appendTemplateQuestionRow,
 		buildMeanScoringDocument,
 		createDefaultTemplateQuestionRows,
+		isMeanScoreEligible,
 		moveTemplateQuestionRow,
 		removeTemplateQuestionRow,
+		toCreateQuestionScales,
 		toCreateTemplateQuestions,
 		validateTemplateQuestionRows,
+		type TemplateQuestionAnswerType,
 		type TemplateQuestionAuthoringRow
 	} from './template-authoring';
 	import { toCampaignSeriesSetupWorkspaceView, toProductApiErrorMessage } from './view-models';
@@ -58,7 +61,7 @@
 	const productApi = createProductApiFromEnv(env);
 	const setupApi = createSetupApiFromEnv(env);
 	const initialSetupRunSuffix = generateSetupRunSuffix();
-	const initialScoringRuleKey = `tenant-burnout.${initialSetupRunSuffix}.total`;
+	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
@@ -95,6 +98,13 @@
 	let questionnaireLocale = $state('en');
 	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
+	let scoreName = $state('Total score');
+	let scoreCalculation = $state<'mean' | 'sum'>('mean');
+	let scoreMissingStrategy = $state<'require_all' | 'min_valid_count'>('require_all');
+	let scoreMinValidCount = $state(1);
+	let includedScoreQuestionCodes = $state<string[]>(
+		initialTemplateQuestionRows.filter(isMeanScoreEligible).map((row) => row.code)
+	);
 	let scoringDocumentManuallyEdited = $state(false);
 	let scoringForm = $state({
 		ruleKey: initialScoringRuleKey,
@@ -170,6 +180,13 @@
 		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
 	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
+	const scoreableQuestionRows = $derived(templateQuestionRows.filter(isMeanScoreEligible));
+	const nonScoreableQuestionRows = $derived(
+		templateQuestionRows.filter((row) => !isMeanScoreEligible(row))
+	);
+	const selectedScoreQuestionRows = $derived(
+		scoreableQuestionRows.filter((row) => includedScoreQuestionCodes.includes(row.code))
+	);
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
 	);
@@ -263,7 +280,15 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				scoring: 'Create or select an instrument template first.'
+				scoring: 'Save the questionnaire first.'
+			};
+			return;
+		}
+
+		if (selectedScoreQuestionRows.length === 0) {
+			actionErrors = {
+				...actionErrors,
+				scoring: 'Select at least one rating, recommendation, or number question to score.'
 			};
 			return;
 		}
@@ -506,20 +531,7 @@
 			defaultLocale: questionnaireLocale,
 			instrumentId: instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
 			sections: [{ ordinal: 1, code: 'core', titleDefault: sectionTitle }],
-			scales: [
-				{
-					code: 'agreement',
-					type: 'likert',
-					minValue: 1,
-					maxValue: 5,
-					step: 1,
-					naAllowed: false,
-					anchors: JSON.stringify([
-						{ value: 1, label: 'Strongly disagree' },
-						{ value: 5, label: 'Strongly agree' }
-					])
-				}
-			],
+			scales: toCreateQuestionScales(templateQuestionRows),
 			questions: toCreateTemplateQuestions(templateQuestionRows)
 		};
 	}
@@ -570,13 +582,18 @@
 		return (
 			!action.available ||
 			actionStates[id] === 'submitting' ||
-			(id === 'template' && templateQuestionErrors.length > 0)
+			(id === 'template' && templateQuestionErrors.length > 0) ||
+			(id === 'scoring' && selectedScoreQuestionRows.length === 0)
 		);
 	}
 
 	function actionDisabledReason(id: SelectedSeriesSetupWorkflowActionId) {
 		if (id === 'template' && templateQuestionErrors.length > 0) {
 			return templateQuestionErrors[0];
+		}
+
+		if (id === 'scoring' && selectedScoreQuestionRows.length === 0) {
+			return 'Select at least one rating, recommendation, or number question to score.';
 		}
 
 		return workflowAction(id).disabledReason ?? undefined;
@@ -590,25 +607,158 @@
 			index === rowIndex ? { ...row, ...updates } : row
 		);
 		templateQuestionRows = nextRows;
+		syncIncludedScoreQuestions(nextRows);
 		syncGeneratedScoringIfPristine(nextRows);
+	}
+
+	function updateTemplateQuestionType(rowIndex: number, type: TemplateQuestionAnswerType) {
+		const current = templateQuestionRows[rowIndex];
+		if (!current) {
+			return;
+		}
+
+		const isScaleBacked = type === 'likert' || type === 'nps';
+		updateTemplateQuestionRow(rowIndex, {
+			type,
+			reverseCoded: isScaleBacked ? current.reverseCoded : false,
+			scaleMin: type === 'nps' ? 0 : current.scaleMin,
+			scaleMax: type === 'nps' ? 10 : current.scaleMax,
+			scaleLowLabel: type === 'nps' ? 'Not at all likely' : current.scaleLowLabel,
+			scaleHighLabel: type === 'nps' ? 'Extremely likely' : current.scaleHighLabel
+		});
+	}
+
+	function updateChoiceOptions(rowIndex: number, value: string) {
+		updateTemplateQuestionRow(rowIndex, {
+			choiceOptions: value
+				.split('\n')
+				.map((option) => option.trim())
+				.filter(Boolean)
+		});
+	}
+
+	function updateScaleNumber(
+		rowIndex: number,
+		field: 'scaleMin' | 'scaleMax',
+		value: string,
+		fallback: number
+	) {
+		const parsed = Number.parseInt(value, 10);
+		updateTemplateQuestionRow(rowIndex, {
+			[field]: Number.isFinite(parsed) ? parsed : fallback
+		});
+	}
+
+	function isScaleQuestion(question: TemplateQuestionAuthoringRow) {
+		return question.type === 'likert' || question.type === 'nps';
+	}
+
+	function isChoiceQuestion(question: TemplateQuestionAuthoringRow) {
+		return question.type === 'single' || question.type === 'multi';
+	}
+
+	function questionTypeLabel(type: TemplateQuestionAnswerType) {
+		const labels: Record<TemplateQuestionAnswerType, string> = {
+			likert: 'Rating scale',
+			nps: '0-10 recommendation scale',
+			single: 'Single choice',
+			multi: 'Multiple choice',
+			number: 'Number',
+			text: 'Text',
+			date: 'Date',
+			ranking: 'Ranking'
+		};
+		return labels[type] ?? 'Question';
+	}
+
+	function questionPreviewDetail(question: TemplateQuestionAuthoringRow) {
+		if (isScaleQuestion(question)) {
+			return `${question.scaleMin} to ${question.scaleMax}: ${question.scaleLowLabel} -> ${question.scaleHighLabel}`;
+		}
+
+		if (question.type === 'single') {
+			return `Choose one: ${question.choiceOptions.join(', ')}`;
+		}
+
+		if (question.type === 'multi') {
+			return `Choose any: ${question.choiceOptions.join(', ')}`;
+		}
+
+		if (question.type === 'number') {
+			return 'Number response';
+		}
+
+		if (question.type === 'date') {
+			return 'Date response';
+		}
+
+		if (question.type === 'ranking') {
+			return `Rank options: ${question.choiceOptions.join(', ')}`;
+		}
+
+		return 'Text response';
 	}
 
 	function addTemplateQuestionRow() {
 		const nextRows = appendTemplateQuestionRow(templateQuestionRows);
 		templateQuestionRows = nextRows;
+		syncIncludedScoreQuestions(nextRows);
 		syncGeneratedScoringIfPristine(nextRows);
 	}
 
 	function deleteTemplateQuestionRow(code: string) {
 		const nextRows = removeTemplateQuestionRow(templateQuestionRows, code);
 		templateQuestionRows = nextRows;
+		syncIncludedScoreQuestions(nextRows);
 		syncGeneratedScoringIfPristine(nextRows);
 	}
 
 	function reorderTemplateQuestionRow(code: string, direction: 'up' | 'down') {
 		const nextRows = moveTemplateQuestionRow(templateQuestionRows, code, direction);
 		templateQuestionRows = nextRows;
+		syncIncludedScoreQuestions(nextRows);
 		syncGeneratedScoringIfPristine(nextRows);
+	}
+
+	function syncIncludedScoreQuestions(rows: TemplateQuestionAuthoringRow[]) {
+		const eligibleCodes = rows.filter(isMeanScoreEligible).map((row) => row.code);
+		const retainedCodes = includedScoreQuestionCodes.filter((code) => eligibleCodes.includes(code));
+		const newCodes = eligibleCodes.filter((code) => !includedScoreQuestionCodes.includes(code));
+		includedScoreQuestionCodes = [...retainedCodes, ...newCodes];
+	}
+
+	function toggleScoreQuestion(code: string, checked: boolean) {
+		includedScoreQuestionCodes = checked
+			? [...includedScoreQuestionCodes.filter((candidate) => candidate !== code), code]
+			: includedScoreQuestionCodes.filter((candidate) => candidate !== code);
+		syncGeneratedScoringIfPristine(templateQuestionRows);
+	}
+
+	function updateScoreName(value: string) {
+		scoreName = value;
+		const ruleKey = `custom.${scoreCodeFromName(value)}`;
+		scoringForm = {
+			...scoringForm,
+			ruleKey,
+			produces: buildDefaultProduces()
+		};
+		syncGeneratedScoringIfPristine(templateQuestionRows, ruleKey);
+	}
+
+	function updateScoreCalculation(value: 'mean' | 'sum') {
+		scoreCalculation = value;
+		syncGeneratedScoringIfPristine(templateQuestionRows);
+	}
+
+	function updateScoreMissingStrategy(value: 'require_all' | 'min_valid_count') {
+		scoreMissingStrategy = value;
+		syncGeneratedScoringIfPristine(templateQuestionRows);
+	}
+
+	function updateScoreMinValidCount(value: string) {
+		const parsed = Number.parseInt(value, 10);
+		scoreMinValidCount = Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
+		syncGeneratedScoringIfPristine(templateQuestionRows);
 	}
 
 	function updateScoringRuleKey(ruleKey: string) {
@@ -646,7 +796,8 @@
 		scoringForm = {
 			...scoringForm,
 			ruleKey,
-			document: buildDefaultScoringDocument(ruleKey, rows)
+			document: buildDefaultScoringDocument(ruleKey, rows),
+			produces: buildDefaultProduces()
 		};
 	}
 
@@ -771,29 +922,54 @@
 		ruleId: string,
 		rows: TemplateQuestionAuthoringRow[] = templateQuestionRows
 	) {
-		return buildMeanScoringDocument(ruleId, rows);
+		return buildMeanScoringDocument(ruleId, rows, {
+			outputCode: scoreCodeFromName(scoreName),
+			aggregation: scoreCalculation,
+			includedQuestionCodes: includedScoreQuestionCodes,
+			missingStrategy: scoreMissingStrategy,
+			minValidCount: scoreMinValidCount
+		});
 	}
 
 	function buildDefaultProduces() {
+		const outputCode = scoreCodeFromName(scoreName);
 		return JSON.stringify(
 			{
-				scores: ['total'],
+				scores: [outputCode],
 				interpretation: {
-					status: 'tenant_attested',
-					source: 'tenant_defined',
-					provenance: 'Tenant-defined score bands for this setup; not validated; not official.',
-					scores: {
-						total: [
-							{ code: 'lower', label: 'Tenant lower range', min: 1, max: 2.49 },
-							{ code: 'middle', label: 'Tenant middle range', min: 2.5, max: 3.49 },
-							{ code: 'higher', label: 'Tenant higher range', min: 3.5, max: 5 }
-						]
+					[outputCode]: {
+						label: scoreName.trim() || 'Total score',
+						status: 'not_configured',
+						note: 'Interpretation bands are not configured in this setup step yet.'
 					}
 				}
 			},
 			null,
 			2
 		);
+	}
+
+	function scoreCodeFromName(value: string) {
+		const normalized = value
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '_')
+			.replace(/^_+|_+$/g, '');
+		return normalized || 'total';
+	}
+
+	function scoreCalculationLabel() {
+		return scoreCalculation === 'sum' ? 'sum' : 'average';
+	}
+
+	function missingPolicyLabel() {
+		if (scoreMissingStrategy === 'min_valid_count') {
+			return ` A score is allowed when at least ${scoreMinValidCount} selected ${
+				scoreMinValidCount === 1 ? 'question is' : 'questions are'
+			} answered.`;
+		}
+
+		return ' Every selected question must be answered.';
 	}
 </script>
 
@@ -803,8 +979,8 @@
 			<p class="product-kicker">Study setup</p>
 			<h3 class="product-title">Study setup progress</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Instrument templates define what respondents answer. Campaigns use a selected template,
-				and you can add more templates or versions later for other studies, waves, or variants.
+				Build the study in order: confirm the instrument, write the questionnaire, decide how
+				results are calculated, then prepare the campaign for launch.
 			</p>
 		</div>
 	</div>
@@ -915,11 +1091,9 @@
 										</div>
 										<StatusBadge
 											status="neutral"
-											label={question.type === 'likert'
-												? '1-5 scale'
-												: question.type === 'number'
-													? 'Number'
-													: 'Text'}
+											label={isScaleQuestion(question)
+												? `${question.scaleMin}-${question.scaleMax} rating`
+												: questionTypeLabel(question.type)}
 										/>
 									</div>
 									<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
@@ -939,18 +1113,77 @@
 											<select
 												value={question.type}
 												onchange={(event) =>
-													updateTemplateQuestionRow(index, {
-														type: event.currentTarget.value,
-														reverseCoded:
-															event.currentTarget.value === 'likert' ? question.reverseCoded : false
-													})}
+													updateTemplateQuestionType(
+														index,
+														event.currentTarget.value as TemplateQuestionAnswerType
+													)}
 											>
-												<option value="likert">1-5 agreement scale</option>
-												<option value="text">Open text</option>
+												<option value="likert">Rating scale</option>
+												<option value="nps">0-10 recommendation scale</option>
+												<option value="single">Single choice</option>
+												<option value="multi">Multiple choice</option>
 												<option value="number">Number</option>
+												<option value="text">Text</option>
+												<option value="date">Date</option>
+												<option value="ranking">Ranking</option>
 											</select>
 										</label>
 									</div>
+									{#if isScaleQuestion(question)}
+										<div class="grid gap-3 lg:grid-cols-4">
+											<label class="field">
+												<span>Lowest value</span>
+												<input
+													type="number"
+													value={question.scaleMin}
+													oninput={(event) =>
+														updateScaleNumber(index, 'scaleMin', event.currentTarget.value, 1)}
+												/>
+											</label>
+											<label class="field">
+												<span>Highest value</span>
+												<input
+													type="number"
+													value={question.scaleMax}
+													oninput={(event) =>
+														updateScaleNumber(index, 'scaleMax', event.currentTarget.value, 5)}
+												/>
+											</label>
+											<label class="field">
+												<span>Low label</span>
+												<input
+													value={question.scaleLowLabel}
+													oninput={(event) =>
+														updateTemplateQuestionRow(index, {
+															scaleLowLabel: event.currentTarget.value
+														})}
+												/>
+											</label>
+											<label class="field">
+												<span>High label</span>
+												<input
+													value={question.scaleHighLabel}
+													oninput={(event) =>
+														updateTemplateQuestionRow(index, {
+															scaleHighLabel: event.currentTarget.value
+														})}
+												/>
+											</label>
+										</div>
+									{/if}
+									{#if isChoiceQuestion(question) || question.type === 'ranking'}
+										<label class="field">
+											<span>Answer options</span>
+											<textarea
+												rows="3"
+												value={question.choiceOptions.join('\n')}
+												oninput={(event) => updateChoiceOptions(index, event.currentTarget.value)}
+											></textarea>
+											<span class="text-sm text-[var(--color-text-muted)]">
+												Enter one option per line.
+											</span>
+										</label>
+									{/if}
 									<div class="action-row">
 										<label class="checkbox-field">
 											<input
@@ -963,7 +1196,7 @@
 											/>
 											<span>Required</span>
 										</label>
-										{#if question.type === 'likert'}
+										{#if isScaleQuestion(question)}
 											<label class="checkbox-field">
 												<input
 													type="checkbox"
@@ -1026,13 +1259,7 @@
 											{question.textDefault.trim() || 'Question text'}
 										</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{#if question.type === 'likert'}
-												1 to 5 agreement scale
-											{:else if question.type === 'number'}
-												Number response
-											{:else}
-												Open text response
-											{/if}
+											{questionPreviewDetail(question)}
 										</p>
 									</div>
 								{/each}
@@ -1053,52 +1280,132 @@
 						})}
 					{/if}
 				{:else if activeActionId === 'scoring'}
-					<div class="grid gap-4 lg:grid-cols-2">
-						<label class="field">
-							<span>Rule key</span>
-							<input
-								value={scoringForm.ruleKey}
-								oninput={(event) => updateScoringRuleKey(event.currentTarget.value)}
-							/>
-						</label>
-						<label class="field">
-							<span>Rule version</span>
-							<input bind:value={scoringForm.ruleVersion} />
-						</label>
-						<label class="field lg:col-span-2">
-							<span>Document</span>
-							<textarea
-								rows="8"
-								value={scoringForm.document}
-								oninput={(event) => updateScoringDocument(event.currentTarget.value)}
-							></textarea>
-						</label>
-						<label class="field lg:col-span-2">
-							<span>Produces</span>
-							<textarea rows="3" bind:value={scoringForm.produces}></textarea>
-						</label>
-					</div>
-					<div class="action-row">
-						<button type="button" class="secondary-button" onclick={regenerateScoringDocument}>
-							<RefreshCw size={16} aria-hidden="true" />
-							<span>Regenerate from template questions</span>
-						</button>
-						{#if scoringDocumentManuallyEdited}
-							<p class="text-sm text-[var(--color-text-muted)]">
-								Scoring JSON has manual edits. Regenerate only when you want to replace it.
-							</p>
-						{:else}
-							<p class="text-sm text-[var(--color-text-muted)]">
-								Default scoring is generated from current Likert question codes.
-							</p>
+					{#if activeStep.pathState === 'done'}
+						<div class="record-row">
+							<h5 class="record-row__title">Results setup ready</h5>
+							<div class="record-grid">
+								<div class="record-field">
+									<p class="record-field__label">Result</p>
+									<p class="record-field__value">{scoreName || 'Total score'}</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Calculation</p>
+									<p class="record-field__value">{scoreCalculationLabel()}</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Included questions</p>
+									<p class="record-field__value">{selectedScoreQuestionRows.length}</p>
+								</div>
+							</div>
+						</div>
+					{:else}
+						<div class="grid gap-4 lg:grid-cols-2">
+							<label class="field">
+								<span>Result name</span>
+								<input
+									value={scoreName}
+									oninput={(event) => updateScoreName(event.currentTarget.value)}
+								/>
+							</label>
+							<label class="field">
+								<span>Calculation</span>
+								<select
+									value={scoreCalculation}
+									onchange={(event) =>
+										updateScoreCalculation(event.currentTarget.value as 'mean' | 'sum')}
+								>
+									<option value="mean">Average selected answers</option>
+									<option value="sum">Sum selected answers</option>
+								</select>
+							</label>
+							<label class="field">
+								<span>Missing answers</span>
+								<select
+									value={scoreMissingStrategy}
+									onchange={(event) =>
+										updateScoreMissingStrategy(
+											event.currentTarget.value as 'require_all' | 'min_valid_count'
+										)}
+								>
+									<option value="require_all">Require every selected answer</option>
+									<option value="min_valid_count">Allow a score after enough answers</option>
+								</select>
+							</label>
+							{#if scoreMissingStrategy === 'min_valid_count'}
+								<label class="field">
+									<span>Minimum answered</span>
+									<input
+										type="number"
+										min="1"
+										max={Math.max(1, scoreableQuestionRows.length)}
+										value={scoreMinValidCount}
+										oninput={(event) => updateScoreMinValidCount(event.currentTarget.value)}
+									/>
+								</label>
+							{/if}
+						</div>
+
+						<div class="record-row">
+							<h5 class="record-row__title">Questions included in the result</h5>
+							{#if scoreableQuestionRows.length}
+								<div class="grid gap-2">
+									{#each scoreableQuestionRows as question (question.code)}
+										<div class="record-field">
+											<label class="checkbox-field">
+												<input
+													type="checkbox"
+													checked={includedScoreQuestionCodes.includes(question.code)}
+													onchange={() => toggleScoreQuestion(question.code)}
+												/>
+												<span>{question.textDefault.trim() || question.code}</span>
+											</label>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{questionPreviewDetail(question)}
+												{question.reverseCoded ? ' Reverse scored.' : ''}
+											</p>
+										</div>
+									{/each}
+								</div>
+							{:else}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									Add a rating scale, recommendation scale, or number question before saving results.
+								</p>
+							{/if}
+						</div>
+
+						{#if nonScoreableQuestionRows.length}
+							<div class="record-row">
+								<h5 class="record-row__title">Collected but not scored</h5>
+								<div class="grid gap-2">
+									{#each nonScoreableQuestionRows as question (question.code)}
+										<div class="record-field">
+											<p class="record-field__label">{questionTypeLabel(question.type)}</p>
+											<p class="record-field__value">
+												{question.textDefault.trim() || question.code}
+											</p>
+										</div>
+									{/each}
+								</div>
+							</div>
 						{/if}
-					</div>
-					{@render ActionFooter({
-						id: 'scoring',
-						label: 'Create scoring rule',
-						icon: 'send',
-						onclick: createScoringRule
-					})}
+
+						<div class="record-row">
+							<h5 class="record-row__title">Result preview</h5>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{scoreName || 'Total score'} will be saved as the {scoreCalculationLabel()} of
+								{selectedScoreQuestionRows.length}
+								selected {selectedScoreQuestionRows.length === 1 ? 'question' : 'questions'}.
+								{missingPolicyLabel()}
+							</p>
+						</div>
+
+						{@render ActionFooter({
+							id: 'scoring',
+							label: 'Save results setup',
+							icon: 'send',
+							onclick: createScoringRule
+						})}
+					{/if}
 				{:else if activeActionId === 'campaign'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">

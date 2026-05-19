@@ -72,8 +72,8 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'scoring',
 			step: 'Step 3',
-			title: 'Scoring rule',
-			description: 'Attach a scoring rule to the questionnaire.',
+			title: 'Results setup',
+			description: 'Choose which answers become study results and how missing answers are handled.',
 			status: scoringConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
 			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'

@@ -18558,3 +18558,13 @@ Assessment: Owner identified the second setup step as too hard and unintuitive. 
 Task: Reframed the step from `Instrument template` to `Questionnaire`, changed setup blockers to refer to saving the questionnaire, reduced the top form to questionnaire name and language, redesigned question editing as plain question cards with answer format, required, reverse-scored, ordering, and removal controls, added a compact respondent preview, changed the action to `Save questionnaire`, and added a `Questionnaire ready` done state.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+
+## 2026-05-19 - custom study builder results setup
+
+Assessment: Owner challenged whether the product was becoming a weaker generic survey builder than established tools. The product wedge remains governed, scored, repeatable research studies, but the setup UI still exposed raw scoring-rule internals and did not make the Questionnaire/Results distinction clear enough for a researcher.
+
+Task: Added D349 assessment and `docs/v2/30-features/custom-study-builder.md` to document the honest MVP model and limits. Expanded questionnaire authoring metadata for rating scales, recommendation scale, single/multiple choice, number, text, date, and ranking. Reframed Step 3 from `Scoring rule` to `Results setup`, replacing raw rule-key/document/produces fields with result name, average/sum calculation, missing-answer policy, selectable scoreable questions, and a clear collected-but-not-scored section.
+
+Verification: Pending staging deployment. Deployment build will be the syntax gate; owner staging test should create a mixed-question study, save Results setup, create a campaign draft, and run launch readiness.
+
+Remaining risk: The visual builder is still intentionally constrained. It does not yet provide branching, matrix/grid questions, multi-output subscales, choice scoring, interpretation bands, norms, reliability metrics, or proven respondent-rendering parity for every exposed question type.
