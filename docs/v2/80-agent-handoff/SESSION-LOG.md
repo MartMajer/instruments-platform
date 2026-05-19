@@ -18465,3 +18465,11 @@ Task: Remove the temporary `[AUTH-DIAG-20260519]` OIDC resolver diagnostics, add
 Verification: API release build passed with 0 warnings and 0 errors. Web registration/session-header unit tests passed 14/14. Web production build passed; existing large chunk warning only. Focused Playwright auth/registration coverage passed 5/5 against a local production preview. `rg` confirmed the temporary `[AUTH-DIAG-20260519]` resolver diagnostics are gone. Not deployed.
 
 Remaining risk: `/signin` is still the beta one-email-one-workspace lookup, not a multi-workspace picker. Future multi-workspace support must replace the lookup response with explicit workspace choices.
+
+Deployment update:
+- Commits pushed to `origin/main` and `origin/staging`: `bca8d4b` and `5f5605c`.
+- VPS staging checkout fast-forwarded to `5f5605c`.
+- VPS Docker rebuild/recreate completed for API, web, worker, and migrator. The first redeploy proof hit a transient public API `502` during warm-up while containers were newly started; direct follow-up checks returned API `/health/ready` 200, web `/` 200, and web `/signin` 200.
+- Running API image after rebuild: `sha256:f9adec17dab2bd7b5e3ed606a06f1e7013c34196eb718a29a691c697c09782e7`.
+- Running web image after rebuild: `sha256:9e8095a3cccd40fd95405bcaf71db2cf3fe351d3b75f49ea23dade094360fc35`.
+- Clean VPS release evidence passed at `/tmp/auth-cleanup-vps-release-20260519`: public smoke passed, backup/restore passed, authenticated remote smoke skipped.
