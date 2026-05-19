@@ -55,6 +55,10 @@ public sealed class PlatformOidcEvents(
 {
     private const string Provider = "auth0";
 
+    public const string AuthFailureReasonPropertyName = "platform_auth_failure_reason";
+
+    public const string EmailUnverifiedFailureReason = "email_unverified";
+
     public override Task RedirectToIdentityProvider(RedirectContext context)
     {
         if (context.Properties.Parameters.TryGetValue("screen_hint", out var screenHint) &&
@@ -87,7 +91,9 @@ public sealed class PlatformOidcEvents(
                 configuration) ??
             GetFallbackWebReturnUrl(configuration);
 
-        context.Response.Redirect(AuthReturnUrl.AppendQuery(returnUrl, "auth", "failed"));
+        var authFailureReason = GetAuthFailureReason(context.Properties);
+
+        context.Response.Redirect(AuthReturnUrl.AppendQuery(returnUrl, "auth", authFailureReason));
 
         return Task.CompletedTask;
     }
@@ -138,6 +144,7 @@ public sealed class PlatformOidcEvents(
         if (RequiresVerifiedEmail() && !IsEmailVerified(context.Principal))
         {
             logger.LogWarning("OIDC login rejected because the email claim was not verified.");
+            MarkAuthFailure(context, EmailUnverifiedFailureReason);
             context.Fail("platform_login_verified_email_required");
             return;
         }
@@ -181,6 +188,22 @@ public sealed class PlatformOidcEvents(
     private bool RequiresVerifiedEmail()
     {
         return configuration.GetValue("Authentication:Oidc:RequireVerifiedEmail", true);
+    }
+
+    private static void MarkAuthFailure(TokenValidatedContext context, string reason)
+    {
+        if (context.Properties is not null)
+        {
+            context.Properties.Items[AuthFailureReasonPropertyName] = reason;
+        }
+    }
+
+    private static string GetAuthFailureReason(AuthenticationProperties? properties)
+    {
+        return properties?.Items.TryGetValue(AuthFailureReasonPropertyName, out var reason) == true &&
+            string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal)
+                ? EmailUnverifiedFailureReason
+                : "failed";
     }
 
     private static bool TryGetLoginTenantId(TokenValidatedContext context, out Guid tenantId)

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { ApiError } from '$lib/api/client';
 	import { createLoginUrlFromEnv } from '$lib/api/session-headers';
@@ -19,6 +20,9 @@
 	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
 	let registrationSignInUrl = $state('');
 	let switchAccountUrl = $state('');
+	const emailVerificationRequired = $derived(
+		page.url.searchParams.get('auth') === 'email_unverified'
+	);
 
 	onMount(() => {
 		const registerReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
@@ -210,13 +214,22 @@
 				<div class="registration-form">
 					{#if sessionErrorMessage}
 						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
+					{:else if emailVerificationRequired}
+						<div class="registration-alert" role="status">
+							<strong>Verify your email to continue.</strong>
+							<span>
+								Open the verification email, confirm the address, then continue registration here.
+							</span>
+						</div>
 					{:else}
 						<p class="registration-alert" role="status">
 							Create your account first. After sign-in or email verification, you will return here to finish workspace setup.
 						</p>
 					{/if}
 					{#if registrationSignInUrl}
-						<a class="registration-submit" href={registrationSignInUrl}>Create account</a>
+						<a class="registration-submit" href={registrationSignInUrl}>
+							{emailVerificationRequired ? 'Continue registration' : 'Create account'}
+						</a>
 					{:else}
 						<button class="registration-submit" type="button" disabled>
 							Preparing account link...
