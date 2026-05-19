@@ -226,6 +226,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .IsRequired();
             builder.Property(identity => identity.CreatedAt).HasColumnName("created_at").IsRequired();
             builder.Property(identity => identity.LastSeenAt).HasColumnName("last_seen_at").IsRequired();
+            builder.Property(identity => identity.EmailVerifiedAt)
+                .HasColumnName("email_verified_at")
+                .HasColumnType("timestamp with time zone");
+            builder.Property(identity => identity.EmailVerificationGraceUsedAt)
+                .HasColumnName("email_verification_grace_used_at")
+                .HasColumnType("timestamp with time zone");
             builder.Property(identity => identity.DisabledAt).HasColumnName("disabled_at");
 
             builder.HasIndex(identity => new { identity.TenantId, identity.Provider, identity.ProviderSubjectHash })

@@ -144,6 +144,25 @@ public sealed class ApplicationDbContextModelTests
             "provider_subject_hash",
             externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.ProviderSubjectHash))!
                 .GetColumnName());
+        Assert.Equal(
+            "email_verified_at",
+            externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerifiedAt))!
+                .GetColumnName());
+        Assert.Equal(
+            "timestamp with time zone",
+            externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerifiedAt))!
+                .GetColumnType());
+        Assert.True(externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerifiedAt))!.IsNullable);
+        Assert.Equal(
+            "email_verification_grace_used_at",
+            externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerificationGraceUsedAt))!
+                .GetColumnName());
+        Assert.Equal(
+            "timestamp with time zone",
+            externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerificationGraceUsedAt))!
+                .GetColumnType());
+        Assert.True(
+            externalAuthIdentity.FindProperty(nameof(ExternalAuthIdentity.EmailVerificationGraceUsedAt))!.IsNullable);
         Assert.Null(externalAuthIdentity.FindProperty("ProviderSubject"));
         Assert.Contains(externalAuthIdentity.GetIndexes(), index =>
             index.IsUnique &&

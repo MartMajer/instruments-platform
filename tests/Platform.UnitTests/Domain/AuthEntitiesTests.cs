@@ -125,6 +125,43 @@ public sealed class AuthEntitiesTests
     }
 
     [Fact]
+    public void External_auth_identity_records_email_verification_state_once()
+    {
+        var identity = new ExternalAuthIdentity(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "auth0",
+            "provider-subject-hash",
+            "researcher@example.com",
+            FixedNow);
+        var graceUsedAt = FixedNow.AddMinutes(5);
+        var earlierGraceUsedAt = FixedNow.AddMinutes(1);
+        var verifiedAt = FixedNow.AddMinutes(10);
+        var laterVerifiedAt = FixedNow.AddMinutes(15);
+
+        Assert.False(identity.IsEmailVerified);
+        Assert.Null(identity.EmailVerifiedAt);
+        Assert.Null(identity.EmailVerificationGraceUsedAt);
+
+        identity.RecordEmailVerificationGrace(graceUsedAt);
+        identity.RecordEmailVerificationGrace(earlierGraceUsedAt);
+
+        Assert.False(identity.IsEmailVerified);
+        Assert.Null(identity.EmailVerifiedAt);
+        Assert.Equal(graceUsedAt, identity.EmailVerificationGraceUsedAt);
+        Assert.Equal(earlierGraceUsedAt, identity.LastSeenAt);
+
+        identity.RecordEmailVerified(verifiedAt);
+        identity.RecordEmailVerified(laterVerifiedAt);
+
+        Assert.True(identity.IsEmailVerified);
+        Assert.Equal(verifiedAt, identity.EmailVerifiedAt);
+        Assert.Equal(graceUsedAt, identity.EmailVerificationGraceUsedAt);
+        Assert.Equal(laterVerifiedAt, identity.LastSeenAt);
+    }
+
+    [Fact]
     public void External_auth_identity_can_be_disabled()
     {
         var identity = new ExternalAuthIdentity(

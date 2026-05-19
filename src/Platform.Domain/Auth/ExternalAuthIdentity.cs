@@ -49,11 +49,29 @@ public sealed class ExternalAuthIdentity
 
     public DateTimeOffset LastSeenAt { get; private set; }
 
+    public DateTimeOffset? EmailVerifiedAt { get; private set; }
+
+    public DateTimeOffset? EmailVerificationGraceUsedAt { get; private set; }
+
     public DateTimeOffset? DisabledAt { get; private set; }
+
+    public bool IsEmailVerified => EmailVerifiedAt.HasValue;
 
     public void RecordSeen(DateTimeOffset seenAt)
     {
         LastSeenAt = seenAt;
+    }
+
+    public void RecordEmailVerified(DateTimeOffset verifiedAt)
+    {
+        EmailVerifiedAt ??= verifiedAt;
+        LastSeenAt = verifiedAt;
+    }
+
+    public void RecordEmailVerificationGrace(DateTimeOffset graceUsedAt)
+    {
+        EmailVerificationGraceUsedAt ??= graceUsedAt;
+        LastSeenAt = graceUsedAt;
     }
 
     public void Disable(DateTimeOffset disabledAt)
