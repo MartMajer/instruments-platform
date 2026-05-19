@@ -755,12 +755,9 @@
 						<h3 class="text-base font-semibold text-[var(--color-text)]">Report state</h3>
 					</div>
 
-					{@const visibleSelectedCampaignRows = reportsWorkspaceView.selectedCampaignRows.filter(
-						(row) => !row.mono
-					)}
-					{#if visibleSelectedCampaignRows.length > 0}
+					{#if reportsWorkspaceView.selectedCampaignRows.some((row) => !row.mono)}
 						<dl class="record-grid">
-							{#each visibleSelectedCampaignRows as row}
+							{#each reportsWorkspaceView.selectedCampaignRows.filter((row) => !row.mono) as row}
 								<div class="record-field">
 									<dt class="record-field__label">{row.label}</dt>
 									<dd class="record-field__value">{row.value}</dd>
@@ -787,11 +784,8 @@
 								Launch, policy, and export context
 							</h3>
 						</div>
-						{@const visibleProvenanceRows = reportsWorkspaceView.provenanceRows.filter(
-							(row) => !row.mono
-						)}
 						<dl class="record-grid">
-							{#each visibleProvenanceRows as row}
+							{#each reportsWorkspaceView.provenanceRows.filter((row) => !row.mono) as row}
 								<div class="record-field">
 									<dt class="record-field__label">{row.label}</dt>
 									<dd class="record-field__value">{row.value}</dd>
@@ -850,9 +844,8 @@
 										<h4 class="record-row__title">{campaign.title}</h4>
 										<StatusBadge status={campaign.status} />
 									</div>
-									{@const visibleCampaignRows = campaign.rows.filter((row) => !row.mono)}
 									<dl class="record-grid">
-										{#each visibleCampaignRows as row}
+										{#each campaign.rows.filter((row) => !row.mono) as row}
 											<div class="record-field">
 												<dt class="record-field__label">{row.label}</dt>
 												<dd class="record-field__value">{row.value}</dd>

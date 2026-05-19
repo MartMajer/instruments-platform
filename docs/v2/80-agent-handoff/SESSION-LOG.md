@@ -18690,3 +18690,11 @@ Assessment: The Results workflow Download CSV action fetched CSV content from th
 Task: Updated the Download CSV action to create a CSV Blob from the API response, click a temporary download link with the returned file name, and revoke the object URL after the browser receives it. The preview remains available after download.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Results hub deploy compile fix
+
+Assessment: The first VPS redeploy attempt for the Results hub cleanup failed during Docker web build because `SelectedSeriesSurface.svelte` used `{@const}` tags inside ordinary markup positions where Svelte requires them to be immediate children of a control block or component.
+
+Task: Replaced those local const tags with inline filtered row expressions so the Results details markup keeps hidden id/code rows out of normal display without violating Svelte compile rules.
+
+Verification: First VPS redeploy attempt failed at `npm run build` with the Svelte const-placement compiler error; rerun pending after this fix.
