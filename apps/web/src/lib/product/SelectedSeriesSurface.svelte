@@ -833,75 +833,94 @@
 				</section>
 			{/if}
 
-			{#if reportsRouteGuidance}
-				<RouteGuidancePanel guidance={reportsRouteGuidance} />
-			{/if}
-
-			<section class="product-panel" role="group" aria-label="Results overview">
-				<div class="product-panel__header">
-					<div>
-						<p class="product-kicker">{reportsWorkspaceView.surfaceEyebrow}</p>
-						<h2 class="product-title">Results overview</h2>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{reportsWorkspaceView.surfaceDescription}
-						</p>
-					</div>
-					<StatusBadge
-						status={reportsWorkspaceView.resultsOverview[0]?.status ?? 'not_available'}
-						label={reportsWorkspaceView.resultsOverview[0]?.badgeLabel ?? 'Unavailable'}
-					/>
-				</div>
-
-				<div class="record-list">
-					{#each reportsWorkspaceView.resultsOverview as item (item.id)}
-						<article class="record-row" aria-label={item.label}>
-							<div class="record-row__header">
-								<div>
-									<h3 class="record-row__title">{item.label}</h3>
-									<p class="text-sm text-[var(--color-text-muted)]">{item.summary}</p>
-								</div>
-								<StatusBadge status={item.status} label={item.badgeLabel} />
-							</div>
-							<p class="text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
-							{#if item.detailRows.length > 0}
-								<dl class="record-grid">
-									{#each item.detailRows as row}
-										<div class="record-field">
-											<dt class="record-field__label">{row.label}</dt>
-											<dd class="record-field__value">
-												{#if row.mono}
-													<code>{row.value}</code>
-												{:else}
-													{row.value}
-												{/if}
-											</dd>
-										</div>
-									{/each}
-								</dl>
-							{/if}
-						</article>
-					{/each}
-				</div>
-			</section>
-
 			{#if reportsWorkspace}
-				<ReportWidgetsSection
-					manifest={reportsWidgetManifest}
-					warning={reportsWidgetManifestWarning}
-				/>
-				<SelectedSeriesReportSnapshot workspace={reportsWorkspace} />
 				<SelectedSeriesReportsWorkflow
 					workspace={reportsWorkspace}
 					{canManageSetup}
 					onWorkspaceRefresh={() => refreshReportsWorkspace()}
 				/>
+
+				<details class="product-panel reference-context" aria-label="Results overview">
+					<summary class="record-row__title">Results status details</summary>
+					<div class="product-panel__header mt-4">
+						<div>
+							<p class="product-kicker">{reportsWorkspaceView.surfaceEyebrow}</p>
+							<h2 class="product-title">Results status</h2>
+							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+								{reportsWorkspaceView.surfaceDescription}
+							</p>
+						</div>
+						<StatusBadge
+							status={reportsWorkspaceView.resultsOverview[0]?.status ?? 'not_available'}
+							label={reportsWorkspaceView.resultsOverview[0]?.badgeLabel ?? 'Unavailable'}
+						/>
+					</div>
+
+					<div class="record-list">
+						{#each reportsWorkspaceView.resultsOverview as item (item.id)}
+							<article class="record-row" aria-label={item.label}>
+								<div class="record-row__header">
+									<div>
+										<h3 class="record-row__title">{item.label}</h3>
+										<p class="text-sm text-[var(--color-text-muted)]">{item.summary}</p>
+									</div>
+									<StatusBadge status={item.status} label={item.badgeLabel} />
+								</div>
+								<p class="text-sm text-[var(--color-text-muted)]">{item.guidance}</p>
+								{#if item.detailRows.length > 0}
+									<dl class="record-grid">
+										{#each item.detailRows as row}
+											<div class="record-field">
+												<dt class="record-field__label">{row.label}</dt>
+												<dd class="record-field__value">
+													{#if row.mono}
+														<code>{row.value}</code>
+													{:else}
+														{row.value}
+													{/if}
+												</dd>
+											</div>
+										{/each}
+									</dl>
+								{/if}
+							</article>
+						{/each}
+					</div>
+				</details>
+
+				<details class="product-panel reference-context" aria-label="Report widgets">
+					<summary class="record-row__title">Configured report widgets</summary>
+					<div class="mt-4">
+						<ReportWidgetsSection
+							manifest={reportsWidgetManifest}
+							warning={reportsWidgetManifestWarning}
+						/>
+					</div>
+				</details>
+
+				<details class="product-panel reference-context" aria-label="Report dashboard">
+					<summary class="record-row__title">Report dashboard and snapshot</summary>
+					<div class="mt-4">
+						<SelectedSeriesReportSnapshot workspace={reportsWorkspace} />
+					</div>
+				</details>
 			{/if}
 
-			<section
+			{#if reportsRouteGuidance}
+				<details class="product-panel reference-context" aria-label="Results guidance">
+					<summary class="record-row__title">Results guidance</summary>
+					<div class="mt-4">
+						<RouteGuidancePanel guidance={reportsRouteGuidance} />
+					</div>
+				</details>
+			{/if}
+
+			<details
 				class="product-panel reference-context"
 				aria-label={reportsWorkspaceView.referenceTitle}
 			>
-				<div class="product-panel__header">
+				<summary class="record-row__title">Technical results reference</summary>
+				<div class="product-panel__header mt-4">
 					<div>
 						<p class="product-kicker">Results reference</p>
 						<h2 class="product-title">{reportsWorkspaceView.referenceTitle}</h2>
@@ -1081,7 +1100,7 @@
 						</div>
 					{/if}
 				</div>
-			</section>
+			</details>
 		{:else if wavesWorkspaceView}
 			{#if wavesWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">

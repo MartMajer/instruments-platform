@@ -80,8 +80,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'reportProof',
 			step: 'Step 1',
-			title: 'Report preview',
-			description: 'Review the disclosure-safe aggregate report preview for the selected campaign.',
+			title: 'Review results',
+			description: 'Open the disclosure-safe aggregate result view for the selected wave.',
 			status: toReportProofStatus(hasCampaign, reportable, reportProofViewed),
 			available: reportable,
 			disabledReason: toReportProofDisabledReason(hasCampaign, reportable)
@@ -89,8 +89,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'exportArtifact',
 			step: 'Step 2',
-			title: 'Export artifact',
-			description: 'Create a governed CSV/codebook export artifact for the selected campaign.',
+			title: 'Create report export',
+			description: 'Create the governed CSV and codebook for the aggregate report.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -108,8 +108,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'responseExport',
 			step: 'Step 3',
-			title: 'Response export',
-			description: 'Create a governed campaign-series response CSV/codebook artifact.',
+			title: 'Create response export',
+			description: 'Create the governed response-level CSV and codebook for this study.',
 			status: toResponseExportStatus(hasCampaign, reportable, reportProofViewed, hasResponseExport),
 			available:
 				reportable && reportProofViewed && !responseExportCreated && !hasExistingResponseExport,
@@ -124,8 +124,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'fetchArtifact',
 			step: 'Step 4',
-			title: 'Stored artifact',
-			description: 'Fetch the stored export artifact metadata.',
+			title: 'Review export file',
+			description: 'Review the latest export file details before downloading.',
 			status: toArtifactStatus(hasCampaign, hasExport, artifactFetched),
 			available: hasCampaign && hasExport,
 			disabledReason:
@@ -134,8 +134,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'downloadCsv',
 			step: 'Step 5',
-			title: 'CSV download',
-			description: 'Download the CSV for local review.',
+			title: 'Download CSV',
+			description: 'Download the selected CSV when it is ready.',
 			status: toDownloadStatus(hasCampaign, hasDownloadableExport, csvDownloaded),
 			available: hasCampaign && hasDownloadableExport,
 			disabledReason: hasDownloadableExport

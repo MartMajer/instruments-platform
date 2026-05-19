@@ -14,8 +14,8 @@
 <section class="product-panel" data-priority="trust" aria-label="Report widgets">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Manifest</p>
-			<h3 class="product-title">Configured report widgets</h3>
+			<p class="product-kicker">Report dashboard</p>
+			<h3 class="product-title">Configured result widgets</h3>
 		</div>
 		{#if manifest}
 			<span class="status-badge" data-status="ready">{manifest.layout.density}</span>

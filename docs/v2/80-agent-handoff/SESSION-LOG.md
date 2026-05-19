@@ -15287,7 +15287,8 @@ Next: run SEC01. Start with a public-boundary inventory and then harden missing 
 
 **Did:** Added requested-event regression coverage to 	ests/Platform.IntegrationTests/Infrastructure/WithdrawalRuntimeStoreTests.cs. Added EF model assertions to 	ests/Platform.IntegrationTests/Infrastructure/ApplicationDbContextModelTests.cs. Added migration/RLS script assertions to 	ests/Platform.IntegrationTests/Infrastructure/RlsMigrationScriptTests.cs. Updated NEXT-ACTIONS.md, NEXT-SESSION-PLAN.md, and 60-roadmap/current-roadmap.md.
 
-**Decisions:** No production behavior patch was needed. Existing runtime guards already exclude equested withdrawal events from dry-run/claim/execute mutation paths; QA07 made that boundary explicit and covered the RET16 response-session schema extension in model/migration/RLS tests.
+**Decisions:** No production behavior patch was needed. Existing runtime guards already exclude
+equested withdrawal events from dry-run/claim/execute mutation paths; QA07 made that boundary explicit and covered the RET16 response-session schema extension in model/migration/RLS tests.
 
 **Verification:** Docker-backed WithdrawalRuntimeStoreTests passed 58/58. Endpoint/model/RLS filter FullyQualifiedName~WithdrawalEndpoint|FullyQualifiedName~ApplicationDbContextModelTests|FullyQualifiedName~RlsMigrationScriptTests passed 35/35. dotnet build --no-restore passed with 0 warnings and 0 errors.
 
@@ -18623,3 +18624,11 @@ Verification: Not run in this pass per current instruction to avoid validation u
 Task: Deployed the action-first collection layout to staging after commit 3666766.
 
 Verification: Initial redeploy rebuilt images and restarted containers but hit a transient web-root 502 during immediate warm-up. Follow-up checks returned API ready 200, web root 200, and /app 200. Follow-up VPS release checks passed with evidence in /tmp/collection-action-first-20260519-followup. Running web image: sha256:8327f43acd55a4a07915476405bbe40cb7342d37e25cc2ff77c431bab35ed42d.
+
+## 2026-05-19 - Results hub action-first layout pass
+
+Assessment: The Results hub had the same first-fold problem as Collection, with guidance, overview, widgets, dashboard/snapshot, readiness/provenance, and artifact registry competing before the user reached the review/export action. The page made users parse report internals before showing the next concrete task.
+
+Task: Reordered the Results surface so the review/export workflow appears first. Moved results status, configured widgets, report dashboard/snapshot, route guidance, and technical reference into collapsed sections below the workflow. Reordered the reports workflow so the current action card appears before the path map, collapsed repeated latest action details, and renamed workflow steps toward researcher actions: review results, create report export, create response export, review export file, download CSV.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
