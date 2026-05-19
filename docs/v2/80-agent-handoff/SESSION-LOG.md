@@ -18588,3 +18588,13 @@ Task: Reframed Step 4 as `Collection setup`, changed campaign fields to wave nam
 Verification: Commit `4f5d648` deployed to staging. Docker web production build passed during redeploy. VPS redeploy proof passed at `/tmp/collection-launch-ui-vps-release-20260519`, including remote public smoke and backup/restore; authenticated remote smoke was skipped. Public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Running web image: `sha256:a16d218caae84ca7b23f7528e4bddc75126b02d7c7c46816299d3920c0ffd564`.
 
 Remaining risk: Audience selection still depends on the existing respondent-rule model and Directory data. A full audience-builder slice is still needed before this feels complete for real studies.
+
+## 2026-05-19 - delivery details and final setup action cleanup
+
+Assessment: Owner found the collapsed delivery-details section still exposed internal respondent-rule records, enum values, raw preview issue codes, pair counts, and an empty assignment roster. The final setup step also left `Next step` disabled, which made the wizard feel unfinished after launch check.
+
+Task: Replaced delivery-details internals with summarized saved-audience and delivery-roster readiness text, removed rule-kind/role/selector/code rows from the normal UI, and changed the final setup navigation button to `Go to launch`, linking to the selected series operations surface with the selected campaign id when available.
+
+Verification: Pending staging deploy.
+
+Remaining risk: The operations/launch surface may still need its own product cleanup; this slice only fixes the setup wizard handoff.

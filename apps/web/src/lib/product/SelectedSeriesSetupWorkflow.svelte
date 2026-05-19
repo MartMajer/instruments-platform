@@ -567,6 +567,14 @@
 		}
 	}
 
+	function openLaunchSurface() {
+		const campaignId = selectedCampaignId;
+		const target = campaignId
+			? `/app/campaign-series/${workspace.series.id}/operations?campaignId=${campaignId}`
+			: `/app/campaign-series/${workspace.series.id}/operations`;
+		window.location.href = target;
+	}
+
 	function syncPreviewSelections() {
 		if (!previewSubjects.some((subject) => subject.id === previewTargetSubjectId)) {
 			previewTargetSubjectId = previewSubjects[0]?.id ?? '';
@@ -890,6 +898,32 @@
 		}
 
 		return 'campaign audience';
+	}
+
+	function savedAudienceSummary() {
+		const rules = savedRuleResult?.rules ?? [];
+		if (savedRuleState === 'submitting') {
+			return 'Loading saved audience...';
+		}
+
+		if (!rules.length) {
+			return 'No audience saved yet.';
+		}
+
+		const totalPairs = rules.reduce((sum, rule) => sum + rule.assignmentPairCount, 0);
+		return `${ruleCountLabel(rules.length)} saved, ${pairCountLabel(totalPairs)} prepared.`;
+	}
+
+	function deliveryRosterSummary() {
+		if (assignmentState === 'submitting') {
+			return 'Loading delivery roster...';
+		}
+
+		if (!assignmentResult || assignmentResult.assignmentCount === 0) {
+			return 'No delivery roster prepared yet.';
+		}
+
+		return assignmentCountLabel(assignmentResult.assignmentCount);
 	}
 
 	function assignmentPairLabel(assignment: CampaignAssignmentResponse) {
@@ -1573,10 +1607,10 @@
 				<button
 					type="button"
 					class="secondary-button"
-					disabled={!canGoNext}
-					onclick={goToNextSetupAction}
+					disabled={!canGoNext && activeActionId !== 'readiness'}
+					onclick={activeActionId === 'readiness' ? openLaunchSurface : goToNextSetupAction}
 				>
-					Next step
+					{activeActionId === 'readiness' ? 'Go to launch' : 'Next step'}
 				</button>
 			</div>
 		</section>
@@ -1754,40 +1788,20 @@
 		<section aria-labelledby="saved-respondent-rules-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Audience rule record</p>
-					<h4 id="saved-respondent-rules-heading" class="record-row__title">Saved audience rules</h4>
-					<p class="setup-current-task__title">
-						{savedRuleResult ? ruleCountLabel(savedRuleResult.rules.length) : 'Not loaded'}
-					</p>
+					<p class="record-field__label">Audience</p>
+					<h4 id="saved-respondent-rules-heading" class="record-row__title">Saved audience setup</h4>
+					<p class="setup-current-task__title">{savedAudienceSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={savedRuleState}>{stepLabel(savedRuleState)}</p>
 			</div>
 
 			{#if savedRuleError}
 				<p class="error-line" role="alert">{savedRuleError}</p>
-			{/if}
-
-			{#if savedRuleResult?.rules.length}
-				<div class="grid gap-2">
-					{#each savedRuleResult.rules as rule (rule.id)}
-						<div class="record-field">
-							<p class="record-field__label">#{rule.ordinal}</p>
-							<p class="record-field__value">{rule.ruleKind}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">{rule.role}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{pairCountLabel(rule.assignmentPairCount)}
-							</p>
-							<p class="text-sm text-[var(--color-text-muted)]">{savedRuleSelectorLabel(rule)}</p>
-							{#if rule.issues.length}
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{rule.issues[0].code}: {rule.issues[0].message}
-								</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
 			{:else}
-				<p class="text-sm text-[var(--color-text-muted)]">No saved respondent rules.</p>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					This section is for troubleshooting delivery setup. The normal setup path only needs the
+					audience preview and launch check above.
+				</p>
 			{/if}
 		</section>
 
@@ -1796,34 +1810,17 @@
 				<div>
 					<p class="record-field__label">Delivery roster</p>
 					<h4 id="campaign-assignments-heading" class="record-row__title">Prepared assignments</h4>
-					<p class="setup-current-task__title">
-						{assignmentResult
-							? assignmentCountLabel(assignmentResult.assignmentCount)
-							: 'Not loaded'}
-					</p>
+					<p class="setup-current-task__title">{deliveryRosterSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={assignmentState}>{stepLabel(assignmentState)}</p>
 			</div>
 
 			{#if assignmentError}
 				<p class="error-line" role="alert">{assignmentError}</p>
-			{/if}
-
-			{#if assignmentResult?.assignments.length}
-				<div class="grid gap-2">
-					{#each assignmentResult.assignments as assignment (assignment.id)}
-						<div class="record-field">
-							<p class="record-field__label">{assignment.role}</p>
-							<p class="record-field__value">{assignmentPairLabel(assignment)}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">{assignment.status}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{assignment.anonymous ? 'anonymous' : 'identified'}
-							</p>
-						</div>
-					{/each}
-				</div>
 			{:else}
-				<p class="text-sm text-[var(--color-text-muted)]">No assignments.</p>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Assignments are prepared when the audience resolves to active people.
+				</p>
 			{/if}
 		</section>
 		</details>
