@@ -125,7 +125,7 @@ public sealed class AuthEntitiesTests
     }
 
     [Fact]
-    public void External_auth_identity_records_email_verification_state_once()
+    public void External_auth_identity_keeps_first_verification_timestamps_and_records_seen_observations()
     {
         var identity = new ExternalAuthIdentity(
             Guid.NewGuid(),
@@ -135,30 +135,30 @@ public sealed class AuthEntitiesTests
             "provider-subject-hash",
             "researcher@example.com",
             FixedNow);
-        var graceUsedAt = FixedNow.AddMinutes(5);
-        var earlierGraceUsedAt = FixedNow.AddMinutes(1);
-        var verifiedAt = FixedNow.AddMinutes(10);
-        var laterVerifiedAt = FixedNow.AddMinutes(15);
+        var firstGraceUsedAt = FixedNow.AddMinutes(5);
+        var repeatedGraceObservationAt = FixedNow.AddMinutes(1);
+        var firstVerifiedAt = FixedNow.AddMinutes(10);
+        var repeatedVerifiedObservationAt = FixedNow.AddMinutes(15);
 
         Assert.False(identity.IsEmailVerified);
         Assert.Null(identity.EmailVerifiedAt);
         Assert.Null(identity.EmailVerificationGraceUsedAt);
 
-        identity.RecordEmailVerificationGrace(graceUsedAt);
-        identity.RecordEmailVerificationGrace(earlierGraceUsedAt);
+        identity.RecordEmailVerificationGrace(firstGraceUsedAt);
+        identity.RecordEmailVerificationGrace(repeatedGraceObservationAt);
 
         Assert.False(identity.IsEmailVerified);
         Assert.Null(identity.EmailVerifiedAt);
-        Assert.Equal(graceUsedAt, identity.EmailVerificationGraceUsedAt);
-        Assert.Equal(earlierGraceUsedAt, identity.LastSeenAt);
+        Assert.Equal(firstGraceUsedAt, identity.EmailVerificationGraceUsedAt);
+        Assert.Equal(repeatedGraceObservationAt, identity.LastSeenAt);
 
-        identity.RecordEmailVerified(verifiedAt);
-        identity.RecordEmailVerified(laterVerifiedAt);
+        identity.RecordEmailVerified(firstVerifiedAt);
+        identity.RecordEmailVerified(repeatedVerifiedObservationAt);
 
         Assert.True(identity.IsEmailVerified);
-        Assert.Equal(verifiedAt, identity.EmailVerifiedAt);
-        Assert.Equal(graceUsedAt, identity.EmailVerificationGraceUsedAt);
-        Assert.Equal(laterVerifiedAt, identity.LastSeenAt);
+        Assert.Equal(firstVerifiedAt, identity.EmailVerifiedAt);
+        Assert.Equal(firstGraceUsedAt, identity.EmailVerificationGraceUsedAt);
+        Assert.Equal(repeatedVerifiedObservationAt, identity.LastSeenAt);
     }
 
     [Fact]
