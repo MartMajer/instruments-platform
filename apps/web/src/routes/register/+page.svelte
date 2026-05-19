@@ -9,7 +9,9 @@
 
 	const registrationApi = createRegistrationApi();
 	const signInUrl = createLoginUrlFromEnv(env);
+	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 
+	let email = $state('');
 	let organizationName = $state('');
 	let accessCode = $state('');
 	let errorMessage = $state('');
@@ -18,17 +20,14 @@
 	let isSubmitting = $state(false);
 	let pendingEmail = $state('');
 	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
-	let registrationSignInUrl = $state('');
+	let pendingRegistrationLoginUrl = $state('');
 	let switchAccountUrl = $state('');
 	const emailVerificationRequired = $derived(
 		page.url.searchParams.get('auth') === 'email_unverified'
 	);
 
 	onMount(() => {
-		const registerReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
-		registrationSignInUrl = resolveAuthRedirectUrl(
-			`/auth/login?registration=1&returnUrl=${registerReturnUrl}`
-		);
+		loadPendingRegistrationLoginUrl();
 		switchAccountUrl = resolveAuthRedirectUrl(
 			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(`${resolve('/')}?postLogout=register`))}`
 		);
@@ -43,6 +42,7 @@
 			const session = await registrationApi.getSession();
 			pendingEmail = session.email;
 			sessionState = 'ready';
+			clearPendingRegistrationLoginUrl();
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 401) {
 				sessionState = 'signed-out';
@@ -52,6 +52,30 @@
 			sessionState = 'signed-out';
 			sessionErrorMessage =
 				'We could not confirm the account step. Continue with account setup again before creating the workspace.';
+		}
+	}
+
+	async function submitRegistrationIntent(event: SubmitEvent) {
+		event.preventDefault();
+		errorMessage = '';
+		statusMessage = '';
+		isSubmitting = true;
+
+		try {
+			const response = await registrationApi.createIntent({
+				email,
+				organizationName,
+				accessCode,
+				returnUrl: absoluteWebUrl(resolve('/app'))
+			});
+			const loginUrl = resolveAuthRedirectUrl(response.loginUrl);
+
+			storePendingRegistrationLoginUrl(toRegistrationContinuationUrl(loginUrl));
+			statusMessage = 'Opening account setup.';
+			window.location.assign(loginUrl);
+		} catch (error) {
+			errorMessage = toRegistrationError(error);
+			isSubmitting = false;
 		}
 	}
 
@@ -76,6 +100,28 @@
 		}
 	}
 
+	function loadPendingRegistrationLoginUrl() {
+		pendingRegistrationLoginUrl =
+			window.sessionStorage.getItem(pendingRegistrationLoginUrlKey) ?? '';
+	}
+
+	function storePendingRegistrationLoginUrl(loginUrl: string) {
+		pendingRegistrationLoginUrl = loginUrl;
+		window.sessionStorage.setItem(pendingRegistrationLoginUrlKey, loginUrl);
+	}
+
+	function clearPendingRegistrationLoginUrl() {
+		pendingRegistrationLoginUrl = '';
+		window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
+	}
+
+	function restartRegistration() {
+		clearPendingRegistrationLoginUrl();
+		errorMessage = '';
+		sessionErrorMessage = '';
+		statusMessage = '';
+	}
+
 	function absoluteWebUrl(path: string) {
 		return new URL(path, window.location.origin).toString();
 	}
@@ -96,6 +142,16 @@
 		}
 
 		return loginUrl;
+	}
+
+	function toRegistrationContinuationUrl(loginUrl: string) {
+		try {
+			const url = new URL(loginUrl, window.location.origin);
+			url.searchParams.delete('screen_hint');
+			return url.toString();
+		} catch {
+			return loginUrl;
+		}
 	}
 
 	function absoluteOrigin(value: string | undefined) {
@@ -186,17 +242,17 @@
 				<div>
 					<span>01</span>
 					<strong>Create account</strong>
-					<p>Register or sign in with the email you want to use for this workspace.</p>
+					<p>Enter the email, workspace name, and beta code before opening account setup.</p>
 				</div>
 				<div>
 					<span>02</span>
-					<strong>Name workspace</strong>
-					<p>Return here after email verification, then enter the workspace name and beta code.</p>
+					<strong>Verify email</strong>
+					<p>If the identity provider asks for verification, confirm the email and continue here.</p>
 				</div>
 				<div>
 					<span>03</span>
 					<strong>Open the app</strong>
-					<p>The new workspace opens immediately with the owner session.</p>
+					<p>The workspace is created from the approved registration and opens with your session.</p>
 				</div>
 			</div>
 		</section>
@@ -204,38 +260,76 @@
 		<section class="registration-panel" aria-label="Create workspace form">
 			<div class="registration-panel__header">
 				<span>Workspace signup</span>
-				<strong>Account first, workspace second</strong>
+				<strong>Create account and workspace</strong>
 				<p>Already have a workspace? <a href={signInUrl}>Sign in instead</a>.</p>
 			</div>
 
 			{#if sessionState === 'checking'}
 				<p class="registration-alert" role="status">Checking account status...</p>
 			{:else if sessionState === 'signed-out'}
-				<div class="registration-form">
+				<form class="registration-form" onsubmit={submitRegistrationIntent}>
 					{#if sessionErrorMessage}
 						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
-					{:else if emailVerificationRequired}
+					{/if}
+
+					{#if emailVerificationRequired && pendingRegistrationLoginUrl}
 						<div class="registration-alert" role="status">
-							<strong>Verify your email to continue.</strong>
+							<strong>Verify email, then finish setup.</strong>
 							<span>
-								Open the verification email, confirm the address, then continue registration here.
+								Open the verification email, confirm the address, then continue workspace setup.
 							</span>
 						</div>
+						<a class="registration-submit" href={pendingRegistrationLoginUrl}>Continue workspace setup</a>
+						<button class="secondary-button" type="button" onclick={restartRegistration}>
+							Start over
+						</button>
 					{:else}
-						<p class="registration-alert" role="status">
-							Create your account first. After sign-in or email verification, you will return here to finish workspace setup.
-						</p>
-					{/if}
-					{#if registrationSignInUrl}
-						<a class="registration-submit" href={registrationSignInUrl}>
-							{emailVerificationRequired ? 'Continue registration' : 'Create account'}
-						</a>
-					{:else}
-						<button class="registration-submit" type="button" disabled>
-							Preparing account link...
+						<label>
+							<span>Email</span>
+							<input
+								type="email"
+								bind:value={email}
+								autocomplete="email"
+								placeholder="you@example.com"
+								required
+							/>
+						</label>
+
+						<label>
+							<span>Workspace name</span>
+							<input
+								type="text"
+								bind:value={organizationName}
+								autocomplete="organization"
+								placeholder="Your lab, team, or company"
+								required
+							/>
+						</label>
+
+						<label>
+							<span>Beta access code</span>
+							<input
+								type="password"
+								bind:value={accessCode}
+								autocomplete="one-time-code"
+								placeholder="Access code"
+								required
+							/>
+						</label>
+
+						{#if errorMessage}
+							<p class="registration-alert registration-alert--error" role="alert">{errorMessage}</p>
+						{/if}
+
+						{#if statusMessage}
+							<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
+						{/if}
+
+						<button class="registration-submit" type="submit" disabled={isSubmitting}>
+							{isSubmitting ? 'Opening account setup...' : 'Create account'}
 						</button>
 					{/if}
-				</div>
+				</form>
 			{:else}
 				<form class="registration-form" onsubmit={submitWorkspace}>
 					<div class="registration-alert" role="status">

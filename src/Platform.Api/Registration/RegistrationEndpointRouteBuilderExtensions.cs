@@ -125,11 +125,13 @@ public sealed class RegistrationIntentService(
         var loginUrl = QueryHelpers.AddQueryString(
             "/auth/login",
             new Dictionary<string, string?>
-            {
-                ["registrationToken"] = token.RawToken,
-                ["returnUrl"] = returnUrl,
-                ["prompt"] = "login"
-            });
+                {
+                    ["registrationToken"] = token.RawToken,
+                    ["returnUrl"] = returnUrl,
+                    ["prompt"] = "login",
+                    ["screen_hint"] = "signup",
+                    ["login_hint"] = email.Value
+                });
 
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
     }

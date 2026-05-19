@@ -85,28 +85,38 @@ public sealed class PlatformOidcEvents(
 
         context.HandleResponse();
 
-        var returnUrl = AuthReturnUrl.Normalize(
-                context.Properties?.RedirectUri,
-                GetFallbackWebReturnUrl(configuration),
-                configuration) ??
-            GetFallbackWebReturnUrl(configuration);
-
         var authFailureReason = GetAuthFailureReason(context.Properties);
+        var fallbackPath = string.Equals(authFailureReason, EmailUnverifiedFailureReason, StringComparison.Ordinal) &&
+            HasRegistrationContext(context.Properties)
+                ? "/register"
+                : "/app";
+        var requestedReturnUrl = string.Equals(fallbackPath, "/register", StringComparison.Ordinal)
+            ? GetFallbackWebReturnUrl(configuration, fallbackPath)
+            : context.Properties?.RedirectUri;
+        var fallbackReturnUrl = GetFallbackWebReturnUrl(configuration, fallbackPath);
+        var returnUrl = AuthReturnUrl.Normalize(
+                requestedReturnUrl,
+                fallbackReturnUrl,
+                configuration) ??
+            fallbackReturnUrl;
 
         context.Response.Redirect(AuthReturnUrl.AppendQuery(returnUrl, "auth", authFailureReason));
 
         return Task.CompletedTask;
     }
 
-    private static string GetFallbackWebReturnUrl(IConfiguration configuration)
+    private static string GetFallbackWebReturnUrl(IConfiguration configuration, string path = "/app")
     {
         var origin = PlatformAuthServiceCollectionExtensions
             .GetBrowserCorsOrigins(configuration, includeDevelopmentFallback: false)
             .FirstOrDefault();
+        var normalizedPath = string.IsNullOrWhiteSpace(path) || !path.StartsWith("/", StringComparison.Ordinal)
+            ? "/app"
+            : path;
 
         return string.IsNullOrWhiteSpace(origin)
-            ? "/app"
-            : $"{origin.TrimEnd('/')}/app";
+            ? normalizedPath
+            : $"{origin.TrimEnd('/')}{normalizedPath}";
     }
 
     public override async Task TokenValidated(TokenValidatedContext context)
@@ -204,6 +214,12 @@ public sealed class PlatformOidcEvents(
             string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal)
                 ? EmailUnverifiedFailureReason
                 : "failed";
+    }
+
+    private static bool HasRegistrationContext(AuthenticationProperties? properties)
+    {
+        return properties?.Items.ContainsKey(AuthEndpointRouteBuilderExtensions.RegistrationTokenPropertyName) == true ||
+            properties?.Items.ContainsKey(AuthEndpointRouteBuilderExtensions.RegistrationBootstrapPropertyName) == true;
     }
 
     private static bool TryGetLoginTenantId(TokenValidatedContext context, out Guid tenantId)
