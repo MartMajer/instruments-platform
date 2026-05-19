@@ -60,7 +60,8 @@ describe('selected-series operations workflow model', () => {
 		expect(actions.find((action) => action.id === 'launch')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Run launch readiness and resolve blockers first.'
+			disabledReason:
+				'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.'
 		});
 		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
 			status: 'blocked',

@@ -21,6 +21,12 @@
 	import { toProductApiErrorMessage } from './view-models';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
+	type ReadinessIssue = LaunchReadinessResponse['issues'][number];
+	type ReadinessIssueGuidance = {
+		title: string;
+		detail: string;
+		severity: string;
+	};
 
 	let {
 		workspace,
@@ -92,9 +98,10 @@
 	const latestResponseActivity = $derived(
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
+	const setupHref = $derived(`/app/campaign-series/${workspace.series.id}/setup`);
 	const readinessIssueGuidance = $derived(
 		readinessResult?.issues.length
-			? readinessResult.issues.map((issue) => toReadinessIssueGuidance(issue.message))
+			? readinessResult.issues.map(toReadinessIssueGuidance)
 			: []
 	);
 
@@ -298,30 +305,110 @@
 		return value ? value.replaceAll('_', ' ') : 'Not available';
 	}
 
-	function toReadinessIssueGuidance(message: string) {
-		const normalized = message.toLowerCase();
+	function toReadinessIssueGuidance(issue: ReadinessIssue): ReadinessIssueGuidance {
+		const code = issue.code.toLowerCase();
+		const normalized = `${issue.code} ${issue.message}`.toLowerCase();
 
-		if (normalized.includes('campaign') && normalized.includes('template')) {
-			return 'Go back to Setup and attach a questionnaire template to this collection wave.';
+		if (code === 'campaign.status_not_launchable') {
+			return {
+				title: 'Use a draft collection wave',
+				detail:
+					'This wave is no longer draft or scheduled. Open Setup, select or create a draft collection wave, then run this check again.',
+				severity: issue.severity
+			};
 		}
 
-		if (normalized.includes('template')) {
-			return 'Go back to Setup and finish the questionnaire/template step.';
+		if (code === 'identity.unknown') {
+			return {
+				title: 'Choose the response mode',
+				detail:
+					'Open Setup and save the Collection setup step with a valid response mode before starting collection.',
+				severity: issue.severity
+			};
 		}
 
-		if (normalized.includes('scoring')) {
-			return 'Go back to Setup and finish the result/scoring rule step.';
+		if (code === 'template_version.missing') {
+			return {
+				title: 'Connect the questionnaire to this wave',
+				detail:
+					'Open Setup, save the Questionnaire step, then save the Collection setup step so the wave uses that questionnaire.',
+				severity: issue.severity
+			};
 		}
 
-		if (normalized.includes('policy') || normalized.includes('consent') || normalized.includes('retention') || normalized.includes('disclosure')) {
-			return 'Go back to Setup and complete the study policy records.';
+		if (code.startsWith('template.')) {
+			return {
+				title: 'Finish the questionnaire',
+				detail:
+					'Open Setup and add at least one questionnaire section and question before starting collection.',
+				severity: issue.severity
+			};
 		}
 
-		if (normalized.includes('audience') || normalized.includes('respondent')) {
-			return 'Go back to Setup and define who can answer this collection wave.';
+		if (code.startsWith('scoring_rule.') || normalized.includes('scoring')) {
+			return {
+				title: 'Finish Results setup',
+				detail:
+					'Open Setup and save the Results setup step so reports know which answers become scores.',
+				severity: issue.severity
+			};
 		}
 
-		return message;
+		if (
+			code.includes('consent') ||
+			code.includes('retention') ||
+			code.includes('disclosure') ||
+			normalized.includes('policy')
+		) {
+			return {
+				title: 'Complete study policies',
+				detail:
+					'Open Setup and save the consent, retention, and disclosure policies for this study before launch.',
+				severity: issue.severity
+			};
+		}
+
+		if (code === 'respondent_rule.identity_mode_not_supported') {
+			return {
+				title: 'Fix response mode or audience rule',
+				detail:
+					'Saved audience rules currently require identified collection. Open Setup and either switch the response mode to identified or remove the saved audience rule.',
+				severity: issue.severity
+			};
+		}
+
+		if (code === 'respondent_rule_preview.audience_missing') {
+			return {
+				title: 'Audience is empty',
+				detail:
+					'Add active people to the campaign audience in Setup, or remove the audience rule if this wave should use the general respondent link.',
+				severity: issue.severity
+			};
+		}
+
+		if (code.startsWith('respondent_rule_preview.')) {
+			return {
+				title: 'Fix who can answer',
+				detail:
+					'Open Setup and adjust the audience rule until the preview resolves the respondents you expect.',
+				severity: issue.severity
+			};
+		}
+
+		if (code.startsWith('instrument.')) {
+			return {
+				title: 'Review the instrument',
+				detail:
+					'Open Setup and save the Instrument and Questionnaire steps again so this wave uses a launchable study instrument.',
+				severity: issue.severity
+			};
+		}
+
+		return {
+			title: 'Review setup',
+			detail: issue.message,
+			severity: issue.severity
+		};
 	}
 </script>
 
@@ -407,15 +494,42 @@
 					</dl>
 					{#if readinessResult?.issues.length}
 						<div class="record-row" aria-label="Readiness issues">
-							<h5 class="record-row__title">Before collection can start</h5>
+							<h5 class="record-row__title">
+								{readinessResult.ready ? 'Setup warnings' : 'Before collection can start'}
+							</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								Fix these setup items, then run the pre-launch check again.
+								{readinessResult.ready
+									? 'These items do not block collection, but they should be reviewed before sharing access.'
+									: 'Fix the blocking setup items, then run the pre-launch check again.'}
 							</p>
 							<ul class="grid gap-2">
 								{#each readinessIssueGuidance as guidance}
-									<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
+									<li class="grid gap-1 text-sm">
+										<span class="font-semibold text-[var(--color-text)]">
+											{guidance.title}
+											<span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+												{guidance.severity === 'blocker' ? 'Blocking' : 'Warning'}
+											</span>
+										</span>
+										<span class="text-[var(--color-text-muted)]">{guidance.detail}</span>
+									</li>
 								{/each}
 							</ul>
+							<div class="flex flex-wrap items-center gap-3">
+								<a class="secondary-button" href={setupHref}>Open Setup</a>
+								<span class="text-xs font-semibold text-[var(--color-text-muted)]">
+									Return here and run the check again after saving setup.
+								</span>
+							</div>
+						</div>
+					{:else if readinessResult && !readinessResult.ready}
+						<div class="record-row" aria-label="Readiness blocked">
+							<h5 class="record-row__title">Setup is blocked</h5>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								The check did not return itemized blockers. Open Setup, review incomplete steps,
+								save changes, then run this check again.
+							</p>
+							<a class="secondary-button" href={setupHref}>Open Setup</a>
 						</div>
 					{/if}
 					{@render ActionFooter({

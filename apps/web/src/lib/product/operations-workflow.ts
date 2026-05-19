@@ -239,7 +239,9 @@ function toLaunchDisabledReason(
 		return 'Collection was started in this session.';
 	}
 
-	return localState.readinessReady ? null : 'Run the pre-launch check and resolve blockers first.';
+	return localState.readinessReady
+		? null
+		: 'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.';
 }
 
 function toPathStepState(

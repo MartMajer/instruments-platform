@@ -18654,3 +18654,10 @@ Assessment: The Collection workflow still exposed low-value technical IDs under 
 Task: Removed the workflow-level Technical details block from the Collection workflow and changed failed setup check wording to "Blocked". Added readiness issue guidance that translates common backend prerequisite messages into setup actions: finish questionnaire/template, finish scoring/results, complete policies, or define audience/respondent access before rerunning the pre-launch check.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Collection pre-launch blocker recovery
+
+Assessment: Owner hit the Collection state where Start collection is disabled, Pre-launch check can run, but the blocked result did not explain how to become launchable. Backend readiness intentionally blocks launch for missing questionnaire/template, Results setup, policies, invalid campaign state, or respondent-rule/audience problems; the UI was collapsing that into generic blocked language.
+
+Task: Made the Collection pre-launch panel map readiness issue codes into researcher-facing recovery items, distinguish blocking items from warnings, add a direct Open Setup recovery link, add a fallback when a blocked check returns no itemized issues, and make the disabled Start collection reason point to the same Setup recovery path.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
