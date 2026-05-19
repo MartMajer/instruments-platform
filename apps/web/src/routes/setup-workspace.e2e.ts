@@ -45,6 +45,23 @@ test('shows sign-in required when the setup session is unauthenticated', async (
 	expect(protectedCalls).toBe(0);
 });
 
+test('shows an email verification reminder after failed workspace sign-in', async ({ page }) => {
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+
+	await page.goto('/app?auth=failed');
+
+	await expect(
+		page.getByRole('heading', { name: 'Check your email before retrying' })
+	).toBeVisible();
+	await expect(page.getByLabel('Email verification reminder')).toContainText(
+		'open the verification email from Auth0'
+	);
+	await expect(page.getByRole('heading', { name: 'Workspace sign-in needed' })).toBeVisible();
+});
+
 test('hides setup controls when the tenant session is forbidden', async ({ page }) => {
 	await page.unroute('**/auth/session');
 	await page.route('**/auth/session', async (route) => {
