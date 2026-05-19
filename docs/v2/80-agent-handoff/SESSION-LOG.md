@@ -18456,3 +18456,12 @@ Deployment update:
 - Running web image: `sha256:894096712bf8d93770565a377ef2a0282ef703c10caf4dfebec76b7924593bf9`.
 - Public checks: API `/health/ready` 200, web `/` 200, web `/register?mode=signin` 200.
 - Direct staging lookup for the owner-provided `majeric.martin+334@gmail.com` returned `/auth/login` with tenant `019e4089-b3bd-7f9d-9db7-c7ba0e4b7657`, `prompt=login`, and matching `login_hint`.
+
+## 2026-05-19 - local auth cleanup before next deploy
+Assessment: Owner confirmed staging sign-in finally works, then selected a local-only cleanup pass before any next deployment. The temporary Auth0 resolver diagnostics are no longer needed after identifying the real issue as missing explicit workspace context. The remaining product gap is that first-time existing users were routed through `/register?mode=signin`, which made registration and sign-in feel like the same flow.
+
+Task: Remove the temporary `[AUTH-DIAG-20260519]` OIDC resolver diagnostics, add a dedicated `/signin` workspace email lookup page, route generic home sign-in there when no workspace is remembered, keep `/register` focused on create-account/create-workspace flow, and document the Auth0/platform split of responsibilities in `20-architecture/auth0-platform-auth-model.md`.
+
+Verification: API release build passed with 0 warnings and 0 errors. Web registration/session-header unit tests passed 14/14. Web production build passed; existing large chunk warning only. Focused Playwright auth/registration coverage passed 5/5 against a local production preview. `rg` confirmed the temporary `[AUTH-DIAG-20260519]` resolver diagnostics are gone. Not deployed.
+
+Remaining risk: `/signin` is still the beta one-email-one-workspace lookup, not a multi-workspace picker. Future multi-workspace support must replace the lookup response with explicit workspace choices.

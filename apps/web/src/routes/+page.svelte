@@ -13,7 +13,7 @@
 
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
 	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
-	const workspaceSignInUrl = `${resolve('/register')}?mode=signin`;
+	const workspaceSignInUrl = resolve('/signin');
 	let loginUrl = $state(
 		initialTenantIdFromUrl ? createLoginUrlFromEnv(env, initialTenantIdFromUrl) : workspaceSignInUrl
 	);

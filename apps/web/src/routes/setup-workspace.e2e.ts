@@ -109,7 +109,7 @@ test('routes generic home sign-in to workspace lookup when no workspace is known
 
 	await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
 		'href',
-		'/register?mode=signin'
+		'/signin'
 	);
 });
 
@@ -298,7 +298,7 @@ test('finds an existing workspace by email before Auth0 sign-in', async ({ page 
 		});
 	});
 
-	await page.goto('/register?mode=signin');
+	await page.goto('/signin');
 	await page.getByRole('textbox', { name: 'Email' }).fill(registeredEmail);
 	await page.getByRole('button', { name: 'Continue to sign in' }).click();
 

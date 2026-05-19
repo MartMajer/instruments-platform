@@ -6,7 +6,6 @@
 	import { ApiError } from '$lib/api/client';
 	import {
 		createLoginUrlFromEnv,
-		normalizeTenantId,
 		readLastWorkspaceEmail,
 		readLastTenantId,
 		rememberLastWorkspaceEmail,
@@ -15,12 +14,11 @@
 	import { createRegistrationApi } from '$lib/api/registration';
 
 	const registrationApi = createRegistrationApi();
-	let signInUrl = $state(createLoginUrlFromEnv(env));
+	let signInUrl = $state(resolve('/signin'));
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
 	const pendingRegistrationClockSkewMs = 60 * 1000;
-	const workspaceSignInUrl = `${resolve('/register')}?mode=signin`;
 
 	let email = $state('');
 	let organizationName = $state('');
@@ -34,17 +32,15 @@
 	let pendingRegistrationLoginUrl = $state('');
 	let existingWorkspaceSignInUrl = $state('');
 	let switchAccountUrl = $state('');
-	let formMode = $state<'create' | 'signin'>('create');
 	const emailVerificationRequired = $derived(
 		page.url.searchParams.get('auth') === 'email_unverified'
 	);
 
 	onMount(() => {
-		formMode = page.url.searchParams.get('mode') === 'signin' ? 'signin' : 'create';
 		const tenantId = readLastTenantId(window.localStorage);
 		signInUrl = tenantId
 			? createLoginUrlFromEnv(env, tenantId, readLastWorkspaceEmail(window.localStorage))
-			: workspaceSignInUrl;
+			: resolve('/signin');
 		loadPendingRegistrationLoginUrl();
 		switchAccountUrl = resolveAuthRedirectUrl(
 			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(`${resolve('/')}?postLogout=register`))}`
@@ -98,28 +94,6 @@
 				existingWorkspaceSignInUrl = signInUrl;
 			}
 			errorMessage = toRegistrationError(error);
-			isSubmitting = false;
-		}
-	}
-
-	async function submitExistingWorkspaceSignIn(event: SubmitEvent) {
-		event.preventDefault();
-		errorMessage = '';
-		statusMessage = '';
-		existingWorkspaceSignInUrl = '';
-		isSubmitting = true;
-
-		try {
-			const response = await registrationApi.createExistingWorkspaceSignIn({
-				email,
-				returnUrl: absoluteWebUrl(resolve('/app'))
-			});
-			const loginUrl = resolveAuthRedirectUrl(response.loginUrl);
-			rememberTenantFromLoginUrl(loginUrl, email);
-			statusMessage = 'Opening workspace sign-in.';
-			window.location.assign(loginUrl);
-		} catch (error) {
-			errorMessage = toWorkspaceSignInError(error);
 			isSubmitting = false;
 		}
 	}
@@ -237,16 +211,6 @@
 		statusMessage = '';
 	}
 
-	function showCreateWorkspace() {
-		formMode = 'create';
-		clearExistingWorkspaceSignIn();
-	}
-
-	function showWorkspaceSignIn() {
-		formMode = 'signin';
-		clearExistingWorkspaceSignIn();
-	}
-
 	function restartRegistration() {
 		clearPendingRegistrationLoginUrl();
 		clearExistingWorkspaceSignIn();
@@ -284,21 +248,6 @@
 			return url.toString();
 		} catch {
 			return loginUrl;
-		}
-	}
-
-	function rememberTenantFromLoginUrl(loginUrl: string, email: string) {
-		try {
-			const parsedUrl = new URL(loginUrl, window.location.origin);
-			const tenantId = normalizeTenantId(parsedUrl.searchParams.get('tenantId'));
-			if (!tenantId) {
-				return;
-			}
-
-			rememberLastTenantId(window.localStorage, tenantId);
-			rememberLastWorkspaceEmail(window.localStorage, email);
-		} catch {
-			return;
 		}
 	}
 
@@ -373,28 +322,6 @@
 
 		return 'We could not create the workspace. Check the beta access code and try again.';
 	}
-
-	function toWorkspaceSignInError(error: unknown) {
-		if (error instanceof ApiError) {
-			const problem = error.body as { title?: unknown; detail?: unknown } | null;
-			const code = typeof problem?.title === 'string' ? problem.title : '';
-			const detail = typeof problem?.detail === 'string' ? problem.detail : '';
-
-			if (code === 'registration.workspace_not_found') {
-				return 'No workspace exists for this email yet. Create a workspace first.';
-			}
-
-			if (code === 'registration.email_invalid') {
-				return 'Enter the email used for the workspace.';
-			}
-
-			if (detail) {
-				return detail;
-			}
-		}
-
-		return 'We could not find a workspace for this email.';
-	}
 </script>
 
 <svelte:head>
@@ -452,41 +379,12 @@
 		<section class="registration-panel" aria-label="Create workspace form">
 			<div class="registration-panel__header">
 				<span>Workspace signup</span>
-				<strong>{formMode === 'signin' ? 'Sign in to your workspace' : 'Create account and workspace'}</strong>
-				{#if formMode === 'signin'}
-					<p>Need a new workspace? <button type="button" onclick={showCreateWorkspace}>Create one instead</button>.</p>
-				{:else}
-					<p>Already have a workspace? <button type="button" onclick={showWorkspaceSignIn}>Sign in instead</button>.</p>
-				{/if}
+				<strong>Create account and workspace</strong>
+				<p>Already have a workspace? <a href={signInUrl}>Sign in instead</a>.</p>
 			</div>
 
 			{#if sessionState === 'checking'}
 				<p class="registration-alert" role="status">Checking account status...</p>
-			{:else if sessionState === 'signed-out' && formMode === 'signin'}
-				<form class="registration-form" onsubmit={submitExistingWorkspaceSignIn}>
-					<label>
-						<span>Email</span>
-						<input
-							type="email"
-							bind:value={email}
-							autocomplete="email"
-							placeholder="you@example.com"
-							required
-						/>
-					</label>
-
-					{#if errorMessage}
-						<p class="registration-alert registration-alert--error" role="alert">{errorMessage}</p>
-					{/if}
-
-					{#if statusMessage}
-						<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
-					{/if}
-
-					<button class="registration-submit" type="submit" disabled={isSubmitting}>
-						{isSubmitting ? 'Finding workspace...' : 'Continue to sign in'}
-					</button>
-				</form>
 			{:else if sessionState === 'signed-out'}
 				<form class="registration-form" onsubmit={submitRegistrationIntent}>
 					{#if sessionErrorMessage}
