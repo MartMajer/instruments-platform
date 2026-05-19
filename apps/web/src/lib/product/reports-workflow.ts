@@ -160,11 +160,20 @@ export function toSelectedSeriesReportsPath(
 	const hasExistingResponseExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
 	);
+	const hasDownloadableRegistryExport = workspace.exportArtifacts.some(
+		(artifact) => artifact.canDownload
+	);
+	const latestExportDownloadable = Boolean(
+		workspace.selectedCampaign?.latestExportArtifactId &&
+			workspace.selectedCampaign.latestExportArtifactCanDownload
+	);
+	const hasPersistedExport = hasExistingReportExport || hasExistingResponseExport;
+	const hasPersistedDownloadableExport = latestExportDownloadable || hasDownloadableRegistryExport;
 	const doneByActionId: Record<SelectedSeriesReportsWorkflowActionId, boolean> = {
-		reportProof: Boolean(localState.reportProofViewed),
+		reportProof: Boolean(localState.reportProofViewed || hasPersistedExport),
 		exportArtifact: Boolean(localState.exportCreated || hasExistingReportExport),
 		responseExport: Boolean(localState.responseExportCreated || hasExistingResponseExport),
-		fetchArtifact: Boolean(localState.artifactFetched),
+		fetchArtifact: Boolean(localState.artifactFetched || hasPersistedDownloadableExport),
 		downloadCsv: Boolean(localState.csvDownloaded)
 	};
 	const currentAction =

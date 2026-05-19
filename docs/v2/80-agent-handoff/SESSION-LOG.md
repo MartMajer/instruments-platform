@@ -18718,3 +18718,19 @@ Verification: Not run in this pass per current instruction to avoid validation u
 Task: Deployed the comparison-led Waves hub cleanup to staging.
 
 Verification: Commit `55d9bed` built successfully in Docker web production build with the existing large-chunk warning. The first redeploy attempt rebuilt and restarted containers but failed on an immediate web-root 502 during warm-up. Follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/waves-hub-cleanup-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:3cac3f7ea8e973f746b7a00b0feccf3db5c913ec888ea6574ee05544c008dff4`.
+
+## 2026-05-19 - Results export refresh-state fix
+
+Assessment: Owner reported that Results `Review export file` and `Download CSV` return to blocked after page refresh even after completing the export flow. The workflow was treating export review/download progression as browser-local state only, while persisted export artifacts already exist in the workspace after refresh.
+
+Task: Updated the Results workflow to treat persisted report/response export files as evidence that prior review/export steps are complete after refresh, to treat persisted downloadable exports as enough to resume at Download CSV, and to include persisted report-export artifacts as valid current export targets for review/download.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Settings hub cleanup
+
+Assessment: Owner found the Settings page non-functional and noisy. The page exposed tenant/admin terminology, route guidance, read-only profile details, workspace counts, and management links in a way that looked like placeholder telemetry rather than usable settings.
+
+Task: Reframed Settings as `Workspace settings`, removed top route guidance, made active shortcut cards the primary content for Team access, Directory, Study setup, and Exports, added honest copy that workspace-level settings are still being assembled, moved profile/counts into collapsed Workspace details, and hid mono/id profile rows from normal display.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.

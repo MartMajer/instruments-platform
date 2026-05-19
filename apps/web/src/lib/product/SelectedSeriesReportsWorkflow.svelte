@@ -65,6 +65,10 @@
 			(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
 		) ?? null
 	);
+	const latestReportExportArtifact = $derived(
+		workspace.exportArtifacts.find((artifact) => artifact.artifactType === 'report_proof_csv_codebook') ??
+			null
+	);
 	const latestDownloadableExportArtifact = $derived(
 		workspace.exportArtifacts.find((artifact) => artifact.canDownload) ?? null
 	);
@@ -74,7 +78,9 @@
 			responseExportResult?.id ??
 			exportResult?.id ??
 			latestResponseExportArtifactId ??
+			latestReportExportArtifact?.id ??
 			selectedCampaign?.latestExportArtifactId ??
+			latestDownloadableExportArtifact?.id ??
 			null
 	);
 	const currentDownloadableExportArtifactId = $derived(
@@ -92,6 +98,7 @@
 			responseExportResult?.fileName ??
 			exportResult?.fileName ??
 			latestResponseExportArtifact?.fileName ??
+			latestReportExportArtifact?.fileName ??
 			selectedCampaign?.latestExportArtifactFileName ??
 			latestDownloadableExportArtifact?.fileName ??
 			null
