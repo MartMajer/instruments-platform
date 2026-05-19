@@ -1,9 +1,58 @@
 ﻿<script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import { createLoginUrlFromEnv } from '$lib/api/session-headers';
 
 	const loginUrl = createLoginUrlFromEnv(env);
+
+	onMount(() => {
+		if (page.url.searchParams.get('postLogout') !== 'register') {
+			return;
+		}
+
+		const registrationReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
+		window.location.replace(
+			resolveAuthRedirectUrl(
+				`/auth/login?registration=1&returnUrl=${registrationReturnUrl}&prompt=select_account`
+			)
+		);
+	});
+
+	function absoluteWebUrl(path: string) {
+		return new URL(path, window.location.origin).toString();
+	}
+
+	function resolveAuthRedirectUrl(authUrl: string) {
+		if (/^https?:\/\//i.test(authUrl)) {
+			return authUrl;
+		}
+
+		const authOrigin = absoluteOrigin(env.PUBLIC_AUTH_LOGIN_URL);
+		if (authOrigin) {
+			return new URL(authUrl, authOrigin).toString();
+		}
+
+		const apiOrigin = absoluteOrigin(env.PUBLIC_API_BASE_URL);
+		if (apiOrigin) {
+			return new URL(authUrl, apiOrigin).toString();
+		}
+
+		return authUrl;
+	}
+
+	function absoluteOrigin(value: string | undefined) {
+		if (!value || !/^https?:\/\//i.test(value)) {
+			return null;
+		}
+
+		try {
+			return new URL(value).origin;
+		} catch {
+			return null;
+		}
+	}
 </script>
 
 <svelte:head>
