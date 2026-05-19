@@ -170,6 +170,9 @@
 		<div class="flex flex-wrap gap-3">
 			<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
 			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
+			{#if authFailedRedirect}
+				<a class="secondary-button" href={logoutUrl}>Sign out</a>
+			{/if}
 		</div>
 	</section>
 {:else if authState === 'forbidden'}
