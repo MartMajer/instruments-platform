@@ -18769,3 +18769,24 @@ Deployment verification:
 - Initial redeploy completed container rebuild/recreate but hit transient web-root 502 during warm-up.
 - Follow-up public smoke passed: API ready 200, web root 200, /app 200.
 - VPS release checks passed with evidence in /tmp/sidebar-cleanup-vps-release-20260519-followup.
+
+## 2026-05-20 - D350 project-state roadmap assessment
+
+Goal: Zoom out after the auth, setup, collection, results, waves, settings, and sidebar cleanup work and assess the current app against roadmap, backlog, milestones, owner blockers, and shipped staging state.
+
+Did:
+- Added `docs/v2/80-agent-handoff/assessments/D350-PROJECT-STATE-ROADMAP-ASSESSMENT-2026-05-20.md`.
+- Updated `docs/v2/80-agent-handoff/NEXT-ACTIONS.md` so the default agent lane is no longer the stale post-D348 pause state.
+- Updated `docs/v2/80-agent-handoff/NEXT-SESSION-PLAN.md` with BR01 as the recommended next slice.
+- Added Q-058 for the M1 private-beta acceptance bar.
+
+Assessment:
+- The project has crossed from technical proof spine into private-beta product shell.
+- The active roadmap guardrail remains correct: tenant-private/attested validated-instrument workflow, not platform-canonical named-instrument content.
+- The next limiter is M1 private-beta acceptance quality: respondent parity for exposed question types, audience import/recipient UX, multi-output results setup, and owner validation evidence.
+
+Decision:
+- Select BR01 next: define the M1 private-beta acceptance checklist and route audit before adding another feature.
+
+Verification:
+- Docs-only change. Pending markdown/diff verification in this session.
