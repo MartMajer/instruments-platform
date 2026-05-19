@@ -15,7 +15,7 @@
 		const registrationReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
 		window.location.replace(
 			resolveAuthRedirectUrl(
-				`/auth/login?registration=1&returnUrl=${registrationReturnUrl}&prompt=select_account`
+				`/auth/login?registration=1&returnUrl=${registrationReturnUrl}`
 			)
 		);
 	});

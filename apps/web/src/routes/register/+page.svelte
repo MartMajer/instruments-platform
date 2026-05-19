@@ -23,7 +23,7 @@
 	onMount(() => {
 		const registerReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
 		registrationSignInUrl = resolveAuthRedirectUrl(
-			`/auth/login?registration=1&returnUrl=${registerReturnUrl}&prompt=select_account`
+			`/auth/login?registration=1&returnUrl=${registerReturnUrl}`
 		);
 		switchAccountUrl = resolveAuthRedirectUrl(
 			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(`${resolve('/')}?postLogout=register`))}`
