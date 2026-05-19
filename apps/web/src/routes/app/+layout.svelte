@@ -51,7 +51,10 @@
 	let authMessage = $state<string | null>(null);
 	let pendingRegistrationLoginUrl = $state('');
 	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession) : null);
-	const authFailedRedirect = $derived(page.url.searchParams.get('auth') === 'failed');
+	const authFailureReason = $derived(page.url.searchParams.get('auth'));
+	const authFailedRedirect = $derived(authFailureReason === 'failed');
+	const authEmailUnverifiedRedirect = $derived(authFailureReason === 'email_unverified');
+	const authRecoveryRedirect = $derived(authFailedRedirect || authEmailUnverifiedRedirect);
 
 	onMount(() => {
 		loginUrl = createLoginUrlFromEnv(env, readLastTenantId(window.localStorage));
@@ -109,7 +112,7 @@
 	}
 
 	function clearAuthFailureMarker() {
-		if (!authFailedRedirect) {
+		if (!authRecoveryRedirect) {
 			return;
 		}
 
@@ -269,7 +272,7 @@
 				<h1 id="auth-boundary-title" class="setup-panel__title">Workspace sign-in needed</h1>
 			</div>
 		</div>
-		{#if authFailedRedirect}
+		{#if authRecoveryRedirect}
 			<div
 				class="email-verification-reminder"
 				role="status"
@@ -278,11 +281,20 @@
 				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 				<div class="email-verification-reminder__body">
 					<h2 class="email-verification-reminder__title">
-						{authFailedHasPendingRegistration
+						{authEmailUnverifiedRedirect
+							? 'Verify email, then sign in'
+							: authFailedHasPendingRegistration
 							? 'Registration sign-in did not finish'
 							: 'Sign in with your workspace account'}
 					</h2>
-					{#if authFailedHasPendingRegistration}
+					{#if authEmailUnverifiedRedirect}
+						<p class="email-verification-reminder__text">
+							Open the verification email from Auth0, then sign in again with the same account.
+						</p>
+						<p class="email-verification-reminder__note">
+							If Auth0 keeps using the wrong account, sign out completely and choose the intended email.
+						</p>
+					{:else if authFailedHasPendingRegistration}
 						<p class="email-verification-reminder__text">
 							Retry the saved registration sign-in link if the Auth0 callback was interrupted.
 						</p>
@@ -302,8 +314,10 @@
 			</div>
 		{/if}
 		<p class="text-sm text-[var(--color-text-muted)]">
-			{authFailedRedirect
-				? authFailedHasPendingRegistration
+			{authRecoveryRedirect
+				? authEmailUnverifiedRedirect
+					? 'Email verification is required before signing in again after sign-out.'
+					: authFailedHasPendingRegistration
 					? 'Use the saved registration link only when registration was interrupted before the workspace opened.'
 					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
 				: hasTenantLoginTarget
@@ -311,9 +325,9 @@
 					: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
 		</p>
 		<div class="flex flex-wrap gap-3">
-			{#if authFailedRedirect}
+			{#if authRecoveryRedirect}
 				<a class="primary-button" href={authFailedPrimaryUrl}>
-					{authFailedPrimaryLabel}
+					{authEmailUnverifiedRedirect ? 'Sign in after verifying email' : authFailedPrimaryLabel}
 				</a>
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
 			{:else}

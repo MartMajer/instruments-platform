@@ -323,6 +323,28 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Oidc_remote_failure_preserves_unverified_reason_from_failure_message()
+    {
+        var resolver = new FakeOidcLoginResolver();
+        var events = CreateOidcEvents(
+            resolver,
+            new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+            });
+        var context = CreateRemoteFailureContext(
+            "https://app.example.test/app",
+            new Exception("platform_login_verified_email_required"));
+
+        await events.RemoteFailure(context);
+
+        Assert.Equal(StatusCodes.Status302Found, context.Response.StatusCode);
+        Assert.Equal(
+            "https://app.example.test/app?auth=email_unverified",
+            context.Response.Headers.Location.ToString());
+    }
+
+    [Fact]
     public async Task Oidc_remote_failure_sends_unverified_registration_back_to_register()
     {
         var resolver = new FakeOidcLoginResolver();

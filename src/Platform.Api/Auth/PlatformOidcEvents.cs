@@ -88,7 +88,7 @@ public sealed class PlatformOidcEvents(
 
         context.HandleResponse();
 
-        var authFailureReason = GetAuthFailureReason(context.Properties);
+        var authFailureReason = GetAuthFailureReason(context.Properties, context.Failure);
         var fallbackPath = string.Equals(authFailureReason, EmailUnverifiedFailureReason, StringComparison.Ordinal) &&
             HasRegistrationContext(context.Properties)
                 ? "/register"
@@ -214,12 +214,34 @@ public sealed class PlatformOidcEvents(
         }
     }
 
-    private static string GetAuthFailureReason(AuthenticationProperties? properties)
+    private static string GetAuthFailureReason(AuthenticationProperties? properties, Exception? failure = null)
     {
-        return properties?.Items.TryGetValue(AuthFailureReasonPropertyName, out var reason) == true &&
-            string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal)
-                ? EmailUnverifiedFailureReason
-                : "failed";
+        if (properties?.Items.TryGetValue(AuthFailureReasonPropertyName, out var reason) == true &&
+            string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal))
+        {
+            return EmailUnverifiedFailureReason;
+        }
+
+        return IsEmailUnverifiedFailure(failure)
+            ? EmailUnverifiedFailureReason
+            : "failed";
+    }
+
+    private static bool IsEmailUnverifiedFailure(Exception? failure)
+    {
+        while (failure is not null)
+        {
+            if (failure.Message.Contains(
+                    "platform_login_verified_email_required",
+                    StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            failure = failure.InnerException;
+        }
+
+        return false;
     }
 
     private static bool HasRegistrationContext(AuthenticationProperties? properties)

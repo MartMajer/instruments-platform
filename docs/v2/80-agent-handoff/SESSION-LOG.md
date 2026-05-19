@@ -18385,3 +18385,9 @@ Task: Added browser-side last-workspace tenant memory. Successful `/auth/session
 Verification: RED Playwright tests reproduced home Sign in staying `/auth/login` and failed recovery lacking the new tenant id. GREEN verification passed SvelteKit sync, production Vite build, and 10/10 focused Playwright tests for email verification, pending registration recovery, and last authenticated workspace sign-in.
 
 Remaining risk: This is a browser-local single-last-workspace bridge, not a full multi-workspace account picker. Future multi-workspace support should replace this with server-backed workspace discovery or explicit workspace slug selection.
+
+## 2026-05-19 - unverified sign-in recovery reason hotfix
+Assessment: After sign-out from an unverified registration grace session, normal sign-in correctly failed because Auth0 still returned email_verified=false, but the browser saw generic workspace-access copy. Staging Docker logs showed OIDC email-unverified rejection followed by generic no-membership retries, meaning the backend rejection reason was being collapsed before the app recovery screen.
+Task: Preserve the email_unverified reason from OIDC remote failure exception messages when auth properties are unavailable, and teach /app?auth=email_unverified to show verify-email-specific recovery copy instead of the generic workspace-access message.
+Verification: Backend focused auth tests passed (6/6). Web production build passed by invoking local Vite through the absolute Node executable due local Windows npm PATH issues. Focused Playwright auth/registration recovery tests passed (11/11) against a direct preview server.
+Remaining risk: If Auth0 keeps returning a stale email_verified=false claim after the user verifies email, the user may still need to sign out completely and sign in again to force a fresh Auth0 session claim.

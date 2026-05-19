@@ -133,6 +133,23 @@ test('shows email verification recovery on registration with sign-in-specific co
 	await expect(page.getByText('continue workspace setup')).toHaveCount(0);
 });
 
+test('shows email verification recovery after unverified workspace sign-in', async ({ page }) => {
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+
+	await page.goto('/app?auth=email_unverified');
+
+	await expect(page.getByRole('heading', { name: 'Verify email, then sign in' })).toBeVisible();
+	await expect(page.getByLabel('Email verification reminder')).toContainText(
+		'Open the verification email from Auth0, then sign in again with the same account.'
+	);
+	await expect(page.getByRole('link', { name: 'Sign in after verifying email' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Sign out completely' })).toBeVisible();
+	await expect(page.getByText('does not have access to this workspace')).toHaveCount(0);
+});
+
 test('stores structured pending registration metadata before Auth0 registration redirect', async ({
 	page
 }) => {
