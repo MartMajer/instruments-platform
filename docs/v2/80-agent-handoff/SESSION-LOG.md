@@ -18565,6 +18565,6 @@ Assessment: Owner challenged whether the product was becoming a weaker generic s
 
 Task: Added D349 assessment and `docs/v2/30-features/custom-study-builder.md` to document the honest MVP model and limits. Expanded questionnaire authoring metadata for rating scales, recommendation scale, single/multiple choice, number, text, date, and ranking. Reframed Step 3 from `Scoring rule` to `Results setup`, replacing raw rule-key/document/produces fields with result name, average/sum calculation, missing-answer policy, selectable scoreable questions, and a clear collected-but-not-scored section.
 
-Verification: Pending staging deployment. Deployment build will be the syntax gate; owner staging test should create a mixed-question study, save Results setup, create a campaign draft, and run launch readiness.
+Verification: VPS staging deployment passed from commit `1a6f656`. Docker web production build passed, VPS release checks passed, remote public smoke passed, backup/restore smoke passed, authenticated remote smoke was skipped, and public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Evidence: `/tmp/custom-builder-results-vps-release-20260519`.
 
 Remaining risk: The visual builder is still intentionally constrained. It does not yet provide branching, matrix/grid questions, multi-output subscales, choice scoring, interpretation bands, norms, reliability metrics, or proven respondent-rendering parity for every exposed question type.
