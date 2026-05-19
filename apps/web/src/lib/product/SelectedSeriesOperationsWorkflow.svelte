@@ -327,26 +327,6 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<div class="setup-path" role="list" aria-label="Collection path">
-		{#each operationsPath.steps as action, index (action.id)}
-			<button
-				type="button"
-				class="setup-path__item"
-				data-state={displayedPathState(action)}
-				role="listitem"
-				aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
-				onclick={() => selectAction(action.id)}
-			>
-				<span class="setup-path__marker">{index + 1}</span>
-				<span class="setup-path__content">
-					<span class="setup-path__title">{action.title}</span>
-					<span class="setup-path__description">{action.description}</span>
-				</span>
-				<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
-			</button>
-		{/each}
-	</div>
-
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
 			<strong class="record-row__title">Read-only access</strong>
@@ -547,6 +527,27 @@
 				</div>
 			</div>
 		</article>
+
+		<div class="setup-path" role="list" aria-label="Collection path">
+			{#each operationsPath.steps as action, index (action.id)}
+				<div role="listitem">
+					<button
+						type="button"
+						class="setup-path__item"
+						data-state={displayedPathState(action)}
+						aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
+						onclick={() => selectAction(action.id)}
+					>
+						<span class="setup-path__marker">{index + 1}</span>
+						<span class="setup-path__content">
+							<span class="setup-path__title">{action.title}</span>
+							<span class="setup-path__description">{action.description}</span>
+						</span>
+						<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
+					</button>
+				</div>
+			{/each}
+		</div>
 
 		{#if hasTechnicalDetails}
 			<details class="record-row">

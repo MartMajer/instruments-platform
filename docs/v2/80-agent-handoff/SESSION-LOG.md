@@ -18610,3 +18610,10 @@ Files changed: apps/web/src/lib/product/operations-workflow.ts, apps/web/src/lib
 Verification: Staging deploy built web/api/worker/migrator images and passed VPS release checks. Public API ready, public home, and /app returned 200 after deploy.
 
 Remaining risk: The invitation backend path still exists but is no longer exposed as a primary collection action. Real email invitation management should become a separate production slice with recipient entry, audience selection, send state, retries, and user-visible failure handling.
+## 2026-05-19 - Collection hub action-first layout pass
+
+Assessment: The collection page still put guidance and status overview ahead of the researcher action, forcing users to scroll before finding the next concrete step. The page felt overwhelming because it explained collection before letting the researcher act.
+
+Task: Reordered the operations surface so the collection workflow appears before route guidance and collection status details. Collapsed collection status, guidance, and technical reference sections below the workflow. Reordered the workflow component so the current action card appears before the step map, and fixed the step-path accessibility warning by removing the invalid button/listitem role combination.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.

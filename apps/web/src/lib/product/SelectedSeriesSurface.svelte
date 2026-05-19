@@ -467,16 +467,21 @@
 				</section>
 			{/if}
 
-			{#if operationsRouteGuidance}
-				<RouteGuidancePanel guidance={operationsRouteGuidance} />
+			{#if operationsWorkspace}
+				<SelectedSeriesOperationsWorkflow
+					workspace={operationsWorkspace}
+					{canManageSetup}
+					onWorkspaceRefresh={() => refreshOperationsWorkspace()}
+				/>
 			{/if}
 
 			{#if operationsWorkspaceView.collectionOverview.length > 0}
-				<section class="product-panel" role="group" aria-label="Collection progress">
-					<div class="product-panel__header">
+				<details class="product-panel reference-context" aria-label="Collection progress">
+					<summary class="record-row__title">Collection status details</summary>
+					<div class="product-panel__header mt-4">
 						<div>
 							<p class="product-kicker">{operationsWorkspaceView.surfaceEyebrow}</p>
-							<h2 class="product-title">Collection progress</h2>
+							<h2 class="product-title">Collection status</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								{operationsWorkspaceView.surfaceDescription}
 							</p>
@@ -514,22 +519,24 @@
 							</article>
 						{/each}
 					</div>
-				</section>
+				</details>
 			{/if}
 
-			{#if operationsWorkspace}
-				<SelectedSeriesOperationsWorkflow
-					workspace={operationsWorkspace}
-					{canManageSetup}
-					onWorkspaceRefresh={() => refreshOperationsWorkspace()}
-				/>
+			{#if operationsRouteGuidance}
+				<details class="product-panel reference-context" aria-label="Collection guidance">
+					<summary class="record-row__title">Collection guidance</summary>
+					<div class="mt-4">
+						<RouteGuidancePanel guidance={operationsRouteGuidance} />
+					</div>
+				</details>
 			{/if}
 
-			<section
+			<details
 				class="product-panel reference-context"
 				aria-label={operationsWorkspaceView.referenceTitle}
 			>
-				<div class="product-panel__header">
+				<summary class="record-row__title">Technical collection reference</summary>
+				<div class="product-panel__header mt-4">
 					<div>
 						<p class="product-kicker">Collection reference</p>
 						<h2 class="product-title">{operationsWorkspaceView.referenceTitle}</h2>
@@ -809,7 +816,7 @@
 						</div>
 					{/if}
 				</div>
-			</section>
+			</details>
 		{:else if reportsWorkspaceView}
 			{#if reportsWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">
