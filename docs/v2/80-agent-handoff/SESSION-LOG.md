@@ -18595,6 +18595,6 @@ Assessment: Owner found the collapsed delivery-details section still exposed int
 
 Task: Replaced delivery-details internals with summarized saved-audience and delivery-roster readiness text, removed rule-kind/role/selector/code rows from the normal UI, and changed the final setup navigation button to `Go to launch`, linking to the selected series operations surface with the selected campaign id when available.
 
-Verification: Pending staging deploy.
+Verification: Commit `4ecd299` deployed to staging. Docker web production build passed during redeploy. The first redeploy proof hit a transient web-root 502 during warm-up, then follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/setup-delivery-internals-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:3ecaf8b46ee6dcf8b5df32bde0e29a115739db165d61360dbdf62b56f9a9f5dd`.
 
 Remaining risk: The operations/launch surface may still need its own product cleanup; this slice only fixes the setup wizard handoff.
