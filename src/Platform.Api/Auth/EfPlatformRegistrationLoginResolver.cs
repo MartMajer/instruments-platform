@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Platform.Api.Registration;
 using Platform.Application.Auth;
 using Platform.Application.Tenancy;
@@ -27,6 +27,7 @@ public sealed class EfPlatformRegistrationLoginResolver(
     public async Task<PlatformOidcLoginResolution?> ResolveAsync(
         string registrationToken,
         string email,
+        bool emailVerified,
         string provider,
         string providerSubject,
         CancellationToken cancellationToken)
@@ -98,6 +99,14 @@ public sealed class EfPlatformRegistrationLoginResolver(
             providerSubjectHash,
             email,
             now);
+        if (emailVerified)
+        {
+            binding.RecordEmailVerified(now);
+        }
+        else
+        {
+            binding.RecordEmailVerificationGrace(now);
+        }
         db.ExternalAuthIdentities.Add(binding);
 
         var session = new AuthSession(

@@ -23,6 +23,7 @@ public interface IPlatformOidcLoginResolver
     Task<PlatformOidcLoginResolution?> ResolveAsync(
         Guid tenantId,
         string email,
+        bool emailVerified,
         string provider,
         string providerSubject,
         CancellationToken cancellationToken);
@@ -33,6 +34,7 @@ public interface IPlatformRegistrationLoginResolver
     Task<PlatformOidcLoginResolution?> ResolveAsync(
         string registrationToken,
         string email,
+        bool emailVerified,
         string provider,
         string providerSubject,
         CancellationToken cancellationToken);
@@ -151,7 +153,8 @@ public sealed class PlatformOidcEvents(
             return;
         }
 
-        if (RequiresVerifiedEmail() && !IsEmailVerified(context.Principal))
+        var emailVerified = IsEmailVerified(context.Principal);
+        if (RequiresVerifiedEmail() && !emailVerified && !hasRegistrationLogin)
         {
             logger.LogWarning("OIDC login rejected because the email claim was not verified.");
             MarkAuthFailure(context, EmailUnverifiedFailureReason);
@@ -175,12 +178,14 @@ public sealed class PlatformOidcEvents(
             ? await registrationLoginResolver.ResolveAsync(
                 registrationToken!,
                 normalizedEmail,
+                emailVerified,
                 Provider,
                 providerSubject,
                 context.HttpContext.RequestAborted)
             : await loginResolver.ResolveAsync(
                 tenantId,
                 normalizedEmail,
+                emailVerified,
                 Provider,
                 providerSubject,
                 context.HttpContext.RequestAborted);
@@ -326,6 +331,7 @@ public sealed class EfPlatformOidcLoginResolver(
     public async Task<PlatformOidcLoginResolution?> ResolveAsync(
         Guid tenantId,
         string email,
+        bool emailVerified,
         string provider,
         string providerSubject,
         CancellationToken cancellationToken)
@@ -392,10 +398,27 @@ public sealed class EfPlatformOidcLoginResolver(
                 return null;
             }
 
-            binding.RecordSeen(now);
+            if (!binding.IsEmailVerified && !emailVerified)
+            {
+                return null;
+            }
+
+            if (emailVerified)
+            {
+                binding.RecordEmailVerified(now);
+            }
+            else
+            {
+                binding.RecordSeen(now);
+            }
         }
         else
         {
+            if (!emailVerified)
+            {
+                return null;
+            }
+
             var subjectAlreadyBound = await db.ExternalAuthIdentities
                 .AnyAsync(identity =>
                     identity.TenantId == tenantId &&
@@ -416,6 +439,7 @@ public sealed class EfPlatformOidcLoginResolver(
                 providerSubjectHash,
                 email,
                 now);
+            binding.RecordEmailVerified(now);
             db.ExternalAuthIdentities.Add(binding);
         }
 

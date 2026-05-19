@@ -381,6 +381,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var resolution = await resolver.ResolveAsync(
             tenant.TenantId,
             tenant.UserEmail,
+            true,
             "auth0",
             "auth0|resolver-subject",
             CancellationToken.None);
@@ -452,12 +453,14 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var firstResolution = await resolver.ResolveAsync(
             tenant.TenantId,
             tenant.UserEmail,
+            true,
             "auth0",
             "auth0|original-subject",
             CancellationToken.None);
         var mismatchResolution = await resolver.ResolveAsync(
             tenant.TenantId,
             tenant.UserEmail,
+            true,
             "auth0",
             "auth0|different-subject",
             CancellationToken.None);

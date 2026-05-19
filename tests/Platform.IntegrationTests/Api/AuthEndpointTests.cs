@@ -450,7 +450,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         await events.TokenValidated(context);
 
         Assert.Null(context.Result?.Failure);
-        Assert.Equal([(tenantId, "researcher@example.test", "auth0", "auth0|subject")], resolver.Calls);
+        Assert.Equal([(tenantId, "researcher@example.test", true, "auth0", "auth0|subject")], resolver.Calls);
         Assert.Contains(context.Principal!.Claims, claim =>
             claim.Type == PlatformClaimTypes.UserId && claim.Value == userId.ToString());
         Assert.Contains(context.Principal.Claims, claim =>
@@ -552,7 +552,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         await events.TokenValidated(context);
 
         Assert.Null(context.Result?.Failure);
-        Assert.Equal([(tenantId, "researcher@example.test", "auth0", "auth0|abc123")], resolver.Calls);
+        Assert.Equal([(tenantId, "researcher@example.test", true, "auth0", "auth0|abc123")], resolver.Calls);
     }
 
     [Fact]
@@ -1070,7 +1070,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
 
         Assert.Null(context.Result?.Failure);
         Assert.Empty(tenantResolver.Calls);
-        Assert.Equal([("registration-token", "owner@example.test", "auth0", "auth0|subject")], registrationResolver.Calls);
+        Assert.Equal([("registration-token", "owner@example.test", true, "auth0", "auth0|subject")], registrationResolver.Calls);
         Assert.Contains(context.Principal!.Claims, claim =>
             claim.Type == PlatformClaimTypes.UserId && claim.Value == userId.ToString());
         Assert.Contains(context.Principal.Claims, claim =>
@@ -1082,7 +1082,40 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Contains(context.Principal.Claims, claim =>
             claim.Type == PlatformClaimTypes.Permission && claim.Value == PlatformPermissions.TeamManage);
     }
-    private HttpClient CreateClient()
+
+    [Fact]
+    public async Task Oidc_token_validation_allows_unverified_email_for_registration_token()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        var tenantResolver = new FakeOidcLoginResolver();
+        var registrationResolver = new FakeRegistrationLoginResolver
+        {
+            Resolution = new PlatformOidcLoginResolution(
+                userId,
+                tenantId,
+                sessionId,
+                [PlatformPermissions.SetupManage])
+        };
+        var events = CreateOidcEvents(tenantResolver, registrationResolver: registrationResolver);
+        var context = CreateTokenValidatedContext(
+            "  Owner@Example.Test  ",
+            emailVerified: false,
+            registrationToken: "registration-token");
+
+        await events.TokenValidated(context);
+
+        Assert.Null(context.Result?.Failure);
+        Assert.Empty(tenantResolver.Calls);
+        Assert.Equal([("registration-token", "owner@example.test", false, "auth0", "auth0|subject")], registrationResolver.Calls);
+        Assert.Contains(context.Principal!.Claims, claim =>
+            claim.Type == PlatformClaimTypes.UserId && claim.Value == userId.ToString());
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.TenantMembership && claim.Value == tenantId.ToString());
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.SessionId && claim.Value == sessionId.ToString());
+    }    private HttpClient CreateClient()
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -1382,16 +1415,17 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     {
         public PlatformOidcLoginResolution? Resolution { get; init; }
 
-        public List<(Guid TenantId, string Email, string Provider, string ProviderSubject)> Calls { get; } = [];
+        public List<(Guid TenantId, string Email, bool EmailVerified, string Provider, string ProviderSubject)> Calls { get; } = [];
 
         public Task<PlatformOidcLoginResolution?> ResolveAsync(
             Guid tenantId,
             string email,
+            bool emailVerified,
             string provider,
             string providerSubject,
             CancellationToken cancellationToken)
         {
-            Calls.Add((tenantId, email, provider, providerSubject));
+            Calls.Add((tenantId, email, emailVerified, provider, providerSubject));
             return Task.FromResult(Resolution);
         }
     }
@@ -1400,16 +1434,17 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     {
         public PlatformOidcLoginResolution? Resolution { get; init; }
 
-        public List<(string RegistrationToken, string Email, string Provider, string ProviderSubject)> Calls { get; } = [];
+        public List<(string RegistrationToken, string Email, bool EmailVerified, string Provider, string ProviderSubject)> Calls { get; } = [];
 
         public Task<PlatformOidcLoginResolution?> ResolveAsync(
             string registrationToken,
             string email,
+            bool emailVerified,
             string provider,
             string providerSubject,
             CancellationToken cancellationToken)
         {
-            Calls.Add((registrationToken, email, provider, providerSubject));
+            Calls.Add((registrationToken, email, emailVerified, provider, providerSubject));
             return Task.FromResult(Resolution);
         }
     }
