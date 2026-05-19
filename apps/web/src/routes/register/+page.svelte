@@ -181,13 +181,13 @@
 			<div class="registration-steps" aria-label="Registration steps">
 				<div>
 					<span>01</span>
-					<strong>Create or choose account</strong>
-					<p>Set the owner email and password with the identity provider.</p>
+					<strong>Create account</strong>
+					<p>Register or sign in with the email you want to use for this workspace.</p>
 				</div>
 				<div>
 					<span>02</span>
 					<strong>Name workspace</strong>
-					<p>Return here signed in as the owner and enter the beta code.</p>
+					<p>Return here after email verification, then enter the workspace name and beta code.</p>
 				</div>
 				<div>
 					<span>03</span>
@@ -212,11 +212,11 @@
 						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
 					{:else}
 						<p class="registration-alert" role="status">
-							Continue with the owner account. After sign-in, you will return here to enter the workspace name and beta code.
+							Create your account first. After sign-in or email verification, you will return here to finish workspace setup.
 						</p>
 					{/if}
 					{#if registrationSignInUrl}
-						<a class="registration-submit" href={registrationSignInUrl}>Continue with owner account</a>
+						<a class="registration-submit" href={registrationSignInUrl}>Create account</a>
 					{:else}
 						<button class="registration-submit" type="button" disabled>
 							Preparing account link...
@@ -226,7 +226,7 @@
 			{:else}
 				<form class="registration-form" onsubmit={submitWorkspace}>
 					<div class="registration-alert" role="status">
-						Account ready: <strong>{pendingEmail}</strong>. This email becomes the workspace owner.
+						Account ready: <strong>{pendingEmail}</strong>. This email will manage the workspace.
 					</div>
 					{#if switchAccountUrl}
 						<a class="secondary-button" href={switchAccountUrl}>Switch account</a>
