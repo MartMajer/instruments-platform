@@ -371,7 +371,8 @@ public sealed class RegistrationWorkspaceService(
                 tenantId,
                 sessionId,
                 [PlatformPermissions.ExportRead, PlatformPermissions.SetupManage, PlatformPermissions.TeamManage],
-                identity.Email)));
+                identity.Email,
+                EmailVerified: true)));
     }
 
     private async Task<Permission> EnsurePermissionAsync(
@@ -596,6 +597,7 @@ public static class RegistrationEndpointRouteBuilderExtensions
             new(PlatformClaimTypes.UserId, resolution.UserId.ToString()),
             new(PlatformClaimTypes.SessionId, resolution.SessionId.ToString()),
             new(ClaimTypes.NameIdentifier, resolution.UserId.ToString()),
+            new(PlatformClaimTypes.EmailVerified, resolution.EmailVerified ? "true" : "false"),
             new(ClaimTypes.Email, resolution.Email),
             new(PlatformClaimTypes.TenantMembership, resolution.TenantId.ToString())
         };

@@ -8,6 +8,7 @@ export type AuthSessionResponse = {
 	userId: string;
 	tenantId: string;
 	email?: string | null;
+	emailVerificationRequired?: boolean;
 	permissions: string[];
 };
 

@@ -128,7 +128,8 @@ public sealed class EfPlatformRegistrationLoginResolver(
             tenantId,
             session.Id,
             [PlatformPermissions.ExportRead, PlatformPermissions.SetupManage, PlatformPermissions.TeamManage],
-            email);
+            email,
+            emailVerified);
     }
 
     private async Task<Permission> EnsurePermissionAsync(

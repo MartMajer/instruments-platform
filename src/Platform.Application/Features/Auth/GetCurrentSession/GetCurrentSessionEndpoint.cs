@@ -29,6 +29,7 @@ public static class GetCurrentSessionEndpoint
             actor.UserId.Value,
             actor.TenantId.Value,
             actor.Email,
+            actor.EmailVerificationRequired,
             actor.Permissions.ToArray()));
     }
 }

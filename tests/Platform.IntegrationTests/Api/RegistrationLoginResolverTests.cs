@@ -64,6 +64,7 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.NotNull(resolution);
+        Assert.True(resolution.EmailVerified);
         Assert.True(currentTenant.HasTenant);
         Assert.Equal(resolution.TenantId, currentTenant.TenantId);
         Assert.Equal(email, resolution.Email);
@@ -289,6 +290,7 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.NotNull(resolution);
+        Assert.False(resolution.EmailVerified);
         Assert.Equal(email, resolution.Email);
         Assert.True(currentTenant.HasTenant);
         Assert.Equal(resolution.TenantId, currentTenant.TenantId);
@@ -378,6 +380,7 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
 
         Assert.Null(unverifiedResolution);
         Assert.NotNull(verifiedResolution);
+        Assert.True(verifiedResolution.EmailVerified);
         Assert.Equal(userId, verifiedResolution.UserId);
         Assert.Equal(tenantId, verifiedResolution.TenantId);
 
@@ -389,7 +392,76 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
         Assert.True(await verification.AuthSessions.AnyAsync(session =>
             session.Id == verifiedResolution.SessionId &&
             session.ExternalAuthIdentityId == bindingId));
-    }    private async Task PrepareDatabaseAsync(DbContextOptions<ApplicationDbContext> options)
+    }
+
+    [DockerFact]
+    public async Task ResolveAsync_rejects_currently_unverified_provider_email_even_when_binding_was_previously_verified()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+        var tenantId = PlatformIds.NewId();
+        var userId = PlatformIds.NewId();
+        var roleId = PlatformIds.NewId();
+        var bindingId = PlatformIds.NewId();
+        var email = "previously-verified@example.test";
+        var hasher = new Sha256ProviderSubjectHasher();
+        var providerSubject = "auth0|previously-verified";
+        var providerSubjectHash = hasher.Hash("auth0", providerSubject);
+        var createdAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+
+        await using (var seedDb = new ApplicationDbContext(options))
+        {
+            await using var transaction = await seedDb.Database.BeginTransactionAsync();
+            await new TenantDbScope(seedDb).SetTenantAsync(tenantId);
+
+            seedDb.Tenants.Add(new Tenant(tenantId, "previously-verified", "Previously Verified"));
+            seedDb.Roles.Add(new Role(roleId, tenantId, "tenant_owner", "Tenant owner"));
+            seedDb.UserAccounts.Add(new UserAccount(userId, tenantId, email));
+            seedDb.RoleAssignments.Add(new RoleAssignment(
+                PlatformIds.NewId(),
+                tenantId,
+                userId,
+                roleId,
+                RoleAssignmentScopes.Tenant));
+            var binding = new ExternalAuthIdentity(
+                bindingId,
+                tenantId,
+                userId,
+                "auth0",
+                providerSubjectHash,
+                email,
+                createdAt);
+            binding.RecordEmailVerified(createdAt);
+            seedDb.ExternalAuthIdentities.Add(binding);
+            await seedDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var resolver = new EfPlatformOidcLoginResolver(
+            db,
+            new TenantDbScope(db),
+            new CurrentTenant(),
+            hasher,
+            CreateConfiguration());
+
+        var resolution = await resolver.ResolveAsync(
+            tenantId,
+            email,
+            false,
+            "auth0",
+            providerSubject,
+            CancellationToken.None);
+
+        Assert.Null(resolution);
+
+        await using var verification = new ApplicationDbContext(options);
+        await using var verifyTransaction = await new TenantDbScope(verification).BeginTransactionAsync(tenantId);
+        Assert.False(await verification.AuthSessions.AnyAsync(session =>
+            session.ExternalAuthIdentityId == bindingId));
+    }
+
+    private async Task PrepareDatabaseAsync(DbContextOptions<ApplicationDbContext> options)
     {
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();

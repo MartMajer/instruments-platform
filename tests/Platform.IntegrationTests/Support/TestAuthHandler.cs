@@ -17,6 +17,7 @@ public sealed class TestAuthHandler(
     public const string TenantMembershipsHeader = "X-Test-Tenant-Memberships";
     public const string PermissionsHeader = "X-Test-Permissions";
     public const string EmailHeader = "X-Test-Email";
+    public const string EmailVerifiedHeader = "X-Test-Email-Verified";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -38,6 +39,15 @@ public sealed class TestAuthHandler(
             if (!string.IsNullOrWhiteSpace(email))
             {
                 claims.Add(new Claim(ClaimTypes.Email, email));
+            }
+        }
+
+        if (Request.Headers.TryGetValue(EmailVerifiedHeader, out var emailVerifiedValues))
+        {
+            var emailVerified = emailVerifiedValues.SingleOrDefault()?.Trim();
+            if (!string.IsNullOrWhiteSpace(emailVerified))
+            {
+                claims.Add(new Claim(PlatformClaimTypes.EmailVerified, emailVerified));
             }
         }
 

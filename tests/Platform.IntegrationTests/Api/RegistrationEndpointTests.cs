@@ -116,7 +116,8 @@ public sealed class RegistrationEndpointTests(WebApplicationFactory<Program> fac
                         tenantId,
                         sessionId,
                         [PlatformPermissions.SetupManage, PlatformPermissions.TeamManage],
-                        "owner@example.test")))
+                        "owner@example.test",
+                        EmailVerified: false)))
         };
         var validator = new FakePlatformSessionValidator();
         var revoker = new FakePlatformSessionRevoker();
@@ -154,6 +155,7 @@ public sealed class RegistrationEndpointTests(WebApplicationFactory<Program> fac
         Assert.NotNull(session);
         Assert.Equal(tenantId, session.TenantId);
         Assert.Equal(userId, session.UserId);
+        Assert.True(session.EmailVerificationRequired);
         Assert.Contains(PlatformPermissions.SetupManage, session.Permissions);
 
         var logoutResponse = await client.GetAsync(
@@ -331,5 +333,6 @@ public sealed class RegistrationEndpointTests(WebApplicationFactory<Program> fac
         Guid UserId,
         Guid TenantId,
         string Email,
+        bool EmailVerificationRequired,
         IReadOnlyCollection<string> Permissions);
 }

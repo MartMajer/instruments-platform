@@ -40,6 +40,16 @@ public sealed class HttpContextCurrentActor(
         }
     }
 
+    public bool EmailVerificationRequired
+    {
+        get
+        {
+            var value = httpContextAccessor.HttpContext?.User.FindFirstValue(PlatformClaimTypes.EmailVerified);
+
+            return bool.TryParse(value, out var emailVerified) && !emailVerified;
+        }
+    }
+
     public IReadOnlyCollection<string> Permissions
     {
         get

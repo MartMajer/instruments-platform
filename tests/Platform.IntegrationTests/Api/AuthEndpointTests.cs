@@ -459,6 +459,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
             claim.Type == PlatformClaimTypes.Permission && claim.Value == "setup.manage");
         Assert.Contains(context.Principal.Claims, claim =>
             claim.Type == PlatformClaimTypes.Permission && claim.Value == "campaign.launch");
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.EmailVerified && claim.Value == "true");
     }
 
     [Fact]
@@ -633,7 +635,9 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
 
         Assert.Null(context.Result?.Failure);
         Assert.DoesNotContain(context.Principal!.Claims, claim =>
-            claim.Type is "sub" or "email" or "email_verified");
+            claim.Type is "sub" or "email");
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.EmailVerified && claim.Value == "true");
     }
 
     [Fact]
@@ -688,6 +692,7 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.NotNull(payload);
         Assert.Equal(userId, payload.UserId);
         Assert.Equal(tenantId, payload.TenantId);
+        Assert.False(payload.EmailVerificationRequired);
         Assert.Contains("campaign.launch", payload.Permissions);
         Assert.Contains("instrument.read", payload.Permissions);
     }
@@ -737,6 +742,32 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Equal(userId, payload.UserId);
         Assert.Equal(tenantId, payload.TenantId);
         Assert.Equal("owner@example.test", payload.Email);
+    }
+
+    [Fact]
+    public async Task Session_endpoint_requires_email_verification_when_session_claim_is_unverified()
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/auth/session");
+
+        request.Headers.Add("X-Tenant-Id", tenantId.ToString());
+        request.Headers.Add(TestAuthHandler.UserIdHeader, userId.ToString());
+        request.Headers.Add(TestAuthHandler.TenantMembershipsHeader, tenantId.ToString());
+        request.Headers.Add(TestAuthHandler.PermissionsHeader, "setup.manage");
+        request.Headers.Add(TestAuthHandler.EmailVerifiedHeader, "false");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<SessionResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(userId, payload.UserId);
+        Assert.Equal(tenantId, payload.TenantId);
+        Assert.True(payload.EmailVerificationRequired);
+        Assert.Contains("setup.manage", payload.Permissions);
     }
 
     [Fact]
@@ -1096,7 +1127,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
                 userId,
                 tenantId,
                 sessionId,
-                [PlatformPermissions.SetupManage])
+                [PlatformPermissions.SetupManage],
+                EmailVerified: false)
         };
         var events = CreateOidcEvents(tenantResolver, registrationResolver: registrationResolver);
         var context = CreateTokenValidatedContext(
@@ -1115,7 +1147,11 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
             claim.Type == PlatformClaimTypes.TenantMembership && claim.Value == tenantId.ToString());
         Assert.Contains(context.Principal.Claims, claim =>
             claim.Type == PlatformClaimTypes.SessionId && claim.Value == sessionId.ToString());
-    }    private HttpClient CreateClient()
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformClaimTypes.EmailVerified && claim.Value == "false");
+    }
+
+    private HttpClient CreateClient()
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -1523,7 +1559,11 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
 
     private sealed record CsrfResponse(string CsrfToken);
 
-    private sealed record SessionResponse(Guid UserId, Guid TenantId, string[] Permissions);
+    private sealed record SessionResponse(
+        Guid UserId,
+        Guid TenantId,
+        bool EmailVerificationRequired,
+        string[] Permissions);
 
     private sealed record ProfileSessionResponse(
         Guid UserId,

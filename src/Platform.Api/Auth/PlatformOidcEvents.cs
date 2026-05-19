@@ -16,7 +16,8 @@ public sealed record PlatformOidcLoginResolution(
     Guid TenantId,
     Guid SessionId,
     IReadOnlyCollection<string> Permissions,
-    string Email = "");
+    string Email = "",
+    bool EmailVerified = true);
 
 public interface IPlatformOidcLoginResolver
 {
@@ -281,6 +282,9 @@ public sealed class PlatformOidcEvents(
         identity.AddClaim(new Claim(PlatformClaimTypes.SessionId, resolution.SessionId.ToString()));
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, resolution.UserId.ToString()));
         identity.AddClaim(new Claim(
+            PlatformClaimTypes.EmailVerified,
+            resolution.EmailVerified ? "true" : "false"));
+        identity.AddClaim(new Claim(
             ClaimTypes.Email,
             string.IsNullOrWhiteSpace(resolution.Email) ? normalizedEmail : resolution.Email));
         identity.AddClaim(new Claim(
@@ -337,6 +341,11 @@ public sealed class EfPlatformOidcLoginResolver(
         CancellationToken cancellationToken)
     {
         if (currentTenant.HasTenant && currentTenant.TenantId != tenantId)
+        {
+            return null;
+        }
+
+        if (!emailVerified)
         {
             return null;
         }
@@ -467,6 +476,6 @@ public sealed class EfPlatformOidcLoginResolver(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return new PlatformOidcLoginResolution(user.Id, tenantId, session.Id, permissions, email);
+        return new PlatformOidcLoginResolution(user.Id, tenantId, session.Id, permissions, email, EmailVerified: true);
     }
 }

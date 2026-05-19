@@ -10,5 +10,7 @@ public interface ICurrentActor
 
     string? Email { get; }
 
+    bool EmailVerificationRequired { get; }
+
     IReadOnlyCollection<string> Permissions { get; }
 }
