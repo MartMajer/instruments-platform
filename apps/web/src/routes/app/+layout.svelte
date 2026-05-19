@@ -10,7 +10,8 @@
 		readLastWorkspaceEmail,
 		readLastTenantId,
 		rememberLastWorkspaceEmail,
-		rememberLastTenantId
+		rememberLastTenantId,
+		normalizeTenantId
 	} from '$lib/api/session-headers';
 	import { createSetupApi, type AuthSessionResponse } from '$lib/api/setup';
 	import { createProductAuthContext, setProductAuthContext } from '$lib/product/auth-context';
@@ -18,7 +19,9 @@
 
 	type AuthState = 'checking' | 'authenticated' | 'unauthenticated' | 'forbidden' | 'failed';
 
-	let loginUrl = $state(createLoginUrlFromEnv(env));
+	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
+	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
+	let loginUrl = $state(createLoginUrlFromEnv(env, initialTenantIdFromUrl));
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
@@ -53,6 +56,7 @@
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let authMessage = $state<string | null>(null);
 	let pendingRegistrationLoginUrl = $state('');
+	const workspaceLogoutUrl = $derived(createWorkspaceLogoutUrl(authSession?.tenantId));
 	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession) : null);
 	const authFailureReason = $derived(page.url.searchParams.get('auth'));
 	const authFailedRedirect = $derived(authFailureReason === 'failed');
@@ -60,11 +64,17 @@
 	const authRecoveryRedirect = $derived(authFailedRedirect || authEmailUnverifiedRedirect);
 
 	onMount(() => {
-		loginUrl = createLoginUrlFromEnv(
-			env,
-			readLastTenantId(window.localStorage),
-			readLastWorkspaceEmail(window.localStorage)
-		);
+		const storedTenantId = readLastTenantId(window.localStorage);
+		const tenantId = tenantIdFromUrl || storedTenantId;
+		const loginHint = tenantId && tenantId === storedTenantId
+			? readLastWorkspaceEmail(window.localStorage)
+			: '';
+
+		if (tenantIdFromUrl) {
+			rememberLastTenantId(window.localStorage, tenantIdFromUrl);
+		}
+
+		loginUrl = createLoginUrlFromEnv(env, tenantId, loginHint);
 		loadPendingRegistrationLoginUrl();
 		void checkSession();
 	});
@@ -222,6 +232,24 @@
 
 		return `${providerLogoutUrl.pathname}${providerLogoutUrl.search}${providerLogoutUrl.hash}`;
 	}
+
+	function createWorkspaceLogoutUrl(tenantId: string | null | undefined) {
+		const workspaceLogoutUrl = new URL(logoutUrl, page.url.origin);
+		const returnUrl = new URL(resolve('/'), page.url.origin);
+		const normalizedTenantId = normalizeTenantId(tenantId);
+
+		if (normalizedTenantId) {
+			returnUrl.searchParams.set('tenantId', normalizedTenantId);
+		}
+
+		workspaceLogoutUrl.searchParams.set('returnUrl', returnUrl.toString());
+
+		if (/^https?:\/\//i.test(logoutUrl)) {
+			return workspaceLogoutUrl.toString();
+		}
+
+		return `${workspaceLogoutUrl.pathname}${workspaceLogoutUrl.search}${workspaceLogoutUrl.hash}`;
+	}
 </script>
 
 <svelte:head>
@@ -264,7 +292,7 @@
 						<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 						<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 					</div>
-					<a class="secondary-button" href={logoutUrl}>Sign out</a>
+					<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
 				</div>
 				<div class="session-callout__badges" aria-label="Session permission posture">
 					{#each sessionProfile.permissionBadges as badge}
@@ -375,7 +403,7 @@
 		</p>
 		<div class="flex flex-wrap gap-3">
 			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
-			<a class="secondary-button" href={logoutUrl}>Sign out</a>
+			<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
 			<a class="primary-button" href={resolve('/register')}>Create workspace</a>
 		</div>
 	</section>
@@ -390,7 +418,7 @@
 		<p class="text-sm text-[var(--color-text-muted)]">{authMessage}</p>
 		<div class="flex flex-wrap gap-3">
 			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
-			<a class="secondary-button" href={logoutUrl}>Sign out</a>
+			<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
 		</div>
 	</section>
 {/if}

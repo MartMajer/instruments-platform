@@ -6,17 +6,27 @@
 	import {
 		createLoginUrlFromEnv,
 		readLastWorkspaceEmail,
-		readLastTenantId
+		readLastTenantId,
+		rememberLastTenantId,
+		normalizeTenantId
 	} from '$lib/api/session-headers';
 
-	let loginUrl = $state(createLoginUrlFromEnv(env));
+	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
+	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
+	let loginUrl = $state(createLoginUrlFromEnv(env, initialTenantIdFromUrl));
 
 	onMount(() => {
-		loginUrl = createLoginUrlFromEnv(
-			env,
-			readLastTenantId(window.localStorage),
-			readLastWorkspaceEmail(window.localStorage)
-		);
+		const storedTenantId = readLastTenantId(window.localStorage);
+		const tenantId = tenantIdFromUrl || storedTenantId;
+		const loginHint = tenantId && tenantId === storedTenantId
+			? readLastWorkspaceEmail(window.localStorage)
+			: '';
+
+		if (tenantIdFromUrl) {
+			rememberLastTenantId(window.localStorage, tenantIdFromUrl);
+		}
+
+		loginUrl = createLoginUrlFromEnv(env, tenantId, loginHint);
 
 		if (page.url.searchParams.get('postLogout') !== 'register') {
 			return;

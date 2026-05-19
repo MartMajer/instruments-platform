@@ -108,11 +108,22 @@
 			rememberLastTenantId(window.localStorage, response.tenantId);
 			rememberLastWorkspaceEmail(window.localStorage, response.email);
 			statusMessage = 'Workspace created. Opening your app.';
-			window.location.assign(response.appUrl);
+			window.location.assign(withTenantId(response.appUrl, response.tenantId));
 		} catch (error) {
 			errorMessage = toRegistrationError(error);
 			isSubmitting = false;
 		}
+	}
+
+	function withTenantId(url: string, tenantId: string) {
+		const parsedUrl = new URL(url, window.location.origin);
+		parsedUrl.searchParams.set('tenantId', tenantId);
+
+		if (/^https?:\/\//i.test(url)) {
+			return parsedUrl.toString();
+		}
+
+		return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
 	}
 
 	function loadPendingRegistrationLoginUrl() {

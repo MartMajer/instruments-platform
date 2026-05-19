@@ -86,6 +86,11 @@ test('uses the last authenticated workspace for home sign-in after sign-out', as
 
 	await page.goto('/app');
 	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+	await expect(
+		page
+			.getByRole('region', { name: 'Authenticated tenant session' })
+			.getByRole('link', { name: 'Sign out' })
+	).toHaveAttribute('href', new RegExp(`returnUrl=.*tenantId%3D${registeredTenantId}`));
 
 	await page.goto('/');
 
@@ -262,6 +267,7 @@ test('remembers workspace account after registration workspace creation', async 
 			window.localStorage.getItem('instruments-platform.last-workspace-email') === email,
 		{ tenantId: registeredTenantId, email: registeredEmail }
 	);
+	await expect(page).toHaveURL(new RegExp(`/app\\?tenantId=${registeredTenantId}`));
 });
 
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {

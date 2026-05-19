@@ -57,16 +57,22 @@ export function createLoginUrlFromEnv(
 
 export function readLastTenantId(storage: Storage | undefined) {
 	const value = storage?.getItem(lastTenantIdStorageKey)?.trim() ?? '';
-	return isTenantId(value) ? value : '';
+	return normalizeTenantId(value);
 }
 
 export function rememberLastTenantId(storage: Storage | undefined, tenantId: string) {
-	const value = tenantId.trim();
-	if (!isTenantId(value)) {
+	const value = normalizeTenantId(tenantId);
+	if (!value) {
 		return;
 	}
 
 	storage?.setItem(lastTenantIdStorageKey, value);
+}
+
+export function normalizeTenantId(value: string | null | undefined) {
+	const normalized = value?.trim() ?? '';
+
+	return isTenantId(normalized) ? normalized : '';
 }
 
 export function readLastWorkspaceEmail(storage: Storage | undefined) {
