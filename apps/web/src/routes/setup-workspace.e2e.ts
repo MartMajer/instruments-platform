@@ -226,6 +226,44 @@ test('stores structured pending registration metadata before Auth0 registration 
 	expect(metadata.loginUrl).not.toContain('screen_hint');
 });
 
+test('remembers workspace account after registration workspace creation', async ({ page }) => {
+	const registeredTenantId = '44444444-4444-4444-8444-444444444444';
+	const registeredEmail = 'registered-owner@example.test';
+
+	await page.unroute('**/auth/session');
+	await routeAuthenticatedSession(page, {
+		...sampleAuthSession,
+		tenantId: registeredTenantId,
+		email: registeredEmail
+	});
+	await page.route('**/registration/session', async (route) => {
+		await route.fulfill({ json: { email: registeredEmail } });
+	});
+	await page.route('**/registration/workspaces', async (route) => {
+		await route.fulfill({
+			status: 201,
+			json: {
+				appUrl: '/app',
+				tenantId: registeredTenantId,
+				email: registeredEmail
+			}
+		});
+	});
+
+	await page.goto('/register');
+	await expect(page.getByText(`Account ready: ${registeredEmail}`)).toBeVisible();
+	await page.getByRole('textbox', { name: 'Workspace name' }).fill('Example Lab');
+	await page.getByLabel('Beta access code').fill('beta-code');
+	await page.getByRole('button', { name: 'Create workspace' }).click();
+
+	await page.waitForFunction(
+		({ tenantId, email }) =>
+			window.localStorage.getItem('instruments-platform.last-tenant-id') === tenantId &&
+			window.localStorage.getItem('instruments-platform.last-workspace-email') === email,
+		{ tenantId: registeredTenantId, email: registeredEmail }
+	);
+});
+
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {
 	let protectedCalls = 0;
 

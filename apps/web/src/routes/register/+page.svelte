@@ -4,7 +4,11 @@
 	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { ApiError } from '$lib/api/client';
-	import { createLoginUrlFromEnv } from '$lib/api/session-headers';
+	import {
+		createLoginUrlFromEnv,
+		rememberLastWorkspaceEmail,
+		rememberLastTenantId
+	} from '$lib/api/session-headers';
 	import { createRegistrationApi } from '$lib/api/registration';
 
 	const registrationApi = createRegistrationApi();
@@ -101,6 +105,8 @@
 				returnUrl: absoluteWebUrl(resolve('/app'))
 			});
 
+			rememberLastTenantId(window.localStorage, response.tenantId);
+			rememberLastWorkspaceEmail(window.localStorage, response.email);
 			statusMessage = 'Workspace created. Opening your app.';
 			window.location.assign(response.appUrl);
 		} catch (error) {
