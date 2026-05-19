@@ -25,7 +25,9 @@
 		registrationSignInUrl = resolveAuthRedirectUrl(
 			`/auth/login?registration=1&returnUrl=${registerReturnUrl}&prompt=select_account`
 		);
-		switchAccountUrl = resolveAuthRedirectUrl(`/auth/logout?returnUrl=${registerReturnUrl}`);
+		switchAccountUrl = resolveAuthRedirectUrl(
+			`/auth/logout?provider=1&returnUrl=${registerReturnUrl}`
+		);
 		void loadRegistrationSession();
 	});
 

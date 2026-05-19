@@ -172,9 +172,33 @@ public static class AuthEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var providerLogout = IsProviderLogout(context.Request.Query["provider"].SingleOrDefault());
+        if (providerLogout is null)
+        {
+            return Results.Problem(
+                title: "Invalid logout provider flag",
+                detail: "provider must be 1 or true when provided.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         await revoker.RevokeAsync(context.User, context.RequestAborted);
 
         await context.SignOutAsync(PlatformAuthenticationSchemes.AppCookie);
+
+        if (providerLogout.Value)
+        {
+            var providerLogoutUrl = BuildProviderLogoutUrl(configuration, returnUrl);
+            if (providerLogoutUrl is null)
+            {
+                return Results.Problem(
+                    title: "Provider logout unavailable",
+                    detail: "OIDC authority and client id must be configured for provider logout.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            return Results.Redirect(providerLogoutUrl);
+        }
+
         return Results.Redirect(returnUrl);
     }
 
@@ -207,6 +231,19 @@ public static class AuthEndpointRouteBuilderExtensions
             string.Equals(value?.Trim(), "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool? IsProviderLogout(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return string.Equals(value.Trim(), "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(value.Trim(), "true", StringComparison.OrdinalIgnoreCase)
+                ? true
+                : null;
+    }
+
     private static string? NormalizeScreenHint(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -233,5 +270,28 @@ public static class AuthEndpointRouteBuilderExtensions
         }
 
         return loginHint;
+    }
+
+    private static string? BuildProviderLogoutUrl(IConfiguration configuration, string returnUrl)
+    {
+        var oidc = configuration.GetSection("Authentication:Oidc");
+        var authority = oidc["Authority"]?.Trim();
+        var clientId = oidc["ClientId"]?.Trim();
+
+        if (string.IsNullOrWhiteSpace(authority) ||
+            string.IsNullOrWhiteSpace(clientId) ||
+            !Uri.TryCreate(authority, UriKind.Absolute, out var authorityUri))
+        {
+            return null;
+        }
+
+        var logoutEndpoint = new Uri(authorityUri, "/v2/logout");
+
+        return string.Concat(
+            logoutEndpoint,
+            "?client_id=",
+            Uri.EscapeDataString(clientId),
+            "&returnTo=",
+            Uri.EscapeDataString(returnUrl));
     }
 }

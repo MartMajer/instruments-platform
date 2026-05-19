@@ -128,6 +128,29 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Logout_endpoint_can_redirect_to_provider_logout_when_requested()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/register");
+
+        var response = await client.GetAsync($"/auth/logout?provider=1&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+        Assert.Equal("/v2/logout", response.Headers.Location?.AbsolutePath);
+        Assert.Contains("client_id=test-client-id", response.Headers.Location?.Query);
+        Assert.Contains(
+            "returnTo=https%3A%2F%2Fapp.example.test%2Fregister",
+            response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_uses_forwarded_https_scheme_for_oidc_callback()
     {
         var tenantId = Guid.NewGuid();
