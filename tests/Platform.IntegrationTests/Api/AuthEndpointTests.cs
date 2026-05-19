@@ -1010,6 +1010,28 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_clears_local_app_cookie_before_registration_challenge()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/app");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registrationToken=registration-token&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var cookies));
+        Assert.Contains(cookies, cookie =>
+            cookie.StartsWith("__Host-instruments-platform=;", StringComparison.Ordinal) &&
+            cookie.Contains("expires=", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Login_endpoint_rejects_conflicting_tenant_and_registration_context()
     {
         var tenantId = Guid.NewGuid();

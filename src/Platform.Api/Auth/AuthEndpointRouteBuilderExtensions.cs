@@ -36,9 +36,10 @@ public static class AuthEndpointRouteBuilderExtensions
         return app;
     }
 
-    private static IResult Login(
+    private static async Task<IResult> Login(
         HttpContext context,
-        [FromServices] IConfiguration configuration)
+        [FromServices] IConfiguration configuration,
+        [FromServices] IPlatformSessionRevoker revoker)
     {
         var tenantIdValue = context.Request.Query["tenantId"].SingleOrDefault();
         var registrationToken = context.Request.Query["registrationToken"].SingleOrDefault()?.Trim();
@@ -151,6 +152,9 @@ public static class AuthEndpointRouteBuilderExtensions
         {
             properties.SetParameter("login_hint", loginHint);
         }
+
+        await revoker.RevokeAsync(context.User, context.RequestAborted);
+        await context.SignOutAsync(PlatformAuthenticationSchemes.AppCookie);
 
         return Results.Challenge(properties, [PlatformAuthenticationSchemes.Oidc]);
     }
