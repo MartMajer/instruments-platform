@@ -106,6 +106,11 @@ public sealed class RegistrationIntentService(
                 Error.Validation("registration.invalid_return_url", "Return URL must be a local application path."));
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT set_config('app.registration_email_lookup', 'on', true)",
+            cancellationToken);
+
         var existingTenantId = await (
                 from user in db.UserAccounts
                 join tenant in db.Tenants on user.TenantId equals tenant.Id
@@ -146,6 +151,7 @@ public sealed class RegistrationIntentService(
             expiresAt);
         db.RegistrationIntents.Add(intent);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         var loginUrl = QueryHelpers.AddQueryString(
             "/auth/login",

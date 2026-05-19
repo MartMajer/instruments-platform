@@ -173,6 +173,9 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
         var roleId = PlatformIds.NewId();
         await using (var seedDb = new ApplicationDbContext(options))
         {
+            await using var transaction = await seedDb.Database.BeginTransactionAsync();
+            await new TenantDbScope(seedDb).SetTenantAsync(tenantId);
+
             seedDb.Tenants.Add(new Tenant(tenantId, "existing-workspace", "Existing Workspace"));
             seedDb.Roles.Add(new Role(roleId, tenantId, "tenant_owner", "Tenant owner"));
             seedDb.UserAccounts.Add(new UserAccount(userId, tenantId, "owner@example.test"));
@@ -183,6 +186,7 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
                 roleId,
                 RoleAssignmentScopes.Tenant));
             await seedDb.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         await using var db = new ApplicationDbContext(options);
@@ -254,7 +258,7 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
     private async Task PrepareDatabaseAsync(DbContextOptions<ApplicationDbContext> options)
     {
         await using var db = new ApplicationDbContext(options);
-        await db.Database.EnsureCreatedAsync();
+        await db.Database.MigrateAsync();
     }
 
     private static async Task SeedIntentAsync(
