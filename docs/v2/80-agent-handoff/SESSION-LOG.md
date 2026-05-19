@@ -18790,3 +18790,24 @@ Decision:
 
 Verification:
 - Docs-only change. Pending markdown/diff verification in this session.
+
+## 2026-05-20 - BR01 private-beta acceptance checklist
+
+Goal: Convert D350's private-beta readiness finding into an executable acceptance bar before feature work continues.
+
+Did:
+- Added `docs/plans/2026-05-20-d350-follow-up-execution-design.md`.
+- Added `docs/plans/2026-05-20-d350-follow-up-execution-plan.md`.
+- Added `docs/v2/80-agent-handoff/private-beta-acceptance-checklist.md`.
+- Added `docs/v2/80-agent-handoff/assessments/D351-POST-BR01-PRIVATE-BETA-ACCEPTANCE-ASSESSMENT-2026-05-20.md`.
+- Closed Q-058 and selected QB01 as the next slice.
+- Updated `NEXT-ACTIONS.md` and `NEXT-SESSION-PLAN.md`.
+
+Assessment:
+- BR01 confirms the next limiter is respondent parity for the formats now exposed by the Questionnaire builder, not another shell-cleanup pass.
+
+Next:
+- Run QB01 before DIR04, AUD01, RSLT01, or VAL08.
+
+Verification:
+- Pending docs diff/whitespace verification in this session.

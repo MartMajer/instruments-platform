@@ -1,3 +1,11 @@
+# Next Session Plan - Post-D351
+
+Current queue head: QB01 respondent-rendering parity for every exposed question format.
+
+Recommended next slice: prove the builder-to-respondent path for rating, recommendation, single choice, multiple choice, number, text, date, and ranking. If a format cannot be rendered, saved, submitted, exported, or explained safely in the current respondent runtime, either fix the path or remove/reclassify that format from the beta builder.
+
+Use `private-beta-acceptance-checklist.md` as the acceptance bar. Do not add branching, matrix/grid, file upload, SurveyJS Creator, platform-canonical named instruments, or real-person data. Keep RSLT01 multi-output Results setup separate unless QB01 exposes a narrow scoring compatibility issue.
+
 # Next Session Plan - Post-D350
 
 Current queue head: BR01 M1 private-beta acceptance checklist and route audit.

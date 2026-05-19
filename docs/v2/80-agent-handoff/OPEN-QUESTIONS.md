@@ -275,14 +275,15 @@ Format:
 **Blocks:** Multiple active workspace memberships for the same normalized email; workspace switching UX; production-grade multi-tenant account selection. Does not block current beta where one email maps to one workspace.
 **Resolution:** -
 
+## Closed
+
 ### Q-058 - M1 private-beta acceptance bar
 **Raised:** 2026-05-20 by Codex during D350 project-state roadmap assessment
-**Context:** The app has moved from proof spine to private-beta product shell, but the roadmap exit criterion and the active queue do not yet define the exact browser-level acceptance path that must work before owner-led validator calls rely on the app as current proof. Without this bar, work can drift back into broad feature building or subjective UI polish.
+**Context:** The app moved from proof spine to private-beta product shell, but the roadmap exit criterion and the active queue did not define the exact browser-level acceptance path that must work before owner-led validator calls rely on the app as current proof.
 **Options:** Define a narrow checklist around one anonymous/open-link study; define a broader checklist that includes registration, team, directory, anonymous invite-only, results, exports, and waves; make BR01 produce the checklist and then split blockers into follow-up slices.
-**Blocks:** Confident private-beta readiness claim; deciding whether the next blocker is respondent question parity, audience import, multi-output results, validation packet refresh, or another UI cleanup. Does not block continued M1 engineering with synthetic or owner-controlled test data.
-**Resolution:** -
-
-## Closed
+**Blocks:** Closed for the current private-beta acceptance bar. Follow-up blockers are QB01, DIR04, AUD01, RSLT01, and VAL08.
+**Resolution:** Closed by BR01 on 2026-05-20. The acceptance bar is `docs/v2/80-agent-handoff/private-beta-acceptance-checklist.md`; D351 selects QB01 as the next slice.
+**Closed:** 2026-05-20
 
 ### Q-055 — Beta duplicate workspace registration by email
 **Raised:** 2026-05-19 by owner during Auth0 registration flow hardening
