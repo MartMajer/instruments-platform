@@ -7,7 +7,9 @@
 	import {
 		createLoginUrlFromEnv,
 		createSessionHeadersFromEnv,
+		readLastWorkspaceEmail,
 		readLastTenantId,
+		rememberLastWorkspaceEmail,
 		rememberLastTenantId
 	} from '$lib/api/session-headers';
 	import { createSetupApi, type AuthSessionResponse } from '$lib/api/setup';
@@ -58,7 +60,11 @@
 	const authRecoveryRedirect = $derived(authFailedRedirect || authEmailUnverifiedRedirect);
 
 	onMount(() => {
-		loginUrl = createLoginUrlFromEnv(env, readLastTenantId(window.localStorage));
+		loginUrl = createLoginUrlFromEnv(
+			env,
+			readLastTenantId(window.localStorage),
+			readLastWorkspaceEmail(window.localStorage)
+		);
 		loadPendingRegistrationLoginUrl();
 		void checkSession();
 	});
@@ -71,7 +77,8 @@
 			authSession = await setupApi.getCurrentSession();
 			authContext.session.set(authSession);
 			rememberLastTenantId(window.localStorage, authSession.tenantId);
-			loginUrl = createLoginUrlFromEnv(env, authSession.tenantId);
+			rememberLastWorkspaceEmail(window.localStorage, authSession.email);
+			loginUrl = createLoginUrlFromEnv(env, authSession.tenantId, authSession.email);
 			authState = 'authenticated';
 			clearAuthFailureMarker();
 			clearPendingRegistrationLoginUrl();

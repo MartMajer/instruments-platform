@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createLoginUrlFromEnv, createSessionHeadersFromEnv } from './session-headers';
+import {
+	createLoginUrlFromEnv,
+	createSessionHeadersFromEnv,
+	readLastWorkspaceEmail,
+	rememberLastWorkspaceEmail
+} from './session-headers';
 
 describe('createSessionHeadersFromEnv', () => {
 	it('does not create headers when no auth mode is configured', () => {
@@ -65,4 +70,53 @@ describe('createSessionHeadersFromEnv', () => {
 			})
 		).toBe('/auth/login?tenantId=tenant-b');
 	});
+
+	it('adds login hint when workspace email is known', () => {
+		expect(
+			createLoginUrlFromEnv(
+				{
+					PUBLIC_AUTH_LOGIN_URL: '/auth/login?returnUrl=/app',
+					PUBLIC_TENANT_ID: 'tenant-a'
+				},
+				null,
+				'owner@example.test'
+			)
+		).toBe('/auth/login?returnUrl=/app&tenantId=tenant-a&login_hint=owner%40example.test');
+	});
+
+	it('remembers the last workspace email for account-targeted sign-in', () => {
+		const storage = new MapStorage();
+
+		rememberLastWorkspaceEmail(storage, ' owner@example.test ');
+
+		expect(readLastWorkspaceEmail(storage)).toBe('owner@example.test');
+	});
 });
+
+class MapStorage implements Storage {
+	private readonly values = new Map<string, string>();
+
+	get length() {
+		return this.values.size;
+	}
+
+	clear() {
+		this.values.clear();
+	}
+
+	getItem(key: string) {
+		return this.values.get(key) ?? null;
+	}
+
+	key(index: number) {
+		return Array.from(this.values.keys())[index] ?? null;
+	}
+
+	removeItem(key: string) {
+		this.values.delete(key);
+	}
+
+	setItem(key: string, value: string) {
+		this.values.set(key, value);
+	}
+}

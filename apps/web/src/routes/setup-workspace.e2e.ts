@@ -75,11 +75,13 @@ test('does not show email verification status when verification is explicitly no
 
 test('uses the last authenticated workspace for home sign-in after sign-out', async ({ page }) => {
 	const registeredTenantId = '33333333-3333-4333-8333-333333333333';
+	const registeredEmail = 'registered-owner@example.test';
 
 	await page.unroute('**/auth/session');
 	await routeAuthenticatedSession(page, {
 		...sampleAuthSession,
-		tenantId: registeredTenantId
+		tenantId: registeredTenantId,
+		email: registeredEmail
 	});
 
 	await page.goto('/app');
@@ -90,6 +92,10 @@ test('uses the last authenticated workspace for home sign-in after sign-out', as
 	await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
 		'href',
 		new RegExp(`tenantId=${registeredTenantId}`)
+	);
+	await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
+		'href',
+		new RegExp(`login_hint=${encodeURIComponent(registeredEmail)}`)
 	);
 });
 
@@ -135,9 +141,11 @@ test('shows email verification recovery on registration with sign-in-specific co
 
 test('shows email verification recovery after unverified workspace sign-in', async ({ page }) => {
 	const lastTenantId = '22222222-2222-4222-8222-222222222222';
-	await page.addInitScript((tenantId) => {
+	const lastWorkspaceEmail = 'verified-owner@example.test';
+	await page.addInitScript(({ tenantId, email }) => {
 		window.localStorage.setItem('instruments-platform.last-tenant-id', tenantId);
-	}, lastTenantId);
+		window.localStorage.setItem('instruments-platform.last-workspace-email', email);
+	}, { tenantId: lastTenantId, email: lastWorkspaceEmail });
 
 	await page.unroute('**/auth/session');
 	await page.route('**/auth/session', async (route) => {
@@ -154,6 +162,10 @@ test('shows email verification recovery after unverified workspace sign-in', asy
 	await expect(signInAfterVerify).toBeVisible();
 	await expect(signInAfterVerify).toHaveAttribute('href', new RegExp(`[?&]tenantId=${lastTenantId}`));
 	await expect(signInAfterVerify).toHaveAttribute('href', /[?&]prompt=login(?:&|$)/);
+	await expect(signInAfterVerify).toHaveAttribute(
+		'href',
+		new RegExp(`[?&]login_hint=${encodeURIComponent(lastWorkspaceEmail)}(?:&|$)`)
+	);
 	await expect(page.getByRole('link', { name: 'Sign out completely' })).toBeVisible();
 	await expect(page.getByText('does not have access to this workspace')).toHaveCount(0);
 });
@@ -1078,6 +1090,7 @@ const deliveredInviteTokenB =
 const sampleAuthSession = {
 	userId: '22222222-2222-4222-8222-222222222222',
 	tenantId: '11111111-1111-4111-8111-111111111111',
+	email: 'owner@example.test',
 	permissions: ['setup.manage']
 };
 
