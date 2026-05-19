@@ -62,8 +62,9 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'template',
 			step: 'Step 2',
-			title: 'Template version',
-			description: 'Create the template/questions that campaigns in this series can use.',
+			title: 'Instrument template',
+			description:
+				'Create the first questionnaire template. Campaigns use a selected template, and you can add more templates or versions later.',
 			status: templateVersionId ? 'ready' : 'blocked',
 			available: true,
 			disabledReason: null
@@ -72,24 +73,24 @@ export function toSelectedSeriesSetupWorkflowActions(
 			id: 'scoring',
 			step: 'Step 3',
 			title: 'Scoring rule',
-			description: 'Attach a scoring rule to the selected or newly created template version.',
+			description: 'Attach a scoring rule to the selected or newly created instrument template.',
 			status: scoringConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Create or select a template version first.'
+			disabledReason: templateVersionId ? null : 'Create or select an instrument template first.'
 		},
 		{
 			id: 'campaign',
 			step: 'Step 4',
-			title: 'Campaign draft',
+			title: 'Draft campaign',
 			description: 'Create a draft campaign inside the selected route campaign series.',
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Create or select a template version first.'
+			disabledReason: templateVersionId ? null : 'Create or select an instrument template first.'
 		},
 		{
 			id: 'readiness',
 			step: 'Step 5',
-			title: 'Launch readiness',
+			title: 'Launch check',
 			description: 'Run launch-readiness diagnostics against the selected campaign draft.',
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
 			available: Boolean(campaignId),

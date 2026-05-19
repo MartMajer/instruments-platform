@@ -140,9 +140,32 @@
 	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState));
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
-	const currentAction = $derived(setupPath.currentAction);
+	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
+	let activeActionInitialized = $state(false);
+	const activeStep = $derived(
+		setupPath.steps.find((step) => step.id === activeActionId) ??
+			setupPath.steps.find((step) => step.id === currentActionId) ??
+			setupPath.steps[0]
+	);
+	const activeActionIndex = $derived(
+		workflowActions.findIndex((action) => action.id === activeActionId)
+	);
+	const previousAction = $derived(
+		activeActionIndex > 0 ? workflowActions[activeActionIndex - 1] : null
+	);
+	const nextAction = $derived(
+		activeActionIndex >= 0 && activeActionIndex < workflowActions.length - 1
+			? workflowActions[activeActionIndex + 1]
+			: null
+	);
+	const canGoPrevious = $derived(Boolean(previousAction && canSelectSetupAction(previousAction.id)));
+	const canGoNext = $derived(Boolean(nextAction && canSelectSetupAction(nextAction.id)));
 	const selectedTemplateVersionId = $derived(selectSetupTemplateVersionId(workspace, localState));
 	const selectedCampaignId = $derived(selectSetupCampaignId(workspace, localState));
+	const selectedCampaignLabel = $derived(
+		workspace.selectedCampaign?.name?.trim() ||
+			(selectedCampaignId ? 'Draft campaign selected' : 'No campaign selected')
+	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
@@ -163,6 +186,15 @@
 			(!previewRequiresTarget || !!previewTargetSubjectId) &&
 			(!previewRequiresGroup || !!previewGroupId)
 	);
+
+	$effect(() => {
+		if (!activeActionInitialized && currentActionId) {
+			activeActionId = currentActionId;
+			activeActionInitialized = true;
+		} else if (!canSelectSetupAction(activeActionId)) {
+			activeActionId = currentActionId;
+		}
+	});
 
 	$effect(() => {
 		if (canManageSetup && !previewOptionsLoadAttempted) {
@@ -196,6 +228,7 @@
 
 		if (result) {
 			instrumentResult = result;
+			activeActionId = 'template';
 		}
 	}
 
@@ -218,6 +251,7 @@
 			scoringResult = null;
 			campaignResult = null;
 			readinessResult = null;
+			activeActionId = 'scoring';
 		}
 	}
 
@@ -226,7 +260,7 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				scoring: 'Create or select a template version first.'
+				scoring: 'Create or select an instrument template first.'
 			};
 			return;
 		}
@@ -249,6 +283,7 @@
 
 		if (result) {
 			scoringResult = result;
+			activeActionId = 'campaign';
 		}
 	}
 
@@ -257,7 +292,7 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				campaign: 'Create or select a template version first.'
+				campaign: 'Create or select an instrument template first.'
 			};
 			return;
 		}
@@ -276,6 +311,7 @@
 			campaignResult = result;
 			readinessResult = null;
 			respondentRuleLoadCampaignId = null;
+			activeActionId = 'readiness';
 		}
 	}
 
@@ -512,6 +548,33 @@
 
 	function workflowAction(id: SelectedSeriesSetupWorkflowActionId) {
 		return workflowActions.find((action) => action.id === id) ?? workflowActions[0];
+	}
+
+	function canSelectSetupAction(id: SelectedSeriesSetupWorkflowActionId) {
+		const step = setupPath.steps.find((candidate) => candidate.id === id);
+		if (!step) {
+			return false;
+		}
+
+		return step.available || step.pathState === 'done' || step.id === currentActionId;
+	}
+
+	function selectSetupAction(id: SelectedSeriesSetupWorkflowActionId) {
+		if (canSelectSetupAction(id)) {
+			activeActionId = id;
+		}
+	}
+
+	function goToPreviousSetupAction() {
+		if (previousAction && canSelectSetupAction(previousAction.id)) {
+			activeActionId = previousAction.id;
+		}
+	}
+
+	function goToNextSetupAction() {
+		if (nextAction && canSelectSetupAction(nextAction.id)) {
+			activeActionId = nextAction.id;
+		}
 	}
 
 	function syncPreviewSelections() {
@@ -756,13 +819,14 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Preparation actions">
+<section class="product-panel" role="group" aria-label="Study setup progress">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Preparation actions</p>
-			<h3 class="product-title">Preparation actions</h3>
+			<p class="product-kicker">Study setup</p>
+			<h3 class="product-title">Study setup progress</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Actions use the selected study and refresh preparation state after successful saves.
+				Instrument templates define what respondents answer. Campaigns use a selected template,
+				and you can add more templates or versions later for other studies, waves, or variants.
 			</p>
 		</div>
 	</div>
@@ -774,24 +838,31 @@
 		</p>
 		{@render SetupPath()}
 	{:else}
+		<div class="grid gap-3">
+			<p class="record-field__label">
+				{setupPath.completedCount} of {setupPath.totalCount} required steps complete
+			</p>
+			{@render SetupPath()}
+		</div>
+
 		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">
-						{setupPath.completedCount} of {setupPath.totalCount} setup tasks done
+					<p class="record-field__label">Current setup step</p>
+					<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
+					<p class="setup-current-task__title">
+						{activeActionId === currentActionId ? 'Next step' : pathStateLabel(activeStep.pathState)}
 					</p>
-					<h4 id="current-setup-task-heading" class="record-row__title">Current setup task</h4>
-					<p class="setup-current-task__title">{currentAction.title}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
+					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
 				</div>
-				<StatusBadge status={currentAction.status} />
+				<StatusBadge status={activeStep.status} />
 			</div>
-			{#if currentAction.disabledReason}
-				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
+			{#if activeStep.disabledReason}
+				<p class="text-sm text-[var(--color-text-muted)]">{activeStep.disabledReason}</p>
 			{/if}
 
 			<div class="setup-current-task__body">
-				{#if currentActionId === 'instrument'}
+				{#if activeActionId === 'instrument'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">
 							<span>Code</span>
@@ -822,11 +893,9 @@
 						id: 'instrument',
 						label: 'Create instrument import',
 						icon: 'plus',
-						resultLabel: 'Instrument',
-						resultValue: instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
 						onclick: createInstrumentImport
 					})}
-				{:else if currentActionId === 'template'}
+				{:else if activeActionId === 'template'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">
 							<span>Template name</span>
@@ -950,13 +1019,11 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'template',
-						label: 'Create template version',
+						label: 'Create instrument template',
 						icon: 'send',
-						resultLabel: 'Template',
-						resultValue: selectedTemplateVersionId,
 						onclick: createTemplateVersion
 					})}
-				{:else if currentActionId === 'scoring'}
+				{:else if activeActionId === 'scoring'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">
 							<span>Rule key</span>
@@ -1001,11 +1068,9 @@
 						id: 'scoring',
 						label: 'Create scoring rule',
 						icon: 'send',
-						resultLabel: 'Scoring rule',
-						resultValue: scoringResult?.id ?? workspace.scoring?.id ?? null,
 						onclick: createScoringRule
 					})}
-				{:else if currentActionId === 'campaign'}
+				{:else if activeActionId === 'campaign'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">
 							<span>Series name</span>
@@ -1032,15 +1097,13 @@
 						id: 'campaign',
 						label: 'Create campaign draft',
 						icon: 'send',
-						resultLabel: 'Campaign',
-						resultValue: selectedCampaignId,
 						onclick: createCampaignDraft
 					})}
-				{:else if currentActionId === 'readiness'}
+				{:else if activeActionId === 'readiness'}
 					<div class="record-grid">
 						<div class="record-field">
 							<p class="record-field__label">Selected campaign</p>
-							<p class="record-field__value">{selectedCampaignId ?? 'Missing'}</p>
+							<p class="record-field__value">{selectedCampaignLabel}</p>
 						</div>
 						<div class="record-field">
 							<p class="record-field__label">Readiness</p>
@@ -1066,15 +1129,29 @@
 						id: 'readiness',
 						label: 'Check launch readiness',
 						icon: 'search',
-						resultLabel: 'Campaign',
-						resultValue: readinessResult?.campaignId ?? workspace.readiness.campaignId ?? null,
 						onclick: checkLaunchReadiness
 					})}
 				{/if}
 			</div>
+			<div class="action-row">
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canGoPrevious}
+					onclick={goToPreviousSetupAction}
+				>
+					Previous step
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canGoNext}
+					onclick={goToNextSetupAction}
+				>
+					Next step
+				</button>
+			</div>
 		</section>
-
-		{@render SetupPath()}
 
 		<details class="setup-run">
 			<summary>
@@ -1097,12 +1174,13 @@
 			<p class="error-line">{refreshWarning}</p>
 		{/if}
 
+		{#if activeActionId === 'campaign' || activeActionId === 'readiness'}
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">Selected campaign</p>
 					<h4 id="audience-preview-heading" class="record-row__title">Audience preview</h4>
-					<p class="setup-current-task__title">{selectedCampaignId ?? 'No campaign selected'}</p>
+					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
 			</div>
@@ -1337,20 +1415,29 @@
 				<p class="text-sm text-[var(--color-text-muted)]">No assignments.</p>
 			{/if}
 		</section>
+		{/if}
 	{/if}
 </section>
 
 {#snippet SetupPath()}
 	<div class="setup-path" role="list" aria-label="Setup path">
 		{#each setupPath.steps as step}
-			<div class="setup-path__item" data-state={step.pathState} role="listitem">
+			<button
+				type="button"
+				class="setup-path__item"
+				data-state={step.id === activeActionId ? 'current' : step.pathState}
+				role="listitem"
+				disabled={!canSelectSetupAction(step.id)}
+				aria-current={step.id === activeActionId ? 'step' : undefined}
+				onclick={() => selectSetupAction(step.id)}
+			>
 				<span class="setup-path__marker" aria-hidden="true">{step.step.replace('Step ', '')}</span>
 				<span class="setup-path__content">
 					<span class="setup-path__title">{step.title}</span>
 					<span class="setup-path__description">{step.description}</span>
 				</span>
 				<span class="setup-path__state">{pathStateLabel(step.pathState)}</span>
-			</div>
+			</button>
 		{/each}
 	</div>
 {/snippet}
@@ -1359,15 +1446,11 @@
 	id,
 	label,
 	icon,
-	resultLabel,
-	resultValue,
 	onclick
 }: {
 	id: SelectedSeriesSetupWorkflowActionId;
 	label: string;
 	icon: 'plus' | 'send' | 'search';
-	resultLabel: string;
-	resultValue: string | null | undefined;
 	onclick: () => void | Promise<void>;
 })}
 	<div class="action-row">
@@ -1390,18 +1473,8 @@
 			<span>{label}</span>
 		</button>
 		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
-		{@render ResultLine({ label: resultLabel, value: resultValue })}
 	</div>
 	{#if actionErrors[id]}
 		<p class="error-line">{actionErrors[id]}</p>
-	{/if}
-{/snippet}
-
-{#snippet ResultLine({ label, value }: { label: string; value: string | null | undefined })}
-	{#if value}
-		<p class="result-line">
-			<span>{label}</span>
-			<code>{value}</code>
-		</p>
 	{/if}
 {/snippet}

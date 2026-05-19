@@ -18512,3 +18512,10 @@ Assessment: Owner testing showed selected-study pages still exposed raw series i
 Task: Removed duplicated in-body selected-series navigation from the hub and selected-series surfaces, removed normal campaign-series id rows from selected-series reference sections, moved remaining hub technical details behind a collapsed section, removed tenant/user id rows from the session profile view, and formatted selected-series/settings/export timestamps with Croatian-style day/month/year 24-hour display.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+## 2026-05-19 - setup workflow wizard presentation
+
+Assessment: Owner testing showed the setup page still read like a long internal checklist: template-version wording was unclear, the current setup task copy was too technical, and the user had to scroll through too much material instead of working one setup step at a time.
+
+Task: Reframed setup workflow labels around instrument templates, draft campaigns, and launch checks. Added an active-step setup wizard shell with a persistent compact setup path, previous/next controls, clickable available/done steps, automatic advance after successful setup actions, and hidden campaign/audience detail sections unless the active step is campaign or launch readiness. Removed action result id lines from normal setup feedback.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
