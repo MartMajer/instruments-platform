@@ -184,6 +184,27 @@ test('shows email verification recovery after unverified workspace sign-in', asy
 	await expect(page.getByText('does not have access to this workspace')).toHaveCount(0);
 });
 
+test('routes email verification recovery without remembered workspace to sign-in lookup', async ({
+	page
+}) => {
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+
+	await page.goto('/app?auth=email_unverified');
+
+	await expect(page.getByRole('heading', { name: 'Verify email, then sign in' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Sign in after verifying email' })).toHaveAttribute(
+		'href',
+		'/signin'
+	);
+	await expect(page.getByRole('link', { name: 'Sign in after verifying email' })).not.toHaveAttribute(
+		'href',
+		/\/register/
+	);
+});
+
 test('stores structured pending registration metadata before Auth0 registration redirect', async ({
 	page
 }) => {
@@ -299,6 +320,8 @@ test('finds an existing workspace by email before Auth0 sign-in', async ({ page 
 	});
 
 	await page.goto('/signin');
+	await expect(page.getByRole('navigation', { name: 'Setup stages' })).toHaveCount(0);
+	await expect(page.getByText('Tenant setup path')).toHaveCount(0);
 	await page.getByRole('textbox', { name: 'Email' }).fill(registeredEmail);
 	await page.getByRole('button', { name: 'Continue to sign in' }).click();
 

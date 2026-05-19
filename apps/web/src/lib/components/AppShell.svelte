@@ -12,12 +12,21 @@
 	const isProductShell = $derived(page.url.pathname.startsWith('/app'));
 	const isProductEntry = $derived(page.url.pathname === '/');
 	const isRegistrationEntry = $derived(page.url.pathname === '/register');
-	const isPublicEntry = $derived(isProductEntry || isRegistrationEntry);
+	const isSignInEntry = $derived(page.url.pathname === '/signin');
+	const isPublicEntry = $derived(isProductEntry || isRegistrationEntry || isSignInEntry);
 	const shellLabel = $derived(
 		isProductShell ? 'Product workspace' : isPublicEntry ? 'Private beta' : 'Tenant setup'
 	);
 	const headerKicker = $derived(
-		isProductShell ? 'Tenant workspace' : isProductEntry ? 'Product entry' : isRegistrationEntry ? 'Registration' : 'Tenant setup path'
+		isProductShell
+			? 'Tenant workspace'
+			: isProductEntry
+				? 'Product entry'
+				: isRegistrationEntry
+					? 'Registration'
+					: isSignInEntry
+						? 'Sign in'
+						: 'Tenant setup path'
 	);
 	const headerTitle = $derived(
 		isProductShell
@@ -26,7 +35,9 @@
 				? 'Authenticated workspace gateway'
 				: isRegistrationEntry
 					? 'Create workspace'
-					: 'Setup APIs and launch readiness'
+					: isSignInEntry
+						? 'Workspace sign-in'
+						: 'Setup APIs and launch readiness'
 	);
 	const mainLabel = $derived(
 		isProductShell
@@ -35,7 +46,9 @@
 				? 'Product entry'
 				: isRegistrationEntry
 					? 'Registration'
-					: 'Tenant setup workspace'
+					: isSignInEntry
+						? 'Workspace sign-in'
+						: 'Tenant setup workspace'
 	);
 </script>
 

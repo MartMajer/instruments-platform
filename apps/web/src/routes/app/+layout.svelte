@@ -29,8 +29,10 @@
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
 	const pendingRegistrationClockSkewMs = 60 * 1000;
 	const hasTenantLoginTarget = $derived(/[?&]tenantId=/.test(loginUrl));
-	const primaryAuthActionUrl = $derived(hasTenantLoginTarget ? loginUrl : resolve('/register'));
-	const primaryAuthActionLabel = $derived(hasTenantLoginTarget ? 'Sign in' : 'Create workspace');
+	const primaryAuthActionUrl = $derived(hasTenantLoginTarget ? loginUrl : resolve('/signin'));
+	const primaryAuthActionLabel = $derived(
+		hasTenantLoginTarget ? 'Sign in' : 'Sign in to existing workspace'
+	);
 	const completeLogoutUrl = $derived(createProviderLogoutUrl());
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const emailVerificationSignInUrl = $derived(withPromptLogin(authFailedPrimaryUrl));
@@ -209,6 +211,10 @@
 	function withPromptLogin(url: string) {
 		try {
 			const parsedUrl = new URL(url, page.url.origin);
+			if (parsedUrl.pathname !== '/auth/login') {
+				return url;
+			}
+
 			parsedUrl.searchParams.set('prompt', 'login');
 
 			if (/^https?:\/\//i.test(url)) {
@@ -374,7 +380,7 @@
 					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
 				: hasTenantLoginTarget
 					? 'Sign in with an account that belongs to this workspace before opening product screens.'
-					: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
+					: 'No workspace session is active. Sign in with your workspace email, or create a workspace first.'}
 		</p>
 		<div class="flex flex-wrap gap-3">
 			{#if authRecoveryRedirect}
@@ -387,6 +393,9 @@
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
 			{:else}
 				<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
+				{#if !hasTenantLoginTarget}
+					<a class="secondary-button" href={resolve('/register')}>Create workspace</a>
+				{/if}
 				<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
 			{/if}
 		</div>
