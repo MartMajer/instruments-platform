@@ -25,11 +25,148 @@ test('checks the current session before showing setup controls', async ({ page }
 	expect(calls).toEqual(['/auth/session']);
 });
 
+test('shows email verification status without blocking an authenticated tenant session', async ({
+	page
+}) => {
+	await page.unroute('**/auth/session');
+	await routeAuthenticatedSession(page, {
+		...sampleAuthSession,
+		emailVerificationRequired: true
+	});
+
+	await page.goto('/app');
+
+	const verificationStatus = page.getByRole('status', { name: 'Email verification required' });
+	await expect(verificationStatus).toBeVisible();
+	await expect(verificationStatus.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
+	await expect(verificationStatus).toContainText(
+		'Open the verification email from Auth0 to keep access after signing out.'
+	);
+	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Study cockpit' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Self-serve study cockpit' })).toBeVisible();
+});
+
+test('does not show email verification status for a fully verified authenticated tenant session', async ({
+	page
+}) => {
+	await page.goto('/app');
+
+	await expect(page.getByRole('status', { name: 'Email verification required' })).toHaveCount(0);
+	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Study cockpit' })).toBeVisible();
+});
+
+test('does not show email verification status when verification is explicitly not required', async ({
+	page
+}) => {
+	await page.unroute('**/auth/session');
+	await routeAuthenticatedSession(page, {
+		...sampleAuthSession,
+		emailVerificationRequired: false
+	});
+
+	await page.goto('/app');
+
+	await expect(page.getByRole('status', { name: 'Email verification required' })).toHaveCount(0);
+	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Study cockpit' })).toBeVisible();
+});
+
 test('removes stale auth failure marker after successful workspace sign-in', async ({ page }) => {
 	await page.goto('/app?auth=failed');
 
 	await expect(page).toHaveURL(/\/app$/);
 	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+});
+
+test('shows email verification recovery on registration with sign-in-specific copy', async ({
+	page
+}) => {
+	await page.route('**/registration/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.addInitScript(() => {
+		window.sessionStorage.setItem(
+			'instruments-platform.pending-registration-login-url',
+			JSON.stringify({
+				loginUrl:
+					'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login',
+				createdAt: Date.now(),
+				stage: 'auth0-sign-in'
+			})
+		);
+	});
+
+	await page.goto('/register?auth=email_unverified');
+
+	const recovery = page.getByRole('status').filter({ hasText: 'Verify email, then sign in' });
+	await expect(recovery).toBeVisible();
+	await expect(recovery).toContainText(
+		'Open the verification email from Auth0, then retry registration sign-in with the same email.'
+	);
+	await expect(page.getByRole('link', { name: 'Retry registration sign-in' })).toHaveAttribute(
+		'href',
+		'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login'
+	);
+	await expect(page.getByText('finish setup')).toHaveCount(0);
+	await expect(page.getByText('continue workspace setup')).toHaveCount(0);
+});
+
+test('stores structured pending registration metadata before Auth0 registration redirect', async ({
+	page
+}) => {
+	const registrationToken = 'structured-token';
+	let intentRequest: unknown = null;
+
+	await page.route('**/registration/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.route('**/registration/intents', async (route) => {
+		intentRequest = route.request().postDataJSON();
+		await route.fulfill({
+			status: 201,
+			json: {
+				loginUrl: `/auth/login?registrationToken=${registrationToken}&returnUrl=${encodeURIComponent(
+					'https://validatedscale-staging.croat.dev/app'
+				)}&screen_hint=signup`,
+				expiresAt: '2026-05-19T13:30:00Z'
+			}
+		});
+	});
+
+	await page.goto('/register');
+	await page.getByRole('textbox', { name: 'Email' }).fill('owner@example.com');
+	await page.getByRole('textbox', { name: 'Workspace name' }).fill('Example Lab');
+	await page.getByLabel('Beta access code').fill('beta-code');
+	await page.getByRole('button', { name: 'Create account' }).click();
+
+	await page.waitForFunction(() =>
+		window.sessionStorage.getItem('instruments-platform.pending-registration-login-url')?.startsWith('{')
+	);
+
+	expect(intentRequest).toMatchObject({
+		email: 'owner@example.com',
+		organizationName: 'Example Lab',
+		accessCode: 'beta-code'
+	});
+
+	const pendingValue = await page.evaluate(() =>
+		window.sessionStorage.getItem('instruments-platform.pending-registration-login-url')
+	);
+	expect(pendingValue).not.toBeNull();
+	expect(pendingValue).not.toContain('screen_hint');
+
+	const metadata = JSON.parse(pendingValue ?? '') as {
+		loginUrl?: string;
+		createdAt?: number;
+		stage?: string;
+	};
+	expect(metadata.stage).toBe('auth0-sign-in');
+	expect(typeof metadata.createdAt).toBe('number');
+	expect(metadata.loginUrl).toContain(`registrationToken=${registrationToken}`);
+	expect(metadata.loginUrl).toContain('returnUrl=');
+	expect(metadata.loginUrl).not.toContain('screen_hint');
 });
 
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {
@@ -60,21 +197,26 @@ test('shows pending registration recovery after failed workspace sign-in', async
 	await page.addInitScript(() => {
 		window.sessionStorage.setItem(
 			'instruments-platform.pending-registration-login-url',
-			'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login'
+			JSON.stringify({
+				loginUrl:
+					'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login',
+				createdAt: Date.now(),
+				stage: 'auth0-sign-in'
+			})
 		);
 	});
 
 	await page.goto('/app?auth=failed');
 
-	await expect(page.getByRole('heading', { name: 'Finish workspace setup' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Registration sign-in did not finish' })).toBeVisible();
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
-		'finish creating the workspace membership'
+		'Retry the saved registration sign-in link if the Auth0 callback was interrupted.'
 	);
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
-		'same verified Auth0 email'
+		'If Auth0 keeps choosing the wrong account, sign out completely first.'
 	);
 	await expect(page.getByRole('heading', { name: 'Workspace sign-in needed' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Continue workspace setup' })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Try registration sign-in again' })).toHaveAttribute(
 		'href',
 		'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login'
 	);
@@ -83,6 +225,72 @@ test('shows pending registration recovery after failed workspace sign-in', async
 		/\/auth\/logout\?.*provider=1.*returnUrl=/
 	);
 	await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+});
+
+test('ignores stale bare pending registration URLs after failed workspace sign-in', async ({
+	page
+}) => {
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.addInitScript(() => {
+		window.sessionStorage.setItem(
+			'instruments-platform.pending-registration-login-url',
+			'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=stale-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login'
+		);
+	});
+
+	await page.goto('/app?auth=failed');
+
+	await expect(page.getByRole('heading', { name: 'Sign in with your workspace account' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Registration sign-in did not finish' })).toHaveCount(
+		0
+	);
+	await expect(page.getByRole('link', { name: 'Try registration sign-in again' })).toHaveCount(0);
+	await expect(
+		page.getByRole('link', { name: /Create workspace|Sign in to existing workspace/ })
+	).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Sign out completely' })).toBeVisible();
+	expect(
+		await page.evaluate(() =>
+			window.sessionStorage.getItem('instruments-platform.pending-registration-login-url')
+		)
+	).toBeNull();
+});
+
+test('ignores expired pending registration metadata after failed workspace sign-in', async ({
+	page
+}) => {
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.addInitScript(() => {
+		window.sessionStorage.setItem(
+			'instruments-platform.pending-registration-login-url',
+			JSON.stringify({
+				loginUrl:
+					'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=expired-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login',
+				createdAt: Date.now() - 16 * 60 * 1000,
+				stage: 'auth0-sign-in'
+			})
+		);
+	});
+
+	await page.goto('/app?auth=failed');
+
+	await expect(page.getByRole('heading', { name: 'Sign in with your workspace account' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Registration sign-in did not finish' })).toHaveCount(
+		0
+	);
+	await expect(page.getByRole('link', { name: 'Try registration sign-in again' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Sign out completely' })).toBeVisible();
+	expect(
+		await page.evaluate(() =>
+			window.sessionStorage.getItem('instruments-platform.pending-registration-login-url')
+		)
+	).toBeNull();
 });
 
 test('hides setup controls when the tenant session is forbidden', async ({ page }) => {
@@ -808,9 +1016,9 @@ const sampleAuthSession = {
 	permissions: ['setup.manage']
 };
 
-async function routeAuthenticatedSession(page: Page) {
+async function routeAuthenticatedSession(page: Page, session = sampleAuthSession) {
 	await page.route('**/auth/session', async (route) => {
-		await route.fulfill({ json: sampleAuthSession });
+		await route.fulfill({ json: session });
 	});
 }
 

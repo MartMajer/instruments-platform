@@ -10,6 +10,9 @@
 	const registrationApi = createRegistrationApi();
 	const signInUrl = createLoginUrlFromEnv(env);
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
+	const pendingRegistrationStage = 'auth0-sign-in';
+	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
+	const pendingRegistrationClockSkewMs = 60 * 1000;
 
 	let email = $state('');
 	let organizationName = $state('');
@@ -107,13 +110,71 @@
 	}
 
 	function loadPendingRegistrationLoginUrl() {
-		pendingRegistrationLoginUrl =
-			window.sessionStorage.getItem(pendingRegistrationLoginUrlKey) ?? '';
+		const loginUrl = readPendingRegistrationLoginUrl();
+		pendingRegistrationLoginUrl = loginUrl;
+
+		if (!loginUrl) {
+			window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
+		}
 	}
 
 	function storePendingRegistrationLoginUrl(loginUrl: string) {
 		pendingRegistrationLoginUrl = loginUrl;
-		window.sessionStorage.setItem(pendingRegistrationLoginUrlKey, loginUrl);
+		window.sessionStorage.setItem(
+			pendingRegistrationLoginUrlKey,
+			JSON.stringify({
+				loginUrl,
+				createdAt: Date.now(),
+				stage: pendingRegistrationStage
+			})
+		);
+	}
+
+	function readPendingRegistrationLoginUrl() {
+		const value = window.sessionStorage.getItem(pendingRegistrationLoginUrlKey);
+		if (!value) {
+			return '';
+		}
+
+		try {
+			const metadata = JSON.parse(value) as {
+				loginUrl?: unknown;
+				createdAt?: unknown;
+				stage?: unknown;
+			};
+
+			if (
+				typeof metadata.loginUrl === 'string' &&
+				typeof metadata.createdAt === 'number' &&
+				metadata.stage === pendingRegistrationStage &&
+				isRecentPendingRegistration(metadata.createdAt) &&
+				isStructurallyValidPendingRegistrationUrl(metadata.loginUrl)
+			) {
+				return metadata.loginUrl;
+			}
+		} catch {
+			return '';
+		}
+
+		return '';
+	}
+
+	function isRecentPendingRegistration(createdAt: number) {
+		const ageMs = Date.now() - createdAt;
+		return (
+			Number.isFinite(createdAt) &&
+			ageMs >= -pendingRegistrationClockSkewMs &&
+			ageMs <= pendingRegistrationMaxAgeMs
+		);
+	}
+
+	function isStructurallyValidPendingRegistrationUrl(loginUrl: string) {
+		try {
+			const url = new URL(loginUrl, window.location.origin);
+			return url.searchParams.has('registrationToken') && url.searchParams.has('returnUrl');
+		} catch {
+			return false;
+		}
 	}
 
 	function clearPendingRegistrationLoginUrl() {
@@ -309,12 +370,13 @@
 
 					{#if emailVerificationRequired && pendingRegistrationLoginUrl}
 						<div class="registration-alert" role="status">
-							<strong>Verify email, then finish setup.</strong>
+							<strong>Verify email, then sign in</strong>
 							<span>
-								Open the verification email, confirm the address, then continue workspace setup.
+								Open the verification email from Auth0, then retry registration sign-in with
+								the same email.
 							</span>
 						</div>
-						<a class="registration-submit" href={pendingRegistrationLoginUrl}>Continue workspace setup</a>
+						<a class="registration-submit" href={pendingRegistrationLoginUrl}>Retry registration sign-in</a>
 						<button class="secondary-button" type="button" onclick={restartRegistration}>
 							Start over
 						</button>

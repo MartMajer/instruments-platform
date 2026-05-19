@@ -14,6 +14,9 @@
 	const loginUrl = createLoginUrlFromEnv(env);
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
+	const pendingRegistrationStage = 'auth0-sign-in';
+	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
+	const pendingRegistrationClockSkewMs = 60 * 1000;
 	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
 	const primaryAuthActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
 	const primaryAuthActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
@@ -21,7 +24,7 @@
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const authFailedPrimaryLabel = $derived(
 		pendingRegistrationLoginUrl
-			? 'Continue workspace setup'
+			? 'Try registration sign-in again'
 			: hasTenantLoginTarget
 			? 'Sign in to existing workspace'
 			: primaryAuthActionLabel
@@ -113,8 +116,59 @@
 	}
 
 	function loadPendingRegistrationLoginUrl() {
-		pendingRegistrationLoginUrl =
-			window.sessionStorage.getItem(pendingRegistrationLoginUrlKey) ?? '';
+		const loginUrl = readPendingRegistrationLoginUrl();
+		pendingRegistrationLoginUrl = loginUrl;
+
+		if (!loginUrl) {
+			window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
+		}
+	}
+
+	function readPendingRegistrationLoginUrl() {
+		const value = window.sessionStorage.getItem(pendingRegistrationLoginUrlKey);
+		if (!value) {
+			return '';
+		}
+
+		try {
+			const metadata = JSON.parse(value) as {
+				loginUrl?: unknown;
+				createdAt?: unknown;
+				stage?: unknown;
+			};
+
+			if (
+				typeof metadata.loginUrl === 'string' &&
+				typeof metadata.createdAt === 'number' &&
+				metadata.stage === pendingRegistrationStage &&
+				isRecentPendingRegistration(metadata.createdAt) &&
+				isStructurallyValidPendingRegistrationUrl(metadata.loginUrl)
+			) {
+				return metadata.loginUrl;
+			}
+		} catch {
+			return '';
+		}
+
+		return '';
+	}
+
+	function isRecentPendingRegistration(createdAt: number) {
+		const ageMs = Date.now() - createdAt;
+		return (
+			Number.isFinite(createdAt) &&
+			ageMs >= -pendingRegistrationClockSkewMs &&
+			ageMs <= pendingRegistrationMaxAgeMs
+		);
+	}
+
+	function isStructurallyValidPendingRegistrationUrl(loginUrl: string) {
+		try {
+			const url = new URL(loginUrl, page.url.origin);
+			return url.searchParams.has('registrationToken') && url.searchParams.has('returnUrl');
+		} catch {
+			return false;
+		}
 	}
 
 	function clearPendingRegistrationLoginUrl() {
@@ -156,6 +210,18 @@
 	</section>
 {:else if authState === 'authenticated' && authSession}
 	<div class="grid gap-6">
+		{#if authSession.emailVerificationRequired === true}
+			<div class="email-verification-reminder" role="status" aria-label="Email verification required">
+				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
+				<div class="email-verification-reminder__body">
+					<h2 class="email-verification-reminder__title">Verify your email</h2>
+					<p class="email-verification-reminder__text">
+						Open the verification email from Auth0 to keep access after signing out.
+					</p>
+				</div>
+			</div>
+		{/if}
+
 		<section class="setup-callout" aria-label="Authenticated tenant session">
 			{#if sessionProfile}
 				<div class="session-callout__header">
@@ -204,16 +270,16 @@
 				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 				<div class="email-verification-reminder__body">
 					<h2 class="email-verification-reminder__title">
-						{authFailedHasPendingRegistration ? 'Finish workspace setup' : 'Sign in with your workspace account'}
+						{authFailedHasPendingRegistration
+							? 'Registration sign-in did not finish'
+							: 'Sign in with your workspace account'}
 					</h2>
 					{#if authFailedHasPendingRegistration}
 						<p class="email-verification-reminder__text">
-							Your account step exists, but this browser still needs to finish creating the
-							workspace membership. Continue workspace setup with the same verified Auth0 email.
+							Retry the saved registration sign-in link if the Auth0 callback was interrupted.
 						</p>
 						<p class="email-verification-reminder__note">
-							If Auth0 keeps choosing the wrong account, sign out completely first, then continue
-							workspace setup again.
+							If Auth0 keeps choosing the wrong account, sign out completely first.
 						</p>
 					{:else}
 						<p class="email-verification-reminder__text">
@@ -230,7 +296,7 @@
 		<p class="text-sm text-[var(--color-text-muted)]">
 			{authFailedRedirect
 				? authFailedHasPendingRegistration
-					? 'Use the saved registration link to finish workspace setup. Normal sign-in only works after the workspace membership exists.'
+					? 'Use the saved registration link only when registration was interrupted before the workspace opened.'
 					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
 				: hasTenantLoginTarget
 					? 'Sign in with an account that belongs to this workspace before opening product screens.'
