@@ -20,10 +20,13 @@
 	const completeLogoutUrl = $derived(createProviderLogoutUrl());
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const authFailedPrimaryLabel = $derived(
-		pendingRegistrationLoginUrl || hasTenantLoginTarget
+		pendingRegistrationLoginUrl
+			? 'Continue workspace setup'
+			: hasTenantLoginTarget
 			? 'Sign in to existing workspace'
 			: primaryAuthActionLabel
 	);
+	const authFailedHasPendingRegistration = $derived(pendingRegistrationLoginUrl.length > 0);
 
 	const setupApi = createSetupApi(
 		createApiClient({
@@ -200,21 +203,35 @@
 			>
 				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 				<div class="email-verification-reminder__body">
-					<h2 class="email-verification-reminder__title">Verify email, then sign in</h2>
-					<p class="email-verification-reminder__text">
-						If you just created an account, open the verification email from Auth0, confirm
-						the address, then sign in to open the workspace.
-					</p>
-					<p class="email-verification-reminder__note">
-						If Auth0 keeps using the wrong account, sign out completely and choose the same
-						email you used for registration.
-					</p>
+					<h2 class="email-verification-reminder__title">
+						{authFailedHasPendingRegistration ? 'Finish workspace setup' : 'Sign in with your workspace account'}
+					</h2>
+					{#if authFailedHasPendingRegistration}
+						<p class="email-verification-reminder__text">
+							Your account step exists, but this browser still needs to finish creating the
+							workspace membership. Continue workspace setup with the same verified Auth0 email.
+						</p>
+						<p class="email-verification-reminder__note">
+							If Auth0 keeps choosing the wrong account, sign out completely first, then continue
+							workspace setup again.
+						</p>
+					{:else}
+						<p class="email-verification-reminder__text">
+							The account Auth0 returned does not have access to this workspace. Sign in with
+							the email that owns the workspace, or create a new workspace from registration.
+						</p>
+						<p class="email-verification-reminder__note">
+							If Auth0 keeps using the wrong account, sign out completely and choose the intended email.
+						</p>
+					{/if}
 				</div>
 			</div>
 		{/if}
 		<p class="text-sm text-[var(--color-text-muted)]">
 			{authFailedRedirect
-				? 'Use the same verified account to finish sign-in. If this is not the account you intended, sign out completely.'
+				? authFailedHasPendingRegistration
+					? 'Use the saved registration link to finish workspace setup. Normal sign-in only works after the workspace membership exists.'
+					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
 				: hasTenantLoginTarget
 					? 'Sign in with an account that belongs to this workspace before opening product screens.'
 					: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}

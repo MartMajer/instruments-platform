@@ -52,7 +52,7 @@ test('shows sign-in required when the setup session is unauthenticated', async (
 	expect(protectedCalls).toBe(0);
 });
 
-test('shows an email verification reminder after failed workspace sign-in', async ({ page }) => {
+test('shows pending registration recovery after failed workspace sign-in', async ({ page }) => {
 	await page.unroute('**/auth/session');
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
@@ -66,18 +66,15 @@ test('shows an email verification reminder after failed workspace sign-in', asyn
 
 	await page.goto('/app?auth=failed');
 
-	await expect(
-		page.getByRole('heading', { name: 'Verify email, then sign in' })
-	).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Finish workspace setup' })).toBeVisible();
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
-		'open the verification email from Auth0'
+		'finish creating the workspace membership'
 	);
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
-		'sign in to open the workspace'
+		'same verified Auth0 email'
 	);
 	await expect(page.getByRole('heading', { name: 'Workspace sign-in needed' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Continue workspace setup' })).toHaveCount(0);
-	await expect(page.getByRole('link', { name: 'Sign in to existing workspace' })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Continue workspace setup' })).toHaveAttribute(
 		'href',
 		'https://validatedscale-api-staging.croat.dev/auth/login?registrationToken=pending-token&returnUrl=https%3A%2F%2Fvalidatedscale-staging.croat.dev%2Fapp&prompt=login'
 	);
