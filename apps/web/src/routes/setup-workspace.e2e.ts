@@ -67,9 +67,9 @@ test('shows an email verification reminder after failed workspace sign-in', asyn
 		'open the verification email from Auth0'
 	);
 	await expect(page.getByRole('heading', { name: 'Workspace sign-in needed' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Sign out' })).toHaveAttribute(
+	await expect(page.getByRole('link', { name: 'Sign out completely' })).toHaveAttribute(
 		'href',
-		'/auth/logout'
+		/\/auth\/logout\?.*provider=1.*returnUrl=/
 	);
 });
 

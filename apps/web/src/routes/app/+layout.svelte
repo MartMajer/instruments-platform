@@ -16,6 +16,7 @@
 	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
 	const primaryAuthActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
 	const primaryAuthActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
+	const completeLogoutUrl = $derived(createProviderLogoutUrl());
 
 	const setupApi = createSetupApi(
 		createApiClient({
@@ -97,6 +98,19 @@
 			`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
 		);
 	}
+
+	function createProviderLogoutUrl() {
+		const providerLogoutUrl = new URL(logoutUrl, page.url.origin);
+		const returnUrl = new URL(resolve('/'), page.url.origin).toString();
+		providerLogoutUrl.searchParams.set('provider', '1');
+		providerLogoutUrl.searchParams.set('returnUrl', returnUrl);
+
+		if (/^https?:\/\//i.test(logoutUrl)) {
+			return providerLogoutUrl.toString();
+		}
+
+		return `${providerLogoutUrl.pathname}${providerLogoutUrl.search}${providerLogoutUrl.hash}`;
+	}
 </script>
 
 <svelte:head>
@@ -172,8 +186,8 @@
 						the address, then come back and sign in again.
 					</p>
 					<p class="email-verification-reminder__note">
-						If the address is already verified, retry here or sign out and choose the account
-						that owns this workspace.
+						If the address is already verified, retry here. If Auth0 keeps using the wrong
+						account, sign out completely and sign in again.
 					</p>
 				</div>
 			</div>
@@ -187,7 +201,7 @@
 			<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
 			<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
 			{#if authFailedRedirect}
-				<a class="secondary-button" href={logoutUrl}>Sign out</a>
+				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
 			{/if}
 		</div>
 	</section>
