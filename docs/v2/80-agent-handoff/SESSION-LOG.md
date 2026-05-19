@@ -18762,3 +18762,10 @@ Verification:
 
 Remaining risk:
 - This is a UI/copy cleanup pass only. Deeper workflow changes, such as bulk directory import, richer team invitations, or multi-workspace account picking, remain future product slices.
+
+Deployment verification:
+- Commit deployed to staging: bf70a52.
+- Web image: sha256:d57742bd74c0ee2dc2658569026270ca36773bca728965859ac55867db98ab27.
+- Initial redeploy completed container rebuild/recreate but hit transient web-root 502 during warm-up.
+- Follow-up public smoke passed: API ready 200, web root 200, /app 200.
+- VPS release checks passed with evidence in /tmp/sidebar-cleanup-vps-release-20260519-followup.
