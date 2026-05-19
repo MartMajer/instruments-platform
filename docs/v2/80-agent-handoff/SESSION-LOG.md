@@ -18415,3 +18415,11 @@ Assessment: Owner still hit failed-auth loops after registration, email verifica
 Task: Added temporary safe OIDC resolver diagnostics behind the `[AUTH-DIAG-20260519]` log prefix. The resolver logs only short hashes for tenant/email/provider subject plus the exact resolution outcome; it does not log raw email, tenant id, provider subject, tokens, or session identifiers.
 Verification: Pending API build/deploy and owner retry against staging.
 Remaining risk: Diagnostics are intentionally temporary and should be removed or downgraded after the auth loop root cause is confirmed.
+
+Deployment update:
+- Local API build passed with 0 warnings and 0 errors.
+- Commit pushed: `20fcf72 chore(auth): add temporary login diagnostics` to `origin/main` and `origin/staging`.
+- VPS staging API rebuilt/recreated from commit `20fcf72`.
+- Running API image after rebuild: `sha256:fed37115596df97c2bd4070a1cb3edd7eb1c8262d0d731ec4c95bf9a8e6661d7`.
+- Public API health check `https://validatedscale-api-staging.croat.dev/health/ready` returned 200.
+- Next diagnostic step: owner retries sign-in, then grep API logs for `[AUTH-DIAG-20260519]` to identify the exact resolver branch.
