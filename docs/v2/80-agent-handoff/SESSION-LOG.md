@@ -18409,3 +18409,9 @@ Assessment: Owner still hit generic workspace-access failure after verifying ema
 Task: Store the created workspace tenant id and email in localStorage immediately after `/registration/workspaces` succeeds and before redirecting to the app. Added Playwright coverage for registration workspace creation persisting both values.
 Verification: RED Playwright regression timed out because registration did not store tenant/email. GREEN web production build passed, focused registration-storage test passed 1/1, and broader auth/registration recovery set passed 12/12.
 Remaining risk: For browser state created before this hotfix, a fresh registration attempt or one successful app session after this deploy is needed to populate the remembered workspace email.
+
+## 2026-05-19 - temporary Auth0 workspace login diagnostics
+Assessment: Owner still hit failed-auth loops after registration, email verification, sign-out, and normal sign-in. Existing staging logs only showed generic no-membership resolution failures, which was not enough to distinguish wrong Auth0 account selection, missing user persistence, missing role membership, disabled/mismatched external binding, or unverified provider claims.
+Task: Added temporary safe OIDC resolver diagnostics behind the `[AUTH-DIAG-20260519]` log prefix. The resolver logs only short hashes for tenant/email/provider subject plus the exact resolution outcome; it does not log raw email, tenant id, provider subject, tokens, or session identifiers.
+Verification: Pending API build/deploy and owner retry against staging.
+Remaining risk: Diagnostics are intentionally temporary and should be removed or downgraded after the auth loop root cause is confirmed.

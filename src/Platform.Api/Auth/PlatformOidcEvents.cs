@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
@@ -352,8 +354,11 @@ public sealed class EfPlatformOidcLoginResolver(
     ITenantDbScope tenantDbScope,
     ICurrentTenant currentTenant,
     IProviderSubjectHasher providerSubjectHasher,
-    IConfiguration configuration) : IPlatformOidcLoginResolver
+    IConfiguration configuration,
+    ILogger<EfPlatformOidcLoginResolver>? logger = null) : IPlatformOidcLoginResolver
 {
+    private const string AuthDiagnosticPrefix = "[AUTH-DIAG-20260519]";
+
     public async Task<PlatformOidcLoginResolution?> ResolveAsync(
         Guid tenantId,
         string email,
@@ -362,13 +367,31 @@ public sealed class EfPlatformOidcLoginResolver(
         string providerSubject,
         CancellationToken cancellationToken)
     {
+        var normalizedProvider = provider.Trim().ToLowerInvariant();
+        var providerSubjectHash = providerSubjectHasher.Hash(normalizedProvider, providerSubject);
+
         if (currentTenant.HasTenant && currentTenant.TenantId != tenantId)
         {
+            LogDiagnostic(
+                "current_tenant_mismatch",
+                tenantId,
+                email,
+                emailVerified,
+                normalizedProvider,
+                providerSubjectHash,
+                $"currentTenantHash={Fingerprint(currentTenant.TenantId.ToString("D"))}");
             return null;
         }
 
         if (!emailVerified)
         {
+            LogDiagnostic(
+                "email_unverified",
+                tenantId,
+                email,
+                emailVerified,
+                normalizedProvider,
+                providerSubjectHash);
             return null;
         }
 
@@ -377,10 +400,9 @@ public sealed class EfPlatformOidcLoginResolver(
             currentTenant.SetTenant(tenantId, "oidc");
         }
 
-        var normalizedProvider = provider.Trim().ToLowerInvariant();
-        var providerSubjectHash = providerSubjectHasher.Hash(normalizedProvider, providerSubject);
         var now = DateTimeOffset.UtcNow;
         var sessionMinutes = Math.Max(1, configuration.GetValue("Authentication:Oidc:SessionMinutes", 480));
+        var createdBinding = false;
 
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
             tenantId,
@@ -399,6 +421,13 @@ public sealed class EfPlatformOidcLoginResolver(
 
         if (user is null)
         {
+            LogDiagnostic(
+                "user_not_found",
+                tenantId,
+                email,
+                emailVerified,
+                normalizedProvider,
+                providerSubjectHash);
             return null;
         }
 
@@ -411,6 +440,13 @@ public sealed class EfPlatformOidcLoginResolver(
 
         if (!hasTenantMembership)
         {
+            LogDiagnostic(
+                "tenant_membership_missing",
+                tenantId,
+                email,
+                emailVerified,
+                normalizedProvider,
+                providerSubjectHash);
             return null;
         }
 
@@ -426,11 +462,25 @@ public sealed class EfPlatformOidcLoginResolver(
             if (binding.DisabledAt.HasValue ||
                 !string.Equals(binding.ProviderSubjectHash, providerSubjectHash, StringComparison.Ordinal))
             {
+                LogDiagnostic(
+                    binding.DisabledAt.HasValue ? "binding_disabled" : "provider_subject_mismatch",
+                    tenantId,
+                    email,
+                    emailVerified,
+                    normalizedProvider,
+                    providerSubjectHash);
                 return null;
             }
 
             if (!binding.IsEmailVerified && !emailVerified)
             {
+                LogDiagnostic(
+                    "binding_and_claim_unverified",
+                    tenantId,
+                    email,
+                    emailVerified,
+                    normalizedProvider,
+                    providerSubjectHash);
                 return null;
             }
 
@@ -447,6 +497,13 @@ public sealed class EfPlatformOidcLoginResolver(
         {
             if (!emailVerified)
             {
+                LogDiagnostic(
+                    "email_unverified_before_new_binding",
+                    tenantId,
+                    email,
+                    emailVerified,
+                    normalizedProvider,
+                    providerSubjectHash);
                 return null;
             }
 
@@ -459,6 +516,13 @@ public sealed class EfPlatformOidcLoginResolver(
 
             if (subjectAlreadyBound)
             {
+                LogDiagnostic(
+                    "provider_subject_already_bound",
+                    tenantId,
+                    email,
+                    emailVerified,
+                    normalizedProvider,
+                    providerSubjectHash);
                 return null;
             }
 
@@ -472,6 +536,7 @@ public sealed class EfPlatformOidcLoginResolver(
                 now);
             binding.RecordEmailVerified(now);
             db.ExternalAuthIdentities.Add(binding);
+            createdBinding = true;
         }
 
         var permissions = await (
@@ -498,6 +563,49 @@ public sealed class EfPlatformOidcLoginResolver(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
+        LogDiagnostic(
+            createdBinding ? "success_new_binding" : "success_existing_binding",
+            tenantId,
+            email,
+            emailVerified,
+            normalizedProvider,
+            providerSubjectHash);
+
         return new PlatformOidcLoginResolution(user.Id, tenantId, session.Id, permissions, email, EmailVerified: true);
+    }
+
+    private void LogDiagnostic(
+        string outcome,
+        Guid tenantId,
+        string email,
+        bool emailVerified,
+        string provider,
+        string providerSubjectHash,
+        string detail = "")
+    {
+        logger?.LogWarning(
+            "{Prefix} OIDC resolver outcome={Outcome} tenantHash={TenantHash} emailHash={EmailHash} emailVerified={EmailVerified} provider={Provider} subjectHashPrefix={SubjectHashPrefix} detail={Detail}",
+            AuthDiagnosticPrefix,
+            outcome,
+            Fingerprint(tenantId.ToString("D")),
+            Fingerprint(email),
+            emailVerified,
+            provider,
+            Shorten(providerSubjectHash),
+            detail);
+    }
+
+    private static string Fingerprint(string value)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value.Trim().ToLowerInvariant()));
+
+        return Convert.ToHexString(bytes)[..16].ToLowerInvariant();
+    }
+
+    private static string Shorten(string value)
+    {
+        return value.Length <= 16
+            ? value
+            : value[..16];
     }
 }
