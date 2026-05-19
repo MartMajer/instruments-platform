@@ -18486,3 +18486,12 @@ Deployment update:
 - VPS staging checkout fast-forwarded to `988f003`.
 - Running web image after rebuild: `sha256:79662ff785d42a324ebb309f1d3bd695dae40bb2c311608279fc8e2c29660995`.
 - Running API image after rebuild: `sha256:f9adec17dab2bd7b5e3ed606a06f1e7013c34196eb718a29a691c697c09782e7`.
+
+## 2026-05-19 - deferred auth boundary questions
+Assessment: After the `/signin` cleanup, the remaining auth cleanup items are intentionally future-facing: renaming the beta existing-workspace lookup route and replacing one-email-one-workspace lookup with a proper workspace picker if multi-workspace accounts become real. Neither blocks the current beta flow, but both should stay visible so they are not mistaken for forgotten bugs.
+
+Task: Added Q-056 for the auth/account API route boundary and Q-057 for future multi-workspace account picker design.
+
+Verification: Documentation-only update; no runtime verification required yet.
+
+Remaining risk: Q-056 and Q-057 remain open. Current beta remains one active workspace membership per normalized email.
