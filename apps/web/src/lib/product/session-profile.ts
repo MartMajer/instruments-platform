@@ -23,10 +23,7 @@ export function toSessionProfileView(session: AuthSessionResponse): SessionProfi
 		accountLabel: session.email?.trim() || 'Signed-in platform user',
 		permissionSummary: toPermissionSummary(session.permissions, permissionBadges),
 		permissionBadges,
-		technicalRows: [
-			{ label: 'User id', value: session.userId },
-			{ label: 'Tenant id', value: session.tenantId }
-		]
+		technicalRows: []
 	};
 }
 

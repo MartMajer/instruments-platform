@@ -143,13 +143,12 @@ export function toTenantSettingsView(settings: TenantSettingsWorkspaceResponse) 
 			? 'ready'
 			: toProductReadModelBadgeStatus(settings.profile.status)) as ProductReadModelBadgeStatus,
 		profileRows: [
-			{ label: 'Tenant id', value: settings.profile.tenantId, mono: true },
 			{ label: 'Slug', value: settings.profile.slug, mono: true },
 			{ label: 'Region', value: settings.profile.region.toUpperCase() },
 			{ label: 'Default locale', value: settings.profile.defaultLocale },
 			{ label: 'Status', value: sentenceCase(humanizeValue(settings.profile.status)) },
-			{ label: 'Created', value: settings.profile.createdAt },
-			{ label: 'Updated', value: settings.profile.updatedAt }
+			{ label: 'Created', value: formatDateTime(settings.profile.createdAt) },
+			{ label: 'Updated', value: formatDateTime(settings.profile.updatedAt) }
 		],
 		metricRows: [
 			{ label: 'Campaign series', value: formatCount(settings.counts.campaignSeriesCount) },
@@ -265,12 +264,11 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse) {
 	const archiveState = toCampaignSeriesArchiveState(hub);
 	const ownership = toCampaignSeriesOwnership(hub);
 	const rows: DisplayRow[] = [
-		{ label: 'Series id', value: hub.id, mono: true },
-		{ label: 'Created', value: hub.createdAt },
-		{ label: 'Updated', value: hub.updatedAt }
+		{ label: 'Created', value: formatDateTime(hub.createdAt) },
+		{ label: 'Updated', value: formatDateTime(hub.updatedAt) }
 	];
 	if (archiveState.archived) {
-		rows.push({ label: 'Archived', value: archiveState.archivedAt ?? 'Not available' });
+		rows.push({ label: 'Archived', value: formatNullableDateTime(archiveState.archivedAt) });
 		if (archiveState.reason) {
 			rows.push({ label: 'Archive reason', value: archiveState.reason });
 		}
@@ -2212,19 +2210,19 @@ function toReportsCampaignProvenanceRows(
 		},
 		{
 			label: 'Latest export created',
-			value: campaign.latestExportArtifactCreatedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactCreatedAt)
 		},
 		{
 			label: 'Latest export completed',
-			value: campaign.latestExportArtifactCompletedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactCompletedAt)
 		},
 		{
 			label: 'Latest export started',
-			value: campaign.latestExportArtifactStartedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactStartedAt)
 		},
 		{
 			label: 'Latest export failed',
-			value: campaign.latestExportArtifactFailedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactFailedAt)
 		},
 		{
 			label: 'Latest export expires',
@@ -2812,8 +2810,8 @@ function toExportArtifactLibraryCard(artifact: ExportArtifactLibraryResponse['ar
 			{ label: 'Data finality', value: finalityLabel },
 			{ label: 'Rows', value: formatCount(artifact.rowCount) },
 			{ label: 'Size', value: formatBytes(artifact.byteSize) },
-			{ label: 'Created', value: artifact.createdAt },
-			{ label: 'Completed', value: artifact.completedAt ?? 'Not available' },
+			{ label: 'Created', value: formatDateTime(artifact.createdAt) },
+			{ label: 'Completed', value: formatNullableDateTime(artifact.completedAt) },
 			...(artifact.failureReasonCode
 				? [{ label: 'Failure', value: artifact.failureReasonCode }]
 				: []),
@@ -2949,6 +2947,30 @@ function sentenceCase(value: string) {
 
 function formatCount(value: number) {
 	return String(value);
+}
+
+function formatNullableDateTime(value: string | null | undefined) {
+	if (!value) {
+		return 'Not available';
+	}
+
+	return formatDateTime(value);
+}
+
+function formatDateTime(value: string) {
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('hr-HR', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	}).format(date);
 }
 
 function pluralize(count: number, singular: string, plural: string) {

@@ -15,7 +15,6 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
-	import SelectedSeriesWorkspaceNav from '$lib/components/SelectedSeriesWorkspaceNav.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import ProofWorkflowSurface from '$lib/product/ProofWorkflowSurface.svelte';
 	import SelectedSeriesOperationsWorkflow from '$lib/product/SelectedSeriesOperationsWorkflow.svelte';
@@ -163,7 +162,7 @@
 			reportsWidgetManifestWarning = null;
 			wavesWorkspace = null;
 			resetScoreRemediationState();
-			errorMessage = 'Campaign series id is missing.';
+			errorMessage = 'Select a study before opening this surface.';
 			loadState = 'error';
 			return;
 		}
@@ -429,23 +428,6 @@
 				onRetry={() => loadSelectedSeries()}
 			/>
 		{:else if setupWorkspaceView}
-			<SelectedSeriesWorkspaceNav
-				seriesId={setupWorkspaceView.id}
-				seriesTitle={setupWorkspaceView.title}
-				seriesSubtitle={setupWorkspaceView.subtitle}
-				currentSurface="setup"
-				badges={[
-					{
-						status: setupWorkspaceView.ownership.badgeStatus,
-						label: setupWorkspaceView.ownership.label
-					},
-					{
-						status: setupWorkspaceView.readiness.status,
-						label: setupWorkspaceView.readiness.badgeLabel
-					}
-				]}
-			/>
-
 			{#if setupWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">
 					<div class="product-panel__header">
@@ -538,12 +520,7 @@
 					/>
 				</div>
 
-				<p class="result-line">
-					<span>Campaign series id</span>
-					<code>{setupWorkspaceView.id}</code>
-				</p>
-
-				<dl class="metric-grid">
+<dl class="metric-grid">
 					{#each setupWorkspaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>
@@ -733,19 +710,6 @@
 				</div>
 			</section>
 		{:else if operationsWorkspaceView}
-			<SelectedSeriesWorkspaceNav
-				seriesId={operationsWorkspaceView.id}
-				seriesTitle={operationsWorkspaceView.title}
-				seriesSubtitle={operationsWorkspaceView.subtitle}
-				currentSurface="operations"
-				badges={[
-					{
-						status: operationsWorkspaceView.ownership.badgeStatus,
-						label: operationsWorkspaceView.ownership.label
-					}
-				]}
-			/>
-
 			{#if operationsWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">
 					<div class="product-panel__header">
@@ -836,12 +800,7 @@
 					</div>
 				</div>
 
-				<p class="result-line">
-					<span>Campaign series id</span>
-					<code>{operationsWorkspaceView.id}</code>
-				</p>
-
-				<dl class="metric-grid">
+<dl class="metric-grid">
 					{#each operationsWorkspaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>
@@ -1110,19 +1069,6 @@
 				</div>
 			</section>
 		{:else if reportsWorkspaceView}
-			<SelectedSeriesWorkspaceNav
-				seriesId={reportsWorkspaceView.id}
-				seriesTitle={reportsWorkspaceView.title}
-				seriesSubtitle={reportsWorkspaceView.subtitle}
-				currentSurface="reports"
-				badges={[
-					{
-						status: reportsWorkspaceView.ownership.badgeStatus,
-						label: reportsWorkspaceView.ownership.label
-					}
-				]}
-			/>
-
 			{#if reportsWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">
 					<div class="product-panel__header">
@@ -1216,12 +1162,7 @@
 					</div>
 				</div>
 
-				<p class="result-line">
-					<span>Campaign series id</span>
-					<code>{reportsWorkspaceView.id}</code>
-				</p>
-
-				<dl class="metric-grid">
+<dl class="metric-grid">
 					{#each reportsWorkspaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>
@@ -1393,19 +1334,6 @@
 				</div>
 			</section>
 		{:else if wavesWorkspaceView}
-			<SelectedSeriesWorkspaceNav
-				seriesId={wavesWorkspaceView.id}
-				seriesTitle={wavesWorkspaceView.title}
-				seriesSubtitle={wavesWorkspaceView.subtitle}
-				currentSurface="waves"
-				badges={[
-					{
-						status: wavesWorkspaceView.ownership.badgeStatus,
-						label: wavesWorkspaceView.ownership.label
-					}
-				]}
-			/>
-
 			{#if wavesWorkspaceView.readOnlyMessage}
 				<section class="product-panel" aria-label="Sample study read-only state">
 					<div class="product-panel__header">
@@ -1539,12 +1467,7 @@
 					</div>
 				</div>
 
-				<p class="result-line">
-					<span>Campaign series id</span>
-					<code>{wavesWorkspaceView.id}</code>
-				</p>
-
-				<dl class="metric-grid">
+<dl class="metric-grid">
 					{#each wavesWorkspaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>
@@ -1689,12 +1612,7 @@
 					</div>
 				</div>
 
-				<p class="result-line">
-					<span>Campaign series id</span>
-					<code>{surfaceView.id}</code>
-				</p>
-
-				<dl class="metric-grid">
+<dl class="metric-grid">
 					{#each surfaceView.summaryRows as row}
 						<div class="metric-card">
 							<dt class="metric-card__label">{row.label}</dt>

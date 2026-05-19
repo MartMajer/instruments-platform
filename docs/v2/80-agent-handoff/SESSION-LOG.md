@@ -18505,3 +18505,10 @@ Task: Added `docs/v2/40-ops/staging-auth-flow-checklist.md` and `docs/plans/2026
 Verification: Web production build passed through direct Node invocation. Focused Playwright run passed 8/8 against local production preview: generic home sign-in lookup, registration email-verification recovery, unverified workspace sign-in recovery, no-remembered-workspace verification recovery, existing workspace email lookup, first-run workspace runway, team member first sign-in guidance, and directory hierarchy setup order.
 
 Remaining risk: Not deployed. Current beta still assumes one active workspace per normalized email. Q-056 and Q-057 remain open. Staging owner retest is still required before treating this browser flow as proven in the hosted environment.
+## 2026-05-19 - selected-series visible metadata cleanup
+
+Assessment: Owner testing showed selected-study pages still exposed raw series ids, duplicate selected-series navigation inside the body, and ISO/nanosecond timestamps before useful setup content. This made the app feel like an internal proof surface instead of a product workflow.
+
+Task: Removed duplicated in-body selected-series navigation from the hub and selected-series surfaces, removed normal campaign-series id rows from selected-series reference sections, moved remaining hub technical details behind a collapsed section, removed tenant/user id rows from the session profile view, and formatted selected-series/settings/export timestamps with Croatian-style day/month/year 24-hour display.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.

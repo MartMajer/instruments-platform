@@ -8,7 +8,6 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
-	import SelectedSeriesWorkspaceNav from '$lib/components/SelectedSeriesWorkspaceNav.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { Copy, LoaderCircle, RotateCcw } from 'lucide-svelte';
@@ -50,7 +49,6 @@
 
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const hubView = $derived(campaignSeriesHub ? toCampaignSeriesHubView(campaignSeriesHub) : null);
-	const hubDetailRows = $derived(hubView ? hubView.rows : []);
 	const routeGuidance = $derived(
 		hubView
 			? toProductRouteGuidance('selected-study', {
@@ -157,17 +155,6 @@
 				onRetry={() => loadCampaignSeriesHub()}
 			/>
 		{:else if hubView}
-			<SelectedSeriesWorkspaceNav
-				{seriesId}
-				seriesTitle={hubView.title}
-				seriesSubtitle={hubView.subtitle}
-				currentSurface="hub"
-				badges={[
-					{ status: hubView.ownership.badgeStatus, label: hubView.ownership.label },
-					{ status: hubView.archiveState.status, label: hubView.archiveState.label }
-				]}
-			/>
-
 			<section class="product-panel" data-priority="primary" aria-label="Selected study summary">
 				<div class="product-panel__header">
 					<div>
@@ -300,16 +287,27 @@
 					{/each}
 				</dl>
 
-				<dl class="record-grid" role="group" aria-label="Selected study details">
-					{#each hubDetailRows as row}
-						<div class="record-field">
-							<dt class="record-field__label">{row.label}</dt>
-							<dd class="record-field__value" class:font-mono={row.mono}>
-								{row.value}
-							</dd>
-						</div>
-					{/each}
-				</dl>
+				{#if hubView.rows.length > 0}
+					<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+						<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+							Technical details
+						</summary>
+						<dl
+							class="record-grid mt-3"
+							role="group"
+							aria-label="Selected study technical details"
+						>
+							{#each hubView.rows as row}
+								<div class="record-field">
+									<dt class="record-field__label">{row.label}</dt>
+									<dd class="record-field__value" class:font-mono={row.mono}>
+										{row.value}
+									</dd>
+								</div>
+							{/each}
+						</dl>
+					</details>
+				{/if}
 
 				<div
 					role="group"
