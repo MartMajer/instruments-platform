@@ -13,7 +13,6 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import InlineAlert from '$lib/components/InlineAlert.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import { createProductApiFromEnv, createProductRequestGate } from '$lib/product/route-state';
 	import {
@@ -21,7 +20,6 @@
 		hasProductPermission,
 		setupManagePermission
 	} from '$lib/product/auth-context';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { toProductApiErrorMessage } from '$lib/product/view-models';
 
 	type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -77,31 +75,6 @@
 	const membershipCount = $derived(
 		subjects.reduce((total, subject) => total + subject.groups.length, 0)
 	);
-	const routeGuidance = $derived(
-		toProductRouteGuidance('directory', {
-			canManageSetup,
-			isEmpty:
-				canManageSetup && loadState === 'ready' && subjects.length === 0 && groups.length === 0
-		})
-	);
-	const directorySetupSteps = [
-		{
-			title: 'Create groups',
-			description: 'Use groups for reusable audiences such as department, cohort, region, or role family.'
-		},
-		{
-			title: 'Create subjects',
-			description: 'Create the people or units that can be targeted by studies and reports.'
-		},
-		{
-			title: 'Add memberships',
-			description: 'Attach subjects to groups so launch targeting can use stable directory data.'
-		},
-		{
-			title: 'Assign managers',
-			description: 'Add manager links only where hierarchy-aware review or reporting context is needed.'
-		}
-	];
 	const selectedSubject = $derived(
 		subjects.find((subject) => subject.id === selectedSubjectId) ?? null
 	);
@@ -181,7 +154,7 @@
 			selectedSubjectId = created.id;
 			syncSelectedSubjectFields(directory?.subjects ?? []);
 		} catch (error) {
-			subjectMutationError = toProductApiErrorMessage(error, 'Subject could not be created.');
+			subjectMutationError = toProductApiErrorMessage(error, 'Person could not be created.');
 		} finally {
 			creatingSubject = false;
 		}
@@ -189,7 +162,7 @@
 
 	async function saveSelectedSubject() {
 		if (!canManageSetup || !selectedSubjectId) {
-			editSubjectError = 'Select a subject.';
+			editSubjectError = 'Select a person.';
 			return;
 		}
 
@@ -215,7 +188,7 @@
 			});
 			await loadDirectory();
 		} catch (error) {
-			editSubjectError = toProductApiErrorMessage(error, 'Subject could not be updated.');
+			editSubjectError = toProductApiErrorMessage(error, 'Person could not be updated.');
 		} finally {
 			savingSubject = false;
 		}
@@ -255,7 +228,7 @@
 
 	async function addSubjectGroupMember() {
 		if (!canManageSetup || !selectedSubjectId || !selectedGroupId) {
-			membershipError = 'Select a subject and group.';
+			membershipError = 'Select a person and group.';
 			return;
 		}
 
@@ -278,7 +251,7 @@
 
 	async function setSubjectManager() {
 		if (!canManageSetup || !selectedSubjectId) {
-			managerError = 'Select a subject.';
+			managerError = 'Select a person.';
 			return;
 		}
 
@@ -359,12 +332,10 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Tenant graph"
-	title="Directory"
-	description="Tenant subjects, groups, and manager relationships for launch targeting and reporting context."
+	eyebrow="Audience directory"
+	title="People and groups"
+	description="Create respondents, reusable audiences, and manager links for study targeting."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 {#if !canManageSetup}
 	<InlineAlert
@@ -373,47 +344,22 @@
 		message="Subject directory data is only available to setup managers."
 	/>
 {:else}
-	<section class="product-panel" aria-label="People and targeting overview">
+	<section class="product-panel" aria-label="Audience directory overview">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">People and targeting</p>
-				<h2 class="product-title">People and targeting overview</h2>
+				<p class="product-kicker">Directory setup</p>
+				<h2 class="product-title">Build the audience list first</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-					Directory connects people, groups, and manager relationships so studies can target the
-					right respondents and support hierarchy-aware evaluation paths.
+					Add people, organize them into groups, then use those groups when choosing a study
+					audience.
 				</p>
 			</div>
-			<button type="button" class="secondary-button" onclick={loadDirectory}>
-				<RefreshCcw size={16} aria-hidden="true" />
-				<span>Refresh</span>
-			</button>
+			<a class="primary-button" href="#directory-create">Add people or groups</a>
 		</div>
-
-		<div class="record-list mb-4" aria-label="Directory setup order">
-			{#each directorySetupSteps as step}
-				<article class="record-row">
-					<span class="record-row__header">
-						<span class="record-row__title">{step.title}</span>
-					</span>
-					<p class="text-sm text-[var(--color-text-muted)]">{step.description}</p>
-				</article>
-			{/each}
-		</div>
-
-		<article class="record-row mb-4" aria-label="Subject hierarchy not app roles">
-			<span class="record-row__header">
-				<span class="record-row__title">Subject hierarchy is not app authorization</span>
-				<span class="status-badge" data-status="neutral">Boundary</span>
-			</span>
-			<p class="text-sm text-[var(--color-text-muted)]">
-				Team roles control who can use the app. Directory groups and manager links control
-				targeting, reporting context, and hierarchy-aware study workflows.
-			</p>
-		</article>
 
 		<dl class="directory-count-list" role="group" aria-label="People and targeting counts">
 			<div class="directory-count-row">
-				<dt class="directory-count-row__label">Subjects</dt>
+				<dt class="directory-count-row__label">People</dt>
 				<dd class="directory-count-row__value">{directory?.summary.subjectCount ?? 0}</dd>
 			</div>
 			<div class="directory-count-row">
@@ -432,51 +378,19 @@
 			</div>
 		</dl>
 
-		<div class="record-list">
-			<article class="record-row" aria-label="Study targeting">
-				<span class="record-row__header">
-					<span class="record-row__title">Study targeting</span>
-					<span class="status-badge" data-status="neutral">Groups</span>
-				</span>
-				<p class="text-sm text-[var(--color-text-muted)]">
-					Use subjects and groups when a study should target a department, cohort, team, role, or
-					other defined audience.
-				</p>
-			</article>
-			<article class="record-row" aria-label="Group respondent rules">
-				<span class="record-row__header">
-					<span class="record-row__title">Group respondent rules</span>
-					<span class="status-badge" data-status="neutral">Respondents</span>
-				</span>
-				<p class="text-sm text-[var(--color-text-muted)]">
-					Group memberships feed respondent rules so setup can preview who answers for a selected
-					target population.
-				</p>
-			</article>
-			<article class="record-row" aria-label="Manager relationships">
-				<span class="record-row__header">
-					<span class="record-row__title">Manager relationships</span>
-					<span class="status-badge" data-status="neutral">Hierarchy</span>
-				</span>
-				<p class="text-sm text-[var(--color-text-muted)]">
-					Manager links make manager-of-target review possible without mixing workplace hierarchy
-					with app login roles.
-				</p>
-			</article>
-			<article class="record-row" aria-label="Reports-of-target paths">
-				<span class="record-row__header">
-					<span class="record-row__title">Reports-of-target paths</span>
-					<span class="status-badge" data-status="neutral">Evaluation</span>
-				</span>
-				<p class="text-sm text-[var(--color-text-muted)]">
-					Direct-report counts support reports-of-target evaluation paths for hierarchy-aware
-					studies.
-				</p>
-			</article>
-		</div>
+		<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+			<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+				How directory data is used
+			</summary>
+			<p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
+				Groups define reusable audiences such as departments, cohorts, locations, or roles.
+				Manager links are optional and only needed for hierarchy-aware review or reporting.
+				Team roles are separate; they control who can use the app.
+			</p>
+		</details>
 	</section>
 
-	<section class="product-panel" aria-label="Subject directory">
+	<section class="product-panel" aria-label="People directory">
 		<LoadingBoundary loading={loadState === 'loading'} label="Loading subject directory">
 			{#if loadState === 'error' && errorMessage}
 				<ErrorPanel
@@ -488,8 +402,8 @@
 			{:else if directory && groupList}
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Tenant read model</p>
-						<h2 class="product-title">Directory graph</h2>
+						<p class="product-kicker">People</p>
+						<h2 class="product-title">People in this workspace</h2>
 					</div>
 				</div>
 
@@ -511,10 +425,7 @@
 				</dl>
 
 				{#if subjects.length === 0}
-					<EmptyState
-						title="No subjects"
-						description="Create subjects before configuring hierarchy."
-					/>
+					<EmptyState title="No people yet" description="Add people before configuring audiences." />
 				{:else}
 					<div class="record-list">
 						{#each subjects as subject (subject.id)}
@@ -580,12 +491,12 @@
 		</LoadingBoundary>
 	</section>
 
-	<section class="product-panel" aria-label="Subject groups">
+	<section class="product-panel" aria-label="Audience groups">
 		{#if groupList}
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Tenant groups</p>
-					<h2 class="product-title">Group directory</h2>
+					<p class="product-kicker">Groups</p>
+					<h2 class="product-title">Audience groups</h2>
 				</div>
 			</div>
 
@@ -616,11 +527,11 @@
 		{/if}
 	</section>
 
-	<section class="product-panel" aria-label="Create directory records">
+	<section id="directory-create" class="product-panel" aria-label="Create directory records">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Directory setup</p>
-				<h2 class="product-title">Subjects and groups</h2>
+				<p class="product-kicker">Add records</p>
+				<h2 class="product-title">People and groups</h2>
 			</div>
 			<button type="button" class="secondary-button" onclick={loadDirectory}>
 				<RefreshCcw size={16} aria-hidden="true" />
@@ -637,8 +548,8 @@
 				}}
 			>
 				<div>
-					<p class="product-kicker">Subject</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">New subject</h3>
+					<p class="product-kicker">Person</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">New person</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
@@ -674,7 +585,7 @@
 					{:else}
 						<Plus size={17} aria-hidden="true" />
 					{/if}
-					<span>{creatingSubject ? 'Creating...' : 'Create subject'}</span>
+					<span>{creatingSubject ? 'Creating...' : 'Add person'}</span>
 				</button>
 				{#if subjectMutationError}
 					<p class="error-line" role="alert">{subjectMutationError}</p>
@@ -756,7 +667,7 @@
 		>
 			<div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
 				<label class="field">
-					<span>Selected subject</span>
+					<span>Selected person</span>
 					<select bind:value={selectedSubjectId} disabled={subjects.length === 0 || savingSubject}>
 						{#each subjects as subject (subject.id)}
 							<option value={subject.id}>{subjectLabel(subject)}</option>
@@ -803,7 +714,7 @@
 				{:else}
 					<Save size={16} aria-hidden="true" />
 				{/if}
-				<span>{savingSubject ? 'Saving...' : 'Save subject'}</span>
+				<span>{savingSubject ? 'Saving...' : 'Save person'}</span>
 			</button>
 			{#if editSubjectError}
 				<p class="error-line" role="alert">{editSubjectError}</p>
@@ -820,7 +731,7 @@
 			>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
-						<span>Subject</span>
+						<span>Person</span>
 						<select
 							bind:value={selectedSubjectId}
 							disabled={subjects.length === 0 || addingMembership}
@@ -869,7 +780,7 @@
 			>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
-						<span>Subject</span>
+						<span>Person</span>
 						<select
 							bind:value={selectedSubjectId}
 							disabled={subjects.length === 0 || savingManager}

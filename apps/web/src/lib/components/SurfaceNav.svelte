@@ -29,25 +29,25 @@
 					label: 'Home',
 					href: '/app',
 					icon: Home,
-					description: 'Study cockpit'
+					description: 'Start here'
 				},
 				{
 					label: 'Studies',
 					href: '/app/campaign-series',
 					icon: FolderKanban,
-					description: 'Create and select'
+					description: 'Plan studies'
 				},
 				{
 					label: 'Instrument library',
 					href: '/app/instruments',
 					icon: BookOpen,
-					description: 'Reusable instruments'
+					description: 'Question sets'
 				},
 				{
 					label: 'Exports',
 					href: '/app/exports',
 					icon: FileDown,
-					description: 'Artifacts'
+					description: 'Files'
 				}
 			]
 		},
@@ -59,13 +59,13 @@
 					label: 'Directory',
 					href: '/app/directory',
 					icon: Network,
-					description: 'Subjects and hierarchy'
+					description: 'Audiences and groups'
 				},
 				{
 					label: 'Team',
 					href: '/app/team',
 					icon: UsersRound,
-					description: 'Members and roles'
+					description: 'Workspace access'
 				}
 			]
 		},
@@ -77,7 +77,7 @@
 					label: 'Settings',
 					href: '/app/settings',
 					icon: Building2,
-					description: 'Tenant profile'
+					description: 'Workspace profile'
 				}
 			]
 		}
@@ -93,19 +93,19 @@
 							label: 'Overview',
 							href: `/app/campaign-series/${activeSeriesId}`,
 							icon: ClipboardList,
-							description: 'Selected study'
+							description: 'Plan and status'
 						},
 						{
 							label: 'Setup',
 							href: `/app/campaign-series/${activeSeriesId}/setup`,
 							icon: Settings2,
-							description: 'Configuration'
+							description: 'Build study'
 						},
 						{
 							label: 'Collect',
 							href: `/app/campaign-series/${activeSeriesId}/operations`,
 							icon: RadioTower,
-							description: 'Launch and delivery'
+							description: 'Run collection'
 						},
 						{
 							label: 'Results',
@@ -117,7 +117,7 @@
 							label: 'Waves',
 							href: `/app/campaign-series/${activeSeriesId}/waves`,
 							icon: Waves,
-							description: 'Linked trajectories'
+							description: 'Compare waves'
 						}
 					]
 				}

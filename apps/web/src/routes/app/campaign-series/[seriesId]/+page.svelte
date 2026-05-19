@@ -7,7 +7,6 @@
 	import type { AuthSessionResponse } from '$lib/api/setup';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { Copy, LoaderCircle, RotateCcw } from 'lucide-svelte';
@@ -22,7 +21,6 @@
 		hasProductPermission,
 		setupManagePermission
 	} from '$lib/product/auth-context';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { toCampaignSeriesHubView } from '$lib/product/view-models';
 
 	type LoadState = 'loading' | 'ready' | 'error';
@@ -49,13 +47,6 @@
 
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const hubView = $derived(campaignSeriesHub ? toCampaignSeriesHubView(campaignSeriesHub) : null);
-	const routeGuidance = $derived(
-		hubView
-			? toProductRouteGuidance('selected-study', {
-					isSample: hubView.ownership.isSample
-				})
-			: null
-	);
 
 	$effect(() => {
 		void loadCampaignSeriesHub(seriesId);
@@ -141,8 +132,8 @@
 
 <SurfaceHeader
 	eyebrow="Selected study"
-	title="Study overview"
-	description="Prepare, collect, review results, and compare waves from one selected study."
+	title="Overview"
+	description="See where this study stands, then continue setup, collection, results, or wave comparison."
 />
 
 <section class="product-stack" aria-label="Selected study overview">
@@ -263,17 +254,13 @@
 				</div>
 			</section>
 
-			{#if routeGuidance}
-				<RouteGuidancePanel guidance={routeGuidance} />
-			{/if}
-
 			<section class="product-panel" aria-label={hubView.referenceTitle}>
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Reference</p>
-						<h2 class="product-title">{hubView.referenceTitle}</h2>
+						<p class="product-kicker">Study details</p>
+						<h2 class="product-title">Status and records</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{hubView.referenceDescription}
+							Review readiness, governance, and campaigns linked to this study.
 						</p>
 					</div>
 				</div>
@@ -290,12 +277,12 @@
 				{#if hubView.rows.length > 0}
 					<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 						<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-							Technical details
+							Dates
 						</summary>
 						<dl
 							class="record-grid mt-3"
 							role="group"
-							aria-label="Selected study technical details"
+							aria-label="Selected study dates"
 						>
 							{#each hubView.rows as row}
 								<div class="record-field">
@@ -316,7 +303,7 @@
 				>
 					<div>
 						<p class="product-kicker">Governance</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Required proof status</h3>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">Policy and scoring status</h3>
 					</div>
 					<div class="record-list">
 						{#each hubView.governanceRows as row}
@@ -340,7 +327,7 @@
 				>
 					<div>
 						<p class="product-kicker">Campaigns</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Series campaign rows</h3>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">Campaigns in this study</h3>
 					</div>
 
 					{#if hubView.campaignRows.length === 0}

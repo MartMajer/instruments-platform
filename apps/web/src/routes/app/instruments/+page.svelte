@@ -5,10 +5,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { createProductRequestGate, createSetupApiFromEnv } from '$lib/product/route-state';
 	import { toInstrumentLibraryView, toProductApiErrorMessage } from '$lib/product/view-models';
 
@@ -22,11 +20,6 @@
 	let errorMessage = $state<string | null>(null);
 
 	const libraryView = $derived(toInstrumentLibraryView(instruments));
-	const routeGuidance = $derived(
-		toProductRouteGuidance('instruments', {
-			isEmpty: loadState === 'ready' && libraryView.cards.length === 0
-		})
-	);
 
 	onMount(() => {
 		void loadInstruments();
@@ -61,10 +54,8 @@
 <SurfaceHeader
 	eyebrow="Instrument library"
 	title="Instruments"
-	description="Tenant-visible instrument assets and launch eligibility."
+	description="Review reusable question sets that can seed a study. Custom study building happens inside Setup."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 <section class="product-panel" data-priority="primary" aria-label="Instrument library">
 	<LoadingBoundary loading={loadState === 'loading'} label="Loading instrument library">
@@ -126,19 +117,19 @@
 
 				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
 					<div>
-						<p class="product-kicker">Management</p>
+						<p class="product-kicker">Next step</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Campaign setup surfaces
+							Create or open a study
 						</h3>
 					</div>
 					<div class="record-list" aria-label="Instrument management links">
 						<a class="record-row" href="/app/campaign-series">
 							<span class="record-row__header">
-								<span class="record-row__title">Campaign series</span>
+								<span class="record-row__title">Studies</span>
 								<span class="secondary-button">Open</span>
 							</span>
 							<span class="text-sm leading-6 text-[var(--color-text-muted)]">
-								Select a campaign series to configure templates, scoring, and launch state.
+								Select a study to build questionnaires, scoring, audiences, and launch state.
 							</span>
 						</a>
 					</div>

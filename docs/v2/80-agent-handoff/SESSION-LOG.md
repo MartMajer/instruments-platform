@@ -18740,3 +18740,25 @@ Verification: Not run in this pass per current instruction to avoid validation u
 Task: Deployed the Workspace settings cleanup and Results export refresh-state fix to staging.
 
 Verification: Commit `2ca548b` built successfully in Docker web production build with the existing large-chunk warning. The first redeploy attempt rebuilt and restarted containers but failed on an immediate web-root 502 during warm-up. Follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/settings-results-cleanup-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:e7e03e97b46928dbf98c59cb858122f8b9df4cd8b464bf03f74e086550713d24`.
+
+### 2026-05-19 - Sidebar view cleanup pass
+
+Assessment:
+- Remaining sidebar destinations still mixed product actions with route guidance, reference cards, tenant/internal wording, and technical metadata.
+- The worst friction was action placement: users had to read guidance/reference content before reaching useful controls on Home, Studies, Directory, Team, Exports, and selected-study Overview.
+
+Task:
+- Removed top-level route guidance panels from remaining sidebar pages where the page copy now explains the next action directly.
+- Cleaned sidebar labels and descriptions to use workspace/researcher language instead of implementation language.
+- Made Studies default creation blank with a real placeholder, moved filters above the study list, and reduced sample/portfolio wording.
+- Simplified Directory into people/groups language, collapsed explanatory reference copy, and added an action jump to add people or groups.
+- Simplified Team onboarding copy, removed tenant id display from roster stats, and switched member timestamps to Croatian 24-hour formatting.
+- Simplified Exports around downloadable files and collapsed export counts behind a details row.
+- Simplified selected-study Overview by removing duplicate route guidance and changing technical/reference copy into status, governance, campaigns, and dates.
+- Kept the gated Demo page visibly developer-only but reduced verbose fixture wording.
+
+Verification:
+- Pending targeted syntax/deploy verification in this session.
+
+Remaining risk:
+- This is a UI/copy cleanup pass only. Deeper workflow changes, such as bulk directory import, richer team invitations, or multi-workspace account picking, remain future product slices.

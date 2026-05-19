@@ -7,9 +7,9 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Local design aid"
-	title="Demo fixtures"
-	description="Fixture-backed product states for frontend planning without live tenant database choreography."
+	eyebrow="Developer tool"
+	title="Demo states"
+	description="Gated fixture states for local product review."
 	statusLabel={demoEnabled ? 'Demo data' : 'Unavailable'}
 />
 
@@ -18,12 +18,11 @@
 		<div class="setup-panel__header">
 			<div>
 				<p class="setup-panel__eyebrow">Demo data</p>
-				<h2 class="setup-panel__title">Fixture scenarios</h2>
+				<h2 class="setup-panel__title">Product states</h2>
 			</div>
 		</div>
 		<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-			Demo data is local/dev only and must stay visibly labelled. Scenario links use the same
-			route model as real product surfaces where practical.
+			Demo data is local/dev only and remains visibly labelled.
 		</p>
 		<div class="grid gap-4">
 			{#each productFixtureCatalog as group (group.id)}
@@ -49,8 +48,8 @@
 	<section class="setup-panel" aria-label="Demo fixture unavailable state">
 		<div class="setup-panel__header">
 			<div>
-				<p class="setup-panel__eyebrow">Gate closed</p>
-				<h2 class="setup-panel__title">Demo fixture surfaces are unavailable</h2>
+				<p class="setup-panel__eyebrow">Unavailable</p>
+				<h2 class="setup-panel__title">Demo states are not enabled</h2>
 			</div>
 		</div>
 		<p class="text-sm leading-6 text-[var(--color-text-muted)]">

@@ -7,7 +7,6 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import type {
 		TenantMemberResponse,
@@ -22,7 +21,6 @@
 		setupManagePermission,
 		teamManagePermission
 	} from '$lib/product/auth-context';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { toProductApiErrorMessage } from '$lib/product/view-models';
 
 	type LoadState = 'loading' | 'ready' | 'error';
@@ -64,26 +62,6 @@
 	onDestroy(unsubscribeAuth);
 
 	const canManageTeam = $derived(hasProductPermission(authSession, teamManagePermission));
-	const routeGuidance = $derived(
-		toProductRouteGuidance('team', {
-			canManageTeam,
-			isEmpty: roster ? roster.members.length === 0 : false
-		})
-	);
-	const memberOnboardingSteps = [
-		{
-			title: 'Prepare member access',
-			description: 'Create the platform member record with the exact email the person will use in Auth0.'
-		},
-		{
-			title: 'Share first sign-in link',
-			description: 'Send the generated link so Auth0 can authenticate the same email for this workspace.'
-		},
-		{
-			title: 'Confirm activation',
-			description: 'The member remains pending until Auth0 returns the matching email on first sign-in.'
-		}
-	];
 
 	onMount(() => {
 		void loadTenantMembers();
@@ -116,7 +94,7 @@
 			}
 
 			roster = null;
-			errorMessage = toProductApiErrorMessage(error, 'Tenant members could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, 'Team members could not be loaded.');
 			loadState = 'error';
 		}
 	}
@@ -172,7 +150,7 @@
 			createMemberNotice = `Member access prepared for ${response.member.email}. Share the first sign-in link from the roster.`;
 			await loadTenantMembers();
 		} catch (error) {
-			createMemberError = toProductApiErrorMessage(error, 'Tenant member could not be prepared.');
+			createMemberError = toProductApiErrorMessage(error, 'Member access could not be prepared.');
 		} finally {
 			creatingMember = false;
 		}
@@ -365,9 +343,10 @@
 			return 'Not recorded';
 		}
 
-		return new Intl.DateTimeFormat('en', {
-			dateStyle: 'medium',
-			timeStyle: 'short'
+		return new Intl.DateTimeFormat('hr-HR', {
+			dateStyle: 'short',
+			timeStyle: 'short',
+			hourCycle: 'h23'
 		}).format(new Date(value));
 	}
 
@@ -376,7 +355,7 @@
 			return 'Active';
 		}
 
-		return 'Pending provider link';
+	return 'Invite pending';
 	}
 
 	function identityStatusBadge(member: TenantMemberResponse) {
@@ -447,12 +426,10 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Tenant access"
+	eyebrow="Workspace access"
 	title="Team"
-	description="Current tenant members, role assignments, and access capabilities."
+	description="Invite teammates, assign roles, and confirm who can manage studies or access results."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 {#if loadState === 'loading' || roster}
 	<section class="product-panel" data-priority="primary" aria-label="Team access overview">
@@ -507,21 +484,10 @@
 				<p class="product-kicker">Tenant team</p>
 				<h2 class="product-title">Prepare member access, then share sign-in</h2>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-					Auth0 owns passwords, MFA, and provider sessions. This page prepares platform
-					membership and gives you the first sign-in link for the exact tenant email.
+					Add the email, choose a role, then share the generated sign-in link from the roster.
+					Passwords and MFA stay in Auth0.
 				</p>
 			</div>
-		</div>
-
-		<div class="record-list mb-4" aria-label="Member onboarding steps">
-			{#each memberOnboardingSteps as step}
-				<article class="record-row">
-					<span class="record-row__header">
-						<span class="record-row__title">{step.title}</span>
-					</span>
-					<p class="text-sm text-[var(--color-text-muted)]">{step.description}</p>
-				</article>
-			{/each}
 		</div>
 
 		{#if roleLoadState === 'error' && roleErrorMessage}
@@ -611,11 +577,11 @@
 	</section>
 {/if}
 
-<section class="product-panel" aria-label="Tenant member roster">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading tenant members">
+<section class="product-panel" aria-label="Team roster">
+	<LoadingBoundary loading={loadState === 'loading'} label="Loading team members">
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Tenant members unavailable"
+				title="Team members unavailable"
 				message={errorMessage}
 				retryLabel="Retry members"
 				onRetry={loadTenantMembers}
@@ -623,7 +589,7 @@
 		{:else if roster}
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Tenant roster</p>
+					<p class="product-kicker">Team roster</p>
 					<h2 class="product-title">Members and roles</h2>
 				</div>
 			</div>
@@ -632,10 +598,6 @@
 				<div class="team-stat-item">
 					<dt class="team-stat-item__label">Members</dt>
 					<dd class="team-stat-item__value">{roster.members.length}</dd>
-				</div>
-				<div class="team-stat-item">
-					<dt class="team-stat-item__label">Tenant</dt>
-					<dd class="team-stat-item__value team-stat-item__value--id">{roster.tenantId}</dd>
 				</div>
 			</dl>
 

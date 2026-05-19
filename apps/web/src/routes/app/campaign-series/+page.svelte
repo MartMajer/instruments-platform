@@ -9,7 +9,6 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { Archive, Check, Copy, LoaderCircle, Pencil, Plus, RotateCcw, X } from 'lucide-svelte';
@@ -18,7 +17,6 @@
 		createProductRequestGate,
 		createSetupApiFromEnv
 	} from '$lib/product/route-state';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { toCampaignSeriesListView, toProductApiErrorMessage } from '$lib/product/view-models';
 	import {
 		getProductAuthContext,
@@ -43,7 +41,7 @@
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let campaignSeriesList = $state<CampaignSeriesListResponse | null>(null);
 	let errorMessage = $state<string | null>(null);
-	let newSeriesName = $state('Tenant quarterly pulse');
+	let newSeriesName = $state('');
 	let creatingSeries = $state(false);
 	let createSeriesError = $state<string | null>(null);
 	let renamingSeriesId = $state<string | null>(null);
@@ -64,12 +62,6 @@
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const listView = $derived(
 		campaignSeriesList ? toCampaignSeriesListView(campaignSeriesList, portfolioQuery) : null
-	);
-	const routeGuidance = $derived(
-		toProductRouteGuidance('studies', {
-			canManageSetup,
-			isEmpty: Boolean(listView?.emptyState)
-		})
 	);
 
 	$effect(() => {
@@ -275,11 +267,8 @@
 <SurfaceHeader
 	eyebrow="Study workspace"
 	title="Studies"
-	description="Inspect read-only sample studies, then create and manage your own studies through setup, collection, results, and export work."
-	statusLabel="Study portfolio"
+	description="Create a study or open an existing one. Samples stay separated from real workspace studies."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 <section class="product-panel" data-priority="primary" aria-label="Study portfolio">
 	<LoadingBoundary loading={loadState === 'loading'} label="Loading studies">
@@ -309,7 +298,11 @@
 					>
 						<label class="field">
 							<span>Study name</span>
-							<input bind:value={newSeriesName} disabled={creatingSeries} />
+							<input
+								bind:value={newSeriesName}
+								disabled={creatingSeries}
+								placeholder="e.g. Q3 employee pulse"
+							/>
 						</label>
 						<button type="submit" class="primary-button" disabled={creatingSeries}>
 							{#if creatingSeries}
@@ -341,9 +334,56 @@
 
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Study portfolio</p>
-					<h2 class="product-title">Choose a study</h2>
+					<p class="product-kicker">Study list</p>
+					<h2 class="product-title">Open a study</h2>
 				</div>
+			</div>
+
+			<div class="portfolio-toolbar" role="group" aria-label="Study list filters">
+				<label class="field">
+					<span>Search studies</span>
+					<input
+						value={portfolioQuery.search}
+						placeholder="Search by study name"
+						oninput={(event) => updatePortfolioQuery({ search: event.currentTarget.value })}
+					/>
+				</label>
+
+				<label class="field">
+					<span>Readiness</span>
+					<select
+						value={portfolioQuery.status}
+						onchange={(event) => updatePortfolioQuery({ status: event.currentTarget.value })}
+					>
+						{#each listView.statusOptions as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
+
+				<label class="field">
+					<span>Sort</span>
+					<select
+						value={portfolioQuery.sort}
+						onchange={(event) => updatePortfolioQuery({ sort: event.currentTarget.value })}
+					>
+						{#each listView.sortOptions as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
+
+				<label class="field">
+					<span>Visibility</span>
+					<select
+						value={portfolioQuery.visibility}
+						onchange={(event) => updatePortfolioQuery({ visibility: event.currentTarget.value })}
+					>
+						{#each listView.visibilityOptions as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
 			</div>
 
 			{#if listView.emptyState}
@@ -518,52 +558,6 @@
 				{/if}
 			{/if}
 
-			<div class="portfolio-toolbar" role="group" aria-label="Study portfolio filters">
-				<label class="field">
-					<span>Search studies</span>
-					<input
-						value={portfolioQuery.search}
-						placeholder="Search by study name"
-						oninput={(event) => updatePortfolioQuery({ search: event.currentTarget.value })}
-					/>
-				</label>
-
-				<label class="field">
-					<span>Readiness</span>
-					<select
-						value={portfolioQuery.status}
-						onchange={(event) => updatePortfolioQuery({ status: event.currentTarget.value })}
-					>
-						{#each listView.statusOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label class="field">
-					<span>Sort</span>
-					<select
-						value={portfolioQuery.sort}
-						onchange={(event) => updatePortfolioQuery({ sort: event.currentTarget.value })}
-					>
-						{#each listView.sortOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label class="field">
-					<span>Visibility</span>
-					<select
-						value={portfolioQuery.visibility}
-						onchange={(event) => updatePortfolioQuery({ visibility: event.currentTarget.value })}
-					>
-						{#each listView.visibilityOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-			</div>
 		{/if}
 	</LoadingBoundary>
 </section>

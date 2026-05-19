@@ -5,10 +5,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { createProductApiFromEnv, createProductRequestGate } from '$lib/product/route-state';
 	import { toExportArtifactLibraryView, toProductApiErrorMessage } from '$lib/product/view-models';
 
@@ -22,11 +20,6 @@
 	let errorMessage = $state<string | null>(null);
 
 	const libraryView = $derived(library ? toExportArtifactLibraryView(library) : null);
-	const routeGuidance = $derived(
-		toProductRouteGuidance('exports', {
-			isEmpty: libraryView ? libraryView.cards.length === 0 : false
-		})
-	);
 
 	onMount(() => {
 		void loadExportArtifacts();
@@ -59,12 +52,10 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Study support"
-	title="Use exports"
-	description="Find generated CSV/codebook artifacts by purpose, readiness, source study, and next use."
+	eyebrow="Exports"
+	title="Download files"
+	description="Find CSV and codebook files created from study Results pages."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 <section class="product-panel" data-priority="primary" aria-label="Export workspace">
 	<LoadingBoundary loading={loadState === 'loading'} label="Loading export artifacts">
@@ -79,8 +70,8 @@
 			<div class="grid gap-5">
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Export overview</p>
-						<h2 class="product-title">Ready files and next use</h2>
+						<p class="product-kicker">Files</p>
+						<h2 class="product-title">Ready downloads and next use</h2>
 					</div>
 				</div>
 
@@ -113,11 +104,11 @@
 
 				{#if libraryView.cards.length === 0}
 					<EmptyState
-						title="No export artifacts"
+						title="No export files"
 						description="Create an export from a study results page after results are available."
 					/>
 				{:else}
-					<div class="record-list" aria-label="Export artifacts">
+					<div class="record-list" aria-label="Export files">
 						{#each libraryView.cards as card (card.id)}
 							<article class="record-row" aria-label={card.title}>
 								<span class="record-row__header">
@@ -154,16 +145,16 @@
 					</div>
 				{/if}
 
-				<section class="grid gap-4" role="group" aria-label="Export reference">
-					<div class="product-panel__header">
-						<div>
-							<p class="product-kicker">{libraryView.referenceTitle}</p>
-							<h2 class="product-title">Artifact metadata</h2>
-							<p class="product-panel__description">{libraryView.referenceDescription}</p>
-						</div>
-					</div>
-
-					<dl class="export-count-list" role="group" aria-label="Export artifact counts">
+				<details
+					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+				>
+					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+						Export counts
+					</summary>
+					<p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+						Use these counts when checking whether files are ready, pending, or failed.
+					</p>
+					<dl class="export-count-list mt-4" role="group" aria-label="Export file counts">
 						{#each libraryView.metricRows as row}
 							<div class="export-count-row">
 								<dt class="export-count-row__label">{row.label}</dt>
@@ -171,7 +162,7 @@
 							</div>
 						{/each}
 					</dl>
-				</section>
+				</details>
 			</div>
 		{/if}
 	</LoadingBoundary>

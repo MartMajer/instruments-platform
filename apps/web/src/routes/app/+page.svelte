@@ -8,10 +8,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
-	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { toProductRouteGuidance } from '$lib/product/route-guidance';
 	import { toProductApiErrorMessage, toWorkspaceOverviewView } from '$lib/product/view-models';
 
 	type LoadState = 'loading' | 'ready' | 'error';
@@ -28,18 +26,11 @@
 	let errorMessage = $state<string | null>(null);
 
 	const overviewView = $derived(overview ? toWorkspaceOverviewView(overview) : null);
-	const routeGuidance = $derived(
-		toProductRouteGuidance('home', {
-			isEmpty: overviewView
-				? overviewView.sampleStudies.length === 0 && overviewView.ownStudies.length === 0
-				: false
-		})
-	);
 	const firstRunActions = [
 		{
 			title: 'Create first study',
 			status: 'Start here',
-			description: 'Build the first campaign series and launch it when the instrument content is ready.',
+			description: 'Start a real study and continue through setup, collection, and results.',
 			href: resolve('/app/campaign-series')
 		},
 		{
@@ -51,7 +42,7 @@
 		{
 			title: 'Set up directory',
 			status: 'People',
-			description: 'Create groups, subjects, memberships, and manager links for targeting and reporting.',
+			description: 'Create people, groups, memberships, and manager links for targeting.',
 			href: resolve('/app/directory')
 		},
 		{
@@ -82,12 +73,10 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Authenticated workspace"
-	title="Study cockpit"
-	description="Start with read-only sample studies, then continue your own study setup, collection, reports, and exports."
+	eyebrow="Workspace"
+	title="Home"
+	description="Pick the next useful task: create a study, continue work, invite people, manage audiences, or download results."
 />
-
-<RouteGuidancePanel guidance={routeGuidance} />
 
 <section class="product-panel" data-priority="primary" aria-label="Self-serve study cockpit">
 	<LoadingBoundary loading={loadState === 'loading'} label="Loading workspace overview">
@@ -103,11 +92,11 @@
 				<section class="grid gap-3" aria-label="First-run workspace runway">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Workspace setup</p>
+							<p class="product-kicker">Start</p>
 							<h2 class="product-title">
 								{overviewView.sampleStudies.length === 0 && overviewView.ownStudies.length === 0
 									? 'Set up your workspace'
-									: 'Choose the next workspace move'}
+									: 'Choose what to do next'}
 							</h2>
 						</div>
 					</div>
@@ -130,7 +119,7 @@
 				<section class="grid gap-3" aria-label="Suggested next actions">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Command center</p>
+							<p class="product-kicker">Next actions</p>
 							<h2 class="product-title">Suggested next actions</h2>
 						</div>
 						<a class="secondary-button" href={resolve('/app/campaign-series')}>Open Studies</a>
@@ -139,7 +128,7 @@
 					{#if overviewView.commandItems.length === 0}
 						<EmptyState
 							title="No workspace actions"
-							description="Open Studies to review visible sample and own study work."
+							description="Open Studies to create or continue study work."
 							actionHref={resolve('/app/campaign-series')}
 							actionLabel="Open Studies"
 						/>
@@ -175,7 +164,7 @@
 				<section class="grid gap-3" aria-label="Sample studies">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Learn from examples</p>
+							<p class="product-kicker">Examples</p>
 							<h2 class="product-title">Sample studies</h2>
 						</div>
 						<a class="secondary-button" href={resolve('/app/campaign-series')}>View all studies</a>
@@ -184,7 +173,7 @@
 					{#if overviewView.sampleStudies.length === 0}
 						<EmptyState
 							title="No sample studies"
-							description="Sample studies appear here when starter content is available. Open Studies to inspect all visible studies."
+							description="Sample studies appear here when starter content is available."
 							actionHref={resolve('/app/campaign-series')}
 							actionLabel="Open Studies"
 						/>
@@ -228,7 +217,7 @@
 				<section class="grid gap-3" aria-label="Your studies">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Continue real work</p>
+							<p class="product-kicker">Your work</p>
 							<h2 class="product-title">Your studies</h2>
 						</div>
 						<a class="secondary-button" href={resolve('/app/campaign-series')}>Open portfolio</a>
@@ -236,8 +225,8 @@
 
 					{#if overviewView.ownStudies.length === 0}
 						<EmptyState
-							title="No own studies"
-							description="Your editable studies appear here after creation or duplication. Open Studies to create tenant-owned work."
+							title="No studies yet"
+							description="Your editable studies appear here after you create one."
 							actionHref={resolve('/app/campaign-series')}
 							actionLabel="Open Studies"
 						/>
@@ -273,26 +262,24 @@
 					{/if}
 				</section>
 
-				<section class="home-lifecycle-list" role="group" aria-label="Study lifecycle">
-					{#each overviewView.lifecycleSteps as step}
-						<article class="home-lifecycle-row">
-							<h3 class="home-lifecycle-row__title">{step.label}</h3>
-							<p class="home-lifecycle-row__description">
-								{step.description}
-							</p>
-						</article>
-					{/each}
-				</section>
+				<details
+					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+				>
+					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+						Workspace overview
+					</summary>
+					<section class="home-lifecycle-list mt-4" role="group" aria-label="Study lifecycle">
+						{#each overviewView.lifecycleSteps as step}
+							<article class="home-lifecycle-row">
+								<h3 class="home-lifecycle-row__title">{step.label}</h3>
+								<p class="home-lifecycle-row__description">
+									{step.description}
+								</p>
+							</article>
+						{/each}
+					</section>
 
-				<section class="grid gap-4 border-t border-[var(--color-border)] pt-4">
-					<div class="product-panel__header">
-						<div>
-							<p class="product-kicker">Workspace totals</p>
-							<h2 class="product-title">Study portfolio scale</h2>
-						</div>
-					</div>
-
-					<dl class="home-total-list" role="group" aria-label="Workspace totals">
+					<dl class="home-total-list mt-4" role="group" aria-label="Workspace totals">
 						{#each overviewView.totalRows as row}
 							<div class="home-total-row">
 								<dt class="home-total-row__label">{row.label}</dt>
@@ -300,7 +287,7 @@
 							</div>
 						{/each}
 					</dl>
-				</section>
+				</details>
 
 			</div>
 		{/if}
