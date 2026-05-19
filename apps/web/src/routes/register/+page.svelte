@@ -210,7 +210,13 @@
 							Continue with the owner account. After sign-in, you will return here to enter the workspace name and beta code.
 						</p>
 					{/if}
-					<a class="registration-submit" href={registrationSignInUrl || signInUrl}>Continue with account</a>
+					{#if registrationSignInUrl}
+						<a class="registration-submit" href={registrationSignInUrl}>Continue with owner account</a>
+					{:else}
+						<button class="registration-submit" type="button" disabled>
+							Preparing account link...
+						</button>
+					{/if}
 				</div>
 			{:else}
 				<form class="registration-form" onsubmit={submitWorkspace}>
