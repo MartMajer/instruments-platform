@@ -18698,3 +18698,9 @@ Assessment: The first VPS redeploy attempt for the Results hub cleanup failed du
 Task: Replaced those local const tags with inline filtered row expressions so the Results details markup keeps hidden id/code rows out of normal display without violating Svelte compile rules.
 
 Verification: First VPS redeploy attempt failed at `npm run build` with the Svelte const-placement compiler error; rerun pending after this fix.
+
+## 2026-05-19 - Results hub staging deploy
+
+Task: Deployed the widget-led Results hub cleanup and real CSV browser download to staging.
+
+Verification: Initial deploy attempt at commit `cbe0092` failed during Docker web build on invalid Svelte `{@const}` placement. Follow-up fix commit `f6e3b07` deployed successfully. Docker web production build passed with the existing large-chunk warning, VPS release checks passed, remote public smoke and backup/restore passed, authenticated remote smoke was skipped, and public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Evidence: `/tmp/results-hub-export-vps-release-20260519-rerun`. Running web image: `sha256:aeaf5fa3d5cc01e335cc0c4077ab5915d38de85e69ae1321495233ec2b96a863`.
