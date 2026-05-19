@@ -1117,16 +1117,18 @@
 				</section>
 			{/if}
 
-			{#if wavesRouteGuidance}
-				<RouteGuidancePanel guidance={wavesRouteGuidance} />
-			{/if}
-
 			{#if wavesWorkspace}
-				<section class="product-panel" role="group" aria-label="Longitudinal analysis overview">
-					<div class="product-panel__header">
+				<SelectedSeriesWavesWorkflow
+					workspace={wavesWorkspace}
+					onWorkspaceRefresh={() => refreshWavesWorkspace()}
+				/>
+
+				<details class="product-panel reference-context" aria-label="Longitudinal comparison status">
+					<summary class="record-row__title">Longitudinal comparison status</summary>
+					<div class="product-panel__header mt-4">
 						<div>
 							<p class="product-kicker">Advanced study lifecycle</p>
-							<h2 class="product-title">Longitudinal analysis overview</h2>
+							<h2 class="product-title">Wave comparison status</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								Waves compares repeated waves in the same study when change over time
 								matters.
@@ -1212,20 +1214,31 @@
 							</p>
 						</article>
 					</div>
-				</section>
+				</details>
 
-				<SelectedSeriesWaveComparisonSnapshot workspace={wavesWorkspace} />
-				<SelectedSeriesWavesWorkflow
-					workspace={wavesWorkspace}
-					onWorkspaceRefresh={() => refreshWavesWorkspace()}
-				/>
+				<details class="product-panel reference-context" aria-label="Wave dashboard">
+					<summary class="record-row__title">Wave dashboard and snapshot</summary>
+					<div class="mt-4">
+						<SelectedSeriesWaveComparisonSnapshot workspace={wavesWorkspace} />
+					</div>
+				</details>
 			{/if}
 
-			<section
+			{#if wavesRouteGuidance}
+				<details class="product-panel reference-context" aria-label="Waves guidance">
+					<summary class="record-row__title">Waves guidance</summary>
+					<div class="mt-4">
+						<RouteGuidancePanel guidance={wavesRouteGuidance} />
+					</div>
+				</details>
+			{/if}
+
+			<details
 				class="product-panel reference-context"
 				aria-label={`${wavesWorkspaceView.surfaceLabel} selected-series context`}
 			>
-				<div class="product-panel__header">
+				<summary class="record-row__title">Technical waves reference</summary>
+				<div class="product-panel__header mt-4">
 					<div>
 						<p class="product-kicker">{wavesWorkspaceView.surfaceEyebrow}</p>
 						<h2 class="product-title">{wavesWorkspaceView.title}</h2>
@@ -1364,7 +1377,7 @@
 						</div>
 					{/if}
 				</div>
-			</section>
+			</details>
 		{:else if surfaceView}
 			<section
 				class="product-panel"

@@ -58,7 +58,7 @@
 				? 'Ready'
 				: loadState === 'error'
 					? 'Failed'
-					: 'Local'
+					: 'Ready'
 	);
 
 	$effect(() => {
@@ -130,10 +130,10 @@
 <section class="product-panel" role="group" aria-label="Wave comparison snapshot">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Wave comparison snapshot</p>
-			<h3 class="product-title">Selected-series wave comparison snapshot</h3>
+			<p class="product-kicker">Wave dashboard</p>
+			<h3 class="product-title">Wave comparison snapshot</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Disclosure-gated comparison proof for the selected baseline and comparison waves.
+				Disclosure-safe comparison for the selected baseline and comparison waves.
 			</p>
 		</div>
 		<StatusBadge status={snapshotBadgeStatus} label={snapshotBadgeLabel} />
@@ -278,8 +278,8 @@
 			</button>
 			<p class="step-pill" data-state={snapshotStepState}>{snapshotStepLabel}</p>
 			<p class="result-line">
-				<span>Series</span>
-				<code>{snapshotState.seriesId}</code>
+				<span>Study</span>
+				<span>{workspace.series.name}</span>
 			</p>
 		</div>
 
@@ -298,14 +298,13 @@
 			>
 				<div class="score-result-panel__header">
 					<div>
-						<p class="product-kicker">Proof/local comparison</p>
+						<p class="product-kicker">Wave comparison</p>
 						<h4 class="record-row__title">Disclosure-gated wave comparison</h4>
 					</div>
-					<StatusBadge status="proof_only" label="Proof/local" />
+					<StatusBadge status="ready" label="Ready" />
 				</div>
 
 				<div class="response-lab__meta">
-					<span>{snapshotView.proofStatus}</span>
 					<span>{snapshotResult?.interpretationStatus}</span>
 					<span>complete trajectories {workspace.summary.completeTrajectoryCount}</span>
 					<span>linked pairs {workspace.comparison.linkedPairCount}</span>

@@ -92,16 +92,10 @@
 	const latestResponseActivity = $derived(
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
-	const hasTechnicalDetails = $derived(
-		Boolean(
-			readinessResult?.campaignId ||
-				launchResult?.launchSnapshotId ||
-				selectedCampaign?.latestLaunchSnapshotId ||
-				respondentEntry?.assignmentId ||
-				identifiedEntryResult?.subjectId ||
-				closeResult?.closedByUserId ||
-				selectedCampaign?.closedByUserId
-		)
+	const readinessIssueGuidance = $derived(
+		readinessResult?.issues.length
+			? readinessResult.issues.map((issue) => toReadinessIssueGuidance(issue.message))
+			: []
 	);
 
 	async function checkLaunchReadiness() {
@@ -303,6 +297,32 @@
 	function humanize(value: string | null | undefined) {
 		return value ? value.replaceAll('_', ' ') : 'Not available';
 	}
+
+	function toReadinessIssueGuidance(message: string) {
+		const normalized = message.toLowerCase();
+
+		if (normalized.includes('campaign') && normalized.includes('template')) {
+			return 'Go back to Setup and attach a questionnaire template to this collection wave.';
+		}
+
+		if (normalized.includes('template')) {
+			return 'Go back to Setup and finish the questionnaire/template step.';
+		}
+
+		if (normalized.includes('scoring')) {
+			return 'Go back to Setup and finish the result/scoring rule step.';
+		}
+
+		if (normalized.includes('policy') || normalized.includes('consent') || normalized.includes('retention') || normalized.includes('disclosure')) {
+			return 'Go back to Setup and complete the study policy records.';
+		}
+
+		if (normalized.includes('audience') || normalized.includes('respondent')) {
+			return 'Go back to Setup and define who can answer this collection wave.';
+		}
+
+		return message;
+	}
 </script>
 
 <section class="product-panel" role="group" aria-label="Collection workflow">
@@ -326,6 +346,27 @@
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<div class="setup-path" role="list" aria-label="Collection path">
+		{#each operationsPath.steps as action, index (action.id)}
+			<div role="listitem">
+				<button
+					type="button"
+					class="setup-path__item"
+					data-state={displayedPathState(action)}
+					aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
+					onclick={() => selectAction(action.id)}
+				>
+					<span class="setup-path__marker">{index + 1}</span>
+					<span class="setup-path__content">
+						<span class="setup-path__title">{action.title}</span>
+						<span class="setup-path__description">{action.description}</span>
+					</span>
+					<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
+				</button>
+			</div>
+		{/each}
+	</div>
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
@@ -360,16 +401,19 @@
 						<div class="record-field">
 							<dt class="record-field__label">Setup check</dt>
 							<dd class="record-field__value">
-								{readinessResult ? (readinessResult.ready ? 'Ready' : 'Needs attention') : 'Not checked'}
+								{readinessResult ? (readinessResult.ready ? 'Ready' : 'Blocked') : 'Not checked'}
 							</dd>
 						</div>
 					</dl>
 					{#if readinessResult?.issues.length}
 						<div class="record-row" aria-label="Readiness issues">
 							<h5 class="record-row__title">Before collection can start</h5>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Fix these setup items, then run the pre-launch check again.
+							</p>
 							<ul class="grid gap-2">
-								{#each readinessResult.issues as issue}
-									<li class="text-sm text-[var(--color-text-muted)]">{issue.message}</li>
+								{#each readinessIssueGuidance as guidance}
+									<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
 								{/each}
 							</ul>
 						</div>
@@ -378,7 +422,7 @@
 						id: 'readiness',
 						label: 'Run pre-launch check',
 						resultLabel: 'Setup check',
-						resultValue: readinessResult ? (readinessResult.ready ? 'Ready' : 'Needs attention') : null,
+						resultValue: readinessResult ? (readinessResult.ready ? 'Ready' : 'Blocked') : null,
 						onclick: checkLaunchReadiness
 					})}
 				{:else if activeAction.id === 'launch'}
@@ -528,54 +572,6 @@
 			</div>
 		</article>
 
-		<div class="setup-path" role="list" aria-label="Collection path">
-			{#each operationsPath.steps as action, index (action.id)}
-				<div role="listitem">
-					<button
-						type="button"
-						class="setup-path__item"
-						data-state={displayedPathState(action)}
-						aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
-						onclick={() => selectAction(action.id)}
-					>
-						<span class="setup-path__marker">{index + 1}</span>
-						<span class="setup-path__content">
-							<span class="setup-path__title">{action.title}</span>
-							<span class="setup-path__description">{action.description}</span>
-						</span>
-						<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
-					</button>
-				</div>
-			{/each}
-		</div>
-
-		{#if hasTechnicalDetails}
-			<details class="record-row">
-				<summary class="record-row__title">Technical details</summary>
-				<dl class="record-grid mt-4">
-					{@render ResultField({
-						label: 'Campaign record',
-						value: readinessResult?.campaignId ?? selectedCampaign?.id ?? null
-					})}
-					{@render ResultField({
-						label: 'Launch record',
-						value: launchResult?.launchSnapshotId ?? selectedCampaign?.latestLaunchSnapshotId ?? null
-					})}
-					{@render ResultField({
-						label: 'Assignment record',
-						value: respondentEntry?.assignmentId ?? null
-					})}
-					{@render ResultField({
-						label: 'Subject record',
-						value: identifiedEntryResult?.subjectId ?? null
-					})}
-					{@render ResultField({
-						label: 'Closed by',
-						value: closeResult?.closedByUserId ?? selectedCampaign?.closedByUserId ?? null
-					})}
-				</dl>
-			</details>
-		{/if}
 	{/if}
 </section>
 
@@ -627,14 +623,5 @@
 			<span>{label}</span>
 			<code>{value}</code>
 		</p>
-	{/if}
-{/snippet}
-
-{#snippet ResultField({ label, value }: { label: string; value: string | null | undefined })}
-	{#if value}
-		<div class="record-field">
-			<dt class="record-field__label">{label}</dt>
-			<dd class="record-field__value">{value}</dd>
-		</div>
 	{/if}
 {/snippet}

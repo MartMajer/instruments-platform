@@ -320,6 +320,24 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
+	<div class="setup-path" role="list" aria-label="Review and export path">
+		{#each reportsPath.steps as action, index (action.id)}
+			<div
+				class="setup-path__item"
+				data-state={action.pathState}
+				role="listitem"
+				aria-current={action.pathState === 'current' ? 'step' : undefined}
+			>
+				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
+				<div class="setup-path__content">
+					<p class="setup-path__title">{action.title}</p>
+					<p class="setup-path__description">{action.description}</p>
+				</div>
+				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
+			</div>
+		{/each}
+	</div>
+
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
 			<strong class="record-row__title">Read-only access</strong>
@@ -486,24 +504,6 @@
 				{/if}
 			</div>
 		</article>
-
-		<div class="setup-path" role="list" aria-label="Review and export path">
-			{#each reportsPath.steps as action, index (action.id)}
-				<div
-					class="setup-path__item"
-					data-state={action.pathState}
-					role="listitem"
-					aria-current={action.pathState === 'current' ? 'step' : undefined}
-				>
-					<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
-					<div class="setup-path__content">
-						<p class="setup-path__title">{action.title}</p>
-						<p class="setup-path__description">{action.description}</p>
-					</div>
-					<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
-				</div>
-			{/each}
-		</div>
 
 		{#if hasReportResults}
 			<details class="record-row" aria-label="Latest results action details">

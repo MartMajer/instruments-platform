@@ -171,17 +171,35 @@
 	<div class="product-panel__header">
 		<div>
 			<p class="product-kicker">Waves workflow</p>
-			<h3 class="product-title">Selected-series waves workflow</h3>
+			<h3 class="product-title">Compare waves</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Actions target the selected route series and keep wave-comparison outputs local.
+				Check linked trajectories and compare change over time between selected waves.
 			</p>
 		</div>
-		<StatusBadge status="proof_only" label="Proof/local" />
+		<StatusBadge status={currentAction.status} label={currentAction.title} />
 	</div>
 
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<div class="setup-path" role="list" aria-label="Waves path">
+		{#each wavesPath.steps as action, index (action.id)}
+			<div
+				class="setup-path__item"
+				data-state={action.pathState}
+				role="listitem"
+				aria-current={action.pathState === 'current' ? 'step' : undefined}
+			>
+				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
+				<div class="setup-path__content">
+					<p class="setup-path__title">{action.title}</p>
+					<p class="setup-path__description">{action.description}</p>
+				</div>
+				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
+			</div>
+		{/each}
+	</div>
 
 	<article class="record-row setup-current-task" role="region" aria-label="Current waves task">
 		<div class="setup-current-task__header">
@@ -221,8 +239,8 @@
 				{@render ActionFooter({
 					id: 'twoWaveProof',
 					label: 'Run linked trajectory check',
-					resultLabel: 'Series',
-					resultValue: twoWaveProofResult?.campaignSeriesId ?? workspace.series.id,
+					resultLabel: 'Study',
+					resultValue: twoWaveProofResult ? workspace.series.name : null,
 					onclick: refreshTwoWaveProof
 				})}
 			{:else}
@@ -248,45 +266,30 @@
 				{@render ActionFooter({
 					id: 'waveComparisonProof',
 					label: 'View wave comparison preview',
-					resultLabel: 'Series',
-					resultValue: waveComparisonProofResult?.campaignSeriesId ?? workspace.series.id,
+					resultLabel: 'Study',
+					resultValue: waveComparisonProofResult ? workspace.series.name : null,
 					onclick: viewWaveComparisonProof
 				})}
 			{/if}
 		</div>
 	</article>
 
-	<div class="setup-path" role="list" aria-label="Waves path">
-		{#each wavesPath.steps as action, index (action.id)}
-			<div
-				class="setup-path__item"
-				data-state={action.pathState}
-				role="listitem"
-				aria-current={action.pathState === 'current' ? 'step' : undefined}
-			>
-				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
-				<div class="setup-path__content">
-					<p class="setup-path__title">{action.title}</p>
-					<p class="setup-path__description">{action.description}</p>
-				</div>
-				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
-			</div>
-		{/each}
-	</div>
-
 	{#if hasWavesResults}
-		<div class="record-list" aria-label="Latest waves results">
-			{#if twoWaveProofResult}
-				<article class="record-row" aria-label="Latest linked trajectory check result">
-					{@render TwoWaveProofResult()}
-				</article>
-			{/if}
-			{#if waveComparisonProofResult}
-				<article class="record-row" aria-label="Latest wave comparison preview result">
-					{@render WaveComparisonProofResult()}
-				</article>
-			{/if}
-		</div>
+		<details class="record-row" aria-label="Latest waves action details">
+			<summary class="record-row__title">Latest action details</summary>
+			<div class="record-list mt-4" aria-label="Latest waves results">
+				{#if twoWaveProofResult}
+					<article class="record-row" aria-label="Latest linked trajectory check result">
+						{@render TwoWaveProofResult()}
+					</article>
+				{/if}
+				{#if waveComparisonProofResult}
+					<article class="record-row" aria-label="Latest wave comparison preview result">
+						{@render WaveComparisonProofResult()}
+					</article>
+				{/if}
+			</div>
+		</details>
 	{/if}
 </section>
 
@@ -295,13 +298,12 @@
 		<section class="score-result-panel report-proof-panel" aria-label="Linked trajectory check">
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Proof/local waves</p>
+					<p class="product-kicker">Wave readiness</p>
 					<h4 class="record-row__title">Linked trajectory check</h4>
 				</div>
-				<StatusBadge status="proof_only" label="Proof/local" />
+				<StatusBadge status="ready" label="Ready" />
 			</div>
 			<div class="response-lab__meta">
-				<span>{twoWaveProofResult.proofStatus}</span>
 				<span>launched waves {twoWaveProofResult.launchedWaveCount}</span>
 				<span>submitted waves {twoWaveProofResult.submittedWaveCount}</span>
 				<span>linked trajectories {twoWaveProofResult.linkedTrajectoryCount}</span>
@@ -336,13 +338,12 @@
 		<section class="score-result-panel report-proof-panel" aria-label="Wave comparison preview">
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Proof/local comparison</p>
+					<p class="product-kicker">Wave comparison</p>
 					<h4 class="record-row__title">Disclosure-gated comparison</h4>
 				</div>
-				<StatusBadge status="proof_only" label="Proof/local" />
+				<StatusBadge status="ready" label="Ready" />
 			</div>
 			<div class="response-lab__meta">
-				<span>{waveComparisonProofResult.proofStatus}</span>
 				<span>{waveComparisonProofResult.interpretationStatus}</span>
 				{#if waveComparisonProofResult.disclosurePolicy}
 					<span>Disclosure k={waveComparisonProofResult.disclosurePolicy.kMin}</span>

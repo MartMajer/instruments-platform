@@ -50,8 +50,8 @@ export function toSelectedSeriesWavesWorkflowActions(
 		{
 			id: 'twoWaveProof',
 			step: 'Step 1',
-			title: 'Linked trajectory check',
-			description: 'Refresh linked trajectory counts for the selected route series.',
+			title: 'Check linked trajectories',
+			description: 'Confirm this study has enough linked responses to compare waves.',
 			status: toTwoWaveProofStatus(hasTwoLongitudinalWaves, twoWaveProofViewed),
 			available: hasTwoLongitudinalWaves,
 			disabledReason: hasTwoLongitudinalWaves
@@ -61,8 +61,8 @@ export function toSelectedSeriesWavesWorkflowActions(
 		{
 			id: 'waveComparisonProof',
 			step: 'Step 2',
-			title: 'Wave comparison preview',
-			description: 'View disclosure-gated side-by-side and paired delta preview output.',
+			title: 'Compare selected waves',
+			description: 'Review disclosure-safe change over time between the selected waves.',
 			status: toWaveComparisonStatus(
 				hasSelectedComparison,
 				comparisonProofReady,

@@ -18632,3 +18632,25 @@ Assessment: The Results hub had the same first-fold problem as Collection, with 
 Task: Reordered the Results surface so the review/export workflow appears first. Moved results status, configured widgets, report dashboard/snapshot, route guidance, and technical reference into collapsed sections below the workflow. Reordered the reports workflow so the current action card appears before the path map, collapsed repeated latest action details, and renamed workflow steps toward researcher actions: review results, create report export, create response export, review export file, download CSV.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Waves hub action-first layout pass
+
+Assessment: The Waves hub still put guidance, longitudinal overview, dashboard/snapshot, and reference material before the user reached the comparison workflow. This made Waves inconsistent with the updated Setup, Collection, and Results surfaces.
+
+Task: Reordered the Waves surface so the comparison workflow appears first. Moved longitudinal comparison status, wave dashboard/snapshot, route guidance, and technical waves reference into collapsed sections below the workflow. Cleaned the Waves workflow and snapshot language to focus on linked trajectories and wave comparison rather than proof/local implementation language.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Workflow path ordering consistency
+
+Assessment: After the action-first refactor, the setup-path step strip was placed below the current action card in Results and Waves, which made those surfaces inconsistent with the expected workflow orientation pattern.
+
+Task: Moved the setup-path step strip back above the current action card in Collection, Results, and Waves workflow components while keeping noisy overview, guidance, snapshot, and reference panels collapsed below the workflow.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+## 2026-05-19 - Collection readiness actionability cleanup
+
+Assessment: The Collection workflow still exposed low-value technical IDs under Technical details, and the readiness result "Needs attention" did not tell the researcher what to fix.
+
+Task: Removed the workflow-level Technical details block from the Collection workflow and changed failed setup check wording to "Blocked". Added readiness issue guidance that translates common backend prerequisite messages into setup actions: finish questionnaire/template, finish scoring/results, complete policies, or define audience/respondent access before rerunning the pre-launch check.
+
+Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
