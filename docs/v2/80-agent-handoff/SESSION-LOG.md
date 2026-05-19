@@ -18585,6 +18585,6 @@ Assessment: Owner found the Draft campaign and Launch check setup surfaces still
 
 Task: Reframed Step 4 as `Collection setup`, changed campaign fields to wave name, response mode, and respondent language, hid the form after the collection wave is ready, and changed the action to `Save collection wave`. Reworked the audience preview into `Who will receive this study?`, changed audience-rule labels and warning messages to researcher-facing language, changed save/refresh labels, and collapsed saved audience-rule/assignment internals under `Delivery details`. Reworked Launch check into a checklist for questionnaire, results setup, collection wave, and current launch status, with issue messages stripped of internal codes.
 
-Verification: Pending staging deploy.
+Verification: Commit `4f5d648` deployed to staging. Docker web production build passed during redeploy. VPS redeploy proof passed at `/tmp/collection-launch-ui-vps-release-20260519`, including remote public smoke and backup/restore; authenticated remote smoke was skipped. Public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Running web image: `sha256:a16d218caae84ca7b23f7528e4bddc75126b02d7c7c46816299d3920c0ffd564`.
 
 Remaining risk: Audience selection still depends on the existing respondent-rule model and Directory data. A full audience-builder slice is still needed before this feels complete for real studies.
