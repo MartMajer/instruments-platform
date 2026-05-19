@@ -935,14 +935,7 @@
 		const outputCode = scoreCodeFromName(scoreName);
 		return JSON.stringify(
 			{
-				scores: [outputCode],
-				interpretation: {
-					[outputCode]: {
-						label: scoreName.trim() || 'Total score',
-						status: 'not_configured',
-						note: 'Interpretation bands are not configured in this setup step yet.'
-					}
-				}
+				scores: [outputCode]
 			},
 			null,
 			2

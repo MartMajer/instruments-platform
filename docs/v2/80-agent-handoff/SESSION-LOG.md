@@ -18568,3 +18568,13 @@ Task: Added D349 assessment and `docs/v2/30-features/custom-study-builder.md` to
 Verification: VPS staging deployment passed from commit `1a6f656`. Docker web production build passed, VPS release checks passed, remote public smoke passed, backup/restore smoke passed, authenticated remote smoke was skipped, and public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Evidence: `/tmp/custom-builder-results-vps-release-20260519`.
 
 Remaining risk: The visual builder is still intentionally constrained. It does not yet provide branching, matrix/grid questions, multi-output subscales, choice scoring, interpretation bands, norms, reliability metrics, or proven respondent-rendering parity for every exposed question type.
+
+## 2026-05-19 - Results setup save 400 fix
+
+Assessment: Owner hit `POST /scoring-rules` 400 when saving the Results setup step on staging. API validator review showed the generated `produces.interpretation` object was invalid: the backend only accepts tenant-attested interpretation metadata with `status`, `source`, `provenance`, and band arrays under `scores`. The current Results setup intentionally does not configure interpretation bands, so sending a partial `interpretation` object was wrong.
+
+Task: Changed Results setup to generate `produces` as declared score codes only. This preserves score output validation while omitting interpretation metadata until a real interpretation-bands UI exists.
+
+Verification: Pending staging redeploy.
+
+Remaining risk: Interpretation bands remain out of scope for the current Results setup and are documented as a future slice.
