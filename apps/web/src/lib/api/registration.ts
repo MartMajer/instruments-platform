@@ -28,8 +28,20 @@ export type CreateRegistrationWorkspaceResponse = {
 	email: string;
 };
 
+export type ExistingWorkspaceSignInRequest = {
+	email: string;
+	returnUrl?: string;
+};
+
+export type ExistingWorkspaceSignInResponse = {
+	loginUrl: string;
+};
+
 export type RegistrationApi = {
 	createIntent(request: CreateRegistrationIntentRequest): Promise<CreateRegistrationIntentResponse>;
+	createExistingWorkspaceSignIn(
+		request: ExistingWorkspaceSignInRequest
+	): Promise<ExistingWorkspaceSignInResponse>;
 	getSession(): Promise<RegistrationSessionResponse>;
 	createWorkspace(
 		request: CreateRegistrationWorkspaceRequest
@@ -40,6 +52,15 @@ export function createRegistrationApi(client: ApiClient = createApiClient()): Re
 	return {
 		createIntent(request) {
 			return client.request<CreateRegistrationIntentResponse>('/registration/intents', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify(request)
+			});
+		},
+		createExistingWorkspaceSignIn(request) {
+			return client.request<ExistingWorkspaceSignInResponse>('/registration/workspace-sign-in', {
 				method: 'POST',
 				headers: {
 					'content-type': 'application/json'

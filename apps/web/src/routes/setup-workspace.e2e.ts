@@ -104,6 +104,15 @@ test('uses the last authenticated workspace for home sign-in after sign-out', as
 	);
 });
 
+test('routes generic home sign-in to workspace lookup when no workspace is known', async ({ page }) => {
+	await page.goto('/');
+
+	await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
+		'href',
+		'/register?mode=signin'
+	);
+});
+
 test('removes stale auth failure marker after successful workspace sign-in', async ({ page }) => {
 	await page.goto('/app?auth=failed');
 
@@ -268,6 +277,41 @@ test('remembers workspace account after registration workspace creation', async 
 		{ tenantId: registeredTenantId, email: registeredEmail }
 	);
 	await expect(page).toHaveURL(new RegExp(`/app\\?tenantId=${registeredTenantId}`));
+});
+
+test('finds an existing workspace by email before Auth0 sign-in', async ({ page }) => {
+	const registeredTenantId = '55555555-5555-4555-8555-555555555555';
+	const registeredEmail = 'existing-owner@example.test';
+	let lookupRequest: unknown = null;
+
+	await page.route('**/registration/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.route('**/registration/workspace-sign-in', async (route) => {
+		lookupRequest = route.request().postDataJSON();
+		await route.fulfill({
+			json: {
+				loginUrl: `/auth/login?tenantId=${registeredTenantId}&returnUrl=${encodeURIComponent(
+					'https://validatedscale-staging.croat.dev/app'
+				)}&prompt=login&login_hint=${encodeURIComponent(registeredEmail)}`
+			}
+		});
+	});
+
+	await page.goto('/register?mode=signin');
+	await page.getByRole('textbox', { name: 'Email' }).fill(registeredEmail);
+	await page.getByRole('button', { name: 'Continue to sign in' }).click();
+
+	expect(lookupRequest).toMatchObject({
+		email: registeredEmail,
+		returnUrl: 'http://127.0.0.1:4173/app'
+	});
+	await page.waitForFunction(
+		({ tenantId, email }) =>
+			window.localStorage.getItem('instruments-platform.last-tenant-id') === tenantId &&
+			window.localStorage.getItem('instruments-platform.last-workspace-email') === email,
+		{ tenantId: registeredTenantId, email: registeredEmail }
+	);
 });
 
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {

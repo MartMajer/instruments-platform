@@ -56,6 +56,31 @@ describe('registration api', () => {
 		expect(session.email).toBe('owner@example.test');
 	});
 
+	it('requests an existing workspace sign-in URL by email', async () => {
+		let capturedPath = '';
+		let capturedBody: unknown = null;
+		const api = createRegistrationApi({
+			request<T>(path: string, init?: RequestInit) {
+				capturedPath = path;
+				capturedBody = init?.body ? JSON.parse(init.body.toString()) : null;
+				return {
+					loginUrl: '/auth/login?tenantId=11111111-1111-4111-8111-111111111111'
+				} as T;
+			}
+		});
+
+		await api.createExistingWorkspaceSignIn({
+			email: 'owner@example.test',
+			returnUrl: '/app'
+		});
+
+		expect(capturedPath).toBe('/registration/workspace-sign-in');
+		expect(capturedBody).toEqual({
+			email: 'owner@example.test',
+			returnUrl: '/app'
+		});
+	});
+
 	it('creates a workspace from the pending registration session', async () => {
 		expect.assertions(4);
 		let capturedPath = '';

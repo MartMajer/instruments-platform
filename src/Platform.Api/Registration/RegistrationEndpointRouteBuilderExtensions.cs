@@ -40,6 +40,12 @@ public sealed record CreateRegistrationWorkspaceResponse(
     Guid TenantId,
     string Email);
 
+public sealed record ExistingWorkspaceSignInRequest(
+    string Email,
+    string ReturnUrl = "/app");
+
+public sealed record ExistingWorkspaceSignInResponse(string LoginUrl);
+
 public sealed record RegistrationIdentity(
     string Email,
     string Provider,
@@ -167,7 +173,7 @@ public sealed class RegistrationIntentService(
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
     }
 
-    private static string BuildExistingWorkspaceLoginUrl(Guid tenantId, string returnUrl, string email)
+    internal static string BuildExistingWorkspaceLoginUrl(Guid tenantId, string returnUrl, string email)
     {
         return QueryHelpers.AddQueryString(
             "/auth/login",
@@ -502,6 +508,12 @@ public static class RegistrationEndpointRouteBuilderExtensions
             .WithName("CreateRegistrationIntent")
             .WithTags("Registration");
 
+        app.MapPost("/registration/workspace-sign-in", CreateExistingWorkspaceSignIn)
+            .AllowAnonymous()
+            .RequireRateLimiting(RegistrationRateLimitPolicies.Intent)
+            .WithName("CreateExistingWorkspaceSignIn")
+            .WithTags("Registration");
+
         app.MapGet("/registration/session", GetRegistrationSession)
             .AllowAnonymous()
             .WithName("GetRegistrationSession")
@@ -526,6 +538,58 @@ public static class RegistrationEndpointRouteBuilderExtensions
         return result.IsSuccess
             ? Results.Ok(result.Value)
             : ToProblem(result.Error);
+    }
+
+    private static async Task<IResult> CreateExistingWorkspaceSignIn(
+        ExistingWorkspaceSignInRequest request,
+        ApplicationDbContext db,
+        IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var email = RegistrationIntentService.NormalizeEmail(request.Email);
+        if (email.IsFailure)
+        {
+            return ToProblem(email.Error);
+        }
+
+        var returnUrl = AuthReturnUrl.Normalize(request.ReturnUrl, "/app", configuration);
+        if (returnUrl is null)
+        {
+            return ToProblem(Error.Validation(
+                "registration.invalid_return_url",
+                "Return URL must be a local application path."));
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.Database.ExecuteSqlRawAsync(
+            "SELECT set_config('app.registration_email_lookup', 'on', true)",
+            cancellationToken);
+
+        var existingTenantId = await (
+                from user in db.UserAccounts
+                join tenant in db.Tenants on user.TenantId equals tenant.Id
+                where user.Email == email.Value &&
+                    user.DeletedAt == null &&
+                    tenant.DeletedAt == null &&
+                    tenant.Status == "active"
+                orderby user.TenantId
+                select (Guid?)user.TenantId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (!existingTenantId.HasValue)
+        {
+            return ToProblem(Error.NotFound(
+                "registration.workspace_not_found",
+                "No active workspace was found for this email. Create a workspace first."));
+        }
+
+        return Results.Ok(new ExistingWorkspaceSignInResponse(
+            RegistrationIntentService.BuildExistingWorkspaceLoginUrl(
+                existingTenantId.Value,
+                returnUrl,
+                email.Value)));
     }
 
     private static IResult GetRegistrationSession(HttpContext context)

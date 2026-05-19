@@ -13,7 +13,10 @@
 
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
 	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
-	let loginUrl = $state(createLoginUrlFromEnv(env, initialTenantIdFromUrl));
+	const workspaceSignInUrl = `${resolve('/register')}?mode=signin`;
+	let loginUrl = $state(
+		initialTenantIdFromUrl ? createLoginUrlFromEnv(env, initialTenantIdFromUrl) : workspaceSignInUrl
+	);
 
 	onMount(() => {
 		const storedTenantId = readLastTenantId(window.localStorage);
@@ -26,7 +29,7 @@
 			rememberLastTenantId(window.localStorage, tenantIdFromUrl);
 		}
 
-		loginUrl = createLoginUrlFromEnv(env, tenantId, loginHint);
+		loginUrl = tenantId ? createLoginUrlFromEnv(env, tenantId, loginHint) : workspaceSignInUrl;
 
 		if (page.url.searchParams.get('postLogout') !== 'register') {
 			return;
