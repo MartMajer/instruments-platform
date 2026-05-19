@@ -18519,3 +18519,10 @@ Assessment: Owner testing showed the setup page still read like a long internal 
 Task: Reframed setup workflow labels around instrument templates, draft campaigns, and launch checks. Added an active-step setup wizard shell with a persistent compact setup path, previous/next controls, clickable available/done steps, automatic advance after successful setup actions, and hidden campaign/audience detail sections unless the active step is campaign or launch readiness. Removed action result id lines from normal setup feedback.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+## 2026-05-19 - remove setup reference panel from setup flow
+
+Assessment: Owner identified the setup reference panel as non-product debug/proof content. It explained technical setup details, policies, prerequisite codes, and campaign fields while the setup page should keep the user focused on the wizard step.
+
+Task: Removed the setup reference panel from the normal selected-series setup surface. The setup page now keeps the wizard and active step content as the default setup flow.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
