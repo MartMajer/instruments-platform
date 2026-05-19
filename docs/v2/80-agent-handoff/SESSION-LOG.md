@@ -18575,6 +18575,6 @@ Assessment: Owner hit `POST /scoring-rules` 400 when saving the Results setup st
 
 Task: Changed Results setup to generate `produces` as declared score codes only. This preserves score output validation while omitting interpretation metadata until a real interpretation-bands UI exists.
 
-Verification: Pending staging redeploy.
+Verification: Commit `291ce29` deployed to staging. Docker web production build passed during redeploy. The first redeploy proof hit a transient web-root 502 during warm-up, then follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/results-setup-produces-fix-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:23cfd8e10f344b958c4f08c47348d2e52031e615c07d7e554a77db7025a6a887`.
 
 Remaining risk: Interpretation bands remain out of scope for the current Results setup and are documented as a future slice.
