@@ -1,3 +1,11 @@
+# Next Session Plan - Post-D353
+
+Current queue head: AUD01 researcher-facing audience selection.
+
+Recommended next slice: make collection audience setup read like recipient selection instead of respondent-rule programming. A researcher should be able to choose "everyone in this study audience", "people in this group", or the relevant manager/report relationship in plain language, preview who will receive invitations, save the selection, and understand why launch is blocked when the audience is empty.
+
+Preserve the existing backend respondent-rule mechanics unless the UX cannot be made coherent on top of them. Do not build HRIS sync, cryptographic anonymity guarantees, or a full audience-builder DSL. CSV import exists from DIR04, but its Docker-backed store tests still need a Docker-enabled run before deployment.
+
 # Next Session Plan - Post-D352
 
 Current queue head: DIR04 CSV audience import MVP for people and groups.

@@ -62,6 +62,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("CreateSubject")
             .WithTags("ProductSurfaces");
 
+        app.MapPost("/subjects/imports/csv", ImportSubjectDirectoryCsv)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ImportSubjectDirectoryCsv")
+            .WithTags("ProductSurfaces");
+
         app.MapPut("/subjects/{subjectId:guid}", UpdateSubject)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -259,6 +265,16 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new UpdateSubjectCommand(subjectId, request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ImportSubjectDirectoryCsv(
+        SubjectDirectoryCsvImportRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ImportSubjectDirectoryCsvCommand(request), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

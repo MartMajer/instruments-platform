@@ -28,7 +28,6 @@ instrument content and do not treat Q-053 as closed.
 
 | ID    | Action                                                                 | Why now                                                            | Effort |
 | ----- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ |
-| DIR04 | Add a CSV audience import MVP for people and groups                     | Manual directory entry blocks normal-sized studies                  | M      |
 | AUD01 | Rework collection audience selection into researcher-facing recipient UX | Saved audience rules still feel too model-driven                    | M      |
 | RSLT01 | Add multi-output Results setup for dimensions/subscales                | One average/sum score is too narrow for validated instruments       | L      |
 | VAL08 | Refresh the validation walkthrough packet after the product UI changes  | Owner calls should use the current app and current limits           | S      |
@@ -49,6 +48,7 @@ DEP01-C/GitHub Actions is deferred until the owner explicitly reopens deployment
 
 ## Done
 
+- [2026-05-20] DIR04 CSV audience import MVP **DONE locally, Docker behavior proof pending** - added `POST /subjects/imports/csv`, backend CSV import contracts/handler/store path, frontend product API method, and `/app/directory` paste/file CSV import panel for people, groups, and memberships. Verification: frontend product API test passed 30/30; targeted endpoint test passed 1/1. Docker-backed store tests for upsert/idempotency were added but could not run because Docker/Testcontainers could not connect to the local Docker engine; run them before deployment.
 - [2026-05-20] QB01 respondent-format parity **DONE** - added respondent `payload` to the API contract, returned question payload from response capture, rendered rating/NPS/single/multiple/number/text/date/ranking through the respondent SurveyJS adapter, serialized multiple-choice and ranking answers as JSON-array strings, restricted the Svelte input bridge to text-like controls, and added focused adapter coverage. Verification: focused web adapter test passed 5/5; targeted .NET respondent endpoint test passed 1/1. Broader `svelte-check` remains blocked by existing unrelated TypeScript/Svelte errors recorded in D352.
 - [2026-05-20] BR01 private-beta acceptance checklist **DONE** - added `docs/v2/80-agent-handoff/private-beta-acceptance-checklist.md`, closed Q-058 with the checklist as the beta bar, added D351 post-BR01 assessment, and selected QB01 as the next slice.
 - [2026-05-20] D350 project-state roadmap assessment **DONE** - assessed the current staging/product state against roadmap, backlog, milestones, risks, owner blockers, and recent shipped work. Decision: the app is now a private-beta product shell rather than merely a proof spine; the next default agent lane should be M1 private-beta acceptance quality, starting with BR01, while O01/O02/O03 and Q-053 remain owner/legal blockers. Added assessment `docs/v2/80-agent-handoff/assessments/D350-PROJECT-STATE-ROADMAP-ASSESSMENT-2026-05-20.md`.

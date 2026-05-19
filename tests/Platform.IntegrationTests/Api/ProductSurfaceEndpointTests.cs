@@ -575,6 +575,50 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Import_subject_directory_csv_endpoint_binds_request_and_requires_setup_manage()
+    {
+        var tenantId = Guid.NewGuid();
+        var importResponse = new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            RowCount: 1,
+            ImportedRowCount: 1,
+            CreatedSubjectCount: 1,
+            UpdatedSubjectCount: 0,
+            CreatedGroupCount: 1,
+            AddedMembershipCount: 1,
+            SkippedMembershipCount: 0,
+            [
+                new SubjectDirectoryCsvImportRowResponse(
+                    RowNumber: 2,
+                    Status: "imported",
+                    ExternalId: "emp-001",
+                    Email: "ana@example.test",
+                    DisplayName: "Ana Analyst",
+                    GroupType: "department",
+                    GroupName: "Research",
+                    Action: "created_subject,created_group,added_membership",
+                    Issues: [])
+            ]);
+        var writeStore = new FakeProductSurfaceWriteStore(importSubjectDirectoryCsvResult: Result.Success(importResponse));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(HttpMethod.Post, "/subjects/imports/csv", tenantId);
+        request.Content = JsonContent.Create(new SubjectDirectoryCsvImportRequest(
+            """
+            external_id,email,display_name,group_type,group_name
+            emp-001,ana@example.test,Ana Analyst,department,Research
+            """));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<SubjectDirectoryCsvImportResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(1, payload.ImportedRowCount);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Contains("emp-001", writeStore.ImportSubjectDirectoryCsvRequest?.CsvContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Subject_groups_endpoint_returns_groups_with_setup_manage()
     {
         var tenantId = Guid.NewGuid();
@@ -2404,6 +2448,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<TenantMemberMutationResponse>? changeTenantMemberRoleResult = null,
         Result<SubjectDirectoryItemResponse>? createSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? updateSubjectResult = null,
+        Result<SubjectDirectoryCsvImportResponse>? importSubjectDirectoryCsvResult = null,
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
         Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null)
@@ -2438,6 +2483,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public CreateSubjectRequest? CreateSubjectRequest { get; private set; }
 
         public UpdateSubjectRequest? UpdateSubjectRequest { get; private set; }
+
+        public SubjectDirectoryCsvImportRequest? ImportSubjectDirectoryCsvRequest { get; private set; }
 
         public CreateSubjectGroupRequest? CreateSubjectGroupRequest { get; private set; }
 
@@ -2612,6 +2659,22 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(updateSubjectResult ??
                 Result.Failure<SubjectDirectoryItemResponse>(
                     Error.NotFound("subject.not_found", "Subject was not found.")));
+        }
+
+        public Task<Result<SubjectDirectoryCsvImportResponse>> ImportSubjectDirectoryCsvAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            SubjectDirectoryCsvImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            ImportSubjectDirectoryCsvRequest = request;
+
+            return Task.FromResult(importSubjectDirectoryCsvResult ??
+                Result.Failure<SubjectDirectoryCsvImportResponse>(
+                    Error.Validation("subject_directory_import.invalid", "CSV import is invalid.")));
         }
 
         public Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(

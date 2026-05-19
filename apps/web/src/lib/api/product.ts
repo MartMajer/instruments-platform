@@ -196,6 +196,34 @@ export type CreateSubjectRequest = {
 
 export type UpdateSubjectRequest = CreateSubjectRequest;
 
+export type SubjectDirectoryCsvImportRequest = {
+	csvContent: string;
+};
+
+export type SubjectDirectoryCsvImportResponse = {
+	tenantId: string;
+	rowCount: number;
+	importedRowCount: number;
+	createdSubjectCount: number;
+	updatedSubjectCount: number;
+	createdGroupCount: number;
+	addedMembershipCount: number;
+	skippedMembershipCount: number;
+	rows: SubjectDirectoryCsvImportRowResponse[];
+};
+
+export type SubjectDirectoryCsvImportRowResponse = {
+	rowNumber: number;
+	status: string;
+	externalId: string | null;
+	email: string | null;
+	displayName: string | null;
+	groupType: string | null;
+	groupName: string | null;
+	action: string;
+	issues: string[];
+};
+
 export type CreateSubjectGroupRequest = {
 	type: string;
 	name: string;
@@ -930,6 +958,11 @@ export function createProductApi(client: ApiClient) {
 		listSubjects: () => client.request<SubjectDirectoryResponse>('/subjects'),
 		createSubject: (request: CreateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>('/subjects', jsonRequest('POST', request)),
+		importSubjectDirectoryCsv: (request: SubjectDirectoryCsvImportRequest) =>
+			client.request<SubjectDirectoryCsvImportResponse>(
+				'/subjects/imports/csv',
+				jsonRequest('POST', request)
+			),
 		updateSubject: (subjectId: string, request: UpdateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>(
 				`/subjects/${encodeURIComponent(subjectId)}`,

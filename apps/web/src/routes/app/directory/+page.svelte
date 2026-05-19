@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { onDestroy } from 'svelte';
-	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, UserRound } from 'lucide-svelte';
+	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, Upload, UserRound } from 'lucide-svelte';
 	import type {
+		SubjectDirectoryCsvImportResponse,
 		SubjectDirectoryItemResponse,
 		SubjectDirectoryResponse,
 		SubjectGroupListResponse,
@@ -63,6 +64,10 @@
 	let managerValidFrom = $state('');
 	let savingManager = $state(false);
 	let managerError = $state<string | null>(null);
+	let importCsvContent = $state('');
+	let importingCsv = $state(false);
+	let importResult = $state<SubjectDirectoryCsvImportResponse | null>(null);
+	let importError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -158,6 +163,44 @@
 		} finally {
 			creatingSubject = false;
 		}
+	}
+
+	async function importSubjectDirectoryCsv() {
+		if (!canManageSetup) {
+			return;
+		}
+
+		if (!importCsvContent.trim()) {
+			importError = 'Paste CSV rows or choose a CSV file first.';
+			return;
+		}
+
+		importingCsv = true;
+		importError = null;
+		importResult = null;
+
+		try {
+			importResult = await productApi.importSubjectDirectoryCsv({
+				csvContent: importCsvContent
+			});
+			await loadDirectory();
+		} catch (error) {
+			importError = toProductApiErrorMessage(error, 'CSV audience import could not be completed.');
+		} finally {
+			importingCsv = false;
+		}
+	}
+
+	async function loadCsvFile(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) {
+			return;
+		}
+
+		importCsvContent = await file.text();
+		importResult = null;
+		importError = null;
 	}
 
 	async function saveSelectedSubject() {
@@ -329,6 +372,14 @@
 			groups.find((candidate) => candidate.id === group.parentGroupId)?.name ?? group.parentGroupId
 		);
 	}
+
+	function formatImportAction(action: string) {
+		return action
+			.split(',')
+			.filter(Boolean)
+			.map((part) => part.replaceAll('_', ' '))
+			.join(', ');
+	}
 </script>
 
 <SurfaceHeader
@@ -388,6 +439,117 @@
 				Team roles are separate; they control who can use the app.
 			</p>
 		</details>
+	</section>
+
+	<section class="product-panel" aria-label="Import audience CSV">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">CSV import</p>
+				<h2 class="product-title">Import people and groups</h2>
+				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+					Use this when a study audience is already prepared in a spreadsheet. Accepted
+					columns: external_id, email, display_name, locale, group_type, group_name,
+					role_in_group. Use one row per person and group membership.
+				</p>
+			</div>
+		</div>
+
+		<form
+			class="grid gap-4"
+			onsubmit={(event) => {
+				event.preventDefault();
+				void importSubjectDirectoryCsv();
+			}}
+		>
+			<label class="field">
+				<span>CSV file</span>
+				<input type="file" accept=".csv,text/csv" onchange={loadCsvFile} disabled={importingCsv} />
+			</label>
+			<label class="field">
+				<span>CSV rows</span>
+				<textarea
+					rows="7"
+					bind:value={importCsvContent}
+					disabled={importingCsv}
+					placeholder={'external_id,email,display_name,locale,group_type,group_name,role_in_group\nemp-001,ana@example.test,Ana Analyst,en,department,Research,member'}
+				></textarea>
+			</label>
+			<button type="submit" class="primary-button" disabled={importingCsv}>
+				{#if importingCsv}
+					<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+				{:else}
+					<Upload size={17} aria-hidden="true" />
+				{/if}
+				<span>{importingCsv ? 'Importing...' : 'Import CSV audience'}</span>
+			</button>
+			{#if importError}
+				<p class="error-line" role="alert">{importError}</p>
+			{/if}
+			{#if importResult}
+				<div class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+					<p class="text-sm font-semibold text-[var(--color-text)]">
+						Imported {importResult.importedRowCount} of {importResult.rowCount} rows
+					</p>
+					<dl class="mt-3 grid gap-2 text-sm md:grid-cols-3">
+						<div>
+							<dt class="text-[var(--color-text-muted)]">People created</dt>
+							<dd class="font-semibold">{importResult.createdSubjectCount}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">People updated</dt>
+							<dd class="font-semibold">{importResult.updatedSubjectCount}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">Groups created</dt>
+							<dd class="font-semibold">{importResult.createdGroupCount}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">Memberships added</dt>
+							<dd class="font-semibold">{importResult.addedMembershipCount}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">Memberships already present</dt>
+							<dd class="font-semibold">{importResult.skippedMembershipCount}</dd>
+						</div>
+					</dl>
+					{#if importResult.rows.some((row) => row.status === 'failed')}
+						<div class="mt-4 grid gap-2" aria-label="CSV import row issues">
+							<p class="text-sm font-semibold text-[var(--color-text)]">Rows needing attention</p>
+							{#each importResult.rows.filter((row) => row.status === 'failed') as row}
+								<article class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
+									<p class="font-semibold">Row {row.rowNumber}</p>
+									<p class="text-[var(--color-text-muted)]">
+										{row.displayName ?? row.email ?? row.externalId ?? 'Unmatched row'}
+									</p>
+									<ul class="mt-2 list-disc pl-5">
+										{#each row.issues as issue}
+											<li>{issue}</li>
+										{/each}
+									</ul>
+								</article>
+							{/each}
+						</div>
+					{:else}
+						<p class="mt-4 text-sm text-[var(--color-text-muted)]">
+							All imported rows were accepted.
+						</p>
+					{/if}
+					<details class="mt-3">
+						<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
+							Import actions
+						</summary>
+						<div class="mt-2 grid gap-2">
+							{#each importResult.rows.filter((row) => row.status === 'imported') as row}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									Row {row.rowNumber}: {row.displayName ?? row.email ?? row.externalId}
+									- {formatImportAction(row.action)}
+								</p>
+							{/each}
+						</div>
+					</details>
+				</div>
+			{/if}
+		</form>
 	</section>
 
 	<section class="product-panel" aria-label="People directory">

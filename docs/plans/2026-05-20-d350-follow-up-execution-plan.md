@@ -67,6 +67,9 @@
 **Verification:**
 - Run focused backend tests and frontend build/type check for touched UI.
 
+**Result - 2026-05-20:**
+- Implemented locally. Added CSV import endpoint, store path, web API client, and Directory UI panel. Frontend API and endpoint tests passed. Docker-backed store tests were added but could not run because Docker is unavailable locally; run them before deployment.
+
 ### Task 4: AUD01 researcher-facing audience selection
 
 **Files:**

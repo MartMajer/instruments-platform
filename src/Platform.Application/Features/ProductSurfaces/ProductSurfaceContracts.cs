@@ -845,6 +845,31 @@ public sealed record UpdateSubjectRequest(
     string Locale = "en",
     string Attributes = "{}");
 
+public sealed record SubjectDirectoryCsvImportRequest(
+    string CsvContent);
+
+public sealed record SubjectDirectoryCsvImportResponse(
+    Guid TenantId,
+    int RowCount,
+    int ImportedRowCount,
+    int CreatedSubjectCount,
+    int UpdatedSubjectCount,
+    int CreatedGroupCount,
+    int AddedMembershipCount,
+    int SkippedMembershipCount,
+    IReadOnlyList<SubjectDirectoryCsvImportRowResponse> Rows);
+
+public sealed record SubjectDirectoryCsvImportRowResponse(
+    int RowNumber,
+    string Status,
+    string? ExternalId,
+    string? Email,
+    string? DisplayName,
+    string? GroupType,
+    string? GroupName,
+    string Action,
+    IReadOnlyList<string> Issues);
+
 public sealed record CreateSubjectGroupRequest(
     string Type,
     string Name,

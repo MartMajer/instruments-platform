@@ -1169,6 +1169,131 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Import_subject_directory_csv_upserts_people_groups_and_memberships_under_tenant_scope()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-import");
+        _ = await SeedSubjectAsync(runtimeOptions, tenantId, "Old Ana", "ana.old@example.test", "emp-001");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            new SubjectDirectoryCsvImportRequest(
+                """
+                external_id,email,display_name,locale,group_type,group_name,role_in_group
+                emp-001,ana@example.test,Ana Analyst,hr,department,Research,member
+                emp-002,ivo@example.test,Ivo Intern,en,team,Field Team,member
+                emp-002,ivo@example.test,Ivo Intern,en,department,Research,member
+                ,not an email,Broken Person,en,department,Research,member
+                """),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(4, result.Value.RowCount);
+        Assert.Equal(3, result.Value.ImportedRowCount);
+        Assert.Equal(1, result.Value.CreatedSubjectCount);
+        Assert.Equal(2, result.Value.UpdatedSubjectCount);
+        Assert.Equal(2, result.Value.CreatedGroupCount);
+        Assert.Equal(3, result.Value.AddedMembershipCount);
+        Assert.Equal(0, result.Value.SkippedMembershipCount);
+        Assert.Contains(result.Value.Rows, row => row.RowNumber == 5 && row.Status == "failed");
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var subjects = await verificationDb.Subjects
+            .OrderBy(subject => subject.ExternalId)
+            .ToListAsync();
+        var groups = await verificationDb.SubjectGroups
+            .OrderBy(group => group.Type)
+            .ThenBy(group => group.Name)
+            .ToListAsync();
+        var memberships = await verificationDb.SubjectMemberships.ToListAsync();
+
+        Assert.Equal(2, subjects.Count);
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "emp-001" &&
+            subject.DisplayName == "Ana Analyst" &&
+            subject.Email == "ana@example.test" &&
+            subject.Locale == "hr");
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "emp-002" &&
+            subject.DisplayName == "Ivo Intern" &&
+            subject.Email == "ivo@example.test");
+        Assert.Collection(
+            groups,
+            group =>
+            {
+                Assert.Equal("department", group.Type);
+                Assert.Equal("Research", group.Name);
+            },
+            group =>
+            {
+                Assert.Equal("team", group.Type);
+                Assert.Equal("Field Team", group.Name);
+            });
+        Assert.Equal(3, memberships.Count);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Import_subject_directory_csv_is_idempotent_for_existing_groups_and_memberships()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-import-idempotent");
+        var subject = await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst", "ana@example.test", "emp-001");
+        var group = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Research");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedTenantDbScope = new TenantDbScope(seedDb);
+            await using var transaction = await seedTenantDbScope.BeginTransactionAsync(tenantId);
+            seedDb.SubjectMemberships.Add(new SubjectMembership(subject.Id, group.Id, SubjectGroupRoles.Member));
+            await seedDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            new SubjectDirectoryCsvImportRequest(
+                """
+                external_id,email,display_name,locale,group_type,group_name,role_in_group
+                emp-001,ana@example.test,Ana Analyst,en,department,Research,member
+                """),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(0, result.Value.CreatedSubjectCount);
+        Assert.Equal(1, result.Value.UpdatedSubjectCount);
+        Assert.Equal(0, result.Value.CreatedGroupCount);
+        Assert.Equal(0, result.Value.AddedMembershipCount);
+        Assert.Equal(1, result.Value.SkippedMembershipCount);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var verificationTenantDbScope = new TenantDbScope(verificationDb);
+        await using var verificationTransaction = await verificationTenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(1, await verificationDb.Subjects.CountAsync());
+        Assert.Equal(1, await verificationDb.SubjectGroups.CountAsync());
+        Assert.Equal(1, await verificationDb.SubjectMemberships.CountAsync());
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Add_subject_group_member_rejects_cross_tenant_subject()
     {
         var tenantA = Guid.NewGuid();

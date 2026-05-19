@@ -70,6 +70,12 @@ public interface IProductSurfaceWriteStore
         UpdateSubjectRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<SubjectDirectoryCsvImportResponse>> ImportSubjectDirectoryCsvAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        SubjectDirectoryCsvImportRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(
         Guid tenantId,
         Guid actorUserId,

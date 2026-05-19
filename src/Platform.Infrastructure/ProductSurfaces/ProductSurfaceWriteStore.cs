@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
@@ -691,6 +692,179 @@ public sealed class ProductSurfaceWriteStore(
         return Result.Success(response);
     }
 
+    public async Task<Result<SubjectDirectoryCsvImportResponse>> ImportSubjectDirectoryCsvAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        SubjectDirectoryCsvImportRequest request,
+        CancellationToken cancellationToken)
+    {
+        var parsed = ParseSubjectDirectoryCsv(request.CsvContent);
+        if (parsed.IsFailure)
+        {
+            return Result.Failure<SubjectDirectoryCsvImportResponse>(parsed.Error);
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var existingSubjects = await db.Subjects
+            .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null)
+            .ToListAsync(cancellationToken);
+        var subjectsByExternalId = existingSubjects
+            .Where(subject => !string.IsNullOrWhiteSpace(subject.ExternalId))
+            .GroupBy(subject => subject.ExternalId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var subjectsByEmail = existingSubjects
+            .Where(subject => !string.IsNullOrWhiteSpace(subject.Email))
+            .GroupBy(subject => subject.Email!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var groupsByKey = await db.SubjectGroups
+            .Where(group => group.TenantId == tenantId && group.DeletedAt == null)
+            .OrderBy(group => group.Name)
+            .ThenBy(group => group.Id)
+            .ToListAsync(cancellationToken);
+        var groups = groupsByKey
+            .GroupBy(group => SubjectGroupImportKey(group.Type, group.Name), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var membershipKeys = await (
+                from membership in db.SubjectMemberships
+                join subjectGroup in db.SubjectGroups on membership.GroupId equals subjectGroup.Id
+                where subjectGroup.TenantId == tenantId && subjectGroup.DeletedAt == null
+                select new SubjectMembershipImportKey(membership.SubjectId, membership.GroupId))
+            .ToListAsync(cancellationToken);
+        var memberships = membershipKeys.ToHashSet();
+
+        var rows = new List<SubjectDirectoryCsvImportRowResponse>();
+        var createdSubjectCount = 0;
+        var updatedSubjectCount = 0;
+        var createdGroupCount = 0;
+        var addedMembershipCount = 0;
+        var skippedMembershipCount = 0;
+
+        foreach (var row in parsed.Value)
+        {
+            var values = NormalizeImportRow(row.Values);
+            var issues = ValidateImportRow(values);
+            var actions = new List<string>();
+
+            Subject? subject = null;
+            if (issues.Count == 0)
+            {
+                var externalMatch = values.ExternalId is not null &&
+                    subjectsByExternalId.TryGetValue(values.ExternalId, out var externalSubject)
+                        ? externalSubject
+                        : null;
+                var emailMatch = values.Email is not null &&
+                    subjectsByEmail.TryGetValue(values.Email, out var emailSubject)
+                        ? emailSubject
+                        : null;
+
+                if (externalMatch is not null && emailMatch is not null && externalMatch.Id != emailMatch.Id)
+                {
+                    issues.Add("External id and email match different people already in the directory.");
+                }
+                else
+                {
+                    subject = externalMatch ?? emailMatch;
+                }
+            }
+
+            if (issues.Count > 0)
+            {
+                rows.Add(CreateImportRowResponse(row.RowNumber, "failed", values, "none", issues));
+                continue;
+            }
+
+            if (subject is null)
+            {
+                subject = new Subject(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    externalId: values.ExternalId,
+                    email: values.Email,
+                    displayName: values.DisplayName,
+                    locale: values.Locale,
+                    attributes: "{}");
+                db.Subjects.Add(subject);
+                createdSubjectCount++;
+                actions.Add("created_subject");
+            }
+            else
+            {
+                subject.ChangeDirectoryProfile(
+                    values.DisplayName ?? subject.DisplayName,
+                    values.Email ?? subject.Email,
+                    values.ExternalId ?? subject.ExternalId,
+                    values.Locale,
+                    subject.Attributes);
+                updatedSubjectCount++;
+                actions.Add("updated_subject");
+            }
+
+            if (values.ExternalId is not null)
+            {
+                subjectsByExternalId[values.ExternalId] = subject;
+            }
+
+            if (values.Email is not null)
+            {
+                subjectsByEmail[values.Email] = subject;
+            }
+
+            if (values.GroupName is not null)
+            {
+                var groupKey = SubjectGroupImportKey(values.GroupType, values.GroupName);
+                if (!groups.TryGetValue(groupKey, out var group))
+                {
+                    group = new SubjectGroup(
+                        PlatformIds.NewId(),
+                        tenantId,
+                        values.GroupType,
+                        values.GroupName);
+                    db.SubjectGroups.Add(group);
+                    groups[groupKey] = group;
+                    createdGroupCount++;
+                    actions.Add("created_group");
+                }
+
+                var membershipKey = new SubjectMembershipImportKey(subject.Id, group.Id);
+                if (memberships.Contains(membershipKey))
+                {
+                    skippedMembershipCount++;
+                    actions.Add("skipped_membership");
+                }
+                else
+                {
+                    db.SubjectMemberships.Add(new SubjectMembership(
+                        subject.Id,
+                        group.Id,
+                        values.RoleInGroup));
+                    memberships.Add(membershipKey);
+                    addedMembershipCount++;
+                    actions.Add("added_membership");
+                }
+            }
+
+            rows.Add(CreateImportRowResponse(row.RowNumber, "imported", values, string.Join(",", actions), []));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            parsed.Value.Count,
+            rows.Count(row => row.Status == "imported"),
+            createdSubjectCount,
+            updatedSubjectCount,
+            createdGroupCount,
+            addedMembershipCount,
+            skippedMembershipCount,
+            rows));
+    }
+
     public async Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(
         Guid tenantId,
         Guid actorUserId,
@@ -1151,6 +1325,269 @@ public sealed class ProductSurfaceWriteStore(
         return Result.Success<string?>(normalized);
     }
 
+    private static Result<IReadOnlyList<SubjectDirectoryCsvRow>> ParseSubjectDirectoryCsv(string csvContent)
+    {
+        IReadOnlyList<IReadOnlyList<string>> table;
+        try
+        {
+            table = ReadCsvTable(csvContent);
+        }
+        catch (FormatException exception)
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation("subject_directory_import.csv_invalid", exception.Message));
+        }
+
+        if (table.Count == 0)
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation("subject_directory_import.csv_empty", "CSV content needs a header row."));
+        }
+
+        var headers = table[0]
+            .Select(NormalizeCsvHeader)
+            .ToArray();
+        if (headers.All(string.IsNullOrWhiteSpace))
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation("subject_directory_import.csv_empty", "CSV content needs named columns."));
+        }
+
+        var knownHeaders = new HashSet<string>(
+            [
+                "external_id",
+                "email",
+                "display_name",
+                "locale",
+                "group_type",
+                "group_name",
+                "role_in_group"
+            ],
+            StringComparer.OrdinalIgnoreCase);
+        var unknownHeaders = headers
+            .Where(header => !string.IsNullOrWhiteSpace(header) && !knownHeaders.Contains(header))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (unknownHeaders.Length > 0)
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation(
+                    "subject_directory_import.unknown_columns",
+                    $"CSV contains unsupported columns: {string.Join(", ", unknownHeaders)}."));
+        }
+
+        if (!headers.Contains("external_id", StringComparer.OrdinalIgnoreCase) &&
+            !headers.Contains("email", StringComparer.OrdinalIgnoreCase))
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation(
+                    "subject_directory_import.identity_column_required",
+                    "CSV needs external_id or email so rows can be matched safely."));
+        }
+
+        var rows = new List<SubjectDirectoryCsvRow>();
+        for (var index = 1; index < table.Count; index++)
+        {
+            var raw = table[index];
+            if (raw.All(string.IsNullOrWhiteSpace))
+            {
+                continue;
+            }
+
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (var column = 0; column < headers.Length; column++)
+            {
+                var header = headers[column];
+                if (string.IsNullOrWhiteSpace(header))
+                {
+                    continue;
+                }
+
+                values[header] = column < raw.Count ? raw[column] : string.Empty;
+            }
+
+            if (raw.Count > headers.Length)
+            {
+                values["__row_error"] = "Row has more values than the header row.";
+            }
+
+            rows.Add(new SubjectDirectoryCsvRow(index + 1, values));
+        }
+
+        if (rows.Count == 0)
+        {
+            return Result.Failure<IReadOnlyList<SubjectDirectoryCsvRow>>(
+                Error.Validation("subject_directory_import.no_rows", "CSV needs at least one data row."));
+        }
+
+        return Result.Success<IReadOnlyList<SubjectDirectoryCsvRow>>(rows);
+    }
+
+    private static IReadOnlyList<IReadOnlyList<string>> ReadCsvTable(string csvContent)
+    {
+        var rows = new List<IReadOnlyList<string>>();
+        var row = new List<string>();
+        var field = new StringBuilder();
+        var inQuotes = false;
+
+        for (var index = 0; index < csvContent.Length; index++)
+        {
+            var current = csvContent[index];
+            if (current == '"')
+            {
+                if (inQuotes && index + 1 < csvContent.Length && csvContent[index + 1] == '"')
+                {
+                    field.Append('"');
+                    index++;
+                    continue;
+                }
+
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (current == ',' && !inQuotes)
+            {
+                row.Add(field.ToString());
+                field.Clear();
+                continue;
+            }
+
+            if ((current == '\r' || current == '\n') && !inQuotes)
+            {
+                if (current == '\r' && index + 1 < csvContent.Length && csvContent[index + 1] == '\n')
+                {
+                    index++;
+                }
+
+                row.Add(field.ToString());
+                field.Clear();
+                rows.Add(row);
+                row = [];
+                continue;
+            }
+
+            field.Append(current);
+        }
+
+        if (inQuotes)
+        {
+            throw new FormatException("CSV has an unterminated quoted field.");
+        }
+
+        row.Add(field.ToString());
+        if (row.Any(value => !string.IsNullOrWhiteSpace(value)))
+        {
+            rows.Add(row);
+        }
+
+        return rows;
+    }
+
+    private static string NormalizeCsvHeader(string header)
+    {
+        return header.Trim().ToLowerInvariant().Replace("-", "_").Replace(" ", "_");
+    }
+
+    private static SubjectDirectoryImportRowValues NormalizeImportRow(
+        IReadOnlyDictionary<string, string> values)
+    {
+        var email = ImportText(values, "email");
+        var emailResult = NormalizeOptionalSubjectEmail(email);
+        return new SubjectDirectoryImportRowValues(
+            ImportText(values, "external_id"),
+            emailResult.IsSuccess ? emailResult.Value : email,
+            ImportText(values, "display_name"),
+            NormalizeLocale(ImportText(values, "locale") ?? "en"),
+            ImportText(values, "group_type") ?? SubjectGroupTypes.Department,
+            ImportText(values, "group_name"),
+            ImportText(values, "role_in_group"),
+            values.TryGetValue("__row_error", out var rowError) ? rowError : null,
+            emailResult.IsFailure ? emailResult.Error.Message : null);
+    }
+
+    private static List<string> ValidateImportRow(SubjectDirectoryImportRowValues values)
+    {
+        var issues = new List<string>();
+        if (values.RowError is not null)
+        {
+            issues.Add(values.RowError);
+        }
+
+        if (values.EmailError is not null)
+        {
+            issues.Add(values.EmailError);
+        }
+
+        if (values.ExternalId is null && values.Email is null)
+        {
+            issues.Add("Provide external_id or email so the person can be matched safely.");
+        }
+
+        if (values.DisplayName is { Length: > 256 })
+        {
+            issues.Add("display_name must be 256 characters or fewer.");
+        }
+
+        if (values.ExternalId is { Length: > 256 })
+        {
+            issues.Add("external_id must be 256 characters or fewer.");
+        }
+
+        if (values.Locale.Length > 16)
+        {
+            issues.Add("locale must be 16 characters or fewer.");
+        }
+
+        if (values.GroupName is not null && values.GroupType.Length > 64)
+        {
+            issues.Add("group_type must be 64 characters or fewer.");
+        }
+
+        if (values.GroupName is { Length: > 256 })
+        {
+            issues.Add("group_name must be 256 characters or fewer.");
+        }
+
+        if (values.RoleInGroup is { Length: > 64 })
+        {
+            issues.Add("role_in_group must be 64 characters or fewer.");
+        }
+
+        return issues;
+    }
+
+    private static string? ImportText(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+    }
+
+    private static string SubjectGroupImportKey(string type, string name)
+    {
+        return $"{type.Trim().ToLowerInvariant()}|{name.Trim().ToLowerInvariant()}";
+    }
+
+    private static SubjectDirectoryCsvImportRowResponse CreateImportRowResponse(
+        int rowNumber,
+        string status,
+        SubjectDirectoryImportRowValues values,
+        string action,
+        IReadOnlyList<string> issues)
+    {
+        return new SubjectDirectoryCsvImportRowResponse(
+            rowNumber,
+            status,
+            values.ExternalId,
+            values.Email,
+            values.DisplayName,
+            values.GroupName is null ? null : values.GroupType,
+            values.GroupName,
+            action,
+            issues);
+    }
+
     private static Error CreateSubjectValidationError(ArgumentException exception)
     {
         return exception.ParamName == "attributes"
@@ -1196,4 +1633,21 @@ public sealed class ProductSurfaceWriteStore(
     }
 
     private sealed record SubmittedSessionForScoreRemediation(Guid SessionId, Guid CampaignId);
+
+    private sealed record SubjectDirectoryCsvRow(
+        int RowNumber,
+        IReadOnlyDictionary<string, string> Values);
+
+    private sealed record SubjectDirectoryImportRowValues(
+        string? ExternalId,
+        string? Email,
+        string? DisplayName,
+        string Locale,
+        string GroupType,
+        string? GroupName,
+        string? RoleInGroup,
+        string? RowError,
+        string? EmailError);
+
+    private sealed record SubjectMembershipImportKey(Guid SubjectId, Guid GroupId);
 }

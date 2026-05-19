@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline plus QB01 respondent-format parity.
+Status: BR01 baseline plus QB01 respondent-format parity and DIR04 local CSV import implementation.
 Last reviewed: 2026-05-20.
 
 ## Purpose
@@ -36,7 +36,7 @@ Each row uses one of these classifications:
 | Results dimensions | Researcher can define multiple dimensions/subscales. | Beta known limit | Not implemented; RSLT01 selected. |
 | Collection setup | Researcher can create a wave and choose response mode. | Required | Implemented. |
 | Audience setup | Researcher can choose who receives the study in understandable language. | Required | Model exists; UX still model-driven. AUD01 selected. |
-| Audience import | Researcher can import a normal study audience without manual record-by-record entry. | Required for realistic beta | Not implemented. DIR04 selected. |
+| Audience import | Researcher can import a normal study audience without manual record-by-record entry. | Required for realistic beta | DIR04 added CSV import locally; Docker-backed store proof must run before deployment. |
 | Launch check | Researcher can run pre-launch check and understand how to unblock collection. | Required | Implemented after collection readiness cleanup. |
 | Anonymous open-link collection | Researcher can launch an anonymous open-link wave and collect a response. | Required | Supported by proof spine. |
 | Anonymous invite-only collection | Researcher can invite a selected audience while keeping answers anonymous in reports/exports. | Required | Implemented by anonymous invite-only distribution slice; needs audience UX hardening. |
@@ -60,10 +60,9 @@ Each row uses one of these classifications:
 
 | Rank | ID | Blocker | Reason |
 |---:|---|---|---|
-| 1 | DIR04 | CSV audience import MVP | Manual directory entry blocks normal studies. |
-| 2 | AUD01 | Researcher-facing audience selection | Saved rules must read as recipient selection. |
-| 3 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
-| 4 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
+| 1 | AUD01 | Researcher-facing audience selection | Saved rules must read as recipient selection. |
+| 2 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
+| 3 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
 
 ## Known limits to say out loud
 

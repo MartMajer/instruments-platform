@@ -158,6 +158,48 @@ describe('createProductApi', () => {
 		]);
 	});
 
+	it('imports subject directory CSV rows', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const csvContent = [
+			'external_id,email,display_name,group_type,group_name',
+			'emp-001,ana@example.test,Ana Analyst,department,Research'
+		].join('\n');
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					rowCount: 1,
+					importedRowCount: 1,
+					createdSubjectCount: 1,
+					updatedSubjectCount: 0,
+					createdGroupCount: 1,
+					addedMembershipCount: 1,
+					skippedMembershipCount: 0,
+					rows: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.importSubjectDirectoryCsv({ csvContent });
+
+		expect(calls).toEqual([
+			{
+				path: '/subjects/imports/csv',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({ csvContent })
+				}
+			}
+		]);
+	});
+
 	it('updates a subject directory entry by encoded subject id', async () => {
 		const calls: Array<{ path: string; init?: RequestInit }> = [];
 		const api = createProductApi({

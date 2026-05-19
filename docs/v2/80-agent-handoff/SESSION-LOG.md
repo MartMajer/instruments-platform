@@ -18819,3 +18819,9 @@ Verification:
 - Verification passed: focused respondent adapter Vitest run passed 5/5 using the explicit Node executable path; targeted .NET respondent endpoint test passed 1/1.
 - Verification note: broader direct svelte-check ran but failed on existing unrelated TypeScript/Svelte errors outside the QB01 adapter/runtime files; D352 records the affected areas.
 - Queue: QB01 moved to Done. DIR04 CSV audience import MVP is now the agent-executable queue head.
+## 2026-05-20 - D353 post-DIR04 CSV audience import assessment
+
+- Completed DIR04 local implementation for CSV audience import: added `POST /subjects/imports/csv`, backend contracts/command/store path, frontend product API method, and Directory paste/file import panel for people, groups, and memberships.
+- Verification passed for the focused frontend product API test and product-surface endpoint binding/authorization test.
+- Added Docker-backed store coverage for upsert/idempotency, but the Docker-enabled run could not start because the local Docker engine was unavailable to Testcontainers. Treat Docker store proof as a deployment gate before staging.
+- Updated the private-beta checklist and active queue so AUD01 is next: the import path now exists, but audience selection still needs to read like researcher-facing recipient selection instead of respondent-rule programming.
