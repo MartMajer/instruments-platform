@@ -70,6 +70,20 @@
 			isEmpty: roster ? roster.members.length === 0 : false
 		})
 	);
+	const memberOnboardingSteps = [
+		{
+			title: 'Prepare member access',
+			description: 'Create the platform member record with the exact email the person will use in Auth0.'
+		},
+		{
+			title: 'Share first sign-in link',
+			description: 'Send the generated link so Auth0 can authenticate the same email for this workspace.'
+		},
+		{
+			title: 'Confirm activation',
+			description: 'The member remains pending until Auth0 returns the matching email on first sign-in.'
+		}
+	];
 
 	onMount(() => {
 		void loadTenantMembers();
@@ -491,8 +505,23 @@
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">Tenant team</p>
-				<h2 class="product-title">Prepare member access</h2>
+				<h2 class="product-title">Prepare member access, then share sign-in</h2>
+				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+					Auth0 owns passwords, MFA, and provider sessions. This page prepares platform
+					membership and gives you the first sign-in link for the exact tenant email.
+				</p>
 			</div>
+		</div>
+
+		<div class="record-list mb-4" aria-label="Member onboarding steps">
+			{#each memberOnboardingSteps as step}
+				<article class="record-row">
+					<span class="record-row__header">
+						<span class="record-row__title">{step.title}</span>
+					</span>
+					<p class="text-sm text-[var(--color-text-muted)]">{step.description}</p>
+				</article>
+			{/each}
 		</div>
 
 		{#if roleLoadState === 'error' && roleErrorMessage}
@@ -561,7 +590,10 @@
 			{/if}
 
 			{#if createMemberNotice}
-				<p class="text-sm text-[var(--color-text-muted)]" role="status">{createMemberNotice}</p>
+				<p class="text-sm text-[var(--color-text-muted)]" role="status">
+					{createMemberNotice} The roster marks the member pending until the first matching Auth0
+					sign-in.
+				</p>
 			{/if}
 		{/if}
 	</section>
@@ -681,7 +713,8 @@
 									<div>
 										<p class="record-field__label">First sign-in</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											Send this link to {member.email}. They must use this email when creating or choosing their account.
+											Send this link to {member.email}. They stay pending until Auth0 returns the
+											same email for this workspace.
 										</p>
 									</div>
 									<a class="secondary-button" href={memberSignInUrl(member)}>Open link</a>

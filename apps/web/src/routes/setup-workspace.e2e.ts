@@ -337,6 +337,69 @@ test('finds an existing workspace by email before Auth0 sign-in', async ({ page 
 	);
 });
 
+test('shows first-run workspace runway on the app home page', async ({ page }) => {
+	await routeWorkspaceOverview(page);
+
+	await page.goto('/app');
+
+	const runway = page.getByRole('region', { name: 'First-run workspace runway' });
+	await expect(runway.getByRole('heading', { name: 'Set up your workspace' })).toBeVisible();
+	await expect(runway.getByRole('link', { name: /Create first study/ })).toHaveAttribute(
+		'href',
+		'/app/campaign-series'
+	);
+	await expect(runway.getByRole('link', { name: /Invite team/ })).toHaveAttribute(
+		'href',
+		'/app/team'
+	);
+	await expect(runway.getByRole('link', { name: /Set up directory/ })).toHaveAttribute(
+		'href',
+		'/app/directory'
+	);
+	await expect(runway.getByRole('link', { name: /Review instruments/ })).toHaveAttribute(
+		'href',
+		'/app/instruments'
+	);
+});
+
+test('explains team member first sign-in before activation', async ({ page }) => {
+	await page.unroute('**/auth/session');
+	await routeAuthenticatedSession(page, {
+		...sampleAuthSession,
+		permissions: ['setup.manage', 'team.manage']
+	});
+	await routeTenantRoles(page);
+	await routeTenantMembers(page);
+
+	await page.goto('/app/team');
+
+	await expect(
+		page.getByRole('heading', { name: 'Prepare member access, then share sign-in' })
+	).toBeVisible();
+	await expect(page.getByLabel('Member onboarding steps')).toContainText('Share first sign-in link');
+	await expect(page.getByText('Pending provider link')).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Open link' })).toHaveAttribute(
+		'href',
+		new RegExp(`login_hint=${encodeURIComponent(pendingMemberEmail)}`)
+	);
+	await expect(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
+});
+
+test('explains directory hierarchy setup order', async ({ page }) => {
+	await routeDirectory(page);
+
+	await page.goto('/app/directory');
+
+	const setupOrder = page.getByLabel('Directory setup order');
+	await expect(setupOrder).toContainText('Create groups');
+	await expect(setupOrder).toContainText('Create subjects');
+	await expect(setupOrder).toContainText('Add memberships');
+	await expect(setupOrder).toContainText('Assign managers');
+	await expect(page.getByRole('article', { name: 'Subject hierarchy not app roles' })).toContainText(
+		'Team roles control who can use the app.'
+	);
+});
+
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {
 	let protectedCalls = 0;
 
@@ -1204,6 +1267,120 @@ const sampleAuthSession = {
 	email: 'owner@example.test',
 	permissions: ['setup.manage']
 };
+const pendingMemberEmail = 'pending.member@example.test';
+const sampleWorkspaceOverview = {
+	tenantId: sampleAuthSession.tenantId,
+	totals: {
+		campaignSeriesCount: 0,
+		campaignCount: 0,
+		liveCampaignCount: 0,
+		submittedResponseCount: 0,
+		exportArtifactCount: 0
+	},
+	commandCenter: {
+		items: []
+	},
+	recentSeries: [],
+	studyCollections: {
+		sampleStudies: [],
+		ownStudies: []
+	}
+};
+const sampleTenantRoles = [
+	{
+		roleId: '33333333-3333-4333-8333-333333333333',
+		code: 'workspace-admin',
+		name: 'Workspace admin',
+		permissions: ['setup.manage', 'team.manage']
+	}
+];
+const sampleTenantMemberRoster = {
+	tenantId: sampleAuthSession.tenantId,
+	members: [
+		{
+			userId: sampleAuthSession.userId,
+			email: sampleAuthSession.email,
+			locale: 'en',
+			createdAt: '2026-05-19T08:00:00Z',
+			lastLoginAt: '2026-05-19T09:00:00Z',
+			identityStatus: 'active',
+			roles: [
+				{
+					roleId: sampleTenantRoles[0].roleId,
+					code: sampleTenantRoles[0].code,
+					name: sampleTenantRoles[0].name,
+					scopeType: 'tenant',
+					scopeId: sampleAuthSession.tenantId,
+					grantedAt: '2026-05-19T08:00:00Z'
+				}
+			],
+			permissions: ['setup.manage', 'team.manage']
+		},
+		{
+			userId: '44444444-4444-4444-8444-444444444444',
+			email: pendingMemberEmail,
+			locale: 'en',
+			createdAt: '2026-05-19T08:05:00Z',
+			lastLoginAt: null,
+			identityStatus: 'pending_provider_link',
+			roles: [
+				{
+					roleId: sampleTenantRoles[0].roleId,
+					code: sampleTenantRoles[0].code,
+					name: sampleTenantRoles[0].name,
+					scopeType: 'tenant',
+					scopeId: sampleAuthSession.tenantId,
+					grantedAt: '2026-05-19T08:05:00Z'
+				}
+			],
+			permissions: ['setup.manage']
+		}
+	]
+};
+const sampleSubjectGroups = {
+	tenantId: sampleAuthSession.tenantId,
+	groups: [
+		{
+			id: '55555555-5555-4555-8555-555555555555',
+			type: 'department',
+			name: 'Operations',
+			parentGroupId: null,
+			attributes: '{}',
+			memberCount: 1
+		}
+	]
+};
+const sampleSubjectDirectory = {
+	tenantId: sampleAuthSession.tenantId,
+	summary: {
+		subjectCount: 1,
+		groupCount: 1,
+		managerRelationshipCount: 0
+	},
+	subjects: [
+		{
+			id: '66666666-6666-4666-8666-666666666666',
+			displayName: 'Alex Operator',
+			email: 'alex.operator@example.test',
+			externalId: 'EMP-001',
+			locale: 'en',
+			attributes: '{}',
+			managerSubjectId: null,
+			managerDisplayName: null,
+			directReportCount: 0,
+			groups: [
+				{
+					groupId: sampleSubjectGroups.groups[0].id,
+					groupType: sampleSubjectGroups.groups[0].type,
+					groupName: sampleSubjectGroups.groups[0].name,
+					roleInGroup: 'member',
+					validFrom: null,
+					validTo: null
+				}
+			]
+		}
+	]
+};
 
 async function routeAuthenticatedSession(page: Page, session = sampleAuthSession) {
 	await page.route('**/auth/session', async (route) => {
@@ -1214,6 +1391,33 @@ async function routeAuthenticatedSession(page: Page, session = sampleAuthSession
 async function routeCsrfToken(page: Page) {
 	await page.route('**/auth/csrf', async (route) => {
 		await route.fulfill({ json: { csrfToken: 'test-csrf-token' } });
+	});
+}
+
+async function routeWorkspaceOverview(page: Page) {
+	await page.route('**/workspace-overview', async (route) => {
+		await route.fulfill({ json: sampleWorkspaceOverview });
+	});
+}
+
+async function routeTenantRoles(page: Page) {
+	await page.route('**/tenant-roles', async (route) => {
+		await route.fulfill({ json: { roles: sampleTenantRoles } });
+	});
+}
+
+async function routeTenantMembers(page: Page) {
+	await page.route('**/tenant-members', async (route) => {
+		await route.fulfill({ json: sampleTenantMemberRoster });
+	});
+}
+
+async function routeDirectory(page: Page) {
+	await page.route('**/subjects', async (route) => {
+		await route.fulfill({ json: sampleSubjectDirectory });
+	});
+	await page.route('**/subject-groups', async (route) => {
+		await route.fulfill({ json: sampleSubjectGroups });
 	});
 }
 

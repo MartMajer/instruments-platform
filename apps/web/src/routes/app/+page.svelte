@@ -35,6 +35,32 @@
 				: false
 		})
 	);
+	const firstRunActions = [
+		{
+			title: 'Create first study',
+			status: 'Start here',
+			description: 'Build the first campaign series and launch it when the instrument content is ready.',
+			href: resolve('/app/campaign-series')
+		},
+		{
+			title: 'Invite team',
+			status: 'Access',
+			description: 'Prepare tenant member access before sharing the first sign-in link.',
+			href: resolve('/app/team')
+		},
+		{
+			title: 'Set up directory',
+			status: 'People',
+			description: 'Create groups, subjects, memberships, and manager links for targeting and reporting.',
+			href: resolve('/app/directory')
+		},
+		{
+			title: 'Review instruments',
+			status: 'Library',
+			description: 'Confirm which instruments are available before starting production study work.',
+			href: resolve('/app/instruments')
+		}
+	];
 
 	onMount(() => {
 		void loadWorkspaceOverview();
@@ -74,6 +100,33 @@
 			/>
 		{:else if overviewView}
 			<div class="grid gap-5">
+				<section class="grid gap-3" aria-label="First-run workspace runway">
+					<div class="product-panel__header">
+						<div>
+							<p class="product-kicker">Workspace setup</p>
+							<h2 class="product-title">
+								{overviewView.sampleStudies.length === 0 && overviewView.ownStudies.length === 0
+									? 'Set up your workspace'
+									: 'Choose the next workspace move'}
+							</h2>
+						</div>
+					</div>
+
+					<div class="record-list">
+						{#each firstRunActions as action}
+							<a class="record-row" href={action.href}>
+								<span class="record-row__header">
+									<span class="record-row__title">{action.title}</span>
+									<StatusBadge status="neutral" label={action.status} />
+								</span>
+								<span class="text-sm leading-6 text-[var(--color-text-muted)]">
+									{action.description}
+								</span>
+							</a>
+						{/each}
+					</div>
+				</section>
+
 				<section class="grid gap-3" aria-label="Suggested next actions">
 					<div class="product-panel__header">
 						<div>

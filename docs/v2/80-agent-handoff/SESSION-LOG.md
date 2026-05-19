@@ -18495,3 +18495,13 @@ Task: Added Q-056 for the auth/account API route boundary and Q-057 for future m
 Verification: Documentation-only update; no runtime verification required yet.
 
 Remaining risk: Q-056 and Q-057 remain open. Current beta remains one active workspace membership per normalized email.
+
+## 2026-05-19 - D348 auth onboarding product hardening
+
+Assessment: The backend Auth0/workspace flow was stable enough for beta testing, but the product still did not clearly explain the post-signup path, the Auth0/platform responsibility split, tenant member first sign-in, or directory hierarchy semantics. The remaining route rename and multi-workspace picker work is future-facing rather than required for the current one-email-one-workspace beta.
+
+Task: Added `docs/v2/40-ops/staging-auth-flow-checklist.md` and `docs/plans/2026-05-19-auth-onboarding-hardening.md`. Added a first-run setup runway to `/app`, team-member onboarding steps and pending-provider-link copy to `/app/team`, and directory setup-order plus hierarchy-versus-app-role guidance to `/app/directory`. Added focused Playwright checks for the new first-run, team, and directory guidance while keeping the recent sign-in and email-verification recovery checks in the same focused run. Added assessment `docs/v2/80-agent-handoff/assessments/D348-AUTH-ONBOARDING-PRODUCT-HARDENING-ASSESSMENT-2026-05-19.md`.
+
+Verification: Web production build passed through direct Node invocation. Focused Playwright run passed 8/8 against local production preview: generic home sign-in lookup, registration email-verification recovery, unverified workspace sign-in recovery, no-remembered-workspace verification recovery, existing workspace email lookup, first-run workspace runway, team member first sign-in guidance, and directory hierarchy setup order.
+
+Remaining risk: Not deployed. Current beta still assumes one active workspace per normalized email. Q-056 and Q-057 remain open. Staging owner retest is still required before treating this browser flow as proven in the hosted environment.

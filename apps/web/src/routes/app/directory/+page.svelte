@@ -84,6 +84,24 @@
 				canManageSetup && loadState === 'ready' && subjects.length === 0 && groups.length === 0
 		})
 	);
+	const directorySetupSteps = [
+		{
+			title: 'Create groups',
+			description: 'Use groups for reusable audiences such as department, cohort, region, or role family.'
+		},
+		{
+			title: 'Create subjects',
+			description: 'Create the people or units that can be targeted by studies and reports.'
+		},
+		{
+			title: 'Add memberships',
+			description: 'Attach subjects to groups so launch targeting can use stable directory data.'
+		},
+		{
+			title: 'Assign managers',
+			description: 'Add manager links only where hierarchy-aware review or reporting context is needed.'
+		}
+	];
 	const selectedSubject = $derived(
 		subjects.find((subject) => subject.id === selectedSubjectId) ?? null
 	);
@@ -370,6 +388,28 @@
 				<span>Refresh</span>
 			</button>
 		</div>
+
+		<div class="record-list mb-4" aria-label="Directory setup order">
+			{#each directorySetupSteps as step}
+				<article class="record-row">
+					<span class="record-row__header">
+						<span class="record-row__title">{step.title}</span>
+					</span>
+					<p class="text-sm text-[var(--color-text-muted)]">{step.description}</p>
+				</article>
+			{/each}
+		</div>
+
+		<article class="record-row mb-4" aria-label="Subject hierarchy not app roles">
+			<span class="record-row__header">
+				<span class="record-row__title">Subject hierarchy is not app authorization</span>
+				<span class="status-badge" data-status="neutral">Boundary</span>
+			</span>
+			<p class="text-sm text-[var(--color-text-muted)]">
+				Team roles control who can use the app. Directory groups and manager links control
+				targeting, reporting context, and hierarchy-aware study workflows.
+			</p>
+		</article>
 
 		<dl class="directory-count-list" role="group" aria-label="People and targeting counts">
 			<div class="directory-count-row">
@@ -700,6 +740,10 @@
 			<div>
 				<p class="product-kicker">Hierarchy setup</p>
 				<h2 class="product-title">Membership and manager</h2>
+				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+					Use memberships for audience targeting. Use manager links only when a study needs
+					hierarchy-aware review or reports-of-target context.
+				</p>
 			</div>
 		</div>
 
