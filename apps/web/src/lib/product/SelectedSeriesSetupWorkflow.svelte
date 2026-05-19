@@ -61,7 +61,6 @@
 	const initialScoringRuleKey = `tenant-burnout.${initialSetupRunSuffix}.total`;
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
 
-	let setupRunSuffix = $state(initialSetupRunSuffix);
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
 	let scoringResult = $state<SetupIdResponse | null>(null);
@@ -521,31 +520,6 @@
 		};
 	}
 
-	function resetSetupRun() {
-		setupRunSuffix = generateSetupRunSuffix();
-		const ruleKey = `tenant-burnout.${setupRunSuffix}.total`;
-		const nextRows = createDefaultTemplateQuestionRows();
-
-		instrumentForm = {
-			...instrumentForm,
-			code: `tenant-burnout-pulse-${setupRunSuffix}`,
-			fullName: `Tenant burnout pulse ${setupRunSuffix}`
-		};
-		templateName = `Tenant burnout pulse template ${setupRunSuffix}`;
-		templateQuestionRows = nextRows;
-		scoringDocumentManuallyEdited = false;
-		scoringForm = {
-			...scoringForm,
-			ruleKey,
-			document: buildDefaultScoringDocument(ruleKey, nextRows),
-			produces: buildDefaultProduces()
-		};
-		campaignForm = {
-			...campaignForm,
-			name: `Wave 1 ${setupRunSuffix}`
-		};
-	}
-
 	function workflowAction(id: SelectedSeriesSetupWorkflowActionId) {
 		return workflowActions.find((action) => action.id === id) ?? workflowActions[0];
 	}
@@ -855,7 +829,10 @@
 					</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
 				</div>
-				<StatusBadge status={activeStep.status} />
+				<StatusBadge
+					status={activeStep.status}
+					label={activeStep.pathState === 'done' ? 'Done' : undefined}
+				/>
 			</div>
 			{#if activeStep.disabledReason}
 				<p class="text-sm text-[var(--color-text-muted)]">{activeStep.disabledReason}</p>
@@ -863,38 +840,36 @@
 
 			<div class="setup-current-task__body">
 				{#if activeActionId === 'instrument'}
-					<div class="grid gap-4 lg:grid-cols-2">
-						<label class="field">
-							<span>Code</span>
-							<input bind:value={instrumentForm.code} />
-						</label>
-						<label class="field">
-							<span>Version</span>
-							<input bind:value={instrumentForm.version} />
-						</label>
-						<label class="field lg:col-span-2">
-							<span>Full name</span>
-							<input bind:value={instrumentForm.fullName} />
-						</label>
-						<label class="field">
-							<span>Rights status</span>
-							<input bind:value={instrumentForm.rightsStatus} />
-						</label>
-						<label class="field">
-							<span>Validity label</span>
-							<input bind:value={instrumentForm.validityLabel} />
-						</label>
-						<label class="field lg:col-span-2">
-							<span>Provenance note</span>
-							<textarea rows="3" bind:value={instrumentForm.provenanceNote}></textarea>
-						</label>
-					</div>
-					{@render ActionFooter({
-						id: 'instrument',
-						label: 'Create instrument import',
-						icon: 'plus',
-						onclick: createInstrumentImport
-					})}
+					{#if activeStep.pathState === 'done'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<h5 class="record-row__title">Instrument ready</h5>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										This study has an instrument foundation. Continue to the questionnaire template.
+									</p>
+								</div>
+								<StatusBadge status="ready" label="Done" />
+							</div>
+						</div>
+					{:else}
+						<div class="grid gap-4 lg:grid-cols-2">
+							<label class="field lg:col-span-2">
+								<span>Instrument name</span>
+								<input bind:value={instrumentForm.fullName} />
+							</label>
+							<label class="field">
+								<span>Version</span>
+								<input bind:value={instrumentForm.version} />
+							</label>
+						</div>
+						{@render ActionFooter({
+							id: 'instrument',
+							label: 'Save instrument',
+							icon: 'plus',
+							onclick: createInstrumentImport
+						})}
+					{/if}
 				{:else if activeActionId === 'template'}
 					<div class="grid gap-4 lg:grid-cols-2">
 						<label class="field">
@@ -1152,23 +1127,6 @@
 				</button>
 			</div>
 		</section>
-
-		<details class="setup-run">
-			<summary>
-				<span class="setup-run__label">Generated setup defaults</span>
-				<span class="setup-run__note">Suffix {setupRunSuffix}</span>
-			</summary>
-			<div class="setup-run__body">
-				<p class="setup-run__note">
-					Default generated values stay editable for local setup runs, but they are secondary to the
-					current setup task.
-				</p>
-				<button type="button" class="secondary-button" onclick={resetSetupRun}>
-					<RefreshCw size={16} aria-hidden="true" />
-					<span>Generate new sample values</span>
-				</button>
-			</div>
-		</details>
 
 		{#if refreshWarning}
 			<p class="error-line">{refreshWarning}</p>

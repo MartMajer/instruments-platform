@@ -18542,3 +18542,11 @@ Assessment: Owner identified the authenticated session card as still too technic
 Task: Reframed the card as a normal signed-in account card, shortened permission badges to user-facing capability labels, changed the summary to a human access level, and hid the technical-details disclosure unless technical rows actually exist.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+
+## 2026-05-19 - setup instrument step product wording cleanup
+
+Assessment: Owner identified the first setup step as still reading like a development/proof tool. It exposed `Instrument import`, generated tenant-private import copy, internal code, rights status, validity label, provenance note, and the generated setup defaults drawer inside the normal setup wizard.
+
+Task: Reframed the first setup step as `Instrument`, changed the description to user-facing study setup language, hid internal code/rights/validity/provenance fields from the normal form, showed a compact `Instrument ready` state when the step is already done, changed the action to `Save instrument`, and removed the generated setup defaults drawer from the wizard.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.

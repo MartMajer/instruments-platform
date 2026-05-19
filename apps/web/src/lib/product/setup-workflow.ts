@@ -53,8 +53,8 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'instrument',
 			step: 'Step 1',
-			title: 'Instrument import',
-			description: 'Create a tenant-private instrument import for this setup run.',
+			title: 'Instrument',
+			description: 'Confirm the instrument this study will use before building the questionnaire.',
 			status: instrumentConfigured ? 'ready' : 'pending',
 			available: true,
 			disabledReason: null
