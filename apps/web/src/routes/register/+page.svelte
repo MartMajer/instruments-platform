@@ -18,11 +18,14 @@
 	let pendingEmail = $state('');
 	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
 	let registrationSignInUrl = $state('');
+	let switchAccountUrl = $state('');
 
 	onMount(() => {
+		const registerReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
 		registrationSignInUrl = resolveAuthRedirectUrl(
-			`/auth/login?registration=1&returnUrl=${encodeURIComponent(absoluteWebUrl(resolve('/register')))}`
+			`/auth/login?registration=1&returnUrl=${registerReturnUrl}&prompt=select_account`
 		);
+		switchAccountUrl = resolveAuthRedirectUrl(`/auth/logout?returnUrl=${registerReturnUrl}`);
 		void loadRegistrationSession();
 	});
 
@@ -223,6 +226,9 @@
 					<div class="registration-alert" role="status">
 						Account ready: <strong>{pendingEmail}</strong>. This email becomes the workspace owner.
 					</div>
+					{#if switchAccountUrl}
+						<a class="secondary-button" href={switchAccountUrl}>Switch account</a>
+					{/if}
 
 					<label>
 						<span>Workspace name</span>

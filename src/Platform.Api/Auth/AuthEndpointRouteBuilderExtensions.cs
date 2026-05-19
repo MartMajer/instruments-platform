@@ -114,7 +114,9 @@ public static class AuthEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        var prompt = hasTenantId ? requestedPrompt : "login";
+        var prompt = hasTenantId || !string.IsNullOrEmpty(requestedPrompt)
+            ? requestedPrompt
+            : "login";
         if (hasRegistrationBootstrap && string.IsNullOrEmpty(screenHint))
         {
             screenHint = "signup";

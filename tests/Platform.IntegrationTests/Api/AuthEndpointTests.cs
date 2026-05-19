@@ -217,6 +217,27 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_forwards_select_account_prompt_for_registration_bootstrap()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/register");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registration=1&returnUrl={returnUrl}&prompt=select_account");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("auth.example.test", response.Headers.Location?.Host);
+        Assert.Contains("prompt=select_account", response.Headers.Location?.Query);
+        Assert.Contains("screen_hint=signup", response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_rejects_unsupported_prompt()
     {
         var tenantId = Guid.NewGuid();
