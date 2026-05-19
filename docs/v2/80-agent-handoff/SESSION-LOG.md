@@ -18734,3 +18734,9 @@ Assessment: Owner found the Settings page non-functional and noisy. The page exp
 Task: Reframed Settings as `Workspace settings`, removed top route guidance, made active shortcut cards the primary content for Team access, Directory, Study setup, and Exports, added honest copy that workspace-level settings are still being assembled, moved profile/counts into collapsed Workspace details, and hid mono/id profile rows from normal display.
 
 Verification: Not run in this pass per current instruction to avoid validation unless explicitly requested.
+
+## 2026-05-19 - Settings and Results refresh fix staging deploy
+
+Task: Deployed the Workspace settings cleanup and Results export refresh-state fix to staging.
+
+Verification: Commit `2ca548b` built successfully in Docker web production build with the existing large-chunk warning. The first redeploy attempt rebuilt and restarted containers but failed on an immediate web-root 502 during warm-up. Follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/settings-results-cleanup-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:e7e03e97b46928dbf98c59cb858122f8b9df4cd8b464bf03f74e086550713d24`.
