@@ -4987,11 +4987,11 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Audience preview' });
+	const preview = setup.getByRole('region', { name: 'Choose recipients for this wave' });
 	await expect(preview).toBeVisible();
-	await preview.getByLabel('Rule').selectOption('manager_of_target');
-	await preview.getByLabel('Target subject').selectOption(sampleSubjectDirectory.subjects[0].id);
-	await preview.getByRole('button', { name: 'Preview audience' }).click();
+	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
+	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
+	await preview.getByRole('button', { name: 'Preview recipients' }).click();
 
 	await expect.poll(() => previewBodies).toHaveLength(1);
 	expect(previewBodies[0]).toMatchObject({
@@ -5003,9 +5003,11 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 		kind: 'manager_of_target',
 		role: 'manager'
 	});
-	await expect(preview.getByText('Targets', { exact: true })).toBeVisible();
-	await expect(preview.getByText('Ana Analyst -> Mira Manager', { exact: true })).toBeVisible();
+	await expect(preview.getByText('Recipients found', { exact: true })).toBeVisible();
+	await expect(preview.getByText('Ana Analyst to Mira Manager', { exact: true })).toBeVisible();
 	await expect(preview.getByText('mira@example.test', { exact: true })).toBeVisible();
+	const previewText = await preview.textContent();
+	expect(previewText).not.toMatch(/manager_of_target|respondent rule|target subject/i);
 });
 
 test('setup workflow saves respondent rules and shows safe assignments', async ({ page }) => {
@@ -5102,10 +5104,10 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Audience preview' });
-	await preview.getByLabel('Rule').selectOption('manager_of_target');
-	await preview.getByLabel('Target subject').selectOption(sampleSubjectDirectory.subjects[0].id);
-	await preview.getByRole('button', { name: 'Save rule' }).click();
+	const preview = setup.getByRole('region', { name: 'Choose recipients for this wave' });
+	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
+	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
+	await preview.getByRole('button', { name: 'Save recipient selection' }).click();
 
 	await expect.poll(() => saveBodies).toHaveLength(1);
 	expect(saveBodies[0]).toEqual({
@@ -5120,14 +5122,16 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 		]
 	});
 
-	const savedRulesRegion = setup.getByRole('region', { name: 'Saved respondent rules' });
-	await expect(savedRulesRegion.getByText('manager_of_target', { exact: true })).toBeVisible();
-	await expect(savedRulesRegion.getByText('manager', { exact: true })).toBeVisible();
-	await expect(savedRulesRegion.getByText('1 pair', { exact: true })).toBeVisible();
+	const savedSelection = setup.getByRole('region', { name: 'Saved recipient selection' });
+	await expect(savedSelection.getByText("One person's manager", { exact: true })).toBeVisible();
+	await expect(savedSelection.getByText('Ana Analyst', { exact: true })).toBeVisible();
+	await expect(savedSelection.getByText('1 invitation pair', { exact: true })).toBeVisible();
+	const savedSelectionText = await savedSelection.textContent();
+	expect(savedSelectionText).not.toMatch(/manager_of_target|respondent rule/i);
 
-	const assignments = setup.getByRole('region', { name: 'Campaign assignments' });
-	await expect(assignments.getByText('1 assignment', { exact: true })).toBeVisible();
-	await expect(assignments.getByText('Ana Analyst -> Mira Manager', { exact: true })).toBeVisible();
+	const assignments = setup.getByRole('region', { name: 'Prepared invitation roster' });
+	await expect(assignments.getByText('1 invitation', { exact: true })).toBeVisible();
+	await expect(assignments.getByText('Ana Analyst to Mira Manager', { exact: true })).toBeVisible();
 	await expect(assignments.getByText('pending', { exact: true })).toBeVisible();
 
 	const assignmentText = await assignments.textContent();

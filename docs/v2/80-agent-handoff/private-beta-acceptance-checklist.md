@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline plus QB01 respondent-format parity and DIR04 local CSV import implementation.
+Status: BR01 baseline plus QB01, DIR04 local implementation, and AUD01 recipient-selection UX.
 Last reviewed: 2026-05-20.
 
 ## Purpose
@@ -35,11 +35,11 @@ Each row uses one of these classifications:
 | Results setup | Researcher can define at least one score from rating/recommendation/number answers. | Required | Implemented. |
 | Results dimensions | Researcher can define multiple dimensions/subscales. | Beta known limit | Not implemented; RSLT01 selected. |
 | Collection setup | Researcher can create a wave and choose response mode. | Required | Implemented. |
-| Audience setup | Researcher can choose who receives the study in understandable language. | Required | Model exists; UX still model-driven. AUD01 selected. |
+| Audience setup | Researcher can choose who receives the study in understandable language. | Required | AUD01 reworked setup into plain-language recipient selection, preview, save, and invitation roster. |
 | Audience import | Researcher can import a normal study audience without manual record-by-record entry. | Required for realistic beta | DIR04 added CSV import locally; Docker-backed store proof must run before deployment. |
 | Launch check | Researcher can run pre-launch check and understand how to unblock collection. | Required | Implemented after collection readiness cleanup. |
 | Anonymous open-link collection | Researcher can launch an anonymous open-link wave and collect a response. | Required | Supported by proof spine. |
-| Anonymous invite-only collection | Researcher can invite a selected audience while keeping answers anonymous in reports/exports. | Required | Implemented by anonymous invite-only distribution slice; needs audience UX hardening. |
+| Anonymous invite-only collection | Researcher can invite a selected audience while keeping answers anonymous in reports/exports. | Required | Implemented with recipient-selection UX; Directory data quality still matters. |
 | Anonymous longitudinal | Respondent can use participant code across waves. | Required for M1 target | Supported by proof spine; not necessarily first beta walkthrough path. |
 | Identified collection | Identified entry works for identified campaigns. | Beta known limit | Foundation exists; full resolver depth remains future. |
 | Respondent completion | Respondent can consent, answer, review, submit, and see completion/receipt state. | Required | Proof spine exists; QB01 covers exposed beta-format rendering and answer normalization. |
@@ -60,9 +60,8 @@ Each row uses one of these classifications:
 
 | Rank | ID | Blocker | Reason |
 |---:|---|---|---|
-| 1 | AUD01 | Researcher-facing audience selection | Saved rules must read as recipient selection. |
-| 2 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
-| 3 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
+| 1 | RSLT01 | Multi-output Results setup | One score output is too narrow for validated instruments. |
+| 2 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
 
 ## Known limits to say out loud
 

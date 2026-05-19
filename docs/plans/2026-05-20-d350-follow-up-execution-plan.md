@@ -85,6 +85,10 @@
 **Verification:**
 - Run focused frontend/backend tests for audience save/preview.
 
+**Result - 2026-05-20:**
+- Complete. Reworked Setup collection audience controls into recipient-selection language, added readable saved selection and prepared invitation roster presentation, kept existing respondent-rule API mechanics stable, updated D354, and moved RSLT01 to the queue head.
+- Verification passed: production web build with explicit Node/Vite command; focused Playwright preview/save tests passed 2/2 against direct Vite preview. Standard Playwright webServer remains locally blocked by `npm` PATH lookup.
+
 ### Task 5: RSLT01 multi-output Results setup
 
 **Files:**

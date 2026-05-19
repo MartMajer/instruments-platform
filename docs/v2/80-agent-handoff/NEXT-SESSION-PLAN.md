@@ -1,3 +1,13 @@
+# Next Session Plan - Post-D354
+
+Current queue head: RSLT01 multi-output Results setup for dimensions/subscales.
+
+Recommended next slice: make Results setup support more than one named output from the same questionnaire. Keep the current one-output total score path as the simplest case, but let a researcher add dimensions/subscales with their own included questions, calculation, and missing-answer policy.
+
+Do not turn this into a full psychometrics workbench, norms engine, interpretation-band system, or SurveyMonkey clone. The beta need is production-shaped custom-study scoring: multiple named outputs, clear per-output question selection, safe validation, and compatibility with the report/export paths that already operate on dimension codes.
+
+AUD01 is complete for the normal setup path. DIR04 remains a deployment gate because its Docker-backed store tests still need a Docker-enabled run.
+
 # Next Session Plan - Post-D353
 
 Current queue head: AUD01 researcher-facing audience selection.

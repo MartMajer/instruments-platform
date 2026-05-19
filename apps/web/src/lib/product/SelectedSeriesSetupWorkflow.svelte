@@ -47,6 +47,7 @@
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
 	type PreviewRuleKind = 'self' | 'all_in_group' | 'manager_of_target' | 'reports_of_target';
+	type PreviewRuleRow = RespondentRulePreviewResponse['rows'][number];
 
 	let {
 		workspace,
@@ -888,60 +889,95 @@
 		return subject.displayName || subject.email || subject.externalId || subject.id;
 	}
 
-	function savedRuleSelectorLabel(rule: CampaignRespondentRuleResponse) {
-		if (rule.targetSubjectId) {
-			return rule.targetSubjectId;
-		}
-
-		if (rule.groupId) {
-			return rule.groupId;
-		}
-
-		return 'campaign audience';
-	}
-
 	function savedAudienceSummary() {
 		const rules = savedRuleResult?.rules ?? [];
 		if (savedRuleState === 'submitting') {
-			return 'Loading saved audience...';
+			return 'Loading saved recipient selection...';
 		}
 
 		if (!rules.length) {
-			return 'No audience saved yet.';
+			return 'No recipient selection saved yet.';
 		}
 
 		const totalPairs = rules.reduce((sum, rule) => sum + rule.assignmentPairCount, 0);
-		return `${ruleCountLabel(rules.length)} saved, ${pairCountLabel(totalPairs)} prepared.`;
+		return `${ruleCountLabel(rules.length)} saved, ${pairCountLabel(totalPairs)} ready.`;
 	}
 
 	function deliveryRosterSummary() {
 		if (assignmentState === 'submitting') {
-			return 'Loading delivery roster...';
+			return 'Loading invitation roster...';
 		}
 
 		if (!assignmentResult || assignmentResult.assignmentCount === 0) {
-			return 'No delivery roster prepared yet.';
+			return 'No invitations prepared yet.';
 		}
 
 		return assignmentCountLabel(assignmentResult.assignmentCount);
 	}
 
 	function assignmentPairLabel(assignment: CampaignAssignmentResponse) {
-		return `${assignment.target?.label ?? 'Any target'} -> ${
+		return `${assignment.target?.label ?? 'Study audience'} to ${
 			assignment.respondent?.label ?? 'No respondent'
 		}`;
 	}
 
+	function previewPairLabel(row: PreviewRuleRow) {
+		return `${row.target?.label ?? 'Study audience'} to ${row.respondent?.label ?? 'No respondent'}`;
+	}
+
+	function savedRecipientSelectionLabel(rule: CampaignRespondentRuleResponse) {
+		return audienceRuleLabel(normalizePreviewRuleKind(rule.ruleKind));
+	}
+
+	function savedRecipientSelectionDetail(rule: CampaignRespondentRuleResponse) {
+		const selector = rule.groupId
+			? previewGroupLabelById(rule.groupId)
+			: rule.targetSubjectId
+				? previewSubjectLabelById(rule.targetSubjectId)
+				: 'Study audience';
+
+		return selector;
+	}
+
+	function previewSubjectLabelById(subjectId: string | null | undefined) {
+		if (!subjectId) {
+			return 'Study audience';
+		}
+
+		return previewSubjectLabel(previewSubjects.find((subject) => subject.id === subjectId));
+	}
+
+	function previewGroupLabelById(groupId: string | null | undefined) {
+		if (!groupId) {
+			return 'Study audience';
+		}
+
+		return previewGroups.find((group) => group.id === groupId)?.name ?? 'Selected group';
+	}
+
+	function normalizePreviewRuleKind(value: string): PreviewRuleKind {
+		if (
+			value === 'self' ||
+			value === 'all_in_group' ||
+			value === 'manager_of_target' ||
+			value === 'reports_of_target'
+		) {
+			return value;
+		}
+
+		return 'self';
+	}
+
 	function pairCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'pair' : 'pairs'}`;
+		return `${count} ${count === 1 ? 'invitation pair' : 'invitation pairs'}`;
 	}
 
 	function ruleCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'rule' : 'rules'}`;
+		return `${count} ${count === 1 ? 'selection' : 'selections'}`;
 	}
 
 	function assignmentCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'assignment' : 'assignments'}`;
+		return `${count} ${count === 1 ? 'invitation' : 'invitations'}`;
 	}
 
 	function generateSetupRunSuffix() {
@@ -1025,27 +1061,59 @@
 
 	function audienceRuleLabel(value: PreviewRuleKind) {
 		if (value === 'all_in_group') {
-			return 'Subjects in a directory group';
+			return 'Everyone in a selected group';
 		}
 
 		if (value === 'manager_of_target') {
-			return 'Manager for one target subject';
+			return "One person's manager";
 		}
 
 		if (value === 'reports_of_target') {
-			return 'Direct reports for one target subject';
+			return "One person's direct reports";
 		}
 
-		return 'All active subjects';
+		return 'Everyone in the study audience';
+	}
+
+	function audienceRuleHelp(value: PreviewRuleKind) {
+		if (value === 'all_in_group') {
+			return 'Use this when the Directory has a department, cohort, location, or other group for this wave.';
+		}
+
+		if (value === 'manager_of_target') {
+			return 'Use this for manager feedback about one selected person.';
+		}
+
+		if (value === 'reports_of_target') {
+			return 'Use this when direct reports should answer about one selected person.';
+		}
+
+		return 'Use this for a normal invite-only wave across the active study audience.';
+	}
+
+	function recipientRoleLabel(value: string) {
+		if (value === 'group_member') {
+			return 'Group invitation';
+		}
+
+		if (value === 'manager') {
+			return 'Manager invitation';
+		}
+
+		if (value === 'direct_report') {
+			return 'Direct-report invitation';
+		}
+
+		return 'Audience invitation';
 	}
 
 	function audienceWarningLabel(warning: { code: string; message: string }) {
 		if (warning.code === 'respondent_rule_preview.audience_missing') {
-			return 'No active audience is selected yet. Add active people in Directory before launch.';
+			return 'No active study audience is selected yet. Add active people in Directory before launch.';
 		}
 
 		if (warning.code === 'respondent_rule_preview.empty') {
-			return 'No matching respondents were found for this audience rule.';
+			return 'No matching recipients were found for this selection.';
 		}
 
 		return warning.message;
@@ -1069,11 +1137,11 @@
 		}
 
 		if (issue.code === 'respondent_rule.no_recipients') {
-			return 'Saved audience rules must find at least one active recipient before launch.';
+			return 'Saved recipient selections must find at least one active person before launch.';
 		}
 
 		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
-			return 'Saved audience invitations are not available for repeat-participation waves yet. Use Anonymous or Identified collection, or remove the saved audience rule.';
+			return 'Saved recipient selections are not available for repeat-participation waves yet. Use Anonymous or Identified collection, or remove the saved selection.';
 		}
 
 		return issue.message;
@@ -1651,11 +1719,11 @@
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">Collection audience</p>
-					<h4 id="audience-preview-heading" class="record-row__title">Who will receive this study?</h4>
+					<h4 id="audience-preview-heading" class="record-row__title">Choose recipients for this wave</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						For anonymous waves, this controls who receives an invitation. It does not make answers
-						identified in reports.
+						Select who gets invited, preview the list, then save it for launch. Anonymous waves still
+						report answers anonymously.
 					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
@@ -1663,13 +1731,16 @@
 
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
 				<label class="field">
-					<span>Audience source</span>
+					<span>Send invitations to</span>
 					<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
 						<option value="self">{audienceRuleLabel('self')}</option>
 						<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
 						<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
 						<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
 					</select>
+					<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+						{audienceRuleHelp(previewRuleKind)}
+					</span>
 				</label>
 
 				{#if previewRequiresGroup}
@@ -1686,7 +1757,7 @@
 					</label>
 				{:else if previewRequiresTarget}
 					<label class="field">
-						<span>Target subject</span>
+						<span>Focus person</span>
 						<select
 							bind:value={previewTargetSubjectId}
 							disabled={previewSubjects.length === 0 || previewState === 'submitting'}
@@ -1698,7 +1769,7 @@
 					</label>
 				{:else}
 					<div class="record-field">
-						<p class="record-field__label">Scope</p>
+						<p class="record-field__label">Study audience</p>
 						<p class="record-field__value">
 							{previewSubjects.length
 								? `${previewSubjects.length} active people loaded`
@@ -1708,7 +1779,7 @@
 				{/if}
 
 				<label class="field">
-					<span>Preview limit</span>
+					<span>Preview rows</span>
 					<input
 						type="number"
 						min="1"
@@ -1726,7 +1797,7 @@
 					{:else}
 						<SearchCheck size={17} aria-hidden="true" />
 					{/if}
-					<span>Preview audience</span>
+					<span>Preview recipients</span>
 				</button>
 				<button
 					type="button"
@@ -1739,7 +1810,7 @@
 					{:else}
 						<Send size={16} aria-hidden="true" />
 					{/if}
-					<span>Save audience</span>
+					<span>Save recipient selection</span>
 				</button>
 				<button
 					type="button"
@@ -1755,7 +1826,7 @@
 					{:else}
 						<RefreshCw size={16} aria-hidden="true" />
 					{/if}
-					<span>Refresh people</span>
+					<span>Refresh directory</span>
 				</button>
 			</div>
 
@@ -1769,15 +1840,15 @@
 			{#if previewResult}
 				<div class="record-grid">
 					<div class="record-field">
-						<p class="record-field__label">People found</p>
+						<p class="record-field__label">Recipients found</p>
 						<p class="record-field__value">{previewResult.summary.respondentCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Delivery assignments</p>
+						<p class="record-field__label">Invitation rows</p>
 						<p class="record-field__value">{previewResult.summary.assignmentPairCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Preview limited</p>
+						<p class="record-field__label">Preview capped</p>
 						<p class="record-field__value">{previewResult.summary.truncated ? 'Yes' : 'No'}</p>
 					</div>
 				</div>
@@ -1798,9 +1869,9 @@
 					{:else}
 						{#each previewResult.rows as row (row.ordinal)}
 							<div class="record-field">
-								<p class="record-field__label">#{row.ordinal} {row.role}</p>
+								<p class="record-field__label">#{row.ordinal} {recipientRoleLabel(row.role)}</p>
 								<p class="record-field__value">
-									{row.target?.label ?? 'Any target'} -> {row.respondent?.label ?? 'No respondent'}
+									{previewPairLabel(row)}
 								</p>
 								{#if row.respondent?.email || row.respondent?.externalId}
 									<p class="text-sm text-[var(--color-text-muted)]">
@@ -1814,13 +1885,12 @@
 			{/if}
 		</section>
 
-		<details class="record-row setup-current-task">
-			<summary class="record-row__title">Delivery details</summary>
-		<section aria-labelledby="saved-respondent-rules-heading">
+		{#if savedRuleResult?.rules.length || savedRuleError}
+		<section class="record-row setup-current-task" aria-labelledby="saved-recipient-selection-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Audience</p>
-					<h4 id="saved-respondent-rules-heading" class="record-row__title">Saved audience setup</h4>
+					<p class="record-field__label">Saved audience</p>
+					<h4 id="saved-recipient-selection-heading" class="record-row__title">Saved recipient selection</h4>
 					<p class="setup-current-task__title">{savedAudienceSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={savedRuleState}>{stepLabel(savedRuleState)}</p>
@@ -1828,19 +1898,42 @@
 
 			{#if savedRuleError}
 				<p class="error-line" role="alert">{savedRuleError}</p>
+			{:else if savedRuleResult?.rules.length}
+				<div class="grid gap-2">
+					{#each savedRuleResult.rules as rule (rule.id)}
+						<div class="record-field">
+							<p class="record-field__label">Selection #{rule.ordinal}</p>
+							<p class="record-field__value">{savedRecipientSelectionLabel(rule)}</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{savedRecipientSelectionDetail(rule)}
+							</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{pairCountLabel(rule.assignmentPairCount)}
+							</p>
+							{#if rule.issues.length}
+								<ul class="grid gap-1" aria-label="Saved recipient selection issues">
+									{#each rule.issues as issue}
+										<li class="error-line">{launchIssueLabel(issue)}</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
+					{/each}
+				</div>
 			{:else}
 				<p class="text-sm text-[var(--color-text-muted)]">
-					This section is for troubleshooting delivery setup. The normal setup path only needs the
-					audience preview and launch check above.
+					Save a recipient selection after the preview looks right.
 				</p>
 			{/if}
 		</section>
+		{/if}
 
-		<section aria-labelledby="campaign-assignments-heading">
+		{#if assignmentResult?.assignmentCount || assignmentError}
+		<section class="record-row setup-current-task" aria-labelledby="prepared-invitation-roster-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Delivery roster</p>
-					<h4 id="campaign-assignments-heading" class="record-row__title">Prepared assignments</h4>
+					<p class="record-field__label">Invitation roster</p>
+					<h4 id="prepared-invitation-roster-heading" class="record-row__title">Prepared invitation roster</h4>
 					<p class="setup-current-task__title">{deliveryRosterSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={assignmentState}>{stepLabel(assignmentState)}</p>
@@ -1848,13 +1941,28 @@
 
 			{#if assignmentError}
 				<p class="error-line" role="alert">{assignmentError}</p>
+			{:else if assignmentResult?.assignments.length}
+				<div class="grid gap-2">
+					{#each assignmentResult.assignments as assignment (assignment.id)}
+						<div class="record-field">
+							<p class="record-field__label">{recipientRoleLabel(assignment.role)}</p>
+							<p class="record-field__value">{assignmentPairLabel(assignment)}</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{assignment.respondent?.email ?? assignment.respondent?.externalId ?? 'No contact'}
+							</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{assignment.status}
+							</p>
+						</div>
+					{/each}
+				</div>
 			{:else}
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Assignments are prepared when the audience resolves to active people.
+					Invitations are prepared after the saved selection resolves to active people.
 				</p>
 			{/if}
 		</section>
-		</details>
+		{/if}
 		{/if}
 	{/if}
 </section>

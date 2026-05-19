@@ -28,7 +28,6 @@ instrument content and do not treat Q-053 as closed.
 
 | ID    | Action                                                                 | Why now                                                            | Effort |
 | ----- | ---------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ |
-| AUD01 | Rework collection audience selection into researcher-facing recipient UX | Saved audience rules still feel too model-driven                    | M      |
 | RSLT01 | Add multi-output Results setup for dimensions/subscales                | One average/sum score is too narrow for validated instruments       | L      |
 | VAL08 | Refresh the validation walkthrough packet after the product UI changes  | Owner calls should use the current app and current limits           | S      |
 
@@ -48,6 +47,7 @@ DEP01-C/GitHub Actions is deferred until the owner explicitly reopens deployment
 
 ## Done
 
+- [2026-05-20] AUD01 researcher-facing audience selection **DONE** - reworked Setup collection audience controls into recipient-selection language: "Send invitations to", readable study-audience/group/manager/report choices, recipient preview, saved recipient selection, and prepared invitation roster. Kept existing respondent-rule backend mechanics stable while hiding raw rule identifiers from the normal researcher path. Verification: production web build passed with explicit Node/Vite command; focused Playwright e2e preview/save tests passed 2/2 against direct Vite preview. Standard Playwright webServer remains locally blocked by the existing `npm` PATH issue.
 - [2026-05-20] DIR04 CSV audience import MVP **DONE locally, Docker behavior proof pending** - added `POST /subjects/imports/csv`, backend CSV import contracts/handler/store path, frontend product API method, and `/app/directory` paste/file CSV import panel for people, groups, and memberships. Verification: frontend product API test passed 30/30; targeted endpoint test passed 1/1. Docker-backed store tests for upsert/idempotency were added but could not run because Docker/Testcontainers could not connect to the local Docker engine; run them before deployment.
 - [2026-05-20] QB01 respondent-format parity **DONE** - added respondent `payload` to the API contract, returned question payload from response capture, rendered rating/NPS/single/multiple/number/text/date/ranking through the respondent SurveyJS adapter, serialized multiple-choice and ranking answers as JSON-array strings, restricted the Svelte input bridge to text-like controls, and added focused adapter coverage. Verification: focused web adapter test passed 5/5; targeted .NET respondent endpoint test passed 1/1. Broader `svelte-check` remains blocked by existing unrelated TypeScript/Svelte errors recorded in D352.
 - [2026-05-20] BR01 private-beta acceptance checklist **DONE** - added `docs/v2/80-agent-handoff/private-beta-acceptance-checklist.md`, closed Q-058 with the checklist as the beta bar, added D351 post-BR01 assessment, and selected QB01 as the next slice.

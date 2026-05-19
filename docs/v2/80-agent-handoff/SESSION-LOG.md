@@ -18819,6 +18819,14 @@ Verification:
 - Verification passed: focused respondent adapter Vitest run passed 5/5 using the explicit Node executable path; targeted .NET respondent endpoint test passed 1/1.
 - Verification note: broader direct svelte-check ran but failed on existing unrelated TypeScript/Svelte errors outside the QB01 adapter/runtime files; D352 records the affected areas.
 - Queue: QB01 moved to Done. DIR04 CSV audience import MVP is now the agent-executable queue head.
+## 2026-05-20 - D354 post-AUD01 recipient selection assessment
+
+- Completed AUD01: setup collection audience now reads as recipient selection instead of respondent-rule programming.
+- Normal path now uses "Send invitations to", readable study-audience/group/manager/report choices, "Preview recipients", "Save recipient selection", visible saved recipient selection, and a prepared invitation roster.
+- Kept backend respondent-rule JSON and campaign-assignment mechanics stable; the slice was UI/product-language hardening over the existing preview/save contracts.
+- Verification passed through explicit Node/Vite production build and focused Playwright preview/save tests 2/2 against direct Vite preview. The standard Playwright webServer command remains locally blocked by the existing `npm` PATH issue.
+- Queue moves to RSLT01 multi-output Results setup. DIR04 Docker-backed store tests remain a deployment gate.
+
 ## 2026-05-20 - D353 post-DIR04 CSV audience import assessment
 
 - Completed DIR04 local implementation for CSV audience import: added `POST /subjects/imports/csv`, backend contracts/command/store path, frontend product API method, and Directory paste/file import panel for people, groups, and memberships.
