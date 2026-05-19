@@ -26,7 +26,7 @@
 			`/auth/login?registration=1&returnUrl=${registerReturnUrl}&prompt=select_account`
 		);
 		switchAccountUrl = resolveAuthRedirectUrl(
-			`/auth/logout?provider=1&returnUrl=${registerReturnUrl}`
+			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(resolve('/')))}`
 		);
 		void loadRegistrationSession();
 	});
