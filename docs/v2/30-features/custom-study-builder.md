@@ -20,7 +20,7 @@ The selected-study setup flow has five ordered steps:
 - Instrument: confirm the study instrument shell and tenant-attested ownership boundary.
 - Questionnaire: build the respondent questions for the study.
 - Results setup: choose which numeric/rating answers become a score and how missing answers are handled.
-- Draft campaign: create the collection instance in the campaign series.
+- Collection setup: name the collection wave and choose how respondents will answer.
 - Launch check: verify prerequisites before collection starts.
 
 The Questionnaire step currently exposes these answer formats:

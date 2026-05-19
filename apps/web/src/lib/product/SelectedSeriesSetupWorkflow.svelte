@@ -116,7 +116,7 @@
 		compatibility: '{}'
 	});
 	let campaignForm = $state({
-		name: `Wave 1 ${initialSetupRunSuffix}`,
+		name: 'Wave 1',
 		responseIdentityMode: 'anonymous',
 		defaultLocale: 'en'
 	});
@@ -320,7 +320,7 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				campaign: 'Create or select an instrument template first.'
+				campaign: 'Save the questionnaire first.'
 			};
 			return;
 		}
@@ -348,7 +348,7 @@
 		if (!campaignId) {
 			actionErrors = {
 				...actionErrors,
-				readiness: 'Create a campaign draft first.'
+				readiness: 'Create the collection wave first.'
 			};
 			return;
 		}
@@ -391,7 +391,7 @@
 		}
 
 		if (!campaignId) {
-			previewError = 'Create or select a campaign draft first.';
+			previewError = 'Create the collection wave first.';
 			return;
 		}
 
@@ -469,7 +469,7 @@
 	async function saveCurrentRespondentRule() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
-			savedRuleError = 'Create or select a campaign draft first.';
+			savedRuleError = 'Create the collection wave first.';
 			return;
 		}
 
@@ -964,6 +964,74 @@
 
 		return ' Every selected question must be answered.';
 	}
+
+	function responseModeLabel(value: string) {
+		if (value === 'anonymous_longitudinal') {
+			return 'Anonymous with repeat participation';
+		}
+
+		if (value === 'identified') {
+			return 'Identified';
+		}
+
+		return 'Anonymous';
+	}
+
+	function audienceRuleLabel(value: PreviewRuleKind) {
+		if (value === 'all_in_group') {
+			return 'Subjects in a directory group';
+		}
+
+		if (value === 'manager_of_target') {
+			return 'Manager for one target subject';
+		}
+
+		if (value === 'reports_of_target') {
+			return 'Direct reports for one target subject';
+		}
+
+		return 'All active subjects';
+	}
+
+	function audienceWarningLabel(warning: { code: string; message: string }) {
+		if (warning.code === 'respondent_rule_preview.audience_missing') {
+			return 'No active audience is selected yet. Add active people in Directory before launch.';
+		}
+
+		if (warning.code === 'respondent_rule_preview.empty') {
+			return 'No matching respondents were found for this audience rule.';
+		}
+
+		return warning.message;
+	}
+
+	function launchIssueLabel(issue: { code: string; message: string }) {
+		if (issue.code.includes('campaign')) {
+			return issue.message.replace('campaign', 'collection wave');
+		}
+
+		if (issue.code.includes('template')) {
+			return issue.message.replace('Template', 'Questionnaire').replace('template', 'questionnaire');
+		}
+
+		if (issue.code.includes('scoring')) {
+			return issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup');
+		}
+
+		return issue.message;
+	}
+
+	function readinessLabel() {
+		if (readinessResult) {
+			return readinessResult.ready ? 'Ready to launch' : 'Needs attention';
+		}
+
+		if (workspace.readiness.ready) {
+			return 'Ready to launch';
+		}
+
+		return 'Not checked yet';
+	}
 </script>
 
 <section class="product-panel" role="group" aria-label="Study setup progress">
@@ -1400,63 +1468,94 @@
 						})}
 					{/if}
 				{:else if activeActionId === 'campaign'}
-					<div class="grid gap-4 lg:grid-cols-2">
-						<label class="field">
-							<span>Series name</span>
-							<input value={workspaceView.title} disabled />
-						</label>
-						<label class="field">
-							<span>Campaign name</span>
-							<input bind:value={campaignForm.name} />
-						</label>
-						<label class="field">
-							<span>Identity mode</span>
-							<select bind:value={campaignForm.responseIdentityMode}>
-								<option value="anonymous">anonymous</option>
-								<option value="anonymous_longitudinal">anonymous_longitudinal</option>
-								<option value="identified">identified</option>
-							</select>
-						</label>
-						<label class="field">
-							<span>Locale</span>
-							<input bind:value={campaignForm.defaultLocale} />
-						</label>
-					</div>
-					{@render ActionFooter({
-						id: 'campaign',
-						label: 'Create campaign draft',
-						icon: 'send',
-						onclick: createCampaignDraft
-					})}
-				{:else if activeActionId === 'readiness'}
-					<div class="record-grid">
-						<div class="record-field">
-							<p class="record-field__label">Selected campaign</p>
-							<p class="record-field__value">{selectedCampaignLabel}</p>
+					{#if activeStep.pathState === 'done'}
+						<div class="record-row">
+							<h5 class="record-row__title">Collection wave ready</h5>
+							<div class="record-grid">
+								<div class="record-field">
+									<p class="record-field__label">Wave</p>
+									<p class="record-field__value">{selectedCampaignLabel}</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Response mode</p>
+									<p class="record-field__value">
+										{responseModeLabel(campaignForm.responseIdentityMode)}
+									</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Language</p>
+									<p class="record-field__value">{campaignForm.defaultLocale}</p>
+								</div>
+							</div>
 						</div>
-						<div class="record-field">
-							<p class="record-field__label">Readiness</p>
-							<p class="record-field__value">
-								{readinessResult
-									? readinessResult.ready
-										? 'ready'
-										: 'blocked'
-									: workspace.readiness.status}
-							</p>
+					{:else}
+						<div class="grid gap-4 lg:grid-cols-2">
+							<label class="field">
+								<span>Wave name</span>
+								<input bind:value={campaignForm.name} />
+							</label>
+							<label class="field">
+								<span>Response mode</span>
+								<select bind:value={campaignForm.responseIdentityMode}>
+									<option value="anonymous">Anonymous</option>
+									<option value="anonymous_longitudinal">Anonymous with repeat participation</option>
+									<option value="identified">Identified</option>
+								</select>
+							</label>
+							<label class="field">
+								<span>Respondent language</span>
+								<input bind:value={campaignForm.defaultLocale} />
+							</label>
+						</div>
+						{@render ActionFooter({
+							id: 'campaign',
+							label: 'Save collection wave',
+							icon: 'send',
+							onclick: createCampaignDraft
+						})}
+					{/if}
+				{:else if activeActionId === 'readiness'}
+					<div class="record-row">
+						<h5 class="record-row__title">Launch checklist</h5>
+						<div class="record-grid">
+							<div class="record-field">
+								<p class="record-field__label">Questionnaire</p>
+								<p class="record-field__value">
+									{selectedTemplateVersionId ? 'Ready' : 'Save questionnaire first'}
+								</p>
+							</div>
+							<div class="record-field">
+								<p class="record-field__label">Results setup</p>
+								<p class="record-field__value">
+									{localState.scoringRuleId ?? workspace.scoring?.id
+										? 'Ready'
+										: 'Save results setup first'}
+								</p>
+							</div>
+							<div class="record-field">
+								<p class="record-field__label">Collection wave</p>
+								<p class="record-field__value">
+									{selectedCampaignId ? selectedCampaignLabel : 'Create collection wave first'}
+								</p>
+							</div>
+							<div class="record-field">
+								<p class="record-field__label">Status</p>
+								<p class="record-field__value">{readinessLabel()}</p>
+							</div>
 						</div>
 					</div>
 					{#if readinessResult?.issues.length}
-						<ul class="grid gap-2" aria-label="Launch readiness issues">
+						<ul class="grid gap-2" aria-label="Launch checklist issues">
 							{#each readinessResult.issues as issue}
 								<li class="text-sm text-[var(--color-text-muted)]">
-									<strong>{issue.code}</strong>: {issue.message}
+									{launchIssueLabel(issue)}
 								</li>
 							{/each}
 						</ul>
 					{/if}
 					{@render ActionFooter({
 						id: 'readiness',
-						label: 'Check launch readiness',
+						label: 'Run launch check',
 						icon: 'search',
 						onclick: checkLaunchReadiness
 					})}
@@ -1490,8 +1589,8 @@
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Selected campaign</p>
-					<h4 id="audience-preview-heading" class="record-row__title">Audience preview</h4>
+					<p class="record-field__label">Collection audience</p>
+					<h4 id="audience-preview-heading" class="record-row__title">Who will receive this study?</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
@@ -1499,12 +1598,12 @@
 
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
 				<label class="field">
-					<span>Rule</span>
+					<span>Audience source</span>
 					<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
-						<option value="self">self</option>
-						<option value="all_in_group">all_in_group</option>
-						<option value="manager_of_target">manager_of_target</option>
-						<option value="reports_of_target">reports_of_target</option>
+						<option value="self">{audienceRuleLabel('self')}</option>
+						<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
+						<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
+						<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
 					</select>
 				</label>
 
@@ -1535,12 +1634,16 @@
 				{:else}
 					<div class="record-field">
 						<p class="record-field__label">Scope</p>
-						<p class="record-field__value">{previewSubjects.length} subjects loaded</p>
+						<p class="record-field__value">
+							{previewSubjects.length
+								? `${previewSubjects.length} active people loaded`
+								: 'No active people loaded yet'}
+						</p>
 					</div>
 				{/if}
 
 				<label class="field">
-					<span>Rows</span>
+					<span>Preview limit</span>
 					<input
 						type="number"
 						min="1"
@@ -1571,7 +1674,7 @@
 					{:else}
 						<Send size={16} aria-hidden="true" />
 					{/if}
-					<span>Save rule</span>
+					<span>Save audience</span>
 				</button>
 				<button
 					type="button"
@@ -1587,7 +1690,7 @@
 					{:else}
 						<RefreshCw size={16} aria-hidden="true" />
 					{/if}
-					<span>Refresh options</span>
+					<span>Refresh people</span>
 				</button>
 			</div>
 
@@ -1601,19 +1704,15 @@
 			{#if previewResult}
 				<div class="record-grid">
 					<div class="record-field">
-						<p class="record-field__label">Targets</p>
-						<p class="record-field__value">{previewResult.summary.targetCount}</p>
-					</div>
-					<div class="record-field">
-						<p class="record-field__label">Respondents</p>
+						<p class="record-field__label">People found</p>
 						<p class="record-field__value">{previewResult.summary.respondentCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Pairs</p>
+						<p class="record-field__label">Delivery assignments</p>
 						<p class="record-field__value">{previewResult.summary.assignmentPairCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Truncated</p>
+						<p class="record-field__label">Preview limited</p>
 						<p class="record-field__value">{previewResult.summary.truncated ? 'Yes' : 'No'}</p>
 					</div>
 				</div>
@@ -1622,7 +1721,7 @@
 					<ul class="grid gap-2" aria-label="Audience preview warnings">
 						{#each previewResult.warnings as warning}
 							<li class="text-sm text-[var(--color-text-muted)]">
-								<strong>{warning.code}</strong>: {warning.message}
+								{audienceWarningLabel(warning)}
 							</li>
 						{/each}
 					</ul>
@@ -1630,7 +1729,7 @@
 
 				<div class="grid gap-2">
 					{#if previewResult.rows.length === 0}
-						<p class="text-sm text-[var(--color-text-muted)]">No preview rows.</p>
+						<p class="text-sm text-[var(--color-text-muted)]">No people to show yet.</p>
 					{:else}
 						{#each previewResult.rows as row (row.ordinal)}
 							<div class="record-field">
@@ -1650,13 +1749,13 @@
 			{/if}
 		</section>
 
-		<section class="record-row setup-current-task" aria-labelledby="saved-respondent-rules-heading">
+		<details class="record-row setup-current-task">
+			<summary class="record-row__title">Delivery details</summary>
+		<section aria-labelledby="saved-respondent-rules-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Campaign configuration</p>
-					<h4 id="saved-respondent-rules-heading" class="record-row__title">
-						Saved respondent rules
-					</h4>
+					<p class="record-field__label">Audience rule record</p>
+					<h4 id="saved-respondent-rules-heading" class="record-row__title">Saved audience rules</h4>
 					<p class="setup-current-task__title">
 						{savedRuleResult ? ruleCountLabel(savedRuleResult.rules.length) : 'Not loaded'}
 					</p>
@@ -1692,11 +1791,11 @@
 			{/if}
 		</section>
 
-		<section class="record-row setup-current-task" aria-labelledby="campaign-assignments-heading">
+		<section aria-labelledby="campaign-assignments-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Assignment roster</p>
-					<h4 id="campaign-assignments-heading" class="record-row__title">Campaign assignments</h4>
+					<p class="record-field__label">Delivery roster</p>
+					<h4 id="campaign-assignments-heading" class="record-row__title">Prepared assignments</h4>
 					<p class="setup-current-task__title">
 						{assignmentResult
 							? assignmentCountLabel(assignmentResult.assignmentCount)
@@ -1727,6 +1826,7 @@
 				<p class="text-sm text-[var(--color-text-muted)]">No assignments.</p>
 			{/if}
 		</section>
+		</details>
 		{/if}
 	{/if}
 </section>

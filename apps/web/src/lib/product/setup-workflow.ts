@@ -81,8 +81,8 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'campaign',
 			step: 'Step 4',
-			title: 'Draft campaign',
-			description: 'Create a draft campaign inside the selected route campaign series.',
+			title: 'Collection setup',
+			description: 'Name the collection wave and choose how respondents will answer.',
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
 			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
@@ -91,10 +91,10 @@ export function toSelectedSeriesSetupWorkflowActions(
 			id: 'readiness',
 			step: 'Step 5',
 			title: 'Launch check',
-			description: 'Run launch-readiness diagnostics against the selected campaign draft.',
+			description: 'Check the questionnaire, results, collection wave, audience, and policies before launch.',
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
 			available: Boolean(campaignId),
-			disabledReason: campaignId ? null : 'Create a campaign draft first.'
+			disabledReason: campaignId ? null : 'Create the collection wave first.'
 		}
 	];
 }

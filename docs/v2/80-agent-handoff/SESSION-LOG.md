@@ -18578,3 +18578,13 @@ Task: Changed Results setup to generate `produces` as declared score codes only.
 Verification: Commit `291ce29` deployed to staging. Docker web production build passed during redeploy. The first redeploy proof hit a transient web-root 502 during warm-up, then follow-up public checks returned API `/health/ready` 200, web `/` 200, and web `/app` 200. Clean VPS release checks passed at `/tmp/results-setup-produces-fix-vps-release-20260519-followup`; remote public smoke and backup/restore passed, authenticated remote smoke was skipped. Running web image: `sha256:23cfd8e10f344b958c4f08c47348d2e52031e615c07d7e554a77db7025a6a887`.
 
 Remaining risk: Interpretation bands remain out of scope for the current Results setup and are documented as a future slice.
+
+## 2026-05-19 - collection setup and launch check cleanup
+
+Assessment: Owner found the Draft campaign and Launch check setup surfaces still looked like development proof panels. The page exposed campaign drafts, identity-mode enum values, locale, raw audience-rule labels, preview warning codes, saved respondent rules, assignment pairs, and empty assignment rosters before the researcher had a useful audience configured.
+
+Task: Reframed Step 4 as `Collection setup`, changed campaign fields to wave name, response mode, and respondent language, hid the form after the collection wave is ready, and changed the action to `Save collection wave`. Reworked the audience preview into `Who will receive this study?`, changed audience-rule labels and warning messages to researcher-facing language, changed save/refresh labels, and collapsed saved audience-rule/assignment internals under `Delivery details`. Reworked Launch check into a checklist for questionnaire, results setup, collection wave, and current launch status, with issue messages stripped of internal codes.
+
+Verification: Pending staging deploy.
+
+Remaining risk: Audience selection still depends on the existing respondent-rule model and Directory data. A full audience-builder slice is still needed before this feels complete for real studies.
