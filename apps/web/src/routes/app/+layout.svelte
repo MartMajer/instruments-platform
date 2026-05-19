@@ -45,6 +45,7 @@
 			authSession = await setupApi.getCurrentSession();
 			authContext.session.set(authSession);
 			authState = 'authenticated';
+			clearAuthFailureMarker();
 		} catch (error) {
 			authSession = null;
 			authContext.session.set(null);
@@ -80,6 +81,21 @@
 		}
 
 		return 'Session check failed.';
+	}
+
+	function clearAuthFailureMarker() {
+		if (!authFailedRedirect) {
+			return;
+		}
+
+		const nextUrl = new URL(page.url);
+		nextUrl.searchParams.delete('auth');
+
+		window.history.replaceState(
+			window.history.state,
+			'',
+			`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
+		);
 	}
 </script>
 

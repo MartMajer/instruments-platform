@@ -25,6 +25,13 @@ test('checks the current session before showing setup controls', async ({ page }
 	expect(calls).toEqual(['/auth/session']);
 });
 
+test('removes stale auth failure marker after successful workspace sign-in', async ({ page }) => {
+	await page.goto('/app?auth=failed');
+
+	await expect(page).toHaveURL(/\/app$/);
+	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+});
+
 test('shows sign-in required when the setup session is unauthenticated', async ({ page }) => {
 	let protectedCalls = 0;
 
