@@ -31,11 +31,11 @@ function toPermissionBadges(permissions: string[]) {
 	const badges: string[] = [];
 
 	if (permissions.includes(setupManagePermission)) {
-		badges.push('Setup management');
+		badges.push('Setup');
 	}
 
 	if (permissions.includes(teamManagePermission)) {
-		badges.push('Team management');
+		badges.push('Team');
 	}
 
 	if (
@@ -43,26 +43,37 @@ function toPermissionBadges(permissions: string[]) {
 			reportPermissionPrefixes.some((prefix) => permission.startsWith(prefix))
 		)
 	) {
-		badges.push('Report access');
+		badges.push('Reports');
 	}
 
 	return badges.length > 0 ? badges : ['Tenant member'];
 }
 
 function toPermissionSummary(permissions: string[], permissionBadges: string[]) {
-	const managementBadges = [];
-	if (permissions.includes(setupManagePermission)) {
-		managementBadges.push('Setup management');
+	const hasSetupManagement = permissions.includes(setupManagePermission);
+	const hasTeamManagement = permissions.includes(teamManagePermission);
+	const hasReports = permissionBadges.includes('Reports');
+
+	if (hasSetupManagement && hasTeamManagement) {
+		return hasReports ? 'Workspace administration and reporting access' : 'Workspace administration access';
 	}
 
-	if (permissions.includes(teamManagePermission)) {
-		managementBadges.push('team management');
+	if (hasSetupManagement) {
+		return 'Study setup access';
 	}
 
-	const summaryBadges = managementBadges.length > 0 ? managementBadges : permissionBadges;
+	if (hasTeamManagement) {
+		return 'Team administration access';
+	}
+
+	const summaryBadges = permissionBadges;
 	if (summaryBadges.length === 1) {
 		const [badge] = summaryBadges;
-		return badge.toLowerCase().endsWith(' access') ? badge : `${badge} access`;
+		if (badge === 'Reports') {
+			return 'Reporting access';
+		}
+
+		return `${badge} access`;
 	}
 
 	const [lastBadge] = summaryBadges.slice(-1);

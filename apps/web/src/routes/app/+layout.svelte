@@ -291,32 +291,34 @@
 			</div>
 		{/if}
 
-		<section class="setup-callout" aria-label="Authenticated tenant session">
+		<section class="setup-callout" aria-label="Signed-in workspace account">
 			{#if sessionProfile}
 				<div class="session-callout__header">
 					<div>
-						<p class="setup-callout__key">Workspace session</p>
+						<p class="setup-callout__key">Signed in as</p>
 						<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 						<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 					</div>
 					<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
 				</div>
-				<div class="session-callout__badges" aria-label="Session permission posture">
+				<div class="session-callout__badges" aria-label="Workspace access">
 					{#each sessionProfile.permissionBadges as badge}
 						<span class="status-badge" data-status="ready">{badge}</span>
 					{/each}
 				</div>
-				<details class="session-callout__details" aria-label="Session technical details">
-					<summary>Technical details</summary>
-					<dl class="session-callout__technical-list">
-						{#each sessionProfile.technicalRows as row}
-							<div class="session-callout__technical-row">
-								<dt>{row.label}</dt>
-								<dd>{row.value}</dd>
-							</div>
-						{/each}
-					</dl>
-				</details>
+				{#if sessionProfile.technicalRows.length > 0}
+					<details class="session-callout__details" aria-label="Session technical details">
+						<summary>Technical details</summary>
+						<dl class="session-callout__technical-list">
+							{#each sessionProfile.technicalRows as row}
+								<div class="session-callout__technical-row">
+									<dt>{row.label}</dt>
+									<dd>{row.value}</dd>
+								</div>
+							{/each}
+						</dl>
+					</details>
+				{/if}
 			{/if}
 		</section>
 

@@ -14,16 +14,9 @@ describe('toSessionProfileView', () => {
 		const view = toSessionProfileView(session);
 
 		expect(view.accountLabel).toBe('owner@example.test');
-		expect(view.permissionSummary).toBe('Setup management and team management access');
-		expect(view.permissionBadges).toEqual([
-			'Setup management',
-			'Team management',
-			'Report access'
-		]);
-		expect(view.technicalRows).toEqual([
-			{ label: 'User id', value: '22222222-2222-4222-8222-222222222222' },
-			{ label: 'Tenant id', value: '11111111-1111-4111-8111-111111111111' }
-		]);
+		expect(view.permissionSummary).toBe('Workspace administration and reporting access');
+		expect(view.permissionBadges).toEqual(['Setup', 'Team', 'Reports']);
+		expect(view.technicalRows).toEqual([]);
 	});
 
 	it('falls back to a compact signed-in label without email', () => {
@@ -50,7 +43,7 @@ describe('toSessionProfileView', () => {
 
 		const view = toSessionProfileView(session);
 
-		expect(view.permissionSummary).toBe('Report access');
-		expect(view.permissionBadges).toEqual(['Report access']);
+		expect(view.permissionSummary).toBe('Reporting access');
+		expect(view.permissionBadges).toEqual(['Reports']);
 	});
 });

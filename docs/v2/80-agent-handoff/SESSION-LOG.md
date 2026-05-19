@@ -18534,3 +18534,11 @@ Assessment: Owner identified the remaining setup route guidance and preparation 
 Task: Simplified the setup route header, removed the setup route-guidance panel, removed the separate preparation checklist panel from the setup surface, and fixed the setup path button/list accessibility warning by dropping invalid list roles. The setup wizard is now the visible source of truth for setup progress and next action.
 
 Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
+
+## 2026-05-19 - workspace session card cleanup
+
+Assessment: Owner identified the authenticated session card as still too technical: it showed `Workspace session`, long permission names, and an empty `Technical details` disclosure after technical rows had already been removed from the view model.
+
+Task: Reframed the card as a normal signed-in account card, shortened permission badges to user-facing capability labels, changed the summary to a human access level, and hid the technical-details disclosure unless technical rows actually exist.
+
+Verification: Not run separately by request constraints; deployment build will be the syntax gate if deployed.
