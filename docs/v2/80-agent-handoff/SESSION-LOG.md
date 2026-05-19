@@ -18448,3 +18448,11 @@ Assessment: After removing the seeded public tenant fallback, bare `/auth/login`
 Task: Added `POST /registration/workspace-sign-in` for beta existing-workspace lookup by email. It validates email and return URL, uses the existing registration email lookup RLS guard, finds the active workspace tenant for the email, and returns a tenant-scoped `/auth/login` URL with `prompt=login` and `login_hint`. The home page now routes generic Sign in to `/register?mode=signin`; the register page has an email-only sign-in mode that remembers the returned tenant before redirecting to Auth0. Known-workspace sign-in still goes directly to Auth0 with tenant context.
 Verification: API release build passed with 0 warnings and 0 errors. Web registration/session-header unit tests passed 14/14. Web production build passed; existing large chunk warning only. Focused Playwright auth/registration tests passed 5/5 for generic sign-in lookup, existing workspace lookup, last-workspace sign-in, registration workspace memory, and failed-auth recovery.
 Remaining risk: This is still beta one-email-one-workspace lookup, not a full multi-workspace picker. If one email later belongs to multiple workspaces, this endpoint needs to return choices instead of first tenant.
+
+Deployment update:
+- Commit pushed: `4cce649 fix(auth): add workspace sign-in lookup` to `origin/main` and `origin/staging`.
+- VPS staging API and web rebuilt/recreated from `4cce649`.
+- Running API image: `sha256:ae46368a8b8909d6fd4b5d2cae1e7c562905b1a97781b31bbea63066c5f661e4`.
+- Running web image: `sha256:894096712bf8d93770565a377ef2a0282ef703c10caf4dfebec76b7924593bf9`.
+- Public checks: API `/health/ready` 200, web `/` 200, web `/register?mode=signin` 200.
+- Direct staging lookup for the owner-provided `majeric.martin+334@gmail.com` returned `/auth/login` with tenant `019e4089-b3bd-7f9d-9db7-c7ba0e4b7657`, `prompt=login`, and matching `login_hint`.
