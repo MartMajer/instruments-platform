@@ -4,22 +4,27 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { ApiError, createApiClient } from '$lib/api/client';
-	import { createLoginUrlFromEnv, createSessionHeadersFromEnv } from '$lib/api/session-headers';
+	import {
+		createLoginUrlFromEnv,
+		createSessionHeadersFromEnv,
+		readLastTenantId,
+		rememberLastTenantId
+	} from '$lib/api/session-headers';
 	import { createSetupApi, type AuthSessionResponse } from '$lib/api/setup';
 	import { createProductAuthContext, setProductAuthContext } from '$lib/product/auth-context';
 	import { toSessionProfileView } from '$lib/product/session-profile';
 
 	type AuthState = 'checking' | 'authenticated' | 'unauthenticated' | 'forbidden' | 'failed';
 
-	const loginUrl = createLoginUrlFromEnv(env);
+	let loginUrl = $state(createLoginUrlFromEnv(env));
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
 	const pendingRegistrationClockSkewMs = 60 * 1000;
-	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
-	const primaryAuthActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
-	const primaryAuthActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
+	const hasTenantLoginTarget = $derived(/[?&]tenantId=/.test(loginUrl));
+	const primaryAuthActionUrl = $derived(hasTenantLoginTarget ? loginUrl : resolve('/register'));
+	const primaryAuthActionLabel = $derived(hasTenantLoginTarget ? 'Sign in' : 'Create workspace');
 	const completeLogoutUrl = $derived(createProviderLogoutUrl());
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const authFailedPrimaryLabel = $derived(
@@ -49,6 +54,7 @@
 	const authFailedRedirect = $derived(page.url.searchParams.get('auth') === 'failed');
 
 	onMount(() => {
+		loginUrl = createLoginUrlFromEnv(env, readLastTenantId(window.localStorage));
 		loadPendingRegistrationLoginUrl();
 		void checkSession();
 	});
@@ -60,6 +66,8 @@
 		try {
 			authSession = await setupApi.getCurrentSession();
 			authContext.session.set(authSession);
+			rememberLastTenantId(window.localStorage, authSession.tenantId);
+			loginUrl = createLoginUrlFromEnv(env, authSession.tenantId);
 			authState = 'authenticated';
 			clearAuthFailureMarker();
 			clearPendingRegistrationLoginUrl();

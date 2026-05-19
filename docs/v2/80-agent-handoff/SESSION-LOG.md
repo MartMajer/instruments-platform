@@ -18375,3 +18375,13 @@ Task: Implemented the approved one-session registration grace flow. Registration
 Verification: Fresh integrated backend verification passed 76/76 with `RUN_POSTGRES_INTEGRATION_TESTS=1` for focused auth/session/registration/mapping tests. Fresh web verification passed SvelteKit sync, production Vite build, and 8/8 focused Playwright tests for email-verification and pending-registration recovery. Review gates were run per task with spec and code-quality reviewers; blocking findings around unsafe overloads, missing migration metadata, incorrect resolver `EmailVerified`, legacy principal projection, normal-login fail-closed behavior, and stale pending recovery copy were fixed before merge.
 
 Remaining risk: Existing app cookies minted before this change do not contain the new `email_verified` claim, so they will not show the banner until re-authentication. Pending-registration metadata validation is duplicated between `/register` and `/app`; if this state grows, extract a shared helper and consider stricter auth-origin/path allowlisting for the stored recovery URL.
+
+## 2026-05-19 - last workspace sign-in recovery hotfix
+
+Assessment: Owner reproduced a loop after successful registration grace: sign out from the newly created workspace, click home Sign in, and land on `/app?auth=failed` even after verifying email. Staging env showed the public `PUBLIC_AUTH_LOGIN_URL` lacked the new tenant and `PUBLIC_TENANT_ID` pointed at the seeded validation tenant. API logs confirmed the callback failed as no platform tenant membership was resolved, not as an email-verification failure.
+
+Task: Added browser-side last-workspace tenant memory. Successful `/auth/session` now stores the authenticated tenant id in `localStorage`; home Sign in and `/app?auth=failed` existing-workspace recovery use that tenant id when building `/auth/login`. The default configured tenant remains the fallback for first-time/no-history browsers.
+
+Verification: RED Playwright tests reproduced home Sign in staying `/auth/login` and failed recovery lacking the new tenant id. GREEN verification passed SvelteKit sync, production Vite build, and 10/10 focused Playwright tests for email verification, pending registration recovery, and last authenticated workspace sign-in.
+
+Remaining risk: This is a browser-local single-last-workspace bridge, not a full multi-workspace account picker. Future multi-workspace support should replace this with server-backed workspace discovery or explicit workspace slug selection.

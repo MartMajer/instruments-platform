@@ -3,11 +3,13 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { createLoginUrlFromEnv } from '$lib/api/session-headers';
+	import { createLoginUrlFromEnv, readLastTenantId } from '$lib/api/session-headers';
 
-	const loginUrl = createLoginUrlFromEnv(env);
+	let loginUrl = $state(createLoginUrlFromEnv(env));
 
 	onMount(() => {
+		loginUrl = createLoginUrlFromEnv(env, readLastTenantId(window.localStorage));
+
 		if (page.url.searchParams.get('postLogout') !== 'register') {
 			return;
 		}

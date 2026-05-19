@@ -73,6 +73,26 @@ test('does not show email verification status when verification is explicitly no
 	await expect(page.getByRole('heading', { name: 'Study cockpit' })).toBeVisible();
 });
 
+test('uses the last authenticated workspace for home sign-in after sign-out', async ({ page }) => {
+	const registeredTenantId = '33333333-3333-4333-8333-333333333333';
+
+	await page.unroute('**/auth/session');
+	await routeAuthenticatedSession(page, {
+		...sampleAuthSession,
+		tenantId: registeredTenantId
+	});
+
+	await page.goto('/app');
+	await expect(page.getByRole('region', { name: 'Authenticated tenant session' })).toBeVisible();
+
+	await page.goto('/');
+
+	await expect(page.getByRole('link', { name: 'Sign in' }).first()).toHaveAttribute(
+		'href',
+		new RegExp(`tenantId=${registeredTenantId}`)
+	);
+});
+
 test('removes stale auth failure marker after successful workspace sign-in', async ({ page }) => {
 	await page.goto('/app?auth=failed');
 
@@ -225,6 +245,26 @@ test('shows pending registration recovery after failed workspace sign-in', async
 		/\/auth\/logout\?.*provider=1.*returnUrl=/
 	);
 	await expect(page.getByRole('button', { name: 'Retry' })).toHaveCount(0);
+});
+
+test('uses the last authenticated workspace for failed sign-in recovery', async ({ page }) => {
+	const registeredTenantId = '33333333-3333-4333-8333-333333333333';
+
+	await page.unroute('**/auth/session');
+	await page.route('**/auth/session', async (route) => {
+		await route.fulfill({ status: 401, json: { title: 'Unauthorized' } });
+	});
+	await page.addInitScript((tenantId) => {
+		window.localStorage.setItem('instruments-platform.last-tenant-id', tenantId);
+	}, registeredTenantId);
+
+	await page.goto('/app?auth=failed');
+
+	await expect(page.getByRole('heading', { name: 'Sign in with your workspace account' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Sign in to existing workspace' })).toHaveAttribute(
+		'href',
+		new RegExp(`tenantId=${registeredTenantId}`)
+	);
 });
 
 test('ignores stale bare pending registration URLs after failed workspace sign-in', async ({
