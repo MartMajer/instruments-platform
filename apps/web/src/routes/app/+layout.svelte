@@ -13,10 +13,17 @@
 
 	const loginUrl = createLoginUrlFromEnv(env);
 	const logoutUrl = env.PUBLIC_AUTH_LOGOUT_URL || '/auth/logout';
+	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const hasTenantLoginTarget = /[?&]tenantId=/.test(loginUrl);
 	const primaryAuthActionUrl = hasTenantLoginTarget ? loginUrl : resolve('/register');
 	const primaryAuthActionLabel = hasTenantLoginTarget ? 'Sign in' : 'Create workspace';
 	const completeLogoutUrl = $derived(createProviderLogoutUrl());
+	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
+	const authFailedPrimaryLabel = $derived(
+		pendingRegistrationLoginUrl || hasTenantLoginTarget
+			? 'Sign in to existing workspace'
+			: primaryAuthActionLabel
+	);
 
 	const setupApi = createSetupApi(
 		createApiClient({
@@ -31,10 +38,12 @@
 	let authState = $state<AuthState>('checking');
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let authMessage = $state<string | null>(null);
+	let pendingRegistrationLoginUrl = $state('');
 	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession) : null);
 	const authFailedRedirect = $derived(page.url.searchParams.get('auth') === 'failed');
 
 	onMount(() => {
+		loadPendingRegistrationLoginUrl();
 		void checkSession();
 	});
 
@@ -47,6 +56,7 @@
 			authContext.session.set(authSession);
 			authState = 'authenticated';
 			clearAuthFailureMarker();
+			clearPendingRegistrationLoginUrl();
 		} catch (error) {
 			authSession = null;
 			authContext.session.set(null);
@@ -97,6 +107,16 @@
 			'',
 			`${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
 		);
+	}
+
+	function loadPendingRegistrationLoginUrl() {
+		pendingRegistrationLoginUrl =
+			window.sessionStorage.getItem(pendingRegistrationLoginUrlKey) ?? '';
+	}
+
+	function clearPendingRegistrationLoginUrl() {
+		pendingRegistrationLoginUrl = '';
+		window.sessionStorage.removeItem(pendingRegistrationLoginUrlKey);
 	}
 
 	function createProviderLogoutUrl() {
@@ -180,31 +200,29 @@
 			>
 				<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 				<div class="email-verification-reminder__body">
-					<h2 class="email-verification-reminder__title">Verify email, then finish setup</h2>
+					<h2 class="email-verification-reminder__title">Verify email, then sign in</h2>
 					<p class="email-verification-reminder__text">
 						If you just created an account, open the verification email from Auth0, confirm
-						the address, then continue workspace setup. Email verification alone does not
-						create the workspace membership.
+						the address, then sign in to open the workspace.
 					</p>
 					<p class="email-verification-reminder__note">
-						If Auth0 keeps using the wrong account, sign out completely and choose the owner
-						account again.
+						If Auth0 keeps using the wrong account, sign out completely and choose the same
+						email you used for registration.
 					</p>
 				</div>
 			</div>
 		{/if}
 		<p class="text-sm text-[var(--color-text-muted)]">
 			{authFailedRedirect
-				? 'This account does not have an active workspace membership yet. Finish workspace setup for a new account, or sign in with an account that already belongs to this workspace.'
+				? 'Use the same verified account to finish sign-in. If this is not the account you intended, sign out completely.'
 				: hasTenantLoginTarget
 					? 'Sign in with an account that belongs to this workspace before opening product screens.'
 					: 'No workspace session is active. Create a workspace first; the app will open immediately after registration.'}
 		</p>
 		<div class="flex flex-wrap gap-3">
 			{#if authFailedRedirect}
-				<a class="primary-button" href={resolve('/register')}>Continue workspace setup</a>
-				<a class="secondary-button" href={primaryAuthActionUrl}>
-					{hasTenantLoginTarget ? 'Sign in to existing workspace' : primaryAuthActionLabel}
+				<a class="primary-button" href={authFailedPrimaryUrl}>
+					{authFailedPrimaryLabel}
 				</a>
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
 			{:else}
