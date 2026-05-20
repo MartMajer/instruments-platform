@@ -47,3 +47,5 @@ export const personas = {
     ],
   },
 } satisfies Record<string, PersonaDefinition>;
+
+export type PersonaId = keyof typeof personas;

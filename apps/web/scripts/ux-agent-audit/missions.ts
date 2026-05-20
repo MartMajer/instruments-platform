@@ -1,3 +1,4 @@
+import type { PersonaId } from './personas';
 import type { MissionDefinition } from './types';
 
 export const missions = [
@@ -65,4 +66,4 @@ export const missions = [
     viewport: 'desktop',
     successCriteria: ['Wave state, response progress, and next action are visible.'],
   },
-] satisfies MissionDefinition[];
+] satisfies MissionDefinition<PersonaId>[];

@@ -10,9 +10,9 @@ export interface PersonaDefinition {
   severityFocus: FindingSeverity;
 }
 
-export interface MissionDefinition {
+export interface MissionDefinition<TPersonaId extends string> {
   id: string;
-  personaId: string;
+  personaId: TPersonaId;
   goal: string;
   maxSteps: number;
   viewport: ViewportPreset;
