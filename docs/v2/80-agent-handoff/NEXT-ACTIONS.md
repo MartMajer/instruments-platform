@@ -1195,3 +1195,9 @@ Deploy note:
 - Verification: RED/GREEN focused Waves and Setup unit tests; combined focused Vitest passed 19/19; web production build passed with the existing large-chunk warning.
 - Remaining risk: this does not clone prior waves, copy recipients, or add a dedicated Create next wave backend command. Those remain future slices if validation proves they are needed.
 - [2026-05-20] D363 setup editable wave selection **DONE and deployed** - fixed the Wave 2 recipient-selection `409` path by separating historical selected waves from editable setup campaigns. Setup now treats only draft/scheduled waves as mutable, returns to Collection setup when only launched/closed waves exist, and hides recipient save controls until a new draft wave is saved. Verification: RED focused setup workflow regression failed on closed-wave editability; GREEN focused setup workflow tests passed 8/8; web production build passed with existing large-chunk warning. Staging deployed commit `3d0e32e`; initial redeploy hit transient web-root 502 during warm-up; follow-up public checks returned API ready 200, web root 200, and `/app` 200; VPS release checks passed at `/tmp/d363-setup-editable-wave-selection-vps-release-20260520-followup`.
+
+## D369 UXA01 local-full transcript follow-up
+
+Current state: local-full transcript capture is implemented, focused UXA01 verification passed, and a real local browser proof generated transcript/review-prompt artifacts with useful page-visible app text.
+
+After D369 closes, the next product-quality slice is autonomous local UX persona driving: seed local data, capture a screen transcript, ask a persona for a structured visible-control action, execute it safely in Playwright, repeat until completion or complaint, then emit ticket-ready UX findings.

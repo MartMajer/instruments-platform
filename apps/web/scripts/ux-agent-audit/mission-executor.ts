@@ -4,6 +4,7 @@ import type {
   MissionEvidenceStatus,
   MissionEvidenceStep,
 } from './evidence';
+import type { RichScreenSnapshot } from './rich-transcript.ts';
 
 export interface MissionPageLink {
   text: string;
@@ -23,6 +24,7 @@ export interface MissionPageSnapshot {
   buttons: string[];
   links: MissionPageLink[];
   navigationLinks?: MissionNavigationLink[];
+  richTranscript?: RichScreenSnapshot;
   screenshot?: MissionEvidenceScreenshot;
 }
 
@@ -277,6 +279,7 @@ function combinedSnapshotText(snapshot: MissionPageSnapshot) {
   return [
     snapshot.title,
     snapshot.visibleTextExcerpt,
+    snapshot.richTranscript?.visibleText ?? '',
     ...snapshot.buttons,
     ...snapshot.links.map((link) => link.text),
   ].join(' ');
@@ -298,6 +301,7 @@ function toPageObservation(snapshot: MissionPageSnapshot): JsonObject {
     visibleTextExcerpt: snapshot.visibleTextExcerpt,
     buttons: snapshot.buttons,
     links: snapshot.links.map(toLinkObservation),
+    ...(snapshot.richTranscript ? { richTranscript: snapshot.richTranscript } : {}),
   };
 }
 

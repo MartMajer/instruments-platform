@@ -129,3 +129,23 @@ Before implementation:
 - It does not do random monkey clicking.
 - It does not mutate app state through risky product actions.
 - It does not replace a real validation call with O01/O02/O03 contacts.
+
+## D369 local-full transcript mode
+
+UXA01 now defaults to `local-full` capture mode. This mode is local-only and refuses non-loopback base URLs before launching the browser. Accepted hosts are loopback/local development hosts such as `localhost`, `127.0.0.1`, `::1`, `0.0.0.0`, and `.localhost` names.
+
+`local-full` captures page-visible UX structure for persona review:
+
+- visible text
+- headings
+- buttons and disabled state
+- links and route paths
+- form fields, placeholder/value text, and required state
+- sections/cards
+- status and alert text
+
+The harness writes the structured snapshot into `evidence.json` and a readable `transcript.md`. Review prompts now describe this as local audit evidence so persona agents can critique wording, navigation, blocked states, and task sequencing from what the user would actually see.
+
+`safe` mode remains available with `--capture-mode safe` when a thinner non-text evidence artifact is desired.
+
+Next required slice: autonomous local UX action loop, where a persona proposes structured actions against visible UI controls and the harness executes only allowed local browser actions.

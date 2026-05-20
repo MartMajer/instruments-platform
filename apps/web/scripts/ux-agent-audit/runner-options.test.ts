@@ -49,8 +49,38 @@ describe('UX audit runner option parsing', () => {
       personaOverride: 'first-time-researcher',
       viewportOverride: 'desktop',
       headless: false,
+      captureMode: 'local-full',
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
+  });
+
+  it('refuses non-local base URLs because the harness is local-only', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'https://validatedscale-staging.croat.dev',
+        '--mission',
+        'create-first-study',
+      ])
+    ).toThrow('UX audit harness is local-only');
+  });
+
+  it('allows explicit safe capture mode but defaults to local-full', () => {
+    expect(
+      parseRunnerOptions([
+        '--base-url',
+        'http://localhost:5174',
+        '--capture-mode',
+        'safe',
+      ]).captureMode
+    ).toBe('safe');
+
+    expect(
+      parseRunnerOptions([
+        '--base-url',
+        'http://localhost:5174',
+      ]).captureMode
+    ).toBe('local-full');
   });
 
   it('defaults persona and viewport from the mission contract', () => {
@@ -176,7 +206,7 @@ describe('UX audit runner option parsing', () => {
     );
   });
 
-  it('does not request screenshots or visible text for product-page missions by default', async () => {
+  it('requests local-full transcripts for product-page missions by default', async () => {
     await runAudit(
       parseRunnerOptions([
         '--base-url',
@@ -190,7 +220,8 @@ describe('UX audit runner option parsing', () => {
       expect.objectContaining({
         missionId: 'create-first-study',
         captureScreenshots: false,
-        includeSanitizedVisibleText: false,
+        includeSanitizedVisibleText: true,
+        captureMode: 'local-full',
         executeFixedMission: true,
       })
     );

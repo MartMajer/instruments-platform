@@ -15,7 +15,13 @@ import {
   type MissionPageAdapter,
   type MissionPageSnapshot,
 } from './mission-executor.ts';
-import type { ViewportPreset } from './types.ts';
+import {
+  buildRichTranscriptMarkdown,
+  normalizeRichScreenSnapshot,
+  type RawRichScreenSnapshot,
+  type RichScreenSnapshot,
+} from './rich-transcript.ts';
+import type { CaptureMode, ViewportPreset } from './types.ts';
 
 export interface BrowserEvidenceOptions {
   baseUrl: string;
@@ -28,6 +34,7 @@ export interface BrowserEvidenceOptions {
   includeSanitizedVisibleText?: boolean;
   executeFixedMission?: boolean;
   maxVisibleTextCharacters?: number;
+  captureMode?: CaptureMode;
   outputRoot?: string;
   runDirectory?: string;
 }
@@ -80,6 +87,7 @@ export async function captureBrowserEvidence(
   options: BrowserEvidenceOptions
 ): Promise<BrowserEvidenceCapture> {
   const safeCapturePolicy = resolveBrowserSafeCapturePolicy(options);
+  const captureMode = options.captureMode ?? 'local-full';
   const browser = await chromium.launch({ headless: options.headless ?? true });
   const startedAt = new Date();
 
@@ -114,6 +122,10 @@ export async function captureBrowserEvidence(
       : '';
     const buttons = await collectVisibleButtonLabels(page);
     const links = await collectVisibleLinks(page);
+    const richTranscript =
+      captureMode === 'local-full'
+        ? await collectRichScreenSnapshot(page, 'initial-page')
+        : undefined;
 
     const capture: BrowserEvidenceCapture = {
       title,
@@ -168,13 +180,18 @@ export async function captureBrowserEvidence(
         ],
         screenshots,
         observations: {
+          captureMode,
           safeCapturePolicy: describeSafeCapturePolicy(safeCapturePolicy),
+          ...(richTranscript ? { localFullTranscript: [richTranscript] } : {}),
           title,
           url,
           visibleTextExcerpt,
           buttons,
           links,
         } satisfies JsonObject,
+        ...(richTranscript
+          ? { transcriptMarkdown: buildRichTranscriptMarkdown([richTranscript]) }
+          : {}),
       });
 
       capture.runDirectory = runDirectory;
@@ -211,6 +228,7 @@ async function captureFixedMissionEvidence(
     page,
     options.baseUrl,
     safeCapturePolicy,
+    options.captureMode ?? 'local-full',
     runDirectory
       ? join(runDirectory, 'missions', options.missionId, 'screenshots')
       : undefined
@@ -233,6 +251,9 @@ async function captureFixedMissionEvidence(
   };
 
   if (runDirectory) {
+    const richScreens = execution.snapshots
+      .map((snapshot) => snapshot.richTranscript)
+      .filter((snapshot): snapshot is RichScreenSnapshot => Boolean(snapshot));
     const evidencePaths = await writeMissionEvidence(runDirectory, {
       missionId: options.missionId,
       personaId: options.personaId,
@@ -242,7 +263,14 @@ async function captureFixedMissionEvidence(
       completedAt: new Date(),
       steps: execution.steps,
       screenshots: execution.screenshots,
-      observations: execution.observations,
+      observations: {
+        ...execution.observations,
+        captureMode: options.captureMode ?? 'local-full',
+        ...(richScreens.length ? { localFullTranscript: richScreens } : {}),
+      },
+      ...(richScreens.length
+        ? { transcriptMarkdown: buildRichTranscriptMarkdown(richScreens) }
+        : {}),
     });
 
     capture.runDirectory = runDirectory;
@@ -260,17 +288,20 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
   private readonly page: Page;
   private readonly baseUrl: string;
   private readonly safeCapturePolicy: BrowserSafeCapturePolicy;
+  private readonly captureMode: CaptureMode;
   private readonly screenshotDirectory: string | undefined;
 
   constructor(
     page: Page,
     baseUrl: string,
     safeCapturePolicy: BrowserSafeCapturePolicy,
+    captureMode: CaptureMode,
     screenshotDirectory: string | undefined
   ) {
     this.page = page;
     this.baseUrl = baseUrl;
     this.safeCapturePolicy = safeCapturePolicy;
+    this.captureMode = captureMode;
     this.screenshotDirectory = screenshotDirectory;
   }
 
@@ -299,6 +330,10 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
     const links = await collectVisibleLinks(this.page);
     const navigationLinks = await collectVisibleNavigationLinks(this.page);
     const screenshot = await this.captureScreenshot(label);
+    const richTranscript =
+      this.captureMode === 'local-full'
+        ? await collectRichScreenSnapshot(this.page, label)
+        : undefined;
 
     return {
       label,
@@ -308,6 +343,7 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
       buttons,
       links,
       navigationLinks,
+      ...(richTranscript ? { richTranscript } : {}),
       ...(screenshot ? { screenshot } : {}),
     };
   }
@@ -328,6 +364,119 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
       path: `screenshots/${fileName}`,
     };
   }
+}
+
+async function collectRichScreenSnapshot(
+  page: Page,
+  label: string
+): Promise<RichScreenSnapshot> {
+  if (typeof (page as { evaluate?: unknown }).evaluate !== 'function') {
+    return normalizeRichScreenSnapshot(await fallbackRichScreenSnapshot(page, label));
+  }
+
+  const raw = await page.evaluate((snapshotLabel): RawRichScreenSnapshot => {
+    const isVisible = (element: Element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.visibility !== 'hidden' &&
+        style.display !== 'none' &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+    const textOf = (element: Element | null | undefined) =>
+      (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const visibleElements = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).filter(isVisible);
+    const pathOf = (href: string) => {
+      try {
+        return new URL(href).pathname;
+      } catch {
+        return href.split(/[?#]/)[0] ?? '';
+      }
+    };
+    const labelFor = (input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => {
+      if (input.id) {
+        const label = document.querySelector(`label[for="${CSS.escape(input.id)}"]`);
+        if (label) {
+          return textOf(label);
+        }
+      }
+
+      const wrappingLabel = input.closest('label');
+      if (wrappingLabel) {
+        return textOf(wrappingLabel);
+      }
+
+      return (
+        input.getAttribute('aria-label') ??
+        input.getAttribute('name') ??
+        input.getAttribute('placeholder') ??
+        input.id ??
+        ''
+      );
+    };
+
+    return {
+      label: snapshotLabel,
+      title: document.title,
+      url: window.location.href,
+      visibleText: (document.body as HTMLElement | null)?.innerText ?? '',
+      headings: visibleElements('h1,h2,h3,h4,h5,h6,[role="heading"]').map(textOf),
+      buttons: visibleElements('button,[role="button"],input[type="button"],input[type="submit"]').map((element) => {
+        const control = element as HTMLButtonElement | HTMLInputElement;
+        return {
+          text: textOf(element) || control.value || element.getAttribute('aria-label') || '',
+          disabled:
+            control.disabled === true ||
+            element.getAttribute('aria-disabled') === 'true',
+        };
+      }),
+      links: visibleElements('a[href]').map((element) => {
+        const anchor = element as HTMLAnchorElement;
+        return {
+          text: textOf(anchor) || anchor.getAttribute('aria-label') || '',
+          path: pathOf(anchor.href),
+        };
+      }),
+      fields: visibleElements('input:not([type="hidden"]),textarea,select').map((element) => {
+        const input = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+        return {
+          label: labelFor(input),
+          placeholder: input.getAttribute('placeholder') ?? '',
+          value: input.value ?? '',
+          required: input.required === true || input.getAttribute('aria-required') === 'true',
+        };
+      }),
+      sections: visibleElements('main section,article,[role="region"],.card,.panel,[data-testid]').map((element) =>
+        element.getAttribute('aria-label') ||
+        element.getAttribute('data-testid') ||
+        textOf(element).slice(0, 220)
+      ),
+      statusMessages: visibleElements('[role="alert"],[role="status"],.error,.warning,.success,.notice,.banner').map(textOf),
+    };
+  }, label).catch(() => fallbackRichScreenSnapshot(page, label));
+
+  return normalizeRichScreenSnapshot(raw);
+}
+
+async function fallbackRichScreenSnapshot(
+  page: Page,
+  label: string
+): Promise<RawRichScreenSnapshot> {
+  return {
+    label,
+    title: await page.title().catch(() => ''),
+    url: page.url(),
+    visibleText: '',
+    headings: [],
+    buttons: [],
+    links: [],
+    fields: [],
+    sections: [],
+    statusMessages: [],
+  };
 }
 
 async function readVisibleBodyText(page: Page) {

@@ -400,3 +400,15 @@ Report:
 - artifact path from any local smoke;
 - known limits;
 - whether staging/cookie mode is still deferred.
+
+## D369 implementation note - local-full transcript primitive
+
+The harness now has the transcript primitive needed before autonomous persona driving:
+
+- runner default capture mode is `local-full`
+- `--capture-mode safe` keeps the original thinner capture path available
+- non-local base URLs fail closed before browser launch
+- fixed missions attach local transcript snapshots to evidence observations
+- prompt generation presents transcript data as local audit evidence for persona reviewers
+
+The remaining implementation gap is not evidence capture; it is autonomous action selection. A future slice should introduce a bounded action schema such as `click(label)`, `fill(label,value)`, `select(label,value)`, and `stop_and_complain`, then let persona reviewers choose the next safe action from captured visible controls.

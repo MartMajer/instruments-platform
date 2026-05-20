@@ -18974,3 +18974,17 @@ Deployment evidence:
 - Docs: Added `docs/v2/40-ops/local-ux-agent-audit-harness.md` and D368 assessment.
 - Verification: focused UX audit Vitest suite passed 7 files / 55 tests with `node_modules/vitest/vitest.mjs run scripts/ux-agent-audit`; final independent review approved the last sanitizer/report wording fix.
 - Queue: UXA01 implementation is locally complete. Next move is to run the harness against a local app session, triage generated findings, and select one evidence-backed UX ticket if the findings are real product issues.
+
+## 2026-05-20 - D369 UXA01 local-full transcript mode
+
+Assessment: D368 safe evidence was too thin for automated persona UX review. The app can be driven locally, but agents need page text, hierarchy, controls, fields, disabled states, and status messages to complain like real users without owner-assisted clicking.
+
+Changes in progress:
+
+- Added `local-full` capture mode as UXA01 runner default.
+- Added local-only base URL guard for loopback/local development hosts.
+- Added rich transcript normalization and markdown rendering.
+- Added rich snapshots to fixed mission evidence and review prompts.
+- Kept `--capture-mode safe` for thinner evidence.
+
+Verification: focused UXA01 Vitest passed for runner options, browser safety, mission execution, review prompt generation, and rich transcript serialization, 26 tests across 5 files. Local browser proof passed against `http://127.0.0.1:5174`; artifact path `artifacts/ux-agent-runs/local/run-2026-05-20T15-13-35-479Z/missions/create-first-study/transcript.md` contains local-full visible app text and the generated review prompt includes `localFullTranscript`.

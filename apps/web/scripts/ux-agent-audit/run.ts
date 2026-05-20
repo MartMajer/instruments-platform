@@ -13,6 +13,7 @@ import {
   type ReviewPromptRunMetadata,
 } from './review-prompt.ts';
 import type {
+  CaptureMode,
   MissionDefinition,
   PersonaDefinition,
   ViewportPreset,
@@ -24,6 +25,7 @@ export interface RunnerOptions {
   personaOverride: string;
   viewportOverride: ViewportPreset;
   headless: boolean;
+  captureMode: CaptureMode;
   outputRoot: string;
 }
 
@@ -37,6 +39,7 @@ export interface NormalizeReviewOptions {
 
 const allowedFlags = new Set([
   '--base-url',
+  '--capture-mode',
   '--headless',
   '--mission',
   '--output',
@@ -51,6 +54,7 @@ const normalizeReviewAllowedFlags = new Set([
   '--run-dir',
 ]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
+const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
 const missionCatalog: readonly MissionDefinition<string>[] = missions;
@@ -106,6 +110,7 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
     values.get('--viewport') ?? mission.viewport ?? persona.defaultViewport
   );
   const headless = parseHeadless(values.get('--headless') ?? 'true');
+  const captureMode = parseCaptureMode(values.get('--capture-mode') ?? 'local-full');
 
   return {
     baseUrl,
@@ -113,6 +118,7 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
     personaOverride: persona.id,
     viewportOverride,
     headless,
+    captureMode,
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
@@ -173,8 +179,9 @@ export async function runAudit(options: RunnerOptions) {
     viewport,
     headless: options.headless,
     outputRoot: options.outputRoot,
+    captureMode: options.captureMode,
     captureScreenshots: false,
-    includeSanitizedVisibleText: false,
+    includeSanitizedVisibleText: options.captureMode === 'local-full',
     executeFixedMission,
   });
   const prompt = result.runDirectory
@@ -271,6 +278,14 @@ function parseHeadless(value: string): boolean {
   throw new Error(`Invalid --headless: ${value}. Expected true or false.`);
 }
 
+function parseCaptureMode(value: string): CaptureMode {
+  if (!allowedCaptureModes.has(value as CaptureMode)) {
+    throw new Error(`Unsupported capture mode: ${value}`);
+  }
+
+  return value as CaptureMode;
+}
+
 export function resolveAuditContracts(missionId: string, personaId?: string) {
   const mission = missionCatalog.find((entry) => entry.id === missionId);
   if (!mission) {
@@ -287,11 +302,30 @@ export function resolveAuditContracts(missionId: string, personaId?: string) {
 }
 
 function validateUrl(value: string) {
+  let parsed: URL;
   try {
-    new URL(value);
+    parsed = new URL(value);
   } catch {
     throw new Error(`Invalid --base-url: ${value}`);
   }
+
+  if (!isLocalHost(parsed.hostname)) {
+    throw new Error(
+      `UX audit harness is local-only. Refusing non-local --base-url host: ${parsed.hostname}`
+    );
+  }
+}
+
+function isLocalHost(hostname: string) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  return (
+    normalized === 'localhost' ||
+    normalized === '::1' ||
+    normalized === '0:0:0:0:0:0:0:1' ||
+    normalized === '0.0.0.0' ||
+    normalized.startsWith('127.') ||
+    normalized.endsWith('.localhost')
+  );
 }
 
 async function readJson<T>(filePath: string): Promise<T> {

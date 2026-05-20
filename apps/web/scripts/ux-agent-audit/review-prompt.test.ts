@@ -45,7 +45,7 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).toContain('First-time researcher');
     expect(prompt).toContain(mission.goal);
     expect(prompt).toContain('minimal app knowledge');
-    expect(prompt).toContain('Use only the sanitized evidence');
+    expect(prompt).toContain('Use only the local audit evidence');
     expect(prompt).toContain('blocker');
     expect(prompt).toContain('confusion');
     expect(prompt).toContain('polish');
@@ -110,7 +110,7 @@ describe('UX persona review prompt generation', () => {
     const prompt = await readFile(result.promptPath, 'utf8');
 
     expect(prompt).toContain('First-time researcher');
-    expect(prompt).toContain('Use only the sanitized evidence');
+    expect(prompt).toContain('Use only the local audit evidence');
     expect(prompt).not.toContain('researcher@example.test');
     expect(prompt).not.toContain('raw body text that must never be copied');
   });
