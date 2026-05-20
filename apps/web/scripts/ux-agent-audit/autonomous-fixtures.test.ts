@@ -15,6 +15,7 @@ describe('autonomous fixture-backed UX missions', () => {
       'fixture-wave-results-comparison',
       'fixture-questionnaire-scoring',
       'fullstack-workspace-inspection',
+      'fullstack-create-study',
     ]);
     expect(getAutonomousFixtureMission('fixture-first-study-setup')).toEqual(
       expect.objectContaining({
@@ -83,6 +84,24 @@ describe('autonomous fixture-backed UX missions', () => {
     );
     expect(() =>
       resolveAutonomousMissionForDataMode('fullstack-workspace-inspection', 'fixture')
+    ).toThrow('does not support fixture data mode');
+  });
+
+  it('defines a local fullstack mutation mission for creating a study through the UI', () => {
+    expect(resolveAutonomousMissionForDataMode('fullstack-create-study', 'fullstack')).toEqual(
+      expect.objectContaining({
+        id: 'fullstack-create-study',
+        supportedDataModes: ['fullstack'],
+        targetProductPaths: ['/app/campaign-series'],
+        mutationPlan: expect.objectContaining({
+          kind: 'create-study',
+          fieldLabel: 'Study name',
+          buttonText: 'Create study',
+        }),
+      })
+    );
+    expect(() =>
+      resolveAutonomousMissionForDataMode('fullstack-create-study', 'fixture')
     ).toThrow('does not support fixture data mode');
   });
 });

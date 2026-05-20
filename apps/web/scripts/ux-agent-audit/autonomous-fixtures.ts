@@ -20,8 +20,16 @@ export interface AutonomousFixtureMission {
   reviewFocus: string[];
   fixtureProvenance: string;
   supportedDataModes: AutonomousDataMode[];
+  mutationPlan?: AutonomousMutationPlan;
   localOnly: true;
 }
+
+export type AutonomousMutationPlan = {
+  kind: 'create-study';
+  fieldLabel: string;
+  buttonText: string;
+  studyNamePrefix: string;
+};
 
 const fixtureScenarios = listFixtureScenarios();
 const fixtureScenarioByKey = new Map(
@@ -92,6 +100,25 @@ export const autonomousFixtureMissions = [
     fixtureProvenance:
       'Live local full-stack app/API/database state; no product read-model mocks are installed by the harness.',
   }),
+  mission({
+    id: 'fullstack-create-study',
+    personaId: 'first-time-researcher',
+    goal: 'Autonomously create one real local full-stack study through the visible Studies page controls.',
+    viewport: 'desktop',
+    maxSteps: 6,
+    targetFixtureCatalogIds: [],
+    targetProductPaths: ['/app/campaign-series'],
+    reviewFocus: ['full-stack local mutation', 'study creation clarity'],
+    supportedDataModes: ['fullstack'],
+    mutationPlan: {
+      kind: 'create-study',
+      fieldLabel: 'Study name',
+      buttonText: 'Create study',
+      studyNamePrefix: 'UXA full-stack mutation',
+    },
+    fixtureProvenance:
+      'Live local full-stack app/API/database mutation; no product read-model mocks are installed by the harness.',
+  }),
 ] satisfies AutonomousFixtureMission[];
 
 export function getAutonomousFixtureMission(id: string) {
@@ -135,6 +162,7 @@ function mission(options: {
   targetProductPaths: string[];
   reviewFocus: string[];
   supportedDataModes?: AutonomousDataMode[];
+  mutationPlan?: AutonomousMutationPlan;
   fixtureProvenance?: string;
 }): AutonomousFixtureMission {
   const scenarios = options.targetFixtureCatalogIds.map((scenarioId) => {

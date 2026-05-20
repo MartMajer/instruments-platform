@@ -305,6 +305,45 @@ describe('autonomous UX persona loop', () => {
     );
   });
 
+  it('uses visible controls to create a study in a fullstack mutation mission', async () => {
+    const mission = missionFixture({
+      id: 'fullstack-create-study',
+      supportedDataModes: ['fullstack'],
+      targetProductPaths: ['/app/campaign-series'],
+      maxSteps: 6,
+      mutationPlan: {
+        kind: 'create-study',
+        fieldLabel: 'Study name',
+        buttonText: 'Create study',
+        studyNamePrefix: 'UXA full-stack mutation',
+      },
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Studies Plan studies', '/app/campaign-series'),
+      createStudySnapshot(),
+      pageSnapshot(
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/setup',
+        'Study setup',
+        'Study setup Current setup step Instrument'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.steps.map((step) => step.action)).toEqual([
+      'Opened autonomous product mission entry route /app.',
+      'Clicked visible link "Studies Plan studies".',
+      'Filled visible field "Study name".',
+      'Clicked visible button "Create study".',
+      expect.stringContaining('Stopped autonomous product mission: created study setup route reached'),
+    ]);
+  });
+
   it('uses full-stack auth and seed wording when a fullstack mission is blocked by workspace access loading', async () => {
     const mission = missionFixture({
       id: 'fullstack-workspace-inspection',
@@ -378,9 +417,24 @@ function fakeAdapter(snapshots: MissionPageSnapshot[]): AutonomousPageAdapter {
       return current;
     },
     async clickButton() {
+      const created = byPath.get('/app/campaign-series/33333333-3333-4333-8333-333333333333/setup');
+      if (created) {
+        current = created;
+      }
       return current;
     },
-    async fillField() {
+    async fillField(label: string, value: string) {
+      if (current.richTranscript) {
+        current = {
+          ...current,
+          richTranscript: {
+            ...current.richTranscript,
+            fields: current.richTranscript.fields.map((field) =>
+              field.label === label ? { ...field, value } : field
+            ),
+          },
+        };
+      }
       return current;
     },
     async captureSnapshot() {
@@ -407,6 +461,38 @@ function cockpitSnapshot(linkText: string, path: string, extraVisibleText = ''):
       links: [{ text: linkText, path }],
       fields: [],
       sections: ['Sample studies', 'Your studies'],
+      statusMessages: [],
+    },
+  };
+}
+
+function createStudySnapshot(): MissionPageSnapshot {
+  const path = '/app/campaign-series';
+
+  return {
+    label: 'studies',
+    title: 'Studies',
+    url: `http://127.0.0.1:5174${path}`,
+    visibleTextExcerpt: 'Studies Create your study Study name Create study',
+    buttons: ['Create study'],
+    links: [],
+    richTranscript: {
+      label: 'studies',
+      title: 'Studies',
+      url: `http://127.0.0.1:5174${path}`,
+      visibleText: 'Studies Create your study Study name Create study',
+      headings: ['Studies', 'Create your study'],
+      buttons: [{ text: 'Create study', disabled: false }],
+      links: [],
+      fields: [
+        {
+          label: 'Study name',
+          placeholder: 'e.g. Q3 employee pulse',
+          value: '',
+          required: false,
+        },
+      ],
+      sections: ['Create your study', 'Open a study'],
       statusMessages: [],
     },
   };

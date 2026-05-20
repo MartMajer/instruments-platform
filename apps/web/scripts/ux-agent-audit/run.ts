@@ -18,6 +18,7 @@ import {
 } from './review-prompt.ts';
 import type {
   AutonomousDataMode,
+  AutonomousFullstackDevAuthOptions,
   CaptureMode,
   MissionDefinition,
   PersonaDefinition,
@@ -40,6 +41,7 @@ export interface AutonomousRunnerOptions {
   headless: boolean;
   captureMode: CaptureMode;
   dataMode: AutonomousDataMode;
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions;
   outputRoot: string;
 }
 
@@ -56,6 +58,11 @@ const allowedFlags = new Set([
   '--capture-mode',
   '--headless',
   '--data-mode',
+  '--fullstack-dev-auth',
+  '--fullstack-tenant-id',
+  '--fullstack-user-id',
+  '--fullstack-email',
+  '--fullstack-permissions',
   '--mission',
   '--output',
   '--persona',
@@ -160,6 +167,7 @@ export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOp
     headless: parseHeadless(values.get('--headless') ?? 'true'),
     captureMode: parseCaptureMode(values.get('--capture-mode') ?? 'local-full'),
     dataMode: parseAutonomousDataMode(values.get('--data-mode') ?? 'fixture'),
+    fullstackDevAuth: parseFullstackDevAuthOptions(values),
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
@@ -265,6 +273,7 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     outputRoot: options.outputRoot,
     captureMode: options.captureMode,
     autonomousDataMode: options.dataMode,
+    fullstackDevAuth: options.fullstackDevAuth,
     captureScreenshots: true,
     includeSanitizedVisibleText: true,
     executeFixedMission: false,
@@ -389,7 +398,7 @@ function parseFlagValues(args: string[], flags: Set<string>) {
       throw new Error(`Unknown option: ${flag}`);
     }
 
-    if (flag === '--headless') {
+    if (flag === '--headless' || flag === '--fullstack-dev-auth') {
       const nextValue = args[index + 1];
       if (!nextValue || nextValue.startsWith('--')) {
         values.set(flag, 'true');
@@ -424,6 +433,48 @@ function parseHeadless(value: string): boolean {
   }
 
   throw new Error(`Invalid --headless: ${value}. Expected true or false.`);
+}
+
+function parseFullstackDevAuthOptions(
+  values: Map<string, string>
+): AutonomousFullstackDevAuthOptions {
+  const enabled = values.has('--fullstack-dev-auth')
+    ? parseBooleanFlag('--fullstack-dev-auth', values.get('--fullstack-dev-auth') ?? 'true')
+    : false;
+
+  return {
+    enabled,
+    ...(values.has('--fullstack-tenant-id')
+      ? { tenantId: values.get('--fullstack-tenant-id') }
+      : {}),
+    ...(values.has('--fullstack-user-id')
+      ? { userId: values.get('--fullstack-user-id') }
+      : {}),
+    ...(values.has('--fullstack-email') ? { email: values.get('--fullstack-email') } : {}),
+    ...(values.has('--fullstack-permissions')
+      ? { permissions: parsePermissions(values.get('--fullstack-permissions') ?? '') }
+      : {}),
+  };
+}
+
+function parseBooleanFlag(flag: string, value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  throw new Error(`Invalid ${flag}: ${value}. Expected true or false.`);
+}
+
+function parsePermissions(value: string) {
+  return value
+    .split(/[,\s]+/u)
+    .map((permission) => permission.trim())
+    .filter(Boolean);
 }
 
 function parseCaptureMode(value: string): CaptureMode {

@@ -1,3 +1,22 @@
+# Next Session Plan - Post-D375
+
+Current queue head: UXA02 local full-stack bootstrap/preflight, if the owner wants the autonomous harness to prove real mutation green on this workstation.
+
+D375 added the missing local development-auth and mutation mechanics:
+
+- `--fullstack-dev-auth` injects development-auth headers for full-stack autonomous browser requests.
+- evidence records `fullstackDevAuth` without writing tenant/user/email values.
+- `fullstack-create-study` opens Studies, fills `Study name`, clicks `Create study`, and stops only on the created setup route.
+- fixture mode still completes with deterministic read-model mocks.
+
+Current proof artifacts:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-02-499Z/` - full-stack mode, dev auth disabled, mocks disabled, blocked safely
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-25-783Z/` - fixture mode, mocks enabled, first-study setup completed
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-37-309Z/` - full-stack create-study, dev auth enabled, mocks disabled, blocked because no local API was listening at `127.0.0.1:5055`
+
+Workstation blocker observed during verification: `http://127.0.0.1:5055/health` was unreachable and `docker ps` failed because Docker Desktop was not running. Do not call D375 a product failure. The next useful slice is an owner-runnable local API/database bootstrap or preflight wrapper that starts/verifies the local stack before running the mutation mission.
+
 # Next Session Plan - Post-D374
 
 Current queue head: UXA02 local full-stack seed/reset plus first mutating autonomous mission, if the owner wants the harness to move beyond fixture review.

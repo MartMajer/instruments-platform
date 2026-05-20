@@ -310,6 +310,7 @@ describe('UX audit runner option parsing', () => {
       headless: false,
       captureMode: 'local-full',
       dataMode: 'fixture',
+      fullstackDevAuth: { enabled: false },
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
   });
@@ -325,6 +326,34 @@ describe('UX audit runner option parsing', () => {
     ]);
 
     expect(options.dataMode).toBe('fullstack');
+  });
+
+  it('parses explicit local fullstack development auth options', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fullstack-create-study',
+      '--data-mode',
+      'fullstack',
+      '--fullstack-dev-auth',
+      '--fullstack-tenant-id',
+      '33333333-3333-4333-8333-333333333333',
+      '--fullstack-user-id',
+      '44444444-4444-4444-8444-444444444444',
+      '--fullstack-email',
+      'ux-agent@example.test',
+      '--fullstack-permissions',
+      'setup.manage,team.manage,export.read',
+    ]);
+
+    expect(options.fullstackDevAuth).toEqual({
+      enabled: true,
+      tenantId: '33333333-3333-4333-8333-333333333333',
+      userId: '44444444-4444-4444-8444-444444444444',
+      email: 'ux-agent@example.test',
+      permissions: ['setup.manage', 'team.manage', 'export.read'],
+    });
   });
 
   it('rejects unknown autonomous data modes', () => {
@@ -370,6 +399,29 @@ describe('UX audit runner option parsing', () => {
       expect.objectContaining({
         missionId: 'fullstack-workspace-inspection',
         autonomousDataMode: 'fullstack',
+        fullstackDevAuth: { enabled: false },
+      })
+    );
+  });
+
+  it('passes local fullstack development auth options to browser capture', async () => {
+    await runAutonomousAudit(
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'fullstack-create-study',
+        '--data-mode',
+        'fullstack',
+        '--fullstack-dev-auth',
+      ])
+    );
+
+    expect(captureAutonomousBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'fullstack-create-study',
+        autonomousDataMode: 'fullstack',
+        fullstackDevAuth: { enabled: true },
       })
     );
   });
@@ -391,6 +443,7 @@ describe('UX audit runner option parsing', () => {
         includeSanitizedVisibleText: true,
         captureMode: 'local-full',
         autonomousDataMode: 'fixture',
+        fullstackDevAuth: { enabled: false },
       })
     );
     expect(writeReviewPromptForMission).toHaveBeenCalledWith(

@@ -271,6 +271,17 @@ export function buildScriptedFixturePersonaActor(
         };
       }
 
+      if (mission.mutationPlan?.kind === 'create-study') {
+        const createStudyAction = decideCreateStudyMutation(
+          mission.mutationPlan,
+          currentPath,
+          context.steps
+        );
+        if (createStudyAction) {
+          return createStudyAction;
+        }
+      }
+
       if (!unvisitedPath) {
         return {
           kind: 'stop',
@@ -297,6 +308,62 @@ export function buildScriptedFixturePersonaActor(
       };
     },
   };
+}
+
+function decideCreateStudyMutation(
+  plan: NonNullable<AutonomousFixtureMission['mutationPlan']>,
+  currentPath: string,
+  steps: MissionEvidenceStep[]
+): UXAgentAction | undefined {
+  if (isCreatedStudySetupPath(currentPath)) {
+    return {
+      kind: 'stop',
+      reason: 'created study setup route reached.',
+    };
+  }
+
+  if (currentPath !== '/app/campaign-series') {
+    return undefined;
+  }
+
+  const filledStudyName = steps.some(
+    (step) => step.action === `Filled visible field "${plan.fieldLabel}".`
+  );
+  if (!filledStudyName) {
+    return {
+      kind: 'fill',
+      label: plan.fieldLabel,
+      value: `${plan.studyNamePrefix} ${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`,
+      reason: 'name the synthetic local full-stack study',
+    };
+  }
+
+  const clickedCreateStudy = steps.some(
+    (step) => step.action === `Clicked visible button "${plan.buttonText}".`
+  );
+  if (!clickedCreateStudy) {
+    return {
+      kind: 'click-button',
+      text: plan.buttonText,
+      reason: 'create the synthetic local full-stack study',
+    };
+  }
+
+  return {
+    kind: 'complain',
+    severity: 'blocker',
+    surface: 'Studies',
+    problem:
+      'The create-study mutation did not navigate to the new study setup route after clicking Create study.',
+    suggestedFix:
+      'Fix local full-stack API/database mutation handling or the Studies create-study redirect.',
+    ticketReadyWording:
+      'Fix UXA02 full-stack create-study mutation: clicking Create study must create a study and navigate to its setup route.',
+  };
+}
+
+function isCreatedStudySetupPath(path: string) {
+  return /^\/app\/campaign-series\/[^/]+\/setup$/u.test(path);
 }
 
 function toFinding(

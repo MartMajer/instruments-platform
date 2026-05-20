@@ -15,6 +15,7 @@ Implemented paths:
 - fixed evidence mission `create-first-study` for persona `first-time-researcher`
 - autonomous fixture missions for local persona review
 - autonomous full-stack boundary mission for proving non-mocked local app/API/database access
+- autonomous full-stack create-study mutation mission for a disposable local development stack
 
 The mission is intentionally conservative:
 
@@ -183,6 +184,42 @@ UXA02 also adds a safe persona action-driver protocol for future LLM-backed pers
 It rejects remote navigation, malformed JSON, unknown action kinds, empty selectors, credential/secret fill labels, and invalid complaint severity. Persona reviewers remain evidence reviewers until a provider bridge is wired; they are not allowed to browse staging or production.
 
 Next required slice: local full-stack synthetic seed/reset plus the first mutating mission that creates or modifies app state against a disposable local database.
+
+## D375 full-stack development-auth mutation mission
+
+UXA02 now has an explicit local development-auth path for full-stack autonomous runs. This is not Auth0 automation and must not be used against staging or production.
+
+Development-auth options:
+
+```powershell
+--fullstack-dev-auth
+--fullstack-tenant-id 11111111-1111-4111-8111-111111111111
+--fullstack-user-id 22222222-2222-4222-8222-222222222222
+--fullstack-email ux-agent@example.test
+--fullstack-permissions setup.manage,team.manage,export.read
+```
+
+If `--fullstack-dev-auth` is present, the Playwright browser context injects development-auth headers into full-stack API requests:
+
+- `X-Tenant-Id`
+- `X-Dev-User-Id`
+- `X-Dev-Tenant-Memberships`
+- `X-Dev-Permissions`
+- optional `X-Dev-Email`
+
+Evidence records only `fullstackDevAuth=enabled|disabled|not-applicable`; it does not write tenant ids, user ids, or email values into the evidence observations.
+
+New full-stack mutation mission:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-create-study --data-mode fullstack --fullstack-dev-auth --output ../../artifacts/ux-agent-runs/local
+```
+
+The mission starts at `/app`, opens Studies, fills the visible `Study name` field, clicks `Create study`, and stops only after the browser reaches `/app/campaign-series/{id}/setup`.
+
+Current local proof status: the D375 mutation proof was attempted with full-stack development-auth enabled and read-model mocks disabled, but this workstation had no local API listening at `http://127.0.0.1:5055` and Docker was not running. The run therefore blocked at workspace access with local full-stack auth/session/seed guidance. That is the correct safe failure for the current machine state, not a product finding.
+
+Next required slice: provide an owner-runnable local API/database bootstrap or preflight wrapper for UXA02 so the mutation mission can be proven green without manually reconstructing the full-stack environment.
 
 ## Known limits
 

@@ -28,7 +28,12 @@ import {
   type RawRichScreenSnapshot,
   type RichScreenSnapshot,
 } from './rich-transcript.ts';
-import type { AutonomousDataMode, CaptureMode, ViewportPreset } from './types.ts';
+import type {
+  AutonomousDataMode,
+  AutonomousFullstackDevAuthOptions,
+  CaptureMode,
+  ViewportPreset,
+} from './types.ts';
 
 export interface BrowserEvidenceOptions {
   baseUrl: string;
@@ -45,6 +50,7 @@ export interface BrowserEvidenceOptions {
   outputRoot?: string;
   runDirectory?: string;
   autonomousDataMode?: AutonomousDataMode;
+  fullstackDevAuth?: AutonomousFullstackDevAuthOptions;
 }
 
 export interface BrowserSafeCapturePolicy {
@@ -91,6 +97,9 @@ const jwtLikePattern =
 const longTokenPattern =
   /\b(?=[A-Za-z0-9_-]{24,}\b)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]+\b/g;
 const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
+const defaultDevTenantId = '11111111-1111-4111-8111-111111111111';
+const defaultDevUserId = '22222222-2222-4222-8222-222222222222';
+const defaultFullstackDevPermissions = ['setup.manage', 'team.manage', 'export.read'];
 
 export async function captureBrowserEvidence(
   options: BrowserEvidenceOptions
@@ -229,8 +238,13 @@ export async function captureAutonomousBrowserEvidence(
   const startedAt = new Date();
 
   try {
+    const fullstackDevAuthHeaders =
+      autonomousDataMode === 'fullstack'
+        ? resolveFullstackDevAuthHeaders(options.fullstackDevAuth)
+        : undefined;
     const context = await browser.newContext({
       viewport: viewportSizes[options.viewport],
+      ...(fullstackDevAuthHeaders ? { extraHTTPHeaders: fullstackDevAuthHeaders } : {}),
     });
     const page = await context.newPage();
     if (autonomousDataMode === 'fixture') {
@@ -290,6 +304,10 @@ export async function captureAutonomousBrowserEvidence(
           autonomousDataMode,
           productReadModelMocks:
             autonomousDataMode === 'fixture' ? 'enabled' : 'disabled',
+          fullstackDevAuth:
+            autonomousDataMode === 'fullstack'
+              ? describeFullstackDevAuth(options.fullstackDevAuth)
+              : 'not-applicable',
           safeCapturePolicy: describeSafeCapturePolicy(safeCapturePolicy),
           ...(richScreens.length ? { localFullTranscript: richScreens } : {}),
         },
@@ -310,6 +328,36 @@ export async function captureAutonomousBrowserEvidence(
   } finally {
     await browser.close();
   }
+}
+
+export function resolveFullstackDevAuthHeaders(
+  options: AutonomousFullstackDevAuthOptions | undefined
+) {
+  if (options?.enabled !== true) {
+    return undefined;
+  }
+
+  const tenantId = options.tenantId?.trim() || defaultDevTenantId;
+  const userId = options.userId?.trim() || defaultDevUserId;
+  const permissions = options.permissions?.length
+    ? options.permissions
+    : defaultFullstackDevPermissions;
+  const headers: Record<string, string> = {
+    'X-Tenant-Id': tenantId,
+    'X-Dev-User-Id': userId,
+    'X-Dev-Tenant-Memberships': tenantId,
+    'X-Dev-Permissions': permissions.join(' '),
+  };
+  const email = options.email?.trim();
+  if (email) {
+    headers['X-Dev-Email'] = email;
+  }
+
+  return headers;
+}
+
+function describeFullstackDevAuth(options: AutonomousFullstackDevAuthOptions | undefined) {
+  return options?.enabled === true ? 'enabled' : 'disabled';
 }
 
 async function captureFixedMissionEvidence(

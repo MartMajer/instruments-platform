@@ -89,6 +89,7 @@ vi.mock('./evidence.ts', () => ({
 
 import {
   captureBrowserEvidence,
+  resolveFullstackDevAuthHeaders,
   sanitizeEvidenceUrl,
   sanitizeVisibleTextForEvidence,
   toSafeCapturedLink,
@@ -142,6 +143,26 @@ describe('UX audit browser evidence safety', () => {
       path: '/respond/[redacted-uuid]',
     });
     expect(link).not.toHaveProperty('href');
+  });
+
+  it('builds local fullstack development auth headers only when explicitly enabled', () => {
+    expect(resolveFullstackDevAuthHeaders({ enabled: false })).toBeUndefined();
+
+    expect(
+      resolveFullstackDevAuthHeaders({
+        enabled: true,
+        tenantId: '33333333-3333-4333-8333-333333333333',
+        userId: '44444444-4444-4444-8444-444444444444',
+        email: 'ux-agent@example.test',
+        permissions: ['setup.manage', 'team.manage'],
+      })
+    ).toEqual({
+      'X-Tenant-Id': '33333333-3333-4333-8333-333333333333',
+      'X-Dev-User-Id': '44444444-4444-4444-8444-444444444444',
+      'X-Dev-Tenant-Memberships': '33333333-3333-4333-8333-333333333333',
+      'X-Dev-Permissions': 'setup.manage team.manage',
+      'X-Dev-Email': 'ux-agent@example.test',
+    });
   });
 
   it('does not capture screenshots or visible body text by default when writing evidence', async () => {

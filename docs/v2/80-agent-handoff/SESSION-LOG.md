@@ -19088,3 +19088,15 @@ Task: Added `--data-mode fixture|fullstack`, mission/data-mode compatibility che
 Verification: Focused UXA tests passed 4/4 files and 35/35 tests. Full UXA suite passed 14/14 files and 92/92 tests. Local browser proof ran full-stack mode with read-model mocks disabled at `artifacts/ux-agent-runs/local/run-2026-05-20T17-59-59-792Z/` and fixture mode with mocks enabled at `artifacts/ux-agent-runs/local/run-2026-05-20T18-00-06-976Z/`.
 
 Next: Add disposable local full-stack synthetic seed/reset plus the first mutating autonomous mission. Keep autonomous persona browsing local-only; do not point it at staging or production.
+
+## 2026-05-20 - D375 UXA02 full-stack dev-auth mutation mission
+
+Assessment: D374 separated fixture and full-stack modes but still could not attempt real local mutation. The next safe increment was explicit local development-auth plus one bounded mutation mission against a disposable local full-stack environment.
+
+Task: Added `--fullstack-dev-auth` with optional tenant/user/email/permission flags, Playwright context development-auth header injection, evidence marker `fullstackDevAuth`, and full-stack-only mission `fullstack-create-study`. The mission opens Studies, fills `Study name`, clicks `Create study`, and stops only after the browser reaches a created study setup route.
+
+Verification: Focused RED/GREEN tests passed 4/4 files and 42/42 tests. Full UXA suite passed 14/14 files and 97/97 tests. Browser proof reran full-stack no-dev-auth, fixture, and full-stack create-study with dev-auth enabled. Fixture completed. Both full-stack runs kept product read-model mocks disabled. The create-study proof remained blocked because `http://127.0.0.1:5055/health` was unreachable and `docker ps` failed because Docker Desktop was not running.
+
+Proof artifacts: `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-02-499Z/`, `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-25-783Z/`, and `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-37-309Z/`.
+
+Next: Build an owner-runnable local API/database bootstrap or preflight wrapper, then rerun `fullstack-create-study` until it proves a green real local mutation.
