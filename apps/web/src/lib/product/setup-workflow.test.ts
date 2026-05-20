@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesSetupWorkspaceResponse } from '$lib/api/product';
 import {
+	defaultCampaignWaveName,
 	selectSetupCampaignId,
 	selectSetupTemplateVersionId,
 	toSelectedSeriesSetupPath,
@@ -8,6 +9,17 @@ import {
 } from './setup-workflow';
 
 describe('selected-series setup workflow model', () => {
+	it('names the next collection wave from the existing campaign count', () => {
+		expect(defaultCampaignWaveName(emptyWorkspace)).toBe('Wave 1');
+		expect(defaultCampaignWaveName(configuredWorkspace)).toBe('Wave 2');
+		expect(
+			defaultCampaignWaveName({
+				...configuredWorkspace,
+				summary: { ...configuredWorkspace.summary, campaignCount: 4 }
+			})
+		).toBe('Wave 5');
+	});
+
 	it('keeps empty setup actions explicit about missing prerequisites', () => {
 		const actions = toSelectedSeriesSetupWorkflowActions(emptyWorkspace);
 
@@ -28,19 +40,19 @@ describe('selected-series setup workflow model', () => {
 				id: 'scoring',
 				status: 'blocked',
 				available: false,
-				disabledReason: 'Create or select a template version first.'
+				disabledReason: 'Save the questionnaire first.'
 			}),
 			expect.objectContaining({
 				id: 'campaign',
 				status: 'blocked',
 				available: false,
-				disabledReason: 'Create or select a template version first.'
+				disabledReason: 'Save the questionnaire first.'
 			}),
 			expect.objectContaining({
 				id: 'readiness',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create a campaign draft first.'
+				disabledReason: 'Create the collection wave first.'
 			})
 		]);
 	});

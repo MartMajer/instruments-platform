@@ -18902,3 +18902,10 @@ Deployment evidence:
 - VPS redeploy proof passed with evidence in `/tmp/d361-remove-switch-account-vps-release-20260520`.
 - Public checks passed after deploy: API ready 200, web root 200, `/app` 200, `/register` 200.
 - Staging browser check confirmed no visible `Switch account` text on `/app?auth=email_mismatch` or `/register`.
+
+## 2026-05-20 - D362 wave workflow clarity
+
+- Assessment: Owner walkthrough showed the study flow was usable but multiple waves were unclear. The backend already models waves as campaigns in a series, so the gap was guidance and safe defaults rather than a new endpoint.
+- Task: Added a wave-plan model and Waves hub panel explaining first wave, next wave, comparison readiness, and comparison states. Updated route copy and defaulted Setup campaign draft names to the next wave number.
+- Verification: RED new Waves plan test failed on missing helper; GREEN `waves-workflow.test.ts` passed 12/12. RED new Setup naming test failed on missing helper; GREEN `setup-workflow.test.ts` passed 7/7. Combined focused Vitest passed 19/19. Web production build passed with the existing large-chunk warning.
+- Queue: Deploy D362, then owner-test a study with one existing wave by opening Waves, choosing Set up Wave 2, and confirming Setup defaults the campaign draft to Wave 2.

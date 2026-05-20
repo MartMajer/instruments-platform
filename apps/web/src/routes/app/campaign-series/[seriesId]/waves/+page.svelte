@@ -9,7 +9,7 @@
 <SurfaceHeader
 	eyebrow="Wave comparison"
 	title="Waves"
-	description="Linked trajectory checks, wave comparison, and disclosure-gated deltas live here."
+	description="Create follow-up collection waves, then compare linked longitudinal change when the study is ready."
 />
 
 <SelectedSeriesSurface seriesId={seriesId} surface="waves" ariaLabel="Waves and linked trajectories" />

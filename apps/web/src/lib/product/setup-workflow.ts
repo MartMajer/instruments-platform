@@ -39,6 +39,11 @@ export type SelectedSeriesSetupPath = {
 	totalCount: number;
 };
 
+export function defaultCampaignWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
+	const nextWaveNumber = Math.max(0, workspace.summary.campaignCount) + 1;
+	return `Wave ${nextWaveNumber}`;
+}
+
 export function toSelectedSeriesSetupWorkflowActions(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {}

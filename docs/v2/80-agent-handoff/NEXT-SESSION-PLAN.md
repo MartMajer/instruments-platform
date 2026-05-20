@@ -1863,3 +1863,7 @@ Deploy note:
 ## 2026-05-20 - Next session after D361
 
 Recommended first move after deployment: owner/manual staging proof for wrong-account recovery, especially `/signin` email X with provider account Y, `/register` owner email X with provider account Y, and "Sign out completely" clearing enough provider state to avoid a wrong-account loop.
+
+## 2026-05-20 - Next session after D362
+
+Recommended first move after deployment: owner-test the Waves hub on a one-wave study. Confirm the hub explains how to create Wave 2, the Set up Wave 2 action opens Setup, and the collection draft defaults to Wave 2. If that still feels finicky, the next product slice should be a real Create next wave command with explicit copy/review semantics for questionnaire, scoring, recipients, and delivery settings.

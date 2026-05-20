@@ -25,6 +25,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { createProductApiFromEnv, createSetupApiFromEnv } from './route-state';
 	import {
+		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
 		toSelectedSeriesSetupPath,
@@ -125,10 +126,11 @@
 		compatibility: '{}'
 	});
 	let campaignForm = $state({
-		name: 'Wave 1',
+		name: '',
 		responseIdentityMode: 'anonymous',
 		defaultLocale: 'en'
 	});
+	let campaignNameInitialized = $state(false);
 	let previewRuleKind = $state<PreviewRuleKind>('self');
 	let previewTargetSubjectId = $state('');
 	let previewGroupId = $state('');
@@ -225,6 +227,13 @@
 			activeActionInitialized = true;
 		} else if (!canSelectSetupAction(activeActionId)) {
 			activeActionId = currentActionId;
+		}
+	});
+
+	$effect(() => {
+		if (!campaignNameInitialized) {
+			campaignForm.name = defaultCampaignWaveName(workspace);
+			campaignNameInitialized = true;
 		}
 	});
 

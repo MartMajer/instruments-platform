@@ -1,8 +1,58 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
-import { toSelectedSeriesWavesPath, toSelectedSeriesWavesWorkflowActions } from './waves-workflow';
+import {
+	toSelectedSeriesWavePlan,
+	toSelectedSeriesWavesPath,
+	toSelectedSeriesWavesWorkflowActions
+} from './waves-workflow';
 
 describe('selected-series waves workflow model', () => {
+	it('maps an empty study into first-wave setup guidance', () => {
+		const plan = toSelectedSeriesWavePlan(emptyWorkspace);
+
+		expect(plan).toMatchObject({
+			title: 'Create the first wave',
+			primaryLabel: 'Open setup',
+			primaryHref: '/app/campaign-series/series-id/setup',
+			status: 'pending'
+		});
+		expect(plan.guidance).toContain(
+			'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.'
+		);
+	});
+
+	it('maps a one-wave study into next-wave setup guidance', () => {
+		const plan = toSelectedSeriesWavePlan(oneWaveWorkspace);
+
+		expect(plan).toMatchObject({
+			title: 'Create Wave 2',
+			primaryLabel: 'Set up Wave 2',
+			primaryHref: '/app/campaign-series/series-id/setup',
+			secondaryLabel: 'Review Wave 1 results',
+			secondaryHref: '/app/campaign-series/series-id/reports',
+			status: 'pending'
+		});
+		expect(plan.guidance).toContain(
+			'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.'
+		);
+	});
+
+	it('maps a two-wave study into comparison guidance', () => {
+		const plan = toSelectedSeriesWavePlan(comparisonReadyWorkspace);
+
+		expect(plan).toMatchObject({
+			title: 'Compare waves',
+			primaryLabel: 'Run comparison checks below',
+			primaryHref: null,
+			secondaryLabel: 'Review results',
+			secondaryHref: '/app/campaign-series/series-id/reports',
+			status: 'ready'
+		});
+		expect(plan.guidance).toContain(
+			'Use the comparison workflow below to check linked trajectories, disclosure, scoring compatibility, and visible deltas.'
+		);
+	});
+
 	it('blocks wave actions when the series has no longitudinal waves', () => {
 		const actions = toSelectedSeriesWavesWorkflowActions(emptyWorkspace);
 
@@ -12,13 +62,13 @@ describe('selected-series waves workflow model', () => {
 				status: 'blocked',
 				available: false,
 				disabledReason:
-					'Create at least two anonymous-longitudinal waves before checking linked trajectories.'
+					'Add at least two repeated waves before comparing change over time.'
 			}),
 			expect.objectContaining({
 				id: 'waveComparisonProof',
 				status: 'blocked',
 				available: false,
-				disabledReason: 'Select two comparable waves before viewing the wave comparison preview.'
+				disabledReason: 'Choose baseline and comparison waves before reviewing change over time.'
 			})
 		]);
 	});
@@ -33,7 +83,7 @@ describe('selected-series waves workflow model', () => {
 		expect(actions.find((action) => action.id === 'waveComparisonProof')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Select two comparable waves before viewing the wave comparison preview.'
+			disabledReason: 'Choose baseline and comparison waves before reviewing change over time.'
 		});
 	});
 
@@ -48,7 +98,7 @@ describe('selected-series waves workflow model', () => {
 		expect(actions.find((action) => action.id === 'waveComparisonProof')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Run the linked trajectory check before viewing the wave comparison preview.'
+			disabledReason: 'Check comparison readiness before reviewing change over time.'
 		});
 	});
 
@@ -132,7 +182,7 @@ describe('selected-series waves workflow model', () => {
 			expect.objectContaining({ id: 'waveComparisonProof', pathState: 'blocked' })
 		]);
 		expect(path.currentAction.disabledReason).toBe(
-			'Create at least two anonymous-longitudinal waves before checking linked trajectories.'
+			'Add at least two repeated waves before comparing change over time.'
 		);
 	});
 });

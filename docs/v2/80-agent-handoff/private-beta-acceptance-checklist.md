@@ -49,7 +49,7 @@ Each row uses one of these classifications:
 | CSV download | Researcher can download selected CSV in browser. | Required | Implemented. |
 | Codebook/provenance | Export includes enough provenance to defend the study mechanics. | Required | Proof exists; export package polish remains later. |
 | PDF artifact | Report PDF artifact proof can be shown as engineering proof. | Beta known limit | Do not claim final PDF reporting product. |
-| Waves | Researcher can compare compatible waves where data exists. | Required for M1 target | Implemented proof path. |
+| Waves | Researcher can understand how to create follow-up waves and compare compatible waves where data exists. | Required for M1 target | D362 added first-wave/next-wave/comparison guidance and Setup now defaults follow-up drafts to the next wave name. |
 | Team | Owner can prepare team member access and share first sign-in link. | Required | Implemented. |
 | Directory | Researcher can manage people, groups, memberships, and manager links. | Required | Implemented manually; import MVP selected. |
 | Settings | Workspace settings page is honest and does not duplicate the sidebar as a fake admin center. | Beta known limit | Cleaned but intentionally thin. |

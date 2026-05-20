@@ -9,6 +9,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
+		toSelectedSeriesWavePlan,
 		toSelectedSeriesWavesPath,
 		type SelectedSeriesWavesPathStepState,
 		type SelectedSeriesWavesWorkflowActionId
@@ -44,6 +45,7 @@
 		twoWaveProofViewed: Boolean(twoWaveProofResult),
 		waveComparisonProofViewed: Boolean(waveComparisonProofResult)
 	});
+	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace));
 	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
@@ -177,17 +179,44 @@
 	<div class="product-panel__header">
 		<div>
 			<p class="product-kicker">Waves workflow</p>
-			<h3 class="product-title">Compare waves</h3>
+			<h3 class="product-title">Plan repeated collection</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Check linked trajectories and compare change over time between selected waves.
+				Create follow-up waves, review each wave, then compare linked change over time when
+				the study has enough longitudinal data.
 			</p>
 		</div>
-		<StatusBadge status={currentAction.status} label={currentAction.title} />
+		<StatusBadge status={wavePlan.status} label={wavePlan.title} />
 	</div>
 
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<article class="record-row setup-current-task" role="region" aria-label="Wave plan">
+		<div class="setup-current-task__header">
+			<div>
+				<p class="record-field__label">How multiple waves work</p>
+				<h4 class="setup-current-task__title">{wavePlan.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{wavePlan.description}</p>
+			</div>
+			<StatusBadge status={wavePlan.status} />
+		</div>
+		<ul class="grid gap-2 text-sm leading-6 text-[var(--color-text-muted)]">
+			{#each wavePlan.guidance as item}
+				<li>{item}</li>
+			{/each}
+		</ul>
+		<div class="action-row">
+			{#if wavePlan.primaryHref}
+				<a class="primary-button" href={wavePlan.primaryHref}>{wavePlan.primaryLabel}</a>
+			{:else}
+				<p class="step-pill" data-state="idle">{wavePlan.primaryLabel}</p>
+			{/if}
+			{#if wavePlan.secondaryHref && wavePlan.secondaryLabel}
+				<a class="secondary-button" href={wavePlan.secondaryHref}>{wavePlan.secondaryLabel}</a>
+			{/if}
+		</div>
+	</article>
 
 	<div class="setup-path" role="list" aria-label="Waves path">
 		{#each wavesPath.steps as action, index (action.id)}

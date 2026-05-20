@@ -1182,3 +1182,10 @@ Deploy note:
 - Added focused regression coverage for registration-context email mismatch recovery and updated the staging auth checklist with manual wrong-account registration checks.
 - Verification: RED focused auth test failed on `/app?auth=email_mismatch`; GREEN focused test passed after the fallback change; full `AuthEndpointTests` passed 68/68; web production build passed with the existing large-chunk warning.
 - Remaining risk: real provider account chooser behavior still needs owner/manual staging proof for sign-in X -> provider Y, registration X -> provider Y, and wrong-account recovery using "Sign out completely".
+
+## Done - 2026-05-20 D362 wave workflow clarity
+- D362 addressed owner confusion about multiple waves by making the Waves hub explain the actual model: each wave is a campaign in the study; Setup creates the next wave, Collection launches it, Results reviews/exports it, and Waves compares linked longitudinal change when prerequisites are ready.
+- Added `toSelectedSeriesWavePlan` and rendered a "How multiple waves work" panel with first-wave, next-wave, readiness, and comparison states.
+- Added `defaultCampaignWaveName` so Setup defaults follow-up campaign drafts to `Wave 2`, `Wave 3`, etc. based on existing campaign count.
+- Verification: RED/GREEN focused Waves and Setup unit tests; combined focused Vitest passed 19/19; web production build passed with the existing large-chunk warning.
+- Remaining risk: this does not clone prior waves, copy recipients, or add a dedicated Create next wave backend command. Those remain future slices if validation proves they are needed.
