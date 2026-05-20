@@ -12,15 +12,22 @@ const mocks = vi.hoisted(() => {
     },
   ]);
   const screenshot = vi.fn(async () => undefined);
+  const bodyWaitFor = vi.fn(async () => undefined);
+  const structuralWaitFor = vi.fn(async () => undefined);
   const page = {
     goto: vi.fn(async () => undefined),
     title: vi.fn(async () => 'UX audit safety'),
     url: vi.fn(() =>
       'http://127.0.0.1:5174/respond?participantCode=ABCD-1234#answers'
     ),
+    waitForFunction: vi.fn(async () => undefined),
+    waitForLoadState: vi.fn(async () => {
+      throw new Error('networkidle should not be required for snapshot readiness');
+    }),
+    waitForTimeout: vi.fn(async () => undefined),
     locator: vi.fn((selector: string): any => {
       if (selector === 'body') {
-        return { innerText: bodyInnerText };
+        return { innerText: bodyInnerText, waitFor: bodyWaitFor };
       }
 
       if (selector === 'button:visible') {
@@ -33,6 +40,7 @@ const mocks = vi.hoisted(() => {
 
       return {
         evaluateAll: vi.fn(async () => []),
+        first: vi.fn(() => ({ waitFor: structuralWaitFor })),
         innerText: vi.fn(async () => ''),
       };
     }),
@@ -48,12 +56,15 @@ const mocks = vi.hoisted(() => {
 
   return {
     browser,
+    bodyWaitFor,
     bodyInnerText,
     buttonEvaluateAll,
     createRunDirectory: vi.fn(async () => ({ runDirectory: 'C:\\safe-run' })),
     linkEvaluateAll,
     mkdir: vi.fn(async () => undefined),
+    page,
     screenshot,
+    structuralWaitFor,
     writeMissionEvidence: vi.fn(async () => ({
       evidencePath: 'C:\\safe-run\\missions\\mission\\evidence.json',
       transcriptPath: 'C:\\safe-run\\missions\\mission\\transcript.md',
@@ -81,6 +92,7 @@ import {
   sanitizeEvidenceUrl,
   sanitizeVisibleTextForEvidence,
   toSafeCapturedLink,
+  waitForPageReadyForSnapshot,
 } from './browser.ts';
 
 describe('UX audit browser evidence safety', () => {
@@ -166,5 +178,29 @@ describe('UX audit browser evidence safety', () => {
         visibleTextCapture: 'disabled-by-default',
       })
     );
+  });
+
+  it('waits for document readiness and a short stable period before route snapshots', async () => {
+    await waitForPageReadyForSnapshot(mocks.page as any);
+
+    expect(mocks.page.waitForFunction).toHaveBeenCalledWith(
+      expect.any(Function),
+      undefined,
+      { timeout: 3000 }
+    );
+    expect(mocks.page.locator).toHaveBeenCalledWith('body');
+    expect(mocks.page.locator).toHaveBeenCalledWith(
+      'main, [role="main"], nav, form, button, a'
+    );
+    expect(mocks.bodyWaitFor).toHaveBeenCalledWith({
+      state: 'visible',
+      timeout: 2000,
+    });
+    expect(mocks.structuralWaitFor).toHaveBeenCalledWith({
+      state: 'visible',
+      timeout: 2000,
+    });
+    expect(mocks.page.waitForTimeout).toHaveBeenCalledWith(125);
+    expect(mocks.page.waitForLoadState).not.toHaveBeenCalled();
   });
 });

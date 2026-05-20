@@ -110,8 +110,8 @@ export async function runAudit(options: RunnerOptions) {
     viewport,
     headless: options.headless,
     outputRoot: options.outputRoot,
-    captureScreenshots: executeFixedMission,
-    includeSanitizedVisibleText: executeFixedMission,
+    captureScreenshots: false,
+    includeSanitizedVisibleText: false,
     executeFixedMission,
   });
 

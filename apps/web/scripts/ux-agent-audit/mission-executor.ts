@@ -122,16 +122,33 @@ export async function executeCreateFirstStudyMission(
   ]);
   const visitedWorkflowSurfaces: string[] = [];
 
-  if (selectedStudyPath) {
-    for (const surface of workflowSurfaces) {
-      await recorder.goto(
-        page,
-        `${selectedStudyPath}/${surface.route}`,
-        surface.label,
-        surface.action
-      );
-      visitedWorkflowSurfaces.push(surface.id);
-    }
+  if (!selectedStudyPath) {
+    return recorder.complete('blocked', {
+      startUrl: signInSnapshot.url,
+      signInBlocked: false,
+      appAccessible: true,
+      avoidedUnsafePersistedArtifacts: true,
+      selectedStudyPathFound: false,
+      blockedReason: 'selected-study-required',
+      seededStudyAccessPrerequisite:
+        'Local app access succeeded, but no selected study link or path was visible. Seed or create a study and expose a selected study link under /app/campaign-series/<study-id> before running product-page workflow inspection.',
+      visitedWorkflowSurfaces,
+      visibleControls: recorder.visibleControls(),
+      pages: recorder.pageObservations(),
+      navigationPolicy: routeOnlyNavigationPolicy(),
+      missionBoundary:
+        'The fixed mission observes first-study creation/opening and selected-study navigation, but does not click create, save, launch, export, duplicate, delete, or invite actions.',
+    });
+  }
+
+  for (const surface of workflowSurfaces) {
+    await recorder.goto(
+      page,
+      `${selectedStudyPath}/${surface.route}`,
+      surface.label,
+      surface.action
+    );
+    visitedWorkflowSurfaces.push(surface.id);
   }
 
   return recorder.complete('completed', {
@@ -139,7 +156,7 @@ export async function executeCreateFirstStudyMission(
     signInBlocked: false,
     appAccessible: true,
     avoidedUnsafePersistedArtifacts: true,
-    selectedStudyPathFound: Boolean(selectedStudyPath),
+    selectedStudyPathFound: true,
     visitedWorkflowSurfaces,
     visibleControls: recorder.visibleControls(),
     pages: recorder.pageObservations(),

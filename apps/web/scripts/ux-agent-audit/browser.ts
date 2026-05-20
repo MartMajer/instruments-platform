@@ -99,6 +99,7 @@ export async function captureBrowserEvidence(
     }
 
     await page.goto(options.baseUrl, { waitUntil: 'domcontentloaded' });
+    await waitForPageReadyForSnapshot(page);
 
     const title = sanitizeVisibleTextForEvidence(
       await page.title(),
@@ -267,9 +268,7 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
     await this.page.goto(new URL(path, this.baseUrl).toString(), {
       waitUntil: 'domcontentloaded',
     });
-    await this.page
-      .waitForLoadState('networkidle', { timeout: 1500 })
-      .catch(() => undefined);
+    await waitForPageReadyForSnapshot(this.page);
 
     return await this.captureSnapshot(label);
   }
@@ -438,6 +437,28 @@ export function toSafeCapturedLink(link: {
     text,
     ...(path ? { path } : {}),
   };
+}
+
+export async function waitForPageReadyForSnapshot(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () =>
+        document.readyState === 'interactive' ||
+        document.readyState === 'complete',
+      undefined,
+      { timeout: 3000 }
+    )
+    .catch(() => undefined);
+  await page
+    .locator('body')
+    .waitFor({ state: 'visible', timeout: 2000 })
+    .catch(() => undefined);
+  await page
+    .locator('main, [role="main"], nav, form, button, a')
+    .first()
+    .waitFor({ state: 'visible', timeout: 2000 })
+    .catch(() => undefined);
+  await page.waitForTimeout(125);
 }
 
 function describeSafeCapturePolicy(policy: BrowserSafeCapturePolicy) {

@@ -189,6 +189,54 @@ describe('create-first-study mission execution', () => {
       })
     );
   });
+
+  it('blocks with a prerequisite observation when no selected study link is visible', async () => {
+    const page = new FakeMissionPage({
+      '/signin': snapshot({
+        label: 'signin-entry',
+        url: 'http://127.0.0.1:5174/signin',
+        visibleTextExcerpt: 'Sign in or continue with the local development session.',
+        buttons: ['Continue'],
+        links: [{ text: 'Open app', path: '/app' }],
+      }),
+      '/app': snapshot({
+        label: 'app-entry',
+        url: 'http://127.0.0.1:5174/app',
+        visibleTextExcerpt:
+          'Workspace home. Create first study. Open Studies. Setup Collection Results.',
+        buttons: [],
+        links: [{ text: 'Open Studies', path: '/app/campaign-series' }],
+      }),
+      '/app/campaign-series': snapshot({
+        label: 'studies-index',
+        url: 'http://127.0.0.1:5174/app/campaign-series',
+        visibleTextExcerpt:
+          'No study is selected yet. Create a study before opening setup.',
+        buttons: ['Create study'],
+        links: [{ text: 'Home', path: '/app' }],
+      }),
+    });
+
+    const result = await executeCreateFirstStudyMission(page, context);
+
+    expect(result.status).toBe('blocked');
+    expect(page.visitedPaths).toEqual([
+      '/signin',
+      '/app',
+      '/app/campaign-series',
+    ]);
+    expect(result.observations).toEqual(
+      expect.objectContaining({
+        appAccessible: true,
+        selectedStudyPathFound: false,
+        blockedReason: 'selected-study-required',
+        seededStudyAccessPrerequisite: expect.stringContaining(
+          'Seed or create a study'
+        ),
+        visitedWorkflowSurfaces: [],
+      })
+    );
+  });
 });
 
 function snapshot(snapshot: MissionPageSnapshot): MissionPageSnapshot {

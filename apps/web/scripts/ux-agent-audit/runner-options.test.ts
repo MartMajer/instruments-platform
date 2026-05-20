@@ -167,4 +167,24 @@ describe('UX audit runner option parsing', () => {
       })
     );
   });
+
+  it('does not request screenshots or visible text for product-page missions by default', async () => {
+    await runAudit(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'create-first-study',
+      ])
+    );
+
+    expect(captureBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'create-first-study',
+        captureScreenshots: false,
+        includeSanitizedVisibleText: false,
+        executeFixedMission: true,
+      })
+    );
+  });
 });
