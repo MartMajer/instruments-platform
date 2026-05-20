@@ -53,6 +53,25 @@ describe('selected-series waves workflow model', () => {
 		);
 	});
 
+	it('maps two anonymous waves into group trend guidance instead of next-wave setup as the primary action', () => {
+		const plan = toSelectedSeriesWavePlan(twoAnonymousClosedWorkspace);
+
+		expect(plan).toMatchObject({
+			title: 'Review Wave 1 and Wave 2',
+			primaryLabel: 'Review group trend',
+			primaryHref: '/app/campaign-series/series-id/reports',
+			secondaryLabel: 'Set up Wave 3',
+			secondaryHref: '/app/campaign-series/series-id/setup',
+			status: 'ready'
+		});
+		expect(plan.guidance).toContain(
+			'Review these waves as a group-level trend. Do not describe the change as same-respondent movement because the waves are anonymous.'
+		);
+		expect(plan.guidance).toContain(
+			'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.'
+		);
+	});
+
 	it('blocks wave actions when the series has no longitudinal waves', () => {
 		const actions = toSelectedSeriesWavesWorkflowActions(emptyWorkspace);
 
@@ -301,4 +320,36 @@ const comparisonReadyWorkspace: CampaignSeriesWavesWorkspaceResponse = {
 		linkedPairCount: 6,
 		visibleScoreCount: 1
 	}
+};
+
+const anonymousWave1 = {
+	...baselineWave,
+	id: 'anonymous-wave-1',
+	name: 'Wave 1',
+	status: 'closed',
+	responseIdentityMode: 'anonymous',
+	latestLaunchSnapshotId: 'anonymous-launch-1',
+	latestLaunchAt: '2026-05-05T08:30:00Z',
+	submittedResponseCount: 1,
+	scoreCount: 1,
+	linkedTrajectoryCount: 0
+};
+
+const anonymousWave2 = {
+	...anonymousWave1,
+	id: 'anonymous-wave-2',
+	name: 'Wave 2',
+	latestLaunchSnapshotId: 'anonymous-launch-2',
+	latestLaunchAt: '2026-05-12T08:30:00Z'
+};
+
+const twoAnonymousClosedWorkspace: CampaignSeriesWavesWorkspaceResponse = {
+	...emptyWorkspace,
+	summary: {
+		...emptyWorkspace.summary,
+		campaignCount: 2,
+		submittedWaveCount: 2,
+		missingPrerequisiteCount: 0
+	},
+	waves: [anonymousWave1, anonymousWave2]
 };

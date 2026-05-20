@@ -1,3 +1,9 @@
+# Next Session Plan - Post-D364
+
+Current queue head: owner-test Waves on a two-wave anonymous study after staging deployment.
+
+Recommended first move: open the study with closed Wave 1 and Wave 2, confirm Waves shows Group trend as the useful path, confirm linked change clearly says repeat participation is unavailable, and confirm Results remains the place to review/export actual wave scores. If this is understandable, the next analytics slice is a backend disclosure-safe group-trend proof endpoint or chart; if it still feels wrong, rework the Waves hub around explicit "Group trend" and "Linked change" tabs before adding backend analytics.
+
 # Next Session Plan - Post-D358
 
 Current queue head: owner-test the new mobile shell on staging.

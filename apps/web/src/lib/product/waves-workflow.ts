@@ -29,6 +29,21 @@ export type SelectedSeriesWavePlan = {
 	guidance: string[];
 };
 
+export type SelectedSeriesGroupTrendPlan = {
+	title: string;
+	description: string;
+	status: ProductReadModelBadgeStatus;
+	baselineName: string | null;
+	comparisonName: string | null;
+	baselineResponseCount: number | null;
+	comparisonResponseCount: number | null;
+	primaryLabel: string;
+	primaryHref: string | null;
+	secondaryLabel: string | null;
+	secondaryHref: string | null;
+	guidance: string[];
+};
+
 export type SelectedSeriesWavesPathStepState = 'done' | 'current' | 'blocked';
 
 export type SelectedSeriesWavesPathStep = SelectedSeriesWavesWorkflowAction & {
@@ -55,6 +70,7 @@ export function toSelectedSeriesWavePlan(
 	);
 	const comparisonReady =
 		hasSelectedComparison && workspace.comparison.status !== 'not_available';
+	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace);
 
 	if (!hasAnyWave) {
 		return {
@@ -70,6 +86,29 @@ export function toSelectedSeriesWavePlan(
 				'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
 				'After responses arrive, review the wave in Results before adding a follow-up wave.',
 				'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
+			]
+		};
+	}
+
+	if (!hasTwoLongitudinalWaves && workspace.summary.campaignCount >= 2 && groupTrendPlan.status !== 'blocked') {
+		const wavePairTitle =
+			groupTrendPlan.baselineName && groupTrendPlan.comparisonName
+				? `${groupTrendPlan.baselineName} and ${groupTrendPlan.comparisonName}`
+				: 'the selected waves';
+
+		return {
+			title: `Review ${wavePairTitle}`,
+			description:
+				'These waves can be reviewed as group-level results. Linked same-respondent change needs repeat participation from the first wave.',
+			status: groupTrendPlan.status,
+			primaryLabel: 'Review group trend',
+			primaryHref: reportsHref,
+			secondaryLabel: `Set up Wave ${workspace.summary.campaignCount + 1}`,
+			secondaryHref: setupHref,
+			guidance: [
+				'Review these waves as a group-level trend. Do not describe the change as same-respondent movement because the waves are anonymous.',
+				'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.',
+				'Create another wave only when you want a new collection round, not as a prerequisite for reviewing these two waves.'
 			]
 		};
 	}
@@ -127,6 +166,61 @@ export function toSelectedSeriesWavePlan(
 	};
 }
 
+export function toSelectedSeriesGroupTrendPlan(
+	workspace: CampaignSeriesWavesWorkspaceResponse
+): SelectedSeriesGroupTrendPlan {
+	const setupHref = `/app/campaign-series/${workspace.series.id}/setup`;
+	const reportsHref = `/app/campaign-series/${workspace.series.id}/reports`;
+	const nextWaveLabel = `Set up Wave ${workspace.summary.campaignCount + 1}`;
+	const waves = toGroupTrendWaves(workspace);
+
+	if (waves.length < 2) {
+		return {
+			title: 'Group trend not ready',
+			description:
+				'Collect responses in at least two waves before reviewing wave-level trend.',
+			status: 'blocked',
+			baselineName: waves[0]?.name ?? null,
+			comparisonName: null,
+			baselineResponseCount: waves[0]?.submittedResponseCount ?? null,
+			comparisonResponseCount: null,
+			primaryLabel: nextWaveLabel,
+			primaryHref: setupHref,
+			secondaryLabel: workspace.summary.campaignCount > 0 ? 'Review results' : null,
+			secondaryHref: workspace.summary.campaignCount > 0 ? reportsHref : null,
+			guidance: [
+				'A group trend compares wave-level results. It does not require respondent linking.',
+				'Launch and collect a follow-up wave before reading a trend.',
+				'Use repeat participation if you need same-respondent change instead of wave-level movement.'
+			]
+		};
+	}
+
+	const [baselineWave, comparisonWave] = waves;
+	const scoresReady = baselineWave.scoreCount > 0 && comparisonWave.scoreCount > 0;
+
+	return {
+		title: `${baselineWave.name} to ${comparisonWave.name}`,
+		description: scoresReady
+			? 'Wave-level results are ready to review as a group trend. This is not same-respondent change.'
+			: 'Both waves have responses. Finish score output before treating the trend as ready.',
+		status: scoresReady ? 'ready' : 'pending',
+		baselineName: baselineWave.name,
+		comparisonName: comparisonWave.name,
+		baselineResponseCount: baselineWave.submittedResponseCount,
+		comparisonResponseCount: comparisonWave.submittedResponseCount,
+		primaryLabel: 'Open Results',
+		primaryHref: reportsHref,
+		secondaryLabel: nextWaveLabel,
+		secondaryHref: setupHref,
+		guidance: [
+			'Use this for anonymous or unlinked waves where the question is whether the group moved between rounds.',
+			'Do not describe this as individual improvement or decline unless linked change is ready.',
+			'Review scoring and disclosure in Results before making claims from the trend.'
+		]
+	};
+}
+
 export function toSelectedSeriesWavesWorkflowActions(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	localState: SelectedSeriesWavesWorkflowLocalState = {}
@@ -145,19 +239,20 @@ export function toSelectedSeriesWavesWorkflowActions(
 		{
 			id: 'twoWaveProof',
 			step: 'Step 1',
-			title: 'Check comparison readiness',
-			description: 'Confirm this study has repeated waves and linked responses for comparison.',
+			title: 'Check linked change readiness',
+			description:
+				'Confirm this study has repeat-participation waves and linked responses for same-respondent comparison.',
 			status: toTwoWaveProofStatus(hasTwoLongitudinalWaves, twoWaveProofViewed),
 			available: hasTwoLongitudinalWaves,
 			disabledReason: hasTwoLongitudinalWaves
 				? null
-				: 'Add at least two repeated waves before comparing change over time.'
+				: toTwoWaveProofDisabledReason(workspace)
 		},
 		{
 			id: 'waveComparisonProof',
 			step: 'Step 2',
-			title: 'Review comparison',
-			description: 'Review disclosure-safe change over time between the selected waves.',
+			title: 'Review linked change',
+			description: 'Review disclosure-safe same-respondent change between the selected waves.',
 			status: toWaveComparisonStatus(
 				hasSelectedComparison,
 				comparisonProofReady,
@@ -208,6 +303,14 @@ function toTwoWaveProofStatus(
 	return twoWaveProofViewed ? 'ready' : 'pending';
 }
 
+function toTwoWaveProofDisabledReason(workspace: CampaignSeriesWavesWorkspaceResponse) {
+	if (workspace.summary.campaignCount >= 2) {
+		return 'Linked same-respondent comparison is unavailable because these waves were not created with repeat participation. Review group trend instead.';
+	}
+
+	return 'Add at least two repeated waves before comparing change over time.';
+}
+
 function toWaveComparisonStatus(
 	hasSelectedComparison: boolean,
 	comparisonProofReady: boolean,
@@ -247,4 +350,20 @@ function toPathStepState(
 	}
 
 	return 'blocked';
+}
+
+function toGroupTrendWaves(workspace: CampaignSeriesWavesWorkspaceResponse) {
+	return [...workspace.waves]
+		.filter((wave) => wave.submittedResponseCount > 0)
+		.sort((left, right) => toTimestamp(left.latestLaunchAt) - toTimestamp(right.latestLaunchAt))
+		.slice(-2);
+}
+
+function toTimestamp(value: string | null | undefined) {
+	if (!value) {
+		return 0;
+	}
+
+	const timestamp = Date.parse(value);
+	return Number.isFinite(timestamp) ? timestamp : 0;
 }

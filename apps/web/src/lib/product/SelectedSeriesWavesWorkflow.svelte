@@ -9,6 +9,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
+		toSelectedSeriesGroupTrendPlan,
 		toSelectedSeriesWavePlan,
 		toSelectedSeriesWavesPath,
 		type SelectedSeriesWavesPathStepState,
@@ -46,6 +47,7 @@
 		waveComparisonProofViewed: Boolean(waveComparisonProofResult)
 	});
 	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace));
+	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace));
 	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
@@ -181,8 +183,8 @@
 			<p class="product-kicker">Waves workflow</p>
 			<h3 class="product-title">Plan repeated collection</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Create follow-up waves, review each wave, then compare linked change over time when
-				the study has enough longitudinal data.
+				Create follow-up waves, review group trends, and use linked change only when the
+				study was configured for repeat participation.
 			</p>
 		</div>
 		<StatusBadge status={wavePlan.status} label={wavePlan.title} />
@@ -218,6 +220,52 @@
 		</div>
 	</article>
 
+	<article class="record-row setup-current-task" role="region" aria-label="Group trend review">
+		<div class="setup-current-task__header">
+			<div>
+				<p class="record-field__label">Group trend</p>
+				<h4 class="setup-current-task__title">{groupTrendPlan.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{groupTrendPlan.description}</p>
+			</div>
+			<StatusBadge status={groupTrendPlan.status} />
+		</div>
+		<dl class="record-grid">
+			<div class="record-field">
+				<dt class="record-field__label">First wave</dt>
+				<dd class="record-field__value">{groupTrendPlan.baselineName ?? 'Missing'}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">First wave responses</dt>
+				<dd class="record-field__value">{groupTrendPlan.baselineResponseCount ?? 0}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">Second wave</dt>
+				<dd class="record-field__value">{groupTrendPlan.comparisonName ?? 'Missing'}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">Second wave responses</dt>
+				<dd class="record-field__value">{groupTrendPlan.comparisonResponseCount ?? 0}</dd>
+			</div>
+		</dl>
+		<ul class="grid gap-2 text-sm leading-6 text-[var(--color-text-muted)]">
+			{#each groupTrendPlan.guidance as item}
+				<li>{item}</li>
+			{/each}
+		</ul>
+		<div class="action-row">
+			{#if groupTrendPlan.primaryHref}
+				<a class="primary-button" href={groupTrendPlan.primaryHref}>{groupTrendPlan.primaryLabel}</a>
+			{:else}
+				<p class="step-pill" data-state="idle">{groupTrendPlan.primaryLabel}</p>
+			{/if}
+			{#if groupTrendPlan.secondaryHref && groupTrendPlan.secondaryLabel}
+				<a class="secondary-button" href={groupTrendPlan.secondaryHref}>
+					{groupTrendPlan.secondaryLabel}
+				</a>
+			{/if}
+		</div>
+	</article>
+
 	<div class="setup-path" role="list" aria-label="Waves path">
 		{#each wavesPath.steps as action, index (action.id)}
 			<div
@@ -242,7 +290,7 @@
 				<p class="record-field__label">
 					{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
 				</p>
-				<h4 class="setup-current-task__title">Current comparison task</h4>
+				<h4 class="setup-current-task__title">Current linked-change task</h4>
 				<p class="record-row__title">{currentAction.title}</p>
 				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 			</div>
@@ -296,6 +344,9 @@
 					</div>
 				</dl>
 				<SelectedSeriesWaveComparisonSnapshot {workspace} embedded={true} />
+				{#if waveComparisonProofResult}
+					{@render WaveComparisonProofResult()}
+				{/if}
 				{@render ActionFooter({
 					id: 'waveComparisonProof',
 					label: 'Review comparison',
