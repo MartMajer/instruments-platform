@@ -19078,3 +19078,13 @@ Queue: Next optional UXA01 improvement is qualitative criterion grading from tra
 **Open questions raised:** None.
 **Verification:** Focused RED failed on instrument-only evidence; GREEN focused autonomous-loop test passed 7/7. Full UXA01 Vitest passed 13/13 files and 82/82 tests. Final local Vite browser proof artifacts are `run-2026-05-20T17-20-14-506Z`, `run-2026-05-20T17-20-20-192Z`, and `run-2026-05-20T17-20-23-757Z`; all three completed with 0 findings / 0 tickets.
 **Next:** Product tickets surfaced by the consultant persona remain separate from harness validity: completed-vs-live lifecycle copy, `Proof` terminology, and report export vs response export clarity.
+
+## 2026-05-20 - D374 UXA02 full-stack boundary and persona action protocol
+
+Assessment: UXA01 fixture review was useful but still blurred fixture review, full-stack local review, and future provider-backed persona action loops. Without an explicit data-mode boundary, generated UX evidence could not say whether it came from mocked read models or real local app/API/database state.
+
+Task: Added `--data-mode fixture|fullstack`, mission/data-mode compatibility checks, the `fullstack-workspace-inspection` mission, evidence markers for `autonomousDataMode` and `productReadModelMocks`, and a strict persona action-driver protocol for future local UI action loops. Fixture mode keeps deterministic local read-model mocks. Full-stack mode disables product read-model mocks and blocks honestly on missing local auth/session/seed state.
+
+Verification: Focused UXA tests passed 4/4 files and 35/35 tests. Full UXA suite passed 14/14 files and 92/92 tests. Local browser proof ran full-stack mode with read-model mocks disabled at `artifacts/ux-agent-runs/local/run-2026-05-20T17-59-59-792Z/` and fixture mode with mocks enabled at `artifacts/ux-agent-runs/local/run-2026-05-20T18-00-06-976Z/`.
+
+Next: Add disposable local full-stack synthetic seed/reset plus the first mutating autonomous mission. Keep autonomous persona browsing local-only; do not point it at staging or production.

@@ -217,6 +217,9 @@ export function buildScriptedFixturePersonaActor(
 ): AutonomousPersonaActor {
   return {
     decide(context) {
+      const supportedDataModes = mission.supportedDataModes ?? ['fixture'];
+      const fullstackOnlyMission =
+        supportedDataModes.includes('fullstack') && !supportedDataModes.includes('fixture');
       const currentPath = extractPath(context.currentSnapshot.url);
       const visibleText = combinedSnapshotText(context.currentSnapshot);
       const unvisitedPath = mission.targetProductPaths.find(
@@ -230,10 +233,12 @@ export function buildScriptedFixturePersonaActor(
           surface: 'Product app entry',
           problem:
             'The local product app is still checking workspace access, so autonomous review cannot reach the normal cockpit.',
-          suggestedFix:
-            'Fix local product app auth/session mocking or readiness waiting so autonomous review starts from /app.',
-          ticketReadyWording:
-            'Fix local product app auth for autonomous UX review: /app must render the cockpit, not workspace access loading.',
+          suggestedFix: fullstackOnlyMission
+            ? 'Fix local full-stack auth/session and seed data so autonomous review starts from /app without product read-model mocks.'
+            : 'Fix local product app auth/session mocking or readiness waiting so autonomous review starts from /app.',
+          ticketReadyWording: fullstackOnlyMission
+            ? 'Fix local full-stack auth/session and seed data for autonomous UX review: /app must render the cockpit without product read-model mocks.'
+            : 'Fix local product app auth for autonomous UX review: /app must render the cockpit, not workspace access loading.',
         };
       }
 
@@ -254,10 +259,14 @@ export function buildScriptedFixturePersonaActor(
                 240
               )}`,
           suggestedFix: workspaceAccessLoading
-            ? 'Fix local product app auth/session mocking or app readiness waiting so autonomous review sees product content.'
+            ? fullstackOnlyMission
+              ? 'Fix local full-stack auth/session and seed data so autonomous review sees product content without product read-model mocks.'
+              : 'Fix local product app auth/session mocking or app readiness waiting so autonomous review sees product content.'
             : 'Fix local product read-model routing or product route handling so autonomous review sees the intended surface.',
           ticketReadyWording: workspaceAccessLoading
-            ? `Fix local product app auth for ${surface}: autonomous review must not proceed while workspace access is still loading.`
+            ? fullstackOnlyMission
+              ? `Fix local full-stack auth/session and seed data for ${surface}: autonomous review must not proceed while workspace access is still loading.`
+              : `Fix local product app auth for ${surface}: autonomous review must not proceed while workspace access is still loading.`
             : `Fix autonomous product route for ${surface}: hard app failures must not be reported as product UX findings.`,
         };
       }

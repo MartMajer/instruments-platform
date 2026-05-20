@@ -304,6 +304,37 @@ describe('autonomous UX persona loop', () => {
       })
     );
   });
+
+  it('uses full-stack auth and seed wording when a fullstack mission is blocked by workspace access loading', async () => {
+    const mission = missionFixture({
+      id: 'fullstack-workspace-inspection',
+      supportedDataModes: ['fullstack'],
+      fixtureProvenance: 'Live local full-stack app/API/database state.',
+      targetProductPaths: ['/app/campaign-series'],
+    });
+    const adapter = fakeAdapter([
+      pageSnapshot(
+        '/app',
+        'Workspace',
+        'Workspace access Checking workspace access Confirming your signed-in account and workspace membership.'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('blocked');
+    expect(result.personaFindings[0]).toEqual(
+      expect.objectContaining({
+        suggestedFix: expect.stringContaining('local full-stack auth/session and seed data'),
+        ticketReadyWording: expect.stringContaining('local full-stack auth/session and seed data'),
+      })
+    );
+    expect(result.personaFindings[0]?.suggestedFix).not.toContain('mocking');
+  });
 });
 
 function missionFixture(

@@ -1,3 +1,22 @@
+# Next Session Plan - Post-D374
+
+Current queue head: UXA02 local full-stack seed/reset plus first mutating autonomous mission, if the owner wants the harness to move beyond fixture review.
+
+D374 added the boundary that was missing:
+
+- fixture mode uses deterministic local auth/session and product read-model mocks
+- full-stack mode disables product read-model mocks
+- evidence records `autonomousDataMode` and `productReadModelMocks`
+- the first full-stack mission blocks honestly when local auth/session/seed state is missing
+- the persona action-driver accepts only strict local UI actions for a future provider bridge
+
+Current proof artifacts:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T17-59-59-792Z/` - full-stack mode, mocks disabled, blocked on missing local auth/session/seed
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-00-06-976Z/` - fixture mode, mocks enabled, first-study setup completed
+
+Recommended next move: add disposable local synthetic seed/reset and one mutating full-stack mission. Do not point autonomous personas at staging or production. Do not wire a live LLM/provider bridge until the seed/reset path can make local mutation reversible and tenant-safe.
+
 # Next Session Plan - Post-D373
 
 Current queue head: wait for or review the D373 persona reviewer results, then triage only evidence-backed UX tickets.

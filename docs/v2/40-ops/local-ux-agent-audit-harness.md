@@ -10,9 +10,11 @@ Use it when the app feels confusing and the next question is: "What would a fres
 
 ## Current scope
 
-Implemented fixed mission:
+Implemented paths:
 
-- `create-first-study` for persona `first-time-researcher`
+- fixed evidence mission `create-first-study` for persona `first-time-researcher`
+- autonomous fixture missions for local persona review
+- autonomous full-stack boundary mission for proving non-mocked local app/API/database access
 
 The mission is intentionally conservative:
 
@@ -60,6 +62,7 @@ Useful options:
 ```powershell
 --viewport desktop|mobile
 --headless true|false
+--data-mode fixture|fullstack
 --output ../../artifacts/ux-agent-runs/local
 ```
 
@@ -149,6 +152,37 @@ The first persona reviewer pass found harness-validity gaps rather than product 
 - Normalized markdown reports now render criterion evidence.
 
 D373 local proof ran all three autonomous missions against `/app`. Each mission visited 3 target product paths. All three completed with 0 generated findings and 0 next-action tickets.
+
+## D374 full-stack boundary and persona action protocol
+
+UXA02 adds an explicit autonomous data-mode boundary:
+
+- `fixture` is the default mode. It enters the real local Svelte `/app` shell and uses deterministic local auth/session plus product read-model mocks.
+- `fullstack` disables product read-model mocks. It is for local app/API/database proof only and must not point at staging or production.
+
+Supported commands from `apps/web`:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fixture-first-study-setup --data-mode fixture --output ../../artifacts/ux-agent-runs/local
+```
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-workspace-inspection --data-mode fullstack --output ../../artifacts/ux-agent-runs/local
+```
+
+The full-stack mission currently proves the boundary, not end-to-end mutation. With no local authenticated tenant session and seeded workspace, it should block with a ticket that asks for local full-stack auth/session and seed data. Evidence records `autonomousDataMode` and `productReadModelMocks` so reviewers can tell whether a run used fixture data or real local full-stack state.
+
+UXA02 also adds a safe persona action-driver protocol for future LLM-backed persona loops. The protocol accepts only strict JSON actions for visible local UI controls:
+
+- `click-link`
+- `click-button`
+- `fill`
+- `complain`
+- `stop`
+
+It rejects remote navigation, malformed JSON, unknown action kinds, empty selectors, credential/secret fill labels, and invalid complaint severity. Persona reviewers remain evidence reviewers until a provider bridge is wired; they are not allowed to browse staging or production.
+
+Next required slice: local full-stack synthetic seed/reset plus the first mutating mission that creates or modifies app state against a disposable local database.
 
 ## Known limits
 

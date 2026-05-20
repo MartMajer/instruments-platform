@@ -1,5 +1,6 @@
 export type ViewportPreset = 'desktop' | 'tablet' | 'mobile';
 export type CaptureMode = 'safe' | 'local-full';
+export type AutonomousDataMode = 'fixture' | 'fullstack';
 
 export type FindingSeverity = 'critical' | 'high' | 'medium' | 'low';
 

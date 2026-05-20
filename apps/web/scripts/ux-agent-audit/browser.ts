@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { chromium, type Page } from '@playwright/test';
 
-import { getAutonomousFixtureMission } from './autonomous-fixtures.ts';
+import { resolveAutonomousMissionForDataMode } from './autonomous-fixtures.ts';
 import { resolveAutonomousProductApiResponse } from './autonomous-product-read-models.ts';
 import {
   buildScriptedFixturePersonaActor,
@@ -28,7 +28,7 @@ import {
   type RawRichScreenSnapshot,
   type RichScreenSnapshot,
 } from './rich-transcript.ts';
-import type { CaptureMode, ViewportPreset } from './types.ts';
+import type { AutonomousDataMode, CaptureMode, ViewportPreset } from './types.ts';
 
 export interface BrowserEvidenceOptions {
   baseUrl: string;
@@ -44,6 +44,7 @@ export interface BrowserEvidenceOptions {
   captureMode?: CaptureMode;
   outputRoot?: string;
   runDirectory?: string;
+  autonomousDataMode?: AutonomousDataMode;
 }
 
 export interface BrowserSafeCapturePolicy {
@@ -216,10 +217,11 @@ export async function captureBrowserEvidence(
 export async function captureAutonomousBrowserEvidence(
   options: BrowserEvidenceOptions
 ): Promise<BrowserEvidenceCapture> {
-  const mission = getAutonomousFixtureMission(options.missionId);
-  if (!mission) {
-    throw new Error(`No autonomous fixture mission for ${options.missionId}`);
-  }
+  const autonomousDataMode = options.autonomousDataMode ?? 'fixture';
+  const mission = resolveAutonomousMissionForDataMode(
+    options.missionId,
+    autonomousDataMode
+  );
 
   const safeCapturePolicy = resolveBrowserSafeCapturePolicy(options);
   const captureMode = options.captureMode ?? 'local-full';
@@ -231,7 +233,9 @@ export async function captureAutonomousBrowserEvidence(
       viewport: viewportSizes[options.viewport],
     });
     const page = await context.newPage();
-    await routeLocalAutonomousFixtureSession(page);
+    if (autonomousDataMode === 'fixture') {
+      await routeLocalAutonomousFixtureSession(page);
+    }
     const runDirectory =
       options.runDirectory ??
       (options.outputRoot
@@ -283,6 +287,9 @@ export async function captureAutonomousBrowserEvidence(
         observations: {
           ...execution.observations,
           captureMode,
+          autonomousDataMode,
+          productReadModelMocks:
+            autonomousDataMode === 'fixture' ? 'enabled' : 'disabled',
           safeCapturePolicy: describeSafeCapturePolicy(safeCapturePolicy),
           ...(richScreens.length ? { localFullTranscript: richScreens } : {}),
         },

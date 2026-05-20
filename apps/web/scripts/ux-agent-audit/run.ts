@@ -2,7 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { getAutonomousFixtureMission } from './autonomous-fixtures.ts';
+import {
+  getAutonomousFixtureMission,
+  resolveAutonomousMissionForDataMode,
+} from './autonomous-fixtures.ts';
 import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
 import type { MissionEvidence } from './evidence.ts';
 import { hasFixedMissionExecutor } from './mission-executor.ts';
@@ -14,6 +17,7 @@ import {
   type ReviewPromptRunMetadata,
 } from './review-prompt.ts';
 import type {
+  AutonomousDataMode,
   CaptureMode,
   MissionDefinition,
   PersonaDefinition,
@@ -35,6 +39,7 @@ export interface AutonomousRunnerOptions {
   missionFilter: string;
   headless: boolean;
   captureMode: CaptureMode;
+  dataMode: AutonomousDataMode;
   outputRoot: string;
 }
 
@@ -50,6 +55,7 @@ const allowedFlags = new Set([
   '--base-url',
   '--capture-mode',
   '--headless',
+  '--data-mode',
   '--mission',
   '--output',
   '--persona',
@@ -64,6 +70,7 @@ const normalizeReviewAllowedFlags = new Set([
 ]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
+const allowedAutonomousDataModes = new Set<AutonomousDataMode>(['fixture', 'fullstack']);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
 const missionCatalog: readonly MissionDefinition<string>[] = missions;
@@ -152,6 +159,7 @@ export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOp
     missionFilter: mission.id,
     headless: parseHeadless(values.get('--headless') ?? 'true'),
     captureMode: parseCaptureMode(values.get('--capture-mode') ?? 'local-full'),
+    dataMode: parseAutonomousDataMode(values.get('--data-mode') ?? 'fixture'),
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
@@ -237,10 +245,10 @@ export async function runAudit(options: RunnerOptions) {
 }
 
 export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
-  const mission = getAutonomousFixtureMission(options.missionFilter);
-  if (!mission) {
-    throw new Error(`Unknown autonomous fixture mission: ${options.missionFilter}`);
-  }
+  const mission = resolveAutonomousMissionForDataMode(
+    options.missionFilter,
+    options.dataMode
+  );
 
   const persona = personaCatalog[mission.personaId];
   if (!persona) {
@@ -256,6 +264,7 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     headless: options.headless,
     outputRoot: options.outputRoot,
     captureMode: options.captureMode,
+    autonomousDataMode: options.dataMode,
     captureScreenshots: true,
     includeSanitizedVisibleText: true,
     executeFixedMission: false,
@@ -423,6 +432,14 @@ function parseCaptureMode(value: string): CaptureMode {
   }
 
   return value as CaptureMode;
+}
+
+function parseAutonomousDataMode(value: string): AutonomousDataMode {
+  if (!allowedAutonomousDataModes.has(value as AutonomousDataMode)) {
+    throw new Error(`Unsupported data mode: ${value}`);
+  }
+
+  return value as AutonomousDataMode;
 }
 
 export function resolveAuditContracts(missionId: string, personaId?: string) {

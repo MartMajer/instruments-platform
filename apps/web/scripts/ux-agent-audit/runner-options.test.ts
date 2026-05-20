@@ -309,8 +309,69 @@ describe('UX audit runner option parsing', () => {
       missionFilter: 'fixture-first-study-setup',
       headless: false,
       captureMode: 'local-full',
+      dataMode: 'fixture',
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
+  });
+
+  it('parses explicit fullstack data mode for autonomous runs', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fixture-first-study-setup',
+      '--data-mode',
+      'fullstack',
+    ]);
+
+    expect(options.dataMode).toBe('fullstack');
+  });
+
+  it('rejects unknown autonomous data modes', () => {
+    expect(() =>
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--data-mode',
+        'staging',
+      ])
+    ).toThrow('Unsupported data mode: staging');
+  });
+
+  it('fails closed before browser launch when a fixture-only mission is requested in fullstack mode', async () => {
+    await expect(
+      runAutonomousAudit(
+        parseAutonomousRunnerOptions([
+          '--base-url',
+          'http://127.0.0.1:5174',
+          '--mission',
+          'fixture-first-study-setup',
+          '--data-mode',
+          'fullstack',
+        ])
+      )
+    ).rejects.toThrow('does not support fullstack data mode');
+    expect(captureAutonomousBrowserEvidence).not.toHaveBeenCalled();
+  });
+
+  it('runs a fullstack-capable mission without fixture data mode', async () => {
+    await runAutonomousAudit(
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'fullstack-workspace-inspection',
+        '--data-mode',
+        'fullstack',
+      ])
+    );
+
+    expect(captureAutonomousBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'fullstack-workspace-inspection',
+        autonomousDataMode: 'fullstack',
+      })
+    );
   });
 
   it('runs autonomous fixture missions with screenshots, transcript, prompt, and normalized report', async () => {
@@ -329,6 +390,7 @@ describe('UX audit runner option parsing', () => {
         captureScreenshots: true,
         includeSanitizedVisibleText: true,
         captureMode: 'local-full',
+        autonomousDataMode: 'fixture',
       })
     );
     expect(writeReviewPromptForMission).toHaveBeenCalledWith(

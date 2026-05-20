@@ -3,7 +3,7 @@ import { listFixtureScenarios } from '../../src/lib/product/fixtures.ts';
 import { autonomousProductPaths } from './autonomous-product-read-models.ts';
 import { getGoalPersonaProfile, type GoalPersonaProfile } from './persona-goals.ts';
 import type { PersonaId } from './personas.ts';
-import type { ViewportPreset } from './types.ts';
+import type { AutonomousDataMode, ViewportPreset } from './types.ts';
 
 export { autonomousProductPaths };
 
@@ -19,6 +19,7 @@ export interface AutonomousFixtureMission {
   targetProductPaths: string[];
   reviewFocus: string[];
   fixtureProvenance: string;
+  supportedDataModes: AutonomousDataMode[];
   localOnly: true;
 }
 
@@ -78,6 +79,19 @@ export const autonomousFixtureMissions = [
     ],
     reviewFocus: ['questionnaire authoring', 'scoring rule readiness', 'client-ready wording'],
   }),
+  mission({
+    id: 'fullstack-workspace-inspection',
+    personaId: 'first-time-researcher',
+    goal: 'Autonomously inspect the real local full-stack workspace entry and studies list without product read-model mocks.',
+    viewport: 'desktop',
+    maxSteps: 4,
+    targetFixtureCatalogIds: [],
+    targetProductPaths: ['/app/campaign-series'],
+    reviewFocus: ['full-stack local auth/data readiness', 'studies entry clarity'],
+    supportedDataModes: ['fullstack'],
+    fixtureProvenance:
+      'Live local full-stack app/API/database state; no product read-model mocks are installed by the harness.',
+  }),
 ] satisfies AutonomousFixtureMission[];
 
 export function getAutonomousFixtureMission(id: string) {
@@ -93,6 +107,24 @@ export function resolveAutonomousMissionTargetPaths(missionId: string) {
   return mission.targetProductPaths;
 }
 
+export function resolveAutonomousMissionForDataMode(
+  missionId: string,
+  dataMode: AutonomousDataMode
+) {
+  const mission = getAutonomousFixtureMission(missionId);
+  if (!mission) {
+    throw new Error(`Unknown autonomous fixture mission: ${missionId}`);
+  }
+
+  if (!mission.supportedDataModes.includes(dataMode)) {
+    throw new Error(
+      `Autonomous mission ${missionId} does not support ${dataMode} data mode.`
+    );
+  }
+
+  return mission;
+}
+
 function mission(options: {
   id: string;
   personaId: PersonaId;
@@ -102,6 +134,8 @@ function mission(options: {
   targetFixtureCatalogIds: string[];
   targetProductPaths: string[];
   reviewFocus: string[];
+  supportedDataModes?: AutonomousDataMode[];
+  fixtureProvenance?: string;
 }): AutonomousFixtureMission {
   const scenarios = options.targetFixtureCatalogIds.map((scenarioId) => {
     const scenario = fixtureScenarioByKey.get(scenarioId);
@@ -117,7 +151,9 @@ function mission(options: {
     personaProfile: getGoalPersonaProfile(options.personaId),
     entryPath: '/app',
     fixtureProvenance:
+      options.fixtureProvenance ??
       `Seeded local product read model backed by ${scenarios.length} demo fixture catalog scenario(s).`,
+    supportedDataModes: options.supportedDataModes ?? ['fixture'],
     localOnly: true,
   };
 }
