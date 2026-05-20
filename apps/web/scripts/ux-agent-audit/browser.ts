@@ -16,6 +16,7 @@ export interface BrowserEvidenceOptions {
   personaId: string;
   missionGoal: string;
   viewport: ViewportPreset;
+  headless?: boolean;
   outputRoot?: string;
   runDirectory?: string;
 }
@@ -46,7 +47,7 @@ const viewportSizes: Record<ViewportPreset, { width: number; height: number }> =
 export async function captureBrowserEvidence(
   options: BrowserEvidenceOptions
 ): Promise<BrowserEvidenceCapture> {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ headless: options.headless ?? true });
   const startedAt = new Date();
 
   try {

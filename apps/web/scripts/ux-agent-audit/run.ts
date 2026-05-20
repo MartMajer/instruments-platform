@@ -1,21 +1,36 @@
 import { pathToFileURL } from 'node:url';
 
 import { captureBrowserEvidence } from './browser.ts';
-import type { ViewportPreset } from './types.ts';
+import { missions } from './missions.ts';
+import { personas } from './personas.ts';
+import type {
+  MissionDefinition,
+  PersonaDefinition,
+  ViewportPreset,
+} from './types.ts';
 
 export interface RunnerOptions {
   baseUrl: string;
   missionFilter: string;
   personaOverride: string;
   viewportOverride: ViewportPreset;
+  headless: boolean;
   outputRoot: string;
 }
 
+const allowedFlags = new Set([
+  '--base-url',
+  '--headless',
+  '--mission',
+  '--output',
+  '--persona',
+  '--viewport',
+]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
-const defaultMissionId = 'local-page-snapshot';
-const defaultPersonaId = 'first-time-researcher';
-const defaultViewport: ViewportPreset = 'desktop';
+const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
+const missionCatalog: readonly MissionDefinition<string>[] = missions;
+const personaCatalog: Record<string, PersonaDefinition> = personas;
 
 export function parseRunnerOptions(args: string[]): RunnerOptions {
   const values = new Map<string, string>();
@@ -24,6 +39,22 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
     const flag = args[index];
     if (!flag.startsWith('--')) {
       throw new Error(`Unexpected argument: ${flag}`);
+    }
+
+    if (!allowedFlags.has(flag)) {
+      throw new Error(`Unknown option: ${flag}`);
+    }
+
+    if (flag === '--headless') {
+      const nextValue = args[index + 1];
+      if (!nextValue || nextValue.startsWith('--')) {
+        values.set(flag, 'true');
+        continue;
+      }
+
+      values.set(flag, nextValue);
+      index += 1;
+      continue;
     }
 
     const value = args[index + 1];
@@ -42,31 +73,47 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
 
   validateUrl(baseUrl);
 
-  const viewportOverride = parseViewport(values.get('--viewport') ?? defaultViewport);
+  const missionId = values.get('--mission') ?? defaultMissionId;
+  const { mission, persona } = resolveAuditContracts(
+    missionId,
+    values.get('--persona')
+  );
+  const viewportOverride = parseViewport(
+    values.get('--viewport') ?? mission.viewport ?? persona.defaultViewport
+  );
+  const headless = parseHeadless(values.get('--headless') ?? 'true');
 
   return {
     baseUrl,
-    missionFilter: values.get('--mission') ?? defaultMissionId,
-    personaOverride: values.get('--persona') ?? defaultPersonaId,
+    missionFilter: mission.id,
+    personaOverride: persona.id,
     viewportOverride,
+    headless,
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
 
 export async function runAudit(options: RunnerOptions) {
+  const { mission, persona } = resolveAuditContracts(
+    options.missionFilter,
+    options.personaOverride
+  );
+  const viewport = parseViewport(options.viewportOverride);
+
   const result = await captureBrowserEvidence({
     baseUrl: options.baseUrl,
-    missionId: options.missionFilter,
-    personaId: options.personaOverride,
-    missionGoal: 'Capture an initial browser evidence snapshot for a UX audit mission.',
-    viewport: options.viewportOverride,
+    missionId: mission.id,
+    personaId: persona.id,
+    missionGoal: mission.goal,
+    viewport,
+    headless: options.headless,
     outputRoot: options.outputRoot,
   });
 
   return {
-    missionId: options.missionFilter,
-    personaId: options.personaOverride,
-    viewport: options.viewportOverride,
+    missionId: mission.id,
+    personaId: persona.id,
+    viewport,
     outputRoot: options.outputRoot,
     ...result,
   };
@@ -84,6 +131,34 @@ function parseViewport(value: string): ViewportPreset {
   }
 
   return value as ViewportPreset;
+}
+
+function parseHeadless(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') {
+    return true;
+  }
+
+  if (normalized === 'false') {
+    return false;
+  }
+
+  throw new Error(`Invalid --headless: ${value}. Expected true or false.`);
+}
+
+export function resolveAuditContracts(missionId: string, personaId?: string) {
+  const mission = missionCatalog.find((entry) => entry.id === missionId);
+  if (!mission) {
+    throw new Error(`Unknown mission: ${missionId}`);
+  }
+
+  const resolvedPersonaId = personaId ?? mission.personaId;
+  const persona = personaCatalog[resolvedPersonaId];
+  if (!persona) {
+    throw new Error(`Unknown persona: ${resolvedPersonaId}`);
+  }
+
+  return { mission, persona };
 }
 
 function validateUrl(value: string) {

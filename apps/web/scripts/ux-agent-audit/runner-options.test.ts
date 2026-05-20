@@ -1,8 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnerOptions } from './run';
+import { captureBrowserEvidence } from './browser.ts';
+import { missions } from './missions';
+import { parseRunnerOptions, runAudit } from './run';
+
+vi.mock('./browser.ts', () => ({
+  captureBrowserEvidence: vi.fn(async () => ({
+    title: 'Local app',
+    url: 'http://127.0.0.1:5174/app',
+    visibleTextExcerpt: 'Local app shell',
+    buttons: [],
+    links: [],
+  })),
+}));
 
 describe('UX audit runner option parsing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('parses local audit runner CLI options', () => {
     const options = parseRunnerOptions([
       '--base-url',
@@ -13,6 +29,8 @@ describe('UX audit runner option parsing', () => {
       'first-time-researcher',
       '--viewport',
       'desktop',
+      '--headless',
+      'false',
       '--output',
       '../../artifacts/ux-agent-runs/test',
     ]);
@@ -22,7 +40,131 @@ describe('UX audit runner option parsing', () => {
       missionFilter: 'create-first-study',
       personaOverride: 'first-time-researcher',
       viewportOverride: 'desktop',
+      headless: false,
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
+  });
+
+  it('defaults persona and viewport from the mission contract', () => {
+    const options = parseRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'prepare-audience',
+    ]);
+
+    expect(options.personaOverride).toBe('osh-consultant');
+    expect(options.viewportOverride).toBe('tablet');
+  });
+
+  it('rejects an unknown mission id', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'missing-mission',
+      ])
+    ).toThrow('Unknown mission: missing-mission');
+  });
+
+  it('rejects an unknown persona id', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--persona',
+        'missing-persona',
+      ])
+    ).toThrow('Unknown persona: missing-persona');
+  });
+
+  it('rejects an invalid viewport override', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--viewport',
+        'wide',
+      ])
+    ).toThrow('Unsupported viewport: wide');
+  });
+
+  it('rejects unknown flags', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--not-a-runner-option',
+        'value',
+      ])
+    ).toThrow('Unknown option: --not-a-runner-option');
+  });
+
+  it('parses headless boolean values and treats bare headless as true', () => {
+    expect(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--headless',
+        'true',
+      ]).headless
+    ).toBe(true);
+
+    expect(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--headless',
+        'false',
+      ]).headless
+    ).toBe(false);
+
+    expect(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--headless',
+      ]).headless
+    ).toBe(true);
+  });
+
+  it('rejects invalid headless values', () => {
+    expect(() =>
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--headless',
+        'sometimes',
+      ])
+    ).toThrow('Invalid --headless: sometimes');
+  });
+
+  it('passes resolved mission contract metadata and headless mode to browser capture', async () => {
+    const mission = missions.find((entry) => entry.id === 'prepare-audience');
+    if (!mission) {
+      throw new Error('Expected prepare-audience mission fixture');
+    }
+
+    await runAudit(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'prepare-audience',
+        '--headless',
+        'false',
+      ])
+    );
+
+    expect(captureBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'prepare-audience',
+        personaId: 'osh-consultant',
+        missionGoal: mission.goal,
+        viewport: 'tablet',
+        headless: false,
+      })
+    );
   });
 });
