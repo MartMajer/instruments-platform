@@ -4,7 +4,7 @@ Current queue head: owner-test the new mobile shell on staging.
 
 Recommended next move: use a real phone viewport and check home, register, sign in, `/app`, Studies, selected study Overview/Setup/Collect/Results/Waves, Directory, Team, Exports, and Settings. If the shell works, the next mobile goal should be screenshot-led route polishing at 360px, 390px, 430px, tablet, and desktop.
 
-D358 is deployed at app commit `30ba356`. It is the first real mobile navigation replacement: public home menu, app top bar, bottom nav, More sheet, selected-study switcher, and neutral card selected states. It is not a full route-by-route screenshot audit.
+D358 is deployed at app commit `82dd2c3`. It is the first real mobile navigation replacement: public home menu, app top bar, bottom nav, More sheet, selected-study switcher, and neutral card selected states. It is not a full route-by-route screenshot audit.
 
 # Next Session Plan - Post-D357
 
