@@ -18882,3 +18882,10 @@ Verification:
 - Task: Added registration-context email-mismatch regression coverage, changed OIDC remote-failure fallback for registration `email_mismatch` to `/register`, added `/register?auth=email_mismatch` copy, replaced user-facing Auth0/internal-provider language on auth surfaces, and added an app-session Switch account action that clears the provider session before returning to `/signin`.
 - Verification: RED focused test failed on `/app?auth=email_mismatch`; GREEN focused test passed; full `AuthEndpointTests` passed 68/68; web production build passed with the existing large-chunk warning.
 - Queue: Deploy D361 to staging, then owner-test sign-in X/provider Y, registration X/provider Y, and Switch account from an authenticated app session.
+
+Deployment evidence:
+- Runtime app commit deployed to staging: cdb19a0.
+- Initial redeploy rebuilt API/web/worker/migrator images and recreated containers, then hit transient API health 502 during warm-up.
+- Follow-up VPS release checks passed with evidence in `/tmp/d361-auth-recovery-ux-vps-release-20260520-followup`.
+- Public checks passed after warm-up: API ready 200, web root 200, `/app` 200.
+- Staging browser recovery-copy check passed for `/app?auth=email_mismatch` and `/register?auth=email_mismatch` with pending registration metadata.
