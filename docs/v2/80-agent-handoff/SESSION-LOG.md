@@ -18861,5 +18861,5 @@ Verification:
 
 - Assessment: Owner testing confirmed D357's sticky topbar/sidebar compromise was still not usable enough on mobile, and the blue-left-card visual motif made normal cards feel like highlighted debug panels.
 - Task: Added public home mobile menu, authenticated app mobile top bar, authenticated bottom nav, More menu sheet, selected-study mobile switcher, and neutral selected/card states. Product routes hide the desktop sidebar on mobile while keeping desktop sidebar behavior intact.
-- Verification: Web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings.
+- Verification: Web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings. Follow-up source audit found no remaining `inset 3px`, `inset 2px`, `border-left: 3px`, `border-left-width: 3px`, `inset 0 3px`, or `inset 0 -2px` declarations in `app.css`.
 - Deployment: Staging redeploy passed at app commit `30ba356`. VPS release checks passed with evidence in `/tmp/d358-mobile-nav-vps-release-20260520/release-evidence`; authenticated remote smoke was skipped. Public follow-up checks returned API ready 200, web root 200, and `/app` 200. Running web image: `sha256:a6909c0e3df11158c6406cc646d7e0d77e6c76c1dbb5451c4b3f3d12303ab341`.

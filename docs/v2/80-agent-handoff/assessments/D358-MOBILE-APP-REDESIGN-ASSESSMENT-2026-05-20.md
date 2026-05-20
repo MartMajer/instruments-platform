@@ -20,6 +20,7 @@ Implemented the first full mobile shell redesign:
 - Selected-study pages now have a compact mobile area switcher for Hub, Setup, Collect, Results, and Waves.
 - Desktop sidebar and selected-study cards remain available on desktop.
 - Blue-left-card and inset-left selected motifs were replaced with neutral cards and softer selected states.
+- Follow-up CSS audit removed residual source declarations for 3px accent-left borders and inset accent shadows.
 
 ## Verification
 
@@ -27,6 +28,7 @@ Passed:
 
 - Web production build.
 - `git diff --check` with only CRLF normalization warnings.
+- Source audit found no remaining `inset 3px`, `inset 2px`, `border-left: 3px`, `border-left-width: 3px`, `inset 0 3px`, or `inset 0 -2px` declarations in `app.css`.
 
 Staging deployment passed:
 
