@@ -131,7 +131,7 @@
 	<title>Sign in | Instruments Platform</title>
 	<meta
 		name="description"
-		content="Find your Instruments Platform workspace before signing in with the identity provider."
+		content="Find your Instruments Platform workspace before signing in with your sign-in provider."
 	/>
 </svelte:head>
 
@@ -159,7 +159,7 @@
 			<h1 id="signin-title">Sign in to your workspace.</h1>
 			<p>
 				Enter the email used for the workspace. We find the workspace first, then send you
-				to the identity provider for password and MFA.
+				to your sign-in provider for password and MFA.
 			</p>
 			<div class="registration-steps" aria-label="Sign-in steps">
 				<div>
@@ -170,12 +170,12 @@
 				<div>
 					<span>02</span>
 					<strong>Sign in</strong>
-					<p>Auth0 handles password, account selection, and MFA.</p>
+					<p>Your sign-in provider handles password, account selection, and MFA.</p>
 				</div>
 				<div>
 					<span>03</span>
 					<strong>Open app</strong>
-					<p>The platform opens only after matching the Auth0 account to workspace membership.</p>
+					<p>The platform opens only after matching the selected account to workspace membership.</p>
 				</div>
 			</div>
 		</section>

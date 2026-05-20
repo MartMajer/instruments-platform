@@ -35,6 +35,7 @@
 	const emailVerificationRequired = $derived(
 		page.url.searchParams.get('auth') === 'email_unverified'
 	);
+	const emailMismatchRequired = $derived(page.url.searchParams.get('auth') === 'email_mismatch');
 
 	onMount(() => {
 		const tenantId = readLastTenantId(window.localStorage);
@@ -328,7 +329,7 @@
 	<title>Create workspace | Instruments Platform</title>
 	<meta
 		name="description"
-		content="Create a private beta workspace for Instruments Platform and finish sign-in with your identity provider."
+		content="Create a private beta workspace for Instruments Platform and finish sign-in with your sign-in provider."
 	/>
 </svelte:head>
 
@@ -355,7 +356,7 @@
 			<p class="launchpad-kicker">Private beta access</p>
 			<h1 id="registration-title">Create your workspace.</h1>
 			<p>
-				Use the email that should own the workspace. Password and MFA stay with the identity provider; this page only names the workspace and checks beta access.
+				Use the email that should own the workspace. Password and MFA stay with your sign-in provider; this page only names the workspace and checks beta access.
 			</p>
 			<div class="registration-steps" aria-label="Registration steps">
 				<div>
@@ -366,7 +367,7 @@
 				<div>
 					<span>02</span>
 					<strong>Verify email</strong>
-					<p>If the identity provider asks for verification, confirm the email and continue here.</p>
+					<p>If your sign-in provider asks for verification, confirm the email and continue here.</p>
 				</div>
 				<div>
 					<span>03</span>
@@ -391,12 +392,15 @@
 						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
 					{/if}
 
-					{#if emailVerificationRequired && pendingRegistrationLoginUrl}
+					{#if (emailVerificationRequired || emailMismatchRequired) && pendingRegistrationLoginUrl}
 						<div class="registration-alert" role="status">
-							<strong>Verify email, then sign in</strong>
+							<strong>
+								{emailMismatchRequired ? 'Choose the account you started with' : 'Verify email, then sign in'}
+							</strong>
 							<span>
-								Open the verification email from Auth0, then retry registration sign-in with
-								the same email.
+								{emailMismatchRequired
+									? 'The selected sign-in account did not match the workspace email you entered. Sign out completely if the browser keeps choosing the wrong account.'
+									: 'Open the verification email from your sign-in provider, then retry registration sign-in with the same email.'}
 							</span>
 						</div>
 						<a class="registration-submit" href={pendingRegistrationLoginUrl}>Retry registration sign-in</a>

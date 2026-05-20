@@ -33,7 +33,8 @@
 	const primaryAuthActionLabel = $derived(
 		hasTenantLoginTarget ? 'Sign in' : 'Sign in to existing workspace'
 	);
-	const completeLogoutUrl = $derived(createProviderLogoutUrl());
+	const completeLogoutUrl = $derived(createProviderLogoutUrl(resolve('/')));
+	const switchAccountUrl = $derived(createProviderLogoutUrl(resolve('/signin')));
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const emailVerificationSignInUrl = $derived(withPromptLogin(authFailedPrimaryUrl));
 	const authFailedPrimaryLabel = $derived(
@@ -230,9 +231,9 @@
 		}
 	}
 
-	function createProviderLogoutUrl() {
+	function createProviderLogoutUrl(returnPath: string) {
 		const providerLogoutUrl = new URL(logoutUrl, page.url.origin);
-		const returnUrl = new URL(resolve('/'), page.url.origin).toString();
+		const returnUrl = new URL(returnPath, page.url.origin).toString();
 		providerLogoutUrl.searchParams.set('provider', '1');
 		providerLogoutUrl.searchParams.set('returnUrl', returnUrl);
 
@@ -288,7 +289,7 @@
 				<div class="email-verification-reminder__body">
 					<h2 class="email-verification-reminder__title">Verify your email</h2>
 					<p class="email-verification-reminder__text">
-						Open the verification email from Auth0 to keep access after signing out.
+						Open the verification email from your sign-in provider to keep access after signing out.
 					</p>
 				</div>
 			</div>
@@ -302,7 +303,10 @@
 						<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 						<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 					</div>
-					<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
+					<div class="flex flex-wrap gap-2">
+						<a class="secondary-button" href={switchAccountUrl}>Switch account</a>
+						<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
+					</div>
 				</div>
 				<div class="session-callout__badges" aria-label="Workspace access">
 					{#each sessionProfile.permissionBadges as badge}
@@ -354,33 +358,33 @@
 					</h2>
 					{#if authEmailUnverifiedRedirect}
 						<p class="email-verification-reminder__text">
-							Open the verification email from Auth0, then sign in again with the same account.
+							Open the verification email from your sign-in provider, then sign in again with the same account.
 						</p>
 						<p class="email-verification-reminder__note">
-							If Auth0 keeps using the wrong account, sign out completely and choose the intended email.
+							If the browser keeps choosing the wrong account, sign out completely and choose the intended email.
 						</p>
 					{:else if authEmailMismatchRedirect}
 						<p class="email-verification-reminder__text">
-							Auth0 returned a different email than the one used to find this workspace.
-							Sign out completely, then choose the same account you entered on sign-in.
+							The selected sign-in account did not match the workspace email you entered.
+							Sign out completely, then choose the same account again.
 						</p>
 						<p class="email-verification-reminder__note">
-							This protects the workspace from stale Auth0 sessions and wrong account selection.
+							This protects the workspace from stale provider sessions and wrong account selection.
 						</p>
 					{:else if authFailedHasPendingRegistration}
 						<p class="email-verification-reminder__text">
-							Retry the saved registration sign-in link if the Auth0 callback was interrupted.
+							Retry the saved registration sign-in link if sign-in was interrupted.
 						</p>
 						<p class="email-verification-reminder__note">
-							If Auth0 keeps choosing the wrong account, sign out completely first.
+							If the browser keeps choosing the wrong account, sign out completely first.
 						</p>
 					{:else}
 						<p class="email-verification-reminder__text">
-							The account Auth0 returned does not have access to this workspace. Sign in with
+							The selected account does not have access to this workspace. Sign in with
 							the email that owns the workspace, or create a new workspace from registration.
 						</p>
 						<p class="email-verification-reminder__note">
-							If Auth0 keeps using the wrong account, sign out completely and choose the intended email.
+							If the browser keeps choosing the wrong account, sign out completely and choose the intended email.
 						</p>
 					{/if}
 				</div>
@@ -391,7 +395,7 @@
 				? authEmailUnverifiedRedirect
 					? 'Email verification is required before signing in again after sign-out.'
 					: authEmailMismatchRedirect
-					? 'Use the same email in Auth0 that you entered on the workspace sign-in page.'
+					? 'Use the same email you entered on the workspace sign-in page.'
 					: authFailedHasPendingRegistration
 					? 'Use the saved registration link only when registration was interrupted before the workspace opened.'
 					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'

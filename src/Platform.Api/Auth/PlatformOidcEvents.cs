@@ -91,8 +91,10 @@ public sealed class PlatformOidcEvents(
         context.HandleResponse();
 
         var authFailureReason = GetAuthFailureReason(context.Properties, context.Failure);
-        var fallbackPath = string.Equals(authFailureReason, EmailUnverifiedFailureReason, StringComparison.Ordinal) &&
-            HasRegistrationContext(context.Properties)
+        var registrationRecoveryFailure =
+            string.Equals(authFailureReason, EmailUnverifiedFailureReason, StringComparison.Ordinal) ||
+            string.Equals(authFailureReason, EmailMismatchFailureReason, StringComparison.Ordinal);
+        var fallbackPath = registrationRecoveryFailure && HasRegistrationContext(context.Properties)
                 ? "/register"
                 : "/app";
         var requestedReturnUrl = string.Equals(fallbackPath, "/register", StringComparison.Ordinal)

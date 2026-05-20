@@ -51,9 +51,17 @@ This checklist captures the auth/onboarding flows that must stay healthy on stag
 1. Start sign-in with one workspace email.
 2. Let Auth0 return a different account.
 3. Expect the platform callback to reject the login before tenant resolution with `auth=email_mismatch`.
-4. Expect the app to show a wrong-account recovery screen.
-5. Use sign out completely.
-6. Expect Auth0 to clear the provider session and return to a useful sign-in or registration surface.
+4. Expect the app to show a wrong-account recovery screen using "selected account" language.
+5. Use "Sign out completely" or "Choose account again".
+6. Expect Auth0 to clear the provider session and return to a useful sign-in surface.
+
+## Wrong account during registration
+
+1. Start registration with the workspace owner email that should be used.
+2. Let Auth0 return a different account.
+3. Expect the platform callback to reject the login with `auth=email_mismatch`.
+4. Expect `/register` to show "Choose the account you started with".
+5. Retry registration sign-in with the same owner email or sign out completely if the browser keeps choosing the wrong account.
 
 ## Team member first sign-in
 
