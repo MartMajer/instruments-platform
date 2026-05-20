@@ -1,3 +1,44 @@
+# Next Session Plan - Post-D377
+
+Current queue head: start Docker Desktop, then run UXA02 bootstrap with `--start`.
+
+D377 added:
+
+- `fullstack-bootstrap` CLI subcommand
+- Docker Engine readiness check through `docker info`
+- optional `--start` bridge to `deploy/staging/start-local-staging.ps1`
+- non-destructive default mode that prints exact start/smoke/preflight/mutation commands
+
+Current workstation result:
+
+```json
+{
+  "status": "blocked",
+  "steps": [
+    {
+      "id": "docker",
+      "status": "failed",
+      "detail": "Docker command is unavailable or Docker Desktop is not running."
+    }
+  ]
+}
+```
+
+When Docker Desktop is running, use:
+
+```powershell
+cd C:\Users\Martin\source\repos\MartMajer\instruments-platform\apps\web
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-bootstrap --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --repo-root ..\.. --start
+```
+
+Then, once preflight reports `ready`, run:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-create-study --data-mode fullstack --fullstack-dev-auth --output ../../artifacts/ux-agent-runs/local
+```
+
+Do not point UXA02 autonomous missions at staging or production.
+
 # Next Session Plan - Post-D376
 
 Current queue head: make the local API/database stack runnable for UXA02, then rerun `fullstack-preflight` and `fullstack-create-study`.

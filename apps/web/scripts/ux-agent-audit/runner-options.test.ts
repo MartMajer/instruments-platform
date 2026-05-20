@@ -6,6 +6,7 @@ import { writeNormalizedReviewReport } from './report.ts';
 import { writeReviewPromptForMission } from './review-prompt.ts';
 import {
   parseAutonomousRunnerOptions,
+  parseFullstackBootstrapOptions,
   parseFullstackPreflightOptions,
   parseRunnerOptions,
   runAudit,
@@ -385,6 +386,40 @@ describe('UX audit runner option parsing', () => {
       },
       timeoutMs: 5000,
     });
+  });
+
+  it('parses full-stack bootstrap options without starting Compose by default', () => {
+    expect(
+      parseFullstackBootstrapOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--repo-root',
+        'C:\\repo',
+        '--fullstack-dev-auth',
+      ])
+    ).toEqual({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      repoRoot: 'C:\\repo',
+      start: false,
+      fullstackDevAuth: { enabled: true },
+      timeoutMs: 5000,
+    });
+  });
+
+  it('parses explicit full-stack bootstrap start mode', () => {
+    expect(
+      parseFullstackBootstrapOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--fullstack-dev-auth',
+        '--start',
+      ])
+    ).toEqual(
+      expect.objectContaining({
+        start: true,
+        fullstackDevAuth: { enabled: true },
+      })
+    );
   });
 
   it('fails closed before browser launch when a fixture-only mission is requested in fullstack mode', async () => {

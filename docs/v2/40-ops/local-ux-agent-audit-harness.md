@@ -246,6 +246,37 @@ Current workstation proof:
 
 Next required slice: start or document the local API/database bootstrap path so `fullstack-preflight` reaches `ready`, then rerun `fullstack-create-study` for a green mutation proof.
 
+## D377 full-stack bootstrap command
+
+UXA02 now has a bootstrap wrapper around the project's existing local staging scripts:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-bootstrap --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --repo-root ..\..
+```
+
+Default behavior is non-destructive. It checks Docker Engine readiness, skips starting Compose unless `--start` is provided, runs `fullstack-preflight`, and prints the exact follow-up commands:
+
+- `deploy/staging/start-local-staging.ps1`
+- `deploy/staging/smoke-local-staging.ps1`
+- `fullstack-preflight`
+- `fullstack-create-study`
+
+To let UXA02 invoke the existing local staging bootstrap:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-bootstrap --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --repo-root ..\.. --start
+```
+
+The Docker check uses `docker info`, not `docker --version`, so it catches the common state where the Docker CLI exists but Docker Desktop/Engine is not running.
+
+Current workstation proof:
+
+- status: `blocked`
+- `docker`: failed
+- detail: Docker command is unavailable or Docker Desktop is not running
+
+Next required slice: start Docker Desktop and run `fullstack-bootstrap --start`, then rerun `fullstack-create-study` once preflight reports `ready`.
+
 ## Known limits
 
 - Fixed non-autonomous mode has one mission/persona. Autonomous mode has three local persona missions.

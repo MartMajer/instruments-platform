@@ -9,6 +9,10 @@ import {
 import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
 import type { MissionEvidence } from './evidence.ts';
 import {
+  runFullstackBootstrap,
+  type FullstackBootstrapOptions,
+} from './fullstack-bootstrap.ts';
+import {
   checkFullstackPreflight,
   type FullstackPreflightOptions,
 } from './fullstack-preflight.ts';
@@ -63,6 +67,14 @@ export interface FullstackPreflightRunnerOptions {
   timeoutMs: number;
 }
 
+export interface FullstackBootstrapRunnerOptions {
+  apiBaseUrl: string;
+  repoRoot: string;
+  start: boolean;
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+  timeoutMs: number;
+}
+
 const allowedFlags = new Set([
   '--base-url',
   '--capture-mode',
@@ -94,12 +106,24 @@ const fullstackPreflightAllowedFlags = new Set([
   '--fullstack-permissions',
   '--timeout-ms',
 ]);
+const fullstackBootstrapAllowedFlags = new Set([
+  '--api-base-url',
+  '--repo-root',
+  '--start',
+  '--fullstack-dev-auth',
+  '--fullstack-tenant-id',
+  '--fullstack-user-id',
+  '--fullstack-email',
+  '--fullstack-permissions',
+  '--timeout-ms',
+]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
 const allowedAutonomousDataModes = new Set<AutonomousDataMode>(['fixture', 'fullstack']);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
 const defaultApiBaseUrl = 'http://127.0.0.1:5055';
+const defaultRepoRoot = join(process.cwd(), '..', '..');
 const missionCatalog: readonly MissionDefinition<string>[] = missions;
 const personaCatalog: Record<string, PersonaDefinition> = personas;
 
@@ -241,6 +265,22 @@ export function parseFullstackPreflightOptions(
 
   return {
     apiBaseUrl,
+    fullstackDevAuth: parseFullstackDevAuthOptions(values),
+    timeoutMs: parsePositiveInteger(values.get('--timeout-ms') ?? '5000', '--timeout-ms'),
+  };
+}
+
+export function parseFullstackBootstrapOptions(
+  args: string[]
+): FullstackBootstrapRunnerOptions {
+  const values = parseFlagValues(args, fullstackBootstrapAllowedFlags);
+  const apiBaseUrl = values.get('--api-base-url') ?? defaultApiBaseUrl;
+  validateUrl(apiBaseUrl);
+
+  return {
+    apiBaseUrl,
+    repoRoot: values.get('--repo-root') ?? defaultRepoRoot,
+    start: parseBooleanFlag('--start', values.get('--start') ?? 'false'),
     fullstackDevAuth: parseFullstackDevAuthOptions(values),
     timeoutMs: parsePositiveInteger(values.get('--timeout-ms') ?? '5000', '--timeout-ms'),
   };
@@ -392,8 +432,20 @@ export async function runFullstackPreflight(options: FullstackPreflightRunnerOpt
   return await checkFullstackPreflight(options satisfies FullstackPreflightOptions);
 }
 
+export async function runFullstackBootstrapCommand(options: FullstackBootstrapRunnerOptions) {
+  return await runFullstackBootstrap(options satisfies FullstackBootstrapOptions);
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === 'fullstack-bootstrap') {
+    const result = await runFullstackBootstrapCommand(
+      parseFullstackBootstrapOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (args[0] === 'fullstack-preflight') {
     const result = await runFullstackPreflight(
       parseFullstackPreflightOptions(args.slice(1))
@@ -444,7 +496,7 @@ function parseFlagValues(args: string[], flags: Set<string>) {
       throw new Error(`Unknown option: ${flag}`);
     }
 
-    if (flag === '--headless' || flag === '--fullstack-dev-auth') {
+    if (flag === '--headless' || flag === '--fullstack-dev-auth' || flag === '--start') {
       const nextValue = args[index + 1];
       if (!nextValue || nextValue.startsWith('--')) {
         values.set(flag, 'true');

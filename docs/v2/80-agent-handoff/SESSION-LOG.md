@@ -19110,3 +19110,13 @@ Task: Added `fullstack-preflight` CLI support plus `checkFullstackPreflight`. Th
 Verification: Focused preflight/runner/browser tests passed 3/3 files and 31/31 tests. Full UXA suite passed 15/15 files and 101/101 tests. Real workstation preflight against `http://127.0.0.1:5055` returned `blocked`: `api-health` failed with `fetch failed`, and `dev-auth-session` plus `tenant-study-read-model` were skipped.
 
 Next: Start or document the local API/database bootstrap path, then rerun `fullstack-preflight` until ready and rerun `fullstack-create-study` for green mutation proof.
+
+## 2026-05-20 - D377 UXA02 full-stack bootstrap command
+
+Assessment: D376 exposed local API readiness cleanly, but the harness still depended on knowing the separate staging bootstrap scripts. The repo already has `deploy/staging/start-local-staging.ps1`, `smoke-local-staging.ps1`, and Compose seed wiring, so UXA02 should wrap that path instead of inventing another bootstrap.
+
+Task: Added `fullstack-bootstrap` CLI support. Default mode is non-destructive: it checks Docker Engine readiness using `docker info`, skips Compose start unless `--start` is present, runs full-stack preflight, and prints exact start/smoke/preflight/mutation commands. With `--start`, it invokes `deploy/staging/start-local-staging.ps1` before preflight.
+
+Verification: Focused bootstrap/runner tests passed 2/2 files and 28/28 tests. Full UXA suite passed 16/16 files and 107/107 tests. Real workstation command returned `blocked` at Docker readiness: Docker command exists but Docker Desktop/Engine is not running.
+
+Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green mutation proof.
