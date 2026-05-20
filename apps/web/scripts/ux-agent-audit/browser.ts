@@ -7,7 +7,14 @@ import {
   createRunDirectory,
   writeMissionEvidence,
   type JsonObject,
+  type MissionEvidenceStatus,
 } from './evidence.ts';
+import {
+  executeCreateFirstStudyMission,
+  type MissionNavigationLink,
+  type MissionPageAdapter,
+  type MissionPageSnapshot,
+} from './mission-executor.ts';
 import type { ViewportPreset } from './types.ts';
 
 export interface BrowserEvidenceOptions {
@@ -19,6 +26,7 @@ export interface BrowserEvidenceOptions {
   captureScreenshots?: boolean;
   headless?: boolean;
   includeSanitizedVisibleText?: boolean;
+  executeFixedMission?: boolean;
   maxVisibleTextCharacters?: number;
   outputRoot?: string;
   runDirectory?: string;
@@ -42,6 +50,7 @@ export interface BrowserEvidenceCapture {
   buttons: string[];
   links: CapturedLink[];
   screenshotPath?: string;
+  status?: MissionEvidenceStatus;
   runDirectory?: string;
   evidencePath?: string;
   transcriptPath?: string;
@@ -79,6 +88,15 @@ export async function captureBrowserEvidence(
       viewport: viewportSizes[options.viewport],
     });
     const page = await context.newPage();
+
+    if (options.executeFixedMission) {
+      return await captureFixedMissionEvidence(
+        page,
+        options,
+        safeCapturePolicy,
+        startedAt
+      );
+    }
 
     await page.goto(options.baseUrl, { waitUntil: 'domcontentloaded' });
 
@@ -169,6 +187,140 @@ export async function captureBrowserEvidence(
   }
 }
 
+async function captureFixedMissionEvidence(
+  page: Page,
+  options: BrowserEvidenceOptions,
+  safeCapturePolicy: BrowserSafeCapturePolicy,
+  startedAt: Date
+): Promise<BrowserEvidenceCapture> {
+  if (options.missionId !== 'create-first-study') {
+    throw new Error(`No fixed mission executor for ${options.missionId}`);
+  }
+
+  const runDirectory =
+    options.runDirectory ??
+    (options.outputRoot
+      ? (
+          await createRunDirectory({
+            outputRoot: options.outputRoot,
+          })
+        ).runDirectory
+      : undefined);
+  const adapter = new PlaywrightMissionPageAdapter(
+    page,
+    options.baseUrl,
+    safeCapturePolicy,
+    runDirectory
+      ? join(runDirectory, 'missions', options.missionId, 'screenshots')
+      : undefined
+  );
+  const execution = await executeCreateFirstStudyMission(adapter, {
+    baseUrl: options.baseUrl,
+    missionId: options.missionId,
+    personaId: options.personaId,
+    missionGoal: options.missionGoal,
+  });
+  const finalSnapshot = execution.snapshots.at(-1);
+  const firstScreenshot = execution.screenshots.at(0);
+  const capture: BrowserEvidenceCapture = {
+    title: finalSnapshot?.title ?? '',
+    url: finalSnapshot?.url ?? '',
+    visibleTextExcerpt: finalSnapshot?.visibleTextExcerpt ?? '',
+    buttons: finalSnapshot?.buttons ?? [],
+    links: finalSnapshot?.links ?? [],
+    status: execution.status,
+  };
+
+  if (runDirectory) {
+    const evidencePaths = await writeMissionEvidence(runDirectory, {
+      missionId: options.missionId,
+      personaId: options.personaId,
+      missionGoal: options.missionGoal,
+      status: execution.status,
+      startedAt,
+      completedAt: new Date(),
+      steps: execution.steps,
+      screenshots: execution.screenshots,
+      observations: execution.observations,
+    });
+
+    capture.runDirectory = runDirectory;
+    capture.evidencePath = evidencePaths.evidencePath;
+    capture.transcriptPath = evidencePaths.transcriptPath;
+    capture.screenshotPath = firstScreenshot
+      ? join(runDirectory, 'missions', options.missionId, firstScreenshot.path)
+      : undefined;
+  }
+
+  return capture;
+}
+
+class PlaywrightMissionPageAdapter implements MissionPageAdapter {
+  constructor(
+    private readonly page: Page,
+    private readonly baseUrl: string,
+    private readonly safeCapturePolicy: BrowserSafeCapturePolicy,
+    private readonly screenshotDirectory: string | undefined
+  ) {}
+
+  async gotoPath(path: string, label: string): Promise<MissionPageSnapshot> {
+    await this.page.goto(new URL(path, this.baseUrl).toString(), {
+      waitUntil: 'domcontentloaded',
+    });
+    await this.page
+      .waitForLoadState('networkidle', { timeout: 1500 })
+      .catch(() => undefined);
+
+    return await this.captureSnapshot(label);
+  }
+
+  private async captureSnapshot(label: string): Promise<MissionPageSnapshot> {
+    const title = sanitizeVisibleTextForEvidence(
+      await this.page.title(),
+      controlTextLimit
+    );
+    const url = sanitizeEvidenceUrl(this.page.url());
+    const visibleTextExcerpt = this.safeCapturePolicy.includeSanitizedVisibleText
+      ? sanitizeVisibleTextForEvidence(
+          await readVisibleBodyText(this.page),
+          this.safeCapturePolicy.maxVisibleTextCharacters
+        )
+      : '';
+    const buttons = await collectVisibleButtonLabels(this.page);
+    const links = await collectVisibleLinks(this.page);
+    const navigationLinks = await collectVisibleNavigationLinks(this.page);
+    const screenshot = await this.captureScreenshot(label);
+
+    return {
+      label,
+      title,
+      url,
+      visibleTextExcerpt,
+      buttons,
+      links,
+      navigationLinks,
+      ...(screenshot ? { screenshot } : {}),
+    };
+  }
+
+  private async captureScreenshot(label: string) {
+    if (!this.safeCapturePolicy.captureScreenshots || !this.screenshotDirectory) {
+      return undefined;
+    }
+
+    await mkdir(this.screenshotDirectory, { recursive: true });
+
+    const fileName = `${label}.png`;
+    const screenshotPath = join(this.screenshotDirectory, fileName);
+    await this.page.screenshot({ path: screenshotPath, fullPage: true });
+
+    return {
+      label,
+      path: `screenshots/${fileName}`,
+    };
+  }
+}
+
 async function readVisibleBodyText(page: Page) {
   return page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
 }
@@ -205,6 +357,31 @@ async function collectVisibleLinks(page: Page): Promise<CapturedLink[]> {
     .map(toSafeCapturedLink)
     .filter((link) => link.text || link.path)
     .slice(0, 30);
+}
+
+async function collectVisibleNavigationLinks(
+  page: Page
+): Promise<MissionNavigationLink[]> {
+  const links = await page.locator('a:visible').evaluateAll((nodes) =>
+    nodes
+      .map((node) => {
+        const anchor = node as HTMLAnchorElement;
+        return {
+          text: (anchor.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          href: anchor.href,
+        };
+      })
+      .filter((link) => link.href)
+      .slice(0, 50)
+  );
+
+  return links
+    .map((link) => ({
+      text: sanitizeVisibleTextForEvidence(link.text, linkTextLimit),
+      path: toNavigationPath(link.href),
+    }))
+    .filter((link) => link.path)
+    .slice(0, 50);
 }
 
 export function resolveBrowserSafeCapturePolicy(
@@ -297,6 +474,20 @@ function sanitizeUrlPath(path: string) {
 
 function stripQueryAndFragment(value: string) {
   return value.split(/[?#]/)[0] ?? '';
+}
+
+function toNavigationPath(href: string) {
+  const value = (href ?? '').trim();
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    return stripQueryAndFragment(new URL(value).pathname);
+  } catch {
+    return stripQueryAndFragment(value);
+  }
 }
 
 function normalizeVisibleTextLimit(value: number | undefined) {

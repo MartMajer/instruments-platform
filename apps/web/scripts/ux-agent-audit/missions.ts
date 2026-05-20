@@ -13,10 +13,13 @@ export const missions = [
   {
     id: 'create-first-study',
     personaId: 'first-time-researcher',
-    goal: 'Create a first study from an empty workspace without needing external product knowledge.',
+    goal: 'Find how a first-time researcher would create or open a first study and understand setup, collection, and results without unsafe persisted writes.',
     maxSteps: 12,
     viewport: 'desktop',
-    successCriteria: ['A draft study exists and the next setup step is clear.'],
+    successCriteria: [
+      'Sign-in blockers are recorded as UX observations instead of failing the audit run.',
+      'When local app access exists, study creation/opening and setup, collection, results, and waves navigation are inspected without submitting mutating actions.',
+    ],
   },
   {
     id: 'configure-study',

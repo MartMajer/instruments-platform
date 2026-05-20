@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url';
 
 import { captureBrowserEvidence } from './browser.ts';
+import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
 import { personas } from './personas.ts';
 import type {
@@ -99,6 +100,7 @@ export async function runAudit(options: RunnerOptions) {
     options.personaOverride
   );
   const viewport = parseViewport(options.viewportOverride);
+  const executeFixedMission = hasFixedMissionExecutor(mission.id);
 
   const result = await captureBrowserEvidence({
     baseUrl: options.baseUrl,
@@ -108,6 +110,9 @@ export async function runAudit(options: RunnerOptions) {
     viewport,
     headless: options.headless,
     outputRoot: options.outputRoot,
+    captureScreenshots: executeFixedMission,
+    includeSanitizedVisibleText: executeFixedMission,
+    executeFixedMission,
   });
 
   return {
