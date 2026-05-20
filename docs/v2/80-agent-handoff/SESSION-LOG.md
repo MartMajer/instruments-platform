@@ -19022,3 +19022,19 @@ Proof artifacts:
 - `artifacts/ux-agent-runs/local/run-2026-05-20T15-54-54-669Z/`
 
 Queue: UXA01 is locally usable for autonomous `/app` review. Next work should triage generated findings and pick one evidence-backed UX ticket, not expand the harness blindly.
+
+## 2026-05-20 - D371 UXA01 generated-finding triage and false-positive hardening
+
+Assessment: Triage of the three generated autonomous `/app` reports found no evidence-backed app UX ticket. The reports were harness false positives: the scripted actor treated normal product prerequisite wording like "blocked" and "missing" as terminal UX failures, then still found a real local seed gap where Setup recipient options said "failed to load" because `/subjects` and `/subject-groups` were not mocked.
+
+Task: Hardened the autonomous actor so normal product prerequisite states are reviewable context, not automatic tickets. The actor now stops only on hard app-shell or route/API failures. Added deterministic local subject and group read models so Setup recipient controls load in autonomous runs.
+
+Verification: RED focused loop/read-model tests failed on false-positive behavior and missing subject endpoints. GREEN focused tests passed 8/8. Full UXA01 Vitest passed 12 files / 75 tests. Local Vite proof reran all three autonomous missions against `/app`; all completed, each visited 3 target product paths, and all generated 0 findings / 0 next-action tickets.
+
+Proof artifacts:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-08-23-448Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-08-30-888Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-08-35-902Z/`
+
+Queue: No app UX ticket should be opened from this first generated run. The next useful UXA01 step is either a richer reviewer/actor that can make qualitative complaints from transcripts, or a normal product slice chosen by owner/manual feedback.

@@ -51,6 +51,24 @@ describe('autonomous local product read models', () => {
     ).toEqual(expect.objectContaining({ summary: expect.objectContaining({ submittedWaveCount: 2 }) }));
   });
 
+  it('serves setup support read models needed by recipient selection controls', () => {
+    expect(resolveAutonomousProductApiResponse('GET', '/subjects')?.json).toEqual(
+      expect.objectContaining({
+        summary: expect.objectContaining({ subjectCount: 2 }),
+        subjects: expect.arrayContaining([
+          expect.objectContaining({ displayName: 'Respondent 1' }),
+        ]),
+      })
+    );
+    expect(resolveAutonomousProductApiResponse('GET', '/subject-groups')?.json).toEqual(
+      expect.objectContaining({
+        groups: expect.arrayContaining([
+          expect.objectContaining({ name: 'Research team' }),
+        ]),
+      })
+    );
+  });
+
   it('does not mask unsupported product API calls as successful data', () => {
     expect(resolveAutonomousProductApiResponse('POST', '/campaign-series')).toBeUndefined();
     expect(resolveAutonomousProductApiResponse('GET', '/registration/session')).toBeUndefined();

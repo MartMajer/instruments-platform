@@ -39,9 +39,12 @@ describe('autonomous UX persona loop', () => {
     );
   });
 
-  it('turns confusing blocked fixture states into ticket-ready persona findings', async () => {
+  it('continues through normal product prerequisite states instead of filing false tickets', async () => {
     const mission = missionFixture({
-      targetProductPaths: ['/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup'],
+      targetProductPaths: [
+        '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup',
+        '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports',
+      ],
     });
     const adapter = fakeAdapter([
       cockpitSnapshot('Quarterly pulse setup', '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup'),
@@ -49,6 +52,42 @@ describe('autonomous UX persona loop', () => {
         '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup',
         'Blocked setup',
         'Missing scoring rule. Launch readiness is blocked.'
+      ),
+      pageSnapshot(
+        '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports',
+        'Results',
+        'Results overview Export file ready.'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.personaFindings).toEqual([]);
+    expect(result.observations).toEqual(
+      expect.objectContaining({
+        visitedProductPaths: [
+          '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup',
+          '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports',
+        ],
+      })
+    );
+  });
+
+  it('complains on hard product route failures that block UX review', async () => {
+    const mission = missionFixture({
+      targetProductPaths: ['/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup'],
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Quarterly pulse setup', '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup'),
+      pageSnapshot(
+        '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup',
+        'Unavailable',
+        'Campaign series unavailable. API request failed with status 404.'
       ),
     ]);
 
@@ -59,15 +98,12 @@ describe('autonomous UX persona loop', () => {
     );
 
     expect(result.status).toBe('blocked');
-    expect(result.personaFindings).toEqual([
+    expect(result.personaFindings[0]).toEqual(
       expect.objectContaining({
-        severity: 'confusion',
-        surface: 'Blocked setup',
-        observedConfusion: expect.stringContaining('blocked'),
-        ticketReadyWording: expect.stringContaining('Clarify Blocked setup'),
-      }),
-    ]);
-    expect(result.reviewerOutput).toContain('"findings"');
+        severity: 'blocker',
+        observedConfusion: expect.stringContaining('Campaign series unavailable'),
+      })
+    );
   });
 
   it('complains when the app product shell never leaves workspace access loading', async () => {

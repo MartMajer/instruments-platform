@@ -91,6 +91,14 @@ export function resolveAutonomousProductApiResponse(
     return ok(exportArtifactLibrary());
   }
 
+  if (path === '/subjects') {
+    return ok(subjectDirectory());
+  }
+
+  if (path === '/subject-groups') {
+    return ok(subjectGroupList());
+  }
+
   const respondentRulesCampaignId = path.match(/^\/campaigns\/([^/]+)\/respondent-rules$/)?.[1];
   if (respondentRulesCampaignId) {
     return ok({ campaignId: respondentRulesCampaignId, rules: [] });
@@ -543,6 +551,77 @@ function exportArtifactLibrary() {
     tenantId,
     summary: { totalCount: 1, downloadableCount: 1, failedCount: 0, pendingCount: 0 },
     artifacts: [exportArtifact()],
+  };
+}
+
+function subjectDirectory() {
+  return {
+    tenantId,
+    summary: {
+      subjectCount: 2,
+      groupCount: 1,
+      managerRelationshipCount: 0,
+    },
+    subjects: [
+      {
+        id: 'subject-1',
+        displayName: 'Respondent 1',
+        email: null,
+        externalId: 'R-001',
+        locale: 'en',
+        attributes: '{}',
+        managerSubjectId: null,
+        managerDisplayName: null,
+        directReportCount: 0,
+        groups: [
+          {
+            groupId: 'group-1',
+            groupType: 'team',
+            groupName: 'Research team',
+            roleInGroup: 'member',
+            validFrom: null,
+            validTo: null,
+          },
+        ],
+      },
+      {
+        id: 'subject-2',
+        displayName: 'Respondent 2',
+        email: null,
+        externalId: 'R-002',
+        locale: 'en',
+        attributes: '{}',
+        managerSubjectId: null,
+        managerDisplayName: null,
+        directReportCount: 0,
+        groups: [
+          {
+            groupId: 'group-1',
+            groupType: 'team',
+            groupName: 'Research team',
+            roleInGroup: 'member',
+            validFrom: null,
+            validTo: null,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function subjectGroupList() {
+  return {
+    tenantId,
+    groups: [
+      {
+        id: 'group-1',
+        type: 'team',
+        name: 'Research team',
+        parentGroupId: null,
+        attributes: '{}',
+        memberCount: 2,
+      },
+    ],
   };
 }
 

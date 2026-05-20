@@ -122,6 +122,8 @@ Before implementation:
 - classify owner decision blockers separately from implementation bugs
 - keep Q-053 and Q-054 boundaries intact
 
+D371 triage note: the scripted autonomous actor intentionally stops only on hard app-shell or route failures such as workspace access loading, sign-in/tenant access failures, unavailable selected-study routes, API request failures, network failures, service outage pages, or generic "something went wrong" screens. Normal product prerequisite wording such as "blocked", "missing", or "not available" is not enough to create a ticket by itself because Setup/Results/Waves legitimately use those states to guide the user.
+
 ## Known limits
 
 - Only one mission/persona is implemented.

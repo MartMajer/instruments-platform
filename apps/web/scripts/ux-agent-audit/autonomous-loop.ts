@@ -228,27 +228,28 @@ export function buildScriptedFixturePersonaActor(
         };
       }
 
-      if (currentPath !== mission.entryPath && hasConfusingBlockedState(visibleText)) {
+      if (currentPath !== mission.entryPath && hasHardProductFailure(visibleText)) {
         const surface = context.currentSnapshot.title || context.currentSnapshot.label;
+        const workspaceAccessLoading = hasWorkspaceAccessLoading(visibleText);
         return {
           kind: 'complain',
-          severity: hasWorkspaceAccessLoading(visibleText) ? 'blocker' : 'confusion',
+          severity: 'blocker',
           surface,
-          problem: hasWorkspaceAccessLoading(visibleText)
+          problem: workspaceAccessLoading
             ? `The target fixture route still shows workspace access loading instead of product fixture content: ${visibleText.slice(
                 0,
                 240
               )}`
-            : `The persona hit a blocked or missing-prerequisite state: ${visibleText.slice(
+            : `The target product route rendered a hard app failure instead of reviewable product content: ${visibleText.slice(
                 0,
                 240
               )}`,
-          suggestedFix: hasWorkspaceAccessLoading(visibleText)
+          suggestedFix: workspaceAccessLoading
             ? 'Fix local product app auth/session mocking or app readiness waiting so autonomous review sees product content.'
-            : 'Add clearer next-action wording, prerequisite explanation, or recovery link on this fixture state.',
-          ticketReadyWording: hasWorkspaceAccessLoading(visibleText)
+            : 'Fix local product read-model routing or product route handling so autonomous review sees the intended surface.',
+          ticketReadyWording: workspaceAccessLoading
             ? `Fix local product app auth for ${surface}: autonomous review must not proceed while workspace access is still loading.`
-            : `Clarify ${surface}: explain the blocked state and the exact next action.`,
+            : `Fix autonomous product route for ${surface}: hard app failures must not be reported as product UX findings.`,
         };
       }
 
@@ -336,10 +337,13 @@ function combinedSnapshotText(snapshot: MissionPageSnapshot) {
   ].join(' ');
 }
 
-function hasConfusingBlockedState(text: string) {
+function hasHardProductFailure(text: string) {
   return (
     hasWorkspaceAccessLoading(text) ||
-    /\b(blocked|missing|not available|unavailable|failed|cannot|error)\b/i.test(text)
+    /\b(workspace sign-in needed|tenant access unavailable|campaign series unavailable|api request failed|failed to load|network error|service outage)\b/i.test(
+      text
+    ) ||
+    /oops!,?\s*something went wrong/i.test(text)
   );
 }
 
