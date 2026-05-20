@@ -1,15 +1,33 @@
 ﻿<script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { ClipboardCheck, FileStack, Gauge, LibraryBig, PanelLeft, Send } from 'lucide-svelte';
+	import { env } from '$env/dynamic/public';
+	import {
+		ClipboardCheck,
+		FileDown,
+		FileStack,
+		FolderKanban,
+		Gauge,
+		Home,
+		LibraryBig,
+		Menu,
+		Network,
+		PanelLeft,
+		Send,
+		Settings2,
+		UsersRound,
+		X
+	} from 'lucide-svelte';
 	import SurfaceNav from '$lib/components/SurfaceNav.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { setupStages } from '$lib/setup/stages';
 
 	let { children } = $props();
+	let mobileMenuOpen = $state(false);
 
 	const stageIcons = [LibraryBig, FileStack, Gauge, Send, ClipboardCheck];
 	const isProductShell = $derived(page.url.pathname.startsWith('/app'));
+	const activeSeriesId = $derived(page.params.seriesId);
 	const isProductEntry = $derived(page.url.pathname === '/');
 	const isRegistrationEntry = $derived(page.url.pathname === '/register');
 	const isSignInEntry = $derived(page.url.pathname === '/signin');
@@ -48,11 +66,63 @@
 					? 'Registration'
 					: isSignInEntry
 						? 'Workspace sign-in'
-						: 'Tenant setup workspace'
+					: 'Tenant setup workspace'
 	);
+	const currentAppArea = $derived(toCurrentAppArea(page.url.pathname));
+	const currentStudyHref = $derived(
+		activeSeriesId ? `/app/campaign-series/${activeSeriesId}` : '/app/campaign-series'
+	);
+	const logoutUrl = $derived(env.PUBLIC_AUTH_LOGOUT_URL || resolve('/'));
+	const bottomNavItems = $derived([
+		{ label: 'Home', href: '/app', icon: Home, match: (path: string) => path === '/app' },
+		{
+			label: 'Studies',
+			href: '/app/campaign-series',
+			icon: FolderKanban,
+			match: (path: string) => path === '/app/campaign-series'
+		},
+		{
+			label: 'Study',
+			href: currentStudyHref,
+			icon: FileStack,
+			match: (path: string) => /^\/app\/campaign-series\/[^/]+/.test(path)
+		},
+		{
+			label: 'Directory',
+			href: '/app/directory',
+			icon: Network,
+			match: (path: string) => path === '/app/directory'
+		}
+	]);
+	const moreNavItems = [
+		{ label: 'Team', href: '/app/team', icon: UsersRound, description: 'Workspace access' },
+		{ label: 'Exports', href: '/app/exports', icon: FileDown, description: 'Files and downloads' },
+		{ label: 'Settings', href: '/app/settings', icon: Settings2, description: 'Workspace settings' }
+	];
+
+	$effect(() => {
+		page.url.pathname;
+		mobileMenuOpen = false;
+	});
+
+	function toCurrentAppArea(pathname: string) {
+		if (pathname === '/app') return 'Home';
+		if (pathname === '/app/campaign-series') return 'Studies';
+		if (pathname.startsWith('/app/campaign-series/')) return 'Study';
+		if (pathname === '/app/directory') return 'Directory';
+		if (pathname === '/app/team') return 'Team';
+		if (pathname === '/app/exports') return 'Exports';
+		if (pathname === '/app/settings') return 'Settings';
+		if (pathname === '/app/instruments') return 'Instruments';
+		return 'Workspace';
+	}
 </script>
 
-<div class="app-shell" class:app-shell--entry={isPublicEntry}>
+<div
+	class="app-shell"
+	class:app-shell--entry={isPublicEntry}
+	class:app-shell--product={isProductShell}
+>
 	<div class="app-shell__grid" class:app-shell__grid--entry={isPublicEntry}>
 		{#if !isPublicEntry}
 			<aside class="app-sidebar">
@@ -103,6 +173,66 @@
 		{/if}
 
 		<div class="min-w-0">
+			{#if isProductShell}
+				<header class="app-mobile-topbar" aria-label="Mobile workspace navigation">
+					<a class="app-mobile-topbar__brand" href={resolve('/app')}>
+						<span class="app-mobile-topbar__mark" aria-hidden="true">IP</span>
+						<span>
+							<strong>Instruments Platform</strong>
+							<small>{currentAppArea}</small>
+						</span>
+					</a>
+					<button
+						type="button"
+						class="app-mobile-topbar__menu"
+						aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+						aria-expanded={mobileMenuOpen}
+						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+					>
+						{#if mobileMenuOpen}
+							<X size={19} strokeWidth={2.2} aria-hidden="true" />
+						{:else}
+							<Menu size={19} strokeWidth={2.2} aria-hidden="true" />
+						{/if}
+					</button>
+				</header>
+
+				{#if mobileMenuOpen}
+					<div class="app-mobile-menu" role="dialog" aria-label="Workspace menu">
+						<nav class="app-mobile-menu__section" aria-label="Primary workspace routes">
+							<p class="app-mobile-menu__heading">Workspace</p>
+							{#each bottomNavItems as item (item.href)}
+								{@const Icon = item.icon}
+								<a
+									class="app-mobile-menu__link"
+									data-current={item.match(page.url.pathname) ? 'true' : undefined}
+									href={resolve(item.href)}
+								>
+									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
+									<span>{item.label}</span>
+								</a>
+							{/each}
+						</nav>
+						<nav class="app-mobile-menu__section" aria-label="More workspace routes">
+							<p class="app-mobile-menu__heading">More</p>
+							{#each moreNavItems as item (item.href)}
+								{@const Icon = item.icon}
+								<a class="app-mobile-menu__link" href={resolve(item.href)}>
+									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
+									<span>
+										<strong>{item.label}</strong>
+										<small>{item.description}</small>
+									</span>
+								</a>
+							{/each}
+							<a class="app-mobile-menu__link app-mobile-menu__link--muted" href={logoutUrl}>
+								<span>Sign out</span>
+							</a>
+						</nav>
+					</div>
+				{/if}
+			{/if}
+
 			{#if !isProductShell && !isPublicEntry}
 				<header class="app-topbar">
 					<div class="app-topbar__inner">
@@ -127,6 +257,32 @@
 					{@render children()}
 				</div>
 			</main>
+
+			{#if isProductShell}
+				<nav class="app-mobile-bottom-nav" aria-label="Primary mobile navigation">
+					{#each bottomNavItems as item (item.href)}
+						{@const Icon = item.icon}
+						<a
+							href={resolve(item.href)}
+							class="app-mobile-bottom-nav__link"
+							aria-current={item.match(page.url.pathname) ? 'page' : undefined}
+						>
+							<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
+							<span>{item.label}</span>
+						</a>
+					{/each}
+					<button
+						type="button"
+						class="app-mobile-bottom-nav__link"
+						aria-current={mobileMenuOpen ? 'page' : undefined}
+						aria-expanded={mobileMenuOpen}
+						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+					>
+						<Menu size={18} strokeWidth={2.1} aria-hidden="true" />
+						<span>More</span>
+					</button>
+				</nav>
+			{/if}
 		</div>
 	</div>
 </div>

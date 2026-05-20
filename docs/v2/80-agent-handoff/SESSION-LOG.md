@@ -18856,3 +18856,9 @@ Verification:
 - Task: Added a bounded responsive CSS pass in `apps/web/src/routes/app.css`. The sidebar becomes compact/sticky below desktop width, product and selected-study navs scroll horizontally, workflow path cards scroll on narrow tablets and stack on phones, common panels/action rows/record grids collapse, and long IDs/emails/generated values wrap safely.
 - Scope: This is not the future full mobile drawer/navigation redesign.
 - Verification: Web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings.
+
+## 2026-05-20 - D358 mobile app redesign assessment
+
+- Assessment: Owner testing confirmed D357's sticky topbar/sidebar compromise was still not usable enough on mobile, and the blue-left-card visual motif made normal cards feel like highlighted debug panels.
+- Task: Added public home mobile menu, authenticated app mobile top bar, authenticated bottom nav, More menu sheet, selected-study mobile switcher, and neutral selected/card states. Product routes hide the desktop sidebar on mobile while keeping desktop sidebar behavior intact.
+- Verification: Web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings. Staging deploy and VPS release checks pending in this session.

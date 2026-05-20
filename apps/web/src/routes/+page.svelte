@@ -14,6 +14,7 @@
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
 	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
 	const workspaceSignInUrl = resolve('/signin');
+	let mobileEntryMenuOpen = $state(false);
 	let loginUrl = $state(
 		initialTenantIdFromUrl ? createLoginUrlFromEnv(env, initialTenantIdFromUrl) : workspaceSignInUrl
 	);
@@ -104,7 +105,24 @@
 			<a href={resolve('/register')}>Create workspace</a>
 			<a href={loginUrl}>Sign in</a>
 		</nav>
+		<button
+			type="button"
+			class="launchpad-nav__menu"
+			aria-label={mobileEntryMenuOpen ? 'Close menu' : 'Open menu'}
+			aria-expanded={mobileEntryMenuOpen}
+			onclick={() => (mobileEntryMenuOpen = !mobileEntryMenuOpen)}
+		>
+			Menu
+		</button>
 	</header>
+	{#if mobileEntryMenuOpen}
+		<nav class="launchpad-mobile-menu" aria-label="Mobile product entry actions">
+			<a href="#workflow">Workflow</a>
+			<a href="#proof">Beta boundary</a>
+			<a href={resolve('/register')}>Create workspace</a>
+			<a href={loginUrl}>Sign in</a>
+		</nav>
+	{/if}
 
 	<section class="launchpad-hero">
 		<div class="launchpad-hero__copy">

@@ -60,6 +60,9 @@
 			icon: Waves
 		}
 	]);
+	const currentRouteItem = $derived(
+		routeItems.find((item) => item.surface === currentSurface) ?? routeItems[0]
+	);
 </script>
 
 <div class="series-workspace" role="group" aria-label="Selected series workspace">
@@ -111,4 +114,27 @@
 			{/each}
 		</ol>
 	</nav>
+
+	<details class="series-workspace__mobile-switcher">
+		<summary>
+			<span>
+				<span class="product-kicker">Current area</span>
+				<strong>{currentRouteItem.label}</strong>
+			</span>
+			<span aria-hidden="true">Open</span>
+		</summary>
+		<ol class="series-workspace__mobile-list" aria-label="Selected series mobile routes">
+			{#each routeItems as item (item.surface)}
+				<li>
+					<a
+						href={item.href}
+						aria-current={item.surface === currentSurface ? 'page' : undefined}
+					>
+						<span>{item.label}</span>
+						<small>{item.description}</small>
+					</a>
+				</li>
+			{/each}
+		</ol>
+	</details>
 </div>
