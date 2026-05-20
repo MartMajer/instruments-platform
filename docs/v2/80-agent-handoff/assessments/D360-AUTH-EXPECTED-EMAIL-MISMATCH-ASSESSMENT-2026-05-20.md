@@ -2,7 +2,7 @@
 
 ## Status
 
-Fixed locally. Deployment evidence should be appended after staging deploy.
+Fixed and deployed to staging.
 
 ## Assessment
 
@@ -27,6 +27,11 @@ This was not a direct privilege-escalation path because the platform resolver st
 - GREEN focused auth endpoint suite passed: 67/67.
 - Web production build passed with the existing large-chunk warning.
 - Local production-preview browser check for `/app?auth=email_mismatch` passed with `/auth/session` mocked to 401, proving the recovery title, explanation, retry action, and sign-out action render on mobile.
+- Staging deployed app commit: `4dc0e0c`.
+- Initial VPS redeploy built the API and web images but hit a transient API health 502 during container warm-up.
+- Follow-up public checks returned API ready 200, web root 200, and `/app` 200.
+- Follow-up VPS release checks passed at `/tmp/d360-auth-email-mismatch-vps-release-20260520-followup`.
+- Staging browser check for `/app?auth=email_mismatch` passed at 390px mobile width and rendered the wrong-account recovery screen.
 
 ## Remaining risk
 
