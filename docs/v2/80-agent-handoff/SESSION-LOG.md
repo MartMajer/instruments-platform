@@ -18849,3 +18849,10 @@ Verification:
 - Kept Q-053/Q-054, proof-only data, non-canonical named-instrument, no-norms/no-interpretation, final-UX, and final-PDF-product limits explicit.
 - Verification passed: docs-only `git diff --check` with only CRLF warnings.
 - D350 follow-up queue is locally complete. Next default move is owner validation using refreshed packet, deployment/runtime proof by explicit request, or a new owner-prioritized slice based on evidence.
+
+## 2026-05-20 - D357 mobile responsive cleanup assessment
+
+- Assessment: The app had desktop-first shared layout primitives after the recent product cleanup. The worst mobile risks were repeated horizontal overflow and content displacement from sidebar navigation, selected-study nav, workflow path cards, action rows, record fields, tables, and technical values.
+- Task: Added a bounded responsive CSS pass in `apps/web/src/routes/app.css`. The sidebar becomes compact/sticky below desktop width, product and selected-study navs scroll horizontally, workflow path cards scroll on narrow tablets and stack on phones, common panels/action rows/record grids collapse, and long IDs/emails/generated values wrap safely.
+- Scope: This is not the future full mobile drawer/navigation redesign.
+- Verification: Web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings.

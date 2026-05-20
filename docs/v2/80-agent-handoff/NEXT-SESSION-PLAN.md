@@ -1,3 +1,11 @@
+# Next Session Plan - Post-D357
+
+Current queue head: no agent-executable slice is selected by default.
+
+Recommended next move: if the owner wants mobile to become a first-class product surface, start a larger responsive/mobile navigation goal. That should include screenshot review at phone/tablet widths, a real mobile navigation decision, route-specific content priority, and staging deployment proof. D357 only added the first shared CSS cleanup pass.
+
+If deployment is requested first, remember the branch is ahead locally and DIR04 CSV audience import still has Docker-backed store proof pending.
+
 # Next Session Plan - Post-D356
 
 Current queue head: no agent-executable D350 follow-up slice is selected by default.
