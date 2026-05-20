@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { captureBrowserEvidence } from './browser.ts';
 import { missions } from './missions';
+import { writeReviewPromptForMission } from './review-prompt.ts';
 import { parseRunnerOptions, runAudit } from './run';
 
 vi.mock('./browser.ts', () => ({
@@ -11,6 +12,13 @@ vi.mock('./browser.ts', () => ({
     visibleTextExcerpt: 'Local app shell',
     buttons: [],
     links: [],
+  })),
+}));
+
+vi.mock('./review-prompt.ts', () => ({
+  writeReviewPromptForMission: vi.fn(async () => ({
+    promptPath:
+      'C:\\safe-run\\missions\\prepare-audience\\review-prompt.md',
   })),
 }));
 
@@ -184,6 +192,38 @@ describe('UX audit runner option parsing', () => {
         captureScreenshots: false,
         includeSanitizedVisibleText: false,
         executeFixedMission: true,
+      })
+    );
+  });
+
+  it('writes a persona review prompt when mission execution creates evidence', async () => {
+    vi.mocked(captureBrowserEvidence).mockResolvedValueOnce({
+      title: 'Local app',
+      url: 'http://127.0.0.1:5174/app',
+      visibleTextExcerpt: '',
+      buttons: [],
+      links: [],
+      runDirectory: 'C:\\safe-run',
+      evidencePath:
+        'C:\\safe-run\\missions\\prepare-audience\\evidence.json',
+    });
+
+    await runAudit(
+      parseRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'prepare-audience',
+      ])
+    );
+
+    expect(writeReviewPromptForMission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runDirectory: 'C:\\safe-run',
+        evidencePath:
+          'C:\\safe-run\\missions\\prepare-audience\\evidence.json',
+        mission: expect.objectContaining({ id: 'prepare-audience' }),
+        persona: expect.objectContaining({ id: 'osh-consultant' }),
       })
     );
   });

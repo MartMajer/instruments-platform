@@ -1,9 +1,17 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { captureBrowserEvidence } from './browser.ts';
+import type { MissionEvidence } from './evidence.ts';
 import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
 import { personas } from './personas.ts';
+import { writeNormalizedReviewReport } from './report.ts';
+import {
+  writeReviewPromptForMission,
+  type ReviewPromptRunMetadata,
+} from './review-prompt.ts';
 import type {
   MissionDefinition,
   PersonaDefinition,
@@ -19,6 +27,14 @@ export interface RunnerOptions {
   outputRoot: string;
 }
 
+export interface NormalizeReviewOptions {
+  runDirectory: string;
+  missionFilter: string;
+  personaOverride?: string;
+  reviewerOutputPath?: string;
+  reviewerOutput?: string;
+}
+
 const allowedFlags = new Set([
   '--base-url',
   '--headless',
@@ -26,6 +42,13 @@ const allowedFlags = new Set([
   '--output',
   '--persona',
   '--viewport',
+]);
+const normalizeReviewAllowedFlags = new Set([
+  '--mission',
+  '--persona',
+  '--review-input',
+  '--review-text',
+  '--run-dir',
 ]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const defaultMissionId = 'auth-enter-workspace';
@@ -94,6 +117,46 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
   };
 }
 
+export function parseNormalizeReviewOptions(args: string[]): NormalizeReviewOptions {
+  const values = new Map<string, string>();
+
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!flag.startsWith('--')) {
+      throw new Error(`Unexpected argument: ${flag}`);
+    }
+
+    if (!normalizeReviewAllowedFlags.has(flag)) {
+      throw new Error(`Unknown normalize-review option: ${flag}`);
+    }
+
+    const value = args[index + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+
+    values.set(flag, value);
+    index += 1;
+  }
+
+  const runDirectory = values.get('--run-dir');
+  if (!runDirectory) {
+    throw new Error('Missing required option: --run-dir');
+  }
+
+  if (values.has('--review-input') && values.has('--review-text')) {
+    throw new Error('Use either --review-input or --review-text, not both');
+  }
+
+  return {
+    runDirectory,
+    missionFilter: values.get('--mission') ?? defaultMissionId,
+    personaOverride: values.get('--persona'),
+    reviewerOutputPath: values.get('--review-input'),
+    reviewerOutput: values.get('--review-text'),
+  };
+}
+
 export async function runAudit(options: RunnerOptions) {
   const { mission, persona } = resolveAuditContracts(
     options.missionFilter,
@@ -114,18 +177,75 @@ export async function runAudit(options: RunnerOptions) {
     includeSanitizedVisibleText: false,
     executeFixedMission,
   });
+  const prompt = result.runDirectory
+    ? await writeReviewPromptForMission({
+        runDirectory: result.runDirectory,
+        evidencePath: result.evidencePath,
+        mission,
+        persona,
+      })
+    : undefined;
 
   return {
     missionId: mission.id,
     personaId: persona.id,
     viewport,
     outputRoot: options.outputRoot,
+    ...(prompt ? { reviewPromptPath: prompt.promptPath } : {}),
     ...result,
   };
 }
 
+export async function runNormalizeReview(options: NormalizeReviewOptions) {
+  const { mission, persona } = resolveAuditContracts(
+    options.missionFilter,
+    options.personaOverride
+  );
+  const evidencePath = join(
+    options.runDirectory,
+    'missions',
+    mission.id,
+    'evidence.json'
+  );
+  const evidence = await readJson<MissionEvidence>(evidencePath);
+  const runMetadata = await readOptionalJson<ReviewPromptRunMetadata>(
+    join(options.runDirectory, 'run.json')
+  );
+  const reviewerOutput = options.reviewerOutputPath
+    ? await readFile(options.reviewerOutputPath, 'utf8')
+    : options.reviewerOutput ?? '';
+  const report = await writeNormalizedReviewReport({
+    runDirectory: options.runDirectory,
+    runMetadata,
+    mission,
+    persona,
+    evidence,
+    reviewerOutput,
+  });
+
+  return {
+    missionId: mission.id,
+    personaId: persona.id,
+    runDirectory: options.runDirectory,
+    markdownPath: report.markdownPath,
+    jsonPath: report.jsonPath,
+    reviewStatus: report.summary.reviewStatus,
+    findings: report.summary.findings.length,
+    nextActionTickets: report.summary.nextActionTickets.length,
+  };
+}
+
 async function main() {
-  const options = parseRunnerOptions(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  if (args[0] === 'normalize-review') {
+    const result = await runNormalizeReview(
+      parseNormalizeReviewOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  const options = parseRunnerOptions(args);
   const result = await runAudit(options);
   console.log(JSON.stringify(result, null, 2));
 }
@@ -171,6 +291,18 @@ function validateUrl(value: string) {
     new URL(value);
   } catch {
     throw new Error(`Invalid --base-url: ${value}`);
+  }
+}
+
+async function readJson<T>(filePath: string): Promise<T> {
+  return JSON.parse(await readFile(filePath, 'utf8')) as T;
+}
+
+async function readOptionalJson<T>(filePath: string): Promise<T | undefined> {
+  try {
+    return await readJson<T>(filePath);
+  } catch {
+    return undefined;
   }
 }
 
