@@ -18922,3 +18922,10 @@ Deployment evidence:
 - Task: `selectSetupCampaignId` now returns only local newly-created campaigns or workspace-selected `draft`/`scheduled` campaigns. Setup recipient-selection controls render only when an editable campaign exists, and closed/live historical waves show a locked explanation that the next draft wave must be saved first.
 - Verification passed: RED focused setup-workflow regression failed on closed wave returning `campaign-id`; GREEN focused `setup-workflow.test.ts` passed 8/8; web production build passed with the existing large-chunk warning.
 - Queue: deploy D363, then owner-test Waves -> Set up next wave -> save Wave 2 -> choose/save recipients before launch.
+
+Deployment evidence:
+- Commit deployed to staging: 3d0e32e.
+- Initial VPS redeploy rebuilt/recreated containers but hit transient web-root 502 during warm-up.
+- Follow-up public checks passed: API ready 200, web root 200, `/app` 200.
+- VPS release checks passed with evidence in `/tmp/d363-setup-editable-wave-selection-vps-release-20260520-followup`.
+- Authenticated remote smoke was skipped.
