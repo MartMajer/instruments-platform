@@ -6,6 +6,7 @@ import { writeNormalizedReviewReport } from './report.ts';
 import { writeReviewPromptForMission } from './review-prompt.ts';
 import {
   parseAutonomousRunnerOptions,
+  parseFullstackPreflightOptions,
   parseRunnerOptions,
   runAudit,
   runAutonomousAudit,
@@ -365,6 +366,25 @@ describe('UX audit runner option parsing', () => {
         'staging',
       ])
     ).toThrow('Unsupported data mode: staging');
+  });
+
+  it('parses full-stack preflight options', () => {
+    expect(
+      parseFullstackPreflightOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--fullstack-dev-auth',
+        '--fullstack-permissions',
+        'setup.manage,team.manage',
+      ])
+    ).toEqual({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: {
+        enabled: true,
+        permissions: ['setup.manage', 'team.manage'],
+      },
+      timeoutMs: 5000,
+    });
   });
 
   it('fails closed before browser launch when a fixture-only mission is requested in fullstack mode', async () => {

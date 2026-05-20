@@ -19100,3 +19100,13 @@ Verification: Focused RED/GREEN tests passed 4/4 files and 42/42 tests. Full UXA
 Proof artifacts: `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-02-499Z/`, `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-25-783Z/`, and `artifacts/ux-agent-runs/local/run-2026-05-20T18-09-37-309Z/`.
 
 Next: Build an owner-runnable local API/database bootstrap or preflight wrapper, then rerun `fullstack-create-study` until it proves a green real local mutation.
+
+## 2026-05-20 - D376 UXA02 full-stack preflight command
+
+Assessment: D375 browser mutation proof failed safely, but the failure surfaced through the app shell as workspace access loading. The harness needed a direct full-stack readiness gate so missing local API/dev-auth/seed state is not confused with product UX.
+
+Task: Added `fullstack-preflight` CLI support plus `checkFullstackPreflight`. The preflight checks local API health, development-auth session, and tenant study read model in order, skipping dependent checks after the first failure. Shared the dev-auth header builder between browser runs and preflight.
+
+Verification: Focused preflight/runner/browser tests passed 3/3 files and 31/31 tests. Full UXA suite passed 15/15 files and 101/101 tests. Real workstation preflight against `http://127.0.0.1:5055` returned `blocked`: `api-health` failed with `fetch failed`, and `dev-auth-session` plus `tenant-study-read-model` were skipped.
+
+Next: Start or document the local API/database bootstrap path, then rerun `fullstack-preflight` until ready and rerun `fullstack-create-study` for green mutation proof.

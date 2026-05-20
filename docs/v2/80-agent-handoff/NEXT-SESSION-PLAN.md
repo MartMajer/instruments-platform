@@ -1,3 +1,37 @@
+# Next Session Plan - Post-D376
+
+Current queue head: make the local API/database stack runnable for UXA02, then rerun `fullstack-preflight` and `fullstack-create-study`.
+
+D376 added:
+
+- `fullstack-preflight` CLI subcommand
+- local API health check at `/health`
+- development-auth session check at `/auth/session`
+- tenant study read-model check at `/campaign-series`
+- fail-closed skipped downstream checks after the first failure
+
+Current workstation result:
+
+```json
+{
+  "status": "blocked",
+  "apiBaseUrl": "http://127.0.0.1:5055",
+  "checks": [
+    { "id": "api-health", "status": "failed", "detail": "fetch failed" },
+    { "id": "dev-auth-session", "status": "skipped" },
+    { "id": "tenant-study-read-model", "status": "skipped" }
+  ]
+}
+```
+
+Recommended next move: start or document the local API/database bootstrap path. Once `fullstack-preflight --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth` returns `ready`, rerun:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-create-study --data-mode fullstack --fullstack-dev-auth --output ../../artifacts/ux-agent-runs/local
+```
+
+Do not point UXA02 autonomous missions at staging or production.
+
 # Next Session Plan - Post-D375
 
 Current queue head: UXA02 local full-stack bootstrap/preflight, if the owner wants the autonomous harness to prove real mutation green on this workstation.

@@ -8,6 +8,10 @@ import {
 } from './autonomous-fixtures.ts';
 import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
 import type { MissionEvidence } from './evidence.ts';
+import {
+  checkFullstackPreflight,
+  type FullstackPreflightOptions,
+} from './fullstack-preflight.ts';
 import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
 import { personas } from './personas.ts';
@@ -53,6 +57,12 @@ export interface NormalizeReviewOptions {
   reviewerOutput?: string;
 }
 
+export interface FullstackPreflightRunnerOptions {
+  apiBaseUrl: string;
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+  timeoutMs: number;
+}
+
 const allowedFlags = new Set([
   '--base-url',
   '--capture-mode',
@@ -75,11 +85,21 @@ const normalizeReviewAllowedFlags = new Set([
   '--review-text',
   '--run-dir',
 ]);
+const fullstackPreflightAllowedFlags = new Set([
+  '--api-base-url',
+  '--fullstack-dev-auth',
+  '--fullstack-tenant-id',
+  '--fullstack-user-id',
+  '--fullstack-email',
+  '--fullstack-permissions',
+  '--timeout-ms',
+]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
 const allowedAutonomousDataModes = new Set<AutonomousDataMode>(['fixture', 'fullstack']);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
+const defaultApiBaseUrl = 'http://127.0.0.1:5055';
 const missionCatalog: readonly MissionDefinition<string>[] = missions;
 const personaCatalog: Record<string, PersonaDefinition> = personas;
 
@@ -209,6 +229,20 @@ export function parseNormalizeReviewOptions(args: string[]): NormalizeReviewOpti
     personaOverride: values.get('--persona'),
     reviewerOutputPath: values.get('--review-input'),
     reviewerOutput: values.get('--review-text'),
+  };
+}
+
+export function parseFullstackPreflightOptions(
+  args: string[]
+): FullstackPreflightRunnerOptions {
+  const values = parseFlagValues(args, fullstackPreflightAllowedFlags);
+  const apiBaseUrl = values.get('--api-base-url') ?? defaultApiBaseUrl;
+  validateUrl(apiBaseUrl);
+
+  return {
+    apiBaseUrl,
+    fullstackDevAuth: parseFullstackDevAuthOptions(values),
+    timeoutMs: parsePositiveInteger(values.get('--timeout-ms') ?? '5000', '--timeout-ms'),
   };
 }
 
@@ -354,8 +388,20 @@ export async function runNormalizeReview(options: NormalizeReviewOptions) {
   };
 }
 
+export async function runFullstackPreflight(options: FullstackPreflightRunnerOptions) {
+  return await checkFullstackPreflight(options satisfies FullstackPreflightOptions);
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === 'fullstack-preflight') {
+    const result = await runFullstackPreflight(
+      parseFullstackPreflightOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (args[0] === 'autonomous') {
     const result = await runAutonomousAudit(
       parseAutonomousRunnerOptions(args.slice(1))
@@ -491,6 +537,15 @@ function parseAutonomousDataMode(value: string): AutonomousDataMode {
   }
 
   return value as AutonomousDataMode;
+}
+
+function parsePositiveInteger(value: string, flag: string) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed.toString() !== value.trim()) {
+    throw new Error(`Invalid ${flag}: ${value}. Expected a positive integer.`);
+  }
+
+  return parsed;
 }
 
 export function resolveAuditContracts(missionId: string, personaId?: string) {

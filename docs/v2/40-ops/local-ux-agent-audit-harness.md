@@ -221,6 +221,31 @@ Current local proof status: the D375 mutation proof was attempted with full-stac
 
 Next required slice: provide an owner-runnable local API/database bootstrap or preflight wrapper for UXA02 so the mutation mission can be proven green without manually reconstructing the full-stack environment.
 
+## D376 full-stack preflight command
+
+UXA02 now has a preflight command that checks local full-stack readiness before launching a browser mutation mission:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-preflight --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth
+```
+
+The command checks, in order:
+
+- local API health at `/health`
+- development-auth session at `/auth/session`
+- tenant study read model at `/campaign-series`
+
+If an earlier check fails, later checks are skipped. This prevents the harness from misreporting a missing API or disabled dev-auth as a product UX issue.
+
+Current workstation proof:
+
+- status: `blocked`
+- `api-health`: failed with `fetch failed`
+- `dev-auth-session`: skipped
+- `tenant-study-read-model`: skipped
+
+Next required slice: start or document the local API/database bootstrap path so `fullstack-preflight` reaches `ready`, then rerun `fullstack-create-study` for a green mutation proof.
+
 ## Known limits
 
 - Fixed non-autonomous mode has one mission/persona. Autonomous mode has three local persona missions.
