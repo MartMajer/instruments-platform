@@ -1,5 +1,5 @@
 import { validateLocalAppPath, type UXAgentAction } from './autonomous-actions.ts';
-import type { AutonomousPersonaContext } from './autonomous-loop.ts';
+import type { AutonomousPersonaActor, AutonomousPersonaContext } from './autonomous-loop.ts';
 import type { JsonObject, JsonValue } from './evidence.ts';
 
 export interface PersonaActionRequest {
@@ -36,6 +36,10 @@ export interface PersonaActionRequest {
     unresolvedFindingCount: number;
   };
   allowedActions: Array<'click-link' | 'click-button' | 'fill' | 'complain' | 'stop'>;
+}
+
+export interface PersonaActionProvider {
+  proposeAction(request: PersonaActionRequest): string | Promise<string>;
 }
 
 const allowedActionKinds = new Set([
@@ -160,6 +164,32 @@ export function parsePersonaActionResponse(rawOutput: string): UXAgentAction {
   return {
     kind: 'stop',
     reason: requiredString(value, 'reason'),
+  };
+}
+
+export function buildProviderPersonaActionActor(
+  provider: PersonaActionProvider
+): AutonomousPersonaActor {
+  return {
+    async decide(context) {
+      const request = buildPersonaActionRequest(context);
+
+      try {
+        return parsePersonaActionResponse(await provider.proposeAction(request));
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Unknown provider failure.';
+        return {
+          kind: 'complain',
+          severity: 'blocker',
+          surface: 'Persona action provider',
+          problem: `The persona action provider returned an invalid action: ${cleanText(detail)}`,
+          suggestedFix:
+            'Fix the provider bridge to return one allowed JSON action for the current visible UI state.',
+          ticketReadyWording:
+            'Fix UXA02 persona action provider output: every provider response must be one allowed JSON action validated against visible local UI.',
+        };
+      }
+    },
   };
 }
 

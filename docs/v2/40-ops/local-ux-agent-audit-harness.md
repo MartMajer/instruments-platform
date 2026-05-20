@@ -183,6 +183,16 @@ UXA02 also adds a safe persona action-driver protocol for future LLM-backed pers
 
 It rejects remote navigation, malformed JSON, unknown action kinds, empty selectors, credential/secret fill labels, and invalid complaint severity. Persona reviewers remain evidence reviewers until a provider bridge is wired; they are not allowed to browse staging or production.
 
+D378 wires the protocol into a provider-backed actor adapter:
+
+- the provider receives a bounded `PersonaActionRequest`
+- the provider returns one raw JSON action
+- the adapter parses only allowed action kinds
+- malformed or unsafe provider output becomes a blocker complaint
+- the existing browser mission loop still validates the parsed action against visible local UI before execution
+
+This is provider-agnostic wiring. No staging/prod provider bridge and no remote browsing is added.
+
 Next required slice: local full-stack synthetic seed/reset plus the first mutating mission that creates or modifies app state against a disposable local database.
 
 ## D375 full-stack development-auth mutation mission

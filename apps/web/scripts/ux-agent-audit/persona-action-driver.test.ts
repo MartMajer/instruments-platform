@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { AutonomousPersonaContext } from './autonomous-loop.ts';
 import type { AutonomousFixtureMission } from './autonomous-fixtures.ts';
-import { buildPersonaActionRequest, parsePersonaActionResponse } from './persona-action-driver.ts';
+import {
+  buildPersonaActionRequest,
+  buildProviderPersonaActionActor,
+  parsePersonaActionResponse,
+} from './persona-action-driver.ts';
 import { getGoalPersonaProfile } from './persona-goals.ts';
 
 describe('persona action driver protocol', () => {
@@ -77,6 +81,48 @@ describe('persona action driver protocol', () => {
     for (const output of unsafeOutputs) {
       expect(() => parsePersonaActionResponse(output)).toThrow();
     }
+  });
+
+  it('builds a provider-backed actor that requests and parses one safe action per step', async () => {
+    const provider = {
+      proposeAction: vi.fn(async () =>
+        '{"kind":"click-button","text":"Save questionnaire","reason":"save visible setup progress"}'
+      ),
+    };
+    const actor = buildProviderPersonaActionActor(provider);
+
+    const action = await actor.decide(contextFixture());
+
+    expect(provider.proposeAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schemaVersion: 1,
+        currentPage: expect.objectContaining({
+          title: 'Setup',
+          buttons: ['Save questionnaire'],
+        }),
+      })
+    );
+    expect(action).toEqual({
+      kind: 'click-button',
+      text: 'Save questionnaire',
+      reason: 'save visible setup progress',
+    });
+  });
+
+  it('turns malformed provider output into a blocker complaint instead of an executable action', async () => {
+    const provider = {
+      proposeAction: vi.fn(async () => '{"kind":"goto","path":"https://example.com"}'),
+    };
+    const actor = buildProviderPersonaActionActor(provider);
+
+    await expect(actor.decide(contextFixture())).resolves.toEqual(
+      expect.objectContaining({
+        kind: 'complain',
+        severity: 'blocker',
+        surface: 'Persona action provider',
+        suggestedFix: expect.stringContaining('allowed JSON action'),
+      })
+    );
   });
 });
 

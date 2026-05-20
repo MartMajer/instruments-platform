@@ -19120,3 +19120,13 @@ Task: Added `fullstack-bootstrap` CLI support. Default mode is non-destructive: 
 Verification: Focused bootstrap/runner tests passed 2/2 files and 28/28 tests. Full UXA suite passed 16/16 files and 107/107 tests. Real workstation command returned `blocked` at Docker readiness: Docker command exists but Docker Desktop/Engine is not running.
 
 Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green mutation proof.
+
+## 2026-05-20 - D378 UXA02 provider-backed safe action actor
+
+Assessment: D374 added the persona action protocol, but it was still only request building and parsing. The autonomous loop needed a provider-backed actor seam so a future local persona provider can propose actions without bypassing safety validation.
+
+Task: Added `PersonaActionProvider` and `buildProviderPersonaActionActor`. The actor sends the bounded visible-page request to a provider, parses one allowed JSON action, and turns malformed or unsafe provider output into a blocker complaint. The existing mission loop remains the final visible-control validator before browser execution.
+
+Verification: Focused persona action driver test passed 1/1 file and 5/5 tests. Full UXA suite passed 16/16 files and 109/109 tests.
+
+Next: Either add a local-only CLI bridge for a concrete persona provider, or start Docker Desktop and prove `fullstack-create-study` green against the local staging stack. Do not point UXA02 at staging or production.

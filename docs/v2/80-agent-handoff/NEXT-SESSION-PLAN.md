@@ -1,3 +1,21 @@
+# Next Session Plan - Post-D378
+
+Current queue head: prove the full-stack mutation mission green once Docker Desktop is running, or add a CLI bridge for a concrete local persona provider.
+
+D378 added safe provider-backed action actor wiring:
+
+- provider receives bounded visible-page request
+- provider returns one raw JSON action
+- invalid/unsafe provider output becomes blocker complaint
+- existing loop still validates action against visible local UI before execution
+
+Remaining gaps before the active UXA02 goal can be called complete:
+
+- Docker Engine/local staging must run so `fullstack-create-study` can be proven green against a real local database.
+- If a live/non-scripted persona provider is required, add a local-only CLI bridge to the provider actor. Keep it loopback/local only and keep the visible-control validator as the final execution gate.
+
+Do not point UXA02 autonomous missions at staging or production.
+
 # Next Session Plan - Post-D377
 
 Current queue head: start Docker Desktop, then run UXA02 bootstrap with `--start`.
