@@ -184,8 +184,18 @@
 	const selectedTemplateVersionId = $derived(selectSetupTemplateVersionId(workspace, localState));
 	const selectedCampaignId = $derived(selectSetupCampaignId(workspace, localState));
 	const selectedCampaignLabel = $derived(
-		workspace.selectedCampaign?.name?.trim() ||
-			(selectedCampaignId ? 'Draft campaign selected' : 'No campaign selected')
+		campaignResult?.id === selectedCampaignId
+			? campaignResult.name
+			: workspace.selectedCampaign?.id === selectedCampaignId
+				? workspace.selectedCampaign.name
+				: selectedCampaignId
+					? 'Collection wave selected'
+					: 'No editable collection wave selected'
+	);
+	const lockedSelectedCampaign = $derived(
+		workspace.selectedCampaign && workspace.selectedCampaign.id !== selectedCampaignId
+			? workspace.selectedCampaign
+			: null
 	);
 	const questionnaireQuestionCount = $derived(
 		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
@@ -1809,7 +1819,25 @@
 			<p class="error-line">{refreshWarning}</p>
 		{/if}
 
-		{#if activeActionId === 'campaign' || activeActionId === 'readiness'}
+		{#if lockedSelectedCampaign && activeActionId === 'campaign'}
+		<section class="record-row setup-current-task" aria-labelledby="locked-wave-heading">
+			<div class="setup-current-task__header">
+				<div>
+					<p class="record-field__label">Previous wave</p>
+					<h4 id="locked-wave-heading" class="record-row__title">Recipient selection is locked</h4>
+					<p class="setup-current-task__title">{lockedSelectedCampaign.name}</p>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						This wave is already {lockedSelectedCampaign.status}. Recipient selection can only be
+						changed before launch. Save the next collection wave first, then choose recipients for
+						that draft.
+					</p>
+				</div>
+				<p class="step-pill" data-state="idle">Locked</p>
+			</div>
+		</section>
+		{/if}
+
+		{#if selectedCampaignId && (activeActionId === 'campaign' || activeActionId === 'readiness')}
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>

@@ -151,7 +151,17 @@ export function selectSetupCampaignId(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {}
 ) {
-	return localState.campaignId ?? workspace.selectedCampaign?.id ?? null;
+	if (localState.campaignId) {
+		return localState.campaignId;
+	}
+
+	return isEditableSetupCampaign(workspace.selectedCampaign?.status)
+		? (workspace.selectedCampaign?.id ?? null)
+		: null;
+}
+
+function isEditableSetupCampaign(status: string | null | undefined) {
+	return status === 'draft' || status === 'scheduled';
 }
 
 function toActionReadinessStatus(

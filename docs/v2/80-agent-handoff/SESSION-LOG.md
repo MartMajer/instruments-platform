@@ -18915,3 +18915,10 @@ Deployment evidence:
 - VPS redeploy proof passed with evidence in `/tmp/d362-wave-workflow-clarity-vps-release-20260520`.
 - Public checks passed after deploy: API ready 200, web root 200, `/app` 200.
 - Authenticated remote smoke was skipped.
+
+## 2026-05-20 - D363 setup editable wave selection
+
+- Assessment: Owner hit `409 Conflict` saving recipient selection after moving through Waves/Setup. Root cause was frontend workflow semantics: Setup treated a selected historical launched/closed wave as the editable setup campaign, while backend correctly rejects respondent-rule edits after launch.
+- Task: `selectSetupCampaignId` now returns only local newly-created campaigns or workspace-selected `draft`/`scheduled` campaigns. Setup recipient-selection controls render only when an editable campaign exists, and closed/live historical waves show a locked explanation that the next draft wave must be saved first.
+- Verification passed: RED focused setup-workflow regression failed on closed wave returning `campaign-id`; GREEN focused `setup-workflow.test.ts` passed 8/8; web production build passed with the existing large-chunk warning.
+- Queue: deploy D363, then owner-test Waves -> Set up next wave -> save Wave 2 -> choose/save recipients before launch.

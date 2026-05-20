@@ -1867,3 +1867,7 @@ Recommended first move after deployment: owner/manual staging proof for wrong-ac
 ## 2026-05-20 - Next session after D362
 
 Recommended first move after deployment: owner-test the Waves hub on a one-wave study. Confirm the hub explains how to create Wave 2, the Set up Wave 2 action opens Setup, and the collection draft defaults to Wave 2. If that still feels finicky, the next product slice should be a real Create next wave command with explicit copy/review semantics for questionnaire, scoring, recipients, and delivery settings.
+
+## 2026-05-20 - Next session after D363
+
+Recommended first move after deployment: owner-test a study that already has a launched/closed Wave 1. Open Waves, choose the next-wave setup action, confirm Setup shows Collection setup instead of recipient-save controls for the historical wave, save Wave 2, then choose and save recipients before launch. If this still feels finicky, implement a real Create next wave command with explicit copy/review semantics.

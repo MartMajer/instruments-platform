@@ -79,6 +79,57 @@ describe('selected-series setup workflow model', () => {
 		});
 	});
 
+	it('does not treat launched or closed waves as editable setup campaigns', () => {
+		const closedWorkspace: CampaignSeriesSetupWorkspaceResponse = {
+			...configuredWorkspace,
+			summary: {
+				campaignCount: 1,
+				liveCampaignCount: 0,
+				missingPrerequisiteCount: 0
+			},
+			selectedCampaign: {
+				...configuredWorkspace.selectedCampaign!,
+				status: 'closed',
+				latestLaunchAt: '2026-05-20T10:00:00Z'
+			},
+			readiness: {
+				campaignId: 'campaign-id',
+				status: 'proof_only',
+				ready: false
+			},
+			campaigns: [
+				{
+					...configuredWorkspace.campaigns[0],
+					status: 'closed',
+					latestLaunchAt: '2026-05-20T10:00:00Z'
+				}
+			]
+		};
+
+		const actions = toSelectedSeriesSetupWorkflowActions(closedWorkspace);
+		const path = toSelectedSeriesSetupPath(closedWorkspace);
+
+		expect(selectSetupCampaignId(closedWorkspace)).toBeNull();
+		expect(actions.find((action) => action.id === 'campaign')).toMatchObject({
+			status: 'blocked',
+			available: true,
+			disabledReason: null
+		});
+		expect(actions.find((action) => action.id === 'readiness')).toMatchObject({
+			status: 'not_available',
+			available: false,
+			disabledReason: 'Create the collection wave first.'
+		});
+		expect(path.currentActionId).toBe('campaign');
+		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
+			{ id: 'instrument', state: 'done' },
+			{ id: 'template', state: 'done' },
+			{ id: 'scoring', state: 'done' },
+			{ id: 'campaign', state: 'current' },
+			{ id: 'readiness', state: 'blocked' }
+		]);
+	});
+
 	it('prefers local action results over setup-workspace ids', () => {
 		const localState = {
 			templateVersionId: 'local-template-version-id',
