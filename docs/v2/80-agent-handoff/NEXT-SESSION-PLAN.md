@@ -1,3 +1,24 @@
+# Next Session Plan - Post-D379
+
+Current queue head: run UXA02 full-stack bootstrap once Docker Desktop is available, then prove `fullstack-create-study` green.
+
+D379 added runnable safe persona action-loop mode:
+
+- `--actor-mode action-file`
+- `--persona-action-file <local-jsonl-path>`
+- one local JSON action consumed per step
+- provider actor protocol parsing
+- visible-control validation before browser execution
+- safe stop when the file is exhausted
+
+Proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-29-34-204Z/` - fixture mode, action-file actor clicked visible Studies link, completed with 0 findings / 0 tickets
+
+Remaining gap before the active UXA02 goal can be completed: green full-stack mutation proof is still blocked by Docker Engine not running. When Docker Desktop is running, execute the Post-D377 bootstrap command with `--start`, wait for preflight `ready`, then rerun `fullstack-create-study`.
+
+Do not point UXA02 autonomous missions at staging or production.
+
 # Next Session Plan - Post-D378
 
 Current queue head: prove the full-stack mutation mission green once Docker Desktop is running, or add a CLI bridge for a concrete local persona provider.

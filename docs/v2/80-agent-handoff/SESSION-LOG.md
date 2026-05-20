@@ -19130,3 +19130,13 @@ Task: Added `PersonaActionProvider` and `buildProviderPersonaActionActor`. The a
 Verification: Focused persona action driver test passed 1/1 file and 5/5 tests. Full UXA suite passed 16/16 files and 109/109 tests.
 
 Next: Either add a local-only CLI bridge for a concrete persona provider, or start Docker Desktop and prove `fullstack-create-study` green against the local staging stack. Do not point UXA02 at staging or production.
+
+## 2026-05-20 - D379 UXA02 action-file actor mode
+
+Assessment: D378 added the safe provider actor seam, but there was still no CLI-runnable provider-style loop. A local JSONL action-file mode gives us a runnable bridge without executing arbitrary external commands.
+
+Task: Added `--actor-mode scripted|action-file`, `--persona-action-file`, and `persona-action-file-provider.ts`. Action-file mode consumes one local JSON action line per step, routes it through the provider actor/parser, and then the existing visible-control validator gates browser execution. Exhausted files stop safely.
+
+Verification: Focused action-file/runner tests passed 2/2 files and 28/28 tests. Full UXA suite passed 17/17 files and 113/113 tests. Local browser proof completed fixture mode through action-file actor with 0 findings / 0 tickets at `artifacts/ux-agent-runs/local/run-2026-05-20T18-29-34-204Z/`.
+
+Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green full-stack mutation proof. Do not point UXA02 at staging or production.

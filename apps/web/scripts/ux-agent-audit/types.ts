@@ -1,6 +1,7 @@
 export type ViewportPreset = 'desktop' | 'tablet' | 'mobile';
 export type CaptureMode = 'safe' | 'local-full';
 export type AutonomousDataMode = 'fixture' | 'fullstack';
+export type AutonomousActorMode = 'scripted' | 'action-file';
 
 export interface AutonomousFullstackDevAuthOptions {
   enabled: boolean;

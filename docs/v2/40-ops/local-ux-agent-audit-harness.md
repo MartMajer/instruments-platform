@@ -193,6 +193,20 @@ D378 wires the protocol into a provider-backed actor adapter:
 
 This is provider-agnostic wiring. No staging/prod provider bridge and no remote browsing is added.
 
+D379 makes the safe provider-style loop runnable through a local JSONL action file:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fixture-first-study-setup --actor-mode action-file --persona-action-file ..\..\artifacts\ux-agent-runs\local\action-file-proof.jsonl --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+Each non-empty, non-comment line in the file is one raw JSON action. The runner consumes one line per step, passes it through `buildProviderPersonaActionActor`, parses the action protocol, then applies the existing visible-control validator before browser execution. If the file runs out, the provider returns a safe stop action.
+
+Local proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-29-34-204Z/`
+
+That proof used fixture mode, clicked the visible `Studies Plan studies` link from `/app`, stopped through the action-file provider, and completed with 0 findings / 0 tickets.
+
 Next required slice: local full-stack synthetic seed/reset plus the first mutating mission that creates or modifies app state against a disposable local database.
 
 ## D375 full-stack development-auth mutation mission

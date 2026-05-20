@@ -10,6 +10,8 @@ import {
   runAutonomousFixtureMission,
   type AutonomousPageAdapter,
 } from './autonomous-loop.ts';
+import { loadPersonaActionFileProvider } from './persona-action-file-provider.ts';
+import { buildProviderPersonaActionActor } from './persona-action-driver.ts';
 import {
   describeFullstackDevAuth,
   resolveFullstackDevAuthHeaders,
@@ -33,6 +35,7 @@ import {
   type RichScreenSnapshot,
 } from './rich-transcript.ts';
 import type {
+  AutonomousActorMode,
   AutonomousDataMode,
   AutonomousFullstackDevAuthOptions,
   CaptureMode,
@@ -55,6 +58,8 @@ export interface BrowserEvidenceOptions {
   runDirectory?: string;
   autonomousDataMode?: AutonomousDataMode;
   fullstackDevAuth?: AutonomousFullstackDevAuthOptions;
+  autonomousActorMode?: AutonomousActorMode;
+  personaActionFile?: string;
 }
 
 export interface BrowserSafeCapturePolicy {
@@ -103,6 +108,15 @@ const longTokenPattern =
 const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
 
 export { resolveFullstackDevAuthHeaders } from './fullstack-dev-auth.ts';
+
+function requiredPersonaActionFile(options: BrowserEvidenceOptions) {
+  const path = options.personaActionFile?.trim();
+  if (!path) {
+    throw new Error('Missing required persona action file for action-file actor mode.');
+  }
+
+  return path;
+}
 
 export async function captureBrowserEvidence(
   options: BrowserEvidenceOptions
@@ -271,11 +285,13 @@ export async function captureAutonomousBrowserEvidence(
         ? join(runDirectory, 'missions', options.missionId, 'screenshots')
         : undefined
     );
-    const execution = await runAutonomousFixtureMission(
-      adapter,
-      mission,
-      buildScriptedFixturePersonaActor(mission)
-    );
+    const actor =
+      options.autonomousActorMode === 'action-file'
+        ? buildProviderPersonaActionActor(
+            await loadPersonaActionFileProvider(requiredPersonaActionFile(options))
+          )
+        : buildScriptedFixturePersonaActor(mission);
+    const execution = await runAutonomousFixtureMission(adapter, mission, actor);
     const finalSnapshot = execution.snapshots.at(-1);
     const firstScreenshot = execution.screenshots.at(0);
     const capture: BrowserEvidenceCapture = {

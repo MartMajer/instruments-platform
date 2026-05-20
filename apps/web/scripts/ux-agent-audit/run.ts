@@ -25,6 +25,7 @@ import {
   type ReviewPromptRunMetadata,
 } from './review-prompt.ts';
 import type {
+  AutonomousActorMode,
   AutonomousDataMode,
   AutonomousFullstackDevAuthOptions,
   CaptureMode,
@@ -50,6 +51,8 @@ export interface AutonomousRunnerOptions {
   captureMode: CaptureMode;
   dataMode: AutonomousDataMode;
   fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+  actorMode: AutonomousActorMode;
+  personaActionFile?: string;
   outputRoot: string;
 }
 
@@ -80,6 +83,8 @@ const allowedFlags = new Set([
   '--capture-mode',
   '--headless',
   '--data-mode',
+  '--actor-mode',
+  '--persona-action-file',
   '--fullstack-dev-auth',
   '--fullstack-tenant-id',
   '--fullstack-user-id',
@@ -120,6 +125,7 @@ const fullstackBootstrapAllowedFlags = new Set([
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
 const allowedAutonomousDataModes = new Set<AutonomousDataMode>(['fixture', 'fullstack']);
+const allowedAutonomousActorModes = new Set<AutonomousActorMode>(['scripted', 'action-file']);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
 const defaultApiBaseUrl = 'http://127.0.0.1:5055';
@@ -212,6 +218,8 @@ export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOp
     captureMode: parseCaptureMode(values.get('--capture-mode') ?? 'local-full'),
     dataMode: parseAutonomousDataMode(values.get('--data-mode') ?? 'fixture'),
     fullstackDevAuth: parseFullstackDevAuthOptions(values),
+    actorMode: parseAutonomousActorMode(values.get('--actor-mode') ?? 'scripted'),
+    ...parsePersonaActionFile(values),
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
@@ -348,6 +356,8 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     captureMode: options.captureMode,
     autonomousDataMode: options.dataMode,
     fullstackDevAuth: options.fullstackDevAuth,
+    autonomousActorMode: options.actorMode,
+    personaActionFile: options.personaActionFile,
     captureScreenshots: true,
     includeSanitizedVisibleText: true,
     executeFixedMission: false,
@@ -589,6 +599,29 @@ function parseAutonomousDataMode(value: string): AutonomousDataMode {
   }
 
   return value as AutonomousDataMode;
+}
+
+function parseAutonomousActorMode(value: string): AutonomousActorMode {
+  if (!allowedAutonomousActorModes.has(value as AutonomousActorMode)) {
+    throw new Error(`Unsupported actor mode: ${value}`);
+  }
+
+  return value as AutonomousActorMode;
+}
+
+function parsePersonaActionFile(values: Map<string, string>) {
+  const actorMode = parseAutonomousActorMode(values.get('--actor-mode') ?? 'scripted');
+  const personaActionFile = values.get('--persona-action-file')?.trim();
+
+  if (actorMode === 'action-file' && !personaActionFile) {
+    throw new Error('Missing required option: --persona-action-file');
+  }
+
+  if (personaActionFile && /^https?:\/\//i.test(personaActionFile)) {
+    throw new Error('--persona-action-file must be a local filesystem path.');
+  }
+
+  return personaActionFile ? { personaActionFile } : {};
 }
 
 function parsePositiveInteger(value: string, flag: string) {

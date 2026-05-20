@@ -313,6 +313,7 @@ describe('UX audit runner option parsing', () => {
       captureMode: 'local-full',
       dataMode: 'fixture',
       fullstackDevAuth: { enabled: false },
+      actorMode: 'scripted',
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
   });
@@ -328,6 +329,37 @@ describe('UX audit runner option parsing', () => {
     ]);
 
     expect(options.dataMode).toBe('fullstack');
+  });
+
+  it('parses autonomous action-file actor mode', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fixture-first-study-setup',
+      '--actor-mode',
+      'action-file',
+      '--persona-action-file',
+      'C:\\actions\\persona.jsonl',
+    ]);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        actorMode: 'action-file',
+        personaActionFile: 'C:\\actions\\persona.jsonl',
+      })
+    );
+  });
+
+  it('requires a persona action file when action-file actor mode is selected', () => {
+    expect(() =>
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--actor-mode',
+        'action-file',
+      ])
+    ).toThrow('Missing required option: --persona-action-file');
   });
 
   it('parses explicit local fullstack development auth options', () => {
@@ -455,6 +487,7 @@ describe('UX audit runner option parsing', () => {
         missionId: 'fullstack-workspace-inspection',
         autonomousDataMode: 'fullstack',
         fullstackDevAuth: { enabled: false },
+        autonomousActorMode: 'scripted',
       })
     );
   });
@@ -477,6 +510,7 @@ describe('UX audit runner option parsing', () => {
         missionId: 'fullstack-create-study',
         autonomousDataMode: 'fullstack',
         fullstackDevAuth: { enabled: true },
+        autonomousActorMode: 'scripted',
       })
     );
   });
@@ -499,6 +533,7 @@ describe('UX audit runner option parsing', () => {
         captureMode: 'local-full',
         autonomousDataMode: 'fixture',
         fullstackDevAuth: { enabled: false },
+        autonomousActorMode: 'scripted',
       })
     );
     expect(writeReviewPromptForMission).toHaveBeenCalledWith(
