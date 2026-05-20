@@ -1,6 +1,8 @@
 # Next Session Plan - Post-D364
 
-Current queue head: owner-test Waves on a two-wave anonymous study after staging deployment.
+Current queue head: owner-test Waves on a two-wave anonymous study on staging.
+
+D364 is deployed at app commit `ca4e9cc`. VPS redeploy proof and release checks passed with evidence in `/tmp/d364-waves-group-trend-vps-release-20260520`; public checks returned API ready 200, web root 200, and `/app` 200.
 
 Recommended first move: open the study with closed Wave 1 and Wave 2, confirm Waves shows Group trend as the useful path, confirm linked change clearly says repeat participation is unavailable, and confirm Results remains the place to review/export actual wave scores. If this is understandable, the next analytics slice is a backend disclosure-safe group-trend proof endpoint or chart; if it still feels wrong, rework the Waves hub around explicit "Group trend" and "Linked change" tabs before adding backend analytics.
 

@@ -18935,4 +18935,11 @@ Deployment evidence:
 - Assessment: Owner testing showed Wave 1 and Wave 2 could both be closed anonymous waves, but Waves still made "Create Wave 3" the main next step and named the linked longitudinal path like generic comparison.
 - Task: Added a group-trend plan for submitted waves, changed two-wave anonymous guidance to review the existing waves through Results, and kept linked change blocked unless repeat participation/linked trajectories exist.
 - Verification passed: RED focused `waves-workflow.test.ts` failed on the old `Create Wave 3` behavior; GREEN focused `waves-workflow.test.ts` passed 13/13; web production build passed with the existing large-chunk warning; `git diff --check` passed with only CRLF warnings.
-- Queue: deploy D364, then owner-test the Waves hub on the two-wave anonymous study. Remaining product follow-up is a backend disclosure-safe group-trend proof/chart if Results navigation is not enough.
+- Queue: owner-test the Waves hub on the two-wave anonymous study. Remaining product follow-up is a backend disclosure-safe group-trend proof/chart if Results navigation is not enough.
+
+Deployment evidence:
+- Commit deployed to staging: ca4e9cc.
+- VPS redeploy proof passed with evidence in `/tmp/d364-waves-group-trend-vps-release-20260520`.
+- VPS release checks passed with nested evidence in `/tmp/d364-waves-group-trend-vps-release-20260520/release-evidence`.
+- Public checks passed after deploy: API ready 200, web root 200, `/app` 200.
+- Authenticated remote smoke was skipped.
