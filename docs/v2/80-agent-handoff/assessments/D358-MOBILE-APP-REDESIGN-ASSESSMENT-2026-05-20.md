@@ -28,7 +28,16 @@ Passed:
 - Web production build.
 - `git diff --check` with only CRLF normalization warnings.
 
-Deployment pending in this session.
+Staging deployment passed:
+
+- Deployed app commit: `30ba356`.
+- VPS redeploy evidence: `/tmp/d358-mobile-nav-vps-release-20260520`.
+- VPS release evidence: `/tmp/d358-mobile-nav-vps-release-20260520/release-evidence`.
+- Public follow-up checks passed: API ready 200, web root 200, `/app` 200.
+- Authenticated remote smoke was skipped.
+- Web image: `sha256:a6909c0e3df11158c6406cc646d7e0d77e6c76c1dbb5451c4b3f3d12303ab341`.
+- API image: `sha256:cc06bb1dde41cb9a14a3c74969c52cd68b3e6937e65f3691ee5db7a20e157ed3`.
+- Worker image: `sha256:319044a1483cff5d860d769a5791172739dd6045f64ce4003130041c13e9ea62`.
 
 ## Remaining risk
 
