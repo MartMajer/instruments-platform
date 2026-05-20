@@ -323,6 +323,31 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Oidc_remote_failure_preserves_email_mismatch_reason()
+    {
+        var resolver = new FakeOidcLoginResolver();
+        var events = CreateOidcEvents(
+            resolver,
+            new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+            });
+        var context = CreateRemoteFailureContext(
+            "https://app.example.test/app",
+            new Exception("platform_login_expected_email_mismatch"));
+        Assert.NotNull(context.Properties);
+        context.Properties!.Items[PlatformOidcEvents.AuthFailureReasonPropertyName] =
+            PlatformOidcEvents.EmailMismatchFailureReason;
+
+        await events.RemoteFailure(context);
+
+        Assert.Equal(StatusCodes.Status302Found, context.Response.StatusCode);
+        Assert.Equal(
+            "https://app.example.test/app?auth=email_mismatch",
+            context.Response.Headers.Location.ToString());
+    }
+
+    [Fact]
     public async Task Oidc_remote_failure_preserves_unverified_reason_from_failure_message()
     {
         var resolver = new FakeOidcLoginResolver();
@@ -446,6 +471,35 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Assert.NotNull(context.Properties);
         Assert.Equal(
             PlatformOidcEvents.EmailUnverifiedFailureReason,
+            context.Properties!.Items[PlatformOidcEvents.AuthFailureReasonPropertyName]);
+        Assert.Empty(resolver.Calls);
+    }
+
+    [Fact]
+    public async Task Oidc_token_validation_rejects_expected_email_mismatch_before_resolving_login()
+    {
+        var tenantId = Guid.NewGuid();
+        var resolver = new FakeOidcLoginResolver
+        {
+            Resolution = new PlatformOidcLoginResolution(
+                Guid.NewGuid(),
+                tenantId,
+                Guid.NewGuid(),
+                [PlatformPermissions.SetupManage])
+        };
+        var events = CreateOidcEvents(resolver);
+        var context = CreateTokenValidatedContext(
+            "other@example.test",
+            emailVerified: true,
+            tenantId,
+            expectedLoginEmail: "owner@example.test");
+
+        await events.TokenValidated(context);
+
+        Assert.NotNull(context.Result?.Failure);
+        Assert.NotNull(context.Properties);
+        Assert.Equal(
+            PlatformOidcEvents.EmailMismatchFailureReason,
             context.Properties!.Items[PlatformOidcEvents.AuthFailureReasonPropertyName]);
         Assert.Empty(resolver.Calls);
     }
@@ -1327,7 +1381,8 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         Guid? tenantId = null,
         string? providerSubject = "auth0|subject",
         string? registrationToken = null,
-        bool registrationBootstrap = false)
+        bool registrationBootstrap = false,
+        string? expectedLoginEmail = null)
     {
         var claims = new List<Claim>
         {
@@ -1360,6 +1415,11 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         {
             properties.Items[AuthEndpointRouteBuilderExtensions.RegistrationBootstrapPropertyName] =
                 "true";
+        }
+        if (!string.IsNullOrWhiteSpace(expectedLoginEmail))
+        {
+            properties.Items[AuthEndpointRouteBuilderExtensions.ExpectedLoginEmailPropertyName] =
+                expectedLoginEmail;
         }
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, OidcScheme));

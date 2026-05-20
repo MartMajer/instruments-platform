@@ -64,7 +64,10 @@
 	const authFailureReason = $derived(page.url.searchParams.get('auth'));
 	const authFailedRedirect = $derived(authFailureReason === 'failed');
 	const authEmailUnverifiedRedirect = $derived(authFailureReason === 'email_unverified');
-	const authRecoveryRedirect = $derived(authFailedRedirect || authEmailUnverifiedRedirect);
+	const authEmailMismatchRedirect = $derived(authFailureReason === 'email_mismatch');
+	const authRecoveryRedirect = $derived(
+		authFailedRedirect || authEmailUnverifiedRedirect || authEmailMismatchRedirect
+	);
 
 	onMount(() => {
 		const storedTenantId = readLastTenantId(window.localStorage);
@@ -343,6 +346,8 @@
 					<h2 class="email-verification-reminder__title">
 						{authEmailUnverifiedRedirect
 							? 'Verify email, then sign in'
+							: authEmailMismatchRedirect
+							? 'Choose the requested account'
 							: authFailedHasPendingRegistration
 							? 'Registration sign-in did not finish'
 							: 'Sign in with your workspace account'}
@@ -353,6 +358,14 @@
 						</p>
 						<p class="email-verification-reminder__note">
 							If Auth0 keeps using the wrong account, sign out completely and choose the intended email.
+						</p>
+					{:else if authEmailMismatchRedirect}
+						<p class="email-verification-reminder__text">
+							Auth0 returned a different email than the one used to find this workspace.
+							Sign out completely, then choose the same account you entered on sign-in.
+						</p>
+						<p class="email-verification-reminder__note">
+							This protects the workspace from stale Auth0 sessions and wrong account selection.
 						</p>
 					{:else if authFailedHasPendingRegistration}
 						<p class="email-verification-reminder__text">
@@ -377,6 +390,8 @@
 			{authRecoveryRedirect
 				? authEmailUnverifiedRedirect
 					? 'Email verification is required before signing in again after sign-out.'
+					: authEmailMismatchRedirect
+					? 'Use the same email in Auth0 that you entered on the workspace sign-in page.'
 					: authFailedHasPendingRegistration
 					? 'Use the saved registration link only when registration was interrupted before the workspace opened.'
 					: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
@@ -388,9 +403,15 @@
 			{#if authRecoveryRedirect}
 				<a
 					class="primary-button"
-					href={authEmailUnverifiedRedirect ? emailVerificationSignInUrl : authFailedPrimaryUrl}
+					href={authEmailUnverifiedRedirect || authEmailMismatchRedirect
+						? emailVerificationSignInUrl
+						: authFailedPrimaryUrl}
 				>
-					{authEmailUnverifiedRedirect ? 'Sign in after verifying email' : authFailedPrimaryLabel}
+					{authEmailUnverifiedRedirect
+						? 'Sign in after verifying email'
+						: authEmailMismatchRedirect
+						? 'Choose account again'
+						: authFailedPrimaryLabel}
 				</a>
 				<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
 			{:else}

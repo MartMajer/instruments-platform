@@ -15,6 +15,8 @@ public static class AuthEndpointRouteBuilderExtensions
 
     public const string RegistrationBootstrapPropertyName = "registration_bootstrap";
 
+    public const string ExpectedLoginEmailPropertyName = "expected_login_email";
+
     public static IEndpointRouteBuilder MapPlatformAuthEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/auth/login", Login)
@@ -150,6 +152,7 @@ public static class AuthEndpointRouteBuilderExtensions
         }
         if (!string.IsNullOrEmpty(loginHint))
         {
+            properties.Items[ExpectedLoginEmailPropertyName] = loginHint.ToLowerInvariant();
             properties.SetParameter("login_hint", loginHint);
         }
 

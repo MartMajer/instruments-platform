@@ -62,6 +62,8 @@ public sealed class PlatformOidcEvents(
 
     public const string EmailUnverifiedFailureReason = "email_unverified";
 
+    public const string EmailMismatchFailureReason = "email_mismatch";
+
     public override Task RedirectToIdentityProvider(RedirectContext context)
     {
         if (context.Properties.Parameters.TryGetValue("screen_hint", out var screenHint) &&
@@ -155,6 +157,17 @@ public sealed class PlatformOidcEvents(
         }
 
         var emailVerified = IsEmailVerified(context.Principal);
+        var normalizedEmail = email.ToLowerInvariant();
+        var expectedEmail = GetExpectedLoginEmail(context);
+        if (!string.IsNullOrWhiteSpace(expectedEmail) &&
+            !string.Equals(normalizedEmail, expectedEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("OIDC login rejected because the provider email did not match the requested login email.");
+            MarkAuthFailure(context, EmailMismatchFailureReason);
+            context.Fail("platform_login_expected_email_mismatch");
+            return;
+        }
+
         if (RequiresVerifiedEmail() && !emailVerified && !hasRegistrationLogin)
         {
             logger.LogWarning("OIDC login rejected because the email claim was not verified.");
@@ -162,8 +175,6 @@ public sealed class PlatformOidcEvents(
             context.Fail("platform_login_verified_email_required");
             return;
         }
-
-        var normalizedEmail = email.ToLowerInvariant();
 
         if (hasRegistrationBootstrap)
         {
@@ -217,9 +228,15 @@ public sealed class PlatformOidcEvents(
     private static string GetAuthFailureReason(AuthenticationProperties? properties, Exception? failure = null)
     {
         if (properties?.Items.TryGetValue(AuthFailureReasonPropertyName, out var reason) == true &&
-            string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal))
+            (string.Equals(reason, EmailUnverifiedFailureReason, StringComparison.Ordinal) ||
+                string.Equals(reason, EmailMismatchFailureReason, StringComparison.Ordinal)))
         {
-            return EmailUnverifiedFailureReason;
+            return reason!;
+        }
+
+        if (IsEmailMismatchFailure(failure))
+        {
+            return EmailMismatchFailureReason;
         }
 
         return IsEmailUnverifiedFailure(failure)
@@ -233,6 +250,23 @@ public sealed class PlatformOidcEvents(
         {
             if (failure.Message.Contains(
                     "platform_login_verified_email_required",
+                    StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            failure = failure.InnerException;
+        }
+
+        return false;
+    }
+
+    private static bool IsEmailMismatchFailure(Exception? failure)
+    {
+        while (failure is not null)
+        {
+            if (failure.Message.Contains(
+                    "platform_login_expected_email_mismatch",
                     StringComparison.Ordinal))
             {
                 return true;
@@ -267,6 +301,16 @@ public sealed class PlatformOidcEvents(
                 out var value) == true
             ? value
             : null;
+    }
+
+    private static string? GetExpectedLoginEmail(TokenValidatedContext context)
+    {
+        return context.Properties?.Items.TryGetValue(
+                AuthEndpointRouteBuilderExtensions.ExpectedLoginEmailPropertyName,
+                out var value) == true &&
+            !string.IsNullOrWhiteSpace(value)
+                ? value.Trim().ToLowerInvariant()
+                : null;
     }
 
     private static bool IsRegistrationBootstrap(TokenValidatedContext context)
