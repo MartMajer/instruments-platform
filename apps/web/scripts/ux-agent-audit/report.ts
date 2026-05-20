@@ -375,7 +375,9 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
       'Review needs structured JSON reviewer output. Paste raw JSON or a fenced `json` block, then normalize again.'
     );
   } else if (summary.findings.length === 0) {
-    lines.push('No structured findings were provided by the reviewer.');
+    lines.push(
+      'The reviewer explicitly reported zero findings in the structured review output.'
+    );
   } else {
     for (const finding of summary.findings) {
       lines.push(
@@ -400,7 +402,11 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
 
   lines.push('', '## Next-action tickets', '');
   if (summary.nextActionTickets.length === 0) {
-    lines.push('- None until reviewer output is available.');
+    if (summary.reviewStatus === 'reviewed' && summary.findings.length === 0) {
+      lines.push('- None. Reviewer explicitly reported zero findings.');
+    } else {
+      lines.push('- None until reviewer output is available.');
+    }
   } else {
     lines.push(...summary.nextActionTickets.map((ticket) => `- ${ticket}`));
   }

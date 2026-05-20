@@ -18965,3 +18965,12 @@ Deployment evidence:
 - Decision: Design UXA01 as a local-first Playwright evidence plus persona review harness. Start with bounded missions, screenshots, visible text/control capture, and severity-normalized reports. Defer staging-cookie mode and random monkey clicking.
 - Task: Added UXA01 design doc, implementation plan, and D367 assessment. Updated the active queue to select UXA01 as the next agent-executable slice.
 - Verification: Docs-only `git diff --check` passed with only CRLF warnings.
+
+## 2026-05-20 - D368 UXA01 local UX agent audit harness implementation
+
+- Assessment: Manual UI/UX review was becoming too broad and tiring; the project needed a repeatable local persona-review loop rather than another ad hoc polish pass.
+- Task: Implemented local UX audit tooling under `apps/web/scripts/ux-agent-audit`: mission/persona contracts, safe evidence writing, CLI runner, Playwright helper, fixed `create-first-study` mission, review-prompt generation, reviewer-output normalization, and report output.
+- Data safety: Hardened default capture so product-page runs do not persist screenshots or visible text by default; sanitized URLs, query strings, fragments, raw origins, emails, UUIDs, token-like values, participant-code-like values, local filesystem paths, markdown/HTML/data URI content, and non-http URL schemes. Invalid reviewer output is `needs-structured-review`, not reviewed/no-findings.
+- Docs: Added `docs/v2/40-ops/local-ux-agent-audit-harness.md` and D368 assessment.
+- Verification: focused UX audit Vitest suite passed 7 files / 55 tests with `node_modules/vitest/vitest.mjs run scripts/ux-agent-audit`; final independent review approved the last sanitizer/report wording fix.
+- Queue: UXA01 implementation is locally complete. Next move is to run the harness against a local app session, triage generated findings, and select one evidence-backed UX ticket if the findings are real product issues.

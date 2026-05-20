@@ -9,6 +9,7 @@ import { missions } from './missions';
 import { personas } from './personas';
 import {
   buildReviewPrompt,
+  sanitizeEvidenceUrl,
   writeReviewPromptForMission,
 } from './review-prompt';
 
@@ -113,6 +114,13 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).not.toContain('researcher@example.test');
     expect(prompt).not.toContain('raw body text that must never be copied');
   });
+
+  it('redacts non-http structured URL schemes before URL parsing', () => {
+    expect(sanitizeEvidenceUrl('data:image/png;base64,AAAA')).toBe(
+      '[redacted-uri]'
+    );
+    expect(sanitizeEvidenceUrl('javascript:alert(1)')).toBe('[redacted-uri]');
+  });
 });
 
 function requireMission(missionId: string) {
@@ -140,7 +148,7 @@ function unsafeEvidence(): MissionEvidence {
           'Opened /respond?invitationToken=secret#answers for researcher@example.test using code ABCD-1234. Checked local notes at C:\\Users\\Martin\\secret\\notes.txt, /Users/martin/private/notes.md, ~/private/cache.json, ../private/file.txt, and ..\\private\\windows-file.txt.',
         url: 'http://127.0.0.1:5174/respond?invitationToken=secret#answers',
         notes:
-          'Copied relative path /app?token=secret#fragment and https://tenant-alpha.example.test/app/campaign-series/study-local-1?tenant=secret#frag before continuing.',
+          'Copied relative path /app?token=secret#fragment, HTTPS://tenant-alpha.example.test/app/campaign-series/study-local-1?tenant=secret#frag, and data:image/png;base64,unsafe-inline-image before continuing.',
       },
     ],
     screenshots: [

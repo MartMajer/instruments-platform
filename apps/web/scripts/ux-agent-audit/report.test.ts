@@ -190,7 +190,12 @@ describe('UX persona review report normalizer', () => {
     expect(summary.observationsSummary.reviewerSummary).toContain(
       'No UX findings'
     );
-    expect(markdown).toContain('No structured findings were provided');
+    expect(markdown).toContain(
+      'The reviewer explicitly reported zero findings'
+    );
+    expect(markdown).toContain(
+      'None. Reviewer explicitly reported zero findings.'
+    );
   });
 
   it('rejects empty findings when the reviewer does not explain why the empty review is intentional', async () => {
@@ -329,7 +334,7 @@ describe('UX persona review report normalizer', () => {
       evidence: completedEvidence(),
       reviewerOutput: JSON.stringify({
         summary:
-          '<script>alert(1)</script> See ![leak](data:image/png;base64,AAAA) and [unsafe](javascript:alert(1)) token=super-secret-token-123456.',
+          '<script>alert(1)</script> See data:text/plain;base64,AAAA, ![leak](data:image/png;base64,AAAA), and [unsafe](javascript:alert(1)) token=super-secret-token-123456.',
         findings: [
           {
             severity: 'medium',
@@ -370,7 +375,7 @@ describe('UX persona review report normalizer', () => {
       evidence: completedEvidence(),
       reviewerOutput: JSON.stringify({
         summary:
-          'Checked C:\\Users\\Martin\\secret\\notes.txt, /Users/martin/private/audit.md, ~/private/cache.json, ../private/file.txt, and https://tenant-alpha.example.test/app/campaign-series/study-local-1?token=secret#frag.',
+          'Checked C:\\Users\\Martin\\secret\\notes.txt, /Users/martin/private/audit.md, ~/private/cache.json, ../private/file.txt, HTTPS://tenant-alpha.example.test/app/campaign-series/study-local-1?token=secret#frag, and https://tenant-alpha.example.test/app/campaign-series/study-local-1?token=secret#frag.',
         findings: [
           {
             severity: 'medium',

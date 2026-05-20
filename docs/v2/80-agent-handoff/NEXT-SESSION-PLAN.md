@@ -1,3 +1,20 @@
+# Next Session Plan - Post-D368
+
+Current queue head: run UXA01 locally and triage findings. No new agent-executable product slice is selected by default.
+
+Start a local app session, then run from `apps/web`:
+
+```powershell
+npm run ux:audit -- --base-url http://127.0.0.1:5174 --mission create-first-study --persona first-time-researcher --viewport desktop --output ../../artifacts/ux-agent-runs/local
+```
+
+Give `missions/create-first-study/review-prompt.md` to a reviewer agent/LLM, save the JSON output, then normalize it:
+
+```powershell
+npm run ux:audit -- normalize-review --run-dir ../../artifacts/ux-agent-runs/local/<run-id> --mission create-first-study --review-input <review-output.txt>
+```
+
+Triage `review-report.md` and `review-summary.json`. Fix only evidence-backed findings; reject findings caused by missing local seed/auth state. Keep Q-053/Q-054 boundaries visible, and do not treat this local harness as staging proof or validator evidence.
 # Next Session Plan - Post-D367
 
 Current queue head: UXA01 local UX agent audit harness.

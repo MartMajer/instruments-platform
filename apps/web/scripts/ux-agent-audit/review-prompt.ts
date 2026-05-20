@@ -37,7 +37,8 @@ const jwtLikePattern =
 const longTokenPattern =
   /\b(?=[A-Za-z0-9_-]{24,}\b)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]+\b/g;
 const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
-const urlPattern = /https?:\/\/[^\s)"'<>]+/g;
+const urlPattern = /https?:\/\/[^\s)"'<>]+/gi;
+const dataUriPattern = /\bdata:[^\s)"'<>`]+/gi;
 const relativePathWithQueryPattern =
   /(^|[\s(["'`])((?:\/|\.{1,2}\/)[^\s)"'<>`]*[?#][^\s)"'<>`]*)/g;
 const bareLocalPathPattern =
@@ -211,6 +212,11 @@ export function sanitizeEvidenceUrl(url: string) {
     return '';
   }
 
+  const scheme = value.match(/^([a-z][a-z0-9+.-]*):/i)?.[1]?.toLowerCase();
+  if (scheme && scheme !== 'http' && scheme !== 'https') {
+    return '[redacted-uri]';
+  }
+
   try {
     const parsed = new URL(value);
     return `${classifyEvidenceUrl(parsed)}${sanitizeEvidenceUrlPath(
@@ -229,6 +235,7 @@ export function sanitizeReviewText(text: string, maxCharacters = 2000) {
       const safeTarget = sanitizeMarkdownTarget(target);
       return `${safeLabel} (${safeTarget})`;
     })
+    .replace(dataUriPattern, '[redacted-uri]')
     .replace(urlPattern, (url) => sanitizeEvidenceUrl(url))
     .replace(
       relativePathWithQueryPattern,
@@ -457,6 +464,7 @@ function sanitizePlainText(text: string, maxCharacters = 2000) {
   return (text ?? '')
     .replace(/\s+/g, ' ')
     .trim()
+    .replace(dataUriPattern, '[redacted-uri]')
     .replace(bareLocalPathPattern, (_match, prefix: string) => {
       return `${prefix}[redacted-path]`;
     })
