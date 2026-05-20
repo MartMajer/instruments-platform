@@ -55,7 +55,7 @@ export const autonomousFixtureMissions = [
     ],
     targetProductPaths: [
       autonomousProductPaths.longitudinalSampleWaves,
-      autonomousProductPaths.completedSampleResults,
+      autonomousProductPaths.longitudinalSampleResults,
       autonomousProductPaths.exports,
     ],
     reviewFocus: ['wave comparison', 'results readiness', 'downloadable export confidence'],
@@ -66,10 +66,14 @@ export const autonomousFixtureMissions = [
     goal: 'Autonomously inspect questionnaire and scoring readiness states for a consultant preparing a client study.',
     viewport: 'tablet',
     maxSteps: 8,
-    targetFixtureCatalogIds: ['setup:empty', 'setup:blocked', 'reports:missing-scores'],
+    targetFixtureCatalogIds: [
+      'setup:launch-ready',
+      'operations:launched-anonymous',
+      'reports:visible-aggregate',
+    ],
     targetProductPaths: [
-      autonomousProductPaths.ownStudySetup,
       autonomousProductPaths.completedSampleSetup,
+      autonomousProductPaths.completedSampleCollect,
       autonomousProductPaths.completedSampleResults,
     ],
     reviewFocus: ['questionnaire authoring', 'scoring rule readiness', 'client-ready wording'],

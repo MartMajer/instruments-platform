@@ -399,6 +399,25 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
       )} / ${stringValue(personaGoalAssessment?.targetCount)}`,
       ''
     );
+
+    const assessedCriteria = Array.isArray(personaGoalAssessment?.successCriteria)
+      ? personaGoalAssessment.successCriteria
+      : [];
+    if (assessedCriteria.length > 0) {
+      lines.push('- Criterion evidence:');
+      for (const entry of assessedCriteria) {
+        if (!isRecord(entry)) {
+          continue;
+        }
+
+        lines.push(
+          `- ${stringValue(entry.status)}: ${stringValue(entry.criterion)} - ${stringValue(
+            entry.evidence
+          )}`
+        );
+      }
+      lines.push('');
+    }
   }
 
   lines.push('## Findings', '');

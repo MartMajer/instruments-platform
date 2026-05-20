@@ -21,6 +21,12 @@ export const autonomousProductPaths = {
   get completedSampleResults() {
     return `/app/campaign-series/${this.completedSampleSeriesId}/reports`;
   },
+  get completedSampleCollect() {
+    return `/app/campaign-series/${this.completedSampleSeriesId}/operations`;
+  },
+  get longitudinalSampleResults() {
+    return `/app/campaign-series/${this.longitudinalSampleSeriesId}/reports`;
+  },
   get setupSampleSetup() {
     return `/app/campaign-series/${this.setupSampleSeriesId}/setup`;
   },
@@ -421,7 +427,16 @@ function operationsWorkspace(seriesId: string) {
 function reportsWorkspace(seriesId: string) {
   const empty = seriesId === autonomousProductPaths.ownStudySeriesId || seriesId === autonomousProductPaths.setupSampleSeriesId;
   const submittedResponseCount = empty ? 0 : 128;
-  const selectedCampaign = empty ? null : reportCampaign(seriesId);
+  const isLongitudinal = seriesId === autonomousProductPaths.longitudinalSampleSeriesId;
+  const campaigns = empty
+    ? []
+    : isLongitudinal
+      ? [
+          reportCampaign(seriesId, { campaignId, campaignName: 'Pulse wave 1' }),
+          reportCampaign(seriesId, { campaignId: comparisonCampaignId, campaignName: 'Pulse wave 2' }),
+        ]
+      : [reportCampaign(seriesId), reportDraftCampaign()];
+  const selectedCampaign = campaigns[0] ?? null;
 
   return {
     series: setupSeries(seriesId),
@@ -436,7 +451,7 @@ function reportsWorkspace(seriesId: string) {
       suppressedScoreCount: empty ? 0 : 5,
       missingPrerequisiteCount: empty ? 2 : 0,
       preliminaryLiveReportCount: empty ? 0 : 1,
-      closedWaveReportCount: seriesId === autonomousProductPaths.completedSampleSeriesId ? 1 : 0,
+      closedWaveReportCount: isLongitudinal ? 2 : seriesId === autonomousProductPaths.completedSampleSeriesId ? 1 : 0,
     },
     selectedCampaign,
     missingPrerequisites: empty
@@ -449,8 +464,8 @@ function reportsWorkspace(seriesId: string) {
           },
         ]
       : [],
-    exportArtifacts: empty ? [] : [exportArtifact()],
-    campaigns: empty ? [] : [reportCampaign(seriesId), reportDraftCampaign()],
+    exportArtifacts: empty ? [] : [exportArtifact(seriesId)],
+    campaigns,
     scoreCoverage: scoreCoverage(submittedResponseCount),
   };
 }
@@ -547,10 +562,20 @@ function wavesWorkspace(seriesId: string) {
 }
 
 function exportArtifactLibrary() {
+  const artifacts = [
+    exportArtifact(autonomousProductPaths.completedSampleSeriesId),
+    exportArtifact(autonomousProductPaths.longitudinalSampleSeriesId),
+  ];
+
   return {
     tenantId,
-    summary: { totalCount: 1, downloadableCount: 1, failedCount: 0, pendingCount: 0 },
-    artifacts: [exportArtifact()],
+    summary: {
+      totalCount: artifacts.length,
+      downloadableCount: artifacts.filter((artifact) => artifact.canDownload).length,
+      failedCount: 0,
+      pendingCount: 0,
+    },
+    artifacts,
   };
 }
 
@@ -751,10 +776,17 @@ function operationsCampaign(seriesId: string, submittedResponseCount: number) {
   };
 }
 
-function reportCampaign(seriesId: string) {
+function reportCampaign(
+  seriesId: string,
+  options: { campaignId?: string; campaignName?: string } = {}
+) {
+  const artifact = exportArtifact(seriesId);
+  const id = options.campaignId ?? campaignId;
+  const name = options.campaignName ?? 'Pulse wave 1';
+
   return {
-    id: campaignId,
-    name: seriesId === autonomousProductPaths.longitudinalSampleSeriesId ? 'Pulse wave 1' : 'Pulse wave 1',
+    id,
+    name,
     status: 'closed',
     responseIdentityMode:
       seriesId === autonomousProductPaths.longitudinalSampleSeriesId ? 'anonymous_longitudinal' : 'anonymous',
@@ -774,11 +806,11 @@ function reportCampaign(seriesId: string) {
     disclosureKMin: 5,
     reportStatus: 'proof_only',
     interpretationStatus: 'not_validated_interpretation',
-    latestExportArtifactId: '8e592f74-d0ca-4204-aead-fb00e9e5085a',
-    latestExportArtifactFileName: 'report-proof.csv',
-    latestExportArtifactStatus: 'succeeded',
-    latestExportArtifactCreatedAt: '2026-05-05T11:00:00Z',
-    latestExportArtifactCompletedAt: '2026-05-05T11:00:03Z',
+    latestExportArtifactId: artifact.id,
+    latestExportArtifactFileName: artifact.fileName,
+    latestExportArtifactStatus: artifact.status,
+    latestExportArtifactCreatedAt: artifact.createdAt,
+    latestExportArtifactCompletedAt: artifact.completedAt,
     latestExportArtifactStartedAt: null,
     latestExportArtifactFailedAt: null,
     latestExportArtifactExpiresAt: null,
@@ -853,18 +885,23 @@ function scoreCoverage(submittedResponseCount: number) {
   };
 }
 
-function exportArtifact() {
+function exportArtifact(seriesId = autonomousProductPaths.completedSampleSeriesId) {
+  const isLongitudinal = seriesId === autonomousProductPaths.longitudinalSampleSeriesId;
+  const targetLabel = isLongitudinal ? 'Longitudinal wave sample' : 'Pulse wave 1';
+  const fileName = isLongitudinal ? 'longitudinal-wave-comparison.csv' : 'report-proof.csv';
+
   return {
-    id: '8e592f74-d0ca-4204-aead-fb00e9e5085a',
+    id: isLongitudinal ? 'e493fd91-9f78-4bb5-b0ea-55e13f4e71e9' : '8e592f74-d0ca-4204-aead-fb00e9e5085a',
+    campaignSeriesId: seriesId,
     targetKind: 'campaign',
     targetId: campaignId,
-    targetLabel: 'Pulse wave 1',
+    targetLabel,
     campaignId,
     campaignName: 'Pulse wave 1',
     artifactType: 'report_proof_csv_codebook',
     status: 'succeeded',
     format: 'csv_codebook',
-    fileName: 'report-proof.csv',
+    fileName,
     rowCount: 120,
     byteSize: 2048,
     checksumSha256: 'checksum-sha256',

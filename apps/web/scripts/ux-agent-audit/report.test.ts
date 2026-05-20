@@ -218,6 +218,18 @@ describe('UX persona review report normalizer', () => {
         checkedCriteriaCount: 2,
         visitedTargetCount: 3,
         targetCount: 3,
+        successCriteria: [
+          {
+            criterion: 'The next action is obvious.',
+            status: 'observed',
+            evidence: 'Observed in Setup progress: Continue setup is visible.',
+          },
+          {
+            criterion: 'Questionnaire requirements are explained.',
+            status: 'unclear',
+            evidence: 'No direct transcript evidence found for this criterion.',
+          },
+        ],
       },
     };
     const result = await writeNormalizedReviewReport({
@@ -246,6 +258,9 @@ describe('UX persona review report normalizer', () => {
     expect(markdown).toContain('Dr. Ana Kovac');
     expect(markdown).toContain('Starting from /app');
     expect(markdown).toContain('Criteria checked: 2');
+    expect(markdown).toContain('Criterion evidence');
+    expect(markdown).toContain('observed');
+    expect(markdown).toContain('No direct transcript evidence');
   });
 
   it('rejects empty findings when the reviewer does not explain why the empty review is intentional', async () => {

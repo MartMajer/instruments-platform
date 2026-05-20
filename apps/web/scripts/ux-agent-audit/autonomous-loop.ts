@@ -164,7 +164,8 @@ export async function runAutonomousFixtureMission(
     mission,
     status,
     findings,
-    visitedProductPaths
+    visitedProductPaths,
+    snapshots
   );
   const observations = {
     autonomousMode: true,
@@ -349,7 +350,8 @@ function buildPersonaGoalAssessment(
   mission: AutonomousFixtureMission,
   status: MissionEvidenceStatus,
   findings: AutonomousPersonaFinding[],
-  visitedProductPaths: string[]
+  visitedProductPaths: string[],
+  snapshots: MissionPageSnapshot[]
 ) {
   const visitedTargetCount = mission.targetProductPaths.filter((path) =>
     visitedProductPaths.includes(path)
@@ -359,18 +361,248 @@ function buildPersonaGoalAssessment(
     status,
     appGoal: mission.personaProfile.appGoal,
     checkedCriteriaCount: mission.personaProfile.successCriteria.length,
-    successCriteria: mission.personaProfile.successCriteria.map((criterion) => ({
-      criterion,
-      evidence:
-        status === 'completed'
-          ? 'Mission visited all configured product surfaces for this persona goal.'
-          : 'Mission stopped before all configured product surfaces were reviewed.',
-    })),
+    successCriteria: mission.personaProfile.successCriteria.map((criterion) =>
+      assessCriterion(criterion, status, snapshots)
+    ),
     visitedTargetCount,
     targetCount: mission.targetProductPaths.length,
     unresolvedFindingCount: findings.length,
     reviewerInstructions: mission.personaProfile.reviewerInstructions,
   } satisfies JsonObject;
+}
+
+function assessCriterion(
+  criterion: string,
+  status: MissionEvidenceStatus,
+  snapshots: MissionPageSnapshot[]
+) {
+  const evidence = findCriterionEvidence(criterion, snapshots);
+
+  if (evidence) {
+    return {
+      criterion,
+      status: 'observed',
+      evidence: `Observed in ${evidence.label}: ${evidence.excerpt}`,
+    };
+  }
+
+  if (status === 'completed') {
+    return {
+      criterion,
+      status: 'unclear',
+      evidence:
+        'No direct transcript evidence found for this criterion; reviewer must judge it from captured snapshots rather than route visitation.',
+    };
+  }
+
+  return {
+    criterion,
+    status: 'not_observed',
+    evidence:
+      'Mission stopped before transcript evidence for this criterion was captured.',
+  };
+}
+
+function findCriterionEvidence(criterion: string, snapshots: MissionPageSnapshot[]) {
+  const terms = criterionTerms(criterion);
+  const normalizedCriterion = normalizeForMatching(criterion);
+  const preferredRoute = preferredRouteForCriterion(criterion);
+  let best:
+    | {
+        label: string;
+        excerpt: string;
+        score: number;
+      }
+    | undefined;
+
+  for (const snapshot of snapshots) {
+    const path = extractPath(snapshot.url);
+    for (const candidate of evidenceCandidates(snapshot)) {
+      const normalized = normalizeForMatching(candidate.text);
+      const matchCount = terms.filter((term) => normalized.includes(term)).length;
+
+      if (matchCount === 0) {
+        continue;
+      }
+
+      if (!candidateMeetsRequiredCriterionTerms(normalizedCriterion, normalized)) {
+        continue;
+      }
+
+      const preferredRouteBonus = preferredRoute && path.endsWith(preferredRoute) ? 4 : 0;
+      const genericEntryPenalty = preferredRoute && path === missionEntryPath ? 4 : 0;
+      const sectionBonus = candidate.kind === 'section' || candidate.kind === 'status' ? 1 : 0;
+      const score = matchCount + preferredRouteBonus + sectionBonus - genericEntryPenalty;
+
+      if (!best || score > best.score) {
+        best = {
+          label: `${routeLabel(path)}${candidate.label ? ` ${candidate.label}` : ''}`.trim(),
+          excerpt: excerptForEvidence(candidate.text),
+          score,
+        };
+      }
+    }
+  }
+
+  if (!best || best.score < 2) {
+    return undefined;
+  }
+
+  return best;
+}
+
+function candidateMeetsRequiredCriterionTerms(
+  normalizedCriterion: string,
+  normalizedCandidate: string
+) {
+  if (
+    normalizedCriterion.includes('questionnaire') &&
+    normalizedCriterion.includes('scoring')
+  ) {
+    return (
+      normalizedCandidate.includes('questionnaire') &&
+      /\b(scoring|score|scores|results setup|study results|answers become)\b/.test(
+        normalizedCandidate
+      )
+    );
+  }
+
+  if (
+    normalizedCriterion.includes('avoids') &&
+    normalizedCriterion.includes('claims') &&
+    (normalizedCriterion.includes('validated') || normalizedCriterion.includes('clinical'))
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+const missionEntryPath = '/app';
+
+function evidenceCandidates(snapshot: MissionPageSnapshot) {
+  const candidates: Array<{ kind: 'section' | 'status' | 'heading' | 'excerpt'; label: string; text: string }> = [];
+  const transcript = snapshot.richTranscript;
+
+  if (transcript) {
+    for (const [index, section] of transcript.sections.entries()) {
+      candidates.push({ kind: 'section', label: `section ${index + 1}`, text: section });
+    }
+
+    for (const [index, status] of transcript.statusMessages.entries()) {
+      candidates.push({ kind: 'status', label: `status ${index + 1}`, text: status });
+    }
+
+    for (const [index, heading] of transcript.headings.entries()) {
+      candidates.push({ kind: 'heading', label: `heading ${index + 1}`, text: heading });
+    }
+  }
+
+  if (candidates.length === 0) {
+    candidates.push({ kind: 'excerpt', label: '', text: snapshot.visibleTextExcerpt });
+  }
+
+  return candidates.filter((candidate) => candidate.text.trim().length > 0);
+}
+
+function preferredRouteForCriterion(criterion: string) {
+  const normalized = normalizeForMatching(criterion);
+
+  if (/\b(collection|draft|live|closed|waiting|responses|submission)\b/.test(normalized)) {
+    return '/operations';
+  }
+
+  if (/\b(results|export|handoff|analysis|download)\b/.test(normalized)) {
+    return '/reports';
+  }
+
+  if (/\b(wave|comparison|disclosure|anonymity|anonymous|change|clinical|validated)\b/.test(normalized)) {
+    return '/waves';
+  }
+
+  if (/\b(setup|questionnaire|scoring|recipient|invitation|roster|launch)\b/.test(normalized)) {
+    return '/setup';
+  }
+
+  return undefined;
+}
+
+function routeLabel(path: string) {
+  if (path.endsWith('/setup')) {
+    return 'Setup route';
+  }
+
+  if (path.endsWith('/operations')) {
+    return 'Collection route';
+  }
+
+  if (path.endsWith('/reports')) {
+    return 'Reports route';
+  }
+
+  if (path.endsWith('/waves')) {
+    return 'Waves route';
+  }
+
+  if (path === '/app/exports') {
+    return 'Exports route';
+  }
+
+  if (path === '/app') {
+    return 'App cockpit';
+  }
+
+  return path || 'Captured route';
+}
+
+function criterionTerms(criterion: string) {
+  const stopWords = new Set([
+    'about',
+    'after',
+    'before',
+    'being',
+    'clear',
+    'clearly',
+    'does',
+    'enough',
+    'from',
+    'into',
+    'know',
+    'makes',
+    'normal',
+    'obvious',
+    'page',
+    'quickly',
+    'says',
+    'should',
+    'that',
+    'their',
+    'there',
+    'this',
+    'what',
+    'when',
+    'where',
+    'whether',
+    'will',
+    'with',
+    'work',
+  ]);
+
+  return Array.from(
+    new Set(
+      normalizeForMatching(criterion)
+        .split(/\s+/)
+        .filter((term) => term.length > 3 && !stopWords.has(term))
+    )
+  );
+}
+
+function normalizeForMatching(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function excerptForEvidence(value: string) {
+  return value.replace(/\s+/g, ' ').trim().slice(0, 240);
 }
 
 function combinedSnapshotText(snapshot: MissionPageSnapshot) {

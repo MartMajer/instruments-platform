@@ -49,6 +49,40 @@ describe('autonomous local product read models', () => {
         `/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/waves-workspace`
       )?.json
     ).toEqual(expect.objectContaining({ summary: expect.objectContaining({ submittedWaveCount: 2 }) }));
+    expect(
+      resolveAutonomousProductApiResponse(
+        'GET',
+        `/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/reports-workspace`
+      )?.json
+    ).toEqual(
+      expect.objectContaining({
+        series: expect.objectContaining({
+          id: autonomousProductPaths.longitudinalSampleSeriesId,
+          name: 'Longitudinal wave sample',
+        }),
+        campaigns: expect.arrayContaining([
+          expect.objectContaining({
+            id: '6d3271db-494f-401d-af8b-a5c86c9293a8',
+            name: 'Pulse wave 2',
+            responseIdentityMode: 'anonymous_longitudinal',
+          }),
+        ]),
+      })
+    );
+  });
+
+  it('keeps export artifacts tied to the product series a wave mission reviewed', () => {
+    expect(resolveAutonomousProductApiResponse('GET', '/export-artifacts')?.json).toEqual(
+      expect.objectContaining({
+        artifacts: expect.arrayContaining([
+          expect.objectContaining({
+            campaignSeriesId: autonomousProductPaths.longitudinalSampleSeriesId,
+            targetLabel: 'Longitudinal wave sample',
+            fileName: 'longitudinal-wave-comparison.csv',
+          }),
+        ]),
+      })
+    );
   });
 
   it('serves setup support read models needed by recipient selection controls', () => {

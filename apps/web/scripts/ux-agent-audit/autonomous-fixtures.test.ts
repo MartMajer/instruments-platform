@@ -31,8 +31,13 @@ describe('autonomous fixture-backed UX missions', () => {
     ]);
     expect(resolveAutonomousMissionTargetPaths('fixture-wave-results-comparison')).toEqual([
       autonomousProductPaths.longitudinalSampleWaves,
-      autonomousProductPaths.completedSampleResults,
+      autonomousProductPaths.longitudinalSampleResults,
       autonomousProductPaths.exports,
+    ]);
+    expect(resolveAutonomousMissionTargetPaths('fixture-questionnaire-scoring')).toEqual([
+      autonomousProductPaths.completedSampleSetup,
+      autonomousProductPaths.completedSampleCollect,
+      autonomousProductPaths.completedSampleResults,
     ]);
   });
 

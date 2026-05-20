@@ -1,3 +1,15 @@
+# Next Session Plan - Post-D373
+
+Current queue head: wait for or review the D373 persona reviewer results, then triage only evidence-backed UX tickets.
+
+D373 hardened UXA01 after the first reviewer pass exposed harness-validity issues. The current artifacts are:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T17-20-14-506Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T17-20-20-192Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T17-20-23-757Z/`
+
+Recommended next move: read the subagent persona reviews for those artifacts. If they identify product issues backed by transcript text, cut a narrow UI/UX fix. If they only identify harness limits, improve UXA01 rather than product UI. Do not treat local UXA01 output as staging proof, production monitoring, or validator evidence.
+
 # Next Session Plan - Post-D368
 
 Current queue head: run UXA01 locally and triage findings. No new agent-executable product slice is selected by default.

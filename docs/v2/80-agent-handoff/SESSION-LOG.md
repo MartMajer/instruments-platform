@@ -19054,3 +19054,27 @@ Proof artifacts:
 - `artifacts/ux-agent-runs/local/run-2026-05-20T16-31-13-233Z/`
 
 Queue: Next optional UXA01 improvement is qualitative criterion grading from transcripts. Without that layer, personas have real goals and report context, but the actor remains deterministic.
+## 2026-05-20 - Codex
+
+**Goal:** Harden UXA01 after persona reviewers found harness-validity issues in D372 artifacts.
+**Did:** Added D373 plan and assessment; fixed longitudinal wave mission consistency, consultant collection coverage, export artifact context, transcript-backed persona criterion evidence, and markdown criterion rendering. Updated `docs/v2/40-ops/local-ux-agent-audit-harness.md`, `NEXT-ACTIONS.md`, and `NEXT-SESSION-PLAN.md`.
+**Decisions:** No ADRs. Kept UXA01 local-only and deterministic; criterion statuses are conservative (`observed`, `unclear`, `not_observed`) rather than claims of task success.
+**Open questions raised:** None.
+**Verification:** Focused RED tests failed 5 intended assertions. Focused GREEN tests passed 4/4 files and 25/25 tests. Full UXA01 Vitest passed 13/13 files and 80/80 tests. Local Vite browser proof ran all three autonomous missions against `/app` with 0 findings / 0 tickets: `run-2026-05-20T17-13-22-535Z`, `run-2026-05-20T17-13-42-024Z`, `run-2026-05-20T17-13-45-657Z`.
+**Next:** Review the D373 persona subagent feedback. Fix product UI only for transcript-backed product tickets; otherwise keep improving UXA01 evidence quality.
+## 2026-05-20 - Codex correction
+
+**Goal:** Correct the D373 session-log verification after the second reviewer-driven hardening pass.
+**Did:** Replaced generic criterion snippets with route/section-specific evidence and changed the OSH-consultant mission to use one consistent completed sample across Setup, Collection, and Results/export.
+**Decisions:** No ADRs.
+**Open questions raised:** None.
+**Verification:** Second RED/GREEN focused tests passed after failing the intended same-study and route-specific-evidence assertions. Full UXA01 Vitest passed 13/13 files and 81/81 tests. Final local Vite browser proof artifacts are `run-2026-05-20T17-17-51-707Z`, `run-2026-05-20T17-17-57-438Z`, and `run-2026-05-20T17-18-01-097Z`; all three completed with 0 findings / 0 tickets.
+**Next:** Use the final D373 reviewer feedback to decide whether to cut product UI tickets for `Proof` wording/export clarity, or keep those as later UX polish.
+## 2026-05-20 - Codex correction 2
+
+**Goal:** Correct the D373 verification after tightening the questionnaire/scoring evidence selector.
+**Did:** Added a regression so questionnaire/scoring criteria cannot be satisfied by instrument-only setup text, then updated the matcher to require both questionnaire and scoring/results evidence.
+**Decisions:** No ADRs.
+**Open questions raised:** None.
+**Verification:** Focused RED failed on instrument-only evidence; GREEN focused autonomous-loop test passed 7/7. Full UXA01 Vitest passed 13/13 files and 82/82 tests. Final local Vite browser proof artifacts are `run-2026-05-20T17-20-14-506Z`, `run-2026-05-20T17-20-20-192Z`, and `run-2026-05-20T17-20-23-757Z`; all three completed with 0 findings / 0 tickets.
+**Next:** Product tickets surfaced by the consultant persona remain separate from harness validity: completed-vs-live lifecycle copy, `Proof` terminology, and report export vs response export clarity.

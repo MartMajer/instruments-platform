@@ -10,7 +10,7 @@ Use it when the app feels confusing and the next question is: "What would a fres
 
 ## Current scope
 
-Implemented mission:
+Implemented fixed mission:
 
 - `create-first-study` for persona `first-time-researcher`
 
@@ -138,9 +138,21 @@ Each profile defines role, domain knowledge, patience, app goal, success criteri
 
 D372 local proof ran all three autonomous missions against `/app`; each mission completed, visited 3 target product paths, checked 5 persona criteria, and rendered the persona goal in the markdown report.
 
+## D373 criterion-validity hardening
+
+The first persona reviewer pass found harness-validity gaps rather than product tickets. D373 tightened those gaps before treating autonomous output as ticket input:
+
+- The wave/results mission now keeps the same longitudinal study context across Waves, Reports, and Exports.
+- The export library includes a longitudinal export artifact tied to the reviewed study context.
+- The OSH-consultant mission now includes Collection between Setup and Results/export, so it covers setup, collection state, and client handoff.
+- `personaGoalAssessment.successCriteria` now uses `observed`, `unclear`, or `not_observed` and cites transcript excerpts instead of saying route visitation proves success.
+- Normalized markdown reports now render criterion evidence.
+
+D373 local proof ran all three autonomous missions against `/app`. Each mission visited 3 target product paths. All three completed with 0 generated findings and 0 next-action tickets.
+
 ## Known limits
 
-- Only one mission/persona is implemented.
+- Fixed non-autonomous mode has one mission/persona. Autonomous mode has three local persona missions.
 - It is local-first; staging-cookie mode is intentionally deferred.
 - It does not do random monkey clicking.
 - It does not mutate app state through risky product actions.
