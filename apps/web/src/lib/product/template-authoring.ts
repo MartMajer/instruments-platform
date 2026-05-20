@@ -47,6 +47,18 @@ export type ScoreOutputAuthoringRow = {
 	includedQuestionCodes: string[];
 };
 
+export type QuestionScoringDirectionKind =
+	| 'higher_increases_score'
+	| 'higher_reversed_before_score'
+	| 'number_increases_score'
+	| 'not_scored';
+
+export type QuestionScoringDirectionSummary = {
+	kind: QuestionScoringDirectionKind;
+	label: string;
+	detail: string;
+};
+
 const defaultQuestionText = [
 	'After work, I need time to recover mentally.',
 	'During demanding weeks, small interruptions feel harder to handle.',
@@ -425,6 +437,65 @@ export function buildScoreProduces(outputs: ScoreOutputAuthoringRow[]): string {
 		null,
 		2
 	);
+}
+
+export function describeQuestionScoringDirection(
+	row: TemplateQuestionAuthoringRow
+): QuestionScoringDirectionSummary {
+	if (row.type === 'number') {
+		return {
+			kind: 'number_increases_score',
+			label: 'Higher numbers increase included result scores',
+			detail:
+				'Number answers are used as entered in every result output that includes this question.'
+		};
+	}
+
+	if (!isScaleBackedType(row.type)) {
+		return {
+			kind: 'not_scored',
+			label: 'Collected but not scored',
+			detail:
+				'This answer format is collected for context, but it is not used in numeric result scores.'
+		};
+	}
+
+	if (row.reverseCoded) {
+		return {
+			kind: 'higher_reversed_before_score',
+			label: 'Higher answers are reversed before scoring',
+			detail: `${row.scaleMax} (${row.scaleHighLabel.trim()}) is converted toward ${row.scaleMin}; ${row.scaleMin} (${row.scaleLowLabel.trim()}) is converted toward ${row.scaleMax}. Use this for protective wording when the result score should still point in one direction.`
+		};
+	}
+
+	return {
+		kind: 'higher_increases_score',
+		label: 'Higher answers increase included result scores',
+		detail: `${row.scaleMin} (${row.scaleLowLabel.trim()}) to ${row.scaleMax} (${row.scaleHighLabel.trim()}) is used as entered in every result output that includes this question.`
+	};
+}
+
+export function describeQuestionResultUsage(
+	row: TemplateQuestionAuthoringRow,
+	outputs: ScoreOutputAuthoringRow[]
+): string {
+	if (!isMeanScoreEligible(row)) {
+		return 'Not available for numeric result outputs.';
+	}
+
+	const labels = outputs
+		.filter((output) =>
+			output.includedQuestionCodes.some(
+				(code) => code.trim().toLowerCase() === row.code.trim().toLowerCase()
+			)
+		)
+		.map((output) => output.name.trim() || output.code.trim() || 'Untitled result');
+
+	if (!labels.length) {
+		return 'Not included in any result output yet.';
+	}
+
+	return `Used in: ${labels.join(', ')}.`;
 }
 
 function normalizeScoreOutputs(

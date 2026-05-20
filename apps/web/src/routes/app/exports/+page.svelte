@@ -45,7 +45,7 @@
 			}
 
 			library = null;
-			errorMessage = toProductApiErrorMessage(error, 'Export artifacts could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, 'Export files could not be loaded.');
 			loadState = 'error';
 		}
 	}
@@ -58,10 +58,10 @@
 />
 
 <section class="product-panel" data-priority="primary" aria-label="Export workspace">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading export artifacts">
+	<LoadingBoundary loading={loadState === 'loading'} label="Loading export files">
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Export artifacts unavailable"
+				title="Export files unavailable"
 				message={errorMessage}
 				retryLabel="Retry exports"
 				onRetry={loadExportArtifacts}

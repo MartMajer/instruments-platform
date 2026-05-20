@@ -307,7 +307,7 @@
 			reportsWidgetManifest = null;
 			reportsWidgetManifestWarning = toSelectedSeriesErrorMessage(
 				error,
-				'Report widgets could not be loaded.'
+				'Results summary could not be loaded.'
 			);
 		}
 	}
@@ -1154,7 +1154,7 @@
 								{surfaceView.proofActionDescription}
 							</p>
 						</div>
-						<span class="status-badge" data-status="proof_only">Proof-only</span>
+						<span class="status-badge" data-status="proof_only">Preview workflow</span>
 					</div>
 					<ProofWorkflowSurface
 						{surface}

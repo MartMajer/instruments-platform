@@ -1,4 +1,4 @@
-﻿# Local UX agent audit harness
+# Local UX agent audit harness
 
 Status: local-only tooling for owner/developer UX review. It is not a staging smoke, not a production monitor, and not a replacement for owner validation calls.
 
@@ -16,6 +16,7 @@ Implemented paths:
 - autonomous fixture missions for local persona review
 - autonomous full-stack boundary mission for proving non-mocked local app/API/database access
 - autonomous full-stack create-study mutation mission for a disposable local development stack
+- autonomous realistic OSH full-stack mission that creates a believable local study and saves the first instrument setup step
 
 The mission is intentionally conservative:
 
@@ -23,7 +24,7 @@ The mission is intentionally conservative:
 - does not depend on staging credentials or Auth0 success
 - records sign-in blocking as an observation instead of failing the run
 - navigates product routes when local dev auth gives access
-- avoids create/save/launch/export/invite/delete actions
+- avoids launch/export/invite/delete actions outside explicit local full-stack mutation missions
 - captures sanitized structural observations, not raw tenant data
 
 ## Data-safety policy
@@ -154,6 +155,88 @@ The first persona reviewer pass found harness-validity gaps rather than product 
 
 D373 local proof ran all three autonomous missions against `/app`. Each mission visited 3 target product paths. All three completed with 0 generated findings and 0 next-action tickets.
 
+## D388 post-seed assessment and copy-smell hardening
+
+UXA05 exposed two harness-validity issues and one product-copy issue after the D384-D387 product fixes.
+
+The harness now:
+
+- checks primary product route text for proof/artifact wording such as `Proof foundation`, `Proof only`, and `Export artifact`
+- recomputes `personaGoalAssessment` after realistic full-stack seeding inspects Collection and Results
+- adds seeded Collection and Results paths to `targetProductPaths` and `visitedProductPaths`
+- requires route-specific transcript evidence for route-specific persona criteria
+- reads the raw created-study URL only in memory for local full-stack seeding, validates that the extracted series id is GUID-shaped, and writes only sanitized/redacted URLs to evidence
+
+The app copy cleanup paired with this harness pass removed remaining primary Results leaks from widget titles/messages/status values and formatted report dates as Croatian-style date/time without nanoseconds.
+
+Latest local proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T21-07-25-451Z/`
+
+That proof used the real local app/API/database with product read-model mocks disabled. It created a realistic OSH warehouse study, seeded 21 submitted/scored responses, inspected Collection and Results, and completed with 0 findings and 0 next-action tickets.
+
+## D390 full-stack synthetic study cleanup
+
+UXA07 adds a local-only cleanup command for disposable full-stack UXA studies:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-cleanup --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth
+```
+
+Dry-run is the default. To archive matched rows:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-cleanup --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --apply
+```
+
+Safety boundaries:
+
+- local loopback API URLs only
+- development auth required
+- archives through `POST /campaign-series/{id}/archive`
+- no direct database deletes
+- no staging or production cleanup
+- only known UXA synthetic study names are matched
+
+Matched names currently include:
+
+- `UXA full-stack mutation ...`
+- `UXA local study ...`
+- `Warehouse workload and recovery pulse`
+- `Academic workload and recovery follow-up`
+
+D390 runtime proof archived 20 active UXA synthetic studies from the disposable local stack. A post-apply dry-run returned `matchedCount: 0`.
+## D389 repeated-wave full-stack mission
+
+UXA06 adds a realistic busy-professor full-stack mission:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-academic-repeated-wave-review --data-mode fullstack --fullstack-dev-auth --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+The mission creates `Academic workload and recovery follow-up`, saves the first instrument setup step, then seeds the created study through the local API with two closed anonymous-longitudinal waves:
+
+- `Baseline academic workload survey - May 2026`
+- `Follow-up academic workload survey - June 2026`
+
+The repeated-wave seed uses campaign open links plus stable participant codes. It does not use invitation batches because the API intentionally rejects email invitation batches for `anonymous_longitudinal` campaigns.
+
+D389 local proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T21-38-40-538Z/`
+- product read-model mocks disabled
+- two anonymous-longitudinal waves
+- 32 submitted responses
+- 32 score runs
+- two closed campaigns
+- Collection, Waves, and Results inspected after seeding
+- busy-professor persona criteria observed: 5 of 5
+- findings: 0
+- next-action tickets: 0
+
+D389 also hardens persona-goal assessment so it recognizes disclosure/anonymity and not-validated claim-safety evidence from real product transcripts, including `Disclosure visible / k 5`, `internal review only`, and client-facing claims not being validated.
+
+Known follow-up: repeated full-stack missions now leave many synthetic studies in the disposable local database. Add a safe UXA cleanup/reset path before using the harness for long multi-run review sessions.
 ## D374 full-stack boundary and persona action protocol
 
 UXA02 adds an explicit autonomous data-mode boundary:
@@ -268,6 +351,92 @@ Verified local proof:
 - next-action tickets: 0
 
 Evidence records `autonomousDataMode=fullstack`, `productReadModelMocks=disabled`, and `fullstackDevAuth=enabled`.
+
+## D382 realistic OSH full-stack mission
+
+UXA03 now has its first realistic local persona mission plus evidence-level synthetic response simulation:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-osh-warehouse-pulse --data-mode fullstack --fullstack-dev-auth --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+The mission uses the OSH consultant persona and the synthetic case `Warehouse workload and recovery pulse`.
+
+It performs visible UI actions against the local full-stack app:
+
+- opens `/app`
+- clicks `Studies Plan studies`
+- fills `Study name`
+- clicks `Create study`
+- fills `Instrument name`
+- clicks `Save instrument`
+- stops after the realistic study and first setup step are saved
+
+Evidence includes the case profile:
+
+- study name: `Warehouse workload and recovery pulse`
+- instrument name: `Warehouse workload and recovery instrument`
+- campaign name: `Baseline warehouse pulse - May 2026`
+- ten OSH questions across workload, control, support, recovery, and musculoskeletal strain
+- synthetic response simulation: 24 respondents, 21 completed response rows, 3 omitted responses, three workplace segments, and six dimension risk summaries
+
+Verified local proof:
+
+- full UXA suite: 19 files / 127 tests passed
+- artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T19-19-05-318Z/`
+- status: `completed`
+- data mode: `fullstack`
+- product read-model mocks: `disabled`
+- full-stack dev auth: `enabled`
+- final URL: `/app/campaign-series/019e46d3-d649-7bf9-a0e0-3694c38b57c0/setup`
+- findings: 0
+
+D382 was the first realistic mission slice. D383 completes UXA03-B locally by adding app-visible campaign/results seeding and bundled persona tickets.
+
+## D383 realistic campaign/results seed and persona bundle
+
+`fullstack-osh-warehouse-pulse` now has a local-only full-stack seed plan. After the browser creates the study and saves the instrument step, the harness derives the created campaign-series id from the local URL and seeds the same local study through the local API.
+
+The seeder refuses non-loopback API URLs. It is for disposable local API/database state only and must not be pointed at staging or production.
+
+The seed bridge creates:
+
+- a template version with the realistic OSH questions
+- a scoring rule for the case dimensions
+- a campaign inside the newly created study
+- a launch snapshot
+- an invitation batch with synthetic local recipients
+- 21 public open-link respondent sessions
+- 21 submitted response sessions
+- 21 scored response sessions
+
+After seeding, the browser captures Collection and Results. The D383 proof reached Results with 21 submitted responses and 126 visible scores.
+
+Run the mission:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-osh-warehouse-pulse --data-mode fullstack --fullstack-dev-auth --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+Bundle persona reviewer output after reviewer JSON files are saved under `<run-dir>/persona-reviews/`:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/persona-review-bundle.ts --run-dir ../../artifacts/ux-agent-runs/local/<run-dir> --review-dir ../../artifacts/ux-agent-runs/local/<run-dir>/persona-reviews --mission fullstack-osh-warehouse-pulse
+```
+
+D383 local proof:
+
+- full UXA suite: 21 files / 133 tests passed
+- artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T19-34-02-977Z/`
+- status: `completed`
+- final URL: `/app/campaign-series/[redacted]/reports`
+- invitations: 21
+- submitted responses: 21
+- scored responses: 21
+- visible scores in Results: 126
+- persona reviews bundled: 3 reviewers, 9 findings, 5 themes, 9 next-action tickets
+
+The first persona bundle themes are Results client-readiness, interpretation validity, Collection lifecycle clarity, audience/recipient context, questionnaire/scoring semantics, and primary-path technical wording.
 
 ## D375 full-stack development-auth mutation mission
 

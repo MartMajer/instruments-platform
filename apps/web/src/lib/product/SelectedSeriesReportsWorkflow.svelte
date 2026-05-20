@@ -13,6 +13,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
+		toSelectedSeriesResultsHandoffStatus,
 		toSelectedSeriesReportsPath,
 		type SelectedSeriesReportsPathStepState,
 		type SelectedSeriesReportsWorkflowActionId
@@ -111,6 +112,7 @@
 		csvDownloaded: Boolean(downloadResult)
 	});
 	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
+	const handoffStatus = $derived(toSelectedSeriesResultsHandoffStatus(workspace, localState));
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
 	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);
@@ -350,15 +352,41 @@
 			<p class="product-kicker">Results workflow</p>
 			<h3 class="product-title">Review and export results</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Review aggregate results, create governed exports, and download files when ready.
+				Review aggregate results, resolve client-readiness gaps, and create export files when ready.
 			</p>
 		</div>
-		<StatusBadge status={currentAction.status} label={currentAction.title} />
+		<StatusBadge status={handoffStatus.overallStatus} label={handoffStatus.overallLabel} />
 	</div>
 
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<article class="score-result-panel report-proof-panel" role="region" aria-label="Client handoff status">
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">Client handoff status</p>
+				<h4 class="record-row__title">{handoffStatus.headline}</h4>
+				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+					{handoffStatus.guidance}
+				</p>
+			</div>
+			<StatusBadge status={handoffStatus.overallStatus} label={handoffStatus.overallLabel} />
+		</div>
+		<dl class="record-grid">
+			{#each handoffStatus.lanes as lane (lane.id)}
+				<div class="record-field">
+					<dt class="record-field__label">{lane.label}</dt>
+					<dd class="record-field__value">{lane.title}</dd>
+					<dd class="text-sm text-[var(--color-text-muted)]">{lane.detail}</dd>
+				</div>
+			{/each}
+		</dl>
+		<p class="result-line">
+			<span>Next action</span>
+			<span>{handoffStatus.nextAction}</span>
+		</p>
+	</article>
 
 	<div class="setup-path" role="list" aria-label="Review and export path">
 		{#each reportsPath.steps as action, index (action.id)}
@@ -464,7 +492,7 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'exportArtifact',
-						label: 'Create report export',
+						label: 'Create client export',
 						resultLabel: 'Export file',
 						resultValue:
 							exportResult?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null,

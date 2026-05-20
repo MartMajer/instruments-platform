@@ -74,7 +74,7 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 		summary:
 			'Start with availability, coverage, limitations, and export next use before reference metadata.',
 		inspectFirst:
-			'Inspect result availability and coverage before acting on charts or export artifacts.',
+			'Inspect result availability and coverage before acting on charts or export files.',
 		whenItMatters:
 			'Use this after collection has submissions or when results look suppressed or preliminary.',
 		nextMove: 'Use exports after the result story and limitations are understood.'
@@ -88,13 +88,13 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 		nextMove: 'For a single-wave study, return to Review results or Exports.'
 	},
 	exports: {
-		title: 'Use generated artifacts',
+		title: 'Use generated files',
 		summary: 'Find study-support files by readiness, purpose, source context, and next use.',
-		inspectFirst: 'Inspect ready downloads and attention items before opening artifact metadata.',
+		inspectFirst: 'Inspect ready downloads and attention items before opening file details.',
 		whenItMatters:
 			'Use this when analysis handoff, codebook review, or result packets need generated files.',
 		nextMove:
-			'Open the source study results page when you need to understand how an artifact was generated.'
+			'Open the source study results page when you need to understand how an export file was generated.'
 	},
 	instruments: {
 		title: 'Check launchable instruments',
@@ -198,7 +198,7 @@ function applyEmptyState(guidance: ProductRouteGuidanceView, id: ProductRouteGui
 	}
 
 	if (id === 'exports') {
-		guidance.inspectFirst = 'No export artifacts exist yet.';
+		guidance.inspectFirst = 'No export files exist yet.';
 		guidance.nextMove = 'Create an export from a study results page after results are available.';
 		return;
 	}

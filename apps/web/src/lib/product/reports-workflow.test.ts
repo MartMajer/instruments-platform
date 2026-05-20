@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 import {
+	toSelectedSeriesResultsHandoffStatus,
 	toSelectedSeriesReportsPath,
 	toSelectedSeriesReportsWorkflowActions
 } from './reports-workflow';
@@ -14,31 +15,31 @@ describe('selected-series reports workflow model', () => {
 				id: 'reportProof',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create or select a campaign before reviewing the report preview.'
+				disabledReason: 'Create or select a wave before reviewing results.'
 			}),
 			expect.objectContaining({
 				id: 'exportArtifact',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'View report preview before creating an export artifact.'
+				disabledReason: 'Review results before creating a report export.'
 			}),
 			expect.objectContaining({
 				id: 'responseExport',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'View report preview before creating a response export artifact.'
+				disabledReason: 'Review results before creating a response export.'
 			}),
 			expect.objectContaining({
 				id: 'fetchArtifact',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create or select an export artifact before fetching it.'
+				disabledReason: 'Create or select an export file before reviewing it.'
 			}),
 			expect.objectContaining({
 				id: 'downloadCsv',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create or select an export artifact before downloading CSV.'
+				disabledReason: 'Create or select an export file before downloading CSV.'
 			})
 		]);
 	});
@@ -49,7 +50,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'reportProof')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Resolve report prerequisites before reviewing the report preview.'
+			disabledReason: 'Resolve report prerequisites before reviewing results.'
 		});
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'blocked',
@@ -58,7 +59,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Resolve report prerequisites before creating a response export artifact.'
+			disabledReason: 'Resolve report prerequisites before creating a response export.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'blocked',
@@ -77,12 +78,12 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'View report preview before creating an export artifact.'
+			disabledReason: 'Review results before creating a report export.'
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'View report preview before creating a response export artifact.'
+			disabledReason: 'Review results before creating a response export.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'blocked',
@@ -100,7 +101,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'View report preview before creating an export artifact.'
+			disabledReason: 'Review results before creating a report export.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'pending',
@@ -110,7 +111,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'View report preview before creating a response export artifact.'
+			disabledReason: 'Review results before creating a response export.'
 		});
 		expect(actions.find((action) => action.id === 'downloadCsv')).toMatchObject({
 			status: 'pending',
@@ -141,7 +142,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'downloadCsv')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Select a downloadable export artifact before downloading CSV.'
+			disabledReason: 'Select a downloadable export file before downloading CSV.'
 		});
 	});
 
@@ -161,12 +162,12 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Export artifact was created in this session.'
+			disabledReason: 'Report export was created in this session.'
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Response export artifact was created in this session.'
+			disabledReason: 'Response export was created in this session.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'ready',
@@ -184,7 +185,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Response export artifact already exists for this series.'
+			disabledReason: 'Response export already exists for this study.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'pending',
@@ -202,7 +203,7 @@ describe('selected-series reports workflow model', () => {
 		const path = toSelectedSeriesReportsPath(reportableWorkspace);
 
 		expect(path.currentActionId).toBe('reportProof');
-		expect(path.currentAction.title).toBe('Report preview');
+		expect(path.currentAction.title).toBe('Review results');
 		expect(path.completedCount).toBe(0);
 		expect(path.steps.find((step) => step.id === 'reportProof')).toMatchObject({
 			pathState: 'current'
@@ -273,6 +274,50 @@ describe('selected-series reports workflow model', () => {
 		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
 			pathState: 'current'
 		});
+	});
+
+	it('separates preview readiness from client handoff readiness for live unexported results', () => {
+		const handoffStatus = toSelectedSeriesResultsHandoffStatus(reportableWorkspace);
+
+		expect(handoffStatus).toMatchObject({
+			overallStatus: 'blocked',
+			overallLabel: 'Not client-ready',
+			headline: 'Preview ready; client handoff not ready',
+			guidance:
+				'Use these results for internal review only. Validate interpretation, create the client export, and resolve finality before client handoff.',
+			nextAction: 'Validate interpretation limits, then create a client export.'
+		});
+		expect(handoffStatus.lanes).toEqual([
+			expect.objectContaining({
+				id: 'operational',
+				label: 'Operational status',
+				title: 'Preview data is ready',
+				status: 'ready',
+				detail: '12 submitted responses and 12 visible scores are available for review.'
+			}),
+			expect.objectContaining({
+				id: 'interpretation',
+				label: 'Interpretation status',
+				title: 'Needs interpretation validation',
+				status: 'blocked',
+				detail:
+					'Scoring is available, but the meaning, limits, and client-facing claims have not been validated.'
+			}),
+			expect.objectContaining({
+				id: 'export',
+				label: 'Export status',
+				title: 'Client export not created',
+				status: 'pending',
+				detail: 'Create a client export before sharing files or closing the report handoff.'
+			}),
+			expect.objectContaining({
+				id: 'finality',
+				label: 'Finality status',
+				title: 'Preliminary live data',
+				status: 'pending',
+				detail: 'Collection is still live. Results can change until the wave is closed.'
+			})
+		]);
 	});
 });
 

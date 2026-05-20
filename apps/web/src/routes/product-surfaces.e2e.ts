@@ -105,7 +105,7 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	await expect(totals.getByText('2', { exact: true })).toBeVisible();
 	await expect(totals.getByText('Submitted responses', { exact: true })).toBeVisible();
 	await expect(totals.getByText('128', { exact: true })).toBeVisible();
-	await expect(totals.getByText('Export artifacts', { exact: true })).toBeVisible();
+	await expect(totals.getByText('Export files', { exact: true })).toBeVisible();
 	await expect(totals.getByText('5', { exact: true })).toBeVisible();
 	await expect(page.locator(`[href*="${oldFoundationSeriesId}"]`)).toHaveCount(0);
 
@@ -511,7 +511,7 @@ test('renders route guidance before top-level route work panels', async ({ page 
 		},
 		{
 			path: '/app/exports',
-			title: 'Use generated artifacts',
+			title: 'Use generated files',
 			surface: 'Export workspace'
 		}
 	];
@@ -837,7 +837,7 @@ test('renders instrument library summary and visible instruments', async ({ page
 	).toHaveAttribute('href', '/app/campaign-series');
 });
 
-test('renders export artifact library summary and latest artifacts', async ({ page }) => {
+test('renders export file library summary and latest artifacts', async ({ page }) => {
 	await page.goto('/app/exports');
 
 	await expect(page.getByRole('heading', { name: 'Use exports', exact: true })).toBeVisible();
@@ -846,16 +846,16 @@ test('renders export artifact library summary and latest artifacts', async ({ pa
 
 	const library = page.getByRole('region', { name: 'Export workspace' });
 	const overview = library.getByRole('group', { name: 'Export overview' });
-	const artifacts = library.getByLabel('Export artifacts');
+	const artifacts = library.getByLabel('Export files');
 	const reference = library.getByRole('group', { name: 'Export reference' });
 
 	await expect(overview.getByText('Ready downloads', { exact: true })).toBeVisible();
 	await expect(
-		overview.getByText('1 export artifact is ready to download.', { exact: true })
+		overview.getByText('1 export file is ready to download.', { exact: true })
 	).toBeVisible();
 	await expect(overview.getByText('Needs attention', { exact: true })).toBeVisible();
 	await expect(
-		overview.getByText('1 export artifact needs attention.', { exact: true })
+		overview.getByText('1 export file needs attention.', { exact: true })
 	).toBeVisible();
 	await expect(
 		overview.getByText('Exports cover Report summary export and Response dataset export.', {
@@ -863,12 +863,12 @@ test('renders export artifact library summary and latest artifacts', async ({ pa
 		})
 	).toBeVisible();
 	await expect(
-		overview.getByText('Artifacts are tied to Baseline wave and Response study.', { exact: true })
+		overview.getByText('Export files are tied to Baseline wave and Response study.', { exact: true })
 	).toBeVisible();
 	await expectElementBefore(overview, artifacts);
 
-	const counts = reference.getByRole('group', { name: 'Export artifact counts' });
-	await expect(counts.locator('div').filter({ hasText: 'Export artifacts' })).toContainText('2');
+	const counts = reference.getByRole('group', { name: 'Export file counts' });
+	await expect(counts.locator('div').filter({ hasText: 'Export files' })).toContainText('2');
 	await expect(counts.locator('div').filter({ hasText: 'Downloadable' })).toContainText('1');
 	await expect(counts.locator('div').filter({ hasText: 'Failed' })).toContainText('1');
 	await expect(counts.locator('div').filter({ hasText: 'Pending' })).toContainText('0');
@@ -885,7 +885,7 @@ test('renders export artifact library summary and latest artifacts', async ({ pa
 	).toBeVisible();
 	await expect(report.getByText('Baseline wave', { exact: true })).toBeVisible();
 	await expect(report.getByText('Succeeded', { exact: true })).toBeVisible();
-	await expect(report.getByText('Report proof csv codebook', { exact: true })).toBeVisible();
+	await expect(report.getByText('Report summary CSV and codebook', { exact: true })).toBeVisible();
 	await expect(report.getByText('Download')).toBeVisible();
 	await expect(report.getByText('Available', { exact: true })).toBeVisible();
 
@@ -1480,9 +1480,9 @@ test('renders product surfaces read-only without setup management permission', a
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 	await expect(page.getByRole('region', { name: 'Results reference' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Create export artifact' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Create client export' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Create response export' })).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Fetch stored artifact' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Review export file' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Download CSV' })).toHaveCount(0);
 
 	await page.goto('/app/team');
@@ -1836,7 +1836,7 @@ test('renders selected study overview from the product read model', async ({ pag
 	await expect(totals.getByText('128', { exact: true })).toBeVisible();
 	await expect(totals.getByText('Scores', { exact: true })).toBeVisible();
 	await expect(totals.getByText('120', { exact: true })).toBeVisible();
-	await expect(totals.getByText('Export artifacts', { exact: true })).toBeVisible();
+	await expect(totals.getByText('Export files', { exact: true })).toBeVisible();
 	await expect(totals.getByText('5', { exact: true })).toBeVisible();
 
 	const governance = reference.getByRole('group', { name: 'Governance status' });
@@ -1883,7 +1883,7 @@ test('renders selected study overview from the product read model', async ({ pag
 	await expect(campaign.getByText('128', { exact: true })).toBeVisible();
 	await expect(campaign.getByText('Scores', { exact: true })).toBeVisible();
 	await expect(campaign.getByText('120', { exact: true })).toBeVisible();
-	await expect(campaign.getByText('Export artifacts', { exact: true })).toBeVisible();
+	await expect(campaign.getByText('Export files', { exact: true })).toBeVisible();
 	await expect(campaign.getByText('5', { exact: true })).toBeVisible();
 
 	await expect(hub.getByRole('link', { name: 'Setup', exact: true })).toHaveAttribute(
@@ -2494,7 +2494,7 @@ test('renders selected-series context on child product routes', async ({ page })
 				'launch-snapshot-id',
 				'report-proof.csv',
 				'Scores',
-				'Export artifacts',
+				'Export files',
 				'Selected-series report snapshot',
 				'Selected-series review and export workflow'
 			]
@@ -2655,7 +2655,7 @@ test('product wayfinding keeps selected-series workspace context and current rou
 			current: 'Operations',
 			primary: { role: 'group' as const, name: 'Collection progress' },
 			reference: { role: 'region' as const, name: 'Collection reference' },
-			safetyLabels: ['Proof/local']
+			safetyLabels: ['Preview ready']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
@@ -2663,7 +2663,7 @@ test('product wayfinding keeps selected-series workspace context and current rou
 			current: 'Reports',
 			primary: { role: 'group' as const, name: 'Results overview' },
 			reference: { role: 'region' as const, name: 'Results reference' },
-			safetyLabels: ['Proof/local', 'Finality and provenance', 'Suppressed scores']
+			safetyLabels: ['Preview ready', 'Finality and provenance', 'Suppressed scores']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/waves`,
@@ -2671,7 +2671,7 @@ test('product wayfinding keeps selected-series workspace context and current rou
 			current: 'Waves',
 			primary: { role: 'group' as const, name: 'Wave comparison snapshot' },
 			reference: { role: 'region' as const, name: 'Waves selected-series context' },
-			safetyLabels: ['Proof/local']
+			safetyLabels: ['Preview ready']
 		}
 	];
 
@@ -2729,17 +2729,17 @@ test('product vocabulary avoids proof-harness phrases in normal app workflows', 
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
 			surface: 'Collection workspace',
-			allowedLabels: ['Proof/local']
+			allowedLabels: ['Preview ready']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
 			surface: 'Results workspace',
-			allowedLabels: ['Proof/local', 'not validated interpretation']
+			allowedLabels: ['Preview ready', 'not validated interpretation']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/waves`,
 			surface: 'Waves and linked trajectories',
-			allowedLabels: ['Proof/local']
+			allowedLabels: ['Preview ready']
 		}
 	];
 	const bannedWorkflowPhrases = [
@@ -2819,7 +2819,7 @@ test('product UI foundation exposes stable landmarks and route hierarchy', async
 		reports.getByRole('group', { name: 'Results overview' }),
 		reports.getByRole('region', { name: 'Results reference' })
 	);
-	await expect(reports.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(reports.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(reports.getByText('Finality and provenance', { exact: true })).toBeVisible();
 });
 
@@ -2838,7 +2838,7 @@ test('waves workflow renders primary actions instead of the proof workbench', as
 	await expect(
 		workflow.getByRole('heading', { name: 'Selected-series waves workflow' })
 	).toBeVisible();
-	await expect(workflow.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(workflow.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(waves.getByRole('region', { name: 'Proof action workbench' })).toHaveCount(0);
 });
 
@@ -2951,7 +2951,7 @@ test('operations workspace loads the dedicated read model and renders operations
 	await expect(
 		workflow.getByRole('heading', { name: 'Selected-series collection workflow' })
 	).toBeVisible();
-	await expect(workflow.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(workflow.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(operations.getByRole('region', { name: 'Proof action workbench' })).toHaveCount(0);
 	await expect
 		.poll(() => requestedProductPaths)
@@ -3008,7 +3008,7 @@ test('operations route leads with collection progress before reference detail', 
 	await expect(
 		workflow.getByRole('heading', { name: 'Selected-series collection workflow' })
 	).toBeVisible();
-	await expect(workflow.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(workflow.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 
 	await expect(reference.getByText(sampleSeriesId, { exact: true })).toBeVisible();
 	await expect(reference.getByText('launch-snapshot-id', { exact: true }).first()).toBeVisible();
@@ -3495,7 +3495,7 @@ test('reports workspace loads the dedicated read model and renders report state'
 	await expect(
 		workflow.getByRole('heading', { name: 'Selected-series review and export workflow' })
 	).toBeVisible();
-	await expect(workflow.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(workflow.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(reports.getByRole('region', { name: 'Proof action workbench' })).toHaveCount(0);
 	await expect
 		.poll(() => requestedProductPaths)
@@ -3514,14 +3514,14 @@ test('reports route leads with result availability, limits, and export next use'
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
 	const overview = reports.getByRole('group', { name: 'Results overview' });
-	const widgets = reports.getByRole('region', { name: 'Report widgets' });
+	const widgets = reports.getByRole('region', { name: 'Results summary' });
 	const snapshot = reports.getByRole('group', { name: 'Report snapshot' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	const reference = reports.getByRole('region', { name: 'Results reference' });
 
 	await expect(overview).toBeVisible();
 	await expect(
-		overview.getByText('Pulse wave 1 has proof only results from 128 submitted responses.', {
+		overview.getByText('Pulse wave 1 has preview results from 128 submitted responses.', {
 			exact: true
 		})
 	).toBeVisible();
@@ -3561,7 +3561,7 @@ test('reports route leads with result availability, limits, and export next use'
 	await expectElementBefore(workflow, reference);
 });
 
-test('Report widgets render known and unsupported manifest widgets before workflow', async ({
+test('Results summary render known and unsupported manifest widgets before workflow', async ({
 	page
 }) => {
 	await page.route(
@@ -3602,7 +3602,7 @@ test('Report widgets render known and unsupported manifest widgets before workfl
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
-	const widgets = reports.getByRole('region', { name: 'Report widgets' });
+	const widgets = reports.getByRole('region', { name: 'Results summary' });
 	await expect(widgets).toBeVisible();
 	await expect(widgets.getByRole('article', { name: 'Score coverage' })).toBeVisible();
 	await expect(widgets.getByText('Scored', { exact: true })).toBeVisible();
@@ -3613,20 +3613,20 @@ test('Report widgets render known and unsupported manifest widgets before workfl
 	await expect(reports.getByRole('group', { name: 'Review and export actions' })).toBeVisible();
 });
 
-test('Report widgets render the current backend-known manifest without unsupported fallbacks', async ({
+test('Results summary render the current backend-known manifest without unsupported fallbacks', async ({
 	page
 }) => {
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
-	const widgets = reports.getByRole('region', { name: 'Report widgets' });
+	const widgets = reports.getByRole('region', { name: 'Results summary' });
 	await expect(widgets).toBeVisible();
 
 	for (const title of [
 		'Report readiness',
 		'Score coverage',
 		'Selected campaign report state',
-		'Export artifact registry',
+		'Export files',
 		'Visual analytics',
 		'Finality and provenance'
 	]) {
@@ -3636,7 +3636,7 @@ test('Report widgets render the current backend-known manifest without unsupport
 	await expect(widgets.getByText('Unsupported', { exact: true })).toHaveCount(0);
 });
 
-test('Report widgets manifest delay does not block reports workspace', async ({ page }) => {
+test('Results summary manifest delay does not block reports workspace', async ({ page }) => {
 	let releaseManifest = () => {};
 	const manifestGate = new Promise<void>((resolve) => {
 		releaseManifest = resolve;
@@ -3667,7 +3667,7 @@ test('Report widgets manifest delay does not block reports workspace', async ({ 
 	await expect(reports.getByRole('group', { name: 'Review and export actions' })).toBeVisible();
 
 	releaseManifest();
-	const widgets = reports.getByRole('region', { name: 'Report widgets' });
+	const widgets = reports.getByRole('region', { name: 'Results summary' });
 	await expect(widgets.getByRole('article', { name: 'Score coverage' })).toBeVisible();
 });
 
@@ -3690,7 +3690,7 @@ test('report snapshot renders selected campaign aggregate proof as route content
 	await expect(
 		snapshot.getByRole('heading', { name: 'Selected-series report snapshot' })
 	).toBeVisible();
-	await expect(snapshot.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(snapshot.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(
 		snapshot.getByText('not_validated_interpretation', { exact: true }).first()
 	).toBeVisible();
@@ -3757,7 +3757,7 @@ test('report dashboard renders selected campaign decision surface semantics', as
 	await expect(readiness.getByText('Selected campaign', { exact: true })).toBeVisible();
 	await expect(readiness.getByText('Pulse wave 1', { exact: true })).toBeVisible();
 	await expect(readiness.getByText('Report status', { exact: true })).toBeVisible();
-	await expect(readiness.getByText('proof only', { exact: true })).toBeVisible();
+	await expect(readiness.getByText('preview', { exact: true })).toBeVisible();
 	await expect(readiness.getByText('not validated interpretation', { exact: true })).toBeVisible();
 
 	const disclosure = dashboard.getByRole('group', { name: 'Disclosure guardrails' });
@@ -3771,13 +3771,13 @@ test('report dashboard renders selected campaign decision surface semantics', as
 	await expect(provenance.getByText('Scoring rule', { exact: true })).toBeVisible();
 
 	const exportReadiness = dashboard.getByRole('group', { name: 'Export readiness' });
-	await expect(exportReadiness.getByText('Latest export artifact', { exact: true })).toBeVisible();
+	await expect(exportReadiness.getByText('Latest export file', { exact: true })).toBeVisible();
 	await expect(exportReadiness.getByText('report-proof.csv', { exact: true })).toBeVisible();
 	await expect(exportReadiness.getByText('succeeded', { exact: true })).toBeVisible();
 
-	const registry = dashboard.getByRole('group', { name: 'Export artifact registry' });
+	const registry = dashboard.getByRole('group', { name: 'Export files' });
 	await expect(registry.getByText('report-proof.csv', { exact: true })).toBeVisible();
-	await expect(registry.getByText('report proof csv codebook', { exact: true })).toBeVisible();
+	await expect(registry.getByText('report summary CSV and codebook', { exact: true })).toBeVisible();
 	await expect(registry.getByText('csv codebook', { exact: true })).toBeVisible();
 	await expect(registry.getByText('120 rows', { exact: true })).toBeVisible();
 	await expect(registry.getByText('2,048 bytes', { exact: true })).toBeVisible();
@@ -3788,7 +3788,7 @@ test('report dashboard renders selected campaign decision surface semantics', as
 
 	const visualAnalytics = dashboard.getByRole('group', { name: 'Report visual analytics' });
 	await expect(
-		visualAnalytics.getByText('Proof-only / not validated', { exact: true })
+		visualAnalytics.getByText('Preview / not validated', { exact: true })
 	).toBeVisible();
 	await expect(visualAnalytics.getByTestId('report-visual-analytics-chart')).toBeVisible();
 
@@ -3813,7 +3813,7 @@ test('report dashboard renders selected campaign decision surface semantics', as
 	await expect(scoreRows.getByText('cohort_lt_k_min', { exact: true })).toBeVisible();
 	await expect(scoreRows.getByText('Suppressed', { exact: true }).first()).toBeVisible();
 
-	await expect(snapshot.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(snapshot.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(
 		snapshot.getByText('not_validated_interpretation', { exact: true }).first()
 	).toBeVisible();
@@ -3946,9 +3946,9 @@ test('reports workflow exposes one current reports task for a reportable campaig
 	await expect(workflow.getByRole('heading', { name: 'Current review task' })).toBeVisible();
 	await expect(currentTask).toContainText('Report preview');
 	await expect(workflow.getByRole('button', { name: 'View report preview' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Create export artifact' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Create client export' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Create response export' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Fetch stored artifact' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Review export file' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Download CSV' })).toHaveCount(0);
 });
 
@@ -4159,11 +4159,11 @@ test('reports workflow runs primary report and export actions against the select
 	await reportProofButton.click();
 	await expect(workflow.getByRole('region', { name: 'Report preview' })).toBeVisible();
 
-	await expect(currentTask).toContainText('Export artifact');
-	const exportButton = currentTask.getByRole('button', { name: 'Create export artifact' });
+	await expect(currentTask).toContainText('Export file');
+	const exportButton = currentTask.getByRole('button', { name: 'Create client export' });
 	await expect(exportButton).toBeEnabled();
 	await exportButton.click();
-	await expect(workflow.getByRole('region', { name: 'Export artifact result' })).toBeVisible();
+	await expect(workflow.getByRole('region', { name: 'Report export result' })).toBeVisible();
 
 	await expect(currentTask).toContainText('Response export');
 	const responseExportButton = currentTask.getByRole('button', { name: 'Create response export' });
@@ -4171,8 +4171,8 @@ test('reports workflow runs primary report and export actions against the select
 	await responseExportButton.click();
 	await expect(workflow.getByRole('region', { name: 'Response export result' })).toBeVisible();
 
-	await expect(currentTask).toContainText('Stored artifact');
-	await currentTask.getByRole('button', { name: 'Fetch stored artifact' }).click();
+	await expect(currentTask).toContainText('Review export file');
+	await currentTask.getByRole('button', { name: 'Review export file' }).click();
 	await expect(currentTask).toContainText('CSV download');
 	await currentTask.getByRole('button', { name: 'Download CSV' }).click();
 	await expect(currentTask.getByText('Downloaded CSV', { exact: true })).toBeVisible();
@@ -4192,7 +4192,7 @@ test('reports workflow runs primary report and export actions against the select
 	await expect(
 		reports.getByText('updated-report-proof.csv', { exact: true }).first()
 	).toBeVisible();
-	await expect(reports.getByText('Export artifacts', { exact: true }).first()).toBeVisible();
+	await expect(reports.getByText('Export files', { exact: true }).first()).toBeVisible();
 	await expect(reports.getByText('1', { exact: true }).first()).toBeVisible();
 });
 
@@ -4254,7 +4254,7 @@ test('waves workspace loads the dedicated read model and renders wave state', as
 	await expect(
 		workflow.getByRole('heading', { name: 'Selected-series waves workflow' })
 	).toBeVisible();
-	await expect(workflow.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(workflow.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(waves.getByRole('region', { name: 'Proof action workbench' })).toHaveCount(0);
 	await expect
 		.poll(() => requestedProductPaths)
@@ -4278,7 +4278,7 @@ test('wave comparison snapshot renders selected wave proof as route content', as
 	await expect(
 		snapshot.getByRole('heading', { name: 'Selected-series wave comparison snapshot' })
 	).toBeVisible();
-	await expect(snapshot.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(snapshot.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(
 		snapshot.getByText('not_validated_interpretation', { exact: true }).first()
 	).toBeVisible();
@@ -4324,7 +4324,7 @@ test('wave dashboard renders selected comparison decision surface semantics', as
 
 	const comparisonStatus = dashboard.getByRole('group', { name: 'Comparison status' });
 	await expect(comparisonStatus.getByText('Proof status', { exact: true })).toBeVisible();
-	await expect(comparisonStatus.getByText('proof only', { exact: true })).toBeVisible();
+	await expect(comparisonStatus.getByText('preview', { exact: true })).toBeVisible();
 	await expect(
 		comparisonStatus.getByText('not validated interpretation', { exact: true })
 	).toBeVisible();
@@ -4346,7 +4346,7 @@ test('wave dashboard renders selected comparison decision surface semantics', as
 
 	const visualAnalytics = dashboard.getByRole('group', { name: 'Wave visual analytics' });
 	await expect(
-		visualAnalytics.getByText('Proof-only / not validated', { exact: true })
+		visualAnalytics.getByText('Preview / not validated', { exact: true })
 	).toBeVisible();
 	await expect(visualAnalytics.getByTestId('wave-visual-analytics-chart')).toBeVisible();
 
@@ -4375,7 +4375,7 @@ test('wave dashboard renders selected comparison decision surface semantics', as
 	await expect(scoreRows.getByText('linked_pairs_lt_k_min', { exact: true })).toBeVisible();
 	await expect(scoreRows.getByText('Suppressed', { exact: true }).first()).toBeVisible();
 
-	await expect(snapshot.getByText('Proof/local', { exact: true }).first()).toBeVisible();
+	await expect(snapshot.getByText('Preview ready', { exact: true }).first()).toBeVisible();
 	await expect(
 		snapshot.getByText('not_validated_interpretation', { exact: true }).first()
 	).toBeVisible();
@@ -6488,7 +6488,7 @@ const sampleCampaignSeriesHub: CampaignSeriesHubResponse = {
 			id: 'reports',
 			label: 'Reports',
 			status: 'proof_only',
-			guidance: 'Report preview can be reviewed; create an export artifact before handoff.',
+			guidance: 'Report preview can be reviewed; create an export file before handoff.',
 			route: 'reports',
 			actionLabel: 'Open reports'
 		},
@@ -6871,7 +6871,7 @@ const sampleReportsWorkspace: CampaignSeriesReportsWorkspaceResponse = {
 	missingPrerequisites: [
 		{
 			code: 'export_artifact.missing',
-			label: 'Export artifact',
+			label: 'Export file',
 			message: 'Create a report preview export before handoff.',
 			severity: 'advisory'
 		}
@@ -7074,7 +7074,7 @@ const sampleReportsWidgetManifest: CampaignSeriesReportsWidgetManifestResponse =
 		{
 			id: 'export-artifact-registry',
 			kind: 'export-artifact-registry/v1',
-			title: 'Export artifact registry',
+			title: 'Export files',
 			size: 'full',
 			state: 'ready',
 			message: null,

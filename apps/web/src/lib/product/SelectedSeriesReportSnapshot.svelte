@@ -154,7 +154,7 @@
 			<p class="product-kicker">Report dashboard</p>
 			<h4 class="record-row__title">Selected-series report dashboard</h4>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Latest governed report preview for the selected campaign.
+				Latest report preview for the selected campaign.
 			</p>
 		</div>
 
@@ -265,19 +265,17 @@
 
 		<div
 			role="group"
-			aria-label="Export artifact registry"
+			aria-label="Export files"
 			class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 		>
 			<div>
-				<p class="product-kicker">Artifacts</p>
-				<h5 class="text-base font-semibold text-[var(--color-text)]">
-					Export artifact registry
-				</h5>
+				<p class="product-kicker">Exports</p>
+				<h5 class="text-base font-semibold text-[var(--color-text)]">Export files</h5>
 			</div>
 			{#if dashboardView.artifactRegistry.length > 0}
 				<div class="record-list">
 					{#each dashboardView.artifactRegistry as artifact (artifact.id)}
-						<article class="record-row" aria-label={`Export artifact ${artifact.title}`}>
+						<article class="record-row" aria-label={`Export file ${artifact.title}`}>
 							<div class="record-row__header">
 								<div>
 									<p class="record-field__label">{artifact.targetLabel}</p>
@@ -312,8 +310,8 @@
 				</div>
 			{:else if dashboardView.available}
 				<p class="record-row text-sm text-[var(--color-text-muted)]">
-					<strong class="record-row__title">No stored export artifacts yet</strong>
-					<span>Create an aggregate report-proof export to register a stored artifact.</span>
+					<strong class="record-row__title">No stored export files yet</strong>
+					<span>Create a report export before downloading a file.</span>
 				</p>
 			{/if}
 		</div>
@@ -363,10 +361,10 @@
 			<section class="score-result-panel report-proof-panel" aria-label="Aggregate report snapshot">
 				<div class="score-result-panel__header">
 					<div>
-						<p class="product-kicker">Proof/local report</p>
+						<p class="product-kicker">Report preview</p>
 						<h4 class="record-row__title">{snapshotView.campaignName}</h4>
 					</div>
-					<StatusBadge status="proof_only" label="Proof/local" />
+					<StatusBadge status="proof_only" label="Preview" />
 				</div>
 
 				<div class="response-lab__meta">

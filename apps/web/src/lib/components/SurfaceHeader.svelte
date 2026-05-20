@@ -3,12 +3,14 @@
 		eyebrow,
 		title,
 		description,
-		statusLabel = 'Proof foundation'
+		statusLabel = 'Study workspace',
+		status = 'neutral'
 	}: {
 		eyebrow: string;
 		title: string;
 		description: string;
 		statusLabel?: string;
+		status?: string;
 	} = $props();
 </script>
 
@@ -19,6 +21,6 @@
 			<h1 class="surface-header__title">{title}</h1>
 			<p class="surface-header__description">{description}</p>
 		</div>
-		<span class="status-badge" data-status="proof_only">{statusLabel}</span>
+		<span class="status-badge" data-status={status}>{statusLabel}</span>
 	</div>
 </header>

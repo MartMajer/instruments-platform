@@ -162,7 +162,7 @@ export function toTenantSettingsView(settings: TenantSettingsWorkspaceResponse) 
 			{ label: 'Subject groups', value: formatCount(settings.counts.subjectGroupCount) },
 			{ label: 'Tenant members', value: formatCount(settings.counts.tenantMemberCount) },
 			{ label: 'Tenant roles', value: formatCount(settings.counts.tenantRoleCount) },
-			{ label: 'Export artifacts', value: formatCount(settings.counts.exportArtifactCount) }
+			{ label: 'Export files', value: formatCount(settings.counts.exportArtifactCount) }
 		],
 		managementLinks: settings.managementLinks.map((link) => ({
 			id: link.id,
@@ -214,13 +214,13 @@ export function toExportArtifactLibraryView(library: ExportArtifactLibraryRespon
 		surfaceTitle: 'Use exports',
 		surfaceEyebrow: 'Study support',
 		surfaceDescription:
-			'Find generated CSV/codebook artifacts by purpose, readiness, source study, and next use.',
+			'Find generated CSV/codebook files by purpose, readiness, source study, and next use.',
 		referenceTitle: 'Export reference',
 		referenceDescription:
 			'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.',
 		exportOverview: toExportArtifactLibraryOverview(library),
 		metricRows: [
-			{ label: 'Export artifacts', value: formatCount(library.summary.totalCount) },
+			{ label: 'Export files', value: formatCount(library.summary.totalCount) },
 			{ label: 'Downloadable', value: formatCount(library.summary.downloadableCount) },
 			{ label: 'Failed', value: formatCount(library.summary.failedCount) },
 			{ label: 'Pending', value: formatCount(library.summary.pendingCount) }
@@ -281,7 +281,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse) {
 			'Use this overview to prepare, collect, review results, and compare waves for the selected study.',
 		referenceTitle: 'Study reference',
 		referenceDescription:
-			'Technical identifiers, governance proof, and campaign rows for this selected study.',
+			'Technical identifiers, governance records, and campaign rows for this selected study.',
 		title: hub.name.trim() || 'Untitled campaign series',
 		subtitle: `${hub.totals.campaignCount} ${hub.totals.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${hub.totals.liveCampaignCount} live`,
 		rows,
@@ -298,9 +298,9 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse) {
 		lifecycleMap: toCampaignSeriesHubLifecycleMap(hub),
 		lifecycleItems: hub.lifecycle.map((item) => ({
 			id: item.id,
-			label: item.label,
+			label: toProductDisplayCopy(item.label),
 			status: toProductReadModelBadgeStatus(item.status),
-			guidance: item.guidance,
+			guidance: toProductDisplayCopy(item.guidance),
 			route: item.route,
 			actionLabel: item.actionLabel
 		})),
@@ -313,7 +313,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse) {
 				{ label: 'Locale', value: campaign.defaultLocale },
 				{ label: 'Submitted responses', value: formatCount(campaign.submittedResponseCount) },
 				{ label: 'Scores', value: formatCount(campaign.scoreCount) },
-				{ label: 'Export artifacts', value: formatCount(campaign.exportArtifactCount) }
+				{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) }
 			]
 		}))
 	};
@@ -331,7 +331,7 @@ function toCampaignSeriesHubLifecycleMap(hub: CampaignSeriesHubResponse) {
 				label: phase.label,
 				status: toProductReadModelBadgeStatus(item.status),
 				description: phase.description,
-				guidance: item.guidance,
+				guidance: toProductDisplayCopy(item.guidance),
 				route: item.route,
 				href: `/app/campaign-series/${hub.id}/${item.route}`,
 				actionLabel: item.actionLabel
@@ -355,7 +355,7 @@ function campaignSeriesHubLifecyclePhase(id: CampaignSeriesHubResponse['lifecycl
 		case 'reports':
 			return {
 				label: 'Review results',
-				description: 'Inspect findings, report widgets, limitations, and exports.'
+				description: 'Inspect findings, result summaries, limitations, and exports.'
 			};
 		case 'waves':
 			return {
@@ -446,8 +446,8 @@ export function toCampaignSeriesSetupWorkspaceView(
 			: [],
 		missingPrerequisiteRows: workspace.missingPrerequisites.map((item) => ({
 			code: item.code,
-			label: item.label,
-			message: item.message,
+			label: toProductDisplayCopy(item.label),
+			message: toProductDisplayCopy(item.message),
 			severity: item.severity,
 			status: 'blocked' as ProductReadModelBadgeStatus
 		})),
@@ -559,8 +559,8 @@ export function toCampaignSeriesOperationsWorkspaceView(
 			: [],
 		missingPrerequisiteRows: workspace.missingPrerequisites.map((item) => ({
 			code: item.code,
-			label: item.label,
-			message: item.message,
+			label: toProductDisplayCopy(item.label),
+			message: toProductDisplayCopy(item.message),
 			severity: item.severity,
 			status: 'blocked' as ProductReadModelBadgeStatus
 		})),
@@ -620,7 +620,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 			{ label: 'Suppressed scores', value: formatCount(workspace.summary.suppressedScoreCount) },
 			...optionalCountRow('Preliminary live reports', workspace.summary.preliminaryLiveReportCount),
 			...optionalCountRow('Closed-wave reports', workspace.summary.closedWaveReportCount),
-			{ label: 'Export artifacts', value: formatCount(workspace.summary.exportArtifactCount) },
+			{ label: 'Export files', value: formatCount(workspace.summary.exportArtifactCount) },
 			{
 				label: 'Missing prerequisites',
 				value: formatCount(workspace.summary.missingPrerequisiteCount)
@@ -635,8 +635,8 @@ export function toCampaignSeriesReportsWorkspaceView(
 			: [],
 		missingPrerequisiteRows: workspace.missingPrerequisites.map((item) => ({
 			code: item.code,
-			label: item.label,
-			message: item.message,
+			label: toProductDisplayCopy(item.label),
+			message: toProductDisplayCopy(item.message),
 			severity: item.severity,
 			status: (item.severity === 'advisory' ? 'pending' : 'blocked') as ProductReadModelBadgeStatus
 		})),
@@ -655,7 +655,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 				: null,
 		proofActionTitle: 'Review and export actions',
 		proofActionDescription:
-			'Report preview, aggregate export artifact, retrieval, response export, and download actions stay available below.'
+			'Report preview, client export files, response exports, and download actions stay available below.'
 	};
 }
 
@@ -726,8 +726,8 @@ export function toCampaignSeriesWavesWorkspaceView(
 				: [],
 		missingPrerequisiteRows: workspace.missingPrerequisites.map((item) => ({
 			code: item.code,
-			label: item.label,
-			message: item.message,
+			label: toProductDisplayCopy(item.label),
+			message: toProductDisplayCopy(item.message),
 			severity: item.severity,
 			status: (item.severity === 'advisory' ? 'pending' : 'blocked') as ProductReadModelBadgeStatus
 		})),
@@ -1037,7 +1037,7 @@ function toWorkspaceTotalRows(totals: WorkspaceOverviewResponse['totals']): Disp
 		{ label: 'Campaigns', value: formatCount(totals.campaignCount) },
 		{ label: 'Live campaigns', value: formatCount(totals.liveCampaignCount) },
 		{ label: 'Submitted responses', value: formatCount(totals.submittedResponseCount) },
-		{ label: 'Export artifacts', value: formatCount(totals.exportArtifactCount) }
+		{ label: 'Export files', value: formatCount(totals.exportArtifactCount) }
 	];
 }
 
@@ -1077,7 +1077,7 @@ const workspaceLifecycleSteps = [
 	{
 		id: 'export',
 		label: 'Export',
-		description: 'Use generated CSV and codebook artifacts for analysis.'
+		description: 'Use generated CSV and codebook files for analysis.'
 	}
 ] as const;
 
@@ -1146,7 +1146,7 @@ const campaignSeriesPortfolioStatusOptions = [
 	{ value: 'all', label: 'All readiness' },
 	{ value: 'not_configured', label: 'Not configured' },
 	{ value: 'pending', label: 'Pending' },
-	{ value: 'proof_only', label: 'Proof only' }
+	{ value: 'proof_only', label: 'Preview' }
 ] as const;
 
 const campaignSeriesPortfolioSortOptions = [
@@ -1180,7 +1180,7 @@ function toCampaignSeriesHubTotalRows(totals: CampaignSeriesHubResponse['totals'
 		{ label: 'Live campaigns', value: formatCount(totals.liveCampaignCount) },
 		{ label: 'Submitted responses', value: formatCount(totals.submittedResponseCount) },
 		{ label: 'Scores', value: formatCount(totals.scoreCount) },
-		{ label: 'Export artifacts', value: formatCount(totals.exportArtifactCount) }
+		{ label: 'Export files', value: formatCount(totals.exportArtifactCount) }
 	];
 }
 
@@ -1198,7 +1198,7 @@ function toSelectedSeriesSummaryRows(
 			return [
 				{ label: 'Submitted responses', value: formatCount(hub.totals.submittedResponseCount) },
 				{ label: 'Scores', value: formatCount(hub.totals.scoreCount) },
-				{ label: 'Export artifacts', value: formatCount(hub.totals.exportArtifactCount) }
+				{ label: 'Export files', value: formatCount(hub.totals.exportArtifactCount) }
 			];
 		case 'operations':
 		case 'waves':
@@ -1231,7 +1231,7 @@ function toSelectedSeriesCampaignRows(
 			return [
 				{ label: 'Submitted responses', value: formatCount(campaign.submittedResponseCount) },
 				{ label: 'Scores', value: formatCount(campaign.scoreCount) },
-				{ label: 'Export artifacts', value: formatCount(campaign.exportArtifactCount) }
+				{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) }
 			];
 		case 'operations':
 		case 'waves':
@@ -2148,10 +2148,10 @@ function toReportsExportNextUseItem(
 			label: 'Export next use',
 			status: 'blocked',
 			badgeLabel: 'No exports',
-			summary: 'No report export artifact is available yet.',
+			summary: 'No report export file is available yet.',
 			guidance: 'Create an export after report results become available.',
 			detailRows: [
-				{ label: 'Export artifacts', value: formatCount(exportArtifactCount) },
+				{ label: 'Export files', value: formatCount(exportArtifactCount) },
 				{ label: 'Latest export file', value: latestExportFile ?? 'Not available' },
 				{ label: 'Latest export status', value: latestExportStatus ?? 'Not available' },
 				{ label: 'Latest export downloadable', value: canDownload ? 'Yes' : 'No' }
@@ -2163,14 +2163,14 @@ function toReportsExportNextUseItem(
 		id: 'export_next_use',
 		label: 'Export next use',
 		status: canDownload ? 'ready' : 'pending',
-		badgeLabel: `${formatCount(exportArtifactCount)} ${pluralize(exportArtifactCount, 'artifact', 'artifacts')}`,
+		badgeLabel: `${formatCount(exportArtifactCount)} ${pluralize(exportArtifactCount, 'file', 'files')}`,
 		summary: canDownload
 			? `Latest export ${latestExportFile ?? 'Not available'} is downloadable.`
 			: `Latest export ${latestExportFile ?? 'Not available'} is not downloadable yet.`,
 		guidance:
-			'Download the latest artifact for handoff, or create a fresh export after results change.',
+			'Download the latest export file for handoff, or create a fresh export after results change.',
 		detailRows: [
-			{ label: 'Export artifacts', value: formatCount(exportArtifactCount) },
+			{ label: 'Export files', value: formatCount(exportArtifactCount) },
 			{ label: 'Latest export file', value: latestExportFile ?? 'Not available' },
 			{ label: 'Latest export status', value: latestExportStatus ?? 'Not available' },
 			{ label: 'Latest export downloadable', value: canDownload ? 'Yes' : 'No' }
@@ -2195,7 +2195,7 @@ function toReportsCampaignDetailRows(
 		{ label: 'Scores', value: formatCount(campaign.scoreCount) },
 		{ label: 'Visible scores', value: formatCount(campaign.visibleScoreCount) },
 		{ label: 'Suppressed scores', value: formatCount(campaign.suppressedScoreCount) },
-		{ label: 'Export artifacts', value: formatCount(campaign.exportArtifactCount) }
+		{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) }
 	];
 }
 
@@ -2212,7 +2212,7 @@ function toReportsCampaignProvenanceRows(
 		...optionalTextRow('Closed at', campaign.closedAt),
 		...optionalIdRow('Closed by', campaign.closedByUserId),
 		...optionalTextRow('Close reason', campaign.closeReason),
-		reportsIdRow('Latest export artifact', campaign.latestExportArtifactId),
+		reportsIdRow('Latest export record', campaign.latestExportArtifactId),
 		{
 			label: 'Latest export file',
 			value: campaign.latestExportArtifactFileName ?? 'Not available'
@@ -2271,7 +2271,7 @@ function toReportsCampaignSummaryRows(
 		{ label: 'Disclosure', value: humanizeValue(campaign.disclosureState) },
 		{ label: 'Report status', value: humanizeValue(campaign.reportStatus) },
 		...optionalDataFinalityRow('Data finality', campaign.dataFinality),
-		{ label: 'Export artifacts', value: formatCount(campaign.exportArtifactCount) },
+		{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) },
 		{ label: 'Latest export', value: campaign.latestExportArtifactFileName ?? 'Not available' }
 	];
 }
@@ -2381,7 +2381,7 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 				},
 				proofActionTitle: 'Report preview actions',
 				proofActionDescription:
-					'Report preview, aggregate export artifact, retrieval, and download actions remain proof-only.'
+					'Report preview, client export files, and download actions stay available for result review.'
 			};
 		case 'waves':
 			return {
@@ -2693,16 +2693,16 @@ function toExportArtifactLibraryOverview(
 				downloadableCount > 0
 					? `${formatCount(downloadableCount)} export ${pluralize(
 							downloadableCount,
-							'artifact is',
-							'artifacts are'
+							'file is',
+							'files are'
 						)} ready to download.`
-					: 'No export artifacts are ready to download yet.',
+					: 'No export files are ready to download yet.',
 			guidance:
 				downloadableCount > 0
-					? 'Use ready artifacts for analysis handoff, review packets, or codebook checks.'
+					? 'Use ready export files for analysis handoff, review packets, or codebook checks.'
 					: 'Create an export from a study results page after results are available.',
 			detailRows: [
-				{ label: 'Export artifacts', value: formatCount(totalCount) },
+				{ label: 'Export files', value: formatCount(totalCount) },
 				{ label: 'Downloadable', value: formatCount(downloadableCount) }
 			]
 		},
@@ -2720,21 +2720,21 @@ function toExportArtifactLibraryOverview(
 				failedCount > 0
 					? `${formatCount(failedCount)} export ${pluralize(
 							failedCount,
-							'artifact needs',
-							'artifacts need'
+							'file needs',
+							'files need'
 						)} attention.`
 					: pendingCount > 0
 						? `${formatCount(pendingCount)} export ${pluralize(
 								pendingCount,
-								'artifact is',
-								'artifacts are'
+								'file is',
+								'files are'
 							)} still queued or rendering.`
-						: 'No failed or pending export artifacts.',
+						: 'No failed or pending export files.',
 			guidance:
 				failedCount > 0
-					? 'Review the failed artifact, then recreate it from the source study after the cause is resolved.'
+					? 'Review the failed export file, then recreate it from the source study after the cause is resolved.'
 					: pendingCount > 0
-						? 'Wait for generation to finish before using the artifact for handoff.'
+						? 'Wait for generation to finish before using the export file for handoff.'
 						: 'New export issues will appear here when generation fails or remains pending.',
 			detailRows: [
 				{ label: 'Failed', value: formatCount(failedCount) },
@@ -2743,7 +2743,7 @@ function toExportArtifactLibraryOverview(
 		},
 		{
 			id: 'artifact_purpose',
-			label: 'Artifact purpose',
+			label: 'File purpose',
 			status: totalCount > 0 ? 'ready' : 'empty',
 			badgeLabel:
 				totalCount > 0
@@ -2752,7 +2752,7 @@ function toExportArtifactLibraryOverview(
 							'purpose',
 							'purposes'
 						)}`
-					: 'No artifacts',
+					: 'No files',
 			summary:
 				totalCount > 0
 					? `Exports cover ${formatInlineList(purposeLabels)}.`
@@ -2776,15 +2776,15 @@ function toExportArtifactLibraryOverview(
 					: 'No sources',
 			summary:
 				totalCount > 0
-					? `Artifacts are tied to ${formatInlineList(sourceLabels)}.`
-					: 'No export artifacts are tied to a study yet.',
+					? `Export files are tied to ${formatInlineList(sourceLabels)}.`
+					: 'No export files are tied to a study yet.',
 			guidance:
 				totalCount > 0
-					? 'Open the source study or report context when you need to understand how an artifact was generated.'
-					: 'Generated artifacts will link back to their study or report context when that context is available.',
+					? 'Open the source study or report context when you need to understand how an export file was generated.'
+					: 'Generated export files will link back to their study or report context when that context is available.',
 			detailRows: [
-				{ label: 'Campaign artifacts', value: formatCount(campaignArtifactCount) },
-				{ label: 'Campaign series artifacts', value: formatCount(campaignSeriesArtifactCount) }
+				{ label: 'Campaign files', value: formatCount(campaignArtifactCount) },
+				{ label: 'Study files', value: formatCount(campaignSeriesArtifactCount) }
 			]
 		}
 	];
@@ -2809,11 +2809,11 @@ function toExportArtifactLibraryCard(artifact: ExportArtifactLibraryResponse['ar
 				: null,
 		rows: [
 			{
-				label: 'Target',
+				label: 'Study context',
 				value: `${sentenceCase(humanizeValue(artifact.targetKind))} / ${artifact.targetLabel}`
 			},
 			{
-				label: 'Artifact type',
+				label: 'File type',
 				value: sentenceCase(humanizeValue(artifact.artifactType))
 			},
 			{
@@ -2916,7 +2916,35 @@ function labelFromCode(code: string) {
 }
 
 function humanizeValue(value: string) {
+	if (value === 'proof_only') {
+		return 'preview';
+	}
+
+	if (value === 'report_proof_csv_codebook') {
+		return 'report summary CSV and codebook';
+	}
+
+	if (value === 'campaign_series_response_csv_codebook') {
+		return 'response dataset CSV and codebook';
+	}
+
+	if (value === 'campaign_report_proof') {
+		return 'report summary CSV';
+	}
+
 	return value.replace(/[_-]+/g, ' ');
+}
+
+function toProductDisplayCopy(value: string) {
+	return value
+		.replace(/\bExport artifacts\b/g, 'Export files')
+		.replace(/\bexport artifacts\b/g, 'export files')
+		.replace(/\bExport artifact\b/g, 'Export file')
+		.replace(/\bexport artifact\b/g, 'export file')
+		.replace(/\bproof-only\b/g, 'preview')
+		.replace(/\bProof-only\b/g, 'Preview')
+		.replace(/\bproof only\b/g, 'preview')
+		.replace(/\bProof only\b/g, 'Preview');
 }
 
 function optionalCountRow(label: string, value: number | undefined): DisplayRow[] {

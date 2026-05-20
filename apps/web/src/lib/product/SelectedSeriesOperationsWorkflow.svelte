@@ -13,6 +13,7 @@
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import {
+		toSelectedSeriesCollectionStatusSummary,
 		toSelectedSeriesOperationsPath,
 		type SelectedSeriesOperationsPathStep,
 		type SelectedSeriesOperationsWorkflowActionId
@@ -83,6 +84,7 @@
 		closed: Boolean(closeResult)
 	});
 	const operationsPath = $derived(toSelectedSeriesOperationsPath(workspace, localState));
+	const collectionStatus = $derived(toSelectedSeriesCollectionStatusSummary(workspace, localState));
 	const workflowActions = $derived(operationsPath.steps);
 	const recommendedAction = $derived(operationsPath.currentAction);
 	const activeAction = $derived(
@@ -447,7 +449,7 @@
 			</p>
 		</div>
 		<div class="grid justify-items-end gap-2">
-			<StatusBadge status={recommendedAction.status} label={recommendedAction.title} />
+			<StatusBadge status={collectionStatus.overallStatus} label={collectionStatus.overallLabel} />
 			<p class="text-xs font-semibold text-[var(--color-text-muted)]">
 				{operationsPath.completedCount}/{operationsPath.totalCount} steps complete
 			</p>
@@ -457,6 +459,32 @@
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<article class="score-result-panel report-proof-panel" role="region" aria-label="Collection status">
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">Collection status</p>
+				<h4 class="record-row__title">{collectionStatus.headline}</h4>
+				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+					{collectionStatus.guidance}
+				</p>
+			</div>
+			<StatusBadge status={collectionStatus.overallStatus} label={collectionStatus.overallLabel} />
+		</div>
+		<dl class="record-grid">
+			{#each collectionStatus.lanes as lane (lane.id)}
+				<div class="record-field">
+					<dt class="record-field__label">{lane.label}</dt>
+					<dd class="record-field__value">{lane.title}</dd>
+					<dd class="text-sm text-[var(--color-text-muted)]">{lane.detail}</dd>
+				</div>
+			{/each}
+		</dl>
+		<p class="result-line">
+			<span>Next action</span>
+			<span>{collectionStatus.nextAction}</span>
+		</p>
+	</article>
 
 	<div class="setup-path" role="list" aria-label="Collection path">
 		{#each operationsPath.steps as action, index (action.id)}

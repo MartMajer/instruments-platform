@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
 	import { isScoreCoverageSummaryWidgetData } from './report-widget-data';
+	import { formatCodeLabel, formatNullableDate } from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
 	let { widget }: { widget: ReportWidget } = $props();
@@ -32,11 +33,11 @@
 		<div class="record-grid">
 			<div class="record-field">
 				<dt class="record-field__label">Coverage status</dt>
-				<dd class="record-field__value">{data.status.replaceAll('_', ' ')}</dd>
+				<dd class="record-field__value">{formatCodeLabel(data.status)}</dd>
 			</div>
 			<div class="record-field">
 				<dt class="record-field__label">Latest scoring activity</dt>
-				<dd class="record-field__value">{data.latestScoringActivityAt ?? 'Not available'}</dd>
+				<dd class="record-field__value">{formatNullableDate(data.latestScoringActivityAt)}</dd>
 			</div>
 		</div>
 	{:else}

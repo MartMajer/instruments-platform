@@ -6,7 +6,8 @@
 		formatBooleanLabel,
 		formatBytes,
 		formatCodeLabel,
-		formatNullableDate
+		formatNullableDate,
+		formatProductCopy
 	} from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
@@ -19,7 +20,7 @@
 	{#if data}
 		<dl class="record-grid">
 			<div class="metric-card">
-				<dt class="metric-card__label">Artifacts</dt>
+				<dt class="metric-card__label">Export files</dt>
 				<dd class="metric-card__value">{data.exportArtifactCount}</dd>
 			</div>
 			<div class="metric-card">
@@ -29,7 +30,7 @@
 		</dl>
 
 		{#if data.artifacts.length > 0}
-			<div class="record-list" aria-label="Export artifacts">
+			<div class="record-list" aria-label="Export files">
 				{#each data.artifacts as artifact (artifact.id)}
 					<div class="record-row">
 						<div class="record-row__header">
@@ -53,7 +54,7 @@
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Created</dt>
-								<dd class="record-field__value">{artifact.createdAt}</dd>
+								<dd class="record-field__value">{formatNullableDate(artifact.createdAt)}</dd>
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Completed</dt>
@@ -74,19 +75,18 @@
 				{/each}
 			</div>
 		{:else}
-			<p class="text-sm text-[var(--color-text-muted)]">No export artifacts recorded.</p>
+			<p class="text-sm text-[var(--color-text-muted)]">No export files recorded.</p>
 		{/if}
 
 		{#if widget.actions.length > 0}
-			<div class="record-list" aria-label="Report widget actions">
+			<div class="record-list" aria-label="Export actions">
 				{#each widget.actions as action (action.id)}
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-row__title">{action.label}</p>
+								<p class="record-row__title">{formatProductCopy(action.label)}</p>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									{action.method}
-									{formatCodeLabel(action.kind)}
+									{action.enabled ? 'Ready to run' : 'Unavailable'}
 								</p>
 							</div>
 							<StatusBadge
@@ -95,7 +95,9 @@
 							/>
 						</div>
 						{#if !action.enabled && action.disabledReason}
-							<p class="text-sm text-[var(--color-text-muted)]">{action.disabledReason}</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{formatProductCopy(action.disabledReason)}
+							</p>
 						{/if}
 					</div>
 				{/each}
@@ -103,7 +105,7 @@
 		{/if}
 	{:else}
 		<p class="text-sm text-[var(--color-text-muted)]">
-			Export artifact registry data is unavailable.
+			Export file data is unavailable.
 		</p>
 	{/if}
 </ReportWidgetShell>

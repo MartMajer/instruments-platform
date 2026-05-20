@@ -87,7 +87,7 @@ export function toSelectedSeriesReportSnapshotState(
 		available: true,
 		campaignId: selectedCampaign.id,
 		campaignName: selectedCampaign.name,
-		badgeLabel: loadedForSelectedCampaign ? 'Proof/local' : 'Proof-only',
+		badgeLabel: loadedForSelectedCampaign ? 'Preview ready' : 'Preview available',
 		disabledReason: null
 	};
 }
@@ -170,7 +170,7 @@ function toReportProvenanceRows(
 ): SelectedSeriesReportDashboardRow[] {
 	return [
 		idRow('Launch snapshot', campaign.latestLaunchSnapshotId),
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
+		{ label: 'Latest launch', value: formatNullableDateTime(campaign.latestLaunchAt) },
 		idRow('Scoring rule', campaign.scoringRuleId),
 		idRow('Consent document', campaign.consentDocumentId),
 		idRow('Retention policy', campaign.retentionPolicyId),
@@ -182,8 +182,8 @@ function toReportExportRows(
 	campaign: CampaignSeriesReportsCampaignResponse
 ): SelectedSeriesReportDashboardRow[] {
 	return [
-		{ label: 'Export artifacts', value: formatCount(campaign.exportArtifactCount) },
-		idRow('Latest export artifact', campaign.latestExportArtifactId),
+		{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) },
+		idRow('Latest export record', campaign.latestExportArtifactId),
 		{
 			label: 'Latest export file',
 			value: campaign.latestExportArtifactFileName ?? 'Not available'
@@ -194,27 +194,27 @@ function toReportExportRows(
 		},
 		{
 			label: 'Latest export created',
-			value: campaign.latestExportArtifactCreatedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactCreatedAt)
 		},
 		{
 			label: 'Latest export completed',
-			value: campaign.latestExportArtifactCompletedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactCompletedAt)
 		},
 		{
 			label: 'Latest export started',
-			value: campaign.latestExportArtifactStartedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactStartedAt)
 		},
 		{
 			label: 'Latest export failed',
-			value: campaign.latestExportArtifactFailedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactFailedAt)
 		},
 		{
 			label: 'Latest export expires',
-			value: campaign.latestExportArtifactExpiresAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactExpiresAt)
 		},
 		{
 			label: 'Latest export deleted',
-			value: campaign.latestExportArtifactDeletedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactDeletedAt)
 		},
 		{
 			label: 'Latest export failure reason',
@@ -242,24 +242,24 @@ function toReportArtifactRegistry(
 			targetLabel: artifact.targetLabel.trim() || 'Untitled target',
 			campaignId: artifact.campaignId,
 			campaignName: artifact.campaignName?.trim() || null,
-			title: artifact.fileName.trim() || 'Untitled export artifact',
+			title: artifact.fileName.trim() || 'Untitled export file',
 			badgeLabel: artifact.status,
 			meta: [
-				formatCodeLabel(artifact.artifactType),
+				formatExportFileTypeLabel(artifact.artifactType),
 				formatCodeLabel(artifact.format),
 				`${formatCount(artifact.rowCount)} rows`,
 				`${formatCount(artifact.byteSize)} bytes`
 			],
 			rows: [
-				idRow('Artifact', artifact.id),
-				{ label: 'Target', value: artifact.targetLabel.trim() || 'Untitled target' },
-				{ label: 'Target scope', value: formatCodeLabel(artifact.targetKind) },
-				{ label: 'Created', value: artifact.createdAt },
-				{ label: 'Completed', value: artifact.completedAt ?? 'Not available' },
-				{ label: 'Started', value: artifact.startedAt ?? 'Not available' },
-				{ label: 'Failed', value: artifact.failedAt ?? 'Not available' },
-				{ label: 'Expires', value: artifact.expiresAt ?? 'Not available' },
-				{ label: 'Deleted', value: artifact.deletedAt ?? 'Not available' },
+				idRow('Export record', artifact.id),
+				{ label: 'Study context', value: artifact.targetLabel.trim() || 'Untitled target' },
+				{ label: 'Context type', value: formatCodeLabel(artifact.targetKind) },
+				{ label: 'Created', value: formatNullableDateTime(artifact.createdAt) },
+				{ label: 'Completed', value: formatNullableDateTime(artifact.completedAt) },
+				{ label: 'Started', value: formatNullableDateTime(artifact.startedAt) },
+				{ label: 'Failed', value: formatNullableDateTime(artifact.failedAt) },
+				{ label: 'Expires', value: formatNullableDateTime(artifact.expiresAt) },
+				{ label: 'Deleted', value: formatNullableDateTime(artifact.deletedAt) },
 				{ label: 'Failure reason', value: artifact.failureReasonCode ?? 'Not available' },
 				{ label: 'Downloadable', value: formatBoolean(artifact.canDownload) },
 				idRow('Checksum', artifact.checksumSha256)
@@ -280,5 +280,40 @@ function formatBoolean(value: boolean) {
 }
 
 function formatCodeLabel(value: string) {
+	if (value === 'proof_only') {
+		return 'preview';
+	}
+
 	return value.replaceAll('_', ' ');
+}
+
+function formatExportFileTypeLabel(value: string) {
+	switch (value) {
+		case 'report_proof_csv_codebook':
+			return 'report summary CSV and codebook';
+		case 'campaign_series_response_csv_codebook':
+			return 'response dataset CSV and codebook';
+		default:
+			return formatCodeLabel(value);
+	}
+}
+
+function formatNullableDateTime(value: string | null | undefined) {
+	if (!value) {
+		return 'Not available';
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('hr-HR', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	}).format(date);
 }

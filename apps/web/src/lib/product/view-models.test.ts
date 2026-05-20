@@ -151,7 +151,7 @@ describe('product view models', () => {
 			{
 				id: 'export',
 				label: 'Export',
-				description: 'Use generated CSV and codebook artifacts for analysis.'
+				description: 'Use generated CSV and codebook files for analysis.'
 			}
 		]);
 		expect(view.sampleStudies).toEqual([
@@ -185,7 +185,7 @@ describe('product view models', () => {
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '1' },
 			{ label: 'Submitted responses', value: '14' },
-			{ label: 'Export artifacts', value: '3' }
+			{ label: 'Export files', value: '3' }
 		]);
 		expect(view.recentSeries).toEqual([
 			{
@@ -277,13 +277,12 @@ describe('product view models', () => {
 
 		expect(view.title).toBe('Algebra Research');
 		expect(view.profileRows).toEqual([
-			{ label: 'Tenant id', value: 'tenant-id', mono: true },
 			{ label: 'Slug', value: 'algebra-research', mono: true },
 			{ label: 'Region', value: 'EU' },
 			{ label: 'Default locale', value: 'hr' },
 			{ label: 'Status', value: 'Active' },
-			{ label: 'Created', value: '2026-05-01T08:00:00Z' },
-			{ label: 'Updated', value: '2026-05-11T09:00:00Z' }
+			{ label: 'Created', value: '01. 05. 2026. 10:00' },
+			{ label: 'Updated', value: '11. 05. 2026. 11:00' }
 		]);
 		expect(view.metricRows).toEqual([
 			{ label: 'Campaign series', value: '4' },
@@ -294,7 +293,7 @@ describe('product view models', () => {
 			{ label: 'Subject groups', value: '6' },
 			{ label: 'Tenant members', value: '5' },
 			{ label: 'Tenant roles', value: '3' },
-			{ label: 'Export artifacts', value: '9' }
+			{ label: 'Export files', value: '9' }
 		]);
 		expect(view.managementLinks.map((link) => link.href)).toEqual([
 			'/app/campaign-series',
@@ -392,7 +391,7 @@ describe('product view models', () => {
 			{ value: 'all', label: 'All readiness' },
 			{ value: 'not_configured', label: 'Not configured' },
 			{ value: 'pending', label: 'Pending' },
-			{ value: 'proof_only', label: 'Proof only' }
+			{ value: 'proof_only', label: 'Preview' }
 		]);
 		expect(view.sortOptions).toEqual([
 			{ value: 'activity_desc', label: 'Latest activity' },
@@ -716,9 +715,8 @@ describe('product view models', () => {
 		});
 		expect(view.canMutate).toBe(true);
 		expect(view.rows).toEqual([
-			{ label: 'Series id', value: 'series-id', mono: true },
-			{ label: 'Created', value: '2026-05-01T08:00:00Z' },
-			{ label: 'Updated', value: '2026-05-02T09:00:00Z' }
+			{ label: 'Created', value: '01. 05. 2026. 10:00' },
+			{ label: 'Updated', value: '02. 05. 2026. 11:00' }
 		]);
 		expect(view.archiveState).toEqual({
 			archived: false,
@@ -732,11 +730,11 @@ describe('product view models', () => {
 			{ label: 'Live campaigns', value: '1' },
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
-			{ label: 'Export artifacts', value: '3' }
+			{ label: 'Export files', value: '3' }
 		]);
 		expect(view.governanceRows).toEqual([
-			{ label: 'Consent', value: 'proof only', status: 'proof_only' },
-			{ label: 'Retention', value: 'proof only', status: 'proof_only' },
+			{ label: 'Consent', value: 'preview', status: 'proof_only' },
+			{ label: 'Retention', value: 'preview', status: 'proof_only' },
 			{ label: 'Disclosure', value: 'pending', status: 'pending' },
 			{ label: 'Scoring', value: 'not configured', status: 'not_configured' }
 		]);
@@ -774,7 +772,7 @@ describe('product view models', () => {
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Submitted responses', value: '31' },
 					{ label: 'Scores', value: '28' },
-					{ label: 'Export artifacts', value: '3' }
+					{ label: 'Export files', value: '3' }
 				]
 			}
 		]);
@@ -833,7 +831,7 @@ describe('product view models', () => {
 				id: 'reports',
 				label: 'Review results',
 				status: 'ready',
-				description: 'Inspect findings, report widgets, limitations, and exports.',
+				description: 'Inspect findings, result summaries, limitations, and exports.',
 				guidance: 'Submitted responses are available for aggregate review.',
 				route: 'reports',
 				href: '/app/campaign-series/series-id/reports',
@@ -872,7 +870,7 @@ describe('product view models', () => {
 			archivedAt: '2026-05-11T13:15:00Z',
 			reason: 'Completed pilot'
 		});
-		expect(view.rows).toContainEqual({ label: 'Archived', value: '2026-05-11T13:15:00Z' });
+		expect(view.rows).toContainEqual({ label: 'Archived', value: '11. 05. 2026. 15:15' });
 		expect(view.rows).toContainEqual({ label: 'Archive reason', value: 'Completed pilot' });
 		expectStatusBadgeStatus(view.archiveState.status);
 	});
@@ -924,8 +922,8 @@ describe('product view models', () => {
 			{ label: 'Live campaigns', value: '1' }
 		]);
 		expect(view.governanceRows).toEqual([
-			{ label: 'Consent', value: 'proof only', status: 'proof_only' },
-			{ label: 'Retention', value: 'proof only', status: 'proof_only' },
+			{ label: 'Consent', value: 'preview', status: 'proof_only' },
+			{ label: 'Retention', value: 'preview', status: 'proof_only' },
 			{ label: 'Disclosure', value: 'pending', status: 'pending' },
 			{ label: 'Scoring', value: 'not configured', status: 'not_configured' }
 		]);
@@ -1133,11 +1131,10 @@ describe('product view models', () => {
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '1' },
-			{ label: 'Open-link assignments', value: '1' },
-			{ label: 'Queued invitations', value: '1' },
-			{ label: 'Sent invitations', value: '8' },
-			{ label: 'Failed invitations', value: '1' },
-			{ label: 'Delivery attempts', value: '9' },
+			{ label: 'Respondent links', value: '1' },
+			{ label: 'Queued emails', value: '1' },
+			{ label: 'Sent emails', value: '8' },
+			{ label: 'Failed emails', value: '1' },
 			{ label: 'Started responses', value: '36' },
 			{ label: 'Draft responses', value: '5' },
 			{ label: 'Submitted responses', value: '31' },
@@ -1145,7 +1142,7 @@ describe('product view models', () => {
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
 		expect(view.collectionMonitor).toEqual({
-			title: 'Collection monitor',
+			title: 'Response monitor',
 			status: 'has_submissions',
 			reportVisibilityStatus: 'ready_for_aggregate_report',
 			guidance: 'Enough submitted responses exist for aggregate report visibility.',
@@ -1153,8 +1150,8 @@ describe('product view models', () => {
 				{ label: 'Started responses', value: '36' },
 				{ label: 'Draft responses', value: '5' },
 				{ label: 'Submitted responses', value: '31' },
-				{ label: 'Latest started', value: '2026-05-05T10:15:00Z' },
-				{ label: 'Latest submitted', value: '2026-05-05T10:10:00Z' }
+				{ label: 'Latest started', value: '05. 05. 2026. 12:15' },
+				{ label: 'Latest submitted', value: '05. 05. 2026. 12:10' }
 			]
 		});
 		expect(view.scoreCoverageMonitor).toEqual({
@@ -1176,10 +1173,8 @@ describe('product view models', () => {
 			{ label: 'Status', value: 'live' },
 			{ label: 'Identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Locale', value: 'en' },
-			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-			{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
-			{ label: 'Closed at', value: 'Not available' },
-			{ label: 'Closed by', value: 'Not available' },
+			{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
+			{ label: 'Closed', value: 'Not available' },
 			{ label: 'Close reason', value: 'Not available' },
 			{ label: 'Started responses', value: '36' },
 			{ label: 'Draft responses', value: '5' },
@@ -1187,15 +1182,14 @@ describe('product view models', () => {
 			{ label: 'Latest response activity', value: '2026-05-05T10:15:00Z' },
 			{ label: 'Collection status', value: 'has submissions' },
 			{ label: 'Report visibility', value: 'ready for aggregate report' },
-			{ label: 'Scoring rule', value: 'scoring-rule-id', mono: true },
 			{ label: 'Score coverage', value: 'complete' },
 			{ label: 'Scored submitted', value: '31' },
 			{ label: 'Unscored submitted', value: '0' },
 			{ label: 'Not configured submitted', value: '0' },
-			{ label: 'Latest scoring activity', value: '2026-05-05T10:20:00Z' },
-			{ label: 'Open-link assignments', value: '1' },
-			{ label: 'Delivery attempts', value: '9' },
-			{ label: 'Latest delivery attempt', value: '2026-05-05T09:30:00Z' }
+			{ label: 'Latest scoring activity', value: '05. 05. 2026. 12:20' },
+			{ label: 'Respondent links', value: '1' },
+			{ label: 'Sent emails', value: '8' },
+			{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' }
 		]);
 		expect(view.launchSnapshotRows).toEqual([
 			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
@@ -1232,15 +1226,13 @@ describe('product view models', () => {
 				rows: [
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
 					{ label: 'Locale', value: 'en' },
-					{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-					{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
-					{ label: 'Closed at', value: 'Not available' },
-					{ label: 'Open-link assignments', value: '1' },
-					{ label: 'Queued invitations', value: '1' },
-					{ label: 'Sent invitations', value: '8' },
-					{ label: 'Failed invitations', value: '1' },
-					{ label: 'Delivery attempts', value: '9' },
-					{ label: 'Latest delivery attempt', value: '2026-05-05T09:30:00Z' },
+					{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
+					{ label: 'Closed', value: 'Not available' },
+					{ label: 'Respondent links', value: '1' },
+					{ label: 'Queued emails', value: '1' },
+					{ label: 'Sent emails', value: '8' },
+					{ label: 'Failed emails', value: '1' },
+					{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' },
 					{ label: 'Started responses', value: '36' },
 					{ label: 'Draft responses', value: '5' },
 					{ label: 'Submitted responses', value: '31' },
@@ -1256,15 +1248,13 @@ describe('product view models', () => {
 				rows: [
 					{ label: 'Identity mode', value: 'anonymous' },
 					{ label: 'Locale', value: 'en' },
-					{ label: 'Launch snapshot', value: 'Not available' },
-					{ label: 'Latest launch', value: 'Not available' },
-					{ label: 'Closed at', value: 'Not available' },
-					{ label: 'Open-link assignments', value: '0' },
-					{ label: 'Queued invitations', value: '0' },
-					{ label: 'Sent invitations', value: '0' },
-					{ label: 'Failed invitations', value: '0' },
-					{ label: 'Delivery attempts', value: '0' },
-					{ label: 'Latest delivery attempt', value: 'Not available' },
+					{ label: 'Collection started', value: 'Not available' },
+					{ label: 'Closed', value: 'Not available' },
+					{ label: 'Respondent links', value: '0' },
+					{ label: 'Queued emails', value: '0' },
+					{ label: 'Sent emails', value: '0' },
+					{ label: 'Failed emails', value: '0' },
+					{ label: 'Latest email activity', value: 'Not available' },
 					{ label: 'Started responses', value: '0' },
 					{ label: 'Draft responses', value: '0' },
 					{ label: 'Submitted responses', value: '0' },
@@ -1285,17 +1275,17 @@ describe('product view models', () => {
 		expect(view.surfaceLabel).toBe('Collect responses');
 		expect(view.surfaceEyebrow).toBe('Study collection');
 		expect(view.surfaceDescription).toBe(
-			'Track respondent access, response progress, and score/report readiness for the selected campaign.'
+			'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.'
 		);
-		expect(view.referenceTitle).toBe('Collection reference');
+		expect(view.referenceTitle).toBe('Technical collection details');
 		expect(view.referenceDescription).toBe(
-			'Campaign ids, launch snapshot fields, prerequisite codes, and campaign rows for audit and troubleshooting.'
+			'Audit records, launch snapshots, prerequisite codes, and campaign fields stay here for troubleshooting.'
 		);
-		expect(view.proofActionTitle).toBe('Collection actions');
+		expect(view.proofActionTitle).toBe('Collection workflow');
 		expect(view.collectionOverview).toEqual([
 			{
 				id: 'collection_state',
-				label: 'Collection state',
+				label: 'Collection status',
 				status: 'live',
 				badgeLabel: 'Live',
 				summary: 'Wave 1 is live',
@@ -1303,7 +1293,7 @@ describe('product view models', () => {
 				detailRows: [
 					{ label: 'Selected campaign', value: 'Wave 1' },
 					{ label: 'Status', value: 'live' },
-					{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
+					{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
 					{ label: 'Missing prerequisites', value: '1' }
 				]
 			},
@@ -1312,16 +1302,15 @@ describe('product view models', () => {
 				label: 'Respondent access',
 				status: 'ready',
 				badgeLabel: 'Access ready',
-				summary: '1 open link, 8 sent invitations, 9 delivery attempts',
-				guidance: 'Respondents can enter through open links and invitations.',
+				summary: '1 respondent link, 8 sent emails',
+				guidance: 'Respondents can enter through shared links and sent emails.',
 				detailRows: [
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
-					{ label: 'Open-link assignments', value: '1' },
-					{ label: 'Queued invitations', value: '1' },
-					{ label: 'Sent invitations', value: '8' },
-					{ label: 'Failed invitations', value: '1' },
-					{ label: 'Delivery attempts', value: '9' },
-					{ label: 'Latest delivery attempt', value: '2026-05-05T09:30:00Z' }
+					{ label: 'Respondent links', value: '1' },
+					{ label: 'Queued emails', value: '1' },
+					{ label: 'Sent emails', value: '8' },
+					{ label: 'Failed emails', value: '1' },
+					{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' }
 				]
 			},
 			{
@@ -1416,8 +1405,8 @@ describe('product view models', () => {
 		expect(view.selectedCampaignRows).toEqual([]);
 		expect(view.campaignRows).toEqual([]);
 		expect(view.emptyState).toEqual({
-			title: 'No campaign operations yet',
-			message: 'Create and launch a campaign before running operations.'
+			title: 'No collection wave yet',
+			message: 'Create a campaign draft in setup, then start collection here.'
 		});
 		expect(view.collectionOverview).toContainEqual({
 			id: 'collection_state',
@@ -1429,7 +1418,7 @@ describe('product view models', () => {
 			detailRows: [
 				{ label: 'Selected campaign', value: 'Missing' },
 				{ label: 'Status', value: 'not started' },
-				{ label: 'Latest launch', value: 'Not available' },
+				{ label: 'Collection started', value: 'Not available' },
 				{ label: 'Missing prerequisites', value: '5' }
 			]
 		});
@@ -1487,13 +1476,13 @@ describe('product view models', () => {
 				id: 'result_availability',
 				label: 'Result availability',
 				status: 'proof_only',
-				badgeLabel: 'Proof only',
-				summary: 'Wave 1 has proof only results from 31 submitted responses.',
+				badgeLabel: 'Preview',
+				summary: 'Wave 1 has preview results from 31 submitted responses.',
 				guidance:
 					'Use this as a preview of current findings until scoring coverage, disclosure, and finality are complete.',
 				detailRows: [
 					{ label: 'Selected campaign', value: 'Wave 1' },
-					{ label: 'Report status', value: 'proof only' },
+					{ label: 'Report status', value: 'preview' },
 					{ label: 'Reportable campaigns', value: '1' },
 					{ label: 'Submitted responses', value: '31' },
 					{ label: 'Missing prerequisites', value: '1' }
@@ -1537,12 +1526,12 @@ describe('product view models', () => {
 				id: 'export_next_use',
 				label: 'Export next use',
 				status: 'ready',
-				badgeLabel: '2 artifacts',
+				badgeLabel: '2 files',
 				summary: 'Latest export report-proof.csv is downloadable.',
 				guidance:
-					'Download the latest artifact for handoff, or create a fresh export after results change.',
+					'Download the latest export file for handoff, or create a fresh export after results change.',
 				detailRows: [
-					{ label: 'Export artifacts', value: '2' },
+					{ label: 'Export files', value: '2' },
 					{ label: 'Latest export file', value: 'report-proof.csv' },
 					{ label: 'Latest export status', value: 'succeeded' },
 					{ label: 'Latest export downloadable', value: 'Yes' }
@@ -1557,7 +1546,7 @@ describe('product view models', () => {
 			{ label: 'Scores', value: '28' },
 			{ label: 'Visible scores', value: '25' },
 			{ label: 'Suppressed scores', value: '3' },
-			{ label: 'Export artifacts', value: '2' },
+			{ label: 'Export files', value: '2' },
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
 		expect(view.selectedCampaignRows).toEqual([
@@ -1567,13 +1556,13 @@ describe('product view models', () => {
 			{ label: 'Locale', value: 'en' },
 			{ label: 'Disclosure', value: 'visible' },
 			{ label: 'Disclosure k', value: '5' },
-			{ label: 'Report status', value: 'proof only' },
+			{ label: 'Report status', value: 'preview' },
 			{ label: 'Interpretation', value: 'not validated interpretation' },
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
 			{ label: 'Visible scores', value: '25' },
 			{ label: 'Suppressed scores', value: '3' },
-			{ label: 'Export artifacts', value: '2' }
+			{ label: 'Export files', value: '2' }
 		]);
 		expect(view.provenanceRows).toEqual([
 			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
@@ -1582,11 +1571,11 @@ describe('product view models', () => {
 			{ label: 'Consent document', value: 'consent-id', mono: true },
 			{ label: 'Retention policy', value: 'retention-id', mono: true },
 			{ label: 'Disclosure policy', value: 'disclosure-id', mono: true },
-			{ label: 'Latest export artifact', value: 'export-artifact-id', mono: true },
+			{ label: 'Latest export record', value: 'export-artifact-id', mono: true },
 			{ label: 'Latest export file', value: 'report-proof.csv' },
 			{ label: 'Latest export status', value: 'succeeded' },
-			{ label: 'Latest export created', value: '2026-05-05T09:00:00Z' },
-			{ label: 'Latest export completed', value: '2026-05-05T09:00:03Z' },
+			{ label: 'Latest export created', value: '05. 05. 2026. 11:00' },
+			{ label: 'Latest export completed', value: '05. 05. 2026. 11:00' },
 			{ label: 'Latest export started', value: 'Not available' },
 			{ label: 'Latest export failed', value: 'Not available' },
 			{ label: 'Latest export expires', value: 'Not available' },
@@ -1597,7 +1586,7 @@ describe('product view models', () => {
 		expect(view.missingPrerequisiteRows).toEqual([
 			{
 				code: 'export_artifact.missing',
-				label: 'Export artifact',
+				label: 'Export file',
 				message: 'Create a report preview export before handoff.',
 				severity: 'advisory',
 				status: 'pending'
@@ -1618,8 +1607,8 @@ describe('product view models', () => {
 					{ label: 'Visible scores', value: '25' },
 					{ label: 'Suppressed scores', value: '3' },
 					{ label: 'Disclosure', value: 'visible' },
-					{ label: 'Report status', value: 'proof only' },
-					{ label: 'Export artifacts', value: '2' },
+					{ label: 'Report status', value: 'preview' },
+					{ label: 'Export files', value: '2' },
 					{ label: 'Latest export', value: 'report-proof.csv' }
 				]
 			},
@@ -1638,7 +1627,7 @@ describe('product view models', () => {
 					{ label: 'Suppressed scores', value: '0' },
 					{ label: 'Disclosure', value: 'not available' },
 					{ label: 'Report status', value: 'blocked' },
-					{ label: 'Export artifacts', value: '0' },
+					{ label: 'Export files', value: '0' },
 					{ label: 'Latest export', value: 'Not available' }
 				]
 			}
@@ -1819,10 +1808,10 @@ describe('product view models', () => {
 				label: 'Export next use',
 				status: 'blocked',
 				badgeLabel: 'No exports',
-				summary: 'No report export artifact is available yet.',
+				summary: 'No report export file is available yet.',
 				guidance: 'Create an export after report results become available.',
 				detailRows: [
-					{ label: 'Export artifacts', value: '0' },
+					{ label: 'Export files', value: '0' },
 					{ label: 'Latest export file', value: 'Not available' },
 					{ label: 'Latest export status', value: 'Not available' },
 					{ label: 'Latest export downloadable', value: 'No' }
@@ -1832,7 +1821,7 @@ describe('product view models', () => {
 		expect(view.missingPrerequisiteRows).toEqual([
 			{
 				code: 'export_artifact.missing',
-				label: 'Export artifact',
+				label: 'Export file',
 				message: 'Create a report preview export before handoff.',
 				severity: 'advisory',
 				status: 'pending'
@@ -1895,7 +1884,7 @@ describe('product view models', () => {
 		expect(view.selectedWaveRows).toEqual([
 			{ label: 'Baseline wave', value: 'Wave 1' },
 			{ label: 'Comparison wave', value: 'Wave 2' },
-			{ label: 'Comparison status', value: 'proof only' },
+			{ label: 'Comparison status', value: 'preview' },
 			{ label: 'Disclosure', value: 'visible' },
 			{ label: 'Compatibility', value: 'compatible' },
 			{ label: 'Interpretation', value: 'not validated interpretation' },
@@ -2040,10 +2029,10 @@ describe('product view models', () => {
 		expect(view.summaryRows).toEqual([
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
-			{ label: 'Export artifacts', value: '3' }
+			{ label: 'Export files', value: '3' }
 		]);
 		expect(view.campaignRows[0].rows).toContainEqual({ label: 'Scores', value: '28' });
-		expect(view.campaignRows[0].rows).toContainEqual({ label: 'Export artifacts', value: '3' });
+		expect(view.campaignRows[0].rows).toContainEqual({ label: 'Export files', value: '3' });
 	});
 
 	it('maps waves selected-series surface with wave identity posture', () => {
@@ -2177,7 +2166,7 @@ describe('product view models', () => {
 		);
 	});
 
-	it('maps export artifact responses to display summaries', () => {
+	it('maps export file responses to display summaries', () => {
 		const artifact: ReportProofExportArtifactResponse = {
 			id: 'artifact-id',
 			targetKind: 'campaign',
@@ -2228,7 +2217,7 @@ describe('product view models', () => {
 		});
 	});
 
-	it('maps export artifact library summary and cards', () => {
+	it('maps export file library summary and cards', () => {
 		const library: ExportArtifactLibraryResponse = {
 			tenantId: 'tenant-id',
 			summary: {
@@ -2298,7 +2287,7 @@ describe('product view models', () => {
 		expect(view.surfaceTitle).toBe('Use exports');
 		expect(view.surfaceEyebrow).toBe('Study support');
 		expect(view.surfaceDescription).toBe(
-			'Find generated CSV/codebook artifacts by purpose, readiness, source study, and next use.'
+			'Find generated CSV/codebook files by purpose, readiness, source study, and next use.'
 		);
 		expect(view.referenceTitle).toBe('Export reference');
 		expect(view.referenceDescription).toBe(
@@ -2310,10 +2299,10 @@ describe('product view models', () => {
 				label: 'Ready downloads',
 				status: 'ready',
 				badgeLabel: '1 downloadable',
-				summary: '1 export artifact is ready to download.',
-				guidance: 'Use ready artifacts for analysis handoff, review packets, or codebook checks.',
+				summary: '1 export file is ready to download.',
+				guidance: 'Use ready export files for analysis handoff, review packets, or codebook checks.',
 				detailRows: [
-					{ label: 'Export artifacts', value: '2' },
+					{ label: 'Export files', value: '2' },
 					{ label: 'Downloadable', value: '1' }
 				]
 			},
@@ -2322,9 +2311,9 @@ describe('product view models', () => {
 				label: 'Needs attention',
 				status: 'failed',
 				badgeLabel: '1 failed',
-				summary: '1 export artifact needs attention.',
+				summary: '1 export file needs attention.',
 				guidance:
-					'Review the failed artifact, then recreate it from the source study after the cause is resolved.',
+					'Review the failed export file, then recreate it from the source study after the cause is resolved.',
 				detailRows: [
 					{ label: 'Failed', value: '1' },
 					{ label: 'Pending', value: '0' }
@@ -2332,7 +2321,7 @@ describe('product view models', () => {
 			},
 			{
 				id: 'artifact_purpose',
-				label: 'Artifact purpose',
+				label: 'File purpose',
 				status: 'ready',
 				badgeLabel: '2 purposes',
 				summary: 'Exports cover Report summary export and Response dataset export.',
@@ -2348,17 +2337,17 @@ describe('product view models', () => {
 				label: 'Study context and next use',
 				status: 'ready',
 				badgeLabel: '2 sources',
-				summary: 'Artifacts are tied to Baseline wave and Response study.',
+				summary: 'Export files are tied to Baseline wave and Response study.',
 				guidance:
-					'Open the source study or report context when you need to understand how an artifact was generated.',
+					'Open the source study or report context when you need to understand how an export file was generated.',
 				detailRows: [
-					{ label: 'Campaign artifacts', value: '1' },
-					{ label: 'Campaign series artifacts', value: '1' }
+					{ label: 'Campaign files', value: '1' },
+					{ label: 'Study files', value: '1' }
 				]
 			}
 		]);
 		expect(view.metricRows).toEqual([
-			{ label: 'Export artifacts', value: '2' },
+			{ label: 'Export files', value: '2' },
 			{ label: 'Downloadable', value: '1' },
 			{ label: 'Failed', value: '1' },
 			{ label: 'Pending', value: '0' }
@@ -2374,14 +2363,14 @@ describe('product view models', () => {
 			statusLabel: 'Succeeded',
 			href: null,
 			rows: [
-				{ label: 'Target', value: 'Campaign / Baseline wave' },
-				{ label: 'Artifact type', value: 'Report proof csv codebook' },
+				{ label: 'Study context', value: 'Campaign / Baseline wave' },
+				{ label: 'File type', value: 'Report summary CSV and codebook' },
 				{ label: 'Format', value: 'Csv codebook' },
 				{ label: 'Data finality', value: 'Closed wave' },
 				{ label: 'Rows', value: '12' },
 				{ label: 'Size', value: '2.0 KB' },
-				{ label: 'Created', value: '2026-05-16T08:00:00Z' },
-				{ label: 'Completed', value: '2026-05-16T08:00:03Z' },
+				{ label: 'Created', value: '16. 05. 2026. 10:00' },
+				{ label: 'Completed', value: '16. 05. 2026. 10:00' },
 				{ label: 'Download', value: 'Available' }
 			]
 		});
@@ -2398,7 +2387,7 @@ describe('product view models', () => {
 		expectStatusBadgeStatus(view.cards[1].status);
 	});
 
-	it('maps empty export artifact library to purpose-first blocked guidance', () => {
+	it('maps empty export file library to purpose-first blocked guidance', () => {
 		const view = toExportArtifactLibraryView({
 			tenantId: 'tenant-id',
 			summary: {
@@ -2416,10 +2405,10 @@ describe('product view models', () => {
 				label: 'Ready downloads',
 				status: 'empty',
 				badgeLabel: '0 downloadable',
-				summary: 'No export artifacts are ready to download yet.',
+				summary: 'No export files are ready to download yet.',
 				guidance: 'Create an export from a study results page after results are available.',
 				detailRows: [
-					{ label: 'Export artifacts', value: '0' },
+					{ label: 'Export files', value: '0' },
 					{ label: 'Downloadable', value: '0' }
 				]
 			},
@@ -2428,7 +2417,7 @@ describe('product view models', () => {
 				label: 'Needs attention',
 				status: 'ready',
 				badgeLabel: 'No attention items',
-				summary: 'No failed or pending export artifacts.',
+				summary: 'No failed or pending export files.',
 				guidance: 'New export issues will appear here when generation fails or remains pending.',
 				detailRows: [
 					{ label: 'Failed', value: '0' },
@@ -2437,9 +2426,9 @@ describe('product view models', () => {
 			},
 			{
 				id: 'artifact_purpose',
-				label: 'Artifact purpose',
+				label: 'File purpose',
 				status: 'empty',
-				badgeLabel: 'No artifacts',
+				badgeLabel: 'No files',
 				summary: 'No generated export purposes are available yet.',
 				guidance:
 					'Create report summary or response dataset exports from a study when results are ready.',
@@ -2453,12 +2442,12 @@ describe('product view models', () => {
 				label: 'Study context and next use',
 				status: 'empty',
 				badgeLabel: 'No sources',
-				summary: 'No export artifacts are tied to a study yet.',
+				summary: 'No export files are tied to a study yet.',
 				guidance:
-					'Generated artifacts will link back to their study or report context when that context is available.',
+					'Generated export files will link back to their study or report context when that context is available.',
 				detailRows: [
-					{ label: 'Campaign artifacts', value: '0' },
-					{ label: 'Campaign series artifacts', value: '0' }
+					{ label: 'Campaign files', value: '0' },
+					{ label: 'Study files', value: '0' }
 				]
 			}
 		]);
@@ -3028,7 +3017,7 @@ const sampleReportsWorkspace: CampaignSeriesReportsWorkspaceResponse = {
 	missingPrerequisites: [
 		{
 			code: 'export_artifact.missing',
-			label: 'Export artifact',
+			label: 'Export file',
 			message: 'Create a report preview export before handoff.',
 			severity: 'advisory'
 		}

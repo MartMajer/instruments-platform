@@ -3,6 +3,7 @@ import { listFixtureScenarios } from '../../src/lib/product/fixtures.ts';
 import { autonomousProductPaths } from './autonomous-product-read-models.ts';
 import { getGoalPersonaProfile, type GoalPersonaProfile } from './persona-goals.ts';
 import type { PersonaId } from './personas.ts';
+import { getRealisticAuditCase, type RealisticAuditCase } from './realistic-cases.ts';
 import type { AutonomousDataMode, ViewportPreset } from './types.ts';
 
 export { autonomousProductPaths };
@@ -20,7 +21,9 @@ export interface AutonomousFixtureMission {
   reviewFocus: string[];
   fixtureProvenance: string;
   supportedDataModes: AutonomousDataMode[];
+  realisticCase?: RealisticAuditCase;
   mutationPlan?: AutonomousMutationPlan;
+  fullstackSeedPlan?: AutonomousFullstackSeedPlan;
   localOnly: true;
 }
 
@@ -28,13 +31,27 @@ export type AutonomousMutationPlan = {
   kind: 'create-study';
   fieldLabel: string;
   buttonText: string;
-  studyNamePrefix: string;
+  studyNamePrefix?: string;
+  studyName?: string;
+  setupInstrument?: {
+    fieldLabel: string;
+    value: string;
+    buttonText: string;
+    versionFieldLabel?: string;
+    versionValue?: string;
+  };
+};
+
+export type AutonomousFullstackSeedPlan = {
+  kind: 'seed-realistic-campaign-results' | 'seed-realistic-repeated-wave-results';
 };
 
 const fixtureScenarios = listFixtureScenarios();
 const fixtureScenarioByKey = new Map(
   fixtureScenarios.map((scenario) => [`${scenario.groupId}:${scenario.id}`, scenario])
 );
+const oshWarehouseCase = requireRealisticAuditCase('osh-warehouse-workload-recovery-pulse');
+const academicRepeatedWaveCase = requireRealisticAuditCase('academic-workload-recovery-followup');
 
 export const autonomousFixtureMissions = [
   mission({
@@ -119,6 +136,74 @@ export const autonomousFixtureMissions = [
     fixtureProvenance:
       'Live local full-stack app/API/database mutation; no product read-model mocks are installed by the harness.',
   }),
+  mission({
+    id: 'fullstack-osh-warehouse-pulse',
+    personaId: 'osh-consultant',
+    goal:
+      'Autonomously create a realistic local OSH warehouse workload study and continue into the first setup action with believable case content.',
+    viewport: 'desktop',
+    maxSteps: 8,
+    targetFixtureCatalogIds: [],
+    targetProductPaths: ['/app/campaign-series'],
+    reviewFocus: [
+      'realistic custom study creation',
+      'workplace OSH instrument setup',
+      'synthetic response plan readiness',
+      'consultant-ready wording',
+    ],
+    supportedDataModes: ['fullstack'],
+    realisticCaseId: oshWarehouseCase.id,
+    mutationPlan: {
+      kind: 'create-study',
+      fieldLabel: 'Study name',
+      buttonText: 'Create study',
+      studyName: oshWarehouseCase.studyName,
+      setupInstrument: {
+        fieldLabel: 'Instrument name',
+        value: oshWarehouseCase.instrumentName,
+        buttonText: 'Save instrument',
+      },
+    },
+    fullstackSeedPlan: {
+      kind: 'seed-realistic-campaign-results',
+    },
+    fixtureProvenance:
+      'Live local full-stack app/API/database mutation using a synthetic OSH warehouse case profile; no product read-model mocks are installed by the harness.',
+  }),
+  mission({
+    id: 'fullstack-academic-repeated-wave-review',
+    personaId: 'busy-professor',
+    goal:
+      'Autonomously create a realistic local academic workload follow-up study, seed two anonymous-longitudinal waves, and inspect whether Waves and Results explain comparison readiness.',
+    viewport: 'desktop',
+    maxSteps: 8,
+    targetFixtureCatalogIds: [],
+    targetProductPaths: ['/app/campaign-series'],
+    reviewFocus: [
+      'repeated-wave setup comprehension',
+      'anonymous longitudinal participant-code expectations',
+      'change-over-time comparison readiness',
+      'export and analysis readiness after two closed waves',
+    ],
+    supportedDataModes: ['fullstack'],
+    realisticCaseId: academicRepeatedWaveCase.id,
+    mutationPlan: {
+      kind: 'create-study',
+      fieldLabel: 'Study name',
+      buttonText: 'Create study',
+      studyName: academicRepeatedWaveCase.studyName,
+      setupInstrument: {
+        fieldLabel: 'Instrument name',
+        value: academicRepeatedWaveCase.instrumentName,
+        buttonText: 'Save instrument',
+      },
+    },
+    fullstackSeedPlan: {
+      kind: 'seed-realistic-repeated-wave-results',
+    },
+    fixtureProvenance:
+      'Live local full-stack app/API/database mutation using a synthetic busy-professor repeated-wave case profile; no product read-model mocks are installed by the harness.',
+  }),
 ] satisfies AutonomousFixtureMission[];
 
 export function getAutonomousFixtureMission(id: string) {
@@ -162,7 +247,9 @@ function mission(options: {
   targetProductPaths: string[];
   reviewFocus: string[];
   supportedDataModes?: AutonomousDataMode[];
+  realisticCaseId?: string;
   mutationPlan?: AutonomousMutationPlan;
+  fullstackSeedPlan?: AutonomousFullstackSeedPlan;
   fixtureProvenance?: string;
 }): AutonomousFixtureMission {
   const scenarios = options.targetFixtureCatalogIds.map((scenarioId) => {
@@ -177,6 +264,9 @@ function mission(options: {
   return {
     ...options,
     personaProfile: getGoalPersonaProfile(options.personaId),
+    realisticCase: options.realisticCaseId
+      ? requireRealisticAuditCase(options.realisticCaseId)
+      : undefined,
     entryPath: '/app',
     fixtureProvenance:
       options.fixtureProvenance ??
@@ -184,4 +274,13 @@ function mission(options: {
     supportedDataModes: options.supportedDataModes ?? ['fixture'],
     localOnly: true,
   };
+}
+
+function requireRealisticAuditCase(id: string) {
+  const auditCase = getRealisticAuditCase(id);
+  if (!auditCase) {
+    throw new Error(`Unknown realistic audit case: ${id}`);
+  }
+
+  return auditCase;
 }

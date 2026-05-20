@@ -7,6 +7,7 @@ import { writeReviewPromptForMission } from './review-prompt.ts';
 import {
   parseAutonomousRunnerOptions,
   parseFullstackBootstrapOptions,
+  parseFullstackCleanupOptions,
   parseFullstackPreflightOptions,
   parseRunnerOptions,
   runAudit,
@@ -480,6 +481,35 @@ describe('UX audit runner option parsing', () => {
       fullstackDevAuth: { enabled: true },
       timeoutMs: 5000,
     });
+  });
+
+  it('parses full-stack cleanup options as dry-run unless apply is explicit', () => {
+    expect(
+      parseFullstackCleanupOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--fullstack-dev-auth',
+      ])
+    ).toEqual({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      apply: false,
+      fullstackDevAuth: { enabled: true },
+      timeoutMs: 5000,
+    });
+
+    expect(
+      parseFullstackCleanupOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--fullstack-dev-auth',
+        '--apply',
+      ])
+    ).toEqual(
+      expect.objectContaining({
+        apply: true,
+        fullstackDevAuth: { enabled: true },
+      })
+    );
   });
 
   it('parses explicit full-stack bootstrap start mode', () => {

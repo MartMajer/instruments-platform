@@ -27,7 +27,7 @@
 	const productStatusLabels: Record<ProductStatus, string> = {
 		...setupStageStatusLabels,
 		archived: 'Archived',
-		proof: 'Proof only',
+		proof: 'Preview',
 		demo: 'Demo data',
 		visible: 'Visible',
 		suppressed: 'Suppressed',
@@ -40,7 +40,7 @@
 		neutral: 'Neutral',
 		not_available: 'Not available',
 		not_configured: 'Not configured',
-		proof_only: 'Proof only',
+		proof_only: 'Preview',
 		draft: 'Draft',
 		scheduled: 'Scheduled',
 		live: 'Live',

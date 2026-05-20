@@ -42,7 +42,7 @@ export function toReportVisualAnalyticsView(
 			primarySeriesLabel: 'Mean',
 			secondarySeriesLabel: null,
 			yAxisLabel: 'Score mean',
-			statusLabel: 'Proof-only / not validated',
+			statusLabel: 'Preview / not validated',
 			emptyMessage: 'Load the selected report snapshot before reviewing visual analytics.',
 			points: [],
 			excludedRows: []
@@ -86,7 +86,7 @@ export function toReportVisualAnalyticsView(
 		primarySeriesLabel: 'Mean',
 		secondarySeriesLabel: null,
 		yAxisLabel: 'Score mean',
-		statusLabel: 'Proof-only / not validated',
+		statusLabel: 'Preview / not validated',
 		emptyMessage: 'No visible numeric report scores are available for charting.',
 		points,
 		excludedRows
@@ -103,7 +103,7 @@ export function toWaveVisualAnalyticsView(
 			primarySeriesLabel: 'Aggregate delta',
 			secondarySeriesLabel: 'Paired delta',
 			yAxisLabel: 'Delta',
-			statusLabel: 'Proof-only / not validated',
+			statusLabel: 'Preview / not validated',
 			emptyMessage: 'Load the selected wave comparison snapshot before reviewing visual analytics.',
 			points: [],
 			excludedRows: []
@@ -156,7 +156,7 @@ export function toWaveVisualAnalyticsView(
 		primarySeriesLabel: 'Aggregate delta',
 		secondarySeriesLabel: 'Paired delta',
 		yAxisLabel: 'Delta',
-		statusLabel: 'Proof-only / not validated',
+		statusLabel: 'Preview / not validated',
 		emptyMessage: 'No visible compatible wave comparison values are available for charting.',
 		points,
 		excludedRows

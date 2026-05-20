@@ -16,6 +16,8 @@ describe('autonomous fixture-backed UX missions', () => {
       'fixture-questionnaire-scoring',
       'fullstack-workspace-inspection',
       'fullstack-create-study',
+      'fullstack-osh-warehouse-pulse',
+      'fullstack-academic-repeated-wave-review',
     ]);
     expect(getAutonomousFixtureMission('fixture-first-study-setup')).toEqual(
       expect.objectContaining({
@@ -102,6 +104,84 @@ describe('autonomous fixture-backed UX missions', () => {
     );
     expect(() =>
       resolveAutonomousMissionForDataMode('fullstack-create-study', 'fixture')
+    ).toThrow('does not support fixture data mode');
+  });
+
+  it('defines a realistic OSH warehouse fullstack mission with case evidence', () => {
+    const mission = resolveAutonomousMissionForDataMode(
+      'fullstack-osh-warehouse-pulse',
+      'fullstack'
+    );
+
+    expect(mission).toEqual(
+      expect.objectContaining({
+        id: 'fullstack-osh-warehouse-pulse',
+        personaId: 'osh-consultant',
+        supportedDataModes: ['fullstack'],
+        realisticCase: expect.objectContaining({
+          id: 'osh-warehouse-workload-recovery-pulse',
+          studyName: 'Warehouse workload and recovery pulse',
+          instrumentName: 'Warehouse workload and recovery instrument',
+          campaignName: 'Baseline warehouse pulse - May 2026',
+        }),
+        mutationPlan: expect.objectContaining({
+          kind: 'create-study',
+          studyName: 'Warehouse workload and recovery pulse',
+          setupInstrument: expect.objectContaining({
+            fieldLabel: 'Instrument name',
+            value: 'Warehouse workload and recovery instrument',
+            buttonText: 'Save instrument',
+          }),
+        }),
+        fullstackSeedPlan: expect.objectContaining({
+          kind: 'seed-realistic-campaign-results',
+        }),
+      })
+    );
+    expect(mission.realisticCase?.questions).toHaveLength(10);
+    expect(mission.realisticCase?.syntheticResponses).toEqual(
+      expect.objectContaining({
+        respondentCount: 24,
+        completionCount: 21,
+      })
+    );
+    expect(() =>
+      resolveAutonomousMissionForDataMode('fullstack-osh-warehouse-pulse', 'fixture')
+    ).toThrow('does not support fixture data mode');
+  });
+
+  it('defines a realistic repeated-wave busy-professor fullstack mission', () => {
+    const mission = resolveAutonomousMissionForDataMode(
+      'fullstack-academic-repeated-wave-review',
+      'fullstack'
+    );
+
+    expect(mission).toEqual(
+      expect.objectContaining({
+        id: 'fullstack-academic-repeated-wave-review',
+        personaId: 'busy-professor',
+        supportedDataModes: ['fullstack'],
+        realisticCase: expect.objectContaining({
+          id: 'academic-workload-recovery-followup',
+          studyName: 'Academic workload and recovery follow-up',
+          campaignName: 'Baseline academic workload survey - May 2026',
+          waveCampaignNames: [
+            'Baseline academic workload survey - May 2026',
+            'Follow-up academic workload survey - June 2026',
+          ],
+        }),
+        mutationPlan: expect.objectContaining({
+          kind: 'create-study',
+          studyName: 'Academic workload and recovery follow-up',
+        }),
+        fullstackSeedPlan: expect.objectContaining({
+          kind: 'seed-realistic-repeated-wave-results',
+        }),
+      })
+    );
+    expect(mission.reviewFocus).toContain('change-over-time comparison readiness');
+    expect(() =>
+      resolveAutonomousMissionForDataMode('fullstack-academic-repeated-wave-review', 'fixture')
     ).toThrow('does not support fixture data mode');
   });
 });

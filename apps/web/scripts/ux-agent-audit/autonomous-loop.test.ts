@@ -8,6 +8,7 @@ import {
 import type { AutonomousFixtureMission } from './autonomous-fixtures.ts';
 import type { MissionPageSnapshot } from './mission-executor.ts';
 import { getGoalPersonaProfile } from './persona-goals.ts';
+import { getRealisticAuditCase } from './realistic-cases.ts';
 
 describe('autonomous UX persona loop', () => {
   it('drives visible fixture links without owner clicks', async () => {
@@ -244,6 +245,37 @@ describe('autonomous UX persona loop', () => {
     );
   });
 
+  it('complains when primary product pages leak proof-lab wording', async () => {
+    const mission = missionFixture({
+      personaProfile: getGoalPersonaProfile('osh-consultant'),
+      personaId: 'osh-consultant',
+      targetProductPaths: ['/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports'],
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Quarterly pulse results', '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports'),
+      pageSnapshot(
+        '/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/reports',
+        'Results',
+        'Study results Proof foundation Results workflow Client handoff status'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('blocked');
+    expect(result.personaFindings[0]).toEqual(
+      expect.objectContaining({
+        severity: 'confusion',
+        observedConfusion: expect.stringContaining('Proof foundation'),
+        ticketReadyWording: expect.stringContaining('product-facing language'),
+      })
+    );
+  });
+
   it('complains on hard product route failures that block UX review', async () => {
     const mission = missionFixture({
       targetProductPaths: ['/app/campaign-series/2f2f819f-f6eb-486a-9e0f-872ac30af3d4/setup'],
@@ -344,6 +376,77 @@ describe('autonomous UX persona loop', () => {
     ]);
   });
 
+  it('creates a realistic OSH study and saves the instrument setup through visible controls', async () => {
+    const realisticCase = getRealisticAuditCase('osh-warehouse-workload-recovery-pulse');
+    if (!realisticCase) {
+      throw new Error('missing OSH warehouse case');
+    }
+
+    const mission = missionFixture({
+      id: 'fullstack-osh-warehouse-pulse',
+      personaId: 'osh-consultant',
+      personaProfile: getGoalPersonaProfile('osh-consultant'),
+      supportedDataModes: ['fullstack'],
+      targetProductPaths: ['/app/campaign-series'],
+      maxSteps: 8,
+      realisticCase,
+      mutationPlan: {
+        kind: 'create-study',
+        fieldLabel: 'Study name',
+        buttonText: 'Create study',
+        studyName: 'Warehouse workload and recovery pulse',
+        setupInstrument: {
+          fieldLabel: 'Instrument name',
+          value: 'Warehouse workload and recovery instrument',
+          buttonText: 'Save instrument',
+        },
+      },
+      fullstackSeedPlan: {
+        kind: 'seed-realistic-campaign-results',
+      },
+    } as Partial<AutonomousFixtureMission>);
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Studies Plan studies', '/app/campaign-series'),
+      createStudySnapshot(),
+      setupInstrumentSnapshot(),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.steps.map((step) => step.action)).toEqual([
+      'Opened autonomous product mission entry route /app.',
+      'Clicked visible link "Studies Plan studies".',
+      'Filled visible field "Study name".',
+      'Clicked visible button "Create study".',
+      'Filled visible field "Instrument name".',
+      'Clicked visible button "Save instrument".',
+      expect.stringContaining(
+        'Stopped autonomous product mission: created realistic study and saved instrument setup'
+      ),
+    ]);
+    expect(result.observations).toEqual(
+      expect.objectContaining({
+        realisticCase: expect.objectContaining({
+          studyName: 'Warehouse workload and recovery pulse',
+          campaignName: 'Baseline warehouse pulse - May 2026',
+        }),
+        realisticResponseSimulation: expect.objectContaining({
+          campaignName: 'Baseline warehouse pulse - May 2026',
+          completedResponseCount: 21,
+          omittedResponseCount: 3,
+        }),
+      })
+    );
+    expect(result.reviewerOutput).toContain('"realisticCase"');
+    expect(result.reviewerOutput).toContain('"realisticResponseSimulation"');
+    expect(result.reviewerOutput).toContain('Warehouse workload and recovery pulse');
+  });
+
   it('treats rich transcript setup URL as successful create-study navigation when snapshot URL lags', async () => {
     const mission = missionFixture({
       id: 'fullstack-create-study',
@@ -405,6 +508,113 @@ describe('autonomous UX persona loop', () => {
       })
     );
     expect(result.personaFindings[0]?.suggestedFix).not.toContain('mocking');
+  });
+
+  it('recognizes disclosure, anonymity, and not-validated claim safety in repeated-wave evidence', async () => {
+    const mission = missionFixture({
+      personaId: 'busy-professor',
+      personaProfile: getGoalPersonaProfile('busy-professor'),
+      targetProductPaths: [
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/waves',
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/reports',
+      ],
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot(
+        'Academic study waves',
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/waves'
+      ),
+      pageSnapshot(
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/waves',
+        'Waves',
+        'Two longitudinal waves are ready for disclosure-safe change-over-time review. Complete trajectories are available. Do not describe group trend as individual improvement unless linked change is ready.'
+      ),
+      pageSnapshot(
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/reports',
+        'Results',
+        'Interpretation status needs validation. Use these results for internal review only. Disclosure visible / k 5. Client-facing claims have not been validated.'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+    const assessment = result.observations.personaGoalAssessment as {
+      successCriteria: Array<{ criterion: string; status: string; evidence: string }>;
+    };
+    const disclosureCriterion = assessment.successCriteria.find((entry) =>
+      entry.criterion.includes('Disclosure suppression')
+    );
+    const claimsCriterion = assessment.successCriteria.find((entry) =>
+      entry.criterion.includes('validated/clinical')
+    );
+
+    expect(disclosureCriterion).toEqual(
+      expect.objectContaining({
+        status: 'observed',
+        evidence: expect.stringContaining('Disclosure visible'),
+      })
+    );
+    expect(claimsCriterion).toEqual(
+      expect.objectContaining({
+        status: 'observed',
+        evidence: expect.stringContaining('Client-facing claims'),
+      })
+    );
+  });
+
+  it('uses visible excerpt evidence when rich transcript sections omit claim-safety copy', async () => {
+    const mission = missionFixture({
+      personaId: 'busy-professor',
+      personaProfile: getGoalPersonaProfile('busy-professor'),
+      targetProductPaths: ['/app/campaign-series/33333333-3333-4333-8333-333333333333/reports'],
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot(
+        'Academic study reports',
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/reports'
+      ),
+      {
+        ...pageSnapshot(
+          '/app/campaign-series/33333333-3333-4333-8333-333333333333/reports',
+          'Results',
+          'Interpretation status needs validation. Use these results for internal review only. Client-facing claims have not been validated.'
+        ),
+        richTranscript: {
+          label: 'Results',
+          title: 'Results',
+          url: 'http://127.0.0.1:5174/app/campaign-series/33333333-3333-4333-8333-333333333333/reports',
+          visibleText: '',
+          headings: ['Results'],
+          buttons: [],
+          links: [],
+          fields: [],
+          sections: ['Review and export actions'],
+          statusMessages: [],
+        },
+      },
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+    const assessment = result.observations.personaGoalAssessment as {
+      successCriteria: Array<{ criterion: string; status: string; evidence: string }>;
+    };
+    const claimsCriterion = assessment.successCriteria.find((entry) =>
+      entry.criterion.includes('validated/clinical')
+    );
+
+    expect(claimsCriterion).toEqual(
+      expect.objectContaining({
+        status: 'observed',
+        evidence: expect.stringContaining('Client-facing claims'),
+      })
+    );
   });
 });
 
@@ -550,6 +760,43 @@ function createStudyRedirectRaceSnapshot(): MissionPageSnapshot {
       buttons: [{ text: 'Save instrument', disabled: false }],
       links: [],
       fields: [],
+      sections: ['Current setup step Instrument'],
+      statusMessages: [],
+    },
+  };
+}
+
+function setupInstrumentSnapshot(): MissionPageSnapshot {
+  const path = '/app/campaign-series/33333333-3333-4333-8333-333333333333/setup';
+
+  return {
+    label: 'study-setup',
+    title: 'Study setup',
+    url: `http://127.0.0.1:5174${path}`,
+    visibleTextExcerpt:
+      'Study setup Current setup step Instrument Instrument name Version Save instrument',
+    buttons: ['Save instrument', 'Next step'],
+    links: [],
+    richTranscript: {
+      label: 'study-setup',
+      title: 'Study setup',
+      url: `http://127.0.0.1:5174${path}`,
+      visibleText:
+        'Study setup Current setup step Instrument Instrument name Version Save instrument',
+      headings: ['Study setup', 'Instrument'],
+      buttons: [
+        { text: 'Save instrument', disabled: false },
+        { text: 'Next step', disabled: false },
+      ],
+      links: [],
+      fields: [
+        {
+          label: 'Instrument name',
+          placeholder: 'e.g. Employee pulse',
+          value: '',
+          required: false,
+        },
+      ],
       sections: ['Current setup step Instrument'],
       statusMessages: [],
     },

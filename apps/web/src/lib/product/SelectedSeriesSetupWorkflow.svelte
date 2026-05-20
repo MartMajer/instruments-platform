@@ -34,12 +34,14 @@
 	import {
 		appendScoreOutputRow,
 		appendTemplateQuestionRow,
-		buildScoreProduces,
-		buildScoringDocument,
-		createDefaultScoreOutputRows,
-		createDefaultTemplateQuestionRows,
-		isMeanScoreEligible,
-		moveTemplateQuestionRow,
+	buildScoreProduces,
+	buildScoringDocument,
+	createDefaultScoreOutputRows,
+	createDefaultTemplateQuestionRows,
+	describeQuestionResultUsage,
+	describeQuestionScoringDirection,
+	isMeanScoreEligible,
+	moveTemplateQuestionRow,
 		removeScoreOutputRow,
 		removeTemplateQuestionRow,
 		syncScoreOutputQuestionCodes,
@@ -738,6 +740,14 @@
 		return 'Text response';
 	}
 
+	function questionScoringDetail(question: TemplateQuestionAuthoringRow) {
+		return describeQuestionScoringDirection(question);
+	}
+
+	function questionResultUsage(question: TemplateQuestionAuthoringRow) {
+		return describeQuestionResultUsage(question, scoreOutputs);
+	}
+
 	function addTemplateQuestionRow() {
 		const nextRows = appendTemplateQuestionRow(templateQuestionRows);
 		templateQuestionRows = nextRows;
@@ -1417,7 +1427,7 @@
 															reverseCoded: event.currentTarget.checked
 														})}
 												/>
-												<span>Reverse scored</span>
+												<span>Reverse score this question</span>
 											</label>
 										{/if}
 										<button
@@ -1450,6 +1460,21 @@
 											<Trash2 size={16} aria-hidden="true" />
 											<span>Remove</span>
 										</button>
+									</div>
+									<div class="record-row">
+										<div class="record-row__header">
+											<div>
+												<p class="record-field__label">Scoring meaning</p>
+												<h6 class="record-row__title">{questionScoringDetail(question).label}</h6>
+											</div>
+											<StatusBadge status={isMeanScoreEligible(question) ? 'ready' : 'neutral'} />
+										</div>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{questionScoringDetail(question).detail}
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{questionResultUsage(question)}
+										</p>
 									</div>
 								</div>
 							{/each}
@@ -1628,7 +1653,9 @@
 														</label>
 														<p class="text-sm text-[var(--color-text-muted)]">
 															{questionPreviewDetail(question)}
-															{question.reverseCoded ? ' Reverse scored.' : ''}
+														</p>
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{questionScoringDetail(question).label}. {questionScoringDetail(question).detail}
 														</p>
 													</div>
 												{/each}

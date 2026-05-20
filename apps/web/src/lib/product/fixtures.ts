@@ -24,7 +24,7 @@ export type ProductFixtureGroup = {
 	scenarios: ProductFixtureScenario[];
 };
 
-const demoLabels = ['Demo data', 'Proof only'];
+const demoLabels = ['Demo data', 'Preview'];
 
 export const productFixtureCatalog: ProductFixtureGroup[] = [
 	{
@@ -145,33 +145,33 @@ export const productFixtureCatalog: ProductFixtureGroup[] = [
 	{
 		id: 'exports',
 		title: 'Exports',
-		description: 'Governed report artifact lifecycle states inside Reports.',
+		description: 'Generated report file lifecycle states inside Reports.',
 		scenarios: [
 			scenario(
 				'created',
 				'Created',
-				'Aggregate export artifact request has been created.',
+				'Aggregate export file request has been created.',
 				'/app/campaign-series/fixture-series-export-created/reports',
 				{ artifactStatus: 'created' }
 			),
 			scenario(
 				'fetched',
 				'Fetched',
-				'Stored report artifact metadata and codebook are available.',
+				'Stored report file metadata and codebook are available.',
 				'/app/campaign-series/fixture-series-export-fetched/reports',
 				{ artifactStatus: 'completed', rowCount: 8 }
 			),
 			scenario(
 				'downloadable',
 				'Downloadable',
-				'CSV artifact is ready for governed download.',
+				'CSV file is ready for download.',
 				'/app/campaign-series/fixture-series-export-downloadable/reports',
 				{ artifactStatus: 'completed', format: 'csv' }
 			),
 			scenario(
 				'not-found',
 				'Not found',
-				'Artifact retrieval returned a missing-artifact state.',
+				'Export file retrieval returned a missing-file state.',
 				'/app/campaign-series/fixture-series-export-missing/reports',
 				{ artifactStatus: 'not_found' }
 			)

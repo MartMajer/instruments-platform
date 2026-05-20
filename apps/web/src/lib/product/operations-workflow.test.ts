@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesOperationsWorkspaceResponse } from '$lib/api/product';
 import {
+	toSelectedSeriesCollectionStatusSummary,
 	toSelectedSeriesOperationsPath,
 	toSelectedSeriesOperationsWorkflowActions
 } from './operations-workflow';
@@ -14,37 +15,31 @@ describe('selected-series operations workflow model', () => {
 				id: 'readiness',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create or select a campaign before running operations.'
+				disabledReason: 'Create a collection wave in setup before checking readiness.'
 			}),
 			expect.objectContaining({
 				id: 'launch',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create or select a campaign before launch.'
+				disabledReason: 'Create a collection wave before starting collection.'
 			}),
 			expect.objectContaining({
 				id: 'openLink',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Launch the selected campaign before creating an open link.'
+				disabledReason: 'Start collection before creating respondent access.'
 			}),
 			expect.objectContaining({
-				id: 'invitations',
+				id: 'monitor',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Launch the selected campaign before queuing invitations.'
-			}),
-			expect.objectContaining({
-				id: 'delivery',
-				status: 'not_available',
-				available: false,
-				disabledReason: 'Queue invitations before processing local delivery.'
+				disabledReason: 'Start collection before monitoring responses.'
 			}),
 			expect.objectContaining({
 				id: 'close',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Launch the selected campaign before closing collection.'
+				disabledReason: 'Create a collection wave before closing collection.'
 			})
 		]);
 	});
@@ -89,25 +84,20 @@ describe('selected-series operations workflow model', () => {
 		});
 	});
 
-	it('enables entry and invitation actions for a live campaign', () => {
+	it('enables respondent access and monitoring actions for a live campaign', () => {
 		const actions = toSelectedSeriesOperationsWorkflowActions(liveWorkspace);
 
 		expect(actions.find((action) => action.id === 'launch')).toMatchObject({
 			status: 'live',
 			available: false,
-			disabledReason: 'Selected campaign is already live.'
+			disabledReason: 'Collection is already live.'
 		});
 		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
 			status: 'ready',
 			available: true,
 			disabledReason: null
 		});
-		expect(actions.find((action) => action.id === 'invitations')).toMatchObject({
-			status: 'ready',
-			available: true,
-			disabledReason: null
-		});
-		expect(actions.find((action) => action.id === 'delivery')).toMatchObject({
+		expect(actions.find((action) => action.id === 'monitor')).toMatchObject({
 			status: 'pending',
 			available: true,
 			disabledReason: null
@@ -119,7 +109,7 @@ describe('selected-series operations workflow model', () => {
 		});
 	});
 
-	it('uses identified entry and skips invitation delivery actions for identified campaigns', () => {
+	it('uses identified entry wording for identified campaigns', () => {
 		const identifiedWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
 			...liveWorkspace,
 			selectedCampaign: {
@@ -137,25 +127,14 @@ describe('selected-series operations workflow model', () => {
 		});
 
 		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
-			title: 'Identified entry',
 			status: 'pending',
 			available: true,
 			disabledReason: null
 		});
-		expect(actions.find((action) => action.id === 'invitations')).toMatchObject({
-			status: 'not_available',
-			available: false,
-			disabledReason: 'Email invitation batches support anonymous campaigns only.'
-		});
-		expect(actions.find((action) => action.id === 'delivery')).toMatchObject({
-			status: 'not_available',
-			available: false,
-			disabledReason: 'Local delivery requires queued anonymous invitations.'
-		});
-		expect(path.currentActionId).toBe('close');
+		expect(path.currentActionId).toBe('monitor');
 	});
 
-	it('skips invitation delivery actions for anonymous-longitudinal campaigns', () => {
+	it('keeps anonymous-longitudinal campaigns on the same collection path', () => {
 		const longitudinalWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
 			...liveWorkspace,
 			selectedCampaign: {
@@ -169,41 +148,31 @@ describe('selected-series operations workflow model', () => {
 		const actions = toSelectedSeriesOperationsWorkflowActions(longitudinalWorkspace);
 		const path = toSelectedSeriesOperationsPath(longitudinalWorkspace);
 
-		expect(actions.find((action) => action.id === 'invitations')).toMatchObject({
-			status: 'not_available',
-			available: false
+		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
+			status: 'ready',
+			available: true
 		});
-		expect(actions.find((action) => action.id === 'delivery')).toMatchObject({
-			status: 'not_available',
-			available: false
-		});
-		expect(path.currentActionId).toBe('close');
+		expect(path.currentActionId).toBe('monitor');
 	});
 
-	it('uses local action results to advance open-link, invitation, and delivery state', () => {
+	it('uses local action results to advance open-link and collection state', () => {
 		const actions = toSelectedSeriesOperationsWorkflowActions(draftWorkspace, {
 			readinessReady: true,
 			launched: true,
-			openLinkCreated: true,
-			invitationsQueued: true,
-			deliveryProcessed: true
+			openLinkCreated: true
 		});
 
 		expect(actions.find((action) => action.id === 'launch')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Selected campaign was launched in this session.'
+			disabledReason: 'Collection was started in this session.'
 		});
 		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
 			status: 'ready',
 			available: true
 		});
-		expect(actions.find((action) => action.id === 'invitations')).toMatchObject({
-			status: 'ready',
-			available: true
-		});
-		expect(actions.find((action) => action.id === 'delivery')).toMatchObject({
-			status: 'ready',
+		expect(actions.find((action) => action.id === 'monitor')).toMatchObject({
+			status: 'pending',
 			available: true
 		});
 		expect(actions.find((action) => action.id === 'close')).toMatchObject({
@@ -221,8 +190,7 @@ describe('selected-series operations workflow model', () => {
 			{ id: 'readiness', state: 'current' },
 			{ id: 'launch', state: 'blocked' },
 			{ id: 'openLink', state: 'blocked' },
-			{ id: 'invitations', state: 'blocked' },
-			{ id: 'delivery', state: 'blocked' },
+			{ id: 'monitor', state: 'blocked' },
 			{ id: 'close', state: 'blocked' }
 		]);
 	});
@@ -238,13 +206,12 @@ describe('selected-series operations workflow model', () => {
 			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'current' },
 			{ id: 'openLink', state: 'blocked' },
-			{ id: 'invitations', state: 'blocked' },
-			{ id: 'delivery', state: 'blocked' },
+			{ id: 'monitor', state: 'blocked' },
 			{ id: 'close', state: 'blocked' }
 		]);
 	});
 
-	it('selects invitation batch for a live campaign that already has open-link entry', () => {
+	it('selects monitor for a live campaign that already has respondent access', () => {
 		const path = toSelectedSeriesOperationsPath({
 			...liveWorkspace,
 			summary: {
@@ -257,46 +224,27 @@ describe('selected-series operations workflow model', () => {
 			}
 		});
 
-		expect(path.currentActionId).toBe('invitations');
+		expect(path.currentActionId).toBe('monitor');
 		expect(path.completedCount).toBe(3);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
-			{ id: 'invitations', state: 'current' },
-			{ id: 'delivery', state: 'blocked' },
+			{ id: 'monitor', state: 'current' },
 			{ id: 'close', state: 'blocked' }
 		]);
 	});
 
-	it('selects local delivery when invitations are queued', () => {
-		const path = toSelectedSeriesOperationsPath(liveWorkspace);
+	it('selects close after response activity exists', () => {
+		const path = toSelectedSeriesOperationsPath(liveWithResponsesWorkspace);
 
-		expect(path.currentActionId).toBe('delivery');
+		expect(path.currentActionId).toBe('close');
 		expect(path.completedCount).toBe(4);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
-			{ id: 'invitations', state: 'done' },
-			{ id: 'delivery', state: 'current' },
-			{ id: 'close', state: 'blocked' }
-		]);
-	});
-
-	it('selects close after local delivery has been processed', () => {
-		const path = toSelectedSeriesOperationsPath(liveWorkspace, {
-			deliveryProcessed: true
-		});
-
-		expect(path.currentActionId).toBe('close');
-		expect(path.completedCount).toBe(5);
-		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'done' },
-			{ id: 'launch', state: 'done' },
-			{ id: 'openLink', state: 'done' },
-			{ id: 'invitations', state: 'done' },
-			{ id: 'delivery', state: 'done' },
+			{ id: 'monitor', state: 'done' },
 			{ id: 'close', state: 'current' }
 		]);
 	});
@@ -305,14 +253,58 @@ describe('selected-series operations workflow model', () => {
 		const path = toSelectedSeriesOperationsPath(closedWorkspace);
 
 		expect(path.currentActionId).toBe('close');
-		expect(path.completedCount).toBe(6);
+		expect(path.completedCount).toBe(5);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
-			{ id: 'invitations', state: 'done' },
-			{ id: 'delivery', state: 'done' },
+			{ id: 'monitor', state: 'done' },
 			{ id: 'close', state: 'done' }
+		]);
+	});
+
+	it('summarizes live collection with response progress and recipient context', () => {
+		const summary = toSelectedSeriesCollectionStatusSummary(liveWithResponsesWorkspace);
+
+		expect(summary).toMatchObject({
+			overallStatus: 'live',
+			overallLabel: 'Live',
+			headline: 'Live: accepting responses with 21 submitted',
+			guidance:
+				'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
+			nextAction: 'Keep collecting, review preliminary Results, or close collection when ready.'
+		});
+		expect(summary.lanes).toEqual([
+			expect.objectContaining({
+				id: 'lifecycle',
+				label: 'Collection lifecycle',
+				title: 'Live: accepting responses',
+				status: 'live',
+				detail: 'Respondents can still submit. Results remain preliminary until collection closes.'
+			}),
+			expect.objectContaining({
+				id: 'responses',
+				label: 'Response progress',
+				title: '21 submitted',
+				status: 'ready',
+				detail: '24 started, 3 in progress, 21 submitted.'
+			}),
+			expect.objectContaining({
+				id: 'audience',
+				label: 'Audience and access',
+				title: 'Recipient access prepared',
+				status: 'ready',
+				detail:
+					'1 respondent link and 21 prepared invitations. Anonymous reports keep respondent identity out of results.'
+			}),
+			expect.objectContaining({
+				id: 'reporting',
+				label: 'Reporting readiness',
+				title: 'reportable',
+				status: 'ready',
+				detail:
+					'Results can be reviewed, but live collection data should be treated as preliminary until closed.'
+			})
 		]);
 	});
 });
@@ -405,6 +397,32 @@ const liveWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
 		queuedInvitationCount: 2,
 		deliveryAttemptCount: 0,
 		latestDeliveryAttemptAt: null
+	}
+};
+
+const liveWithResponsesWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
+	...liveWorkspace,
+	summary: {
+		...liveWorkspace.summary,
+		openLinkAssignmentCount: 1,
+		queuedInvitationCount: 21,
+		startedResponseCount: 24,
+		draftResponseCount: 3,
+		submittedResponseCount: 21,
+		latestResponseStartedAt: '2026-05-20T19:30:00Z',
+		latestResponseSubmittedAt: '2026-05-20T19:34:00Z',
+		reportVisibilityStatus: 'reportable'
+	},
+	selectedCampaign: {
+		...liveWorkspace.selectedCampaign!,
+		openLinkAssignmentCount: 1,
+		queuedInvitationCount: 21,
+		startedResponseCount: 24,
+		draftResponseCount: 3,
+		submittedResponseCount: 21,
+		latestResponseStartedAt: '2026-05-20T19:30:00Z',
+		latestResponseSubmittedAt: '2026-05-20T19:34:00Z',
+		reportVisibilityStatus: 'reportable'
 	}
 };
 

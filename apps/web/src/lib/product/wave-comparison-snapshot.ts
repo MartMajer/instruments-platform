@@ -78,7 +78,7 @@ export function toSelectedSeriesWaveComparisonSnapshotState(
 		seriesId: workspace.series.id,
 		baselineWaveName: baselineWave.name,
 		comparisonWaveName: comparisonWave.name,
-		badgeLabel: loadedForSelectedSeries ? 'Proof/local' : 'Proof-only',
+		badgeLabel: loadedForSelectedSeries ? 'Preview ready' : 'Preview available',
 		disabledReason: null
 	};
 }
@@ -159,7 +159,7 @@ function toWaveComparisonRows(
 	comparison: CampaignSeriesWavesComparisonResponse
 ): SelectedSeriesWaveDashboardRow[] {
 	return [
-		{ label: 'Proof status', value: formatCodeLabel(comparison.status) },
+		{ label: 'Preview status', value: formatCodeLabel(comparison.status) },
 		{ label: 'Interpretation', value: formatCodeLabel(comparison.interpretationStatus) },
 		{ label: 'Linked pairs', value: formatCount(comparison.linkedPairCount) }
 	];
@@ -214,5 +214,9 @@ function formatCount(value: number) {
 }
 
 function formatCodeLabel(value: string) {
+	if (value === 'proof_only') {
+		return 'preview';
+	}
+
 	return value.replaceAll('_', ' ');
 }

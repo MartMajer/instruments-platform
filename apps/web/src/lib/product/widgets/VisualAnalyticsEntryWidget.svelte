@@ -33,7 +33,7 @@
 				</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Data source</dt>
+				<dt class="record-field__label">Preview source</dt>
 				<dd class="record-field__value">
 					{widget.dataSource ? `${widget.dataSource.method} report preview` : 'Not configured'}
 				</dd>

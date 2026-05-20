@@ -1,9 +1,33 @@
 export function formatCodeLabel(value: string | null | undefined) {
-	return value ? value.replaceAll('_', ' ') : 'Not available';
+	if (!value) {
+		return 'Not available';
+	}
+
+	if (value === 'proof_only') {
+		return 'preview';
+	}
+
+	return value.replaceAll('_', ' ');
 }
 
 export function formatNullableDate(value: string | null | undefined) {
-	return value ?? 'Not available';
+	if (!value) {
+		return 'Not available';
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return new Intl.DateTimeFormat('hr-HR', {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	}).format(date);
 }
 
 export function formatNullableNumber(value: number | null | undefined) {
@@ -24,4 +48,22 @@ export function formatBytes(value: number) {
 	}
 
 	return `${(value / 1_000_000).toFixed(1)} MB`;
+}
+
+export function formatProductCopy(value: string | null | undefined) {
+	if (!value) {
+		return '';
+	}
+
+	return value
+		.replace(/\bExport artifacts\b/g, 'Export files')
+		.replace(/\bexport artifacts\b/g, 'export files')
+		.replace(/\bExport artifact\b/g, 'Export file')
+		.replace(/\bexport artifact\b/g, 'export file')
+		.replace(/\breport proof export\b/g, 'results export')
+		.replace(/\bReport proof export\b/g, 'Results export')
+		.replace(/\breport proof\b/g, 'report preview')
+		.replace(/\bReport proof\b/g, 'Report preview')
+		.replace(/\bproof only\b/g, 'preview')
+		.replace(/\bProof only\b/g, 'Preview');
 }

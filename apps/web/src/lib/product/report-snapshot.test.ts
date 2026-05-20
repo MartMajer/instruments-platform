@@ -40,7 +40,7 @@ describe('selected-series report snapshot model', () => {
 			available: true,
 			campaignId: 'campaign-id',
 			campaignName: 'Live wave',
-			badgeLabel: 'Proof-only',
+			badgeLabel: 'Preview available',
 			disabledReason: null
 		});
 	});
@@ -55,7 +55,7 @@ describe('selected-series report snapshot model', () => {
 			available: true,
 			campaignId: 'campaign-id',
 			campaignName: 'Live wave',
-			badgeLabel: 'Proof/local',
+			badgeLabel: 'Preview ready',
 			disabledReason: null
 		});
 	});
@@ -69,7 +69,7 @@ describe('selected-series report snapshot model', () => {
 			status: 'pending',
 			available: true,
 			campaignId: 'campaign-id',
-			badgeLabel: 'Proof-only',
+			badgeLabel: 'Preview available',
 			disabledReason: null
 		});
 	});
@@ -82,14 +82,14 @@ describe('selected-series report snapshot model', () => {
 		expect(dashboard).toMatchObject({
 			title: 'Live wave report dashboard',
 			status: 'ready',
-			badgeLabel: 'Proof/local',
+			badgeLabel: 'Preview ready',
 			available: true,
 			emptyMessage: null
 		});
 		expect(dashboard.readinessRows).toEqual([
 			{ label: 'Selected campaign', value: 'Live wave' },
 			{ label: 'Campaign status', value: 'live' },
-			{ label: 'Report status', value: 'proof only' },
+			{ label: 'Report status', value: 'preview' },
 			{ label: 'Interpretation', value: 'not validated interpretation' },
 			{ label: 'Submitted responses', value: '12' },
 			{ label: 'Scores', value: '12' }
@@ -102,19 +102,19 @@ describe('selected-series report snapshot model', () => {
 		]);
 		expect(dashboard.provenanceRows).toEqual([
 			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-			{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
+			{ label: 'Latest launch', value: '05. 05. 2026. 10:30' },
 			{ label: 'Scoring rule', value: 'scoring-rule-id', mono: true },
 			{ label: 'Consent document', value: 'consent-id', mono: true },
 			{ label: 'Retention policy', value: 'retention-id', mono: true },
 			{ label: 'Disclosure policy', value: 'disclosure-id', mono: true }
 		]);
 		expect(dashboard.exportRows).toEqual([
-			{ label: 'Export artifacts', value: '2' },
-			{ label: 'Latest export artifact', value: 'export-artifact-id', mono: true },
+			{ label: 'Export files', value: '2' },
+			{ label: 'Latest export record', value: 'export-artifact-id', mono: true },
 			{ label: 'Latest export file', value: 'report-proof.csv' },
 			{ label: 'Latest export status', value: 'succeeded' },
-			{ label: 'Latest export created', value: '2026-05-05T09:00:00Z' },
-			{ label: 'Latest export completed', value: '2026-05-05T09:00:03Z' },
+			{ label: 'Latest export created', value: '05. 05. 2026. 11:00' },
+			{ label: 'Latest export completed', value: '05. 05. 2026. 11:00' },
 			{ label: 'Latest export started', value: 'Not available' },
 			{ label: 'Latest export failed', value: 'Not available' },
 			{ label: 'Latest export expires', value: 'Not available' },
@@ -132,15 +132,15 @@ describe('selected-series report snapshot model', () => {
 				campaignName: null,
 				title: 'campaign-series-responses.csv',
 				badgeLabel: 'failed',
-				meta: ['campaign series response csv codebook', 'csv codebook', '0 rows', '0 bytes'],
+				meta: ['response dataset CSV and codebook', 'csv codebook', '0 rows', '0 bytes'],
 				rows: [
-					{ label: 'Artifact', value: 'response-export-artifact-id', mono: true },
-					{ label: 'Target', value: 'Quarterly burnout pulse' },
-					{ label: 'Target scope', value: 'campaign series' },
-					{ label: 'Created', value: '2026-05-05T09:10:00Z' },
+					{ label: 'Export record', value: 'response-export-artifact-id', mono: true },
+					{ label: 'Study context', value: 'Quarterly burnout pulse' },
+					{ label: 'Context type', value: 'campaign series' },
+					{ label: 'Created', value: '05. 05. 2026. 11:10' },
 					{ label: 'Completed', value: 'Not available' },
 					{ label: 'Started', value: 'Not available' },
-					{ label: 'Failed', value: '2026-05-05T09:10:02Z' },
+					{ label: 'Failed', value: '05. 05. 2026. 11:10' },
 					{ label: 'Expires', value: 'Not available' },
 					{ label: 'Deleted', value: 'Not available' },
 					{ label: 'Failure reason', value: 'renderer.failed' },
@@ -157,13 +157,13 @@ describe('selected-series report snapshot model', () => {
 				campaignName: 'Live wave',
 				title: 'report-proof.csv',
 				badgeLabel: 'succeeded',
-				meta: ['report proof csv codebook', 'csv codebook', '12 rows', '512 bytes'],
+				meta: ['report summary CSV and codebook', 'csv codebook', '12 rows', '512 bytes'],
 				rows: [
-					{ label: 'Artifact', value: 'export-artifact-id', mono: true },
-					{ label: 'Target', value: 'Live wave' },
-					{ label: 'Target scope', value: 'campaign' },
-					{ label: 'Created', value: '2026-05-05T09:00:00Z' },
-					{ label: 'Completed', value: '2026-05-05T09:00:03Z' },
+					{ label: 'Export record', value: 'export-artifact-id', mono: true },
+					{ label: 'Study context', value: 'Live wave' },
+					{ label: 'Context type', value: 'campaign' },
+					{ label: 'Created', value: '05. 05. 2026. 11:00' },
+					{ label: 'Completed', value: '05. 05. 2026. 11:00' },
 					{ label: 'Started', value: 'Not available' },
 					{ label: 'Failed', value: 'Not available' },
 					{ label: 'Expires', value: 'Not available' },

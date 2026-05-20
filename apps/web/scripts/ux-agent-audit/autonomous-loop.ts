@@ -11,6 +11,7 @@ import type {
   MissionEvidenceStep,
 } from './evidence.ts';
 import type { MissionPageSnapshot } from './mission-executor.ts';
+import { buildRealisticResponseSimulation } from './realistic-cases.ts';
 
 export interface AutonomousPageAdapter {
   gotoPath(path: string, label?: string): Promise<MissionPageSnapshot>;
@@ -178,6 +179,10 @@ export async function runAutonomousFixtureMission(
     targetProductPaths: mission.targetProductPaths,
     visitedProductPaths,
     reviewFocus: mission.reviewFocus,
+    ...(mission.realisticCase ? { realisticCase: mission.realisticCase } : {}),
+    ...(mission.realisticCase
+      ? { realisticResponseSimulation: buildRealisticResponseSimulation(mission.realisticCase) }
+      : {}),
     actionLog,
     personaFindings: findings,
   } satisfies JsonObject;
@@ -273,6 +278,18 @@ export function buildScriptedFixturePersonaActor(
         };
       }
 
+      const primaryCopyFinding = buildPrimaryCopyFinding(mission, context.currentSnapshot);
+      if (primaryCopyFinding) {
+        return {
+          kind: 'complain',
+          severity: primaryCopyFinding.severity,
+          surface: primaryCopyFinding.surface,
+          problem: primaryCopyFinding.observedConfusion,
+          suggestedFix: primaryCopyFinding.suggestedFix,
+          ticketReadyWording: primaryCopyFinding.ticketReadyWording,
+        };
+      }
+
       if (mission.mutationPlan?.kind === 'create-study') {
         const createStudyAction = decideCreateStudyMutation(
           mission.mutationPlan,
@@ -318,6 +335,10 @@ function decideCreateStudyMutation(
   steps: MissionEvidenceStep[]
 ): UXAgentAction | undefined {
   if (isCreatedStudySetupPath(currentPath)) {
+    if (plan.setupInstrument) {
+      return decideSetupInstrumentMutation(plan.setupInstrument, steps);
+    }
+
     return {
       kind: 'stop',
       reason: 'created study setup route reached.',
@@ -332,11 +353,18 @@ function decideCreateStudyMutation(
     (step) => step.action === `Filled visible field "${plan.fieldLabel}".`
   );
   if (!filledStudyName) {
+    const generatedStudyName = `${plan.studyNamePrefix ?? 'UXA local study'} ${new Date()
+      .toISOString()
+      .replace(/[-:.TZ]/g, '')
+      .slice(0, 14)}`;
+
     return {
       kind: 'fill',
       label: plan.fieldLabel,
-      value: `${plan.studyNamePrefix} ${new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}`,
-      reason: 'name the synthetic local full-stack study',
+      value: plan.studyName ?? generatedStudyName,
+      reason: plan.studyName
+        ? 'name the realistic local full-stack study'
+        : 'name the synthetic local full-stack study',
     };
   }
 
@@ -361,6 +389,55 @@ function decideCreateStudyMutation(
       'Fix local full-stack API/database mutation handling or the Studies create-study redirect.',
     ticketReadyWording:
       'Fix UXA02 full-stack create-study mutation: clicking Create study must create a study and navigate to its setup route.',
+  };
+}
+
+function decideSetupInstrumentMutation(
+  setupInstrument: NonNullable<
+    NonNullable<AutonomousFixtureMission['mutationPlan']>['setupInstrument']
+  >,
+  steps: MissionEvidenceStep[]
+): UXAgentAction {
+  const filledInstrumentName = steps.some(
+    (step) => step.action === `Filled visible field "${setupInstrument.fieldLabel}".`
+  );
+  if (!filledInstrumentName) {
+    return {
+      kind: 'fill',
+      label: setupInstrument.fieldLabel,
+      value: setupInstrument.value,
+      reason: 'name the realistic local instrument',
+    };
+  }
+
+  if (setupInstrument.versionFieldLabel && setupInstrument.versionValue) {
+    const filledInstrumentVersion = steps.some(
+      (step) => step.action === `Filled visible field "${setupInstrument.versionFieldLabel}".`
+    );
+    if (!filledInstrumentVersion) {
+      return {
+        kind: 'fill',
+        label: setupInstrument.versionFieldLabel,
+        value: setupInstrument.versionValue,
+        reason: 'set the realistic local instrument version',
+      };
+    }
+  }
+
+  const clickedSaveInstrument = steps.some(
+    (step) => step.action === `Clicked visible button "${setupInstrument.buttonText}".`
+  );
+  if (!clickedSaveInstrument) {
+    return {
+      kind: 'click-button',
+      text: setupInstrument.buttonText,
+      reason: 'save the realistic local instrument setup',
+    };
+  }
+
+  return {
+    kind: 'stop',
+    reason: 'created realistic study and saved instrument setup.',
   };
 }
 
@@ -408,6 +485,10 @@ function buildReviewerOutput(
           ? `Autonomous ${mission.personaId} review found ${findings.length} issue(s).`
           : `Autonomous ${mission.personaId} review completed without findings.`,
       missionStatus: status,
+      ...(mission.realisticCase ? { realisticCase: mission.realisticCase } : {}),
+      ...(mission.realisticCase
+        ? { realisticResponseSimulation: buildRealisticResponseSimulation(mission.realisticCase) }
+        : {}),
       personaGoal: {
         name: mission.personaProfile.name,
         role: mission.personaProfile.role,
@@ -424,14 +505,15 @@ function buildReviewerOutput(
   );
 }
 
-function buildPersonaGoalAssessment(
+export function buildPersonaGoalAssessment(
   mission: AutonomousFixtureMission,
   status: MissionEvidenceStatus,
   findings: AutonomousPersonaFinding[],
   visitedProductPaths: string[],
-  snapshots: MissionPageSnapshot[]
+  snapshots: MissionPageSnapshot[],
+  targetProductPaths = mission.targetProductPaths
 ) {
-  const visitedTargetCount = mission.targetProductPaths.filter((path) =>
+  const visitedTargetCount = targetProductPaths.filter((path) =>
     visitedProductPaths.includes(path)
   ).length;
 
@@ -443,7 +525,7 @@ function buildPersonaGoalAssessment(
       assessCriterion(criterion, status, snapshots)
     ),
     visitedTargetCount,
-    targetCount: mission.targetProductPaths.length,
+    targetCount: targetProductPaths.length,
     unresolvedFindingCount: findings.length,
     reviewerInstructions: mission.personaProfile.reviewerInstructions,
   } satisfies JsonObject;
@@ -499,6 +581,10 @@ function findCriterionEvidence(criterion: string, snapshots: MissionPageSnapshot
       const normalized = normalizeForMatching(candidate.text);
       const matchCount = terms.filter((term) => normalized.includes(term)).length;
 
+      if (preferredRoute && !path.endsWith(preferredRoute)) {
+        continue;
+      }
+
       if (matchCount === 0) {
         continue;
       }
@@ -510,12 +596,14 @@ function findCriterionEvidence(criterion: string, snapshots: MissionPageSnapshot
       const preferredRouteBonus = preferredRoute && path.endsWith(preferredRoute) ? 4 : 0;
       const genericEntryPenalty = preferredRoute && path === missionEntryPath ? 4 : 0;
       const sectionBonus = candidate.kind === 'section' || candidate.kind === 'status' ? 1 : 0;
-      const score = matchCount + preferredRouteBonus + sectionBonus - genericEntryPenalty;
+      const excerptPenalty = candidate.kind === 'excerpt' ? 2 : 0;
+      const score =
+        matchCount + preferredRouteBonus + sectionBonus - genericEntryPenalty - excerptPenalty;
 
       if (!best || score > best.score) {
         best = {
           label: `${routeLabel(path)}${candidate.label ? ` ${candidate.label}` : ''}`.trim(),
-          excerpt: excerptForEvidence(candidate.text),
+          excerpt: excerptForEvidence(candidate.text, terms),
           score,
         };
       }
@@ -550,7 +638,13 @@ function candidateMeetsRequiredCriterionTerms(
     normalizedCriterion.includes('claims') &&
     (normalizedCriterion.includes('validated') || normalizedCriterion.includes('clinical'))
   ) {
-    return false;
+    return (
+      normalizedCandidate.includes('not validated') ||
+      normalizedCandidate.includes('not client ready') ||
+      normalizedCandidate.includes('internal review only') ||
+      normalizedCandidate.includes('client facing claims') ||
+      normalizedCandidate.includes('interpretation status')
+    );
   }
 
   return true;
@@ -576,7 +670,7 @@ function evidenceCandidates(snapshot: MissionPageSnapshot) {
     }
   }
 
-  if (candidates.length === 0) {
+  if (snapshot.visibleTextExcerpt.trim().length > 0) {
     candidates.push({ kind: 'excerpt', label: '', text: snapshot.visibleTextExcerpt });
   }
 
@@ -594,7 +688,15 @@ function preferredRouteForCriterion(criterion: string) {
     return '/reports';
   }
 
-  if (/\b(wave|comparison|disclosure|anonymity|anonymous|change|clinical|validated)\b/.test(normalized)) {
+  if (
+    /\b(clinical|validated|claims|interpretation)\b/.test(normalized) ||
+    (/\b(disclosure|anonymity|anonymous|suppression|limitations)\b/.test(normalized) &&
+      /\b(interpretation|claim|claims|report|results)\b/.test(normalized))
+  ) {
+    return '/reports';
+  }
+
+  if (/\b(wave|comparison|disclosure|anonymity|anonymous|change)\b/.test(normalized)) {
     return '/waves';
   }
 
@@ -666,21 +768,43 @@ function criterionTerms(criterion: string) {
     'work',
   ]);
 
-  return Array.from(
+  const terms = Array.from(
     new Set(
       normalizeForMatching(criterion)
         .split(/\s+/)
         .filter((term) => term.length > 3 && !stopWords.has(term))
     )
   );
+
+  const normalized = normalizeForMatching(criterion);
+  if (normalized.includes('anonymity')) {
+    terms.push('anonymous');
+  }
+  if (normalized.includes('suppression')) {
+    terms.push('suppressed', 'disclosure');
+  }
+  if (normalized.includes('limitations')) {
+    terms.push('limits', 'limited', 'disclosure');
+  }
+  if (normalized.includes('validated') || normalized.includes('clinical')) {
+    terms.push('not validated', 'not client ready', 'internal review');
+  }
+
+  return Array.from(new Set(terms));
 }
 
 function normalizeForMatching(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-function excerptForEvidence(value: string) {
-  return value.replace(/\s+/g, ' ').trim().slice(0, 240);
+function excerptForEvidence(value: string, terms: string[] = []) {
+  const collapsed = value.replace(/\s+/g, ' ').trim();
+  const lower = collapsed.toLowerCase();
+  const matchedTerm = terms.find((term) => lower.includes(term));
+  const matchIndex = matchedTerm ? lower.indexOf(matchedTerm) : 0;
+  const start = Math.max(0, matchIndex - 80);
+
+  return collapsed.slice(start, start + 240);
 }
 
 function combinedSnapshotText(snapshot: MissionPageSnapshot) {
@@ -705,6 +829,55 @@ function hasHardProductFailure(text: string) {
 function hasWorkspaceAccessLoading(text: string) {
   return /workspace access\s+checking workspace access/i.test(text);
 }
+
+export function buildPrimaryCopyFinding(
+  mission: AutonomousFixtureMission,
+  snapshot: MissionPageSnapshot
+): AutonomousPersonaFinding | undefined {
+  const text = combinedSnapshotText(snapshot);
+  const smell = primaryCopySmells.find((candidate) => candidate.pattern.test(text));
+  if (!smell) {
+    return undefined;
+  }
+
+  const surface = snapshot.title || snapshot.label;
+  return {
+    severity: 'confusion',
+    affectedStep: snapshot.label,
+    surface,
+    userExpectation: `${mission.personaProfile.name} expects product pages to use client/researcher-facing language.`,
+    observedConfusion: `Primary product copy includes "${smell.label}", which reads as internal proof/development language in the ${mission.personaProfile.name} workflow.`,
+    suggestedFix: smell.suggestedFix,
+    ticketReadyWording: `Replace primary-path "${smell.label}" copy on ${surface} with product-facing language.`,
+  };
+}
+
+const primaryCopySmells = [
+  {
+    label: 'Proof foundation',
+    pattern: /\bproof foundation\b/i,
+    suggestedFix:
+      'Change shared product header/status copy to neutral study, collection, results, or workspace language.',
+  },
+  {
+    label: 'Proof only',
+    pattern: /\bproof only\b/i,
+    suggestedFix:
+      'Keep proof-lab copy out of normal product journeys and show Preview or Not ready where a status is needed.',
+  },
+  {
+    label: 'Export artifact',
+    pattern: /\bexport artifact(?: registry)?\b/i,
+    suggestedFix:
+      'Use export file, download, or export library language on client-facing results and export routes.',
+  },
+  {
+    label: 'Artifact registry',
+    pattern: /\bartifact registry\b/i,
+    suggestedFix:
+      'Use export files or export library language instead of implementation registry wording.',
+  },
+] as const;
 
 function isDemoUnavailable(snapshot: MissionPageSnapshot) {
   return /demo states are not enabled|demo fixture unavailable|unavailable/i.test(

@@ -1,3 +1,217 @@
+# Next Session Plan - Post-D390
+
+Current queue head: UXA08 add optional pre-run cleanup or per-run workspace isolation for full-stack UXA missions.
+
+D390 completed UXA07 locally:
+
+- Added `fullstack-cleanup` CLI command.
+- Cleanup defaults to dry-run.
+- Cleanup requires `--fullstack-dev-auth`.
+- Cleanup refuses non-loopback API URLs.
+- Cleanup matches only known UXA synthetic study names.
+- Cleanup archives through the normal product API instead of deleting rows.
+- Runtime cleanup archived 20 active UXA synthetic studies.
+- Post-apply dry-run reported 0 candidates.
+
+Commands:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-cleanup --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth
+```
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-cleanup --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --apply
+```
+
+Verification:
+
+- focused cleanup/runner/preflight tests: 3 files / 38 tests passed
+- runtime dry-run before apply: 20 candidates
+- runtime apply: 20 archived
+- runtime dry-run after apply: 0 candidates
+
+Recommended next move: if UXA harness work continues, add an explicit pre-run cleanup flag or per-run workspace isolation so long full-stack persona runs do not require manual cleanup between missions. Otherwise shift back to product UX assessment with a clean local cockpit.
+# Next Session Plan - Post-D389
+
+Current queue head: UXA07 add a safe local cleanup/reset path for UXA full-stack synthetic studies.
+
+D389 completed UXA06 locally:
+
+- Added realistic case `academic-workload-recovery-followup` for the busy-professor repeated-wave workflow.
+- Added mission `fullstack-academic-repeated-wave-review`.
+- Repeated-wave seeding now creates two `anonymous_longitudinal` campaigns through campaign open links, submits linked participant-code responses, scores every response, and closes both waves.
+- Browser evidence now inspects Collection, Waves, and Results after repeated-wave seeding.
+- Persona-goal assessment now recognizes disclosure/anonymity, `Disclosure visible / k 5`, `not validated`, `internal review only`, and client-claim safety copy in real local transcripts.
+
+Verification:
+
+- focused UXA harness tests: 4 files / 27 tests passed
+- full-stack preflight: ready
+- final local mission artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T21-38-40-538Z/`
+- final mission result: 2 waves, 32 submitted responses, 32 score runs, 2 closed campaigns, 5/5 persona criteria observed, 0 findings, 0 tickets
+
+Recommended next move: UXA07 should keep this local-only and add safe cleanup/reset for UXA-created synthetic studies or a per-run disposable workspace strategy. Current local cockpit evidence is already getting cluttered by prior UXA runs, which can weaken future persona transcript quality.
+# Next Session Plan - Post-D388
+
+Current queue head: UXA06 add a realistic repeated-wave full-stack persona mission for the busy-professor workflow.
+
+D388 completed UXA05 locally:
+
+- `fullstack-osh-warehouse-pulse` was rerun against the disposable local app/API/database stack.
+- Shared `SurfaceHeader` no longer leaks `Proof foundation`; default badge copy is neutral `Study workspace`.
+- The autonomous harness now flags proof/artifact language on primary product routes.
+- The realistic full-stack seed bridge reads the raw browser URL only in memory, validates the series id, and still writes redacted evidence.
+- Post-seed Collection and Results snapshots now update `targetProductPaths`, `visitedProductPaths`, and `personaGoalAssessment`.
+- Route-specific persona criteria now require route-specific transcript evidence.
+- Results widget copy now normalizes `Export artifact`, `report proof export`, and `proof only` language and formats dates in Croatian-style date/time without nanoseconds.
+
+Verification:
+
+- focused UXA/report snapshot tests: 3 files / 26 tests passed
+- web production build: passed with the existing large chunk warning
+- local full-stack bootstrap: rebuilt/restarted and reached `ready`
+- final local mission artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T21-07-25-451Z/`
+- final mission result: 21 invitations, 21 submitted responses, 21 scored responses, 126 visible scores, 0 findings, 0 tickets
+
+Recommended next move: UXA06 should cover the repeated-wave/busy-professor path with real local full-stack state. Start with Wave 1/Wave 2 creation or seeding, comparison readiness, disclosure/anonymity explanation, Results/Waves navigation, and export readiness. Keep it local-only.
+
+# Next Session Plan - Post-D387
+
+Current queue head: UXA05 rerun the local full-stack persona review after D384-D387 product fixes.
+
+D387 completed the remaining UXA04 wording cleanup:
+
+- `proof_only` now renders as `Preview` through normal status badges.
+- Results/report snapshots use `Preview ready` / `Preview available` instead of `Proof/local` / `Proof-only`.
+- Export routes and report snapshot surfaces say `export file`, `download`, `file purpose`, and `Export files` instead of `artifact`/`registry`.
+- Report widget chrome now says `Results summary`.
+- Visual analytics now says `Preview / not validated`.
+- API-supplied lifecycle and missing-prerequisite text is normalized before display so backend labels like `Export artifact` do not leak into primary UX.
+- The proof-lab/development workbench intentionally still uses proof vocabulary.
+
+Verification:
+
+- focused product model tests: 6 files / 85 tests passed
+- web production build: passed with the existing large chunk warning
+
+Recommended next move: UXA05 should rerun `fullstack-osh-warehouse-pulse` locally and regenerate persona reviews/themes/tickets. Use the new evidence to decide whether UXA04 is good enough or whether remaining UX tickets need another product slice.
+
+# Next Session Plan - Post-D386
+
+Current queue head: UXA04-D residual primary-path technical wording cleanup.
+
+D386 fixed the questionnaire/scoring semantics theme:
+
+- Question rows now show a plain scoring meaning.
+- Results setup question selection now repeats the scoring meaning.
+- `Reverse scored` became `Reverse score this question`.
+- Questions show current result-output usage such as `Used in: Recovery risk.` or `Not included in any result output yet.`
+
+Verification:
+
+- focused template authoring test: 1 file / 10 tests passed
+- web production build: passed with the existing large chunk warning
+
+D385 verification also completed after the prior handoff:
+
+- focused Operations workflow test: 1 file / 13 tests passed
+- web production build: passed with the existing large chunk warning
+
+Remaining UXA04 themes:
+
+- Primary-path wording still has some proof/artifact/API language.
+- Audience context can improve further when a named audience/group label exists in the backend response.
+
+Recommended next move: UXA04-D should do a narrow primary-copy pass over Setup/Collection/Results/Waves and move or rename residual technical wording without changing backend semantics.
+
+# Next Session Plan - Post-D385
+
+Current queue head: UXA04-C questionnaire dimension and scoring-direction semantics.
+
+D385 fixed the second D383 persona-ticket theme:
+
+- Collection now has a `Collection status` section before the workflow path.
+- The status model separates lifecycle, response progress, audience/access, and reporting readiness.
+- The D383-style seeded state now says `Live: accepting responses with 21 submitted`.
+- It summarizes started/in-progress/submitted counts, respondent links, prepared invitations, and the preliminary-live caveat.
+
+Verification:
+
+- no test/build command was run in this slice
+- source check found no stale removed operation action ids in touched files
+- before deployment, run focused Operations workflow test and web production build
+
+Remaining UXA04 themes:
+
+- Questionnaire/scoring semantics: show dimensions and higher-is-risk/protective direction.
+- Technical wording: keep proof/artifact/API language out of primary-path UX.
+- Audience context can improve further once a named audience/group label exists in the backend response.
+
+Recommended next move: fix questionnaire dimension/scoring semantics because it can cause actual study interpretation errors, not only copy confusion.
+
+# Next Session Plan - Post-D384
+
+Current queue head: UXA04-B Collection lifecycle and audience context.
+
+D384 fixed the first D383 persona-ticket theme:
+
+- Results now has a `Client handoff status` section before the workflow path.
+- The status model separates operational preview readiness, interpretation validity, export readiness, and live/final result finality.
+- The D383-style seeded state now says `Preview ready; client handoff not ready` and explains what still blocks client handoff.
+
+Verification:
+
+- focused Results workflow test: 1 file / 13 tests passed
+- web production build: passed with the existing large chunk warning
+
+Remaining UXA04 themes:
+
+- Collection lifecycle state: replace mixed live/closed/ready labels with one primary state and next action.
+- Audience/recipient context: show selected audience, invited/responded counts, and population meaning across Collection/Results.
+- Questionnaire/scoring semantics: show dimensions and higher-is-risk/protective direction.
+- Technical wording: keep proof/artifact/API language out of primary-path UX.
+
+Recommended next move: fix Collection lifecycle first because it feeds Results finality and client interpretation.
+
+# Next Session Plan - Post-D383
+
+Prior queue head: UXA04 product UX triage/fixes from the D383 persona bundle.
+
+D383 completed UXA03-B locally:
+
+- mission: `fullstack-osh-warehouse-pulse`
+- persona: OSH consultant
+- case: `Warehouse workload and recovery pulse`
+- mutation: create the realistic study, save first setup step, seed realistic template/scoring/campaign/launch/invitation state, submit 21 public open-link responses, score all 21 sessions, and inspect Collection plus Results
+- product read-model mocks are disabled in the proof; data is disposable local API/database state
+- persona review bundle imports structured reviewer JSON and writes themes/tickets
+
+Latest proof:
+
+- full UXA suite: 21 files / 133 tests passed
+- local mission artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T19-34-02-977Z/`
+- status: `completed`
+- final URL: `/app/campaign-series/[redacted]/reports`
+- invitations: 21
+- submitted responses: 21
+- scored responses: 21
+- visible scores: 126
+- persona reviews: 3
+- findings: 9
+- themes: 5
+- tickets: 9
+
+Top persona themes:
+
+- Results client-readiness/export state is contradictory.
+- Operational readiness and interpretation validity are not separated clearly.
+- Collection lifecycle state mixes live/closed/readiness labels.
+- Audience and recipient context is not visible enough.
+- Questionnaire dimension/scoring direction semantics are too implicit.
+- Primary product paths still expose proof/artifact/API language.
+
+Recommended next move: start UXA04 with Results readiness/interpretation clarity because all three personas converged there and it affects client handoff risk. Do not point UXA tooling at staging or production.
+
 # Next Session Plan - Post-D381
 
 UXA02 objective is now locally proven:

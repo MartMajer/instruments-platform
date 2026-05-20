@@ -43,7 +43,7 @@ describe('selected-series wave comparison snapshot model', () => {
 			seriesId: 'series-id',
 			baselineWaveName: 'Pulse wave 1',
 			comparisonWaveName: 'Pulse wave 2',
-			badgeLabel: 'Proof-only',
+			badgeLabel: 'Preview available',
 			disabledReason: null
 		});
 	});
@@ -59,7 +59,7 @@ describe('selected-series wave comparison snapshot model', () => {
 			seriesId: 'series-id',
 			baselineWaveName: 'Pulse wave 1',
 			comparisonWaveName: 'Pulse wave 2',
-			badgeLabel: 'Proof/local',
+			badgeLabel: 'Preview ready',
 			disabledReason: null
 		});
 	});
@@ -73,7 +73,7 @@ describe('selected-series wave comparison snapshot model', () => {
 			status: 'pending',
 			available: true,
 			seriesId: 'series-id',
-			badgeLabel: 'Proof-only',
+			badgeLabel: 'Preview available',
 			disabledReason: null
 		});
 	});
@@ -86,7 +86,7 @@ describe('selected-series wave comparison snapshot model', () => {
 		expect(dashboard).toMatchObject({
 			title: 'Pulse wave 1 vs Pulse wave 2 wave dashboard',
 			status: 'ready',
-			badgeLabel: 'Proof/local',
+			badgeLabel: 'Preview ready',
 			available: true,
 			emptyMessage: null
 		});
@@ -101,7 +101,7 @@ describe('selected-series wave comparison snapshot model', () => {
 			{ label: 'Complete trajectories', value: '6' }
 		]);
 		expect(dashboard.comparisonRows).toEqual([
-			{ label: 'Proof status', value: 'proof only' },
+			{ label: 'Preview status', value: 'preview' },
 			{ label: 'Interpretation', value: 'not validated interpretation' },
 			{ label: 'Linked pairs', value: '6' }
 		]);

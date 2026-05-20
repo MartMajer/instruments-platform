@@ -39,6 +39,29 @@ export type SelectedSeriesOperationsPath = {
 	totalCount: number;
 };
 
+export type SelectedSeriesCollectionStatusLaneId =
+	| 'lifecycle'
+	| 'responses'
+	| 'audience'
+	| 'reporting';
+
+export type SelectedSeriesCollectionStatusLane = {
+	id: SelectedSeriesCollectionStatusLaneId;
+	label: string;
+	title: string;
+	status: ProductReadModelBadgeStatus;
+	detail: string;
+};
+
+export type SelectedSeriesCollectionStatusSummary = {
+	overallStatus: ProductReadModelBadgeStatus;
+	overallLabel: string;
+	headline: string;
+	guidance: string;
+	nextAction: string;
+	lanes: SelectedSeriesCollectionStatusLane[];
+};
+
 export function toSelectedSeriesOperationsWorkflowActions(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
 	localState: SelectedSeriesOperationsWorkflowLocalState = {}
@@ -192,6 +215,193 @@ export function toSelectedSeriesOperationsPath(
 	};
 }
 
+export function toSelectedSeriesCollectionStatusSummary(
+	workspace: CampaignSeriesOperationsWorkspaceResponse,
+	localState: SelectedSeriesOperationsWorkflowLocalState = {}
+): SelectedSeriesCollectionStatusSummary {
+	const selectedCampaign = workspace.selectedCampaign;
+
+	if (!selectedCampaign) {
+		const lanes: SelectedSeriesCollectionStatusLane[] = [
+			{
+				id: 'lifecycle',
+				label: 'Collection lifecycle',
+				title: 'No wave selected',
+				status: 'not_available',
+				detail: 'Create or select a collection wave before collecting responses.'
+			},
+			{
+				id: 'responses',
+				label: 'Response progress',
+				title: 'No responses yet',
+				status: 'not_available',
+				detail: 'Response counts appear after a wave is started.'
+			},
+			{
+				id: 'audience',
+				label: 'Audience and access',
+				title: 'No recipient access prepared',
+				status: 'not_available',
+				detail: 'Choose recipients or create respondent access after setup is ready.'
+			},
+			{
+				id: 'reporting',
+				label: 'Reporting readiness',
+				title: 'Not available',
+				status: 'not_available',
+				detail: 'Reporting readiness appears after collection has a selected wave.'
+			}
+		];
+
+		return {
+			overallStatus: 'not_available',
+			overallLabel: 'No wave selected',
+			headline: 'Create a collection wave first',
+			guidance: 'Collection starts after setup has a campaign wave.',
+			nextAction: 'Open Setup and create a collection wave.',
+			lanes
+		};
+	}
+
+	const isLive = selectedCampaign.status === 'live';
+	const isClosed = selectedCampaign.status === 'closed' || Boolean(selectedCampaign.closedAt);
+	const hasLaunchEvidence = Boolean(
+		selectedCampaign.latestLaunchSnapshotId || selectedCampaign.latestLaunchAt
+	);
+	const launched = Boolean(localState.launched || isLive || isClosed || hasLaunchEvidence);
+	const closed = Boolean(localState.closed || isClosed);
+	const submitted = workspace.summary.submittedResponseCount;
+	const started = workspace.summary.startedResponseCount;
+	const drafts = workspace.summary.draftResponseCount;
+	const preparedInvitations =
+		workspace.summary.queuedInvitationCount +
+		workspace.summary.sentInvitationCount +
+		workspace.summary.failedInvitationCount;
+	const openLinks = workspace.summary.openLinkAssignmentCount;
+	const hasRespondentAccess = Boolean(localState.openLinkCreated || preparedInvitations || openLinks);
+	const hasResponseActivity = Boolean(started || drafts || submitted);
+
+	const lifecycleLane: SelectedSeriesCollectionStatusLane = closed
+		? {
+				id: 'lifecycle',
+				label: 'Collection lifecycle',
+				title: 'Closed',
+				status: 'closed',
+				detail: 'This wave no longer accepts new responses.'
+			}
+		: isLive || localState.launched
+			? {
+					id: 'lifecycle',
+					label: 'Collection lifecycle',
+					title: 'Live: accepting responses',
+					status: 'live',
+					detail: 'Respondents can still submit. Results remain preliminary until collection closes.'
+				}
+			: {
+					id: 'lifecycle',
+					label: 'Collection lifecycle',
+					title: 'Draft: not collecting yet',
+					status: 'pending',
+					detail: 'Run the pre-launch check, then start collection.'
+				};
+
+	const responsesLane: SelectedSeriesCollectionStatusLane = hasResponseActivity
+		? {
+				id: 'responses',
+				label: 'Response progress',
+				title: `${formatCount(submitted)} submitted`,
+				status: submitted > 0 ? 'ready' : 'pending',
+				detail: `${formatCount(started)} started, ${formatCount(drafts)} in progress, ${formatCount(submitted)} submitted.`
+			}
+		: launched
+			? {
+					id: 'responses',
+					label: 'Response progress',
+					title: 'Waiting for responses',
+					status: 'pending',
+					detail: 'Collection is open, but no response activity has been recorded yet.'
+				}
+			: {
+					id: 'responses',
+					label: 'Response progress',
+					title: 'Not collecting yet',
+					status: 'blocked',
+					detail: 'Start collection before monitoring responses.'
+				};
+
+	const audienceLane: SelectedSeriesCollectionStatusLane = hasRespondentAccess
+		? {
+				id: 'audience',
+				label: 'Audience and access',
+				title: 'Recipient access prepared',
+				status: 'ready',
+				detail: `${formatCount(openLinks)} respondent link${openLinks === 1 ? '' : 's'} and ${formatCount(preparedInvitations)} prepared invitation${preparedInvitations === 1 ? '' : 's'}. Anonymous reports keep respondent identity out of results.`
+			}
+		: launched
+			? {
+					id: 'audience',
+					label: 'Audience and access',
+					title: 'Access not prepared',
+					status: 'pending',
+					detail: 'Create a respondent link or prepare invitations before expecting responses.'
+				}
+			: {
+					id: 'audience',
+					label: 'Audience and access',
+					title: 'Access waits for launch',
+					status: 'blocked',
+					detail: 'Recipient access can be prepared after collection starts.'
+				};
+
+	const reportingLane: SelectedSeriesCollectionStatusLane = {
+		id: 'reporting',
+		label: 'Reporting readiness',
+		title: humanize(workspace.summary.reportVisibilityStatus),
+		status: toReportingStatus(workspace.summary.reportVisibilityStatus, submitted),
+		detail:
+			submitted > 0
+				? 'Results can be reviewed, but live collection data should be treated as preliminary until closed.'
+				: 'Reporting becomes useful after submitted responses are available.'
+	};
+
+	const lanes = [lifecycleLane, responsesLane, audienceLane, reportingLane];
+
+	if (closed) {
+		return {
+			overallStatus: 'closed',
+			overallLabel: 'Closed',
+			headline: `Closed: ${formatCount(submitted)} submitted response${submitted === 1 ? '' : 's'}`,
+			guidance: 'Collection is closed. Submitted responses are stable for Results review.',
+			nextAction: 'Open Results to review client handoff status.',
+			lanes
+		};
+	}
+
+	if (isLive || localState.launched) {
+		return {
+			overallStatus: 'live',
+			overallLabel: 'Live',
+			headline: `Live: accepting responses with ${formatCount(submitted)} submitted`,
+			guidance:
+				'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
+			nextAction:
+				submitted > 0
+					? 'Keep collecting, review preliminary Results, or close collection when ready.'
+					: 'Share respondent access and wait for submitted responses.',
+			lanes
+		};
+	}
+
+	return {
+		overallStatus: 'pending',
+		overallLabel: 'Draft',
+		headline: 'Draft: collection has not started',
+		guidance: 'Run the pre-launch check before sharing respondent access.',
+		nextAction: 'Run the pre-launch check.',
+		lanes
+	};
+}
+
 function toLaunchStatus(
 	hasCampaign: boolean,
 	isLive: boolean,
@@ -260,4 +470,31 @@ function toPathStepState(
 	}
 
 	return 'blocked';
+}
+
+function formatCount(value: number | null | undefined) {
+	return new Intl.NumberFormat('hr-HR').format(value ?? 0);
+}
+
+function humanize(value: string | null | undefined) {
+	return value ? value.replaceAll('_', ' ') : 'Not available';
+}
+
+function toReportingStatus(
+	reportVisibilityStatus: string | null | undefined,
+	submittedResponseCount: number
+): ProductReadModelBadgeStatus {
+	if (submittedResponseCount <= 0) {
+		return 'pending';
+	}
+
+	if (reportVisibilityStatus === 'reportable' || reportVisibilityStatus === 'visible') {
+		return 'ready';
+	}
+
+	if (reportVisibilityStatus === 'blocked') {
+		return 'blocked';
+	}
+
+	return 'pending';
 }

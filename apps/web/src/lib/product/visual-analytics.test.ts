@@ -15,7 +15,7 @@ describe('selected-series visual analytics view models', () => {
 			primarySeriesLabel: 'Mean',
 			secondarySeriesLabel: null,
 			yAxisLabel: 'Score mean',
-			statusLabel: 'Proof-only / not validated'
+			statusLabel: 'Preview / not validated'
 		});
 		expect(view.points).toEqual([
 			{
@@ -53,7 +53,7 @@ describe('selected-series visual analytics view models', () => {
 			primarySeriesLabel: 'Aggregate delta',
 			secondarySeriesLabel: 'Paired delta',
 			yAxisLabel: 'Delta',
-			statusLabel: 'Proof-only / not validated'
+			statusLabel: 'Preview / not validated'
 		});
 		expect(view.points).toEqual([
 			{

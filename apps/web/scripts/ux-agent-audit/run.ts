@@ -13,6 +13,10 @@ import {
   type FullstackBootstrapOptions,
 } from './fullstack-bootstrap.ts';
 import {
+  cleanupFullstackSyntheticStudies,
+  type FullstackCleanupOptions,
+} from './fullstack-cleanup.ts';
+import {
   checkFullstackPreflight,
   type FullstackPreflightOptions,
 } from './fullstack-preflight.ts';
@@ -80,6 +84,13 @@ export interface FullstackBootstrapRunnerOptions {
   timeoutMs: number;
 }
 
+export interface FullstackCleanupRunnerOptions {
+  apiBaseUrl: string;
+  apply: boolean;
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+  timeoutMs: number;
+}
+
 const allowedFlags = new Set([
   '--base-url',
   '--capture-mode',
@@ -118,6 +129,16 @@ const fullstackBootstrapAllowedFlags = new Set([
   '--api-base-url',
   '--repo-root',
   '--start',
+  '--fullstack-dev-auth',
+  '--fullstack-tenant-id',
+  '--fullstack-user-id',
+  '--fullstack-email',
+  '--fullstack-permissions',
+  '--timeout-ms',
+]);
+const fullstackCleanupAllowedFlags = new Set([
+  '--api-base-url',
+  '--apply',
   '--fullstack-dev-auth',
   '--fullstack-tenant-id',
   '--fullstack-user-id',
@@ -341,6 +362,21 @@ export async function runAudit(options: RunnerOptions) {
   };
 }
 
+export function parseFullstackCleanupOptions(
+  args: string[]
+): FullstackCleanupRunnerOptions {
+  const values = parseFlagValues(args, fullstackCleanupAllowedFlags);
+  const apiBaseUrl = values.get('--api-base-url') ?? defaultApiBaseUrl;
+  validateUrl(apiBaseUrl);
+
+  return {
+    apiBaseUrl,
+    apply: parseBooleanFlag('--apply', values.get('--apply') ?? 'false'),
+    fullstackDevAuth: parseFullstackDevAuthOptions(values),
+    timeoutMs: parsePositiveInteger(values.get('--timeout-ms') ?? '5000', '--timeout-ms'),
+  };
+}
+
 export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
   const mission = resolveAutonomousMissionForDataMode(
     options.missionFilter,
@@ -454,8 +490,20 @@ export async function runFullstackBootstrapCommand(options: FullstackBootstrapRu
   return await runFullstackBootstrap(options satisfies FullstackBootstrapOptions);
 }
 
+export async function runFullstackCleanupCommand(options: FullstackCleanupRunnerOptions) {
+  return await cleanupFullstackSyntheticStudies(options satisfies FullstackCleanupOptions);
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === 'fullstack-cleanup') {
+    const result = await runFullstackCleanupCommand(
+      parseFullstackCleanupOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (args[0] === 'fullstack-bootstrap') {
     const result = await runFullstackBootstrapCommand(
       parseFullstackBootstrapOptions(args.slice(1))
@@ -514,7 +562,12 @@ function parseFlagValues(args: string[], flags: Set<string>) {
       throw new Error(`Unknown option: ${flag}`);
     }
 
-    if (flag === '--headless' || flag === '--fullstack-dev-auth' || flag === '--start') {
+    if (
+      flag === '--headless' ||
+      flag === '--fullstack-dev-auth' ||
+      flag === '--start' ||
+      flag === '--apply'
+    ) {
       const nextValue = args[index + 1];
       if (!nextValue || nextValue.startsWith('--')) {
         values.set(flag, 'true');

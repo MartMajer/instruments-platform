@@ -74,7 +74,7 @@ describe('product route guidance', () => {
 
 		expect(studiesGuidance.inspectFirst).toContain('No studies are visible');
 		expect(studiesGuidance.nextMove).toContain('Create your study');
-		expect(exportsGuidance.inspectFirst).toContain('No export artifacts exist yet');
+		expect(exportsGuidance.inspectFirst).toContain('No export files exist yet');
 		expect(exportsGuidance.nextMove).toContain('results page');
 	});
 

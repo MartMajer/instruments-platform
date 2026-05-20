@@ -2,6 +2,7 @@
 	import type { ReportWidget } from '$lib/api/product';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { isReportReadinessSummaryWidgetData } from './report-widget-data';
+	import { formatProductCopy } from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
 	let { widget }: { widget: ReportWidget } = $props();
@@ -38,8 +39,10 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-row__title">{prerequisite.label}</p>
-								<p class="text-sm text-[var(--color-text-muted)]">{prerequisite.message}</p>
+								<p class="record-row__title">{formatProductCopy(prerequisite.label)}</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{formatProductCopy(prerequisite.message)}
+								</p>
 							</div>
 							<StatusBadge status="blocked" label={prerequisite.severity} />
 						</div>

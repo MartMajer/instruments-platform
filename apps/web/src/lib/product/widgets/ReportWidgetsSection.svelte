@@ -23,7 +23,7 @@
 		<div class="score-result-panel__header">
 			<div>
 				<p class="product-kicker">Results preview</p>
-				<h4 class="record-row__title">Current result widgets</h4>
+				<h4 class="record-row__title">Current result summary</h4>
 			</div>
 			{#if manifest}
 				<span class="status-badge" data-status="ready">Preview ready</span>
@@ -32,11 +32,11 @@
 		{@render WidgetBody()}
 	</div>
 {:else}
-	<section class="product-panel" data-priority="trust" aria-label="Report widgets">
+	<section class="product-panel" data-priority="trust" aria-label="Results summary">
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">Results preview</p>
-				<h3 class="product-title">Result widgets</h3>
+				<h3 class="product-title">Results summary</h3>
 			</div>
 			{#if manifest}
 				<span class="status-badge" data-status="ready">Ready</span>

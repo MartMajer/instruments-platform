@@ -6,6 +6,8 @@ import { chromium, type Page } from '@playwright/test';
 import { resolveAutonomousMissionForDataMode } from './autonomous-fixtures.ts';
 import { resolveAutonomousProductApiResponse } from './autonomous-product-read-models.ts';
 import {
+  buildPersonaGoalAssessment,
+  buildPrimaryCopyFinding,
   buildScriptedFixturePersonaActor,
   runAutonomousFixtureMission,
   type AutonomousPageAdapter,
@@ -13,6 +15,7 @@ import {
 import { loadPersonaActionFileProvider } from './persona-action-file-provider.ts';
 import { buildPersonaActionHttpProvider } from './persona-action-http-provider.ts';
 import { buildProviderPersonaActionActor } from './persona-action-driver.ts';
+import { seedRealisticFullstackCase } from './realistic-fullstack-seed.ts';
 import {
   describeFullstackDevAuth,
   resolveFullstackDevAuthHeaders,
@@ -59,6 +62,7 @@ export interface BrowserEvidenceOptions {
   runDirectory?: string;
   autonomousDataMode?: AutonomousDataMode;
   fullstackDevAuth?: AutonomousFullstackDevAuthOptions;
+  apiBaseUrl?: string;
   autonomousActorMode?: AutonomousActorMode;
   personaActionFile?: string;
   personaActionUrl?: string;
@@ -99,6 +103,7 @@ const defaultVisibleTextLimit = 2000;
 const maxVisibleTextLimit = 4000;
 const controlTextLimit = 160;
 const linkTextLimit = 160;
+const defaultFullstackApiBaseUrl = 'http://127.0.0.1:5055';
 
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const uuidPattern =
@@ -309,6 +314,99 @@ export async function captureAutonomousBrowserEvidence(
             )
           : buildScriptedFixturePersonaActor(mission);
     const execution = await runAutonomousFixtureMission(adapter, mission, actor);
+    if (
+      autonomousDataMode === 'fullstack' &&
+      execution.status === 'completed' &&
+      mission.fullstackSeedPlan &&
+      mission.realisticCase
+    ) {
+      const seriesId =
+        extractSeriesIdFromUrl(page.url()) ?? extractSeriesIdFromSnapshots(execution.snapshots);
+      if (!seriesId) {
+        throw new Error('Realistic fullstack seed could not find created campaign series id.');
+      }
+
+      const seed = await seedRealisticFullstackCase({
+        apiBaseUrl: options.apiBaseUrl ?? defaultFullstackApiBaseUrl,
+        fullstackDevAuth: options.fullstackDevAuth,
+        seriesId,
+        realisticCase: mission.realisticCase,
+        mode:
+          mission.fullstackSeedPlan.kind === 'seed-realistic-repeated-wave-results'
+            ? 'repeated-wave'
+            : 'single-wave',
+      });
+      execution.observations.fullstackSeed = seed as unknown as JsonObject;
+      execution.steps.push({
+        index: execution.steps.length + 1,
+        action:
+          seed.waveCount > 1
+            ? `Seeded realistic local repeated-wave study with ${seed.waveCount} waves, ${seed.submittedResponseCount} submitted responses, and ${seed.scoredResponseCount} score runs.`
+            : `Seeded realistic local campaign "${seed.campaignName}" with ${seed.submittedResponseCount} submitted responses and ${seed.scoredResponseCount} score runs.`,
+        url: execution.snapshots.at(-1)?.url ?? '',
+      });
+
+      const seededTargetPaths = [seed.operationsPath, seed.wavesPath, seed.reportsPath];
+      const seededVisitedPaths: string[] = [];
+      for (const [label, path] of [
+        ['post-seed-collection', seed.operationsPath],
+        ['post-seed-waves', seed.wavesPath],
+        ['post-seed-results', seed.reportsPath],
+      ] as const) {
+        const snapshot = await adapter.gotoPath(path, label);
+        execution.snapshots.push(snapshot);
+        seededVisitedPaths.push(path);
+        if (snapshot.screenshot) {
+          execution.screenshots.push(snapshot.screenshot);
+        }
+        const primaryCopyFinding = buildPrimaryCopyFinding(mission, snapshot);
+        if (primaryCopyFinding) {
+          execution.personaFindings.push(primaryCopyFinding);
+        }
+        execution.steps.push({
+          index: execution.steps.length + 1,
+          action: `Inspected app-visible seeded ${seededSurfaceLabel(label)} state.`,
+          url: snapshot.url,
+        });
+      }
+
+      if (execution.personaFindings.length > 0) {
+        execution.status = 'blocked';
+      }
+
+      const targetProductPaths = uniqueStrings([
+        ...mission.targetProductPaths,
+        ...seededTargetPaths,
+      ]);
+      const visitedProductPaths = uniqueStrings([
+        ...stringArrayObservation(execution.observations.visitedProductPaths),
+        ...seededVisitedPaths,
+      ]);
+      const personaGoalAssessment = buildPersonaGoalAssessment(
+        mission,
+        execution.status,
+        execution.personaFindings,
+        visitedProductPaths,
+        execution.snapshots,
+        targetProductPaths
+      );
+
+      execution.observations.targetProductPaths = targetProductPaths;
+      execution.observations.visitedProductPaths = visitedProductPaths;
+      execution.observations.personaFindings = execution.personaFindings;
+      execution.observations.personaGoalAssessment = personaGoalAssessment;
+      execution.reviewerOutput = updateAutonomousReviewerOutput(
+        mission.personaId,
+        execution.reviewerOutput,
+        {
+          status: execution.status,
+          findings: execution.personaFindings,
+          personaGoalAssessment,
+          fullstackSeed: seed,
+        }
+      );
+    }
+
     const finalSnapshot = execution.snapshots.at(-1);
     const firstScreenshot = execution.screenshots.at(0);
     const capture: BrowserEvidenceCapture = {
@@ -363,6 +461,90 @@ export async function captureAutonomousBrowserEvidence(
     return capture;
   } finally {
     await browser.close();
+  }
+}
+
+function extractSeriesIdFromSnapshots(snapshots: MissionPageSnapshot[]) {
+  for (const snapshot of snapshots.slice().reverse()) {
+    const match = extractPath(snapshot.url).match(/^\/app\/campaign-series\/([^/]+)\/setup$/u);
+    if (match?.[1] && isGuidLikeId(match[1])) {
+      return match[1];
+    }
+  }
+
+  return undefined;
+}
+
+function seededSurfaceLabel(label: string) {
+  if (label === 'post-seed-collection') {
+    return 'Collection';
+  }
+
+  if (label === 'post-seed-waves') {
+    return 'Waves';
+  }
+
+  return 'Results';
+}
+
+function extractSeriesIdFromUrl(url: string) {
+  const match = extractPath(url).match(/^\/app\/campaign-series\/([^/]+)\/setup$/u);
+  return match?.[1] && isGuidLikeId(match[1]) ? match[1] : undefined;
+}
+
+function isGuidLikeId(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+    value
+  );
+}
+
+function updateAutonomousReviewerOutput(
+  personaId: string,
+  reviewerOutput: string,
+  options: {
+    status: MissionEvidenceStatus;
+    findings: JsonObject[];
+    personaGoalAssessment: JsonObject;
+    fullstackSeed?: JsonObject;
+  }
+) {
+  try {
+    const parsed = JSON.parse(reviewerOutput) as JsonObject;
+    return JSON.stringify(
+      {
+        ...parsed,
+        summary:
+          options.findings.length > 0
+            ? `Autonomous ${personaId} review found ${options.findings.length} issue(s).`
+            : parsed.summary,
+        missionStatus: options.status,
+        ...(options.fullstackSeed ? { fullstackSeed: options.fullstackSeed } : {}),
+        personaGoalAssessment: options.personaGoalAssessment,
+        findings: options.findings,
+      },
+      null,
+      2
+    );
+  } catch {
+    return reviewerOutput;
+  }
+}
+
+function stringArrayObservation(value: JsonObject[string]) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function extractPath(url: string) {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.split(/[?#]/)[0] ?? '';
   }
 }
 

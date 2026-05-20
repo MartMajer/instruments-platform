@@ -6,6 +6,8 @@ import {
 	buildMeanScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
+	describeQuestionResultUsage,
+	describeQuestionScoringDirection,
 	moveTemplateQuestionRow,
 	removeTemplateQuestionRow,
 	toCreateTemplateQuestions,
@@ -185,5 +187,43 @@ describe('template authoring helpers', () => {
 			{ code: 'recovery', node: 'recovery_score' }
 		]);
 		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({ scores: ['exhaustion', 'recovery'] });
+	});
+
+	it('describes scoring direction and result usage in researcher-facing language', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Recovery risk',
+				code: 'recovery_risk',
+				includedQuestionCodes: ['q01', 'q03']
+			}
+		];
+
+		expect(describeQuestionScoringDirection(rows[0])).toEqual({
+			kind: 'higher_increases_score',
+			label: 'Higher answers increase included result scores',
+			detail:
+				'1 (Strongly disagree) to 5 (Strongly agree) is used as entered in every result output that includes this question.'
+		});
+		expect(describeQuestionScoringDirection(rows[2])).toEqual({
+			kind: 'higher_reversed_before_score',
+			label: 'Higher answers are reversed before scoring',
+			detail:
+				'5 (Strongly agree) is converted toward 1; 1 (Strongly disagree) is converted toward 5. Use this for protective wording when the result score should still point in one direction.'
+		});
+		expect(
+			describeQuestionScoringDirection({
+				...rows[0],
+				type: 'text'
+			})
+		).toMatchObject({
+			kind: 'not_scored',
+			label: 'Collected but not scored'
+		});
+		expect(describeQuestionResultUsage(rows[0], outputs)).toBe('Used in: Recovery risk.');
+		expect(describeQuestionResultUsage(rows[1], outputs)).toBe(
+			'Not included in any result output yet.'
+		);
 	});
 });

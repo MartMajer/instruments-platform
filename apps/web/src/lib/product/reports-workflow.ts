@@ -40,6 +40,29 @@ export type SelectedSeriesReportsPath = {
 	totalCount: number;
 };
 
+export type SelectedSeriesResultsHandoffLaneId =
+	| 'operational'
+	| 'interpretation'
+	| 'export'
+	| 'finality';
+
+export type SelectedSeriesResultsHandoffLane = {
+	id: SelectedSeriesResultsHandoffLaneId;
+	label: string;
+	title: string;
+	status: ProductReadModelBadgeStatus;
+	detail: string;
+};
+
+export type SelectedSeriesResultsHandoffStatus = {
+	overallStatus: ProductReadModelBadgeStatus;
+	overallLabel: string;
+	headline: string;
+	guidance: string;
+	nextAction: string;
+	lanes: SelectedSeriesResultsHandoffLane[];
+};
+
 export function toSelectedSeriesReportsWorkflowActions(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
@@ -81,7 +104,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			id: 'reportProof',
 			step: 'Step 1',
 			title: 'Review results',
-			description: 'Preview disclosure-safe result widgets for the selected wave.',
+			description: 'Preview disclosure-safe result summaries for the selected wave.',
 			status: toReportProofStatus(hasCampaign, reportable, reportProofViewed),
 			available: reportable,
 			disabledReason: toReportProofDisabledReason(hasCampaign, reportable)
@@ -89,8 +112,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'exportArtifact',
 			step: 'Step 2',
-			title: 'Create report export',
-			description: 'Create the aggregate results CSV and codebook.',
+			title: 'Create client export',
+			description: 'Create the aggregate results CSV and codebook for handoff.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -147,6 +170,209 @@ export function toSelectedSeriesReportsWorkflowActions(
 					: 'Create or select an export file before downloading CSV.'
 		}
 	];
+}
+
+export function toSelectedSeriesResultsHandoffStatus(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState = {}
+): SelectedSeriesResultsHandoffStatus {
+	const selectedCampaign = workspace.selectedCampaign;
+
+	if (!selectedCampaign) {
+		const lanes: SelectedSeriesResultsHandoffLane[] = [
+			{
+				id: 'operational',
+				label: 'Operational status',
+				title: 'No wave selected',
+				status: 'not_available',
+				detail: 'Create or select a wave before reviewing results.'
+			},
+			{
+				id: 'interpretation',
+				label: 'Interpretation status',
+				title: 'Not available',
+				status: 'not_available',
+				detail: 'Interpretation can be reviewed after a wave has results.'
+			},
+			{
+				id: 'export',
+				label: 'Export status',
+				title: 'No export available',
+				status: 'not_available',
+				detail: 'Create results before creating client export files.'
+			},
+			{
+				id: 'finality',
+				label: 'Finality status',
+				title: 'Not available',
+				status: 'not_available',
+				detail: 'Collection finality appears after a wave is selected.'
+			}
+		];
+
+		return {
+			overallStatus: 'not_available',
+			overallLabel: 'No results selected',
+			headline: 'Select a wave to review results',
+			guidance: 'Results, interpretation, exports, and finality depend on a selected wave.',
+			nextAction: 'Create or select a wave with submitted responses.',
+			lanes
+		};
+	}
+
+	const reportable = selectedCampaign.reportStatus === 'proof_only';
+	const submittedResponses = selectedCampaign.submittedResponseCount ?? 0;
+	const visibleScores = selectedCampaign.visibleScoreCount ?? 0;
+	const scoreCount = selectedCampaign.scoreCount ?? 0;
+	const hasScoredResults = scoreCount > 0 || visibleScores > 0;
+	const hasExport = hasAnyExport(workspace, localState);
+	const hasDownloadableExport = hasAnyDownloadableExport(workspace, localState);
+	const interpretationValidated = isInterpretationValidated(
+		selectedCampaign.interpretationStatus
+	);
+	const collectionClosed = isCollectionClosed(selectedCampaign.status);
+	const collectionLive = selectedCampaign.status === 'live';
+
+	const operationalLane: SelectedSeriesResultsHandoffLane = !reportable
+		? {
+				id: 'operational',
+				label: 'Operational status',
+				title: 'Results are not ready',
+				status: 'blocked',
+				detail: 'Finish setup, launch, submissions, disclosure, and scoring before reviewing results.'
+			}
+		: hasScoredResults
+			? {
+					id: 'operational',
+					label: 'Operational status',
+					title: 'Preview data is ready',
+					status: 'ready',
+					detail: `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review.`
+				}
+			: {
+					id: 'operational',
+					label: 'Operational status',
+					title: 'Waiting for scored responses',
+					status: 'pending',
+					detail: 'The wave exists, but scored responses are not available yet.'
+				};
+
+	const interpretationLane: SelectedSeriesResultsHandoffLane = interpretationValidated
+		? {
+				id: 'interpretation',
+				label: 'Interpretation status',
+				title: 'Interpretation validated',
+				status: 'ready',
+				detail: 'The interpretation state is marked validated for client-facing claims.'
+			}
+		: selectedCampaign.interpretationStatus === 'not_available'
+			? {
+					id: 'interpretation',
+					label: 'Interpretation status',
+					title: 'Interpretation not available',
+					status: 'not_available',
+					detail: 'Interpretation can be reviewed after scoring and disclosure are available.'
+				}
+			: {
+					id: 'interpretation',
+					label: 'Interpretation status',
+					title: 'Needs interpretation validation',
+					status: 'blocked',
+					detail:
+						'Scoring is available, but the meaning, limits, and client-facing claims have not been validated.'
+				};
+
+	const exportLane: SelectedSeriesResultsHandoffLane = hasDownloadableExport
+		? {
+				id: 'export',
+				label: 'Export status',
+				title: 'Client export ready',
+				status: 'ready',
+				detail: 'A downloadable export file is available for handoff.'
+			}
+		: hasExport
+			? {
+					id: 'export',
+					label: 'Export status',
+					title: 'Export exists but is not downloadable',
+					status: 'pending',
+					detail: 'Review the export file and confirm it is downloadable before handoff.'
+				}
+			: reportable
+				? {
+						id: 'export',
+						label: 'Export status',
+						title: 'Client export not created',
+						status: 'pending',
+						detail: 'Create a client export before sharing files or closing the report handoff.'
+					}
+				: {
+						id: 'export',
+						label: 'Export status',
+						title: 'Export blocked',
+						status: 'blocked',
+						detail: 'Results must be ready before export files can be created.'
+					};
+
+	const finalityLane: SelectedSeriesResultsHandoffLane = collectionClosed
+		? {
+				id: 'finality',
+				label: 'Finality status',
+				title: 'Collection closed',
+				status: 'ready',
+				detail: 'The response window is closed, so the result set is stable for handoff.'
+			}
+		: collectionLive
+			? {
+					id: 'finality',
+					label: 'Finality status',
+					title: 'Preliminary live data',
+					status: 'pending',
+					detail: 'Collection is still live. Results can change until the wave is closed.'
+				}
+			: {
+					id: 'finality',
+					label: 'Finality status',
+					title: 'Collection not finalized',
+					status: 'pending',
+					detail: 'Close collection when the response window is finished.'
+				};
+
+	const lanes = [operationalLane, interpretationLane, exportLane, finalityLane];
+	const clientReady = lanes.every((lane) => lane.status === 'ready');
+	const previewReady = operationalLane.status === 'ready';
+
+	if (clientReady) {
+		return {
+			overallStatus: 'ready',
+			overallLabel: 'Client-ready',
+			headline: 'Results are ready for client handoff',
+			guidance: 'Operational data, interpretation, export, and finality are ready.',
+			nextAction: 'Download the client export or review waves.',
+			lanes
+		};
+	}
+
+	if (previewReady) {
+		return {
+			overallStatus: 'blocked',
+			overallLabel: 'Not client-ready',
+			headline: 'Preview ready; client handoff not ready',
+			guidance:
+				'Use these results for internal review only. Validate interpretation, create the client export, and resolve finality before client handoff.',
+			nextAction: toHandoffNextAction(interpretationLane, exportLane, finalityLane),
+			lanes
+		};
+	}
+
+	return {
+		overallStatus: operationalLane.status,
+		overallLabel: 'Results not ready',
+		headline: 'Results are not ready for review',
+		guidance: 'Finish the missing operational prerequisites before reviewing or exporting results.',
+		nextAction: operationalLane.detail,
+		lanes
+	};
 }
 
 export function toSelectedSeriesReportsPath(
@@ -354,4 +580,69 @@ function toDownloadStatus(
 	}
 
 	return hasExport ? 'pending' : 'blocked';
+}
+
+function hasAnyExport(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState
+) {
+	return Boolean(
+		workspace.selectedCampaign?.latestExportArtifactId ||
+			localState.exportCreated ||
+			localState.responseExportCreated ||
+			workspace.exportArtifacts.length > 0
+	);
+}
+
+function hasAnyDownloadableExport(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState
+) {
+	return Boolean(
+		localState.exportCreated ||
+			localState.responseExportCreated ||
+			workspace.selectedCampaign?.latestExportArtifactCanDownload ||
+			workspace.exportArtifacts.some((artifact) => artifact.canDownload)
+	);
+}
+
+function isInterpretationValidated(status: string | null | undefined) {
+	const normalized = status ?? '';
+	return (
+		normalized === 'validated' ||
+		normalized === 'validated_interpretation' ||
+		normalized === 'official_validated'
+	);
+}
+
+function isCollectionClosed(status: string | null | undefined) {
+	return status === 'closed' || status === 'completed' || status === 'ended';
+}
+
+function toHandoffNextAction(
+	interpretationLane: SelectedSeriesResultsHandoffLane,
+	exportLane: SelectedSeriesResultsHandoffLane,
+	finalityLane: SelectedSeriesResultsHandoffLane
+) {
+	const interpretationOpen = interpretationLane.status !== 'ready';
+	const exportOpen = exportLane.status !== 'ready';
+	const finalityOpen = finalityLane.status !== 'ready';
+
+	if (interpretationOpen && exportOpen) {
+		return 'Validate interpretation limits, then create a client export.';
+	}
+
+	if (interpretationOpen) {
+		return 'Validate interpretation limits before using results with a client.';
+	}
+
+	if (exportOpen) {
+		return 'Create and review the client export file.';
+	}
+
+	if (finalityOpen) {
+		return 'Close collection or keep the results clearly marked as preliminary live data.';
+	}
+
+	return 'Review the client export.';
 }
