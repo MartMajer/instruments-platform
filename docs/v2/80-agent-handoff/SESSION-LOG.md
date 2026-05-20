@@ -18958,3 +18958,10 @@ Deployment evidence:
 - Docs drift: Linked the rehearsal script from the validation walkthrough packet and owner blocker pack, and changed account-switching references to sign-out/wrong-account recovery language.
 - Queue: no broad agent feature selected by default. Owner should run the D366 rehearsal, then run O01/O02/O03 or bring back one narrow blocker from rehearsal feedback.
 - Verification: Docs-only `git diff --check` passed with only CRLF warnings.
+
+## 2026-05-20 - D367 UX agent audit harness design
+
+- Assessment: Owner needs a systematic UI/UX review loop because manual owner validation is causing fatigue and the app now spans too many personas and routes for ad hoc review.
+- Decision: Design UXA01 as a local-first Playwright evidence plus persona review harness. Start with bounded missions, screenshots, visible text/control capture, and severity-normalized reports. Defer staging-cookie mode and random monkey clicking.
+- Task: Added UXA01 design doc, implementation plan, and D367 assessment. Updated the active queue to select UXA01 as the next agent-executable slice.
+- Verification: Docs-only `git diff --check` passed with only CRLF warnings.

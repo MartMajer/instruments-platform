@@ -1,3 +1,14 @@
+# Next Session Plan - Post-D367
+
+Current queue head: UXA01 local UX agent audit harness.
+
+D367 produced the approved local-first design and implementation plan:
+
+- `docs/plans/2026-05-20-uxa01-local-ux-agent-audit-harness-design.md`
+- `docs/plans/2026-05-20-uxa01-local-ux-agent-audit-harness.md`
+
+Implement UXA01 with TDD, starting with mission/persona contracts and evidence-pack writing. Keep staging-cookie mode deferred. The first useful outcome is local evidence packs and persona-review prompts/reports, not automatic product changes.
+
 # Next Session Plan - Post-D366
 
 Current queue head: owner-run D366 rehearsal, then O01/O02/O03 validation calls or narrow fixes from rehearsal feedback.
