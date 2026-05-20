@@ -64,7 +64,9 @@ export async function runAutonomousFixtureMission(
   const actionLog: JsonObject[] = [];
   const findings: AutonomousPersonaFinding[] = [];
   let status: MissionEvidenceStatus = 'blocked';
-  let currentSnapshot = await adapter.gotoPath(mission.entryPath, 'fixture-entry');
+  let currentSnapshot = normalizeSnapshotUrl(
+    await adapter.gotoPath(mission.entryPath, 'fixture-entry')
+  );
 
   recordSnapshot(currentSnapshot);
   recordStep(`Opened autonomous product mission entry route ${mission.entryPath}.`);
@@ -109,7 +111,9 @@ export async function runAutonomousFixtureMission(
     }
 
     if (action.kind === 'goto') {
-      currentSnapshot = await adapter.gotoPath(action.path, `step-${steps.length + 1}`);
+      currentSnapshot = normalizeSnapshotUrl(
+        await adapter.gotoPath(action.path, `step-${steps.length + 1}`)
+      );
       recordSnapshot(currentSnapshot);
       recordVisited(action.path);
       recordStep(`Navigated to local product path ${action.path}.`);
@@ -118,10 +122,8 @@ export async function runAutonomousFixtureMission(
 
     if (action.kind === 'click-link') {
       const path = action.path ?? linkPathForAction(currentSnapshot, action);
-      currentSnapshot = await adapter.clickLink(
-        action.text,
-        `step-${steps.length + 1}`,
-        path
+      currentSnapshot = normalizeSnapshotUrl(
+        await adapter.clickLink(action.text, `step-${steps.length + 1}`, path)
       );
       recordSnapshot(currentSnapshot);
       if (path) {
@@ -132,16 +134,16 @@ export async function runAutonomousFixtureMission(
     }
 
     if (action.kind === 'click-button') {
-      currentSnapshot = await adapter.clickButton(action.text, `step-${steps.length + 1}`);
+      currentSnapshot = normalizeSnapshotUrl(
+        await adapter.clickButton(action.text, `step-${steps.length + 1}`)
+      );
       recordSnapshot(currentSnapshot);
       recordStep(`Clicked visible button "${action.text}".`);
       continue;
     }
 
-    currentSnapshot = await adapter.fillField(
-      action.label,
-      action.value,
-      `step-${steps.length + 1}`
+    currentSnapshot = normalizeSnapshotUrl(
+      await adapter.fillField(action.label, action.value, `step-${steps.length + 1}`)
     );
     recordSnapshot(currentSnapshot);
     recordStep(`Filled visible field "${action.label}".`);
@@ -720,6 +722,18 @@ function extractPath(url: string) {
   } catch {
     return url.split(/[?#]/)[0] ?? '';
   }
+}
+
+function normalizeSnapshotUrl(snapshot: MissionPageSnapshot): MissionPageSnapshot {
+  const transcriptUrl = snapshot.richTranscript?.url;
+  if (!transcriptUrl || transcriptUrl === snapshot.url) {
+    return snapshot;
+  }
+
+  return {
+    ...snapshot,
+    url: transcriptUrl,
+  };
 }
 
 function trimTrailingPeriod(value: string) {

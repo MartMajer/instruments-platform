@@ -232,6 +232,43 @@ That proof used fixture mode, posted live requests to a localhost provider, clic
 
 Next required slice: start Docker Desktop and prove `fullstack-create-study` green against disposable local full-stack state.
 
+## D381 green full-stack mutation proof
+
+UXA02 now has a proven local full-stack mutation path. With Docker Desktop running, the bootstrap command can start the repo's local staging Compose stack, enable local development authentication for that child start without editing `.env`, retry preflight until the API is ready, and then run a browser mutation mission against the real local app/API/database.
+
+Bootstrap command from `apps/web`:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts fullstack-bootstrap --api-base-url http://127.0.0.1:5055 --fullstack-dev-auth --repo-root ..\.. --start --timeout-ms 300000
+```
+
+The bootstrap now handles these local-only harness concerns:
+
+- relative `--repo-root` values are resolved to absolute paths before invoking PowerShell scripts
+- `--fullstack-dev-auth` starts Compose with process env overrides for `Authentication__Dev__Enabled=true` and `PUBLIC_DEV_AUTH_ENABLED=true`
+- the existing local `.env` file is not modified
+- preflight is retried after startup until the API/dev-auth/read-model checks are ready or attempts are exhausted
+
+The mutation command:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fullstack-create-study --data-mode fullstack --fullstack-dev-auth --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+Verified local proof:
+
+- bootstrap status: `ready`
+- API health: HTTP 200
+- development-auth session: HTTP 200
+- tenant study read model: HTTP 200
+- mutation artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T18-54-36-933Z/`
+- mutation status: `completed`
+- final URL: `/app/campaign-series/019e46bd-6d56-7d30-807b-adcc0caaa475/setup`
+- findings: 0
+- next-action tickets: 0
+
+Evidence records `autonomousDataMode=fullstack`, `productReadModelMocks=disabled`, and `fullstackDevAuth=enabled`.
+
 ## D375 full-stack development-auth mutation mission
 
 UXA02 now has an explicit local development-auth path for full-stack autonomous runs. This is not Auth0 automation and must not be used against staging or production.

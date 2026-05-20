@@ -19150,3 +19150,13 @@ Task: Added `--actor-mode action-http`, `--persona-action-url`, and `persona-act
 Verification: RED focused tests failed on missing provider module, unknown `--persona-action-url`, and unsupported `action-http`. GREEN focused tests passed 2/2 files and 33/33 tests. Full UXA suite passed 18/18 files and 120/120 tests. Local browser proof ran Vite plus a localhost HTTP provider and completed fixture mode through `action-http` with 0 findings / 0 tickets at `artifacts/ux-agent-runs/local/run-2026-05-20T18-39-22-610Z/`.
 
 Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green full-stack mutation proof. Do not point UXA02 autonomous missions or persona providers at staging or production.
+
+## 2026-05-20 - D381 UXA02 full-stack bootstrap mutation proof
+
+Assessment: D380 completed the safe local provider action loop, but UXA02 still lacked a green full-stack local mutation proof. Starting Docker Desktop exposed harness defects: relative `--repo-root` did not resolve before PowerShell script invocation, preflight ran before the API/dev-auth path was ready, existing local `.env` disabled dev-auth, and create-study redirect detection could use a stale snapshot URL even when the transcript had reached setup.
+
+Task: Fixed the harness defects without editing `.env` or using staging/production data. Bootstrap now resolves `repoRoot`, starts local staging with dev-auth process env overrides when `--fullstack-dev-auth` is present, and retries preflight after startup. The autonomous loop now normalizes snapshot URL from the rich transcript when the transcript observes a later browser URL.
+
+Verification: Focused RED/GREEN tests passed 2/2 files and 17/17 tests. Full UXA suite passed 18/18 files and 124/124 tests. Docker Desktop reported Engine 29.3.1. Real `fullstack-bootstrap --start --repo-root ..\.. --fullstack-dev-auth` reached `ready`: API health, dev-auth session, and tenant study read model all passed. Real `fullstack-create-study --data-mode fullstack --fullstack-dev-auth` completed against the local Docker stack with product read-model mocks disabled, final URL `/app/campaign-series/019e46bd-6d56-7d30-807b-adcc0caaa475/setup`, 0 findings, and 0 tickets at `artifacts/ux-agent-runs/local/run-2026-05-20T18-54-36-933Z/`.
+
+Next: UXA02 is locally proven. Optional next harness hardening is a clean local reset/seed command for repeated persona runs; otherwise return to product UX findings or owner-selected roadmap work.

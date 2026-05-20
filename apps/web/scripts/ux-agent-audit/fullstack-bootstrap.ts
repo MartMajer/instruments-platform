@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import {
   checkFullstackPreflight,
@@ -17,6 +17,8 @@ export interface FullstackBootstrapOptions {
   fullstackDevAuth: AutonomousFullstackDevAuthOptions;
   start: boolean;
   timeoutMs?: number;
+  preflightMaxAttempts?: number;
+  preflightRetryDelayMs?: number;
   checkDocker?: () => Promise<boolean>;
   runCommand?: (command: FullstackBootstrapCommand) => Promise<FullstackBootstrapCommandResult>;
   preflight?: (options: FullstackPreflightOptions) => Promise<FullstackPreflightReport>;
@@ -27,6 +29,7 @@ export interface FullstackBootstrapCommand {
   args: string[];
   cwd?: string;
   timeoutMs?: number;
+  env?: Record<string, string>;
 }
 
 export interface FullstackBootstrapCommandResult {
@@ -59,11 +62,13 @@ export interface FullstackBootstrapCommands {
 }
 
 const defaultTimeoutMs = 120_000;
+const defaultPreflightRetryDelayMs = 2000;
+const defaultPreflightMaxAttemptsAfterStart = 30;
 
 export async function runFullstackBootstrap(
   options: FullstackBootstrapOptions
 ): Promise<FullstackBootstrapReport> {
-  const repoRoot = options.repoRoot;
+  const repoRoot = resolve(options.repoRoot);
   const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
   const runCommand = options.runCommand ?? runSystemCommand;
   const checkDocker =
@@ -105,6 +110,7 @@ export async function runFullstackBootstrap(
       args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', startScript],
       cwd: repoRoot,
       timeoutMs,
+      env: buildLocalStagingStartEnv(options.fullstackDevAuth),
     });
 
     if (result.exitCode !== 0) {
@@ -142,16 +148,24 @@ export async function runFullstackBootstrap(
     });
   }
 
-  const preflightReport = await preflight({
-    apiBaseUrl: options.apiBaseUrl,
-    fullstackDevAuth: options.fullstackDevAuth,
-    timeoutMs,
+  const preflightResult = await runPreflightWithRetry({
+    preflight,
+    options: {
+      apiBaseUrl: options.apiBaseUrl,
+      fullstackDevAuth: options.fullstackDevAuth,
+      timeoutMs,
+    },
+    maxAttempts:
+      options.preflightMaxAttempts ??
+      (options.start ? defaultPreflightMaxAttemptsAfterStart : 1),
+    retryDelayMs: options.preflightRetryDelayMs ?? defaultPreflightRetryDelayMs,
   });
+  const preflightReport = preflightResult.report;
   steps.push({
     id: 'fullstack-preflight',
     label: 'Full-stack preflight',
     status: preflightReport.status === 'ready' ? 'passed' : 'failed',
-    detail: `Preflight status: ${preflightReport.status}.`,
+    detail: `Preflight status: ${preflightReport.status} after ${preflightResult.attempts} attempt(s).`,
     ...(preflightReport.status === 'ready'
       ? {}
       : {
@@ -168,6 +182,36 @@ export async function runFullstackBootstrap(
     commands,
     preflight: preflightReport,
   };
+}
+
+async function runPreflightWithRetry(options: {
+  preflight: (options: FullstackPreflightOptions) => Promise<FullstackPreflightReport>;
+  options: FullstackPreflightOptions;
+  maxAttempts: number;
+  retryDelayMs: number;
+}) {
+  const maxAttempts = Math.max(1, Math.floor(options.maxAttempts));
+  const retryDelayMs = Math.max(0, Math.floor(options.retryDelayMs));
+  let attempts = 1;
+  let report = await options.preflight(options.options);
+
+  for (let attempt = 1; attempt < maxAttempts && report.status !== 'ready'; attempt += 1) {
+    if (retryDelayMs > 0) {
+      await sleep(retryDelayMs);
+    }
+
+    report = await options.preflight(options.options);
+    attempts += 1;
+  }
+
+  return {
+    report,
+    attempts,
+  };
+}
+
+function sleep(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export function buildFullstackBootstrapCommands(repoRoot: string, apiBaseUrl: string) {
@@ -201,6 +245,7 @@ function runSystemCommand(command: FullstackBootstrapCommand) {
   return new Promise<FullstackBootstrapCommandResult>((resolve) => {
     const child = spawn(command.filePath, command.args, {
       cwd: command.cwd,
+      env: command.env ? { ...process.env, ...command.env } : process.env,
       shell: false,
       windowsHide: true,
     });
@@ -235,4 +280,17 @@ function runSystemCommand(command: FullstackBootstrapCommand) {
 
 function quote(value: string) {
   return value.includes(' ') ? `"${value.replace(/"/g, '\\"')}"` : value;
+}
+
+function buildLocalStagingStartEnv(
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions
+) {
+  if (!fullstackDevAuth.enabled) {
+    return undefined;
+  }
+
+  return {
+    Authentication__Dev__Enabled: 'true',
+    PUBLIC_DEV_AUTH_ENABLED: 'true',
+  };
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { resolve } from 'node:path';
 
 import { runFullstackBootstrap } from './fullstack-bootstrap.ts';
 
@@ -58,6 +59,110 @@ describe('UXA02 full-stack bootstrap', () => {
       expect.objectContaining({
         apiBaseUrl: 'http://127.0.0.1:5055',
         fullstackDevAuth: { enabled: true },
+      })
+    );
+  });
+
+  it('overrides local staging dev-auth env when fullstack dev auth is requested', async () => {
+    const runCommand = vi.fn(async () => ({ exitCode: 0, output: 'started' }));
+
+    await runFullstackBootstrap({
+      repoRoot: 'C:\\repo',
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: { enabled: true },
+      start: true,
+      checkDocker: vi.fn(async () => true),
+      runCommand,
+      preflight: vi.fn(async () => ({
+        status: 'ready' as const,
+        apiBaseUrl: 'http://127.0.0.1:5055',
+        checks: [],
+      })),
+    });
+
+    expect(runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        env: expect.objectContaining({
+          Authentication__Dev__Enabled: 'true',
+          PUBLIC_DEV_AUTH_ENABLED: 'true',
+        }),
+      })
+    );
+  });
+
+  it('resolves a relative repo root before invoking local staging scripts', async () => {
+    const runCommand = vi.fn(async () => ({ exitCode: 0, output: 'started' }));
+    const preflight = vi.fn(async () => ({
+      status: 'ready' as const,
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      checks: [],
+    }));
+    const expectedRoot = resolve('..', '..');
+
+    const report = await runFullstackBootstrap({
+      repoRoot: '..\\..',
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: { enabled: true },
+      start: true,
+      checkDocker: vi.fn(async () => true),
+      runCommand,
+      preflight,
+    });
+
+    expect(report.repoRoot).toBe(expectedRoot);
+    expect(runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cwd: expectedRoot,
+        args: expect.arrayContaining([
+          '-File',
+          `${expectedRoot}\\deploy\\staging\\start-local-staging.ps1`,
+        ]),
+      })
+    );
+    expect(report.commands.startLocalStaging).toContain(expectedRoot);
+  });
+
+  it('retries preflight after startup until the local API becomes ready', async () => {
+    const blockedReport = {
+      status: 'blocked' as const,
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      checks: [
+        {
+          id: 'api-health' as const,
+          label: 'Local API health',
+          status: 'failed' as const,
+          detail: 'fetch failed',
+        },
+      ],
+    };
+    const readyReport = {
+      status: 'ready' as const,
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      checks: [],
+    };
+    const preflight = vi.fn(async () =>
+      preflight.mock.calls.length === 1 ? blockedReport : readyReport
+    );
+
+    const report = await runFullstackBootstrap({
+      repoRoot: 'C:\\repo',
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: { enabled: true },
+      start: true,
+      checkDocker: vi.fn(async () => true),
+      runCommand: vi.fn(async () => ({ exitCode: 0, output: 'started' })),
+      preflight,
+      preflightRetryDelayMs: 0,
+      preflightMaxAttempts: 3,
+    });
+
+    expect(report.status).toBe('ready');
+    expect(preflight).toHaveBeenCalledTimes(2);
+    expect(report.steps.at(-1)).toEqual(
+      expect.objectContaining({
+        id: 'fullstack-preflight',
+        status: 'passed',
+        detail: 'Preflight status: ready after 2 attempt(s).',
       })
     );
   });

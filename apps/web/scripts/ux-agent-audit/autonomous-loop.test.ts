@@ -344,6 +344,38 @@ describe('autonomous UX persona loop', () => {
     ]);
   });
 
+  it('treats rich transcript setup URL as successful create-study navigation when snapshot URL lags', async () => {
+    const mission = missionFixture({
+      id: 'fullstack-create-study',
+      supportedDataModes: ['fullstack'],
+      targetProductPaths: ['/app/campaign-series'],
+      maxSteps: 6,
+      mutationPlan: {
+        kind: 'create-study',
+        fieldLabel: 'Study name',
+        buttonText: 'Create study',
+        studyNamePrefix: 'UXA full-stack mutation',
+      },
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Studies Plan studies', '/app/campaign-series'),
+      createStudySnapshot(),
+      createStudyRedirectRaceSnapshot(),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.steps.at(-1)?.action).toContain(
+      'created study setup route reached'
+    );
+    expect(result.personaFindings).toEqual([]);
+  });
+
   it('uses full-stack auth and seed wording when a fullstack mission is blocked by workspace access loading', async () => {
     const mission = missionFixture({
       id: 'fullstack-workspace-inspection',
@@ -493,6 +525,32 @@ function createStudySnapshot(): MissionPageSnapshot {
         },
       ],
       sections: ['Create your study', 'Open a study'],
+      statusMessages: [],
+    },
+  };
+}
+
+function createStudyRedirectRaceSnapshot(): MissionPageSnapshot {
+  const stalePath = '/app/campaign-series';
+  const setupPath = '/app/campaign-series/33333333-3333-4333-8333-333333333333/setup';
+
+  return {
+    label: 'studies-after-create',
+    title: 'Workspace',
+    url: `http://127.0.0.1:5174${stalePath}`,
+    visibleTextExcerpt: 'Studies Create your study Creating...',
+    buttons: ['Creating...'],
+    links: [],
+    richTranscript: {
+      label: 'studies-after-create',
+      title: 'Study setup',
+      url: `http://127.0.0.1:5174${setupPath}`,
+      visibleText: 'Study setup Current setup step Instrument',
+      headings: ['Study setup', 'Instrument'],
+      buttons: [{ text: 'Save instrument', disabled: false }],
+      links: [],
+      fields: [],
+      sections: ['Current setup step Instrument'],
       statusMessages: [],
     },
   };

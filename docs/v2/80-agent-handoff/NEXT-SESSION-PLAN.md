@@ -1,3 +1,28 @@
+# Next Session Plan - Post-D381
+
+UXA02 objective is now locally proven:
+
+- safe scripted persona loop exists
+- safe action-file provider loop exists
+- safe action-http local provider loop exists
+- full-stack mode disables product read-model mocks
+- full-stack bootstrap starts the local Docker stack
+- full-stack preflight reaches `ready`
+- full-stack create-study mutation completed against the real local app/API/database
+
+Latest proof:
+
+- bootstrap: `fullstack-bootstrap --start --repo-root ..\.. --fullstack-dev-auth` reached `ready`
+- mutation: `fullstack-create-study --data-mode fullstack --fullstack-dev-auth`
+- artifact: `artifacts/ux-agent-runs/local/run-2026-05-20T18-54-36-933Z/`
+- final URL: `/app/campaign-series/019e46bd-6d56-7d30-807b-adcc0caaa475/setup`
+- findings: 0
+- tickets: 0
+
+Remaining optional follow-up, not required for UXA02 completion: add a clean local reset/seed command so repeated persona runs do not accumulate synthetic studies in the Docker database.
+
+Do not point UXA02 autonomous missions or persona providers at staging or production.
+
 # Next Session Plan - Post-D380
 
 Current queue head: run UXA02 full-stack bootstrap once Docker Desktop is available, then prove `fullstack-create-study` green.
