@@ -160,10 +160,18 @@ export async function runAutonomousFixtureMission(
     status = 'blocked';
   }
 
+  const personaGoalAssessment = buildPersonaGoalAssessment(
+    mission,
+    status,
+    findings,
+    visitedProductPaths
+  );
   const observations = {
     autonomousMode: true,
     localOnly: true,
     productEntryPath: mission.entryPath,
+    personaGoal: mission.personaProfile,
+    personaGoalAssessment,
     targetProductPaths: mission.targetProductPaths,
     visitedProductPaths,
     reviewFocus: mission.reviewFocus,
@@ -178,7 +186,7 @@ export async function runAutonomousFixtureMission(
     observations,
     snapshots,
     personaFindings: findings,
-    reviewerOutput: buildReviewerOutput(mission, status, findings),
+    reviewerOutput: buildReviewerOutput(mission, status, findings, personaGoalAssessment),
   };
 
   function recordStep(action: string) {
@@ -311,7 +319,8 @@ function toActionLog(action: UXAgentAction, validation: { allowed: boolean; reas
 function buildReviewerOutput(
   mission: AutonomousFixtureMission,
   status: MissionEvidenceStatus,
-  findings: AutonomousPersonaFinding[]
+  findings: AutonomousPersonaFinding[],
+  personaGoalAssessment: JsonObject
 ) {
   return JSON.stringify(
     {
@@ -320,12 +329,48 @@ function buildReviewerOutput(
           ? `Autonomous ${mission.personaId} review found ${findings.length} issue(s).`
           : `Autonomous ${mission.personaId} review completed without findings.`,
       missionStatus: status,
+      personaGoal: {
+        name: mission.personaProfile.name,
+        role: mission.personaProfile.role,
+        appGoal: mission.personaProfile.appGoal,
+        successCriteria: mission.personaProfile.successCriteria,
+        reviewerInstructions: mission.personaProfile.reviewerInstructions,
+      },
+      personaGoalAssessment,
       findings,
       openQuestions: [],
     },
     null,
     2
   );
+}
+
+function buildPersonaGoalAssessment(
+  mission: AutonomousFixtureMission,
+  status: MissionEvidenceStatus,
+  findings: AutonomousPersonaFinding[],
+  visitedProductPaths: string[]
+) {
+  const visitedTargetCount = mission.targetProductPaths.filter((path) =>
+    visitedProductPaths.includes(path)
+  ).length;
+
+  return {
+    status,
+    appGoal: mission.personaProfile.appGoal,
+    checkedCriteriaCount: mission.personaProfile.successCriteria.length,
+    successCriteria: mission.personaProfile.successCriteria.map((criterion) => ({
+      criterion,
+      evidence:
+        status === 'completed'
+          ? 'Mission visited all configured product surfaces for this persona goal.'
+          : 'Mission stopped before all configured product surfaces were reviewed.',
+    })),
+    visitedTargetCount,
+    targetCount: mission.targetProductPaths.length,
+    unresolvedFindingCount: findings.length,
+    reviewerInstructions: mission.personaProfile.reviewerInstructions,
+  } satisfies JsonObject;
 }
 
 function combinedSnapshotText(snapshot: MissionPageSnapshot) {

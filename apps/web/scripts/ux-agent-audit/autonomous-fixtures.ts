@@ -1,6 +1,7 @@
 import { listFixtureScenarios } from '../../src/lib/product/fixtures.ts';
 
 import { autonomousProductPaths } from './autonomous-product-read-models.ts';
+import { getGoalPersonaProfile, type GoalPersonaProfile } from './persona-goals.ts';
 import type { PersonaId } from './personas.ts';
 import type { ViewportPreset } from './types.ts';
 
@@ -9,6 +10,7 @@ export { autonomousProductPaths };
 export interface AutonomousFixtureMission {
   id: string;
   personaId: PersonaId;
+  personaProfile: GoalPersonaProfile;
   goal: string;
   viewport: ViewportPreset;
   maxSteps: number;
@@ -108,6 +110,7 @@ function mission(options: {
 
   return {
     ...options,
+    personaProfile: getGoalPersonaProfile(options.personaId),
     entryPath: '/app',
     fixtureProvenance:
       `Seeded local product read model backed by ${scenarios.length} demo fixture catalog scenario(s).`,

@@ -124,6 +124,20 @@ Before implementation:
 
 D371 triage note: the scripted autonomous actor intentionally stops only on hard app-shell or route failures such as workspace access loading, sign-in/tenant access failures, unavailable selected-study routes, API request failures, network failures, service outage pages, or generic "something went wrong" screens. Normal product prerequisite wording such as "blocked", "missing", or "not available" is not enough to create a ticket by itself because Setup/Results/Waves legitimately use those states to guide the user.
 
+## D372 goal-based personas
+
+Autonomous missions now carry structured persona profiles so the run is tied to a real user job, not only a route list.
+
+Current goal personas:
+
+- Dr. Ana Kovac, first-time academic researcher: create and prepare a first study from `/app`, understand questionnaire/scoring/recipient/launch readiness, and know whether launch is safe.
+- Marko Horvat, OSH consultant: prepare a client-ready workplace pulse, choose recipients, start collection, monitor submissions, and export client-usable results.
+- Prof. Ivana Radic, busy PI: review Wave 1 and Wave 2, understand comparison validity, confirm anonymity/disclosure limits, and know whether export is analysis-ready.
+
+Each profile defines role, domain knowledge, patience, app goal, success criteria, confusion triggers, hard failure triggers, and reviewer instructions. Evidence now includes `personaGoal` and `personaGoalAssessment`. Normalized reports render a `Persona goal` section with the app goal, checked criteria count, and target coverage.
+
+D372 local proof ran all three autonomous missions against `/app`; each mission completed, visited 3 target product paths, checked 5 persona criteria, and rendered the persona goal in the markdown report.
+
 ## Known limits
 
 - Only one mission/persona is implemented.

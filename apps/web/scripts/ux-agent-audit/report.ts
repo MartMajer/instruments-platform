@@ -164,6 +164,9 @@ function buildReviewSummary(
   parsedReview: ParsedReviewerOutput
 ): NormalizedReviewSummary {
   const sanitizedEvidence = sanitizeEvidenceForReview(evidence);
+  const sanitizedObservations = isRecord(sanitizedEvidence.observations)
+    ? sanitizedEvidence.observations
+    : {};
   const runId = sanitizeReviewText(options.runMetadata?.runId ?? 'unknown-local-run');
   const createdAt = sanitizeReviewText(options.runMetadata?.createdAt ?? 'unknown');
   const nextActionTickets = parsedReview.findings
@@ -192,6 +195,12 @@ function buildReviewSummary(
       stepCount: evidence.steps.length,
       screenshotReferences: sanitizedEvidence.screenshotReferences ?? [],
       reviewerSummary: parsedReview.reviewerSummary,
+      ...(isRecord(sanitizedObservations.personaGoal)
+        ? { personaGoal: sanitizedObservations.personaGoal }
+        : {}),
+      ...(isRecord(sanitizedObservations.personaGoalAssessment)
+        ? { personaGoalAssessment: sanitizedObservations.personaGoalAssessment }
+        : {}),
     },
     findings: parsedReview.findings,
     openQuestions: parsedReview.openQuestions,
@@ -364,9 +373,35 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
     )}`,
     `- Reviewer summary: ${summary.observationsSummary.reviewerSummary}`,
     '',
-    '## Findings',
-    '',
   ];
+
+  const personaGoal = isRecord(summary.observationsSummary.personaGoal)
+    ? summary.observationsSummary.personaGoal
+    : undefined;
+  const personaGoalAssessment = isRecord(
+    summary.observationsSummary.personaGoalAssessment
+  )
+    ? summary.observationsSummary.personaGoalAssessment
+    : undefined;
+
+  if (personaGoal) {
+    lines.push(
+      '## Persona goal',
+      '',
+      `- Persona name: ${stringValue(personaGoal.name)}`,
+      `- Role: ${stringValue(personaGoal.role)}`,
+      `- App goal: ${stringValue(personaGoal.appGoal)}`,
+      `- Criteria checked: ${stringValue(
+        personaGoalAssessment?.checkedCriteriaCount
+      )}`,
+      `- Targets visited: ${stringValue(
+        personaGoalAssessment?.visitedTargetCount
+      )} / ${stringValue(personaGoalAssessment?.targetCount)}`,
+      ''
+    );
+  }
+
+  lines.push('## Findings', '');
 
   if (summary.reviewStatus === 'pending') {
     lines.push('Review pending. Generate or paste reviewer output, then normalize it.');
@@ -583,6 +618,18 @@ function formatScreenshotCount(value: unknown) {
   }
 
   return String(value.length);
+}
+
+function stringValue(value: unknown) {
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return sanitizeReviewText(value);
+  }
+
+  return 'unknown';
 }
 
 function normalizeMarkdown(markdown: string) {

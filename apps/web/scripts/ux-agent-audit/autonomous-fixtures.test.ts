@@ -41,6 +41,9 @@ describe('autonomous fixture-backed UX missions', () => {
       expect(mission.localOnly).toBe(true);
       expect(mission.fixtureProvenance).toContain('local product read model');
       expect(mission.entryPath).toBe('/app');
+      expect(mission.personaProfile.id).toBe(mission.personaId);
+      expect(mission.personaProfile.appGoal).toContain('/app');
+      expect(mission.personaProfile.successCriteria.length).toBeGreaterThanOrEqual(4);
       expect(mission.targetFixtureCatalogIds.length).toBeGreaterThan(0);
       expect(mission.targetProductPaths.length).toBeGreaterThan(0);
       expect(resolveAutonomousMissionTargetPaths(mission.id)).not.toContain('/app/demo');

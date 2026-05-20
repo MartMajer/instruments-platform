@@ -198,6 +198,56 @@ describe('UX persona review report normalizer', () => {
     );
   });
 
+  it('renders persona goal context from autonomous evidence', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const evidence = completedEvidence();
+    evidence.observations = {
+      ...evidence.observations,
+      personaGoal: {
+        name: 'Dr. Ana Kovac',
+        role: 'Academic researcher preparing a first self-serve study in the product.',
+        appGoal:
+          'Starting from /app, create and prepare a first study for launch.',
+        successCriteria: [
+          'The next action is obvious.',
+          'Questionnaire requirements are explained.',
+        ],
+      },
+      personaGoalAssessment: {
+        status: 'completed',
+        checkedCriteriaCount: 2,
+        visitedTargetCount: 3,
+        targetCount: 3,
+      },
+    };
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence,
+      reviewerOutput: JSON.stringify({
+        summary:
+          'No UX findings: the persona goal was reviewed against the captured transcript.',
+        findings: [],
+        openQuestions: [],
+      }),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(summary.observationsSummary.personaGoal).toEqual(
+      expect.objectContaining({
+        name: 'Dr. Ana Kovac',
+        appGoal: expect.stringContaining('/app'),
+      })
+    );
+    expect(markdown).toContain('## Persona goal');
+    expect(markdown).toContain('Dr. Ana Kovac');
+    expect(markdown).toContain('Starting from /app');
+    expect(markdown).toContain('Criteria checked: 2');
+  });
+
   it('rejects empty findings when the reviewer does not explain why the empty review is intentional', async () => {
     const runDirectory = await createTemporaryRoot();
     const result = await writeNormalizedReviewReport({

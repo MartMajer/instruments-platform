@@ -19038,3 +19038,19 @@ Proof artifacts:
 - `artifacts/ux-agent-runs/local/run-2026-05-20T16-08-35-902Z/`
 
 Queue: No app UX ticket should be opened from this first generated run. The next useful UXA01 step is either a richer reviewer/actor that can make qualitative complaints from transcripts, or a normal product slice chosen by owner/manual feedback.
+
+## 2026-05-20 - D372 UXA01 goal-based personas
+
+Assessment: D371 left UXA01 mechanically clean but too route-oriented. Owner asked for actual personas with goals, instructions, and a clear app objective. The right next move was structured persona intent, not random clicking.
+
+Task: Added goal-based personas for Dr. Ana Kovac, Marko Horvat, and Prof. Ivana Radic. Each profile defines role, domain knowledge, patience, app goal, success criteria, confusion triggers, hard failure triggers, and reviewer instructions. Autonomous missions now carry the persona profile; evidence includes `personaGoal` and `personaGoalAssessment`; generated reviewer JSON includes goal context; review prompts preserve the fields; normalized markdown reports render a `Persona goal` section.
+
+Verification: RED focused tests failed on missing persona profiles, missing persona evidence, and missing report rendering. GREEN focused tests passed. Full UXA01 Vitest passed 13 files / 78 tests. Local Vite proof reran all three autonomous missions against `/app`; all completed, each visited 3 target product paths, each checked 5 persona criteria, and each report rendered the persona name and `Persona goal` section.
+
+Proof artifacts:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-31-02-209Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-31-08-791Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T16-31-13-233Z/`
+
+Queue: Next optional UXA01 improvement is qualitative criterion grading from transcripts. Without that layer, personas have real goals and report context, but the actor remains deterministic.

@@ -7,6 +7,7 @@ import {
 } from './autonomous-loop.ts';
 import type { AutonomousFixtureMission } from './autonomous-fixtures.ts';
 import type { MissionPageSnapshot } from './mission-executor.ts';
+import { getGoalPersonaProfile } from './persona-goals.ts';
 
 describe('autonomous UX persona loop', () => {
   it('drives visible fixture links without owner clicks', async () => {
@@ -34,9 +35,19 @@ describe('autonomous UX persona loop', () => {
       expect.objectContaining({
         autonomousMode: true,
         localOnly: true,
+        personaGoal: expect.objectContaining({
+          name: 'Dr. Ana Kovac',
+          appGoal: expect.stringContaining('first study'),
+        }),
+        personaGoalAssessment: expect.objectContaining({
+          status: 'completed',
+          checkedCriteriaCount: 5,
+        }),
         visitedProductPaths: ['/app/campaign-series/6a82f6e0-4712-4c3e-9d20-53715d5c96f3/setup'],
       })
     );
+    expect(result.reviewerOutput).toContain('"personaGoal"');
+    expect(result.reviewerOutput).toContain('"successCriteria"');
   });
 
   it('continues through normal product prerequisite states instead of filing false tickets', async () => {
@@ -146,6 +157,7 @@ function missionFixture(
   return {
     id: 'fixture-first-study-setup',
     personaId: 'first-time-researcher',
+    personaProfile: getGoalPersonaProfile('first-time-researcher'),
     goal: 'Inspect setup fixture states.',
     viewport: 'desktop',
     maxSteps: 6,
