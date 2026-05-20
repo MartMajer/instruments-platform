@@ -16,14 +16,23 @@ export interface BrowserEvidenceOptions {
   personaId: string;
   missionGoal: string;
   viewport: ViewportPreset;
+  captureScreenshots?: boolean;
   headless?: boolean;
+  includeSanitizedVisibleText?: boolean;
+  maxVisibleTextCharacters?: number;
   outputRoot?: string;
   runDirectory?: string;
 }
 
+export interface BrowserSafeCapturePolicy {
+  captureScreenshots: boolean;
+  includeSanitizedVisibleText: boolean;
+  maxVisibleTextCharacters: number;
+}
+
 export interface CapturedLink {
   text: string;
-  href: string;
+  path?: string;
 }
 
 export interface BrowserEvidenceCapture {
@@ -44,9 +53,24 @@ const viewportSizes: Record<ViewportPreset, { width: number; height: number }> =
   mobile: { width: 390, height: 844 },
 };
 
+const defaultVisibleTextLimit = 2000;
+const maxVisibleTextLimit = 4000;
+const controlTextLimit = 160;
+const linkTextLimit = 160;
+
+const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const uuidPattern =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+const jwtLikePattern =
+  /\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{3,}\.[A-Za-z0-9_-]{3,}\b/g;
+const longTokenPattern =
+  /\b(?=[A-Za-z0-9_-]{24,}\b)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]+\b/g;
+const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
+
 export async function captureBrowserEvidence(
   options: BrowserEvidenceOptions
 ): Promise<BrowserEvidenceCapture> {
+  const safeCapturePolicy = resolveBrowserSafeCapturePolicy(options);
   const browser = await chromium.launch({ headless: options.headless ?? true });
   const startedAt = new Date();
 
@@ -58,9 +82,17 @@ export async function captureBrowserEvidence(
 
     await page.goto(options.baseUrl, { waitUntil: 'domcontentloaded' });
 
-    const title = await page.title();
-    const url = page.url();
-    const visibleTextExcerpt = excerpt(await readVisibleBodyText(page));
+    const title = sanitizeVisibleTextForEvidence(
+      await page.title(),
+      controlTextLimit
+    );
+    const url = sanitizeEvidenceUrl(page.url());
+    const visibleTextExcerpt = safeCapturePolicy.includeSanitizedVisibleText
+      ? sanitizeVisibleTextForEvidence(
+          await readVisibleBodyText(page),
+          safeCapturePolicy.maxVisibleTextCharacters
+        )
+      : '';
     const buttons = await collectVisibleButtonLabels(page);
     const links = await collectVisibleLinks(page);
 
@@ -80,16 +112,26 @@ export async function captureBrowserEvidence(
             outputRoot: options.outputRoot ?? '.',
           })
         ).runDirectory;
-      const screenshotDirectory = join(
-        runDirectory,
-        'missions',
-        options.missionId,
-        'screenshots'
-      );
-      const screenshotPath = join(screenshotDirectory, 'initial-page.png');
+      const screenshots: Array<{ label: string; path: string }> = [];
 
-      await mkdir(screenshotDirectory, { recursive: true });
-      await page.screenshot({ path: screenshotPath, fullPage: true });
+      if (safeCapturePolicy.captureScreenshots) {
+        const screenshotDirectory = join(
+          runDirectory,
+          'missions',
+          options.missionId,
+          'screenshots'
+        );
+        const screenshotPath = join(screenshotDirectory, 'initial-page.png');
+
+        await mkdir(screenshotDirectory, { recursive: true });
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+
+        screenshots.push({
+          label: 'initial-page',
+          path: 'screenshots/initial-page.png',
+        });
+        capture.screenshotPath = screenshotPath;
+      }
 
       const evidencePaths = await writeMissionEvidence(runDirectory, {
         missionId: options.missionId,
@@ -105,13 +147,9 @@ export async function captureBrowserEvidence(
             url,
           },
         ],
-        screenshots: [
-          {
-            label: 'initial-page',
-            path: 'screenshots/initial-page.png',
-          },
-        ],
+        screenshots,
         observations: {
+          safeCapturePolicy: describeSafeCapturePolicy(safeCapturePolicy),
           title,
           url,
           visibleTextExcerpt,
@@ -120,7 +158,6 @@ export async function captureBrowserEvidence(
         } satisfies JsonObject,
       });
 
-      capture.screenshotPath = screenshotPath;
       capture.runDirectory = runDirectory;
       capture.evidencePath = evidencePaths.evidencePath;
       capture.transcriptPath = evidencePaths.transcriptPath;
@@ -137,16 +174,21 @@ async function readVisibleBodyText(page: Page) {
 }
 
 async function collectVisibleButtonLabels(page: Page) {
-  return page.locator('button:visible').evaluateAll((nodes) =>
+  const labels = await page.locator('button:visible').evaluateAll((nodes) =>
     nodes
       .map((node) => (node.textContent ?? '').replace(/\s+/g, ' ').trim())
       .filter(Boolean)
       .slice(0, 30)
   );
+
+  return labels
+    .map((label) => sanitizeVisibleTextForEvidence(label, controlTextLimit))
+    .filter(Boolean)
+    .slice(0, 30);
 }
 
 async function collectVisibleLinks(page: Page): Promise<CapturedLink[]> {
-  return page.locator('a:visible').evaluateAll((nodes) =>
+  const links = await page.locator('a:visible').evaluateAll((nodes) =>
     nodes
       .map((node) => {
         const anchor = node as HTMLAnchorElement;
@@ -158,8 +200,118 @@ async function collectVisibleLinks(page: Page): Promise<CapturedLink[]> {
       .filter((link) => link.text || link.href)
       .slice(0, 30)
   );
+
+  return links
+    .map(toSafeCapturedLink)
+    .filter((link) => link.text || link.path)
+    .slice(0, 30);
 }
 
-function excerpt(text: string) {
-  return text.replace(/\s+/g, ' ').trim().slice(0, 4000);
+export function resolveBrowserSafeCapturePolicy(
+  options: Pick<
+    BrowserEvidenceOptions,
+    | 'captureScreenshots'
+    | 'includeSanitizedVisibleText'
+    | 'maxVisibleTextCharacters'
+  >
+): BrowserSafeCapturePolicy {
+  return {
+    captureScreenshots: options.captureScreenshots === true,
+    includeSanitizedVisibleText: options.includeSanitizedVisibleText === true,
+    maxVisibleTextCharacters: normalizeVisibleTextLimit(
+      options.maxVisibleTextCharacters
+    ),
+  };
+}
+
+export function sanitizeEvidenceUrl(url: string) {
+  const value = (url ?? '').trim();
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(value);
+    return `${parsed.origin}${sanitizeUrlPath(parsed.pathname)}`;
+  } catch {
+    return sanitizeUrlPath(stripQueryAndFragment(value));
+  }
+}
+
+export function sanitizeVisibleTextForEvidence(
+  text: string,
+  maxCharacters = defaultVisibleTextLimit
+) {
+  const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
+  return redactSensitiveText(normalized).slice(
+    0,
+    normalizeVisibleTextLimit(maxCharacters)
+  );
+}
+
+export function toSafeCapturedLink(link: {
+  text?: string;
+  href?: string;
+}): CapturedLink {
+  const text = sanitizeVisibleTextForEvidence(link.text ?? '', linkTextLimit);
+  const path = sanitizeLinkPath(link.href ?? '');
+
+  return {
+    text,
+    ...(path ? { path } : {}),
+  };
+}
+
+function describeSafeCapturePolicy(policy: BrowserSafeCapturePolicy) {
+  return {
+    pageUrlCapture: 'origin-and-path-only-query-and-fragment-removed',
+    linkCapture: 'sanitized-label-and-path-only',
+    screenshotCapture: policy.captureScreenshots
+      ? 'enabled-explicitly'
+      : 'disabled-by-default',
+    visibleTextCapture: policy.includeSanitizedVisibleText
+      ? 'sanitized-and-bounded'
+      : 'disabled-by-default',
+    maxVisibleTextCharacters: policy.maxVisibleTextCharacters,
+  };
+}
+
+function sanitizeLinkPath(href: string) {
+  const value = (href ?? '').trim();
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    return sanitizeUrlPath(new URL(value).pathname);
+  } catch {
+    return sanitizeUrlPath(stripQueryAndFragment(value));
+  }
+}
+
+function sanitizeUrlPath(path: string) {
+  return redactSensitiveText(stripQueryAndFragment(path));
+}
+
+function stripQueryAndFragment(value: string) {
+  return value.split(/[?#]/)[0] ?? '';
+}
+
+function normalizeVisibleTextLimit(value: number | undefined) {
+  if (!Number.isFinite(value)) {
+    return defaultVisibleTextLimit;
+  }
+
+  return Math.max(0, Math.min(maxVisibleTextLimit, Math.floor(value)));
+}
+
+function redactSensitiveText(text: string) {
+  return text
+    .replace(emailPattern, '[redacted-email]')
+    .replace(uuidPattern, '[redacted-uuid]')
+    .replace(jwtLikePattern, '[redacted-token]')
+    .replace(longTokenPattern, '[redacted-token]')
+    .replace(participantCodeLikePattern, '[redacted-code]');
 }
