@@ -1,14 +1,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { JsonObject, MissionEvidence } from './evidence';
+import type { JsonObject, MissionEvidence } from './evidence.ts';
 import {
   sanitizeEvidenceForReview,
   sanitizeEvidenceUrl,
   sanitizeReviewText,
   type ReviewPromptRunMetadata,
-} from './review-prompt';
-import type { MissionDefinition, PersonaDefinition } from './types';
+} from './review-prompt.ts';
+import type { MissionDefinition, PersonaDefinition } from './types.ts';
 
 export type ReviewStatus = 'pending' | 'needs-structured-review' | 'reviewed';
 export type ReviewFindingSeverity =

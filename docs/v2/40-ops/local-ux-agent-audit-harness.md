@@ -49,6 +49,12 @@ Start the local web app separately, then run from `apps/web`:
 npm run ux:audit -- --base-url http://127.0.0.1:5174 --mission create-first-study --persona first-time-researcher --viewport desktop --output ../../artifacts/ux-agent-runs/local
 ```
 
+On Windows shells where `npm.ps1` or script `PATH` resolution is broken, use the direct Node form from `apps/web`:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts --base-url http://127.0.0.1:5174 --mission create-first-study --persona first-time-researcher --viewport desktop --output ../../artifacts/ux-agent-runs/local
+```
+
 Useful options:
 
 ```powershell

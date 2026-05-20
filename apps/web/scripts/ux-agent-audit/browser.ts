@@ -257,12 +257,22 @@ async function captureFixedMissionEvidence(
 }
 
 class PlaywrightMissionPageAdapter implements MissionPageAdapter {
+  private readonly page: Page;
+  private readonly baseUrl: string;
+  private readonly safeCapturePolicy: BrowserSafeCapturePolicy;
+  private readonly screenshotDirectory: string | undefined;
+
   constructor(
-    private readonly page: Page,
-    private readonly baseUrl: string,
-    private readonly safeCapturePolicy: BrowserSafeCapturePolicy,
-    private readonly screenshotDirectory: string | undefined
-  ) {}
+    page: Page,
+    baseUrl: string,
+    safeCapturePolicy: BrowserSafeCapturePolicy,
+    screenshotDirectory: string | undefined
+  ) {
+    this.page = page;
+    this.baseUrl = baseUrl;
+    this.safeCapturePolicy = safeCapturePolicy;
+    this.screenshotDirectory = screenshotDirectory;
+  }
 
   async gotoPath(path: string, label: string): Promise<MissionPageSnapshot> {
     await this.page.goto(new URL(path, this.baseUrl).toString(), {
@@ -330,7 +340,7 @@ async function collectVisibleButtonLabels(page: Page) {
       .map((node) => (node.textContent ?? '').replace(/\s+/g, ' ').trim())
       .filter(Boolean)
       .slice(0, 30)
-  );
+  ).catch(() => []);
 
   return labels
     .map((label) => sanitizeVisibleTextForEvidence(label, controlTextLimit))
@@ -350,7 +360,7 @@ async function collectVisibleLinks(page: Page): Promise<CapturedLink[]> {
       })
       .filter((link) => link.text || link.href)
       .slice(0, 30)
-  );
+  ).catch(() => []);
 
   return links
     .map(toSafeCapturedLink)
@@ -372,7 +382,7 @@ async function collectVisibleNavigationLinks(
       })
       .filter((link) => link.href)
       .slice(0, 50)
-  );
+  ).catch(() => []);
 
   return links
     .map((link) => ({
