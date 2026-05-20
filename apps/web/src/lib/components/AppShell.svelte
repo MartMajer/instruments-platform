@@ -74,20 +74,27 @@
 	);
 	const logoutUrl = $derived(env.PUBLIC_AUTH_LOGOUT_URL || resolve('/'));
 	const bottomNavItems = $derived([
-		{ label: 'Home', href: '/app', icon: Home, match: (path: string) => path === '/app' },
+		{ id: 'home', label: 'Home', href: '/app', icon: Home, match: (path: string) => path === '/app' },
 		{
+			id: 'studies',
 			label: 'Studies',
 			href: '/app/campaign-series',
 			icon: FolderKanban,
 			match: (path: string) => path === '/app/campaign-series'
 		},
+		...(activeSeriesId
+			? [
+					{
+						id: 'study',
+						label: 'Study',
+						href: currentStudyHref,
+						icon: FileStack,
+						match: (path: string) => /^\/app\/campaign-series\/[^/]+/.test(path)
+					}
+				]
+			: []),
 		{
-			label: 'Study',
-			href: currentStudyHref,
-			icon: FileStack,
-			match: (path: string) => /^\/app\/campaign-series\/[^/]+/.test(path)
-		},
-		{
+			id: 'directory',
 			label: 'Directory',
 			href: '/app/directory',
 			icon: Network,
@@ -201,7 +208,7 @@
 					<div class="app-mobile-menu" role="dialog" aria-label="Workspace menu">
 						<nav class="app-mobile-menu__section" aria-label="Primary workspace routes">
 							<p class="app-mobile-menu__heading">Workspace</p>
-							{#each bottomNavItems as item (item.href)}
+							{#each bottomNavItems as item (item.id)}
 								{@const Icon = item.icon}
 								<a
 									class="app-mobile-menu__link"
@@ -260,7 +267,7 @@
 
 			{#if isProductShell}
 				<nav class="app-mobile-bottom-nav" aria-label="Primary mobile navigation">
-					{#each bottomNavItems as item (item.href)}
+					{#each bottomNavItems as item (item.id)}
 						{@const Icon = item.icon}
 						<a
 							href={resolve(item.href)}
