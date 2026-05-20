@@ -28,7 +28,7 @@ The remaining gap was UX/state handling, not authorization bypass:
 - Updated OIDC remote-failure fallback so registration-context `email_mismatch` returns to `/register`.
 - Added `/register?auth=email_mismatch` copy using the saved registration sign-in link.
 - Replaced remaining user-facing Auth0/internal-provider wording on `/app`, `/signin`, and `/register`.
-- Added a visible app-session "Switch account" action that clears the provider session and returns to `/signin`.
+- Kept normal signed-in sessions on the existing Sign out action; wrong-account recovery remains handled by the explicit "Sign out completely" path.
 
 ## Verification
 
@@ -43,4 +43,4 @@ Only a real provider account-selection flow can prove the browser/provider sessi
 
 - `/signin` email X followed by provider account Y.
 - `/register` email X followed by provider account Y.
-- Switch-account provider logout returning to `/signin`.
+- Wrong-account recovery using "Sign out completely" without looping back into a stale provider account.

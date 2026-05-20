@@ -1178,7 +1178,7 @@ Deploy note:
 - Web production build passed in Docker deploy, but local `npm run check` remains blocked until local web dependencies are restored.
 
 ## Done - 2026-05-20 D361 auth recovery UX hardening
-- D361 tightened the D360 wrong-account guard follow-up: registration-context `auth=email_mismatch` now returns to `/register`, public auth copy no longer exposes Auth0/internal-provider wording, and app sessions expose a provider-clearing switch-account path to `/signin`.
+- D361 tightened the D360 wrong-account guard follow-up: registration-context `auth=email_mismatch` now returns to `/register`, public auth copy no longer exposes Auth0/internal-provider wording, and normal signed-in sessions stay on the existing Sign out action.
 - Added focused regression coverage for registration-context email mismatch recovery and updated the staging auth checklist with manual wrong-account registration checks.
 - Verification: RED focused auth test failed on `/app?auth=email_mismatch`; GREEN focused test passed after the fallback change; full `AuthEndpointTests` passed 68/68; web production build passed with the existing large-chunk warning.
-- Remaining risk: real provider account chooser behavior still needs owner/manual staging proof for sign-in X -> provider Y, registration X -> provider Y, and switch-account logout returning to `/signin`.
+- Remaining risk: real provider account chooser behavior still needs owner/manual staging proof for sign-in X -> provider Y, registration X -> provider Y, and wrong-account recovery using "Sign out completely".

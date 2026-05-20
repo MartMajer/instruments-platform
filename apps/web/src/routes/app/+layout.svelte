@@ -34,7 +34,6 @@
 		hasTenantLoginTarget ? 'Sign in' : 'Sign in to existing workspace'
 	);
 	const completeLogoutUrl = $derived(createProviderLogoutUrl(resolve('/')));
-	const switchAccountUrl = $derived(createProviderLogoutUrl(resolve('/signin')));
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const emailVerificationSignInUrl = $derived(withPromptLogin(authFailedPrimaryUrl));
 	const authFailedPrimaryLabel = $derived(
@@ -303,10 +302,7 @@
 						<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 						<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 					</div>
-					<div class="flex flex-wrap gap-2">
-						<a class="secondary-button" href={switchAccountUrl}>Switch account</a>
-						<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
-					</div>
+					<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
 				</div>
 				<div class="session-callout__badges" aria-label="Workspace access">
 					{#each sessionProfile.permissionBadges as badge}

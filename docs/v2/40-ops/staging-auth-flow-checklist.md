@@ -10,7 +10,7 @@ This checklist captures the auth/onboarding flows that must stay healthy on stag
 - Instrument Platform owns workspace reservation, workspace ownership, tenant membership, and product access.
 - Product screens require a tenant login context. Generic sign-in must first resolve the workspace by email.
 - A user with an unverified email may enter immediately after signup, but the app must show a verification banner and require verification on later sign-ins.
-- Wrong-account recovery must offer a real Auth0 logout/switch-account path, not a loop back into the same stale provider session.
+- Wrong-account recovery must offer a real Auth0 logout path, not a loop back into the same stale provider session.
 
 ## New workspace registration
 

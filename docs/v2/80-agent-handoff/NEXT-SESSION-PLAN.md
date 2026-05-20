@@ -1862,4 +1862,4 @@ Deploy note:
 
 ## 2026-05-20 - Next session after D361
 
-Recommended first move after deployment: owner/manual staging proof for wrong-account recovery, especially `/signin` email X with provider account Y, `/register` owner email X with provider account Y, and app-session Switch account returning to `/signin` after provider logout.
+Recommended first move after deployment: owner/manual staging proof for wrong-account recovery, especially `/signin` email X with provider account Y, `/register` owner email X with provider account Y, and "Sign out completely" clearing enough provider state to avoid a wrong-account loop.

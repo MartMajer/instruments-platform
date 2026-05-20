@@ -18889,3 +18889,10 @@ Deployment evidence:
 - Follow-up VPS release checks passed with evidence in `/tmp/d361-auth-recovery-ux-vps-release-20260520-followup`.
 - Public checks passed after warm-up: API ready 200, web root 200, `/app` 200.
 - Staging browser recovery-copy check passed for `/app?auth=email_mismatch` and `/register?auth=email_mismatch` with pending registration metadata.
+
+## 2026-05-20 - D361 switch-account UI removal
+
+- Assessment: Owner confirmed the normal-session Switch account action was unnecessary and created Auth0 logout allowlist friction. Existing Sign out was the intended normal signed-in account action.
+- Task: Removed the app-session Switch account action, removed the older registration Switch account action, and removed the in-flight `postLogout=signin` home redirect workaround that existed only to support that button.
+- Verification: Web production build passed with the existing large-chunk warning. Source search found no remaining active route `Switch account`, `switchAccountUrl`, or `postLogout=signin` references.
+- Queue: Deploy this removal, then continue manual auth proof using normal Sign out plus recovery-screen Sign out completely.

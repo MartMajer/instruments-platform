@@ -31,7 +31,6 @@
 	let sessionState = $state<'checking' | 'signed-out' | 'ready'>('checking');
 	let pendingRegistrationLoginUrl = $state('');
 	let existingWorkspaceSignInUrl = $state('');
-	let switchAccountUrl = $state('');
 	const emailVerificationRequired = $derived(
 		page.url.searchParams.get('auth') === 'email_unverified'
 	);
@@ -43,9 +42,6 @@
 			? createLoginUrlFromEnv(env, tenantId, readLastWorkspaceEmail(window.localStorage))
 			: resolve('/signin');
 		loadPendingRegistrationLoginUrl();
-		switchAccountUrl = resolveAuthRedirectUrl(
-			`/auth/logout?provider=1&returnUrl=${encodeURIComponent(absoluteWebUrl(`${resolve('/')}?postLogout=register`))}`
-		);
 		void loadRegistrationSession();
 	});
 
@@ -466,9 +462,6 @@
 					<div class="registration-alert" role="status">
 						Account ready: <strong>{pendingEmail}</strong>. This email will manage the workspace.
 					</div>
-					{#if switchAccountUrl}
-						<a class="secondary-button" href={switchAccountUrl}>Switch account</a>
-					{/if}
 
 					<label>
 						<span>Workspace name</span>
