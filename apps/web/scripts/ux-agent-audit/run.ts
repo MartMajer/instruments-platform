@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { captureBrowserEvidence } from './browser.ts';
+import { getAutonomousFixtureMission } from './autonomous-fixtures.ts';
+import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
 import type { MissionEvidence } from './evidence.ts';
 import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
@@ -24,6 +25,14 @@ export interface RunnerOptions {
   missionFilter: string;
   personaOverride: string;
   viewportOverride: ViewportPreset;
+  headless: boolean;
+  captureMode: CaptureMode;
+  outputRoot: string;
+}
+
+export interface AutonomousRunnerOptions {
+  baseUrl: string;
+  missionFilter: string;
   headless: boolean;
   captureMode: CaptureMode;
   outputRoot: string;
@@ -123,6 +132,30 @@ export function parseRunnerOptions(args: string[]): RunnerOptions {
   };
 }
 
+export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOptions {
+  const values = parseFlagValues(args, allowedFlags);
+  const baseUrl = values.get('--base-url');
+  if (!baseUrl) {
+    throw new Error('Missing required option: --base-url');
+  }
+
+  validateUrl(baseUrl);
+
+  const missionId = values.get('--mission') ?? 'fixture-first-study-setup';
+  const mission = getAutonomousFixtureMission(missionId);
+  if (!mission) {
+    throw new Error(`Unknown autonomous fixture mission: ${missionId}`);
+  }
+
+  return {
+    baseUrl,
+    missionFilter: mission.id,
+    headless: parseHeadless(values.get('--headless') ?? 'true'),
+    captureMode: parseCaptureMode(values.get('--capture-mode') ?? 'local-full'),
+    outputRoot: values.get('--output') ?? defaultOutputRoot,
+  };
+}
+
 export function parseNormalizeReviewOptions(args: string[]): NormalizeReviewOptions {
   const values = new Map<string, string>();
 
@@ -203,6 +236,67 @@ export async function runAudit(options: RunnerOptions) {
   };
 }
 
+export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
+  const mission = getAutonomousFixtureMission(options.missionFilter);
+  if (!mission) {
+    throw new Error(`Unknown autonomous fixture mission: ${options.missionFilter}`);
+  }
+
+  const persona = personaCatalog[mission.personaId];
+  if (!persona) {
+    throw new Error(`Unknown persona: ${mission.personaId}`);
+  }
+
+  const result = await captureAutonomousBrowserEvidence({
+    baseUrl: options.baseUrl,
+    missionId: mission.id,
+    personaId: persona.id,
+    missionGoal: mission.goal,
+    viewport: mission.viewport,
+    headless: options.headless,
+    outputRoot: options.outputRoot,
+    captureMode: options.captureMode,
+    captureScreenshots: true,
+    includeSanitizedVisibleText: true,
+    executeFixedMission: false,
+  });
+  const prompt = result.runDirectory
+    ? await writeReviewPromptForMission({
+        runDirectory: result.runDirectory,
+        evidencePath: result.evidencePath,
+        mission,
+        persona,
+      })
+    : undefined;
+  const report =
+    result.runDirectory && result.reviewerOutput
+      ? await writeNormalizedReviewReport({
+          runDirectory: result.runDirectory,
+          evidencePath: result.evidencePath,
+          mission,
+          persona,
+          reviewerOutput: result.reviewerOutput,
+        })
+      : undefined;
+
+  return {
+    missionId: mission.id,
+    personaId: persona.id,
+    viewport: mission.viewport,
+    outputRoot: options.outputRoot,
+    ...(prompt ? { reviewPromptPath: prompt.promptPath } : {}),
+    ...(report
+      ? {
+          reviewReportPath: report.markdownPath,
+          reviewSummaryPath: report.jsonPath,
+          findings: report.summary.findings.length,
+          nextActionTickets: report.summary.nextActionTickets.length,
+        }
+      : {}),
+    ...result,
+  };
+}
+
 export async function runNormalizeReview(options: NormalizeReviewOptions) {
   const { mission, persona } = resolveAuditContracts(
     options.missionFilter,
@@ -244,6 +338,14 @@ export async function runNormalizeReview(options: NormalizeReviewOptions) {
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === 'autonomous') {
+    const result = await runAutonomousAudit(
+      parseAutonomousRunnerOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (args[0] === 'normalize-review') {
     const result = await runNormalizeReview(
       parseNormalizeReviewOptions(args.slice(1))
@@ -263,6 +365,43 @@ function parseViewport(value: string): ViewportPreset {
   }
 
   return value as ViewportPreset;
+}
+
+function parseFlagValues(args: string[], flags: Set<string>) {
+  const values = new Map<string, string>();
+
+  for (let index = 0; index < args.length; index += 1) {
+    const flag = args[index];
+    if (!flag.startsWith('--')) {
+      throw new Error(`Unexpected argument: ${flag}`);
+    }
+
+    if (!flags.has(flag)) {
+      throw new Error(`Unknown option: ${flag}`);
+    }
+
+    if (flag === '--headless') {
+      const nextValue = args[index + 1];
+      if (!nextValue || nextValue.startsWith('--')) {
+        values.set(flag, 'true');
+        continue;
+      }
+
+      values.set(flag, nextValue);
+      index += 1;
+      continue;
+    }
+
+    const value = args[index + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+
+    values.set(flag, value);
+    index += 1;
+  }
+
+  return values;
 }
 
 function parseHeadless(value: string): boolean {

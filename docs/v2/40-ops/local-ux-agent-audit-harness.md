@@ -149,3 +149,55 @@ The harness writes the structured snapshot into `evidence.json` and a readable `
 `safe` mode remains available with `--capture-mode safe` when a thinner non-text evidence artifact is desired.
 
 Next required slice: autonomous local UX action loop, where a persona proposes structured actions against visible UI controls and the harness executes only allowed local browser actions.
+
+## D370 autonomous local persona mode
+
+UXA01 now has an autonomous local mode:
+
+```powershell
+npm run ux:audit -- autonomous --base-url http://127.0.0.1:5174 --mission fixture-first-study-setup --output ../../artifacts/ux-agent-runs/local
+```
+
+Direct Node form from `apps/web`:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fixture-first-study-setup --output ../../artifacts/ux-agent-runs/local
+```
+
+Autonomous mode is local-only. It validates every action against the current captured UI state before execution. Allowed actions are:
+
+- local app route navigation
+- visible link click
+- visible enabled button click
+- visible field fill
+- complaint
+- stop
+
+Implemented autonomous product missions:
+
+- `fixture-first-study-setup`
+- `fixture-wave-results-comparison`
+- `fixture-questionnaire-scoring`
+
+Autonomous missions enter the real product shell at `/app`, not `/app/demo`. The harness mocks local auth/session, CSRF, and deterministic product read-model endpoints so the normal app cockpit, selected study setup, collection, results, waves, and export surfaces can render without Auth0, staging, or a local production database.
+
+`/app/demo` remains useful as a human/debug fixture catalog, but it is not the primary autonomous audit target.
+
+Outputs now include the normal mission evidence plus:
+
+- screenshots per autonomous step
+- action log
+- local-full transcript
+- generated persona reviewer JSON
+- normalized `review-report.md`
+- normalized `review-summary.json`
+- next-action tickets
+
+Verified local proof on 2026-05-20 ran all three autonomous missions against `http://127.0.0.1:5174/app` and asserted that generated evidence did not reference `/app/demo`.
+
+Known D370 limits:
+
+- The persona actor is scripted and deterministic, not a free-form browser agent.
+- The local product read models are realistic seeds for UX review, not full backend state mutation.
+- Candidate findings are still review inputs. Triage them before turning them into implementation tickets.
+- Staging-cookie mode and random monkey exploration remain intentionally deferred.

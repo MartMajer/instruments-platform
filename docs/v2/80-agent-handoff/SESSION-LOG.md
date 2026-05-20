@@ -18988,3 +18988,37 @@ Changes in progress:
 - Kept `--capture-mode safe` for thinner evidence.
 
 Verification: focused UXA01 Vitest passed for runner options, browser safety, mission execution, review prompt generation, and rich transcript serialization, 26 tests across 5 files. Local browser proof passed against `http://127.0.0.1:5174`; artifact path `artifacts/ux-agent-runs/local/run-2026-05-20T15-13-35-479Z/missions/create-first-study/transcript.md` contains local-full visible app text and the generated review prompt includes `localFullTranscript`.
+
+## 2026-05-20 - D370 UXA01 autonomous local persona harness
+
+Assessment: D369 made local app text reviewable but still required passive transcript handoff. D370 adds the first autonomous loop: a scripted persona can choose safe local UI actions, the browser executes them, captures screenshots/transcripts, and writes ticket-ready review output without owner-assisted clicking.
+
+Implemented:
+
+- Safe `goto`, `click-link`, `click-button`, `fill`, `complain`, and `stop` action schema with visible-state validation.
+- Three local fixture missions: setup, wave/results comparison, questionnaire/scoring readiness.
+- Scripted fixture persona actor and autonomous loop.
+- Browser adapter for local autonomous execution with screenshots and local-full transcript capture.
+- `run.ts autonomous` CLI path.
+- Local auth/session and CSRF mocks for autonomous fixture review.
+- Generated reviewer JSON normalized into review report and summary artifacts.
+
+Verification: focused UXA01 Vitest passed 69/69 across 11 files. Local autonomous browser proof passed with `PUBLIC_DEMO_SURFACES_ENABLED=true`; artifact path `artifacts/ux-agent-runs/local/run-2026-05-20T15-42-22-033Z/` includes transcript, prompt, screenshots, review report, review summary, one finding, and one next-action ticket.
+
+Finding surfaced by proof: `/app/demo` is reachable, but linked product fixture routes are not fully seeded/read-model backed in local Vite-only mode and can show `Campaign series unavailable`. Next slice for the active goal should add local product read-model fixture routing or deterministic local API seed data so autonomous persona review can inspect real setup/collection/results/waves states end to end.
+
+## 2026-05-20 - D370 correction: autonomous harness targets `/app`
+
+Assessment: The first D370 proof used `/app/demo` as the primary target. That made fixture states easy to seed, but it did not prove the real product shell, app cockpit, selected-study navigation, or setup/collection/results/waves flow. Owner challenged this correctly.
+
+Task: Pivoted the autonomous harness to enter `/app` and added deterministic local product read models for workspace overview, campaign-series list/hub, selected setup workspace, selected collection workspace, selected results workspace, reports widget manifest, waves workspace, exports, respondent rules, assignments, and wave proof endpoints. `/app/demo` is now only a human/debug fixture catalog, not the autonomous audit target.
+
+Verification: RED contract tests failed on the old `/app/demo` entry, missing product read-model module, and stale `targetScenarioPaths` field. GREEN focused UXA01 Vitest passed 12 files / 73 tests. Local Vite proof ran all three autonomous missions against `http://127.0.0.1:5174/app`, generated screenshots/transcripts/reports/tickets, and assertion-checked that evidence did not contain `/app/demo`.
+
+Proof artifacts:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T15-54-43-046Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T15-54-51-389Z/`
+- `artifacts/ux-agent-runs/local/run-2026-05-20T15-54-54-669Z/`
+
+Queue: UXA01 is locally usable for autonomous `/app` review. Next work should triage generated findings and pick one evidence-backed UX ticket, not expand the harness blindly.

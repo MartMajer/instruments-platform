@@ -50,6 +50,8 @@ const unsafeObservationKeyPattern =
   /(raw|body|html|screenshotdata|image|token|secret|email|query|fragment|cookie|authorization|password|salt|answer)/i;
 const safeObservationKeys = new Set([
   'appAccessible',
+  'actionLog',
+  'autonomousMode',
   'avoidedActions',
   'avoidedUnsafePersistedArtifacts',
   'blockedReason',
@@ -60,6 +62,7 @@ const safeObservationKeys = new Set([
   'headings',
   'label',
   'links',
+  'localOnly',
   'localFullTranscript',
   'missionBoundary',
   'navigationPolicy',
@@ -67,6 +70,7 @@ const safeObservationKeys = new Set([
   'pages',
   'path',
   'placeholder',
+  'productEntryPath',
   'routeNavigationOnly',
   'safeCapturePolicy',
   'screenshotCapture',
@@ -74,6 +78,8 @@ const safeObservationKeys = new Set([
   'signInBlocked',
   'startUrl',
   'statusMessages',
+  'targetFixturePaths',
+  'targetProductPaths',
   'text',
   'title',
   'url',
@@ -82,7 +88,11 @@ const safeObservationKeys = new Set([
   'visibleTextCapture',
   'visibleTextExcerpt',
   'visibleText',
+  'visitedFixturePaths',
+  'visitedProductPaths',
   'visitedWorkflowSurfaces',
+  'personaFindings',
+  'reviewFocus',
 ]);
 
 export function buildReviewPrompt(options: BuildReviewPromptOptions) {

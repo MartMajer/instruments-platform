@@ -200,7 +200,9 @@ describe('UX audit browser evidence safety', () => {
       state: 'visible',
       timeout: 2000,
     });
+    expect(mocks.page.waitForLoadState).toHaveBeenCalledWith('networkidle', {
+      timeout: 2000,
+    });
     expect(mocks.page.waitForTimeout).toHaveBeenCalledWith(125);
-    expect(mocks.page.waitForLoadState).not.toHaveBeenCalled();
   });
 });

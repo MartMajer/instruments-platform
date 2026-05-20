@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { captureBrowserEvidence } from './browser.ts';
+import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
 import { missions } from './missions';
+import { writeNormalizedReviewReport } from './report.ts';
 import { writeReviewPromptForMission } from './review-prompt.ts';
-import { parseRunnerOptions, runAudit } from './run';
+import {
+  parseAutonomousRunnerOptions,
+  parseRunnerOptions,
+  runAudit,
+  runAutonomousAudit,
+} from './run';
 
 vi.mock('./browser.ts', () => ({
   captureBrowserEvidence: vi.fn(async () => ({
@@ -12,6 +18,33 @@ vi.mock('./browser.ts', () => ({
     visibleTextExcerpt: 'Local app shell',
     buttons: [],
     links: [],
+  })),
+  captureAutonomousBrowserEvidence: vi.fn(async () => ({
+    title: 'Autonomous fixture',
+    url: 'http://127.0.0.1:5174/app/demo',
+    visibleTextExcerpt: 'Demo fixtures',
+    buttons: [],
+    links: [],
+    status: 'blocked',
+    runDirectory: 'C:\\safe-run',
+    evidencePath:
+      'C:\\safe-run\\missions\\fixture-first-study-setup\\evidence.json',
+    transcriptPath:
+      'C:\\safe-run\\missions\\fixture-first-study-setup\\transcript.md',
+    reviewerOutput:
+      '{"summary":"Autonomous review","findings":[{"severity":"confusion","surface":"Setup","observedConfusion":"Blocked setup","suggestedFix":"Clarify setup","ticketReadyWording":"Clarify setup blockers."}],"openQuestions":[]}',
+  })),
+}));
+
+vi.mock('./report.ts', () => ({
+  writeNormalizedReviewReport: vi.fn(async () => ({
+    markdownPath: 'C:\\safe-run\\review-report.md',
+    jsonPath: 'C:\\safe-run\\review-summary.json',
+    summary: {
+      reviewStatus: 'reviewed',
+      findings: [{ id: 'F1' }],
+      nextActionTickets: ['Clarify setup blockers.'],
+    },
   })),
 }));
 
@@ -255,6 +288,60 @@ describe('UX audit runner option parsing', () => {
           'C:\\safe-run\\missions\\prepare-audience\\evidence.json',
         mission: expect.objectContaining({ id: 'prepare-audience' }),
         persona: expect.objectContaining({ id: 'osh-consultant' }),
+      })
+    );
+  });
+
+  it('parses autonomous runner options for local fixture missions', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fixture-first-study-setup',
+      '--headless',
+      'false',
+      '--output',
+      '../../artifacts/ux-agent-runs/test',
+    ]);
+
+    expect(options).toEqual({
+      baseUrl: 'http://127.0.0.1:5174',
+      missionFilter: 'fixture-first-study-setup',
+      headless: false,
+      captureMode: 'local-full',
+      outputRoot: '../../artifacts/ux-agent-runs/test',
+    });
+  });
+
+  it('runs autonomous fixture missions with screenshots, transcript, prompt, and normalized report', async () => {
+    await runAutonomousAudit(
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'fixture-first-study-setup',
+      ])
+    );
+
+    expect(captureAutonomousBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'fixture-first-study-setup',
+        captureScreenshots: true,
+        includeSanitizedVisibleText: true,
+        captureMode: 'local-full',
+      })
+    );
+    expect(writeReviewPromptForMission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runDirectory: 'C:\\safe-run',
+        evidencePath:
+          'C:\\safe-run\\missions\\fixture-first-study-setup\\evidence.json',
+      })
+    );
+    expect(writeNormalizedReviewReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runDirectory: 'C:\\safe-run',
+        reviewerOutput: expect.stringContaining('"findings"'),
       })
     );
   });

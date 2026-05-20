@@ -3,6 +3,13 @@ import { join } from 'node:path';
 
 import { chromium, type Page } from '@playwright/test';
 
+import { getAutonomousFixtureMission } from './autonomous-fixtures.ts';
+import { resolveAutonomousProductApiResponse } from './autonomous-product-read-models.ts';
+import {
+  buildScriptedFixturePersonaActor,
+  runAutonomousFixtureMission,
+  type AutonomousPageAdapter,
+} from './autonomous-loop.ts';
 import {
   createRunDirectory,
   writeMissionEvidence,
@@ -61,6 +68,7 @@ export interface BrowserEvidenceCapture {
   runDirectory?: string;
   evidencePath?: string;
   transcriptPath?: string;
+  reviewerOutput?: string;
 }
 
 const viewportSizes: Record<ViewportPreset, { width: number; height: number }> = {
@@ -197,6 +205,98 @@ export async function captureBrowserEvidence(
       capture.runDirectory = runDirectory;
       capture.evidencePath = evidencePaths.evidencePath;
       capture.transcriptPath = evidencePaths.transcriptPath;
+    }
+
+    return capture;
+  } finally {
+    await browser.close();
+  }
+}
+
+export async function captureAutonomousBrowserEvidence(
+  options: BrowserEvidenceOptions
+): Promise<BrowserEvidenceCapture> {
+  const mission = getAutonomousFixtureMission(options.missionId);
+  if (!mission) {
+    throw new Error(`No autonomous fixture mission for ${options.missionId}`);
+  }
+
+  const safeCapturePolicy = resolveBrowserSafeCapturePolicy(options);
+  const captureMode = options.captureMode ?? 'local-full';
+  const browser = await chromium.launch({ headless: options.headless ?? true });
+  const startedAt = new Date();
+
+  try {
+    const context = await browser.newContext({
+      viewport: viewportSizes[options.viewport],
+    });
+    const page = await context.newPage();
+    await routeLocalAutonomousFixtureSession(page);
+    const runDirectory =
+      options.runDirectory ??
+      (options.outputRoot
+        ? (
+            await createRunDirectory({
+              outputRoot: options.outputRoot,
+            })
+          ).runDirectory
+        : undefined);
+    const adapter = new PlaywrightAutonomousPageAdapter(
+      page,
+      options.baseUrl,
+      safeCapturePolicy,
+      captureMode,
+      runDirectory
+        ? join(runDirectory, 'missions', options.missionId, 'screenshots')
+        : undefined
+    );
+    const execution = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+    const finalSnapshot = execution.snapshots.at(-1);
+    const firstScreenshot = execution.screenshots.at(0);
+    const capture: BrowserEvidenceCapture = {
+      title: finalSnapshot?.title ?? '',
+      url: finalSnapshot?.url ?? '',
+      visibleTextExcerpt: finalSnapshot?.visibleTextExcerpt ?? '',
+      buttons: finalSnapshot?.buttons ?? [],
+      links: finalSnapshot?.links ?? [],
+      status: execution.status,
+      reviewerOutput: execution.reviewerOutput,
+    };
+
+    if (runDirectory) {
+      const richScreens = execution.snapshots
+        .map((snapshot) => snapshot.richTranscript)
+        .filter((snapshot): snapshot is RichScreenSnapshot => Boolean(snapshot));
+      const evidencePaths = await writeMissionEvidence(runDirectory, {
+        missionId: options.missionId,
+        personaId: mission.personaId,
+        missionGoal: mission.goal,
+        status: execution.status,
+        startedAt,
+        completedAt: new Date(),
+        steps: execution.steps,
+        screenshots: execution.screenshots,
+        observations: {
+          ...execution.observations,
+          captureMode,
+          safeCapturePolicy: describeSafeCapturePolicy(safeCapturePolicy),
+          ...(richScreens.length ? { localFullTranscript: richScreens } : {}),
+        },
+        ...(richScreens.length
+          ? { transcriptMarkdown: buildRichTranscriptMarkdown(richScreens) }
+          : {}),
+      });
+
+      capture.runDirectory = runDirectory;
+      capture.evidencePath = evidencePaths.evidencePath;
+      capture.transcriptPath = evidencePaths.transcriptPath;
+      capture.screenshotPath = firstScreenshot
+        ? join(runDirectory, 'missions', options.missionId, firstScreenshot.path)
+        : undefined;
     }
 
     return capture;
@@ -366,6 +466,159 @@ class PlaywrightMissionPageAdapter implements MissionPageAdapter {
   }
 }
 
+class PlaywrightAutonomousPageAdapter implements AutonomousPageAdapter {
+  private readonly page: Page;
+  private readonly baseUrl: string;
+  private readonly safeCapturePolicy: BrowserSafeCapturePolicy;
+  private readonly captureMode: CaptureMode;
+  private readonly screenshotDirectory: string | undefined;
+
+  constructor(
+    page: Page,
+    baseUrl: string,
+    safeCapturePolicy: BrowserSafeCapturePolicy,
+    captureMode: CaptureMode,
+    screenshotDirectory: string | undefined
+  ) {
+    this.page = page;
+    this.baseUrl = baseUrl;
+    this.safeCapturePolicy = safeCapturePolicy;
+    this.captureMode = captureMode;
+    this.screenshotDirectory = screenshotDirectory;
+  }
+
+  async gotoPath(path: string, label = 'autonomous-route'): Promise<MissionPageSnapshot> {
+    await this.page.goto(new URL(path, this.baseUrl).toString(), {
+      waitUntil: 'domcontentloaded',
+    });
+    await waitForPageReadyForSnapshot(this.page);
+
+    return await this.captureSnapshot(label);
+  }
+
+  async clickLink(
+    text: string,
+    label = 'autonomous-link',
+    path?: string
+  ): Promise<MissionPageSnapshot> {
+    if (path) {
+      const clickedByPath = await this.page.locator('a[href]').evaluateAll(
+        (anchors, targetPath) => {
+          const target = anchors.find((anchor) => {
+            const href = (anchor as HTMLAnchorElement).href;
+            try {
+              return new URL(href).pathname === targetPath;
+            } catch {
+              return (anchor as HTMLAnchorElement).getAttribute('href') === targetPath;
+            }
+          }) as HTMLElement | undefined;
+
+          if (!target) {
+            return false;
+          }
+
+          target.click();
+          return true;
+        },
+        path
+      ).catch(() => false);
+      if (clickedByPath) {
+        await waitForPageReadyForSnapshot(this.page);
+
+        return await this.captureSnapshot(label);
+      }
+
+      await this.page.goto(new URL(path, this.baseUrl).toString(), {
+        waitUntil: 'domcontentloaded',
+      });
+      await waitForPageReadyForSnapshot(this.page);
+
+      return await this.captureSnapshot(label);
+    }
+
+    await this.page.getByRole('link', { name: text }).first().click({ timeout: 5000 });
+    await waitForPageReadyForSnapshot(this.page);
+
+    return await this.captureSnapshot(label);
+  }
+
+  async clickButton(text: string, label = 'autonomous-button'): Promise<MissionPageSnapshot> {
+    await this.page.getByRole('button', { name: text }).first().click({ timeout: 5000 });
+    await waitForPageReadyForSnapshot(this.page);
+
+    return await this.captureSnapshot(label);
+  }
+
+  async fillField(
+    fieldLabel: string,
+    value: string,
+    label = 'autonomous-field'
+  ): Promise<MissionPageSnapshot> {
+    const labelled = this.page.getByLabel(fieldLabel).first();
+    const placeholder = this.page.getByPlaceholder(fieldLabel).first();
+
+    if ((await labelled.count().catch(() => 0)) > 0) {
+      await labelled.fill(value, { timeout: 5000 });
+    } else {
+      await placeholder.fill(value, { timeout: 5000 });
+    }
+    await waitForPageReadyForSnapshot(this.page);
+
+    return await this.captureSnapshot(label);
+  }
+
+  async captureSnapshot(label: string): Promise<MissionPageSnapshot> {
+    const title = sanitizeVisibleTextForEvidence(
+      await this.page.title(),
+      controlTextLimit
+    );
+    const url = sanitizeEvidenceUrl(this.page.url());
+    const visibleTextExcerpt = this.safeCapturePolicy.includeSanitizedVisibleText
+      ? sanitizeVisibleTextForEvidence(
+          await readVisibleBodyText(this.page),
+          this.safeCapturePolicy.maxVisibleTextCharacters
+        )
+      : '';
+    const buttons = await collectVisibleButtonLabels(this.page);
+    const links = await collectVisibleLinks(this.page);
+    const navigationLinks = await collectVisibleNavigationLinks(this.page);
+    const screenshot = await this.captureScreenshot(label);
+    const richTranscript =
+      this.captureMode === 'local-full'
+        ? await collectRichScreenSnapshot(this.page, label)
+        : undefined;
+
+    return {
+      label,
+      title,
+      url,
+      visibleTextExcerpt,
+      buttons,
+      links,
+      navigationLinks,
+      ...(richTranscript ? { richTranscript } : {}),
+      ...(screenshot ? { screenshot } : {}),
+    };
+  }
+
+  private async captureScreenshot(label: string) {
+    if (!this.safeCapturePolicy.captureScreenshots || !this.screenshotDirectory) {
+      return undefined;
+    }
+
+    await mkdir(this.screenshotDirectory, { recursive: true });
+
+    const fileName = `${safeScreenshotLabel(label)}.png`;
+    const screenshotPath = join(this.screenshotDirectory, fileName);
+    await this.page.screenshot({ path: screenshotPath, fullPage: true });
+
+    return {
+      label,
+      path: `screenshots/${fileName}`,
+    };
+  }
+}
+
 async function collectRichScreenSnapshot(
   page: Page,
   label: string
@@ -481,6 +734,38 @@ async function fallbackRichScreenSnapshot(
 
 async function readVisibleBodyText(page: Page) {
   return page.locator('body').innerText({ timeout: 5000 }).catch(() => '');
+}
+
+async function routeLocalAutonomousFixtureSession(page: Page) {
+  await page.route('**/auth/session', async (route) => {
+    await route.fulfill({
+      json: {
+        userId: '22222222-2222-4222-8222-222222222222',
+        tenantId: '11111111-1111-4111-8111-111111111111',
+        email: 'ux-agent@example.test',
+        permissions: ['setup.manage', 'team.manage', 'export.read'],
+      },
+    });
+  });
+  await page.route('**/auth/csrf', async (route) => {
+    await route.fulfill({ json: { csrfToken: 'local-ux-agent-csrf' } });
+  });
+  await page.route('**/*', async (route) => {
+    const response = resolveAutonomousProductApiResponse(
+      route.request().method(),
+      route.request().url()
+    );
+
+    if (!response) {
+      await route.fallback();
+      return;
+    }
+
+    await route.fulfill({
+      status: response.status,
+      json: response.json,
+    });
+  });
 }
 
 async function collectVisibleButtonLabels(page: Page) {
@@ -599,6 +884,7 @@ export function toSafeCapturedLink(link: {
 }
 
 export async function waitForPageReadyForSnapshot(page: Page): Promise<void> {
+  await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => undefined);
   await page
     .waitForFunction(
       () =>
@@ -654,6 +940,15 @@ function sanitizeUrlPath(path: string) {
 
 function stripQueryAndFragment(value: string) {
   return value.split(/[?#]/)[0] ?? '';
+}
+
+function safeScreenshotLabel(label: string) {
+  const normalized = (label ?? '')
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+
+  return normalized || 'snapshot';
 }
 
 function toNavigationPath(href: string) {
