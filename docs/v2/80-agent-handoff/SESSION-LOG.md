@@ -18943,3 +18943,10 @@ Deployment evidence:
 - VPS release checks passed with nested evidence in `/tmp/d364-waves-group-trend-vps-release-20260520/release-evidence`.
 - Public checks passed after deploy: API ready 200, web root 200, `/app` 200.
 - Authenticated remote smoke was skipped.
+
+## 2026-05-20 - D365 post-private-beta-hardening zoom-out assessment
+
+- Assessment: The D350 follow-up queue has mostly been executed. The app is now coherent enough for owner-controlled private-beta validation rehearsal, with clear caveats, rather than just a proof shell needing broad UI cleanup.
+- Task: Added D365 assessment, updated the private-beta checklist for D364 Waves behavior and current deployment proof, updated the custom-study-builder boundary for QB01/RSLT01 reality, and selected D366 as the next agent-executable slice if the owner wants one more pass before calls.
+- Decision: Stop broad polishing by default. Next agent work should rehearse the current validation path and close docs drift, while owner-only O01/O02/O03 remain the real strategic blocker.
+- Verification: Docs-only `git diff --check` passed with only CRLF warnings.

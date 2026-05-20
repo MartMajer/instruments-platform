@@ -1,6 +1,6 @@
 # Custom Study Builder
 
-Status: Proposed product boundary for the current MVP.
+Status: Proposed product boundary for the current MVP. Reviewed in D365 after QB01 respondent parity and RSLT01 multi-output Results setup.
 
 ## Purpose
 
@@ -46,13 +46,14 @@ The Questionnaire step currently exposes these answer formats:
 - Date.
 - Ranking.
 
-The Results setup step currently supports one score output:
+The Results setup step currently supports one or more score outputs:
 
 - Average selected answers.
 - Sum selected answers.
 - Include rating, recommendation, and number questions.
 - Require every selected answer, or allow a score after a minimum number of selected answers.
 - Mark rating/recommendation questions as reverse-scored.
+- Name dimensions/subscales separately so one study can produce multiple result outputs.
 
 Choice, text, date, and ranking answers are collected but not scored by the current visual setup step.
 
@@ -80,10 +81,9 @@ Do not claim these capabilities from the current visual builder:
 - File upload question support in the builder.
 - Multi-section or multi-page questionnaire design.
 - Choice scoring, ranking scoring, text coding, or custom formulas.
-- Multiple dimensions/subscales from the visual Results setup.
 - Interpretation bands, norms, percentiles, reliability metrics, or clinical/validated cutoffs.
 - Canonical named-instrument publishing or platform-granted rights.
-- Full respondent-rendering parity for every authored question type until verified end to end.
+- Full respondent-rendering parity beyond the currently exposed beta formats.
 
 These limits are product boundaries, not hidden technical excuses. When a limit matters to a beta user, create a focused slice instead of widening the builder silently.
 
@@ -91,8 +91,7 @@ These limits are product boundaries, not hidden technical excuses. When a limit 
 
 The next high-leverage slices are:
 
-- Multi-output Results setup for dimensions/subscales.
 - Interpretation bands with explicit tenant-attested/non-official wording.
-- Respondent-rendering parity proof for every exposed question type.
+- Backend group-trend proof or chart for anonymous repeated waves if Results navigation is not enough.
 - Page/section grouping before advanced branching.
 - Choice scoring only after the scoring document model and reports can explain it clearly.

@@ -1,3 +1,9 @@
+# Next Session Plan - Post-D365
+
+Current queue head: D366 private-beta validation rehearsal and docs-drift closure, unless the owner chooses to run O01/O02/O03 validation calls immediately.
+
+D365 finding: the app is now an owner-controlled private-beta validation-rehearsal candidate, not just a proof shell. It is still not production/legal-ready for real-person participant/student/employee data while Q-053 remains open, and operational-notification email claims remain blocked by Q-054. The next agent pass should not be another broad feature sprint. It should rehearse the current staging path as a validator would see it, update stale walkthrough/checklist docs, and leave a final owner-run script.
+
 # Next Session Plan - Post-D364
 
 Current queue head: owner-test Waves on a two-wave anonymous study on staging.

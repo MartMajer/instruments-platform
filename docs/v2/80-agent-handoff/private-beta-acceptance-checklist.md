@@ -1,6 +1,6 @@
 # M1 Private-Beta Acceptance Checklist
 
-Status: BR01 baseline plus QB01, DIR04 local implementation, AUD01 recipient-selection UX, RSLT01 multi-output Results setup, and VAL08 validation-packet refresh.
+Status: BR01 baseline plus QB01, DIR04 local implementation, AUD01 recipient-selection UX, RSLT01 multi-output Results setup, VAL08 validation-packet refresh, and D364 Waves group-trend clarity.
 Last reviewed: 2026-05-20.
 
 ## Purpose
@@ -49,18 +49,18 @@ Each row uses one of these classifications:
 | CSV download | Researcher can download selected CSV in browser. | Required | Implemented. |
 | Codebook/provenance | Export includes enough provenance to defend the study mechanics. | Required | Proof exists; export package polish remains later. |
 | PDF artifact | Report PDF artifact proof can be shown as engineering proof. | Beta known limit | Do not claim final PDF reporting product. |
-| Waves | Researcher can understand how to create follow-up waves and compare compatible waves where data exists. | Required for M1 target | D362 added first-wave/next-wave/comparison guidance and Setup now defaults follow-up drafts to the next wave name. |
+| Waves | Researcher can understand how to create follow-up waves, review anonymous waves as group trends, and compare linked repeat-participation waves where data exists. | Required for M1 target | D362/D363/D364 added first-wave/next-wave guidance, locked historical launched/closed waves from setup edits, and separated group trend from linked same-respondent change. |
 | Team | Owner can prepare team member access and share first sign-in link. | Required | Implemented. |
 | Directory | Researcher can manage people, groups, memberships, and manager links. | Required | Implemented manually; import MVP selected. |
 | Settings | Workspace settings page is honest and does not duplicate the sidebar as a fake admin center. | Beta known limit | Cleaned but intentionally thin. |
 | Sign out | User can sign out completely enough to switch accounts. | Required | Implemented after auth hardening. |
-| Deployment | Staging app responds on public API, web root, and `/app`; release checks pass at stable checkpoints. | Required before owner validation | Last verified after sidebar cleanup. |
+| Deployment | Staging app responds on public API, web root, and `/app`; release checks pass at stable checkpoints. | Required before owner validation | Last verified after D364 deployment at commit `ca4e9cc`. |
 
 ## Blockers selected by BR01
 
 | Rank | ID | Blocker | Reason |
 |---:|---|---|---|
-| 1 | VAL08 | Validation packet refresh | Owner walkthrough must match current UI and limits. |
+| - | - | None selected | BR01 follow-ups through VAL08 and the later D364 Waves clarity pass are complete enough for owner-controlled validation rehearsal. |
 
 ## Known limits to say out loud
 
