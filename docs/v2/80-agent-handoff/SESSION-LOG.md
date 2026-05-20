@@ -18896,3 +18896,9 @@ Deployment evidence:
 - Task: Removed the app-session Switch account action, removed the older registration Switch account action, and removed the in-flight `postLogout=signin` home redirect workaround that existed only to support that button.
 - Verification: Web production build passed with the existing large-chunk warning. Source search found no remaining active route `Switch account`, `switchAccountUrl`, or `postLogout=signin` references.
 - Queue: Deploy this removal, then continue manual auth proof using normal Sign out plus recovery-screen Sign out completely.
+
+Deployment evidence:
+- Commit deployed to staging: 4a53b80.
+- VPS redeploy proof passed with evidence in `/tmp/d361-remove-switch-account-vps-release-20260520`.
+- Public checks passed after deploy: API ready 200, web root 200, `/app` 200, `/register` 200.
+- Staging browser check confirmed no visible `Switch account` text on `/app?auth=email_mismatch` or `/register`.
