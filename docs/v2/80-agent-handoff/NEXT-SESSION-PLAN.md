@@ -1,3 +1,9 @@
+# Next Session Plan - Post-D366
+
+Current queue head: owner-run D366 rehearsal, then O01/O02/O03 validation calls or narrow fixes from rehearsal feedback.
+
+D366 added [`private-beta-validation-rehearsal.md`](private-beta-validation-rehearsal.md). Run it once on staging before a serious validator call. If blocker rules pass, stop building and run validation. If one blocker fails, fix that blocker only. Do not restart broad UI/product polishing without validator evidence.
+
 # Next Session Plan - Post-D365
 
 Current queue head: D366 private-beta validation rehearsal and docs-drift closure, unless the owner chooses to run O01/O02/O03 validation calls immediately.

@@ -35,6 +35,7 @@ Implementation alignment for all teams: follow [`olbi-capable-engine-principle.m
 - [x] Build the O03 validation tenant plan around Croatian `zastita na radu` / workplace safety workflows.
 - [x] Record current VPS rehearsal proof: authenticated remote smoke, authenticated product-spine smoke, target backup/restore, redeploy, and rollback/restore.
 - [x] Refresh current validation packet after private-beta UI changes through setup, audience, Results, Waves, settings, and sidebar cleanup.
+- [x] Add D366 owner-run private-beta validation rehearsal script.
 - [ ] Identify O02-B secondary academic validator.
 - [ ] Pick 3 O03 OSH consultant targets when outreach starts.
 
@@ -117,6 +118,9 @@ Settings administration, withdrawal request/review/execute lifecycle, in-app
 operational notifications, close/finality labels, target backup/restore, redeploy,
 rollback/restore, and safe evidence capture. Local/dev staging remains the
 fallback when the owner is working offline.
+Run [`private-beta-validation-rehearsal.md`](private-beta-validation-rehearsal.md)
+once before O01/O02/O03 so the call uses a timed walkthrough instead of an
+improvised product tour.
 
 Frame it as current proof, not production software:
 
@@ -168,7 +172,7 @@ Best,
 
 1. Current workflow: how they run burnout / occupational-health studies today.
 2. Instrument reality: required burnout, psychosocial, ergonomic, or wellbeing instruments, and who has rights to use them.
-3. Optional current-proof walkthrough: VPS staging login, study setup, questionnaire builder, multi-output Results setup, audience import/recipient selection, launch, respondent flow, scoring, Results/Waves, CSV/codebook/PDF export, withdrawal, in-app notifications, finality, Team/Directory/Settings, and backup/restore/redeploy/rollback evidence, all framed as owner-controlled staging engineering proof.
+3. Optional current-proof walkthrough: VPS staging login, study setup, questionnaire builder, multi-output Results setup, audience import/recipient selection, launch, respondent flow, scoring, Results/Waves, CSV/codebook/PDF export, withdrawal, in-app notifications, finality, Team/Directory/Settings, sign-out/wrong-account recovery, and backup/restore/redeploy/rollback evidence, all framed as owner-controlled staging engineering proof.
 4. Launch test: "Would you use this for the next real study? Which one?"
 5. Recommendation test: "Would you introduce me to 3-5 colleagues who run similar studies?"
 6. Grant test: "Would this be credible enough to include as infrastructure in a grant?"

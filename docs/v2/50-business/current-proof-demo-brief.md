@@ -47,9 +47,9 @@ workspace and study creation
 
 Say this plainly:
 
-> This is owner-controlled staging engineering proof of the workflow, data
-> model, and rehearsal lane. It is not approval for real-person production data,
-> not final legal/GDPR/DPA copy, not an SLA or managed-hosting claim, not
+> This is owner-controlled staging proof with synthetic, seed, demo, or
+> owner-controlled test data only. It is not approval for real-person production
+> data, not final legal/GDPR/DPA copy, not an SLA or managed-hosting claim, not
 > outbound operational-email readiness, and not a platform-shipped canonical
 > instrument library.
 
@@ -78,7 +78,7 @@ use the role-slot guidance in the walkthrough packet.
 | Results and waves | Results widgets, preliminary/final state, CSV download, wave comparison, score metadata, and finality labels. | Which result view would you need before using it? |
 | Exports and PDFs | CSV/codebook artifacts, browser CSV download, report PDF artifact proof, signed-download/local-storage behavior, and artifact provenance. | Is CSV/codebook/PDF enough now, or do you need SPSS/other formats? |
 | Withdrawal and auditability | Anonymous withdrawal request, tenant review, approve/execute, artifact invalidation/regeneration, and in-app terminal notifications. | What data-subject or audit workflow would your ethics/DPO path require? |
-| Team, directory, and settings | Team member preparation, Directory people/groups/import, workspace settings shortcuts, and sign-out/account switching. | What administration must exist before a pilot? |
+| Team, directory, and settings | Team member preparation, Directory people/groups/import, workspace settings shortcuts, and sign-out/wrong-account recovery. | What administration must exist before a pilot? |
 | Close/finality | Closed-wave labels and continued result/export/PDF readability. | What lifecycle states matter in your study/client work? |
 | Rehearsal evidence | VPS backup/restore, release evidence, redeploy, rollback/restore, and authenticated product-spine proof. | What deployment proof would your institution/client need before a real pilot? |
 

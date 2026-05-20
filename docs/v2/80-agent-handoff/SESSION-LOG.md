@@ -18950,3 +18950,11 @@ Deployment evidence:
 - Task: Added D365 assessment, updated the private-beta checklist for D364 Waves behavior and current deployment proof, updated the custom-study-builder boundary for QB01/RSLT01 reality, and selected D366 as the next agent-executable slice if the owner wants one more pass before calls.
 - Decision: Stop broad polishing by default. Next agent work should rehearse the current validation path and close docs drift, while owner-only O01/O02/O03 remain the real strategic blocker.
 - Verification: Docs-only `git diff --check` passed with only CRLF warnings.
+
+## 2026-05-20 - D366 private-beta validation rehearsal
+
+- Assessment: The long validation packet was accurate enough but not efficient as a live owner rehearsal script, and a few docs still implied normal account switching after the switch-account UI was removed.
+- Task: Added `private-beta-validation-rehearsal.md` with hard boundary copy, preflight checks, 20-minute walkthrough, capture form, green/yellow/red criteria, persona emphasis, blocker rules, and post-rehearsal decision rules.
+- Docs drift: Linked the rehearsal script from the validation walkthrough packet and owner blocker pack, and changed account-switching references to sign-out/wrong-account recovery language.
+- Queue: no broad agent feature selected by default. Owner should run the D366 rehearsal, then run O01/O02/O03 or bring back one narrow blocker from rehearsal feedback.
+- Verification: Docs-only `git diff --check` passed with only CRLF warnings.

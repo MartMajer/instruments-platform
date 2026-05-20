@@ -53,7 +53,7 @@ Each row uses one of these classifications:
 | Team | Owner can prepare team member access and share first sign-in link. | Required | Implemented. |
 | Directory | Researcher can manage people, groups, memberships, and manager links. | Required | Implemented manually; import MVP selected. |
 | Settings | Workspace settings page is honest and does not duplicate the sidebar as a fake admin center. | Beta known limit | Cleaned but intentionally thin. |
-| Sign out | User can sign out completely enough to switch accounts. | Required | Implemented after auth hardening. |
+| Sign out | User can sign out and recover cleanly from wrong-account Auth0 state. | Required | Implemented after auth hardening. |
 | Deployment | Staging app responds on public API, web root, and `/app`; release checks pass at stable checkpoints. | Required before owner validation | Last verified after D364 deployment at commit `ca4e9cc`. |
 
 ## Blockers selected by BR01

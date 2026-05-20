@@ -25,6 +25,8 @@ and the source boundaries in
 
 For the current live proof boundary and validation-call framing, also read the
 [current proof demo brief](../50-business/current-proof-demo-brief.md).
+For the short owner-run rehearsal checklist before O01/O02/O03, use
+[Private Beta Validation Rehearsal](private-beta-validation-rehearsal.md).
 
 ## Hard Boundary
 
@@ -126,6 +128,8 @@ register or sign in, create/open a workspace, create a study, complete the
 five-step setup workflow, build a questionnaire, define multiple Results
 outputs, import or prepare an audience, choose recipients, launch/collect,
 review Results, download CSV, compare Waves, and inspect Team/Directory/Settings.
+Use [Private Beta Validation Rehearsal](private-beta-validation-rehearsal.md)
+for the timed pre-call version of that route.
 
 This is the preferred current engineering proof for O01/O02/O03 conversations
 when the browser session and staging stack are healthy. Use local/dev fallback
