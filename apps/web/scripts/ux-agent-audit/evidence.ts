@@ -2,6 +2,34 @@
 import { join } from 'node:path';
 
 const schemaVersion = 1;
+const windowsReservedDeviceNames = new Set([
+  'CON',
+  'PRN',
+  'AUX',
+  'NUL',
+  'COM1',
+  'COM2',
+  'COM3',
+  'COM4',
+  'COM5',
+  'COM6',
+  'COM7',
+  'COM8',
+  'COM9',
+  'LPT1',
+  'LPT2',
+  'LPT3',
+  'LPT4',
+  'LPT5',
+  'LPT6',
+  'LPT7',
+  'LPT8',
+  'LPT9',
+]);
+
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type JsonObject = { [key: string]: JsonValue };
 
 export interface CreateRunDirectoryOptions {
   outputRoot: string;
@@ -37,7 +65,7 @@ export interface MissionEvidence {
   completedAt?: string | Date;
   steps: MissionEvidenceStep[];
   screenshots?: MissionEvidenceScreenshot[];
-  observations?: Record<string, unknown>;
+  observations?: JsonObject;
   transcriptMarkdown?: string;
 }
 
@@ -137,7 +165,24 @@ function createDefaultRunId(createdAt: string) {
 }
 
 function assertSafePathSegment(value: string, fieldName: string) {
-  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) || value.includes('..')) {
+  const hasAllowedCharacters = /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value);
+  const hasPathTraversal = value.includes('..');
+  const hasPathSeparator = value.includes('/') || value.includes('\\');
+  const hasTrailingDotOrSpace = /[. ]$/.test(value);
+  const isReservedWindowsName = isWindowsReservedDeviceName(value);
+
+  if (
+    !hasAllowedCharacters ||
+    hasPathTraversal ||
+    hasPathSeparator ||
+    hasTrailingDotOrSpace ||
+    isReservedWindowsName
+  ) {
     throw new Error(`${fieldName} must be a safe path segment`);
   }
+}
+
+function isWindowsReservedDeviceName(value: string) {
+  const baseName = value.split('.')[0].toUpperCase();
+  return windowsReservedDeviceNames.has(baseName);
 }

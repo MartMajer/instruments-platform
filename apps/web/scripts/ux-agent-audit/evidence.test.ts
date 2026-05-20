@@ -8,6 +8,18 @@ import { createRunDirectory, writeMissionEvidence } from './evidence';
 
 const temporaryRoots: string[] = [];
 
+const unsafeSegments = [
+  ['traversal segment', '..'],
+  ['forward path separator', 'bad/name'],
+  ['backslash path separator', 'bad\\name'],
+  ['trailing dot', 'bad.'],
+  ['trailing space', 'bad '],
+  ['Windows reserved device name', 'CON'],
+  ['Windows reserved device name with extension', 'con.txt'],
+  ['Windows reserved COM device', 'COM1'],
+  ['Windows reserved LPT device with extension', 'lpt9.json'],
+] as const;
+
 async function createTemporaryRoot() {
   const temporaryRoot = await mkdtemp(join(tmpdir(), 'uxa01-evidence-'));
   temporaryRoots.push(temporaryRoot);
@@ -41,6 +53,18 @@ describe('UX audit evidence writer', () => {
       runId: 'run-2026-05-20-test',
       createdAt: '2026-05-20T12:00:00.000Z',
     });
+  });
+
+  it.each(unsafeSegments)('rejects unsafe runId: %s', async (_label, unsafeRunId) => {
+    const outputRoot = await createTemporaryRoot();
+
+    await expect(
+      createRunDirectory({
+        outputRoot,
+        runId: unsafeRunId,
+        createdAt: '2026-05-20T12:00:00.000Z',
+      })
+    ).rejects.toThrow(/safe path segment/);
   });
 
   it('writes mission evidence JSON and transcript markdown under the mission directory', async () => {
@@ -125,5 +149,26 @@ describe('UX audit evidence writer', () => {
     await expect(readFile(paths.transcriptPath, 'utf8')).resolves.toBe(
       '# create-first-study\n\n- Opened the app home route.\n- Found the create study action.\n'
     );
+  });
+
+  it.each(unsafeSegments)('rejects unsafe missionId: %s', async (_label, unsafeMissionId) => {
+    const outputRoot = await createTemporaryRoot();
+    const { runDirectory } = await createRunDirectory({
+      outputRoot,
+      runId: 'safe-run-id',
+      createdAt: '2026-05-20T12:05:00.000Z',
+    });
+
+    await expect(
+      writeMissionEvidence(runDirectory, {
+        missionId: unsafeMissionId,
+        personaId: 'first-time-researcher',
+        missionGoal: 'Create a first study from an empty workspace.',
+        status: 'blocked',
+        startedAt: '2026-05-20T12:06:00.000Z',
+        steps: [],
+        transcriptMarkdown: '# unsafe mission\n',
+      })
+    ).rejects.toThrow(/safe path segment/);
   });
 });
