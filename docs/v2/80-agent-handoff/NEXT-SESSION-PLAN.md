@@ -1,3 +1,25 @@
+# Next Session Plan - Post-D380
+
+Current queue head: run UXA02 full-stack bootstrap once Docker Desktop is available, then prove `fullstack-create-study` green.
+
+D380 added live local provider mode for the safe persona action loop:
+
+- `--actor-mode action-http`
+- `--persona-action-url http://127.0.0.1:<port>/<path>`
+- one bounded `PersonaActionRequest` POST per decision step
+- provider response parsed as one persona action
+- existing visible-control validator still gates browser execution
+- provider URL restricted to local loopback HTTP with no credentials
+- staging/production provider URLs rejected before browser launch
+
+Proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-39-22-610Z/` - fixture mode, action-http actor posted to a localhost provider, clicked visible Studies link, completed with 0 findings / 0 tickets
+
+Remaining gap before the active UXA02 goal can be completed: green full-stack mutation proof is still blocked by Docker Engine not running. When Docker Desktop is running, execute the Post-D377 bootstrap command with `--start`, wait for preflight `ready`, then rerun `fullstack-create-study`.
+
+Do not point UXA02 autonomous missions or persona providers at staging or production.
+
 # Next Session Plan - Post-D379
 
 Current queue head: run UXA02 full-stack bootstrap once Docker Desktop is available, then prove `fullstack-create-study` green.

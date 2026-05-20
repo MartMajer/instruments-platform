@@ -19140,3 +19140,13 @@ Task: Added `--actor-mode scripted|action-file`, `--persona-action-file`, and `p
 Verification: Focused action-file/runner tests passed 2/2 files and 28/28 tests. Full UXA suite passed 17/17 files and 113/113 tests. Local browser proof completed fixture mode through action-file actor with 0 findings / 0 tickets at `artifacts/ux-agent-runs/local/run-2026-05-20T18-29-34-204Z/`.
 
 Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green full-stack mutation proof. Do not point UXA02 at staging or production.
+
+## 2026-05-20 - D380 UXA02 action-http actor mode
+
+Assessment: D379 made the safe provider-style actor runnable through a local action file, but that was still deterministic before the browser run started. A live local provider mode lets a persona/LLM bridge inspect the current visible UI state and choose one action per step without receiving arbitrary browser or shell control.
+
+Task: Added `--actor-mode action-http`, `--persona-action-url`, and `persona-action-http-provider.ts`. The provider URL must be local loopback HTTP and must not include credentials. The browser actor posts a bounded `PersonaActionRequest` to the provider, accepts one raw JSON action, and then routes it through the existing persona action parser and visible-control validator before execution.
+
+Verification: RED focused tests failed on missing provider module, unknown `--persona-action-url`, and unsupported `action-http`. GREEN focused tests passed 2/2 files and 33/33 tests. Full UXA suite passed 18/18 files and 120/120 tests. Local browser proof ran Vite plus a localhost HTTP provider and completed fixture mode through `action-http` with 0 findings / 0 tickets at `artifacts/ux-agent-runs/local/run-2026-05-20T18-39-22-610Z/`.
+
+Next: Start Docker Desktop, run `fullstack-bootstrap --start`, wait for preflight `ready`, then rerun `fullstack-create-study` for green full-stack mutation proof. Do not point UXA02 autonomous missions or persona providers at staging or production.

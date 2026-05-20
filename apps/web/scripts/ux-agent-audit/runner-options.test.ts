@@ -362,6 +362,50 @@ describe('UX audit runner option parsing', () => {
     ).toThrow('Missing required option: --persona-action-file');
   });
 
+  it('parses autonomous action-http actor mode for a local provider', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fixture-first-study-setup',
+      '--actor-mode',
+      'action-http',
+      '--persona-action-url',
+      'http://127.0.0.1:8765/persona-action',
+    ]);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        actorMode: 'action-http',
+        personaActionUrl: 'http://127.0.0.1:8765/persona-action',
+      })
+    );
+  });
+
+  it('requires a local persona action URL when action-http actor mode is selected', () => {
+    expect(() =>
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--actor-mode',
+        'action-http',
+      ])
+    ).toThrow('Missing required option: --persona-action-url');
+  });
+
+  it('rejects remote persona action HTTP providers', () => {
+    expect(() =>
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--actor-mode',
+        'action-http',
+        '--persona-action-url',
+        'https://validatedscale-staging.croat.dev/persona-action',
+      ])
+    ).toThrow('local loopback');
+  });
+
   it('parses explicit local fullstack development auth options', () => {
     const options = parseAutonomousRunnerOptions([
       '--base-url',
@@ -511,6 +555,29 @@ describe('UX audit runner option parsing', () => {
         autonomousDataMode: 'fullstack',
         fullstackDevAuth: { enabled: true },
         autonomousActorMode: 'scripted',
+      })
+    );
+  });
+
+  it('passes local action-http provider options to browser capture', async () => {
+    await runAutonomousAudit(
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'fixture-first-study-setup',
+        '--actor-mode',
+        'action-http',
+        '--persona-action-url',
+        'http://127.0.0.1:8765/persona-action',
+      ])
+    );
+
+    expect(captureAutonomousBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'fixture-first-study-setup',
+        autonomousActorMode: 'action-http',
+        personaActionUrl: 'http://127.0.0.1:8765/persona-action',
       })
     );
   });

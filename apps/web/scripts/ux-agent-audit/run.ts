@@ -18,6 +18,7 @@ import {
 } from './fullstack-preflight.ts';
 import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
+import { validatePersonaActionHttpUrl } from './persona-action-http-provider.ts';
 import { personas } from './personas.ts';
 import { writeNormalizedReviewReport } from './report.ts';
 import {
@@ -53,6 +54,7 @@ export interface AutonomousRunnerOptions {
   fullstackDevAuth: AutonomousFullstackDevAuthOptions;
   actorMode: AutonomousActorMode;
   personaActionFile?: string;
+  personaActionUrl?: string;
   outputRoot: string;
 }
 
@@ -85,6 +87,7 @@ const allowedFlags = new Set([
   '--data-mode',
   '--actor-mode',
   '--persona-action-file',
+  '--persona-action-url',
   '--fullstack-dev-auth',
   '--fullstack-tenant-id',
   '--fullstack-user-id',
@@ -125,7 +128,11 @@ const fullstackBootstrapAllowedFlags = new Set([
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
 const allowedAutonomousDataModes = new Set<AutonomousDataMode>(['fixture', 'fullstack']);
-const allowedAutonomousActorModes = new Set<AutonomousActorMode>(['scripted', 'action-file']);
+const allowedAutonomousActorModes = new Set<AutonomousActorMode>([
+  'scripted',
+  'action-file',
+  'action-http',
+]);
 const defaultMissionId = 'auth-enter-workspace';
 const defaultOutputRoot = '../../artifacts/ux-agent-runs/local';
 const defaultApiBaseUrl = 'http://127.0.0.1:5055';
@@ -219,7 +226,7 @@ export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOp
     dataMode: parseAutonomousDataMode(values.get('--data-mode') ?? 'fixture'),
     fullstackDevAuth: parseFullstackDevAuthOptions(values),
     actorMode: parseAutonomousActorMode(values.get('--actor-mode') ?? 'scripted'),
-    ...parsePersonaActionFile(values),
+    ...parsePersonaActionProviderOptions(values),
     outputRoot: values.get('--output') ?? defaultOutputRoot,
   };
 }
@@ -358,6 +365,7 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     fullstackDevAuth: options.fullstackDevAuth,
     autonomousActorMode: options.actorMode,
     personaActionFile: options.personaActionFile,
+    personaActionUrl: options.personaActionUrl,
     captureScreenshots: true,
     includeSanitizedVisibleText: true,
     executeFixedMission: false,
@@ -609,9 +617,18 @@ function parseAutonomousActorMode(value: string): AutonomousActorMode {
   return value as AutonomousActorMode;
 }
 
-function parsePersonaActionFile(values: Map<string, string>) {
+function parsePersonaActionProviderOptions(values: Map<string, string>) {
   const actorMode = parseAutonomousActorMode(values.get('--actor-mode') ?? 'scripted');
   const personaActionFile = values.get('--persona-action-file')?.trim();
+  const personaActionUrl = values.get('--persona-action-url')?.trim();
+
+  if (actorMode !== 'action-file' && personaActionFile) {
+    throw new Error('--persona-action-file can only be used with action-file actor mode.');
+  }
+
+  if (actorMode !== 'action-http' && personaActionUrl) {
+    throw new Error('--persona-action-url can only be used with action-http actor mode.');
+  }
 
   if (actorMode === 'action-file' && !personaActionFile) {
     throw new Error('Missing required option: --persona-action-file');
@@ -619,6 +636,14 @@ function parsePersonaActionFile(values: Map<string, string>) {
 
   if (personaActionFile && /^https?:\/\//i.test(personaActionFile)) {
     throw new Error('--persona-action-file must be a local filesystem path.');
+  }
+
+  if (actorMode === 'action-http') {
+    if (!personaActionUrl) {
+      throw new Error('Missing required option: --persona-action-url');
+    }
+
+    return { personaActionUrl: validatePersonaActionHttpUrl(personaActionUrl) };
   }
 
   return personaActionFile ? { personaActionFile } : {};

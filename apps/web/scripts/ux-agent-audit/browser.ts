@@ -11,6 +11,7 @@ import {
   type AutonomousPageAdapter,
 } from './autonomous-loop.ts';
 import { loadPersonaActionFileProvider } from './persona-action-file-provider.ts';
+import { buildPersonaActionHttpProvider } from './persona-action-http-provider.ts';
 import { buildProviderPersonaActionActor } from './persona-action-driver.ts';
 import {
   describeFullstackDevAuth,
@@ -60,6 +61,7 @@ export interface BrowserEvidenceOptions {
   fullstackDevAuth?: AutonomousFullstackDevAuthOptions;
   autonomousActorMode?: AutonomousActorMode;
   personaActionFile?: string;
+  personaActionUrl?: string;
 }
 
 export interface BrowserSafeCapturePolicy {
@@ -116,6 +118,15 @@ function requiredPersonaActionFile(options: BrowserEvidenceOptions) {
   }
 
   return path;
+}
+
+function requiredPersonaActionUrl(options: BrowserEvidenceOptions) {
+  const url = options.personaActionUrl?.trim();
+  if (!url) {
+    throw new Error('Missing required persona action URL for action-http actor mode.');
+  }
+
+  return url;
 }
 
 export async function captureBrowserEvidence(
@@ -290,7 +301,13 @@ export async function captureAutonomousBrowserEvidence(
         ? buildProviderPersonaActionActor(
             await loadPersonaActionFileProvider(requiredPersonaActionFile(options))
           )
-        : buildScriptedFixturePersonaActor(mission);
+        : options.autonomousActorMode === 'action-http'
+          ? buildProviderPersonaActionActor(
+              buildPersonaActionHttpProvider({
+                url: requiredPersonaActionUrl(options),
+              })
+            )
+          : buildScriptedFixturePersonaActor(mission);
     const execution = await runAutonomousFixtureMission(adapter, mission, actor);
     const finalSnapshot = execution.snapshots.at(-1);
     const firstScreenshot = execution.screenshots.at(0);

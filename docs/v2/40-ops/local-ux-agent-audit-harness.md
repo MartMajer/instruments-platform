@@ -207,7 +207,30 @@ Local proof artifact:
 
 That proof used fixture mode, clicked the visible `Studies Plan studies` link from `/app`, stopped through the action-file provider, and completed with 0 findings / 0 tickets.
 
-Next required slice: local full-stack synthetic seed/reset plus the first mutating mission that creates or modifies app state against a disposable local database.
+D380 adds a live local HTTP provider mode for the same safe action loop:
+
+```powershell
+& 'D:\Program Files\nodejs\node.exe' --experimental-strip-types scripts/ux-agent-audit/run.ts autonomous --base-url http://127.0.0.1:5174 --mission fixture-first-study-setup --actor-mode action-http --persona-action-url http://127.0.0.1:8765/persona-action --headless true --output ../../artifacts/ux-agent-runs/local
+```
+
+In `action-http` mode, the harness posts one bounded `PersonaActionRequest` to the local provider for each decision step. The provider returns one raw JSON persona action. The runner then uses the same provider actor parser and visible-control validator before Playwright executes anything.
+
+Safety boundaries:
+
+- provider URL must be local loopback HTTP only
+- staging and production provider URLs are rejected before browser launch
+- provider URLs with credentials are rejected
+- the provider receives sanitized visible UI state, persona goal, mission progress, and allowed action kinds
+- provider output still cannot bypass action parsing or visible-control validation
+- no shell command execution is introduced by this mode
+
+Local proof artifact:
+
+- `artifacts/ux-agent-runs/local/run-2026-05-20T18-39-22-610Z/`
+
+That proof used fixture mode, posted live requests to a localhost provider, clicked the visible `Studies Plan studies` link from `/app`, stopped through the HTTP provider, and completed with 0 findings / 0 tickets.
+
+Next required slice: start Docker Desktop and prove `fullstack-create-study` green against disposable local full-stack state.
 
 ## D375 full-stack development-auth mutation mission
 
