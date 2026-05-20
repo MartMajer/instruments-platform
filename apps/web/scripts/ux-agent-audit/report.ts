@@ -80,6 +80,27 @@ interface ParsedReviewerOutput {
   openQuestions: string[];
 }
 
+const meaningfulFindingFields = [
+  'affectedStep',
+  'step',
+  'missionStep',
+  'surface',
+  'affectedSurface',
+  'route',
+  'userExpectation',
+  'expectation',
+  'observedConfusion',
+  'observed',
+  'problem',
+  'suggestedFix',
+  'fix',
+  'recommendation',
+  'ticketReadyWording',
+  'ticket',
+  'nextAction',
+  'nextActionTicket',
+];
+
 export async function writeNormalizedReviewReport(
   options: WriteNormalizedReviewReportOptions
 ): Promise<NormalizedReviewReportPaths> {
@@ -181,23 +202,61 @@ function buildReviewSummary(
 function normalizeJsonReviewerOutput(value: unknown): ParsedReviewerOutput {
   const source = Array.isArray(value) ? { findings: value } : value;
   if (!isRecord(source)) {
-    return {
-      reviewStatus: 'reviewed',
-      reviewerSummary: 'Reviewer output was JSON, but not an object.',
-      findings: [],
-      openQuestions: [],
-    };
+    return needsStructuredReview(
+      `Parsed JSON was ${describeJsonShape(
+        value
+      )}, not the required review object with a findings array.`
+    );
   }
 
-  const findings = asArray(source.findings)
-    .map((finding, index) => normalizeFinding(finding, index))
-    .filter((finding): finding is NormalizedReviewFinding => Boolean(finding));
+  if (!Object.prototype.hasOwnProperty.call(source, 'findings')) {
+    return needsStructuredReview(
+      'Parsed JSON object did not include the required findings array.'
+    );
+  }
+
+  if (!Array.isArray(source.findings)) {
+    return needsStructuredReview(
+      'Parsed JSON object included findings, but findings was not an array.'
+    );
+  }
+
   const reviewerSummary = firstString(
     source.summary,
     source.observationsSummary,
     source.overallSummary,
     source.reviewSummary
   );
+  const openQuestions = asArray(source.openQuestions)
+    .map((question) =>
+      typeof question === 'string' ? sanitizeReviewText(question) : ''
+    )
+    .filter(Boolean);
+
+  if (source.findings.length === 0) {
+    if (reviewerSummary) {
+      return {
+        reviewStatus: 'reviewed',
+        reviewerSummary: sanitizeReviewText(reviewerSummary, 4000),
+        findings: [],
+        openQuestions,
+      };
+    }
+
+    return needsStructuredReview(
+      'Parsed JSON included an empty findings array, but no summary explained why zero findings is intentional.'
+    );
+  }
+
+  const findings = source.findings
+    .map((finding, index) => normalizeFinding(finding, index))
+    .filter((finding): finding is NormalizedReviewFinding => Boolean(finding));
+
+  if (findings.length === 0) {
+    return needsStructuredReview(
+      'Parsed JSON findings array did not contain any valid finding objects.'
+    );
+  }
 
   return {
     reviewStatus: 'reviewed',
@@ -205,11 +264,7 @@ function normalizeJsonReviewerOutput(value: unknown): ParsedReviewerOutput {
       ? sanitizeReviewText(reviewerSummary, 4000)
       : 'Reviewer output imported as structured JSON.',
     findings,
-    openQuestions: asArray(source.openQuestions)
-      .map((question) =>
-        typeof question === 'string' ? sanitizeReviewText(question) : ''
-      )
-      .filter(Boolean),
+    openQuestions,
   };
 }
 
@@ -217,7 +272,7 @@ function normalizeFinding(
   value: unknown,
   index: number
 ): NormalizedReviewFinding | undefined {
-  if (!isRecord(value)) {
+  if (!isRecord(value) || !hasMeaningfulFindingContent(value)) {
     return undefined;
   }
 
@@ -254,6 +309,37 @@ function normalizeFinding(
     suggestedFix: sanitizeReviewText(suggestedFix),
     ticketReadyWording: sanitizeReviewText(ticketReadyWording),
   };
+}
+
+function needsStructuredReview(reason: string): ParsedReviewerOutput {
+  return {
+    reviewStatus: 'needs-structured-review',
+    reviewerSummary: sanitizeReviewText(
+      `Reviewer output parsed as JSON but did not match the required review schema. ${reason}`,
+      4000
+    ),
+    findings: [],
+    openQuestions: [],
+  };
+}
+
+function describeJsonShape(value: unknown) {
+  if (Array.isArray(value)) {
+    return 'an array';
+  }
+
+  if (value === null) {
+    return 'null';
+  }
+
+  return `a ${typeof value}`;
+}
+
+function hasMeaningfulFindingContent(value: Record<string, unknown>) {
+  return meaningfulFindingFields.some((field) => {
+    const fieldValue = value[field];
+    return typeof fieldValue === 'string' && fieldValue.trim().length > 0;
+  });
 }
 
 function buildMarkdownReport(summary: NormalizedReviewSummary) {

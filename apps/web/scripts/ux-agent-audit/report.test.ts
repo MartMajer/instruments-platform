@@ -138,6 +138,80 @@ describe('UX persona review report normalizer', () => {
     expect(markdown).toContain('needs structured JSON reviewer output');
   });
 
+  it('keeps invalid JSON reviewer shapes in a structured-review-needed state', async () => {
+    const invalidOutputs = [
+      JSON.stringify('No UX findings.'),
+      '123',
+      JSON.stringify({ result: 'ok', items: [] }),
+      JSON.stringify([]),
+      JSON.stringify([123, 'bad', { note: 'missing required finding fields' }]),
+    ];
+
+    for (const [index, reviewerOutput] of invalidOutputs.entries()) {
+      const runDirectory = join(await createTemporaryRoot(), `invalid-${index}`);
+      const result = await writeNormalizedReviewReport({
+        runDirectory,
+        mission: requireMission('create-first-study'),
+        persona: personas['first-time-researcher'],
+        evidence: completedEvidence(),
+        reviewerOutput,
+      });
+
+      const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+
+      expect(summary.reviewStatus).toBe('needs-structured-review');
+      expect(summary.findings).toEqual([]);
+      expect(summary.observationsSummary.reviewerSummary).toContain(
+        'required review schema'
+      );
+    }
+  });
+
+  it('accepts explicit empty findings only when the reviewer explains the intentional empty review', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify({
+        summary:
+          'No UX findings: the sanitized evidence shows the mission completed and the next action was clear.',
+        findings: [],
+        openQuestions: [],
+      }),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(summary.reviewStatus).toBe('reviewed');
+    expect(summary.findings).toEqual([]);
+    expect(summary.observationsSummary.reviewerSummary).toContain(
+      'No UX findings'
+    );
+    expect(markdown).toContain('No structured findings were provided');
+  });
+
+  it('rejects empty findings when the reviewer does not explain why the empty review is intentional', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify({ findings: [] }),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+
+    expect(summary.reviewStatus).toBe('needs-structured-review');
+    expect(summary.findings).toEqual([]);
+    expect(summary.observationsSummary.reviewerSummary).toContain(
+      'empty findings array'
+    );
+  });
+
   it('parses the later valid fenced JSON block when an earlier fenced block is invalid', async () => {
     const runDirectory = await createTemporaryRoot();
     const result = await writeNormalizedReviewReport({
@@ -285,6 +359,51 @@ describe('UX persona review report normalizer', () => {
     expect(markdown).not.toContain('super-secret-token-123456');
     expect(markdown).not.toContain('abcdef1234567890abcdef1234567890');
     expect(markdown).toContain('[redacted-token]');
+  });
+
+  it('redacts bare local paths and raw URL origins from normalized report text', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify({
+        summary:
+          'Checked C:\\Users\\Martin\\secret\\notes.txt, /Users/martin/private/audit.md, ~/private/cache.json, ../private/file.txt, and https://tenant-alpha.example.test/app/campaign-series/study-local-1?token=secret#frag.',
+        findings: [
+          {
+            severity: 'medium',
+            affectedStep: 'Step 2',
+            surface: 'C:\\Users\\Martin\\surface.html',
+            userExpectation:
+              'Open /Users/martin/private/expectation.txt without leaking local paths.',
+            observedConfusion:
+              'Saw ~/private/cache.json and ../private/file.txt in the report text.',
+            suggestedFix:
+              'Document https://docs.vendor.example/docs/review?tenant=secret#frag without leaking the host.',
+          },
+        ],
+      }),
+    });
+
+    const summaryText = await readFile(result.jsonPath, 'utf8');
+    const markdown = await readFile(result.markdownPath, 'utf8');
+    const combined = `${summaryText}\n${markdown}`;
+
+    expect(combined).toContain('[redacted-path]');
+    expect(combined).toContain('[app-url]/app/campaign-series/study-local-1');
+    expect(combined).toContain('[external-url]/docs/review');
+    expect(combined).not.toContain('C:\\\\Users');
+    expect(combined).not.toContain('C:\\Users');
+    expect(combined).not.toContain('/Users/martin/private');
+    expect(combined).not.toContain('~/private');
+    expect(combined).not.toContain('../private');
+    expect(combined).not.toContain('tenant-alpha.example.test');
+    expect(combined).not.toContain('docs.vendor.example');
+    expect(combined).not.toContain('?token=secret');
+    expect(combined).not.toContain('?tenant=secret');
+    expect(combined).not.toContain('#frag');
   });
 });
 

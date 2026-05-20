@@ -56,12 +56,15 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).toContain('suggested fix');
     expect(prompt).toContain('ticket-ready wording');
     expect(prompt).toContain('studies-empty-state.png');
-    expect(prompt).toContain('http://127.0.0.1:5174/respond');
+    expect(prompt).toContain('[local-url]/respond');
+    expect(prompt).toContain('[app-url]/app/campaign-series/study-local-1');
+    expect(prompt).toContain('[external-url]/docs/review');
     expect(prompt).toContain('Return raw JSON or a fenced `json` block only.');
     expect(prompt).toContain('[redacted-email]');
     expect(prompt).toContain('[redacted-uuid]');
     expect(prompt).toContain('[redacted-code]');
     expect(prompt).toContain('[redacted-token]');
+    expect(prompt).toContain('[redacted-path]');
 
     expect(prompt).not.toContain('researcher@example.test');
     expect(prompt).not.toContain('11111111-1111-4111-8111-111111111111');
@@ -71,8 +74,14 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).not.toContain('?token=secret');
     expect(prompt).not.toContain('#answers');
     expect(prompt).not.toContain('C:\\Users');
+    expect(prompt).not.toContain('/Users/martin/private');
+    expect(prompt).not.toContain('~/private');
     expect(prompt).not.toContain('../');
     expect(prompt).not.toContain('../private');
+    expect(prompt).not.toContain('..\\private');
+    expect(prompt).not.toContain('127.0.0.1');
+    expect(prompt).not.toContain('tenant-alpha.example.test');
+    expect(prompt).not.toContain('docs.vendor.example');
     expect(prompt).not.toContain('raw body text that must never be copied');
     expect(prompt).not.toContain('data:image/png;base64');
   });
@@ -128,10 +137,10 @@ function unsafeEvidence(): MissionEvidence {
       {
         index: 1,
         action:
-          'Opened /respond?invitationToken=secret#answers for researcher@example.test using code ABCD-1234.',
+          'Opened /respond?invitationToken=secret#answers for researcher@example.test using code ABCD-1234. Checked local notes at C:\\Users\\Martin\\secret\\notes.txt, /Users/martin/private/notes.md, ~/private/cache.json, ../private/file.txt, and ..\\private\\windows-file.txt.',
         url: 'http://127.0.0.1:5174/respond?invitationToken=secret#answers',
         notes:
-          'Copied relative path /app?token=secret#fragment before continuing.',
+          'Copied relative path /app?token=secret#fragment and https://tenant-alpha.example.test/app/campaign-series/study-local-1?tenant=secret#frag before continuing.',
       },
     ],
     screenshots: [
@@ -165,8 +174,21 @@ function unsafeEvidence(): MissionEvidence {
               text: 'Resume survey for researcher@example.test',
               path: '/respond?invitationToken=secret#answers',
             },
+            {
+              text: 'External help',
+              path: 'https://docs.vendor.example/docs/review?tenant=secret#fragment',
+            },
           ],
           screenshotData: 'data:image/png;base64,unsafe-page-screenshot',
+        },
+        {
+          label: 'tenant-app',
+          title: 'Tenant app page',
+          url: 'https://tenant-alpha.example.test/app/campaign-series/study-local-1?tenant=secret#frag',
+          visibleTextExcerpt:
+            'Read /Users/martin/private/notes.md and see https://docs.vendor.example/docs/review?tenant=secret#fragment.',
+          buttons: ['Review results'],
+          links: [],
         },
       ],
     },

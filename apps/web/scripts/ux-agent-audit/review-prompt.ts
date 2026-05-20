@@ -40,6 +40,8 @@ const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
 const urlPattern = /https?:\/\/[^\s)"'<>]+/g;
 const relativePathWithQueryPattern =
   /(^|[\s(["'`])((?:\/|\.{1,2}\/)[^\s)"'<>`]*[?#][^\s)"'<>`]*)/g;
+const bareLocalPathPattern =
+  /(^|[\s([{"'`])((?:[A-Za-z]:[\\/]|\\\\|\/(?:Users|home|private|tmp)[\\/]|\/var\/folders[\\/]|~[\\/]|\.{2}[\\/])[^ \t\r\n)"'<>`,;]*)/gi;
 const markdownLinkPattern = /!?\[([^\]\r\n]*)\]\(([^)\r\n]*)\)/g;
 const secretAssignmentPattern =
   /\b(?:api[-_]?token|access[-_]?token|refresh[-_]?token|invitationToken|token|secret|password|authorization|cookie)\s*=\s*[^\s),.;\]}]+/gi;
@@ -211,7 +213,9 @@ export function sanitizeEvidenceUrl(url: string) {
 
   try {
     const parsed = new URL(value);
-    return `${parsed.origin}${sanitizeEvidenceUrlPath(parsed.pathname)}`;
+    return `${classifyEvidenceUrl(parsed)}${sanitizeEvidenceUrlPath(
+      parsed.pathname
+    )}`;
   } catch {
     return sanitizeEvidenceUrlPath(stripQueryAndFragment(value));
   }
@@ -230,6 +234,9 @@ export function sanitizeReviewText(text: string, maxCharacters = 2000) {
       relativePathWithQueryPattern,
       (_match, prefix: string, path: string) => `${prefix}${sanitizeEvidenceUrl(path)}`
     )
+    .replace(bareLocalPathPattern, (_match, prefix: string) => {
+      return `${prefix}[redacted-path]`;
+    })
     .replace(secretAssignmentPattern, (assignment) => {
       const key = assignment.split('=')[0]?.trim() ?? 'token';
       return `${key}=[redacted-token]`;
@@ -354,12 +361,57 @@ function stripQueryAndFragment(value: string) {
   return value.split(/[?#]/)[0] ?? '';
 }
 
+function classifyEvidenceUrl(url: URL) {
+  if (isLocalUrlHost(url.hostname)) {
+    return '[local-url]';
+  }
+
+  if (isAppRoutePath(url.pathname)) {
+    return '[app-url]';
+  }
+
+  return '[external-url]';
+}
+
+function isLocalUrlHost(hostname: string) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+
+  return (
+    normalized === 'localhost' ||
+    normalized === '::1' ||
+    normalized === '0:0:0:0:0:0:0:1' ||
+    normalized === '0.0.0.0' ||
+    normalized.startsWith('127.') ||
+    normalized.endsWith('.localhost')
+  );
+}
+
+function isAppRoutePath(pathname: string) {
+  const normalized = pathname.toLowerCase();
+
+  return (
+    normalized === '/app' ||
+    normalized.startsWith('/app/') ||
+    normalized === '/respond' ||
+    normalized.startsWith('/respond/') ||
+    normalized === '/signin' ||
+    normalized === '/register' ||
+    normalized.startsWith('/auth/')
+  );
+}
+
 function isUnsafePathReference(path: string) {
+  const normalized = path.toLowerCase();
+
   return (
     path.includes('..') ||
     /^[A-Za-z]:\//.test(path) ||
     path.startsWith('~') ||
-    path.toLowerCase().includes('/users/')
+    normalized.includes('/users/') ||
+    normalized.startsWith('/home/') ||
+    normalized.startsWith('/private/') ||
+    normalized.startsWith('/tmp/') ||
+    normalized.startsWith('/var/folders/')
   );
 }
 
@@ -368,6 +420,10 @@ function sanitizeMarkdownTarget(target: string) {
 
   if (/^(?:data|javascript|vbscript):/i.test(trimmed)) {
     return '[redacted-uri]';
+  }
+
+  if (isBareLocalPathReference(trimmed)) {
+    return '[redacted-path]';
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
@@ -381,10 +437,29 @@ function sanitizeMarkdownTarget(target: string) {
   return sanitizePlainText(trimmed, 240);
 }
 
+function isBareLocalPathReference(value: string) {
+  const normalized = value.trim().replace(/\\/g, '/').toLowerCase();
+
+  return (
+    /^[a-z]:\//.test(normalized) ||
+    normalized.startsWith('//') ||
+    normalized.startsWith('/users/') ||
+    normalized.startsWith('/home/') ||
+    normalized.startsWith('/private/') ||
+    normalized.startsWith('/tmp/') ||
+    normalized.startsWith('/var/folders/') ||
+    normalized.startsWith('~/') ||
+    normalized.startsWith('../')
+  );
+}
+
 function sanitizePlainText(text: string, maxCharacters = 2000) {
   return (text ?? '')
     .replace(/\s+/g, ' ')
     .trim()
+    .replace(bareLocalPathPattern, (_match, prefix: string) => {
+      return `${prefix}[redacted-path]`;
+    })
     .replace(/[<>&]/g, (character) => htmlEscapeMap[character] ?? character)
     .slice(0, normalizeTextLimit(maxCharacters));
 }
