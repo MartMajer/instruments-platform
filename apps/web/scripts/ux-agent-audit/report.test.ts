@@ -118,6 +118,174 @@ describe('UX persona review report normalizer', () => {
     expect(markdown).toContain('## Findings');
     expect(markdown).toContain('confusion');
   });
+
+  it('keeps prose-only reviewer output in a structured-review-needed state', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput:
+        'The page is confusing and should move the launch action closer to the recipient preview.',
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(summary.reviewStatus).toBe('needs-structured-review');
+    expect(summary.findings).toEqual([]);
+    expect(markdown).toContain('needs structured JSON reviewer output');
+  });
+
+  it('parses the later valid fenced JSON block when an earlier fenced block is invalid', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: [
+        'First attempt:',
+        '```json',
+        '{ invalid json',
+        '```',
+        'Corrected output:',
+        '```json',
+        JSON.stringify({
+          findings: [
+            {
+              severity: 'high',
+              affectedStep: 'Step 2',
+              surface: 'Studies',
+              userExpectation: 'Find the next study action.',
+              observedConfusion: 'The primary action is buried.',
+              suggestedFix: 'Move the action above reference text.',
+            },
+          ],
+        }),
+        '```',
+      ].join('\n'),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+
+    expect(summary.reviewStatus).toBe('reviewed');
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        severity: 'high',
+        surface: 'Studies',
+      }),
+    ]);
+  });
+
+  it('normalizes a raw JSON array reviewer response', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify([
+        {
+          severity: 'critical',
+          affectedStep: 'Step 1',
+          surface: 'Sign in',
+          userExpectation: 'Start the workflow without guessing.',
+          observedConfusion: 'The entry path is ambiguous.',
+          suggestedFix: 'Make the primary entry action explicit.',
+        },
+      ]),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+
+    expect(summary.reviewStatus).toBe('reviewed');
+    expect(summary.findings).toEqual([
+      expect.objectContaining({
+        severity: 'critical',
+        affectedStep: 'Step 1',
+      }),
+    ]);
+  });
+
+  it('preserves common medium and low reviewer severity labels honestly', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify({
+        findings: [
+          {
+            severity: 'medium',
+            affectedStep: 'Step 2',
+            surface: 'Studies',
+            userExpectation: 'Understand where to continue.',
+            observedConfusion: 'The heading is unclear.',
+            suggestedFix: 'Clarify the heading.',
+          },
+          {
+            severity: 'low',
+            affectedStep: 'Step 3',
+            surface: 'Collection',
+            userExpectation: 'Read supporting copy.',
+            observedConfusion: 'The helper text is wordy.',
+            suggestedFix: 'Shorten the helper text.',
+          },
+        ],
+      }),
+    });
+
+    const summary = JSON.parse(await readFile(result.jsonPath, 'utf8'));
+
+    expect(summary.findings.map((finding: { severity: string }) => finding.severity)).toEqual([
+      'medium',
+      'low',
+    ]);
+  });
+
+  it('neutralizes unsafe markdown, HTML, data URIs, and token-like text in reviewer report markdown', async () => {
+    const runDirectory = await createTemporaryRoot();
+    const result = await writeNormalizedReviewReport({
+      runDirectory,
+      mission: requireMission('create-first-study'),
+      persona: personas['first-time-researcher'],
+      evidence: completedEvidence(),
+      reviewerOutput: JSON.stringify({
+        summary:
+          '<script>alert(1)</script> See ![leak](data:image/png;base64,AAAA) and [unsafe](javascript:alert(1)) token=super-secret-token-123456.',
+        findings: [
+          {
+            severity: 'medium',
+            affectedStep: 'Step 2',
+            surface: '<img src=x onerror=alert(1)>',
+            userExpectation:
+              'Open [unsafe](data:text/html;base64,PHNjcmlwdA==) route.',
+            observedConfusion:
+              'Reviewer pasted apiToken=abcdef1234567890abcdef1234567890.',
+            suggestedFix: 'Use plain text instead of <b>HTML</b>.',
+            ticket:
+              'Fix ![x](javascript:alert(1)) and remove secret=abcdef1234567890abcdef1234567890.',
+          },
+        ],
+        openQuestions: ['Is <iframe srcdoc=x> allowed?'],
+      }),
+    });
+
+    const markdown = await readFile(result.markdownPath, 'utf8');
+
+    expect(markdown).not.toContain('<script>');
+    expect(markdown).not.toContain('<img');
+    expect(markdown).not.toContain('<iframe');
+    expect(markdown).not.toContain('![leak]');
+    expect(markdown).not.toContain('(data:');
+    expect(markdown).not.toContain('(javascript:');
+    expect(markdown).not.toContain('super-secret-token-123456');
+    expect(markdown).not.toContain('abcdef1234567890abcdef1234567890');
+    expect(markdown).toContain('[redacted-token]');
+  });
 });
 
 function requireMission(missionId: string) {

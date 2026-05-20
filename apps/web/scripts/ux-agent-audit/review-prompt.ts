@@ -38,6 +38,11 @@ const longTokenPattern =
   /\b(?=[A-Za-z0-9_-]{24,}\b)(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9_-]+\b/g;
 const participantCodeLikePattern = /\b[A-Z0-9]{4,}(?:[-_][A-Z0-9]{3,})+\b/g;
 const urlPattern = /https?:\/\/[^\s)"'<>]+/g;
+const relativePathWithQueryPattern =
+  /(^|[\s(["'`])((?:\/|\.{1,2}\/)[^\s)"'<>`]*[?#][^\s)"'<>`]*)/g;
+const markdownLinkPattern = /!?\[([^\]\r\n]*)\]\(([^)\r\n]*)\)/g;
+const secretAssignmentPattern =
+  /\b(?:api[-_]?token|access[-_]?token|refresh[-_]?token|invitationToken|token|secret|password|authorization|cookie)\s*=\s*[^\s),.;\]}]+/gi;
 const unsafeObservationKeyPattern =
   /(raw|body|html|screenshotdata|image|token|secret|email|query|fragment|cookie|authorization|password|salt|answer)/i;
 const safeObservationKeys = new Set([
@@ -123,6 +128,12 @@ export function buildReviewPrompt(options: BuildReviewPromptOptions) {
       '',
       'Prefer a short list of evidence-backed findings over a long complaint list. If evidence is incomplete, say what review is blocked by the missing evidence instead of guessing.',
       '',
+      '## Reviewer output format',
+      '',
+      'Return raw JSON or a fenced `json` block only. Do not answer in prose outside the JSON.',
+      'Use this shape: {"summary":"...","findings":[{"severity":"blocker|confusion|polish|acceptable-beta-limit|critical|high|medium|low|info","affectedStep":"...","surface":"...","userExpectation":"...","observedConfusion":"...","suggestedFix":"...","ticketReadyWording":"..."}],"openQuestions":["..."]}.',
+      'If there are no findings, return structured JSON with an empty findings array and a short summary explaining why.',
+      '',
       '## Sanitized evidence',
       '',
       'Screenshot references are filenames only. The prompt does not embed raw screenshot images.',
@@ -185,7 +196,7 @@ export function sanitizeEvidenceForReview(evidence: MissionEvidence): JsonObject
     })),
     screenshotReferences: (evidence.screenshots ?? []).map((screenshot) => ({
       label: sanitizeReviewText(screenshot.label, 180),
-      path: sanitizeEvidencePath(screenshot.path),
+      path: sanitizeEvidenceFilename(screenshot.path),
     })),
     observations: sanitizeObservationObject(evidence.observations ?? {}),
   };
@@ -200,21 +211,35 @@ export function sanitizeEvidenceUrl(url: string) {
 
   try {
     const parsed = new URL(value);
-    return `${parsed.origin}${sanitizeEvidencePath(parsed.pathname)}`;
+    return `${parsed.origin}${sanitizeEvidenceUrlPath(parsed.pathname)}`;
   } catch {
-    return sanitizeEvidencePath(stripQueryAndFragment(value));
+    return sanitizeEvidenceUrlPath(stripQueryAndFragment(value));
   }
 }
 
 export function sanitizeReviewText(text: string, maxCharacters = 2000) {
   const normalized = (text ?? '').replace(/\s+/g, ' ').trim();
   return normalized
+    .replace(markdownLinkPattern, (_match, label: string, target: string) => {
+      const safeLabel = label ? sanitizePlainText(label, 160) : 'link';
+      const safeTarget = sanitizeMarkdownTarget(target);
+      return `${safeLabel} (${safeTarget})`;
+    })
     .replace(urlPattern, (url) => sanitizeEvidenceUrl(url))
+    .replace(
+      relativePathWithQueryPattern,
+      (_match, prefix: string, path: string) => `${prefix}${sanitizeEvidenceUrl(path)}`
+    )
+    .replace(secretAssignmentPattern, (assignment) => {
+      const key = assignment.split('=')[0]?.trim() ?? 'token';
+      return `${key}=[redacted-token]`;
+    })
     .replace(emailPattern, '[redacted-email]')
     .replace(uuidPattern, '[redacted-uuid]')
     .replace(jwtLikePattern, '[redacted-token]')
     .replace(longTokenPattern, '[redacted-token]')
     .replace(participantCodeLikePattern, '[redacted-code]')
+    .replace(/[<>&]/g, (character) => htmlEscapeMap[character] ?? character)
     .slice(0, normalizeTextLimit(maxCharacters));
 }
 
@@ -289,13 +314,86 @@ function isUrlLikeKey(key: string) {
   return key === 'url' || key === 'path' || key === 'startUrl';
 }
 
-function sanitizeEvidencePath(path: string) {
-  return sanitizeReviewText(stripQueryAndFragment(path), 400);
+function sanitizeEvidenceUrlPath(path: string) {
+  const stripped = stripQueryAndFragment(path).trim().replace(/\\/g, '/');
+
+  if (!stripped) {
+    return '';
+  }
+
+  if (isUnsafePathReference(stripped)) {
+    return sanitizeEvidenceFilename(stripped);
+  }
+
+  const startsWithSlash = stripped.startsWith('/');
+  const segments = stripped
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => sanitizeReviewText(segment, 120))
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    return startsWithSlash ? '/' : '';
+  }
+
+  return `${startsWithSlash ? '/' : ''}${segments.join('/')}`;
+}
+
+function sanitizeEvidenceFilename(path: string) {
+  const stripped = stripQueryAndFragment(path).trim().replace(/\\/g, '/');
+  const filename = stripped.split('/').filter(Boolean).at(-1) ?? '';
+
+  if (!filename || filename === '.' || filename === '..') {
+    return '[redacted-filename]';
+  }
+
+  return sanitizeReviewText(filename, 180);
 }
 
 function stripQueryAndFragment(value: string) {
   return value.split(/[?#]/)[0] ?? '';
 }
+
+function isUnsafePathReference(path: string) {
+  return (
+    path.includes('..') ||
+    /^[A-Za-z]:\//.test(path) ||
+    path.startsWith('~') ||
+    path.toLowerCase().includes('/users/')
+  );
+}
+
+function sanitizeMarkdownTarget(target: string) {
+  const trimmed = (target ?? '').trim();
+
+  if (/^(?:data|javascript|vbscript):/i.test(trimmed)) {
+    return '[redacted-uri]';
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return sanitizeEvidenceUrl(trimmed);
+  }
+
+  if (/^(?:\/|\.{1,2}\/)/.test(trimmed)) {
+    return sanitizeEvidenceUrl(trimmed);
+  }
+
+  return sanitizePlainText(trimmed, 240);
+}
+
+function sanitizePlainText(text: string, maxCharacters = 2000) {
+  return (text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[<>&]/g, (character) => htmlEscapeMap[character] ?? character)
+    .slice(0, normalizeTextLimit(maxCharacters));
+}
+
+const htmlEscapeMap: Record<string, string> = {
+  '<': '&lt;',
+  '>': '&gt;',
+  '&': '&amp;',
+};
 
 function normalizeTextLimit(value: number) {
   if (!Number.isFinite(value)) {

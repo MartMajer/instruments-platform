@@ -10,8 +10,13 @@ import {
 } from './review-prompt';
 import type { MissionDefinition, PersonaDefinition } from './types';
 
-export type ReviewStatus = 'pending' | 'reviewed';
+export type ReviewStatus = 'pending' | 'needs-structured-review' | 'reviewed';
 export type ReviewFindingSeverity =
+  | 'critical'
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'info'
   | 'blocker'
   | 'confusion'
   | 'polish'
@@ -119,8 +124,11 @@ export function normalizeReviewerOutput(
   const parsed = parseJsonLike(trimmed);
   if (!parsed) {
     return {
-      reviewStatus: 'reviewed',
-      reviewerSummary: sanitizeReviewText(trimmed, 4000),
+      reviewStatus: 'needs-structured-review',
+      reviewerSummary: `Reviewer output needs structured JSON. Paste raw JSON or a fenced json block. Non-JSON output preserved for reference: ${sanitizeReviewText(
+        trimmed,
+        3600
+      )}`,
       findings: [],
       openQuestions: [],
     };
@@ -276,6 +284,10 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
 
   if (summary.reviewStatus === 'pending') {
     lines.push('Review pending. Generate or paste reviewer output, then normalize it.');
+  } else if (summary.reviewStatus === 'needs-structured-review') {
+    lines.push(
+      'Review needs structured JSON reviewer output. Paste raw JSON or a fenced `json` block, then normalize again.'
+    );
   } else if (summary.findings.length === 0) {
     lines.push('No structured findings were provided by the reviewer.');
   } else {
@@ -311,48 +323,45 @@ function buildMarkdownReport(summary: NormalizedReviewSummary) {
 }
 
 function parseJsonLike(text: string): unknown | undefined {
-  try {
-    return JSON.parse(text);
-  } catch {
-    const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
-    if (fenced) {
-      try {
-        return JSON.parse(fenced[1]);
-      } catch {
-        return undefined;
-      }
+  for (const candidate of jsonCandidates(text)) {
+    const parsed = tryParseJson(candidate);
+    if (parsed !== undefined) {
+      return parsed;
     }
-
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(text.slice(start, end + 1));
-      } catch {
-        return undefined;
-      }
-    }
-
-    return undefined;
   }
+
+  return undefined;
 }
 
 function normalizeSeverity(value: string | undefined): ReviewFindingSeverity {
   const normalized = (value ?? '').trim().toLowerCase();
 
-  if (normalized === 'blocker' || normalized === 'critical') {
+  if (
+    normalized === 'critical' ||
+    normalized === 'high' ||
+    normalized === 'medium' ||
+    normalized === 'low' ||
+    normalized === 'info'
+  ) {
+    return normalized;
+  }
+
+  if (normalized === 'informational' || normalized === 'information') {
+    return 'info';
+  }
+
+  if (normalized === 'blocker') {
     return 'blocker';
   }
 
-  if (normalized === 'polish' || normalized === 'medium') {
+  if (normalized === 'polish') {
     return 'polish';
   }
 
   if (
     normalized === 'acceptable-beta-limit' ||
     normalized === 'acceptable beta limit' ||
-    normalized === 'beta-limit' ||
-    normalized === 'low'
+    normalized === 'beta-limit'
   ) {
     return 'acceptable-beta-limit';
   }
@@ -381,6 +390,95 @@ function firstString(...values: unknown[]) {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
+}
+
+function jsonCandidates(text: string) {
+  const candidates = [text.trim()];
+  const fencedBlockPattern = /```(?:[A-Za-z0-9_-]+)?\s*([\s\S]*?)```/g;
+  let fencedBlock: RegExpExecArray | null;
+
+  while ((fencedBlock = fencedBlockPattern.exec(text))) {
+    candidates.push(fencedBlock[1]?.trim() ?? '');
+  }
+
+  candidates.push(...extractBalancedJsonCandidates(text));
+
+  return candidates.filter(Boolean);
+}
+
+function tryParseJson(candidate: string) {
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return undefined;
+  }
+}
+
+function extractBalancedJsonCandidates(text: string) {
+  const candidates: string[] = [];
+
+  for (let start = 0; start < text.length; start += 1) {
+    const opening = text[start];
+    if (opening !== '{' && opening !== '[') {
+      continue;
+    }
+
+    const candidate = extractBalancedJsonCandidate(text, start, opening);
+    if (candidate) {
+      candidates.push(candidate);
+    }
+  }
+
+  return candidates;
+}
+
+function extractBalancedJsonCandidate(
+  text: string,
+  start: number,
+  opening: string
+) {
+  const closingForOpening: Record<string, string> = { '{': '}', '[': ']' };
+  const stack = [closingForOpening[opening]];
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start + 1; index < text.length; index += 1) {
+    const character = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (character === '{' || character === '[') {
+      stack.push(closingForOpening[character]);
+      continue;
+    }
+
+    if (character === '}' || character === ']') {
+      if (character !== stack.at(-1)) {
+        return undefined;
+      }
+
+      stack.pop();
+      if (stack.length === 0) {
+        return text.slice(start, index + 1);
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

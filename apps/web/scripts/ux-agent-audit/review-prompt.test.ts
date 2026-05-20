@@ -55,8 +55,9 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).toContain('observed confusion');
     expect(prompt).toContain('suggested fix');
     expect(prompt).toContain('ticket-ready wording');
-    expect(prompt).toContain('screenshots/studies-empty-state.png');
+    expect(prompt).toContain('studies-empty-state.png');
     expect(prompt).toContain('http://127.0.0.1:5174/respond');
+    expect(prompt).toContain('Return raw JSON or a fenced `json` block only.');
     expect(prompt).toContain('[redacted-email]');
     expect(prompt).toContain('[redacted-uuid]');
     expect(prompt).toContain('[redacted-code]');
@@ -67,7 +68,11 @@ describe('UX persona review prompt generation', () => {
     expect(prompt).not.toContain('ABCD-1234');
     expect(prompt).not.toContain('invitationToken');
     expect(prompt).not.toContain('?invitationToken=secret');
+    expect(prompt).not.toContain('?token=secret');
     expect(prompt).not.toContain('#answers');
+    expect(prompt).not.toContain('C:\\Users');
+    expect(prompt).not.toContain('../');
+    expect(prompt).not.toContain('../private');
     expect(prompt).not.toContain('raw body text that must never be copied');
     expect(prompt).not.toContain('data:image/png;base64');
   });
@@ -123,14 +128,20 @@ function unsafeEvidence(): MissionEvidence {
       {
         index: 1,
         action:
-          'Opened respondent link for researcher@example.test using code ABCD-1234.',
+          'Opened /respond?invitationToken=secret#answers for researcher@example.test using code ABCD-1234.',
         url: 'http://127.0.0.1:5174/respond?invitationToken=secret#answers',
+        notes:
+          'Copied relative path /app?token=secret#fragment before continuing.',
       },
     ],
     screenshots: [
       {
         label: 'studies-empty-state',
-        path: 'screenshots/studies-empty-state.png',
+        path: 'C:\\Users\\Martin\\source\\repos\\secret\\screenshots\\studies-empty-state.png?token=secret#frag',
+      },
+      {
+        label: 'traversal-path',
+        path: '../private/respond-form.png?invitationToken=secret#answers',
       },
     ],
     observations: {
