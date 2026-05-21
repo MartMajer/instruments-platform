@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using Platform.Application.Features.Notifications;
@@ -17,7 +18,8 @@ public sealed class NotificationDeliveryStore(
     ApplicationDbContext db,
     ITenantDbScope tenantDbScope,
     IEmailDeliveryProvider emailDeliveryProvider,
-    IOptions<EmailDeliveryOptions>? emailDeliveryOptions = null) : INotificationDeliveryStore
+    IOptions<EmailDeliveryOptions>? emailDeliveryOptions = null,
+    ILogger<NotificationDeliveryStore>? logger = null) : INotificationDeliveryStore
 {
     private const int MaxBatchSize = 25;
     private const int MaxProviderMessageIdLength = 200;
@@ -769,6 +771,15 @@ public sealed class NotificationDeliveryStore(
             var failedAt = DateTimeOffset.UtcNow;
             var provider = SanitizeProvider(emailDeliveryProvider.Provider);
             var error = SanitizeDeliveryError(exception.Message);
+            logger?.LogWarning(
+                exception,
+                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; HasInnerException={HasInnerException}.",
+                provider,
+                exception.GetType().Name,
+                exception is SmtpException smtpException
+                    ? smtpException.StatusCode.ToString()
+                    : "none",
+                exception.InnerException is not null);
             return await FailPreparedDeliveryAsync(
                 tenantId,
                 workItem,
