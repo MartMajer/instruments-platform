@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.Operations;
 using Platform.Domain.Operations;
 using Platform.Infrastructure.Data;
+using Platform.SharedKernel;
 
 namespace Platform.Infrastructure.Operations;
 
@@ -19,7 +20,7 @@ public sealed class WorkerHeartbeatStore(ApplicationDbContext dbContext) : IWork
         if (heartbeat is null)
         {
             dbContext.WorkerHeartbeats.Add(new WorkerHeartbeat(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 request.WorkerName,
                 request.InstanceId,
                 request.ObservedAt));

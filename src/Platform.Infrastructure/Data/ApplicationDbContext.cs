@@ -105,7 +105,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
+
     public DbSet<NotificationDeliveryAttempt> NotificationDeliveryAttempts => Set<NotificationDeliveryAttempt>();
+
+    public DbSet<NotificationDeliveryEvent> NotificationDeliveryEvents => Set<NotificationDeliveryEvent>();
 
     public DbSet<ParticipantCode> ParticipantCodes => Set<ParticipantCode>();
 
@@ -2531,13 +2535,54 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<EmailSuppression>(builder =>
+        {
+            builder.ToTable("email_suppression");
+            builder.HasKey(suppression => suppression.Id).HasName("pk_email_suppression");
+
+            builder.Property(suppression => suppression.Id).HasColumnName("id");
+            builder.Property(suppression => suppression.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(suppression => suppression.Recipient).HasColumnName("recipient").IsRequired();
+            builder.Property(suppression => suppression.Reason)
+                .HasColumnName("reason")
+                .HasMaxLength(EmailSuppression.ReasonMaxLength)
+                .IsRequired();
+            builder.Property(suppression => suppression.Source)
+                .HasColumnName("source")
+                .HasMaxLength(EmailSuppression.SourceMaxLength)
+                .IsRequired();
+            builder.Property(suppression => suppression.Note)
+                .HasColumnName("note")
+                .HasMaxLength(EmailSuppression.NoteMaxLength);
+            builder.Property(suppression => suppression.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(suppression => suppression.ReleasedAt).HasColumnName("released_at");
+            builder.Property(suppression => suppression.ReleaseReason)
+                .HasColumnName("release_reason")
+                .HasMaxLength(EmailSuppression.ReleaseReasonMaxLength);
+
+            builder.Ignore(suppression => suppression.Active);
+
+            builder.HasIndex(suppression => new { suppression.TenantId, suppression.Recipient })
+                .IsUnique()
+                .HasFilter("released_at IS NULL")
+                .HasDatabaseName("ux_email_suppression_tenant_id_recipient_active");
+            builder.HasIndex(suppression => new { suppression.TenantId, suppression.CreatedAt })
+                .HasDatabaseName("ix_email_suppression_tenant_id_created_at");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(suppression => suppression.TenantId)
+                .HasConstraintName("fk_email_suppression_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<NotificationDeliveryAttempt>(builder =>
         {
             builder.ToTable("notification_delivery_attempt", table =>
             {
                 table.HasCheckConstraint(
                     "ck_notification_delivery_attempt_status",
-                    "status IN ('sent','failed')");
+                    "status IN ('prepared','sent','failed')");
             });
             builder.HasKey(attempt => attempt.Id).HasName("pk_notification_delivery_attempt");
 
@@ -2550,6 +2595,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(attempt => attempt.ProviderMessageId)
                 .HasColumnName("provider_message_id")
                 .HasMaxLength(256);
+            builder.Property(attempt => attempt.ProviderDeliveryKey)
+                .HasColumnName("provider_delivery_key")
+                .HasMaxLength(128);
             builder.Property(attempt => attempt.Error).HasColumnName("error");
             builder.Property(attempt => attempt.CreatedAt).HasColumnName("created_at").IsRequired();
 
@@ -2557,6 +2605,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasDatabaseName("ix_notification_delivery_attempt_tenant_id_notification_id");
             builder.HasIndex(attempt => new { attempt.NotificationId, attempt.CreatedAt })
                 .HasDatabaseName("ix_notification_delivery_attempt_notification_id_created_at");
+            builder.HasIndex(attempt => new { attempt.TenantId, attempt.ProviderDeliveryKey })
+                .HasDatabaseName("ux_notification_delivery_attempt_tenant_provider_delivery_key")
+                .IsUnique()
+                .HasFilter("provider_delivery_key IS NOT NULL");
 
             builder.HasOne<Tenant>()
                 .WithMany()
@@ -2568,6 +2620,66 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .WithMany()
                 .HasForeignKey(attempt => attempt.NotificationId)
                 .HasConstraintName("fk_notification_delivery_attempt_notification_notification_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<NotificationDeliveryEvent>(builder =>
+        {
+            builder.ToTable("notification_delivery_event", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_notification_delivery_event_type",
+                    "event_type IN ('accepted','delivered','bounced','complained')");
+            });
+            builder.HasKey(deliveryEvent => deliveryEvent.Id).HasName("pk_notification_delivery_event");
+
+            builder.Property(deliveryEvent => deliveryEvent.Id).HasColumnName("id");
+            builder.Property(deliveryEvent => deliveryEvent.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.NotificationId).HasColumnName("notification_id").IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.DeliveryAttemptId).HasColumnName("delivery_attempt_id").IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.Provider).HasColumnName("provider").HasMaxLength(64).IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.EventType).HasColumnName("event_type").HasMaxLength(NotificationDeliveryEvent.EventTypeMaxLength).IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.ProviderEventId)
+                .HasColumnName("provider_event_id")
+                .HasMaxLength(NotificationDeliveryEvent.ProviderEventIdMaxLength);
+            builder.Property(deliveryEvent => deliveryEvent.ProviderMessageId)
+                .HasColumnName("provider_message_id")
+                .HasMaxLength(256);
+            builder.Property(deliveryEvent => deliveryEvent.Reason)
+                .HasColumnName("reason")
+                .HasMaxLength(NotificationDeliveryEvent.ReasonMaxLength);
+            builder.Property(deliveryEvent => deliveryEvent.OccurredAt).HasColumnName("occurred_at").IsRequired();
+            builder.Property(deliveryEvent => deliveryEvent.ReceivedAt).HasColumnName("received_at").IsRequired();
+
+            builder.HasIndex(deliveryEvent => new { deliveryEvent.TenantId, deliveryEvent.NotificationId })
+                .HasDatabaseName("ix_notification_delivery_event_tenant_id_notification_id");
+            builder.HasIndex(deliveryEvent => new { deliveryEvent.TenantId, deliveryEvent.DeliveryAttemptId })
+                .HasDatabaseName("ix_notification_delivery_event_tenant_id_delivery_attempt_id");
+            builder.HasIndex(deliveryEvent => new { deliveryEvent.TenantId, deliveryEvent.Provider, deliveryEvent.ProviderEventId })
+                .IsUnique()
+                .HasFilter("provider_event_id IS NOT NULL")
+                .HasDatabaseName("ux_notification_delivery_event_tenant_provider_event_id");
+            builder.HasIndex(deliveryEvent => new { deliveryEvent.TenantId, deliveryEvent.DeliveryAttemptId, deliveryEvent.EventType })
+                .IsUnique()
+                .HasFilter("provider_event_id IS NULL")
+                .HasDatabaseName("ux_notification_delivery_event_tenant_attempt_type_without_provider_id");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(deliveryEvent => deliveryEvent.TenantId)
+                .HasConstraintName("fk_notification_delivery_event_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<Notification>()
+                .WithMany()
+                .HasForeignKey(deliveryEvent => deliveryEvent.NotificationId)
+                .HasConstraintName("fk_notification_delivery_event_notification_notification_id")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<NotificationDeliveryAttempt>()
+                .WithMany()
+                .HasForeignKey(deliveryEvent => deliveryEvent.DeliveryAttemptId)
+                .HasConstraintName("fk_notification_delivery_event_attempt_delivery_attempt_id")
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

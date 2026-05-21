@@ -33,7 +33,8 @@ if (reverseProxyForwardedHeadersEnabled)
 {
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
         options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
     });

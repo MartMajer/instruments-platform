@@ -1135,6 +1135,7 @@ describe('product view models', () => {
 			{ label: 'Queued emails', value: '1' },
 			{ label: 'Sent emails', value: '8' },
 			{ label: 'Failed emails', value: '1' },
+			{ label: 'Suppressed emails', value: '0' },
 			{ label: 'Started responses', value: '36' },
 			{ label: 'Draft responses', value: '5' },
 			{ label: 'Submitted responses', value: '31' },
@@ -1232,6 +1233,7 @@ describe('product view models', () => {
 					{ label: 'Queued emails', value: '1' },
 					{ label: 'Sent emails', value: '8' },
 					{ label: 'Failed emails', value: '1' },
+					{ label: 'Suppressed emails', value: '0' },
 					{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' },
 					{ label: 'Started responses', value: '36' },
 					{ label: 'Draft responses', value: '5' },
@@ -1254,6 +1256,7 @@ describe('product view models', () => {
 					{ label: 'Queued emails', value: '0' },
 					{ label: 'Sent emails', value: '0' },
 					{ label: 'Failed emails', value: '0' },
+					{ label: 'Suppressed emails', value: '0' },
 					{ label: 'Latest email activity', value: 'Not available' },
 					{ label: 'Started responses', value: '0' },
 					{ label: 'Draft responses', value: '0' },
@@ -1310,6 +1313,7 @@ describe('product view models', () => {
 					{ label: 'Queued emails', value: '1' },
 					{ label: 'Sent emails', value: '8' },
 					{ label: 'Failed emails', value: '1' },
+					{ label: 'Suppressed emails', value: '0' },
 					{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' }
 				]
 			},

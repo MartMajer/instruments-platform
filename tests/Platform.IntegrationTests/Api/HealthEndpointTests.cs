@@ -472,6 +472,8 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
         string? objectStoreRootPath = null,
         string? pdfBrowserExecutablePath = null,
         string? emailDeliveryProvider = null,
+        string? emailDeliveryManagedProviderName = null,
+        bool? emailDeliverySenderDomainVerified = null,
         string? emailDeliveryFromAddress = null,
         string? emailDeliverySmtpHost = null,
         int? emailDeliverySmtpPort = null,
@@ -531,6 +533,17 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
                 if (emailDeliveryProvider is not null)
                 {
                     settings["EmailDelivery:Provider"] = emailDeliveryProvider;
+                }
+
+                if (emailDeliveryManagedProviderName is not null)
+                {
+                    settings["EmailDelivery:ManagedProviderName"] = emailDeliveryManagedProviderName;
+                }
+
+                if (emailDeliverySenderDomainVerified is not null)
+                {
+                    settings["EmailDelivery:SenderDomainVerified"] =
+                        emailDeliverySenderDomainVerified.Value.ToString();
                 }
 
                 if (emailDeliveryFromAddress is not null)

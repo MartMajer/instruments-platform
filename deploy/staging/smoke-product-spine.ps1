@@ -1117,8 +1117,8 @@ function Assert-CampaignEmailInvitationDelivery {
     $invitation = @($batch.invitations)[0]
     Assert-True ($invitation.recipient -eq $recipient) "Email invitation recipient was '$($invitation.recipient)', expected '$recipient'."
     Assert-True ($invitation.status -eq 'queued') "Email invitation status was '$($invitation.status)', expected queued."
-    Assert-True ($invitation.token -like 'inv_*') 'Email invitation batch did not return an invitation token.'
-    Assert-True ($invitation.respondentPath -eq "/r/$($invitation.token)") 'Email invitation batch respondent path did not match the token.'
+    Assert-True ($null -eq $invitation.token) 'Email invitation batch returned a raw invitation token.'
+    Assert-True ($null -eq $invitation.respondentPath) 'Email invitation batch returned a raw respondent path.'
 
     $delivery = Invoke-Json POST "/campaigns/$($Campaign.id)/notification-deliveries/process" $headers @{
         batchSize = 5
@@ -1137,12 +1137,13 @@ function Assert-CampaignEmailInvitationDelivery {
     Assert-True ($null -eq $proof.error) "Email delivery returned unexpected error '$($proof.error)'."
 
     $deliveryBody = ConvertTo-JsonPayload $delivery
-    Assert-True (-not $deliveryBody.Contains($invitation.token)) 'Email delivery response echoed the queued raw invitation token.'
+    Assert-True (-not ($deliveryBody -match '"token"\s*:')) 'Email delivery response included a raw token field.'
     Assert-True ([regex]::Matches($deliveryBody, 'inv_').Count -eq 1) 'Email delivery response exposed more than one raw invitation token marker.'
     Assert-True (-not ($deliveryBody -match 'Smtp|Password|secret|storageKey|ConnectionStrings|tenantId')) 'Campaign email delivery response leaked sensitive data.'
 
     $requeue = Invoke-Json POST "/campaigns/$($Campaign.id)/notification-deliveries/requeue-failed" $headers @{
         batchSize = 5
+        confirmedAnotherEmailAppropriate = $true
     }
     Assert-True ($requeue.campaignId -eq $Campaign.id) "Email failed-delivery requeue campaignId was '$($requeue.campaignId)', expected '$($Campaign.id)'."
     Assert-True ([int]$requeue.requestedBatchSize -eq 5) "Email failed-delivery requeue requestedBatchSize was '$($requeue.requestedBatchSize)', expected 5."

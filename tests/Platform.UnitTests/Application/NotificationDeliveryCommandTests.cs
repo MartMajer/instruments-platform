@@ -50,7 +50,8 @@ public sealed class NotificationDeliveryCommandTests
     public void Requeue_validator_accepts_default_batch_size()
     {
         var validator = new RequeueFailedCampaignEmailDeliveriesValidator();
-        var request = new RequeueFailedCampaignEmailDeliveriesRequest();
+        var request = new RequeueFailedCampaignEmailDeliveriesRequest(
+            ConfirmedAnotherEmailAppropriate: true);
 
         var result = validator.Validate(new RequeueFailedCampaignEmailDeliveriesCommand(Guid.NewGuid(), request));
 
@@ -177,6 +178,95 @@ public sealed class NotificationDeliveryCommandTests
             RequeueRequest = request;
 
             return Task.FromResult(Result.Success(requeueResponse!));
+        }
+
+        public Task<Result<CampaignEmailDeliveryRepairReadinessResponse>> GetCampaignEmailDeliveryRepairReadinessAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new CampaignEmailDeliveryRepairReadinessResponse(
+                StalePreparedAttemptCount: 0,
+                AmbiguousFailedNotificationCount: 0,
+                RetryableFailedNotificationCount: 0,
+                SuppressedFailedNotificationCount: 0,
+                ProviderEventCount: 0,
+                LatestProviderEventAt: null,
+                CanRetryFailed: false,
+                HasRepairWork: false,
+                Issues: [])));
+        }
+
+        public Task<Result<ListEmailSuppressionsResponse>> ListEmailSuppressionsAsync(
+            Guid tenantId,
+            int limit,
+            bool includeReleased,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new ListEmailSuppressionsResponse(
+                limit,
+                ActiveCount: 0,
+                ReleasedCount: 0,
+                Suppressions: [])));
+        }
+
+        public Task<Result<EmailSuppressionResponse>> AddEmailSuppressionAsync(
+            Guid tenantId,
+            AddEmailSuppressionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new EmailSuppressionResponse(
+                Guid.NewGuid(),
+                request.Recipient,
+                request.Reason ?? "manual",
+                "manual",
+                request.Note,
+                DateTimeOffset.UtcNow,
+                ReleasedAt: null,
+                ReleaseReason: null,
+                Active: true)));
+        }
+
+        public Task<Result<EmailSuppressionResponse>> ReleaseEmailSuppressionAsync(
+            Guid tenantId,
+            Guid suppressionId,
+            ReleaseEmailSuppressionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new EmailSuppressionResponse(
+                suppressionId,
+                "released@example.test",
+                "manual",
+                "manual",
+                null,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                request.Reason,
+                Active: false)));
+        }
+
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventAsync(
+            Guid tenantId,
+            RecordProviderDeliveryEventRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        }
+
+        public Task<Result<ListProviderDeliveryEventsResponse>> ListProviderDeliveryEventsAsync(
+            Guid tenantId,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new ListProviderDeliveryEventsResponse(
+                limit,
+                Events: [])));
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Platform.Application.Features.System.GetHealth;
+using Platform.SharedKernel;
 
 namespace Platform.Infrastructure.Reports;
 
@@ -81,7 +82,7 @@ public sealed class ExportArtifactObjectStoreHealthCheck(
         CancellationToken cancellationToken)
     {
         var probeDirectory = Path.Combine(rootPath, ".health");
-        var probePath = Path.Combine(probeDirectory, $"{Guid.NewGuid():N}.probe");
+        var probePath = Path.Combine(probeDirectory, $"{PlatformIds.NewId():N}.probe");
 
         Directory.CreateDirectory(probeDirectory);
         await File.WriteAllBytesAsync(probePath, ProbeBytes, cancellationToken);

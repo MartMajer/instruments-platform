@@ -131,6 +131,21 @@ public sealed class NotificationDeliveryDomainSafetyTests
     }
 
     [Fact]
+    public void Delivery_attempt_create_sent_keeps_missing_provider_message_id_missing()
+    {
+        var attempt = NotificationDeliveryAttempt.CreateSent(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "smtp",
+            "ada@example.test",
+            providerMessageId: null,
+            DateTimeOffset.UtcNow);
+
+        Assert.Null(attempt.ProviderMessageId);
+    }
+
+    [Fact]
     public void Delivery_attempt_create_sent_redacts_withdrawal_token_provider_message_ids()
     {
         var attempt = NotificationDeliveryAttempt.CreateSent(
@@ -140,6 +155,21 @@ public sealed class NotificationDeliveryDomainSafetyTests
             "smtp",
             "ada@example.test",
             "smtp:wdr_11111111111141118111111111111111_sensitiveWDR",
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal("redacted", attempt.ProviderMessageId);
+    }
+
+    [Fact]
+    public void Delivery_attempt_create_sent_redacts_platform_delivery_key_provider_message_ids()
+    {
+        var attempt = NotificationDeliveryAttempt.CreateSent(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "smtp",
+            "ada@example.test",
+            "smtp:campaign-email:tenant:notification:attempt",
             DateTimeOffset.UtcNow);
 
         Assert.Equal("redacted", attempt.ProviderMessageId);

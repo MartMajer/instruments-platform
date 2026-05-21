@@ -182,10 +182,11 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
     }
 
     [Fact]
-    public async Task Public_respondent_entry_rate_limit_rejects_repeated_token_probe_before_store()
+    public async Task Public_respondent_entry_rate_limit_rejects_rotated_token_probe_before_store()
     {
-        const string token = "opn_11111111111141118111111111111111_sensitiveOPN";
-        var store = new FakeResponseCaptureStore(openLinkToken: token);
+        const string firstToken = "opn_11111111111141118111111111111111_sensitiveOPN1";
+        const string secondToken = "opn_11111111111141118111111111111111_sensitiveOPN2";
+        var store = new FakeResponseCaptureStore(openLinkToken: firstToken);
         using var client = CreateClient(
             store,
             configuration: new Dictionary<string, string?>
@@ -194,23 +195,57 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                 ["PublicRespondentRateLimiting:WindowSeconds"] = "60"
             });
 
-        var firstResponse = await client.GetAsync($"/respondent/open-links/{token}");
-        var secondResponse = await client.GetAsync($"/respondent/open-links/{token}");
+        var firstResponse = await client.GetAsync($"/respondent/open-links/{firstToken}");
+        var secondResponse = await client.GetAsync($"/respondent/open-links/{secondToken}");
         var secondBody = await secondResponse.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
         Assert.Equal(1, store.OpenLinkEntryRequestCount);
         Assert.Contains("public_respondent.rate_limited", secondBody, StringComparison.Ordinal);
-        Assert.DoesNotContain(token, secondBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(firstToken, secondBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(secondToken, secondBody, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task Public_respondent_session_creation_rate_limit_rejects_participant_code_probe_before_store()
+    public async Task Public_respondent_entry_rate_limit_uses_forwarded_client_ip_in_reverse_proxy_mode()
     {
-        const string token = "opn_11111111111141118111111111111111_sensitiveOPN";
+        const string firstToken = "opn_11111111111141118111111111111111_forwardedOPN1";
+        const string secondToken = "opn_11111111111141118111111111111111_forwardedOPN2";
+        const string thirdToken = "opn_11111111111141118111111111111111_forwardedOPN3";
+        var store = new FakeResponseCaptureStore(openLinkToken: firstToken);
+        using var client = CreateClient(
+            store,
+            configuration: new Dictionary<string, string?>
+            {
+                ["ReverseProxy:ForwardedHeaders:Enabled"] = "true",
+                ["PublicRespondentRateLimiting:EntryPermitLimit"] = "1",
+                ["PublicRespondentRateLimiting:WindowSeconds"] = "60"
+            });
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Get, $"/respondent/open-links/{firstToken}");
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Get, $"/respondent/open-links/{secondToken}");
+        using var thirdRequest = new HttpRequestMessage(HttpMethod.Get, $"/respondent/open-links/{thirdToken}");
+        firstRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", "203.0.113.10");
+        secondRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", "203.0.113.10");
+        thirdRequest.Headers.TryAddWithoutValidation("X-Forwarded-For", "203.0.113.11");
+
+        var firstResponse = await client.SendAsync(firstRequest);
+        var secondResponse = await client.SendAsync(secondRequest);
+        var thirdResponse = await client.SendAsync(thirdRequest);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, thirdResponse.StatusCode);
+        Assert.Equal(2, store.OpenLinkEntryRequestCount);
+    }
+
+    [Fact]
+    public async Task Public_respondent_session_creation_rate_limit_rejects_rotated_token_participant_code_probe_before_store()
+    {
+        const string firstToken = "opn_11111111111141118111111111111111_sensitiveOPN1";
+        const string secondToken = "opn_11111111111141118111111111111111_sensitiveOPN2";
         const string participantCode = "alpha-raw-participant-code-2026";
-        var store = new FakeResponseCaptureStore(openLinkToken: token);
+        var store = new FakeResponseCaptureStore(openLinkToken: firstToken);
         using var client = CreateClient(
             store,
             configuration: new Dictionary<string, string?>
@@ -225,10 +260,10 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
             participantCode);
 
         var firstResponse = await client.PostAsJsonAsync(
-            $"/respondent/open-links/{token}/sessions",
+            $"/respondent/open-links/{firstToken}/sessions",
             request);
         var secondResponse = await client.PostAsJsonAsync(
-            $"/respondent/open-links/{token}/sessions",
+            $"/respondent/open-links/{secondToken}/sessions",
             request);
         var secondBody = await secondResponse.Content.ReadAsStringAsync();
 
@@ -236,7 +271,8 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Assert.Equal(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
         Assert.Equal(1, store.OpenLinkSessionRequestCount);
         Assert.Contains("public_respondent.rate_limited", secondBody, StringComparison.Ordinal);
-        Assert.DoesNotContain(token, secondBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(firstToken, secondBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(secondToken, secondBody, StringComparison.Ordinal);
         Assert.DoesNotContain(participantCode, secondBody, StringComparison.Ordinal);
     }
 
@@ -274,6 +310,38 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Assert.Contains("public_respondent.rate_limited", secondBody, StringComparison.Ordinal);
         Assert.DoesNotContain(publicHandle, secondBody, StringComparison.Ordinal);
         Assert.DoesNotContain(rawAnswer, secondBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Public_session_answer_rate_limit_keeps_different_handles_independent_after_entry()
+    {
+        const string firstPublicHandle = "rsh_11111111111141118111111111111111_sensitiveRSH1";
+        const string secondPublicHandle = "rsh_11111111111141118111111111111111_sensitiveRSH2";
+        var store = new FakeResponseCaptureStore(publicSessionHandle: firstPublicHandle);
+        using var client = CreateClient(
+            store,
+            configuration: new Dictionary<string, string?>
+            {
+                ["PublicRespondentRateLimiting:SessionPermitLimit"] = "1",
+                ["PublicRespondentRateLimiting:WindowSeconds"] = "60"
+            });
+        var request = new SaveAnswersRequest(
+        [
+            new SaveAnswerRequest(
+                Guid.NewGuid(),
+                "4")
+        ]);
+
+        var firstResponse = await client.PutAsJsonAsync(
+            $"/respondent/public-sessions/{firstPublicHandle}/answers",
+            request);
+        var secondResponse = await client.PutAsJsonAsync(
+            $"/respondent/public-sessions/{secondPublicHandle}/answers",
+            request);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.Equal(2, store.PublicSessionSaveRequestCount);
     }
 
     [Fact]
@@ -802,6 +870,13 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                         "I feel depleted after work.",
                         Required: true)
                 ])));
+        }
+
+        public Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
+            string token,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new EmailInvitationUnsubscribeResponse("suppressed")));
         }
 
         public Task<Result<OpenLinkEntryResponse>> GetIdentifiedEntryAsync(

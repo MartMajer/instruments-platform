@@ -198,6 +198,7 @@ export type UpdateSubjectRequest = CreateSubjectRequest;
 
 export type SubjectDirectoryCsvImportRequest = {
 	csvContent: string;
+	dryRun?: boolean;
 };
 
 export type SubjectDirectoryCsvImportResponse = {
@@ -210,6 +211,7 @@ export type SubjectDirectoryCsvImportResponse = {
 	addedMembershipCount: number;
 	skippedMembershipCount: number;
 	rows: SubjectDirectoryCsvImportRowResponse[];
+	dryRun: boolean;
 };
 
 export type SubjectDirectoryCsvImportRowResponse = {
@@ -538,6 +540,7 @@ export type CampaignSeriesOperationsSummaryResponse = {
 	queuedInvitationCount: number;
 	sentInvitationCount: number;
 	failedInvitationCount: number;
+	bouncedInvitationCount?: number;
 	deliveryAttemptCount: number;
 	startedResponseCount: number;
 	draftResponseCount: number;
@@ -548,6 +551,11 @@ export type CampaignSeriesOperationsSummaryResponse = {
 	reportVisibilityStatus: string;
 	collectionGuidance: string;
 	missingPrerequisiteCount: number;
+	providerAcceptedEventCount?: number;
+	providerDeliveredEventCount?: number;
+	providerBouncedEventCount?: number;
+	providerComplainedEventCount?: number;
+	latestProviderEventAt?: string | null;
 };
 
 export type CampaignSeriesOperationsCampaignResponse = {
@@ -580,8 +588,14 @@ export type CampaignSeriesOperationsCampaignResponse = {
 	queuedInvitationCount: number;
 	sentInvitationCount: number;
 	failedInvitationCount: number;
+	bouncedInvitationCount?: number;
 	deliveryAttemptCount: number;
 	latestDeliveryAttemptAt: string | null;
+	providerAcceptedEventCount?: number;
+	providerDeliveredEventCount?: number;
+	providerBouncedEventCount?: number;
+	providerComplainedEventCount?: number;
+	latestProviderEventAt?: string | null;
 };
 
 export type CampaignSeriesOperationsLaunchSnapshotResponse = {

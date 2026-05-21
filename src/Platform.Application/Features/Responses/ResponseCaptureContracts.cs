@@ -36,6 +36,10 @@ public sealed record OpenLinkEntryResponse(
     ConsentDocumentResponse ConsentDocument,
     IReadOnlyList<RespondentQuestionResponse> Questions);
 
+public sealed record EmailInvitationUnsubscribeResponse(string Status);
+
+public sealed record UnsubscribeEmailInvitationRequest(bool Confirmed);
+
 public sealed record ConsentDocumentResponse(
     Guid Id,
     string Locale,

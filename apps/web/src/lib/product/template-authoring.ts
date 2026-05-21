@@ -102,10 +102,13 @@ export type CollectedContextQuestionSummary = {
 
 export type RespondentQuestionPreviewSummary = {
 	ordinal: number;
+	positionLabel: string;
 	dimensionLabel: string;
 	text: string;
+	requiredLabel: string;
 	answerFormatLabel: string;
 	answerFormatDetail: string;
+	responsePreviewLabel: string;
 };
 
 export type AuthoringReadinessSummary = {
@@ -216,6 +219,29 @@ export function appendTemplateQuestionRow(
 			textDefault: 'New question text'
 		})
 	]);
+}
+
+export function duplicateTemplateQuestionRow(
+	rows: TemplateQuestionAuthoringRow[],
+	code: string
+): TemplateQuestionAuthoringRow[] {
+	const index = rows.findIndex((row) => row.code === code);
+	if (index < 0) {
+		return renumberRows(rows);
+	}
+
+	const source = rows[index];
+	const duplicate: TemplateQuestionAuthoringRow = {
+		...source,
+		ordinal: source.ordinal + 1,
+		code: nextQuestionCode(rows),
+		textDefault: source.textDefault.trim()
+			? `${source.textDefault.trim()} (copy)`
+			: `${source.code} copy`,
+		choiceOptions: [...source.choiceOptions]
+	};
+
+	return renumberRows([...rows.slice(0, index + 1), duplicate, ...rows.slice(index + 1)]);
 }
 
 export function removeTemplateQuestionRow(
@@ -887,12 +913,17 @@ export function summarizeCollectedContextQuestions(
 export function summarizeRespondentQuestionPreview(
 	rows: TemplateQuestionAuthoringRow[]
 ): RespondentQuestionPreviewSummary[] {
-	return renumberRows(rows).map((row) => ({
+	const orderedRows = renumberRows(rows);
+	const total = orderedRows.length;
+	return orderedRows.map((row) => ({
 		ordinal: row.ordinal,
+		positionLabel: `Question ${row.ordinal} of ${total}`,
 		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
 		text: questionTitle(row),
+		requiredLabel: row.required ? 'Required' : 'Optional',
 		answerFormatLabel: describeQuestionScaleIntent(row).label,
-		answerFormatDetail: answerFormatDetail(row)
+		answerFormatDetail: answerFormatDetail(row),
+		responsePreviewLabel: respondentResponsePreview(row)
 	}));
 }
 
@@ -1121,6 +1152,42 @@ function answerFormatDetail(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	return 'Text response';
+}
+
+function respondentResponsePreview(row: TemplateQuestionAuthoringRow): string {
+	const options = normalizedChoiceOptions(row);
+
+	if (isScaleBackedType(row.type)) {
+		return `${row.scaleMin} ${row.scaleLowLabel.trim()} ... ${row.scaleMax} ${row.scaleHighLabel.trim()}`;
+	}
+
+	if (row.type === 'single') {
+		return options.length
+			? `Radio choices: ${options.join(', ')}`
+			: 'Radio choices appear here after options are added.';
+	}
+
+	if (row.type === 'multi') {
+		return options.length
+			? `Checkbox choices: ${options.join(', ')}`
+			: 'Checkbox choices appear here after options are added.';
+	}
+
+	if (row.type === 'ranking') {
+		return options.length
+			? `Drag or number-rank: ${options.join(', ')}`
+			: 'Ranking choices appear here after options are added.';
+	}
+
+	if (row.type === 'number') {
+		return 'Numeric input field';
+	}
+
+	if (row.type === 'date') {
+		return 'Date input field';
+	}
+
+	return 'Short written response field';
 }
 
 function scoreCode(label: string): string {

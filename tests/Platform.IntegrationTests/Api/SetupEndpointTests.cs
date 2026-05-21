@@ -1,13 +1,17 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Application.Features.Notifications;
 using Platform.Application.Features.Setup;
+using Platform.Domain.Campaigns;
 using Platform.IntegrationTests.Support;
 using Platform.SharedKernel;
 
@@ -613,7 +617,9 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             HttpMethod.Post,
             $"/campaigns/{campaignId}/notification-deliveries/requeue-failed",
             tenantId,
-            new RequeueFailedCampaignEmailDeliveriesRequest(BatchSize: 7));
+            new RequeueFailedCampaignEmailDeliveriesRequest(
+                BatchSize: 7,
+                ConfirmedAnotherEmailAppropriate: true));
 
         var response = await client.SendAsync(request);
 
@@ -703,6 +709,429 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(payload);
         Assert.Equal("notification_delivery.invalid", payload.Title);
+    }
+
+    [Fact]
+    public async Task Provider_delivery_webhook_returns_no_content_without_internal_ids()
+    {
+        var tenantId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var deliveryAttemptId = Guid.NewGuid();
+        const string webhookSecret = "test-provider-webhook-secret-32-chars";
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
+            providerEventResponse: Result.Success(new RecordProviderDeliveryEventResponse(
+                notificationId,
+                deliveryAttemptId,
+                NotificationDeliveryEventTypes.Delivered,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: new Dictionary<string, string?>
+            {
+                ["EmailDelivery:ProviderWebhookSecret"] = webhookSecret
+            });
+        var body = $$"""
+            {
+              "deliveryAttemptKey": "campaign-email:{{tenantId:N}}:pdk_test_delivery_key",
+              "eventType": "delivered",
+              "occurredAt": "2026-05-21T20:15:00Z",
+              "providerEventId": "evt_test_delivery"
+            }
+            """;
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/webhook");
+        request.Headers.Add("X-Platform-Webhook-Timestamp", timestamp);
+        request.Headers.Add(
+            "X-Platform-Webhook-Signature",
+            "sha256=" + ComputeProviderWebhookSignature(webhookSecret, timestamp, body));
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(string.Empty, responseBody);
+        Assert.Equal(tenantId, deliveryStore.ProviderEventTenantId);
+        Assert.NotNull(deliveryStore.ProviderEventRequest);
+        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryStore.ProviderEventRequest!.EventType);
+        Assert.DoesNotContain(notificationId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(deliveryAttemptId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Provider_delivery_events_endpoint_returns_privacy_minimized_rows()
+    {
+        var tenantId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var deliveryAttemptId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
+            providerEventsResponse: Result.Success(new ListProviderDeliveryEventsResponse(
+                RequestedLimit: 12,
+                Events:
+                [
+                    new ProviderDeliveryEventResponse(
+                        "smtp",
+                        NotificationDeliveryEventTypes.Delivered,
+                        DateTimeOffset.Parse("2026-05-21T20:15:00Z"),
+                        DateTimeOffset.Parse("2026-05-21T20:15:30Z"),
+                        "sent",
+                        "sent",
+                        HasProviderEventId: true,
+                        HasProviderMessageId: true)
+                ])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/notification-deliveries/provider-events?limit=12",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<ListProviderDeliveryEventsResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(12, payload.RequestedLimit);
+        var deliveryEvent = Assert.Single(payload.Events);
+        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryEvent.EventType);
+        Assert.True(deliveryEvent.HasProviderEventId);
+        Assert.True(deliveryEvent.HasProviderMessageId);
+        Assert.Equal(tenantId, deliveryStore.ProviderEventsTenantId);
+        Assert.Equal(12, deliveryStore.ProviderEventsLimit);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(notificationId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(deliveryAttemptId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("notificationId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("deliveryAttemptId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ada@example", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("provider_reason", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Campaign_email_delivery_repair_readiness_endpoint_returns_safe_counts()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(campaignId)),
+            repairReadinessResponse: Result.Success(new CampaignEmailDeliveryRepairReadinessResponse(
+                StalePreparedAttemptCount: 1,
+                AmbiguousFailedNotificationCount: 1,
+                RetryableFailedNotificationCount: 2,
+                SuppressedFailedNotificationCount: 3,
+                ProviderEventCount: 4,
+                LatestProviderEventAt: DateTimeOffset.Parse("2026-05-21T20:15:30Z"),
+                CanRetryFailed: true,
+                HasRepairWork: true,
+                Issues:
+                [
+                    new CampaignEmailDeliveryRepairReadinessIssueResponse(
+                        "notification_delivery_repair.ambiguous_failures",
+                        "warning",
+                        "Some failed invitation emails have ambiguous provider handoff state.")
+                ])));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/campaigns/{campaignId}/notification-deliveries/repair-readiness",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var payload = await response.Content.ReadFromJsonAsync<CampaignEmailDeliveryRepairReadinessResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(1, payload.StalePreparedAttemptCount);
+        Assert.Equal(2, payload.RetryableFailedNotificationCount);
+        Assert.True(payload.CanRetryFailed);
+        Assert.Equal(tenantId, deliveryStore.RepairReadinessTenantId);
+        Assert.Equal(campaignId, deliveryStore.RepairReadinessCampaignId);
+        Assert.DoesNotContain(tenantId.ToString(), body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("notificationId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("deliveryAttemptId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("recipient", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ada@example", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("providerEventId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("providerMessageId", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_rejects_unsupported_signature_version()
+    {
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn));
+        var body = $$"""
+            {
+              "Type": "Notification",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{topicArn}}",
+              "Message": "{}",
+              "SignatureVersion": "1",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("aws_ses_webhook.signature_version_unsupported", payload.Title);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_rejects_unsafe_signing_cert_url()
+    {
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn));
+        var body = $$"""
+            {
+              "Type": "Notification",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{topicArn}}",
+              "Message": "{}",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "http://localhost/SimpleNotificationService-test.pem"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("aws_ses_webhook.signing_cert_url_invalid", payload.Title);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_records_verified_delivery_event_without_internal_ids()
+    {
+        var tenantId = Guid.NewGuid();
+        var notificationId = Guid.NewGuid();
+        var deliveryAttemptId = Guid.NewGuid();
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
+            providerEventResponse: Result.Success(new RecordProviderDeliveryEventResponse(
+                notificationId,
+                deliveryAttemptId,
+                NotificationDeliveryEventTypes.Delivered,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: AwsSesWebhookConfiguration(topicArn),
+            awsSnsSignatureVerifier: signatureVerifier);
+        var body = $$$"""
+            {
+              "Type": "Notification",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{{topicArn}}}",
+              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[{\"name\":\"X-Platform-Delivery-Key\",\"value\":\"campaign-email:{{{tenantId:N}}}:pdk_test_delivery_key\"}]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
+              "Timestamp": "2026-05-21T20:15:30Z",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(string.Empty, responseBody);
+        Assert.NotNull(signatureVerifier.Request);
+        Assert.Equal(topicArn, signatureVerifier.Request!.TopicArn);
+        Assert.Equal("Notification", signatureVerifier.Request.Type);
+        Assert.Equal(tenantId, deliveryStore.ProviderEventTenantId);
+        Assert.NotNull(deliveryStore.ProviderEventRequest);
+        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryStore.ProviderEventRequest!.EventType);
+        Assert.Equal("sns-message-1", deliveryStore.ProviderEventRequest.ProviderEventId);
+        Assert.Equal("ses-message-1", deliveryStore.ProviderEventRequest.ProviderMessageId);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-21T20:15:00Z"), deliveryStore.ProviderEventRequest.OccurredAt);
+        Assert.DoesNotContain(notificationId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(deliveryAttemptId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_rejects_message_without_platform_delivery_key()
+    {
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn),
+            awsSnsSignatureVerifier: signatureVerifier);
+        var body = $$$"""
+            {
+              "Type": "Notification",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{{topicArn}}}",
+              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
+              "Timestamp": "2026-05-21T20:15:30Z",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("aws_ses_webhook.message_invalid", payload.Title);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_rejects_invalid_sns_signature()
+    {
+        var tenantId = Guid.NewGuid();
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: false);
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn),
+            awsSnsSignatureVerifier: signatureVerifier);
+        var body = $$$"""
+            {
+              "Type": "Notification",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{{topicArn}}}",
+              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[{\"name\":\"X-Platform-Delivery-Key\",\"value\":\"campaign-email:{{{tenantId:N}}}:pdk_test_delivery_key\"}]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
+              "Timestamp": "2026-05-21T20:15:30Z",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("aws_ses_webhook.signature_invalid", payload.Title);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_confirms_valid_subscription_confirmation()
+    {
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        const string subscribeUrl = "https://sns.eu-central-1.amazonaws.com/?Action=ConfirmSubscription&TopicArn=arn%3Aaws%3Asns%3Aeu-central-1%3A123456789012%3Ases-events&Token=test-token";
+        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
+        var subscriptionConfirmer = new FakeAwsSnsSubscriptionConfirmer(IsConfirmed: true);
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn),
+            awsSnsSignatureVerifier: signatureVerifier,
+            awsSnsSubscriptionConfirmer: subscriptionConfirmer);
+        var body = $$"""
+            {
+              "Type": "SubscriptionConfirmation",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{topicArn}}",
+              "Message": "Confirm this subscription.",
+              "Timestamp": "2026-05-21T20:15:30Z",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem",
+              "SubscribeURL": "{{subscribeUrl}}",
+              "Token": "test-token"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(string.Empty, responseBody);
+        Assert.NotNull(signatureVerifier.Request);
+        Assert.Equal("SubscriptionConfirmation", signatureVerifier.Request!.Type);
+        Assert.Equal(subscribeUrl, signatureVerifier.Request.SubscribeUrl);
+        Assert.Equal(subscribeUrl, subscriptionConfirmer.SubscribeUrl);
+    }
+
+    [Fact]
+    public async Task Aws_ses_sns_webhook_rejects_unsafe_subscription_confirmation_url()
+    {
+        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AwsSesWebhookConfiguration(topicArn));
+        var body = $$"""
+            {
+              "Type": "SubscriptionConfirmation",
+              "MessageId": "sns-message-1",
+              "TopicArn": "{{topicArn}}",
+              "Message": "Confirm this subscription.",
+              "Timestamp": "2026-05-21T20:15:30Z",
+              "SignatureVersion": "2",
+              "Signature": "test-signature",
+              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem",
+              "SubscribeURL": "http://localhost/?Action=ConfirmSubscription&Token=test-token",
+              "Token": "test-token"
+            }
+            """;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/aws-ses-sns");
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("aws_ses_webhook.subscription_confirmation_invalid", payload.Title);
     }
 
     [Fact]
@@ -982,9 +1411,9 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             $"/campaigns/{campaignId}/invitation-batches",
             tenantId,
             new CreateCampaignInvitationBatchRequest(
-                Enumerable.Range(0, 26)
-                    .Select(index => new InvitationRecipientRequest($"person{index}@example.com"))
-                    .ToArray()));
+            [
+                new InvitationRecipientRequest("not-an-email")
+            ]));
 
         var response = await client.SendAsync(request);
 
@@ -1039,10 +1468,21 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         ISetupWorkflowStore store,
         INotificationDeliveryStore? notificationDeliveryStore = null,
         ICampaignSeriesProofStore? campaignSeriesProofStore = null,
-        IOperationalNotificationStore? operationalNotificationStore = null)
+        IOperationalNotificationStore? operationalNotificationStore = null,
+        IAwsSnsSignatureVerifier? awsSnsSignatureVerifier = null,
+        IAwsSnsSubscriptionConfirmer? awsSnsSubscriptionConfirmer = null,
+        IReadOnlyDictionary<string, string?>? configuration = null)
     {
         return factory.WithWebHostBuilder(builder =>
         {
+            if (configuration is not null)
+            {
+                builder.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(configuration);
+                });
+            }
+
             builder.ConfigureTestServices(services =>
             {
                 services.AddAuthentication(options =>
@@ -1068,6 +1508,16 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 if (operationalNotificationStore is not null)
                 {
                     services.AddSingleton(operationalNotificationStore);
+                }
+
+                if (awsSnsSignatureVerifier is not null)
+                {
+                    services.AddSingleton(awsSnsSignatureVerifier);
+                }
+
+                if (awsSnsSubscriptionConfirmer is not null)
+                {
+                    services.AddSingleton(awsSnsSubscriptionConfirmer);
                 }
             });
         }).CreateClient();
@@ -1095,6 +1545,53 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         }
 
         return request;
+    }
+
+    private static IReadOnlyDictionary<string, string?> AwsSesWebhookConfiguration(string topicArn)
+    {
+        return new Dictionary<string, string?>
+        {
+            ["EmailDelivery:Provider"] = EmailDeliveryProviderNames.Smtp,
+            ["EmailDelivery:ManagedProviderName"] = "aws-ses",
+            ["EmailDelivery:AwsSes:SnsTopicArn"] = topicArn
+        };
+    }
+
+    private static string ComputeProviderWebhookSignature(
+        string webhookSecret,
+        string timestamp,
+        string body)
+    {
+        var signedPayload = $"{timestamp}.{body}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(webhookSecret));
+        var signature = hmac.ComputeHash(Encoding.UTF8.GetBytes(signedPayload));
+        return Convert.ToHexString(signature).ToLowerInvariant();
+    }
+
+    private sealed class FakeAwsSnsSignatureVerifier(bool IsValid) : IAwsSnsSignatureVerifier
+    {
+        public AwsSnsSignatureVerificationRequest? Request { get; private set; }
+
+        public Task<bool> VerifyAsync(
+            AwsSnsSignatureVerificationRequest request,
+            CancellationToken cancellationToken)
+        {
+            Request = request;
+            return Task.FromResult(IsValid);
+        }
+    }
+
+    private sealed class FakeAwsSnsSubscriptionConfirmer(bool IsConfirmed) : IAwsSnsSubscriptionConfirmer
+    {
+        public string? SubscribeUrl { get; private set; }
+
+        public Task<bool> ConfirmAsync(
+            string subscribeUrl,
+            CancellationToken cancellationToken)
+        {
+            SubscribeUrl = subscribeUrl;
+            return Task.FromResult(IsConfirmed);
+        }
     }
 
     private static CreateTemplateVersionRequest SampleTemplateVersionRequest()
@@ -1445,6 +1942,20 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 $"/r/{token}")));
         }
 
+        public Task<Result<CampaignOpenLinkResponse>> ReplaceCampaignOpenLinkAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            var token = $"opn_{tenantId:N}_replacementabcdefghijklmnopqrstuvwxyzABCDEFGHI";
+
+            return Task.FromResult(Result.Success(new CampaignOpenLinkResponse(
+                campaignId,
+                Guid.NewGuid(),
+                token,
+                $"/r/{token}")));
+        }
+
         public Task<Result<CampaignIdentifiedEntryResponse>> CreateCampaignIdentifiedEntryAsync(
             Guid tenantId,
             Guid campaignId,
@@ -1548,7 +2059,10 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
     private sealed class FakeNotificationDeliveryStore(
         Result<ProcessCampaignEmailDeliveriesResponse> response,
-        Result<RequeueFailedCampaignEmailDeliveriesResponse>? requeueResponse = null) : INotificationDeliveryStore
+        Result<RequeueFailedCampaignEmailDeliveriesResponse>? requeueResponse = null,
+        Result<RecordProviderDeliveryEventResponse>? providerEventResponse = null,
+        Result<ListProviderDeliveryEventsResponse>? providerEventsResponse = null,
+        Result<CampaignEmailDeliveryRepairReadinessResponse>? repairReadinessResponse = null) : INotificationDeliveryStore
     {
         public Guid TenantId { get; private set; }
 
@@ -1561,6 +2075,18 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         public Guid RequeueCampaignId { get; private set; }
 
         public RequeueFailedCampaignEmailDeliveriesRequest? RequeueRequest { get; private set; }
+
+        public Guid ProviderEventTenantId { get; private set; }
+
+        public RecordProviderDeliveryEventRequest? ProviderEventRequest { get; private set; }
+
+        public Guid ProviderEventsTenantId { get; private set; }
+
+        public int ProviderEventsLimit { get; private set; }
+
+        public Guid RepairReadinessTenantId { get; private set; }
+
+        public Guid RepairReadinessCampaignId { get; private set; }
 
         public Task<Result<ProcessCampaignEmailDeliveriesResponse>> ProcessCampaignEmailDeliveriesAsync(
             Guid tenantId,
@@ -1585,12 +2111,110 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             RequeueCampaignId = campaignId;
             RequeueRequest = request;
 
-            return Task.FromResult(requeueResponse ?? Result.Success(new RequeueFailedCampaignEmailDeliveriesResponse(
-                campaignId,
-                request.BatchSize,
-                RequeuedCount: 0)));
+              return Task.FromResult(requeueResponse ?? Result.Success(new RequeueFailedCampaignEmailDeliveriesResponse(
+                  campaignId,
+                  request.BatchSize,
+                  RequeuedCount: 0)));
+          }
+
+        public Task<Result<CampaignEmailDeliveryRepairReadinessResponse>> GetCampaignEmailDeliveryRepairReadinessAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            RepairReadinessTenantId = tenantId;
+            RepairReadinessCampaignId = campaignId;
+
+            return Task.FromResult(repairReadinessResponse ?? Result.Success(new CampaignEmailDeliveryRepairReadinessResponse(
+                StalePreparedAttemptCount: 0,
+                AmbiguousFailedNotificationCount: 0,
+                RetryableFailedNotificationCount: 0,
+                SuppressedFailedNotificationCount: 0,
+                ProviderEventCount: 0,
+                LatestProviderEventAt: null,
+                CanRetryFailed: false,
+                HasRepairWork: false,
+                Issues: [])));
         }
-    }
+
+        public Task<Result<ListEmailSuppressionsResponse>> ListEmailSuppressionsAsync(
+            Guid tenantId,
+            int limit,
+            bool includeReleased,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new ListEmailSuppressionsResponse(
+                limit,
+                ActiveCount: 0,
+                ReleasedCount: 0,
+                Suppressions: [])));
+        }
+
+        public Task<Result<EmailSuppressionResponse>> AddEmailSuppressionAsync(
+            Guid tenantId,
+            AddEmailSuppressionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new EmailSuppressionResponse(
+                Guid.NewGuid(),
+                request.Recipient,
+                request.Reason ?? "manual",
+                "manual",
+                request.Note,
+                DateTimeOffset.UtcNow,
+                ReleasedAt: null,
+                ReleaseReason: null,
+                Active: true)));
+        }
+
+        public Task<Result<EmailSuppressionResponse>> ReleaseEmailSuppressionAsync(
+            Guid tenantId,
+            Guid suppressionId,
+            ReleaseEmailSuppressionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new EmailSuppressionResponse(
+                suppressionId,
+                "released@example.test",
+                "manual",
+                "manual",
+                null,
+                DateTimeOffset.UtcNow.AddMinutes(-5),
+                DateTimeOffset.UtcNow,
+                request.Reason,
+                Active: false)));
+        }
+
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventAsync(
+            Guid tenantId,
+            RecordProviderDeliveryEventRequest request,
+            CancellationToken cancellationToken)
+        {
+            ProviderEventTenantId = tenantId;
+            ProviderEventRequest = request;
+
+            return Task.FromResult(providerEventResponse ?? Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        }
+
+        public Task<Result<ListProviderDeliveryEventsResponse>> ListProviderDeliveryEventsAsync(
+            Guid tenantId,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            ProviderEventsTenantId = tenantId;
+            ProviderEventsLimit = limit;
+
+            return Task.FromResult(providerEventsResponse ?? Result.Success(new ListProviderDeliveryEventsResponse(
+                limit,
+                Events: [])));
+        }
+      }
 
     private sealed class FakeOperationalNotificationStore(
         Result<ListOperationalNotificationsResponse> response,

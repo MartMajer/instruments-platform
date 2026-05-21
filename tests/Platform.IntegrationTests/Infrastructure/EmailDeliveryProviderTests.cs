@@ -6,7 +6,7 @@ namespace Platform.IntegrationTests.Infrastructure;
 public sealed class EmailDeliveryProviderTests
 {
     [Fact]
-    public async Task Local_dev_provider_returns_provider_name_and_message_id_without_external_io()
+    public async Task Local_dev_provider_returns_provider_name_without_external_io()
     {
         var provider = new LocalDevEmailDeliveryProvider();
         var notificationId = Guid.NewGuid();
@@ -16,13 +16,14 @@ public sealed class EmailDeliveryProviderTests
         var result = await provider.SendAsync(
             new EmailDeliveryMessage(
                 notificationId,
+                "campaign-email:tenant:notification:attempt",
                 "researcher@example.com",
                 "Invitation",
                 "Open /r/inv_raw-token"),
             CancellationToken.None);
 
         Assert.Equal(EmailDeliveryProviderNames.LocalDev, result.Provider);
-        Assert.StartsWith($"local-dev:{notificationId:N}", result.ProviderMessageId, StringComparison.Ordinal);
+        Assert.Null(result.ProviderMessageId);
         Assert.NotEqual(default, result.SentAt);
     }
 
@@ -37,8 +38,13 @@ public sealed class EmailDeliveryProviderTests
         var exception = Assert.Throws<InvalidOperationException>(
             options.EnsureValidProviderConfiguration);
 
-        Assert.Contains("EmailDelivery:Smtp:Host", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("EmailDelivery:FromAddress", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.managed_provider_missing", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.sender_domain_unverified", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.verified_sender_domain_missing", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.provider_webhook_disabled", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.smtp_host_missing", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.smtp_tls_disabled", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.from_address_missing", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -49,5 +55,19 @@ public sealed class EmailDeliveryProviderTests
             property =>
                 property.Name.Contains("Token", StringComparison.OrdinalIgnoreCase) ||
                 property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Delivery_message_contract_can_carry_unsubscribe_url_without_raw_token_property()
+    {
+        var message = new EmailDeliveryMessage(
+            Guid.NewGuid(),
+            "campaign-email:tenant:notification:attempt",
+            "researcher@example.com",
+            "Invitation",
+            "Open your study link.",
+            "https://app.example.test/r/inv_example/unsubscribe");
+
+        Assert.Equal("https://app.example.test/r/inv_example/unsubscribe", message.UnsubscribeUrl);
     }
 }

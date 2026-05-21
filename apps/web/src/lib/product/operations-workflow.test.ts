@@ -27,7 +27,7 @@ describe('selected-series operations workflow model', () => {
 				id: 'openLink',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Start collection before creating respondent access.'
+				disabledReason: 'Start collection before preparing respondent access.'
 			}),
 			expect.objectContaining({
 				id: 'monitor',
@@ -291,11 +291,11 @@ describe('selected-series operations workflow model', () => {
 			}),
 			expect.objectContaining({
 				id: 'audience',
-				label: 'Audience and access',
+				label: 'Recipients and access',
 				title: 'Recipient access prepared',
 				status: 'ready',
 				detail:
-					'1 respondent link and 21 prepared invitations. Anonymous reports keep respondent identity out of results.'
+					'1 respondent link and 21 prepared invitations. Provider events appear after sent email invitations are reconciled. Anonymous reports keep respondent identity out of results.'
 			}),
 			expect.objectContaining({
 				id: 'reporting',

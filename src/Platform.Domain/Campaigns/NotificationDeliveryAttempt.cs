@@ -2,6 +2,7 @@ namespace Platform.Domain.Campaigns;
 
 public sealed class NotificationDeliveryAttempt
 {
+    public const string PreparedStatus = "prepared";
     private const string WithdrawnRecipient = "withdrawn@example.invalid";
     private const string WithdrawalScrubbedError = "withdrawal_scrubbed";
 
@@ -17,12 +18,13 @@ public sealed class NotificationDeliveryAttempt
         string status,
         string recipient,
         string? providerMessageId = null,
+        string? providerDeliveryKey = null,
         string? error = null,
         DateTimeOffset? createdAt = null)
     {
-        if (status is not (NotificationStatuses.Sent or NotificationStatuses.Failed))
+        if (status is not (PreparedStatus or NotificationStatuses.Sent or NotificationStatuses.Failed))
         {
-            throw new ArgumentException("Delivery attempt status must be sent or failed.", nameof(status));
+            throw new ArgumentException("Delivery attempt status must be prepared, sent, or failed.", nameof(status));
         }
 
         Id = id;
@@ -34,6 +36,7 @@ public sealed class NotificationDeliveryAttempt
         ProviderMessageId = providerMessageId is null
             ? null
             : NotificationDeliveryTextSafety.SanitizeProviderMessageId(providerMessageId);
+        ProviderDeliveryKey = NormalizeOptional(providerDeliveryKey);
         Error = status == NotificationStatuses.Failed
             ? NotificationDeliveryTextSafety.SanitizeFailureError(error)
             : NormalizeOptional(error);
@@ -54,6 +57,8 @@ public sealed class NotificationDeliveryAttempt
 
     public string? ProviderMessageId { get; private set; }
 
+    public string? ProviderDeliveryKey { get; private set; }
+
     public string? Error { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
@@ -64,7 +69,7 @@ public sealed class NotificationDeliveryAttempt
         Guid notificationId,
         string provider,
         string recipient,
-        string providerMessageId,
+        string? providerMessageId,
         DateTimeOffset createdAt)
     {
         return new NotificationDeliveryAttempt(
@@ -75,6 +80,7 @@ public sealed class NotificationDeliveryAttempt
             NotificationStatuses.Sent,
             recipient,
             providerMessageId,
+            providerDeliveryKey: null,
             createdAt: createdAt);
     }
 
@@ -94,8 +100,47 @@ public sealed class NotificationDeliveryAttempt
             provider,
             NotificationStatuses.Failed,
             recipient,
+            providerDeliveryKey: null,
             error: error,
             createdAt: createdAt);
+    }
+
+    public static NotificationDeliveryAttempt CreatePrepared(
+        Guid id,
+        Guid tenantId,
+        Guid notificationId,
+        string provider,
+        string recipient,
+        string providerDeliveryKey,
+        DateTimeOffset createdAt)
+    {
+        return new NotificationDeliveryAttempt(
+            id,
+            tenantId,
+            notificationId,
+            provider,
+            PreparedStatus,
+            recipient,
+            providerDeliveryKey: providerDeliveryKey,
+            createdAt: createdAt);
+    }
+
+    public void MarkSent(string? providerMessageId, DateTimeOffset sentAt)
+    {
+        Status = NotificationStatuses.Sent;
+        ProviderMessageId = providerMessageId is null
+            ? null
+            : NotificationDeliveryTextSafety.SanitizeProviderMessageId(providerMessageId);
+        Error = null;
+        CreatedAt = sentAt;
+    }
+
+    public void MarkFailed(string error, DateTimeOffset failedAt)
+    {
+        Status = NotificationStatuses.Failed;
+        ProviderMessageId = null;
+        Error = NotificationDeliveryTextSafety.SanitizeFailureError(error);
+        CreatedAt = failedAt;
     }
 
     public void ScrubForWithdrawal()

@@ -110,6 +110,14 @@ public sealed class Notification
         UpdatedAt = failedAt;
     }
 
+    public void MarkBounced(string error, DateTimeOffset bouncedAt)
+    {
+        Status = NotificationStatuses.Bounced;
+        SentAt = null;
+        Error = NotificationDeliveryTextSafety.SanitizeFailureError(error);
+        UpdatedAt = bouncedAt;
+    }
+
     public void RequeueForRetry(DateTimeOffset queuedAt)
     {
         if (Status != NotificationStatuses.Failed)

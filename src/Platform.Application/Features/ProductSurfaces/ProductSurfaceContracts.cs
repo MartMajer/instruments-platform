@@ -353,7 +353,13 @@ public sealed record CampaignSeriesOperationsSummaryResponse(
     string CollectionStatus,
     string ReportVisibilityStatus,
     string CollectionGuidance,
-    int MissingPrerequisiteCount);
+    int MissingPrerequisiteCount,
+    int BouncedInvitationCount = 0,
+    int ProviderAcceptedEventCount = 0,
+    int ProviderDeliveredEventCount = 0,
+    int ProviderBouncedEventCount = 0,
+    int ProviderComplainedEventCount = 0,
+    DateTimeOffset? LatestProviderEventAt = null);
 
 public sealed record CampaignSeriesOperationsCampaignResponse(
     Guid Id,
@@ -386,7 +392,13 @@ public sealed record CampaignSeriesOperationsCampaignResponse(
     int NotConfiguredSubmittedResponseCount = 0,
     DateTimeOffset? LatestScoringActivityAt = null,
     string ScoreCoverageStatus = "no_submissions",
-    CampaignSeriesOperationsLaunchSnapshotResponse? LaunchSnapshot = null);
+    CampaignSeriesOperationsLaunchSnapshotResponse? LaunchSnapshot = null,
+    int BouncedInvitationCount = 0,
+    int ProviderAcceptedEventCount = 0,
+    int ProviderDeliveredEventCount = 0,
+    int ProviderBouncedEventCount = 0,
+    int ProviderComplainedEventCount = 0,
+    DateTimeOffset? LatestProviderEventAt = null);
 
 public sealed record CampaignSeriesOperationsLaunchSnapshotResponse(
     Guid Id,
@@ -846,7 +858,8 @@ public sealed record UpdateSubjectRequest(
     string Attributes = "{}");
 
 public sealed record SubjectDirectoryCsvImportRequest(
-    string CsvContent);
+    string CsvContent,
+    bool DryRun = false);
 
 public sealed record SubjectDirectoryCsvImportResponse(
     Guid TenantId,
@@ -857,7 +870,8 @@ public sealed record SubjectDirectoryCsvImportResponse(
     int CreatedGroupCount,
     int AddedMembershipCount,
     int SkippedMembershipCount,
-    IReadOnlyList<SubjectDirectoryCsvImportRowResponse> Rows);
+    IReadOnlyList<SubjectDirectoryCsvImportRowResponse> Rows,
+    bool DryRun = false);
 
 public sealed record SubjectDirectoryCsvImportRowResponse(
     int RowNumber,

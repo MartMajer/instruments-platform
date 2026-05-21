@@ -352,8 +352,8 @@ export type CampaignInvitationResponse = {
 	invitationTokenId: string;
 	notificationId: string;
 	recipient: string;
-	token: string;
-	respondentPath: string;
+	token?: string | null;
+	respondentPath?: string | null;
 	status: string;
 };
 
@@ -367,17 +367,125 @@ export type ProcessCampaignEmailDeliveriesResponse = {
 	processedCount: number;
 	sentCount: number;
 	failedCount: number;
+	bouncedCount?: number;
 	deliveries: NotificationDeliveryProofResponse[];
+};
+
+export type RequeueFailedCampaignEmailDeliveriesRequest = {
+	batchSize?: number;
+	confirmedAnotherEmailAppropriate?: boolean;
+	confirmedNoPriorDelivery?: boolean;
+};
+
+export type RequeueFailedCampaignEmailDeliveriesResponse = {
+	campaignId: string;
+	requestedBatchSize: number;
+	requeuedCount: number;
+};
+
+export type CampaignEmailDeliveryRepairReadinessResponse = {
+	stalePreparedAttemptCount: number;
+	ambiguousFailedNotificationCount: number;
+	retryableFailedNotificationCount: number;
+	suppressedFailedNotificationCount: number;
+	providerEventCount: number;
+	latestProviderEventAt?: string | null;
+	canRetryFailed: boolean;
+	hasRepairWork: boolean;
+	issues: CampaignEmailDeliveryRepairReadinessIssueResponse[];
+};
+
+export type CampaignEmailDeliveryRepairReadinessIssueResponse = {
+	code: string;
+	severity: string;
+	message: string;
+};
+
+export type RecordProviderDeliveryEventRequest = {
+	deliveryAttemptKey: string;
+	eventType: 'accepted' | 'delivered' | 'bounced' | 'complained' | string;
+	occurredAt?: string | null;
+	providerEventId?: string | null;
+	providerMessageId?: string | null;
+	reason?: string | null;
+};
+
+export type RecordProviderDeliveryEventResponse = {
+	notificationId: string;
+	deliveryAttemptId: string;
+	eventType: string;
+	notificationStatus: string;
+	suppressionCreated: boolean;
+	duplicateEvent: boolean;
+};
+
+export type ListProviderDeliveryEventsResponse = {
+	requestedLimit: number;
+	events: ProviderDeliveryEventResponse[];
+};
+
+export type ProviderDeliveryEventResponse = {
+	provider: string;
+	eventType: string;
+	occurredAt: string;
+	receivedAt: string;
+	notificationStatus: string;
+	deliveryAttemptStatus: string;
+	hasProviderEventId: boolean;
+	hasProviderMessageId: boolean;
+};
+
+export type EmailDeliveryReadinessResponse = {
+	provider: string;
+	mode: string;
+	canSendRealEmail: boolean;
+	webhookConfigured: boolean;
+	issues: EmailDeliveryReadinessIssueResponse[];
+};
+
+export type EmailDeliveryReadinessIssueResponse = {
+	code: string;
+	message: string;
+	severity: string;
 };
 
 export type NotificationDeliveryProofResponse = {
 	notificationId: string;
-	recipient: string;
+	recipient?: string | null;
 	status: string;
 	provider: string;
 	providerMessageId?: string | null;
 	respondentPath?: string | null;
 	error?: string | null;
+};
+
+export type ListEmailSuppressionsResponse = {
+	requestedLimit: number;
+	activeCount: number;
+	releasedCount: number;
+	suppressions: EmailSuppressionResponse[];
+};
+
+export type EmailSuppressionResponse = {
+	id: string;
+	recipient: string;
+	reason: string;
+	source: string;
+	note?: string | null;
+	createdAt: string;
+	releasedAt?: string | null;
+	releaseReason?: string | null;
+	active: boolean;
+};
+
+export type AddEmailSuppressionRequest = {
+	recipient: string;
+	reason?: string | null;
+	note?: string | null;
+};
+
+export type ReleaseEmailSuppressionRequest = {
+	reason?: string | null;
 };
 
 export type RespondentCampaignResponse = {
@@ -417,6 +525,14 @@ export type OpenLinkEntryResponse = {
 	defaultLocale: string;
 	consentDocument: ConsentDocumentResponse;
 	questions: RespondentQuestionResponse[];
+};
+
+export type EmailInvitationUnsubscribeResponse = {
+	status: string;
+};
+
+export type UnsubscribeEmailInvitationRequest = {
+	confirmed: boolean;
 };
 
 export type ConsentDocumentResponse = {
@@ -669,6 +785,12 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost({})
 			);
 		},
+		replaceCampaignOpenLink(campaignId: string) {
+			return client.request<CampaignOpenLinkResponse>(
+				`/campaigns/${campaignId}/open-link/replace`,
+				jsonPost({})
+			);
+		},
 		createCampaignIdentifiedEntry(campaignId: string) {
 			return client.request<CampaignIdentifiedEntryResponse>(
 				`/campaigns/${campaignId}/identified-entry`,
@@ -693,11 +815,64 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost(request)
 			);
 		},
+		requeueFailedCampaignEmailDeliveries(
+			campaignId: string,
+			request: RequeueFailedCampaignEmailDeliveriesRequest = {
+				batchSize: 25,
+				confirmedAnotherEmailAppropriate: false
+			}
+		) {
+			return client.request<RequeueFailedCampaignEmailDeliveriesResponse>(
+				`/campaigns/${campaignId}/notification-deliveries/requeue-failed`,
+				jsonPost(request)
+			);
+		},
+		getCampaignEmailDeliveryRepairReadiness(campaignId: string) {
+			return client.request<CampaignEmailDeliveryRepairReadinessResponse>(
+				`/campaigns/${campaignId}/notification-deliveries/repair-readiness`
+			);
+		},
+		listEmailSuppressions(limit = 50, includeReleased = false) {
+			return client.request<ListEmailSuppressionsResponse>(
+				`/email-suppressions?limit=${limit}&includeReleased=${includeReleased}`
+			);
+		},
+		addEmailSuppression(request: AddEmailSuppressionRequest) {
+			return client.request<EmailSuppressionResponse>('/email-suppressions', jsonPost(request));
+		},
+		releaseEmailSuppression(id: string, request: ReleaseEmailSuppressionRequest = {}) {
+			return client.request<EmailSuppressionResponse>(
+				`/email-suppressions/${id}/release`,
+				jsonPost(request)
+			);
+		},
+		recordProviderDeliveryEvent(request: RecordProviderDeliveryEventRequest) {
+			return client.request<RecordProviderDeliveryEventResponse>(
+				'/notification-deliveries/provider-events',
+				jsonPost(request)
+			);
+		},
+		listProviderDeliveryEvents(limit = 25) {
+			return client.request<ListProviderDeliveryEventsResponse>(
+				`/notification-deliveries/provider-events?limit=${limit}`
+			);
+		},
+		getEmailDeliveryReadiness() {
+			return client.request<EmailDeliveryReadinessResponse>(
+				'/notification-deliveries/email-readiness'
+			);
+		},
 		getRespondentCampaign(campaignId: string) {
 			return client.request<RespondentCampaignResponse>(`/respondent/campaigns/${campaignId}`);
 		},
 		getOpenLinkEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/open-links/${token}`);
+		},
+		unsubscribeEmailInvitation(token: string) {
+			return client.request<EmailInvitationUnsubscribeResponse>(
+				`/respondent/open-links/${token}/unsubscribe`,
+				jsonPost({ confirmed: true } satisfies UnsubscribeEmailInvitationRequest)
+			);
 		},
 		getIdentifiedEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/identified-entries/${token}`);

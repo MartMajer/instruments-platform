@@ -86,10 +86,17 @@ services:
       Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:-http://127.0.0.1:5174}
       Cors__AllowedOrigins__1: ${Cors__AllowedOrigins__1:-http://localhost:5174}
       EmailDelivery__Provider: ${EmailDelivery__Provider:-local-dev}
+      EmailDelivery__ManagedProviderName: ${EmailDelivery__ManagedProviderName:-}
+      EmailDelivery__SenderDomainVerified: ${EmailDelivery__SenderDomainVerified:-false}
+      EmailDelivery__VerifiedSenderDomain: ${EmailDelivery__VerifiedSenderDomain:-}
       EmailDelivery__FromAddress: ${EmailDelivery__FromAddress:-}
+      EmailDelivery__PublicAppBaseUrl: ${EMAIL_DELIVERY_PUBLIC_APP_BASE_URL:-https://validatedscale-staging.croat.dev}
+      EmailDelivery__InvitationFooterText: ${EmailDelivery__InvitationFooterText:-}
+      EmailDelivery__ProviderWebhookSecret: ${EmailDelivery__ProviderWebhookSecret:-}
+      EmailDelivery__AwsSes__SnsTopicArn: ${EmailDelivery__AwsSes__SnsTopicArn:-}
       EmailDelivery__Smtp__Host: ${EmailDelivery__Smtp__Host:-}
       EmailDelivery__Smtp__Port: ${EmailDelivery__Smtp__Port:-25}
-      EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-false}
+      EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-true}
       EmailDelivery__Smtp__UserName: ${EmailDelivery__Smtp__UserName:-}
       EmailDelivery__Smtp__Password: ${EmailDelivery__Smtp__Password:-}
       ExportArtifacts__ObjectStore__Provider: ${ExportArtifacts__ObjectStore__Provider:-local}

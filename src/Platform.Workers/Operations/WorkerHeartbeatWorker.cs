@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Platform.Application.Features.Operations;
+using Platform.SharedKernel;
 
 namespace Platform.Workers.Operations;
 
@@ -12,7 +13,7 @@ public sealed class WorkerHeartbeatWorker(
     ILogger<WorkerHeartbeatWorker> logger)
     : BackgroundService
 {
-    private readonly string _instanceId = Guid.NewGuid().ToString("N");
+    private readonly string _instanceId = PlatformIds.NewId().ToString("N");
 
     public async Task<bool> RecordOnceAsync(CancellationToken cancellationToken = default)
     {

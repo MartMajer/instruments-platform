@@ -97,6 +97,12 @@ public static class SetupEndpointRouteBuilderExtensions
             .WithName("CreateCampaignOpenLink")
             .WithTags("Setup");
 
+        app.MapPost("/campaigns/{id:guid}/open-link/replace", ReplaceCampaignOpenLink)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ReplaceCampaignOpenLink")
+            .WithTags("Setup");
+
         app.MapPost("/campaigns/{id:guid}/identified-entry", CreateCampaignIdentifiedEntry)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -270,6 +276,16 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToCreated(
             result,
             value => value.RespondentPath);
+    }
+
+    private static async Task<IResult> ReplaceCampaignOpenLink(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ReplaceCampaignOpenLinkCommand(id), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> CreateCampaignIdentifiedEntry(

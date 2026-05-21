@@ -1,15 +1,24 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import { CircleStop, LoaderCircle, RefreshCw, SearchCheck, Send } from 'lucide-svelte';
+	import { CircleStop, LoaderCircle, Plus, RefreshCw, SearchCheck, Send } from 'lucide-svelte';
 	import type {
 		CampaignCloseStateResponse,
 		CampaignSeriesOperationsWorkspaceResponse
 	} from '$lib/api/product';
 	import type {
+		CampaignEmailDeliveryRepairReadinessResponse,
+		CampaignInvitationBatchResponse,
 		CampaignIdentifiedEntryResponse,
 		CampaignOpenLinkResponse,
+		EmailDeliveryReadinessResponse,
+		EmailSuppressionResponse,
 		LaunchCampaignResponse,
-		LaunchReadinessResponse
+		LaunchReadinessResponse,
+		ListProviderDeliveryEventsResponse,
+		ProviderDeliveryEventResponse,
+		ListEmailSuppressionsResponse,
+		ProcessCampaignEmailDeliveriesResponse,
+		RequeueFailedCampaignEmailDeliveriesResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import {
@@ -18,6 +27,13 @@
 		type SelectedSeriesOperationsPathStep,
 		type SelectedSeriesOperationsWorkflowActionId
 	} from './operations-workflow';
+	import {
+		appendRecipientImportEntry,
+		keepValidRecipientImportRows,
+		maxRecipientImportRecipients,
+		readRecipientImportFile,
+		reviewRecipientImport
+	} from './recipient-import';
 	import { createProductApiFromEnv, createSetupApiFromEnv } from './route-state';
 	import { toProductApiErrorMessage } from './view-models';
 
@@ -55,6 +71,25 @@
 	let launchResult = $state<LaunchCampaignResponse | null>(null);
 	let openLinkResult = $state<CampaignOpenLinkResponse | null>(null);
 	let identifiedEntryResult = $state<CampaignIdentifiedEntryResponse | null>(null);
+	let invitationBatchResult = $state<CampaignInvitationBatchResponse | null>(null);
+	let deliveryResult = $state<ProcessCampaignEmailDeliveriesResponse | null>(null);
+	let requeueFailedResult = $state<RequeueFailedCampaignEmailDeliveriesResponse | null>(null);
+	let recipientImportText = $state('');
+	let recipientImportFileError = $state<string | null>(null);
+	let manualRecipientName = $state('');
+	let manualRecipientEmail = $state('');
+	let manualRecipientError = $state<string | null>(null);
+	let suppressionEmail = $state('');
+	let suppressionNote = $state('');
+	let suppressionListResult = $state<ListEmailSuppressionsResponse | null>(null);
+	let emailReadinessResult = $state<EmailDeliveryReadinessResponse | null>(null);
+	let providerDeliveryEventsResult = $state<ListProviderDeliveryEventsResponse | null>(null);
+	let repairReadinessResult = $state<CampaignEmailDeliveryRepairReadinessResponse | null>(null);
+	let retryFailedDeliveryAcknowledged = $state(false);
+	let localQueuedInvitationOverride = $state<number | null>(null);
+	let localSentInvitationOverride = $state<number | null>(null);
+	let localFailedInvitationOverride = $state<number | null>(null);
+	let localBouncedInvitationOverride = $state<number | null>(null);
 	let closeResult = $state<CampaignCloseStateResponse | null>(null);
 	let refreshWarning = $state<string | null>(null);
 	let activeActionId = $state<SelectedSeriesOperationsWorkflowActionId | null>(null);
@@ -77,10 +112,16 @@
 	const selectedCampaignIsIdentified = $derived(
 		selectedCampaign?.responseIdentityMode === 'identified'
 	);
+	const selectedCampaignSupportsEmailInvites = $derived(
+		selectedCampaign?.responseIdentityMode === 'anonymous' ||
+			selectedCampaign?.responseIdentityMode === 'anonymous_longitudinal'
+	);
 	const localState = $derived({
 		readinessReady: readinessResult?.ready === true,
 		launched: Boolean(launchResult),
-		openLinkCreated: Boolean(openLinkResult || identifiedEntryResult),
+		openLinkCreated: Boolean(
+			openLinkResult || identifiedEntryResult || invitationBatchResult || deliveryResult
+		),
 		closed: Boolean(closeResult)
 	});
 	const operationsPath = $derived(toSelectedSeriesOperationsPath(workspace, localState));
@@ -100,11 +141,81 @@
 	const preparedInvitationCount = $derived(
 		(selectedCampaign?.queuedInvitationCount ?? 0) +
 			(selectedCampaign?.sentInvitationCount ?? 0) +
-			(selectedCampaign?.failedInvitationCount ?? 0)
+			(selectedCampaign?.failedInvitationCount ?? 0) +
+			(selectedCampaign?.bouncedInvitationCount ?? 0)
 	);
+	const queuedInvitationCount = $derived(selectedCampaign?.queuedInvitationCount ?? 0);
+	const sentInvitationCount = $derived(selectedCampaign?.sentInvitationCount ?? 0);
+	const failedInvitationCount = $derived(selectedCampaign?.failedInvitationCount ?? 0);
+	const bouncedInvitationCount = $derived(selectedCampaign?.bouncedInvitationCount ?? 0);
+	const platformDeliveryAttemptCount = $derived(selectedCampaign?.deliveryAttemptCount ?? 0);
+	const providerAcceptedEventCount = $derived(selectedCampaign?.providerAcceptedEventCount ?? 0);
+	const providerDeliveredEventCount = $derived(selectedCampaign?.providerDeliveredEventCount ?? 0);
+	const providerBouncedEventCount = $derived(selectedCampaign?.providerBouncedEventCount ?? 0);
+	const providerComplainedEventCount = $derived(selectedCampaign?.providerComplainedEventCount ?? 0);
+	const providerDeliveryEventCount = $derived(
+		providerAcceptedEventCount +
+			providerDeliveredEventCount +
+			providerBouncedEventCount +
+			providerComplainedEventCount
+	);
+	const newlyQueuedInvitationCount = $derived(invitationBatchResult?.createdInvitationCount ?? 0);
+	const locallyQueuedInvitationCount = $derived(
+		localQueuedInvitationOverride ?? Math.max(queuedInvitationCount, newlyQueuedInvitationCount)
+	);
+	const locallySentInvitationCount = $derived(localSentInvitationOverride ?? sentInvitationCount);
+	const locallyFailedInvitationCount = $derived(localFailedInvitationOverride ?? failedInvitationCount);
+	const locallyBouncedInvitationCount = $derived(
+		localBouncedInvitationOverride ?? bouncedInvitationCount
+	);
+	const locallyPreparedInvitationCount = $derived(
+		Math.max(
+			preparedInvitationCount,
+			locallyQueuedInvitationCount +
+				locallySentInvitationCount +
+				locallyFailedInvitationCount +
+				locallyBouncedInvitationCount
+		)
+	);
+	const openLinkAccessActive = $derived(
+		Boolean(openLinkResult) || (selectedCampaign?.openLinkAssignmentCount ?? 0) > 0
+	);
+	const emailInviteAccessActive = $derived(
+		selectedCampaignSupportsEmailInvites &&
+			locallyPreparedInvitationCount > 0
+	);
+	const recipientImportReview = $derived(reviewRecipientImport(recipientImportText));
+	const canCreateEmailInvitations = $derived(
+		Boolean(selectedCampaign) &&
+			selectedCampaignSupportsEmailInvites &&
+			!openLinkAccessActive &&
+			recipientImportReview.validRecipientCount > 0 &&
+			!recipientImportReview.hasBlockingIssues
+	);
+	const emailReadinessBlockingIssues = $derived(
+		emailReadinessResult?.issues.filter((issue) => issue.severity === 'blocking') ?? []
+	);
+	const canSendEmailNow = $derived(
+		Boolean(selectedCampaign) &&
+			locallyQueuedInvitationCount > 0 &&
+			Boolean(emailReadinessResult) &&
+			emailReadinessBlockingIssues.length === 0
+	);
+	const canRetryFailedEmails = $derived(
+		Boolean(selectedCampaign) &&
+			locallyFailedInvitationCount > 0 &&
+			retryFailedDeliveryAcknowledged &&
+			Boolean(emailReadinessResult) &&
+			emailReadinessBlockingIssues.length === 0
+	);
+	const activeEmailSuppressions = $derived(
+		suppressionListResult?.suppressions.filter((suppression) => suppression.active) ?? []
+	);
+	const providerDeliveryEventRows = $derived(providerDeliveryEventsResult?.events ?? []);
 	const latestResponseActivity = $derived(
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
+	const latestProviderEventAt = $derived(selectedCampaign?.latestProviderEventAt ?? null);
 	const setupHref = $derived(`/app/campaign-series/${workspace.series.id}/setup`);
 	const resultsHref = $derived(`/app/campaign-series/${workspace.series.id}/reports`);
 	const readinessIssueGuidance = $derived(
@@ -146,6 +257,13 @@
 			launchResult = result;
 			openLinkResult = null;
 			identifiedEntryResult = null;
+			invitationBatchResult = null;
+			deliveryResult = null;
+			requeueFailedResult = null;
+			localQueuedInvitationOverride = null;
+			localSentInvitationOverride = null;
+			localFailedInvitationOverride = null;
+			localBouncedInvitationOverride = null;
 			closeResult = null;
 		}
 	}
@@ -155,6 +273,24 @@
 			actionErrors = {
 				...actionErrors,
 				openLink: 'Create a collection wave before creating respondent access.'
+			};
+			return;
+		}
+
+		if (!selectedCampaignIsIdentified && emailInviteAccessActive) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'This wave already uses private email invitations. Open links are disabled so access stays invite-only.'
+			};
+			return;
+		}
+
+		if (!selectedCampaignIsIdentified && openLinkAccessActive) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'This wave already has an open respondent link. Keep using the link you created, or create a new wave if the link was lost.'
 			};
 			return;
 		}
@@ -174,6 +310,344 @@
 				identifiedEntryResult = null;
 			}
 		}
+	}
+
+	async function replaceOpenRespondentLink() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Create a collection wave before replacing the open respondent link.'
+			};
+			return;
+		}
+
+		if (selectedCampaignIsIdentified || !openLinkAccessActive || emailInviteAccessActive) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'Open respondent link replacement is available only for anonymous open-link collection.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.replaceCampaignOpenLink(selectedCampaign.id)
+		);
+
+		if (result) {
+			openLinkResult = result;
+			identifiedEntryResult = null;
+		}
+	}
+
+	async function createEmailInvitations() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Create a collection wave before preparing invitations.'
+			};
+			return;
+		}
+
+		if (!selectedCampaignSupportsEmailInvites) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'Email invitations are available for anonymous or repeat-participation waves.'
+			};
+			return;
+		}
+
+		if (openLinkAccessActive) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'This wave already has an open respondent link. Private email invitations are disabled for open-link collection.'
+			};
+			return;
+		}
+
+		if (!canCreateEmailInvitations) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'Review the recipient list first. Remove invalid or duplicate emails before creating invitations.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.createCampaignInvitationBatch(selectedCampaign.id, {
+				recipients: recipientImportReview.recipients
+			})
+		);
+
+		if (result) {
+			invitationBatchResult = result;
+			deliveryResult = null;
+			localQueuedInvitationOverride =
+				(localQueuedInvitationOverride ?? queuedInvitationCount) + result.createdInvitationCount;
+			recipientImportText = '';
+			manualRecipientName = '';
+			manualRecipientEmail = '';
+		}
+	}
+
+	async function loadRecipientImportFile(file: File | null | undefined) {
+		recipientImportFileError = null;
+		if (!file) {
+			return;
+		}
+
+		try {
+			recipientImportText = await readRecipientImportFile(file);
+		} catch (error) {
+			recipientImportFileError =
+				error instanceof Error ? error.message : 'Recipient file could not be read.';
+		}
+	}
+
+	function addManualRecipient() {
+		manualRecipientError = null;
+		const candidateReview = reviewRecipientImport(
+			appendRecipientImportEntry('', {
+				displayName: manualRecipientName,
+				email: manualRecipientEmail
+			})
+		);
+		const recipient = candidateReview.recipients[0];
+
+		if (!recipient || candidateReview.hasBlockingIssues) {
+			manualRecipientError = 'Enter one valid email address.';
+			return;
+		}
+
+		if (recipientImportReview.recipients.some((item) => item.email === recipient.email)) {
+			manualRecipientError = 'This recipient is already in the wave list.';
+			return;
+		}
+
+		recipientImportText = appendRecipientImportEntry(recipientImportText, {
+			displayName: manualRecipientName,
+			email: recipient.email
+		});
+		manualRecipientName = '';
+		manualRecipientEmail = '';
+	}
+
+	function keepOnlyValidRecipients() {
+		recipientImportText = keepValidRecipientImportRows(recipientImportText);
+		recipientImportFileError = null;
+		manualRecipientError = null;
+	}
+
+	function clearRecipientImport() {
+		recipientImportText = '';
+		recipientImportFileError = null;
+		manualRecipientError = null;
+	}
+
+	async function sendQueuedEmails() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Create a collection wave before sending invitations.'
+			};
+			return;
+		}
+		if (!emailReadinessResult) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Check email sending setup before sending invitation emails.'
+			};
+			return;
+		}
+		if (emailReadinessBlockingIssues.length > 0) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					emailReadinessBlockingIssues[0]?.message ??
+					'Resolve email sending setup blockers before sending.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.processCampaignEmailDeliveries(selectedCampaign.id, { batchSize: 25 })
+		);
+
+		if (result) {
+			deliveryResult = result;
+			localQueuedInvitationOverride = Math.max(
+				0,
+				(localQueuedInvitationOverride ?? queuedInvitationCount) - result.processedCount
+			);
+			localSentInvitationOverride =
+				(localSentInvitationOverride ?? sentInvitationCount) + result.sentCount;
+			localFailedInvitationOverride =
+				(localFailedInvitationOverride ?? failedInvitationCount) + result.failedCount;
+			localBouncedInvitationOverride =
+				(localBouncedInvitationOverride ?? bouncedInvitationCount) + (result.bouncedCount ?? 0);
+		}
+	}
+
+	async function retryFailedEmails() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Create a collection wave before retrying failed emails.'
+			};
+			return;
+		}
+
+		if (!retryFailedDeliveryAcknowledged) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					'Confirm another invitation email is appropriate before requeueing.'
+			};
+			return;
+		}
+		if (!emailReadinessResult) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Check email sending setup before retrying failed invitation emails.'
+			};
+			return;
+		}
+		if (emailReadinessBlockingIssues.length > 0) {
+			actionErrors = {
+				...actionErrors,
+				openLink:
+					emailReadinessBlockingIssues[0]?.message ??
+					'Resolve email sending setup blockers before retrying failed invitations.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.requeueFailedCampaignEmailDeliveries(selectedCampaign.id, {
+				batchSize: 25,
+				confirmedAnotherEmailAppropriate: retryFailedDeliveryAcknowledged
+			})
+		);
+
+		if (result) {
+			requeueFailedResult = result;
+			deliveryResult = null;
+			localQueuedInvitationOverride =
+				(localQueuedInvitationOverride ?? queuedInvitationCount) + result.requeuedCount;
+			localFailedInvitationOverride = Math.max(
+				0,
+				(localFailedInvitationOverride ?? failedInvitationCount) - result.requeuedCount
+			);
+			retryFailedDeliveryAcknowledged = false;
+		}
+	}
+
+	async function loadEmailSuppressions() {
+		const result = await runAction('openLink', () => setupApi.listEmailSuppressions(50, false));
+		if (result) {
+			suppressionListResult = result;
+		}
+	}
+
+	async function loadEmailDeliveryReadiness() {
+		const result = await runAction('openLink', () => setupApi.getEmailDeliveryReadiness());
+		if (result) {
+			emailReadinessResult = result;
+		}
+	}
+
+	async function loadProviderDeliveryEvents() {
+		const result = await runAction('monitor', () => setupApi.listProviderDeliveryEvents(25));
+		if (result) {
+			providerDeliveryEventsResult = result;
+		}
+	}
+
+	async function loadRepairReadiness() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				monitor: 'Create a collection wave before checking email repair readiness.'
+			};
+			return;
+		}
+
+		const result = await runAction('monitor', () =>
+			setupApi.getCampaignEmailDeliveryRepairReadiness(selectedCampaign.id)
+		);
+		if (result) {
+			repairReadinessResult = result;
+		}
+	}
+
+	function providerEventStateSummary(event: ProviderDeliveryEventResponse) {
+		const evidence = [];
+		if (event.hasProviderEventId) {
+			evidence.push('provider event evidence');
+		}
+		if (event.hasProviderMessageId) {
+			evidence.push('provider message evidence');
+		}
+
+		return `${humanize(event.notificationStatus)} notification, ${humanize(event.deliveryAttemptStatus)} delivery attempt; ${
+			evidence.length > 0 ? evidence.join(' and ') : 'no provider ids exposed'
+		}`;
+	}
+
+	async function addEmailSuppression() {
+		const email = suppressionEmail.trim();
+		if (!email) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Enter an email address before adding it to do-not-contact.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.addEmailSuppression({
+				recipient: email,
+				reason: 'operator_do_not_contact',
+				note: suppressionNote.trim() || null
+			})
+		);
+
+		if (result) {
+			suppressionEmail = '';
+			suppressionNote = '';
+			upsertEmailSuppression(result);
+		}
+	}
+
+	async function releaseEmailSuppression(suppression: EmailSuppressionResponse) {
+		const result = await runAction('openLink', () =>
+			setupApi.releaseEmailSuppression(suppression.id, {
+				reason: 'operator_released'
+			})
+		);
+
+		if (result) {
+			upsertEmailSuppression(result);
+		}
+	}
+
+	function upsertEmailSuppression(suppression: EmailSuppressionResponse) {
+		const current = suppressionListResult?.suppressions ?? [];
+		const suppressions = [
+			suppression,
+			...current.filter((candidate) => candidate.id !== suppression.id)
+		];
+		const activeCount = suppressions.filter((candidate) => candidate.active).length;
+		const releasedCount = suppressions.filter((candidate) => !candidate.active).length;
+		suppressionListResult = {
+			requestedLimit: suppressionListResult?.requestedLimit ?? 50,
+			activeCount,
+			releasedCount,
+			suppressions
+		};
 	}
 
 	async function refreshCollectionStatus() {
@@ -313,6 +787,88 @@
 		return value ? value.replaceAll('_', ' ') : 'Not available';
 	}
 
+	function emailSubject() {
+		return 'Study invitation';
+	}
+
+	function emailBody() {
+		return `You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]`;
+	}
+
+	function deliveryBatchSummary(result: ProcessCampaignEmailDeliveriesResponse) {
+		const bouncedCount = result.bouncedCount ?? 0;
+		return `${formatCount(result.sentCount)} sent, ${formatCount(result.failedCount)} failed, ${formatCount(bouncedCount)} suppressed`;
+	}
+
+	function emailReadinessBadgeStatus() {
+		if (!emailReadinessResult) {
+			return 'neutral';
+		}
+
+		if (emailReadinessResult.canSendRealEmail) {
+			return 'ready';
+		}
+
+		return emailReadinessResult.issues.some((issue) => issue.severity === 'blocking')
+			? 'blocked'
+			: 'pending';
+	}
+
+	function emailReadinessBadgeLabel() {
+		if (!emailReadinessResult) {
+			return 'Not checked';
+		}
+
+		if (emailReadinessResult.canSendRealEmail) {
+			return emailReadinessResult.webhookConfigured ? 'SMTP ready' : 'SMTP send ready';
+		}
+
+		return emailReadinessResult.mode === 'local_dev' ? 'Local proof mode' : 'Needs config';
+	}
+
+	function emailSendDisabledReason() {
+		if (!selectedCampaign) {
+			return 'Create a collection wave before sending invitations.';
+		}
+		if (locallyQueuedInvitationCount <= 0) {
+			return 'No queued invitation emails are waiting to send.';
+		}
+		if (!emailReadinessResult) {
+			return 'Check email sending setup before sending invitation emails.';
+		}
+		if (emailReadinessBlockingIssues.length > 0) {
+			return (
+				emailReadinessBlockingIssues[0]?.message ??
+				'Resolve email sending setup blockers before sending.'
+			);
+		}
+
+		return '';
+	}
+
+	function emailRetryDisabledReason() {
+		if (!selectedCampaign) {
+			return 'Create a collection wave before retrying failed emails.';
+		}
+		if (locallyFailedInvitationCount <= 0) {
+			return 'No retryable failed invitation emails are waiting.';
+		}
+		if (!retryFailedDeliveryAcknowledged) {
+			return 'Confirm another invitation email is appropriate before requeueing.';
+		}
+		if (!emailReadinessResult) {
+			return 'Check email sending setup before retrying failed invitation emails.';
+		}
+		if (emailReadinessBlockingIssues.length > 0) {
+			return (
+				emailReadinessBlockingIssues[0]?.message ??
+				'Resolve email sending setup blockers before retrying failed invitations.'
+			);
+		}
+
+		return '';
+	}
+
 	function toReadinessIssueGuidance(issue: ReadinessIssue): ReadinessIssueGuidance {
 		const code = issue.code.toLowerCase();
 		const normalized = `${issue.code} ${issue.message}`.toLowerCase();
@@ -380,7 +936,7 @@
 			return {
 				title: 'Switch response mode',
 				detail:
-					'Saved audience invitations are not available for repeat-participation waves yet. Open Setup and use Anonymous or Identified collection, or remove the saved audience rule.',
+					'Saved specific-email lists are available for anonymous or repeat-participation waves. Open Setup and change the response mode, or remove the saved recipient list.',
 				severity: issue.severity
 			};
 		}
@@ -398,7 +954,7 @@
 			return {
 				title: 'Select at least one recipient',
 				detail:
-					'Open Setup and adjust the saved audience until it resolves at least one active person.',
+					'Open Setup and save at least one recipient selection that resolves to active people.',
 				severity: issue.severity
 			};
 		}
@@ -623,41 +1179,608 @@
 					})}
 				{:else if activeAction.id === 'openLink'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Prepare respondent access for this collection wave. Anonymous invite-only waves can use
-						prepared invitations without exposing respondent identity in reports.
+						Choose how respondents enter this wave. Directory and group selections saved in Setup
+						become private invitations at launch. Use the one-off importer here only to add ad hoc
+						recipients after launch, or create an open respondent link when anyone with the link may
+						answer.
 					</p>
-					{#if preparedInvitationCount > 0}
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Email sending setup</p>
+								<h5 class="record-row__title">Check delivery configuration before sending</h5>
+							</div>
+							<StatusBadge
+								status={emailReadinessBadgeStatus()}
+								label={emailReadinessBadgeLabel()}
+							/>
+						</div>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							This check shows whether the current environment can send real SMTP invitations, or
+							whether it is still in local proof mode or missing required email settings. It never
+							exposes provider secrets or SMTP credentials.
+						</p>
+						{#if emailReadinessResult}
+							<dl class="record-grid">
+								<div class="record-field">
+									<dt class="record-field__label">Mode</dt>
+									<dd class="record-field__value">{humanize(emailReadinessResult.mode)}</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Real email send</dt>
+									<dd class="record-field__value">
+										{emailReadinessResult.canSendRealEmail ? 'Available' : 'Not available'}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Provider events</dt>
+									<dd class="record-field__value">
+										{emailReadinessResult.webhookConfigured ? 'Webhook configured' : 'Webhook disabled'}
+									</dd>
+								</div>
+							</dl>
+							{#if emailReadinessResult.issues.length > 0}
+								<div class="grid gap-2">
+									{#each emailReadinessResult.issues as issue (issue.code)}
+										<div class="record-field">
+											<p class="record-field__label">{humanize(issue.severity)}</p>
+											<p class="text-sm text-[var(--color-text-muted)]">{issue.message}</p>
+										</div>
+									{/each}
+								</div>
+							{/if}
+						{/if}
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={actionStates.openLink === 'submitting'}
+								onclick={loadEmailDeliveryReadiness}
+							>
+								<SearchCheck size={16} aria-hidden="true" />
+								<span>Check email setup</span>
+							</button>
+						</div>
+					</div>
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Tenant do-not-contact</p>
+								<h5 class="record-row__title">Suppress emails before inviting</h5>
+							</div>
+							<StatusBadge
+								status={(suppressionListResult?.activeCount ?? 0) > 0 ? 'pending' : 'neutral'}
+								label={
+									suppressionListResult
+										? `${formatCount(suppressionListResult.activeCount)} active`
+										: 'Not loaded'
+								}
+							/>
+						</div>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							Add addresses that must not receive campaign invitations from this tenant. Suppression is
+							checked when invitations are created, when saved audiences launch, and again before email
+							delivery. Releasing an address only allows future explicit invitations; it does not resend
+							or restore old suppressed emails.
+						</p>
+						<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+							<label class="field">
+								<span>Email to suppress</span>
+								<input
+									type="email"
+									value={suppressionEmail}
+									placeholder="do.not.contact@example.com"
+									oninput={(event) => (suppressionEmail = event.currentTarget.value)}
+								/>
+							</label>
+							<label class="field">
+								<span>Internal note</span>
+								<input
+									value={suppressionNote}
+									placeholder="Requested by tenant admin"
+									oninput={(event) => (suppressionNote = event.currentTarget.value)}
+								/>
+							</label>
+							<button
+								type="button"
+								class="secondary-button self-end"
+								disabled={actionStates.openLink === 'submitting'}
+								onclick={addEmailSuppression}
+							>
+								<CircleStop size={16} aria-hidden="true" />
+								<span>Add to do-not-contact</span>
+							</button>
+						</div>
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={actionStates.openLink === 'submitting'}
+								onclick={loadEmailSuppressions}
+							>
+								<RefreshCw size={16} aria-hidden="true" />
+								<span>Refresh do-not-contact list</span>
+							</button>
+						</div>
+						{#if suppressionListResult}
+							{#if activeEmailSuppressions.length > 0}
+								<div class="grid gap-2">
+									{#each activeEmailSuppressions.slice(0, 6) as suppression (suppression.id)}
+										<div class="record-field">
+											<p class="record-field__label">{suppression.reason.replaceAll('_', ' ')}</p>
+											<div class="flex flex-wrap items-center justify-between gap-3">
+												<p class="record-field__value">{suppression.recipient}</p>
+												<button
+													type="button"
+													class="secondary-button"
+													disabled={actionStates.openLink === 'submitting'}
+													title="Allow future explicit invitations. Existing suppressed emails stay closed."
+													onclick={() => releaseEmailSuppression(suppression)}
+												>
+													Allow future invites
+												</button>
+											</div>
+											{#if suppression.note}
+												<p class="text-sm text-[var(--color-text-muted)]">{suppression.note}</p>
+											{/if}
+										</div>
+									{/each}
+									{#if activeEmailSuppressions.length > 6}
+										<p class="text-sm text-[var(--color-text-muted)]">
+											Showing first 6 of {formatCount(activeEmailSuppressions.length)} active
+											do-not-contact records.
+										</p>
+									{/if}
+								</div>
+							{:else}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									No active do-not-contact records were returned for this tenant.
+								</p>
+							{/if}
+						{:else}
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Refresh the list before a live send when you need to review tenant-level suppression
+								records.
+							</p>
+						{/if}
+					</div>
+					{#if locallyPreparedInvitationCount > 0}
 						<div class="record-row">
 							<div class="record-row__header">
-								<h5 class="record-row__title">Audience invitations prepared</h5>
+								<h5 class="record-row__title">Email invitation status</h5>
 								<span class="step-pill" data-state="succeeded">Ready</span>
 							</div>
 							<dl class="record-grid">
 								<div class="record-field">
 									<dt class="record-field__label">Queued</dt>
 									<dd class="record-field__value">
-										{formatCount(selectedCampaign?.queuedInvitationCount)}
+										{formatCount(locallyQueuedInvitationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
 									<dt class="record-field__label">Sent</dt>
 									<dd class="record-field__value">
-										{formatCount(selectedCampaign?.sentInvitationCount)}
+										{formatCount(locallySentInvitationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Needs attention</dt>
+									<dt class="record-field__label">Retryable failures</dt>
 									<dd class="record-field__value">
-										{formatCount(selectedCampaign?.failedInvitationCount)}
+										{formatCount(locallyFailedInvitationCount)}
 									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Suppressed</dt>
+									<dd class="record-field__value">
+										{formatCount(locallyBouncedInvitationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Send attempts</dt>
+									<dd class="record-field__value">
+										{formatCount(platformDeliveryAttemptCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Provider accepted</dt>
+									<dd class="record-field__value">
+										{formatCount(providerAcceptedEventCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Provider delivered</dt>
+									<dd class="record-field__value">
+										{formatCount(providerDeliveredEventCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Provider bounced</dt>
+									<dd class="record-field__value">
+										{formatCount(providerBouncedEventCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Complaints</dt>
+									<dd class="record-field__value">
+										{formatCount(providerComplainedEventCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Latest provider event</dt>
+									<dd class="record-field__value">{formatDateTime(latestProviderEventAt)}</dd>
 								</div>
 							</dl>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								The app can track delivery state, but anonymous responses stay disconnected from
-								named respondent identity in product reports and exports.
+								Sent means the platform handed the email to the configured provider. Provider counts
+								show later accepted, delivered, bounced, or complaint events when they have been
+								reconciled{providerDeliveryEventCount > 0 ? '.' : '; no provider events are recorded yet.'}
+								Anonymous answers stay disconnected from named recipients in reports and exports.
 							</p>
 						</div>
 					{/if}
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Invited email access</p>
+								<h5 class="record-row__title">Add one-off recipients after launch</h5>
+							</div>
+							<StatusBadge
+								status={selectedCampaignSupportsEmailInvites && !openLinkAccessActive ? 'neutral' : 'blocked'}
+								label={
+									selectedCampaignSupportsEmailInvites && !openLinkAccessActive
+										? 'Anonymous invite-only'
+										: openLinkAccessActive
+											? 'Open link active'
+											: 'Unavailable'
+								}
+							/>
+						</div>
+						{#if selectedCampaignSupportsEmailInvites}
+							{#if openLinkAccessActive}
+								<p class="error-line" role="alert">
+									This wave already has an open respondent link. Keep using open-link collection or
+									create a new wave for private email invitations.
+								</p>
+							{/if}
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">Post-launch additions</p>
+										<h6 class="record-row__title">Add one-time recipients to this wave</h6>
+									</div>
+									<span
+										class="step-pill"
+										data-state={recipientImportReview.hasBlockingIssues ? 'failed' : 'idle'}
+									>
+										{formatCount(recipientImportReview.validRecipientCount)} ready
+									</span>
+								</div>
+								<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+									<label class="field">
+										<span>Name for review</span>
+										<input
+											value={manualRecipientName}
+											placeholder="Bo Horvat"
+											oninput={(event) => (manualRecipientName = event.currentTarget.value)}
+										/>
+									</label>
+									<label class="field">
+										<span>Email</span>
+										<input
+											type="email"
+											value={manualRecipientEmail}
+											placeholder="bo@example.com"
+											oninput={(event) => (manualRecipientEmail = event.currentTarget.value)}
+										/>
+									</label>
+									<button type="button" class="secondary-button self-end" onclick={addManualRecipient}>
+										<Plus size={16} aria-hidden="true" />
+										<span>Add to review list</span>
+									</button>
+								</div>
+								{#if manualRecipientError}
+									<p class="error-line" role="alert">{manualRecipientError}</p>
+								{/if}
+								<label class="field">
+									<span>Import recipients</span>
+									<input
+										type="file"
+										accept=".csv,.txt,text/csv,text/plain"
+										onchange={(event) => loadRecipientImportFile(event.currentTarget.files?.[0])}
+									/>
+									<span class="text-sm text-[var(--color-text-muted)]">
+										Use this for late additions or a one-time list after launch. For the normal study
+										audience, use Directory groups or the saved recipient selection in Setup before
+										launch. Review happens in this browser before private invitation links are created.
+										Limit: {formatCount(maxRecipientImportRecipients)} recipients per wave update.
+									</span>
+								</label>
+								<details>
+									<summary class="record-row__title">Review or paste source list</summary>
+									<label class="field mt-3">
+										<span>Recipient source</span>
+										<textarea
+											rows="5"
+											value={recipientImportText}
+											placeholder={'ada@example.com\nBo Horvat <bo@example.com>\ncarla@example.com; diego@example.com'}
+											oninput={(event) => (recipientImportText = event.currentTarget.value)}
+										></textarea>
+										<span class="text-sm text-[var(--color-text-muted)]">
+											Use this for copied spreadsheet columns or cleanup after import. One row can be an
+											email address or Name &lt;email@example.com&gt;. This does not create Directory
+											people or groups.
+										</span>
+									</label>
+								</details>
+							</div>
+							{#if recipientImportFileError}
+								<p class="error-line" role="alert">{recipientImportFileError}</p>
+							{/if}
+							{#if recipientImportReview.rows.length > 0}
+								<div class="record-row">
+									<div class="record-row__header">
+										<h6 class="record-row__title">Import review</h6>
+										<span
+											class="step-pill"
+											data-state={recipientImportReview.hasBlockingIssues ? 'failed' : 'succeeded'}
+										>
+											{formatCount(recipientImportReview.validRecipientCount)} ready
+										</span>
+									</div>
+									<dl class="record-grid">
+										<div class="record-field">
+											<dt class="record-field__label">Ready</dt>
+											<dd class="record-field__value">
+												{formatCount(recipientImportReview.validRecipientCount)}
+											</dd>
+										</div>
+										<div class="record-field">
+											<dt class="record-field__label">Invalid</dt>
+											<dd class="record-field__value">
+												{formatCount(recipientImportReview.invalidCount)}
+											</dd>
+										</div>
+										<div class="record-field">
+											<dt class="record-field__label">Duplicates</dt>
+											<dd class="record-field__value">
+												{formatCount(recipientImportReview.duplicateCount)}
+											</dd>
+										</div>
+									</dl>
+									<div class="grid gap-2">
+										{#each recipientImportReview.rows.slice(0, 8) as row (row.id)}
+											<div class="record-field">
+												<p class="record-field__label">
+													{row.displayName ?? row.sourceText}
+												</p>
+												<p class="record-field__value">{row.email || 'No email found'}</p>
+												<p class="text-sm text-[var(--color-text-muted)]">{row.reason}</p>
+											</div>
+										{/each}
+										{#if recipientImportReview.rows.length > 8}
+											<p class="text-sm text-[var(--color-text-muted)]">
+												Showing first 8 of {formatCount(recipientImportReview.rows.length)} parsed rows.
+											</p>
+										{/if}
+									</div>
+									<div class="action-row">
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={!recipientImportReview.hasBlockingIssues}
+											onclick={keepOnlyValidRecipients}
+										>
+											<RefreshCw size={16} aria-hidden="true" />
+											<span>Keep valid only</span>
+										</button>
+										<button type="button" class="secondary-button" onclick={clearRecipientImport}>
+											<CircleStop size={16} aria-hidden="true" />
+											<span>Clear list</span>
+										</button>
+									</div>
+								</div>
+							{/if}
+							<details class="record-row">
+								<summary class="record-row__title">Invitation email preview</summary>
+								<div class="mt-3 record-field">
+									<p class="record-field__label">Subject</p>
+									<p class="record-field__value">{emailSubject()}</p>
+									<p class="mt-2 whitespace-pre-wrap text-sm text-[var(--color-text-muted)]">
+										{emailBody()}
+									</p>
+								</div>
+								<p class="mt-3 text-sm text-[var(--color-text-muted)]">
+									Each recipient gets their own link. Delivery status stays operational; reports and
+									exports do not expose recipient identity for anonymous or repeat-participation
+									waves. Unsubscribe requests add the recipient to this workspace's do-not-contact
+									list. Sender identity, footer text, and reminder cadence are governed by email
+									delivery settings and future reminder workflow.
+								</p>
+							</details>
+							{#if locallyFailedInvitationCount > 0}
+								<div class="field">
+									<span>Retry safety check</span>
+									<label class="inline-flex items-start gap-2 text-sm text-[var(--color-text-muted)]">
+										<input
+											type="checkbox"
+											checked={retryFailedDeliveryAcknowledged}
+											onchange={(event) =>
+												(retryFailedDeliveryAcknowledged = event.currentTarget.checked)}
+										/>
+										<span>
+											I checked the failed recipients and confirm another email is appropriate.
+											Requeueing sends another valid invite link; earlier sent links stay valid.
+										</span>
+									</label>
+								</div>
+							{/if}
+							<div class="action-row">
+								<button
+									type="button"
+									class="primary-button"
+									disabled={!canCreateEmailInvitations || actionStates.openLink === 'submitting'}
+									onclick={createEmailInvitations}
+								>
+									<Send size={17} aria-hidden="true" />
+									<span>Create ad hoc invitations</span>
+								</button>
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={actionStates.openLink === 'submitting'}
+									onclick={loadEmailDeliveryReadiness}
+								>
+									<SearchCheck size={17} aria-hidden="true" />
+									<span>Check email setup</span>
+								</button>
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={!canSendEmailNow || actionStates.openLink === 'submitting'}
+									title={emailSendDisabledReason()}
+									onclick={sendQueuedEmails}
+								>
+									<Send size={17} aria-hidden="true" />
+									<span>Send next email batch</span>
+								</button>
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={!canRetryFailedEmails || actionStates.openLink === 'submitting'}
+									title={emailRetryDisabledReason()}
+									onclick={retryFailedEmails}
+								>
+									<RefreshCw size={17} aria-hidden="true" />
+									<span>Retry failed emails</span>
+								</button>
+								<p class="step-pill" data-state={actionStates.openLink}>
+									{stepLabel(actionStates.openLink)}
+								</p>
+							</div>
+							{#if !emailReadinessResult && (locallyQueuedInvitationCount > 0 || locallyFailedInvitationCount > 0)}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									Check email sending setup before sending or retrying invitation emails.
+								</p>
+							{:else if emailReadinessBlockingIssues.length > 0}
+								<p class="error-line" role="alert">
+									{emailReadinessBlockingIssues[0]?.message}
+								</p>
+							{/if}
+							{#if invitationBatchResult}
+								<p class="result-line">
+									<span>Invitations created</span>
+									<code>{formatCount(invitationBatchResult.createdInvitationCount)}</code>
+								</p>
+							{/if}
+							{#if deliveryResult}
+								<p class="result-line">
+									<span>Email delivery batch</span>
+									<code>{deliveryBatchSummary(deliveryResult)}</code>
+								</p>
+							{/if}
+							{#if requeueFailedResult}
+								<p class="result-line">
+									<span>Failed emails requeued</span>
+									<code>{formatCount(requeueFailedResult.requeuedCount)}</code>
+								</p>
+							{/if}
+						{:else}
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Email invitations currently require an anonymous or repeat-participation collection
+								wave. Use Setup to change the response mode, or use the access option below for this
+								wave.
+							</p>
+						{/if}
+					</div>
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">
+									{selectedCampaignIsIdentified
+										? 'Identified entry'
+										: emailInviteAccessActive
+											? 'Invite-only access'
+											: openLinkAccessActive
+												? 'Open respondent link'
+											: 'Open respondent link'}
+								</p>
+								<h5 class="record-row__title">
+									{selectedCampaignIsIdentified
+										? 'Create an identified respondent entry'
+										: emailInviteAccessActive
+											? 'Private invitations are active'
+											: openLinkAccessActive
+												? 'Open link already created'
+											: 'Create a shareable link'}
+								</h5>
+							</div>
+							<StatusBadge
+								status={emailInviteAccessActive ? 'blocked' : openLinkAccessActive ? 'ready' : 'neutral'}
+								label={
+									emailInviteAccessActive
+										? 'Open link disabled'
+										: openLinkAccessActive
+											? 'Open link active'
+											: undefined
+								}
+							/>
+						</div>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{selectedCampaignIsIdentified
+								? 'Use this only when respondents should be connected to known subject records.'
+								: emailInviteAccessActive
+									? 'This wave already has private email invitations. Open links are disabled so participation stays limited to invited recipients.'
+									: openLinkAccessActive
+										? 'This wave already has one active open link. If the link was lost, replace it here. The old link will stop accepting new respondents; existing response sessions can still finish through their private session handles.'
+								: 'Use this when broad anonymous participation is acceptable and you do not need an invite-only recipient list.'}
+						</p>
+						{#if emailInviteAccessActive && !selectedCampaignIsIdentified}
+							<div class="action-row">
+								<button type="button" class="secondary-button" disabled>
+									<Send size={17} aria-hidden="true" />
+									<span>Open link disabled</span>
+								</button>
+								<p class="step-pill" data-state="idle">
+									Invite-only
+								</p>
+							</div>
+							{#if actionErrors.openLink}
+								<p class="error-line">{actionErrors.openLink}</p>
+							{/if}
+						{:else if openLinkAccessActive && !selectedCampaignIsIdentified}
+							<div class="action-row">
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={actionStates.openLink === 'submitting'}
+									onclick={replaceOpenRespondentLink}
+								>
+									{#if actionStates.openLink === 'submitting'}
+										<LoaderCircle size={17} aria-hidden="true" />
+									{:else}
+										<RefreshCw size={17} aria-hidden="true" />
+									{/if}
+									<span>Replace lost link</span>
+								</button>
+								<p class="step-pill" data-state={actionStates.openLink}>
+									{actionStates.openLink === 'succeeded' ? 'Replaced' : 'One active link'}
+								</p>
+							</div>
+							{#if actionErrors.openLink}
+								<p class="error-line">{actionErrors.openLink}</p>
+							{/if}
+						{:else}
+							{@render ActionFooter({
+								id: 'openLink',
+								label: selectedCampaignIsIdentified
+									? 'Create identified access link'
+									: 'Create respondent link',
+								resultLabel: 'Share link',
+								resultValue: respondentEntry?.respondentPath ?? null,
+								onclick: createRespondentAccess
+							})}
+						{/if}
+					</div>
 					{#if respondentEntry}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -670,17 +1793,6 @@
 							</p>
 						</div>
 					{/if}
-					{@render ActionFooter({
-						id: 'openLink',
-						label: selectedCampaignIsIdentified
-							? 'Create identified entry'
-							: preparedInvitationCount > 0
-								? 'Create additional link'
-								: 'Create respondent link',
-						resultLabel: 'Share link',
-						resultValue: respondentEntry?.respondentPath ?? null,
-						onclick: createRespondentAccess
-					})}
 				{:else if activeAction.id === 'monitor'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 						Watch response movement while collection is open. These numbers refresh from the
@@ -710,6 +1822,184 @@
 							<dd class="record-field__value">{humanize(workspace.summary.reportVisibilityStatus)}</dd>
 						</div>
 					</dl>
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Provider delivery evidence</p>
+								<h5 class="record-row__title">Recent email provider events</h5>
+							</div>
+							<StatusBadge
+								status={providerDeliveryEventCount > 0 ? 'ready' : 'pending'}
+								label={
+									providerDeliveryEventCount > 0
+										? `${formatCount(providerDeliveryEventCount)} reconciled`
+										: 'No events yet'
+								}
+							/>
+						</div>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							Use this to confirm whether SES or another provider has reported accepted, delivered,
+							bounced, or complained events. The list intentionally hides recipients, internal ids,
+							provider ids, and provider reason text.
+						</p>
+						<dl class="record-grid">
+							<div class="record-field">
+								<dt class="record-field__label">Accepted</dt>
+								<dd class="record-field__value">{formatCount(providerAcceptedEventCount)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Delivered</dt>
+								<dd class="record-field__value">{formatCount(providerDeliveredEventCount)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Bounced</dt>
+								<dd class="record-field__value">{formatCount(providerBouncedEventCount)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Complained</dt>
+								<dd class="record-field__value">{formatCount(providerComplainedEventCount)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Latest provider event</dt>
+								<dd class="record-field__value">{formatDateTime(latestProviderEventAt)}</dd>
+							</div>
+						</dl>
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={actionStates.monitor === 'submitting'}
+								onclick={loadProviderDeliveryEvents}
+							>
+								{#if actionStates.monitor === 'submitting'}
+									<LoaderCircle size={17} aria-hidden="true" />
+								{:else}
+									<RefreshCw size={17} aria-hidden="true" />
+								{/if}
+								<span>Load recent provider events</span>
+							</button>
+							{#if providerDeliveryEventsResult}
+								<p class="step-pill" data-state="succeeded">
+									{formatCount(providerDeliveryEventRows.length)} loaded
+								</p>
+							{/if}
+						</div>
+						{#if providerDeliveryEventRows.length > 0}
+							<div class="grid gap-3">
+								{#each providerDeliveryEventRows as event, index (`${event.provider}-${event.eventType}-${event.receivedAt}-${index}`)}
+									<div class="record-field">
+										<p class="record-field__label">
+											{humanize(event.eventType)} from {humanize(event.provider)}
+										</p>
+										<p class="record-field__value">
+											{formatDateTime(event.occurredAt)}
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{providerEventStateSummary(event)}. Received
+											{formatDateTime(event.receivedAt)}.
+										</p>
+									</div>
+								{/each}
+							</div>
+						{:else if providerDeliveryEventsResult}
+							<p class="text-sm text-[var(--color-text-muted)]">
+								No recent provider events are recorded for this workspace yet.
+							</p>
+						{/if}
+						{#if actionErrors.monitor}
+							<p class="error-line">{actionErrors.monitor}</p>
+						{/if}
+					</div>
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Email delivery cleanup</p>
+								<h5 class="record-row__title">Repair readiness</h5>
+							</div>
+							<StatusBadge
+								status={repairReadinessResult?.hasRepairWork ? 'pending' : repairReadinessResult ? 'ready' : 'neutral'}
+								label={
+									repairReadinessResult?.hasRepairWork
+										? 'Needs review'
+										: repairReadinessResult
+											? 'No cleanup'
+											: 'Not checked'
+								}
+							/>
+						</div>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							Check this before retrying failed invitation emails. It separates stale prepared
+							handoffs, ambiguous failures, retryable failures, and suppressed recipients without
+							changing delivery state.
+						</p>
+						{#if repairReadinessResult}
+							<dl class="record-grid">
+								<div class="record-field">
+									<dt class="record-field__label">Stale handoffs</dt>
+									<dd class="record-field__value">
+										{formatCount(repairReadinessResult.stalePreparedAttemptCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Ambiguous failures</dt>
+									<dd class="record-field__value">
+										{formatCount(repairReadinessResult.ambiguousFailedNotificationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Retryable failures</dt>
+									<dd class="record-field__value">
+										{formatCount(repairReadinessResult.retryableFailedNotificationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Suppressed failures</dt>
+									<dd class="record-field__value">
+										{formatCount(repairReadinessResult.suppressedFailedNotificationCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Provider evidence</dt>
+									<dd class="record-field__value">
+										{formatCount(repairReadinessResult.providerEventCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Latest provider event</dt>
+									<dd class="record-field__value">
+										{formatDateTime(repairReadinessResult.latestProviderEventAt)}
+									</dd>
+								</div>
+							</dl>
+							{#if repairReadinessResult.issues.length > 0}
+								<div class="grid gap-2">
+									{#each repairReadinessResult.issues as issue (issue.code)}
+										<p class={issue.severity === 'blocking' ? 'error-line' : 'text-sm text-[var(--color-text-muted)]'}>
+											{issue.message}
+										</p>
+									{/each}
+								</div>
+							{/if}
+						{/if}
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={!selectedCampaign || actionStates.monitor === 'submitting'}
+								onclick={loadRepairReadiness}
+							>
+								{#if actionStates.monitor === 'submitting'}
+									<LoaderCircle size={17} aria-hidden="true" />
+								{:else}
+									<SearchCheck size={17} aria-hidden="true" />
+								{/if}
+								<span>Check cleanup readiness</span>
+							</button>
+							{#if repairReadinessResult?.canRetryFailed}
+								<p class="step-pill" data-state="pending">Retry possible</p>
+							{/if}
+						</div>
+					</div>
 					{@render ActionFooter({
 						id: 'monitor',
 						label: 'Refresh status',

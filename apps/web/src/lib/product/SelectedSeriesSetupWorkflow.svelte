@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
-	import { ArrowDown, ArrowUp, LoaderCircle, Plus, RefreshCw, SearchCheck, Send, Trash2 } from 'lucide-svelte';
+	import { ArrowDown, ArrowUp, Copy, LoaderCircle, Plus, RefreshCw, SearchCheck, Send, Trash2 } from 'lucide-svelte';
 	import type {
 		CampaignSeriesSetupWorkspaceResponse,
 		RespondentRulePreviewResponse,
@@ -33,6 +33,13 @@
 		type SelectedSeriesSetupWorkflowActionId
 	} from './setup-workflow';
 	import {
+		appendRecipientImportEntry,
+		keepValidRecipientImportRows,
+		maxRecipientImportRecipients,
+		readRecipientImportFile,
+		reviewRecipientImport
+	} from './recipient-import';
+	import {
 		appendScoreOutputRow,
 		applyQuestionScalePreset,
 		appendTemplateQuestionRow,
@@ -44,6 +51,7 @@
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
 	describeScoreMissingDataStrategy,
+	duplicateTemplateQuestionRow,
 	isMeanScoreEligible,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
@@ -71,7 +79,12 @@
 	import { toCampaignSeriesSetupWorkspaceView, toProductApiErrorMessage } from './view-models';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
-	type PreviewRuleKind = 'self' | 'all_in_group' | 'manager_of_target' | 'reports_of_target';
+	type PreviewRuleKind =
+		| 'self'
+		| 'all_in_group'
+		| 'manager_of_target'
+		| 'reports_of_target'
+		| 'external_emails';
 	type PreviewRuleRow = RespondentRulePreviewResponse['rows'][number];
 
 	let {
@@ -146,9 +159,14 @@
 		defaultLocale: 'en'
 	});
 	let campaignNameInitialized = $state(false);
-	let previewRuleKind = $state<PreviewRuleKind>('self');
+	let previewRuleKind = $state<PreviewRuleKind>('all_in_group');
 	let previewTargetSubjectId = $state('');
 	let previewGroupId = $state('');
+	let previewExternalEmailText = $state('');
+	let previewExternalEmailFileError = $state<string | null>(null);
+	let previewManualRecipientName = $state('');
+	let previewManualRecipientEmail = $state('');
+	let previewManualRecipientError = $state<string | null>(null);
 	let previewMaxRows = $state(25);
 	let previewSubjects = $state<SubjectDirectoryItemResponse[]>([]);
 	let previewGroups = $state<SubjectGroupResponse[]>([]);
@@ -199,6 +217,13 @@
 	const canGoNext = $derived(Boolean(nextAction && canSelectSetupAction(nextAction.id)));
 	const selectedTemplateVersionId = $derived(selectSetupTemplateVersionId(workspace, localState));
 	const selectedCampaignId = $derived(selectSetupCampaignId(workspace, localState));
+	const selectedCampaign = $derived(
+		campaignResult?.id === selectedCampaignId
+			? campaignResult
+			: workspace.selectedCampaign?.id === selectedCampaignId
+				? workspace.selectedCampaign
+				: null
+	);
 	const selectedCampaignLabel = $derived(
 		campaignResult?.id === selectedCampaignId
 			? campaignResult.name
@@ -237,20 +262,28 @@
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
 	);
 	const previewRequiresGroup = $derived(previewRuleKind === 'all_in_group');
+	const previewUsesExternalEmails = $derived(previewRuleKind === 'external_emails');
+	const previewExternalEmailReview = $derived(reviewRecipientImport(previewExternalEmailText));
 	const canRunPreview = $derived(
 		canManageSetup &&
 			!!selectedCampaignId &&
 			previewState !== 'submitting' &&
 			!previewOptionsLoading &&
 			(!previewRequiresTarget || !!previewTargetSubjectId) &&
-			(!previewRequiresGroup || !!previewGroupId)
+			(!previewRequiresGroup || !!previewGroupId) &&
+			(!previewUsesExternalEmails ||
+				(previewExternalEmailReview.validRecipientCount > 0 &&
+					!previewExternalEmailReview.hasBlockingIssues))
 	);
 	const canSaveCurrentRule = $derived(
 		canManageSetup &&
 			!!selectedCampaignId &&
 			savedRuleState !== 'submitting' &&
 			(!previewRequiresTarget || !!previewTargetSubjectId) &&
-			(!previewRequiresGroup || !!previewGroupId)
+			(!previewRequiresGroup || !!previewGroupId) &&
+			(!previewUsesExternalEmails ||
+				(previewExternalEmailReview.validRecipientCount > 0 &&
+					!previewExternalEmailReview.hasBlockingIssues))
 	);
 
 	$effect(() => {
@@ -458,16 +491,22 @@
 			return;
 		}
 
+		if (
+			previewUsesExternalEmails &&
+			(previewExternalEmailReview.validRecipientCount === 0 ||
+				previewExternalEmailReview.hasBlockingIssues)
+		) {
+			previewError = 'Add at least one valid email and remove invalid or duplicate rows.';
+			return;
+		}
+
 		previewState = 'submitting';
 		previewError = null;
 		previewResult = null;
 
 		try {
 			previewResult = await productApi.previewRespondentRule(workspace.series.id, campaignId, {
-				rule: JSON.stringify({
-					kind: previewRuleKind,
-					role: defaultPreviewRole(previewRuleKind)
-				}),
+				rule: buildCurrentRespondentRuleJson(),
 				targetSubjectId: previewRequiresTarget ? previewTargetSubjectId : null,
 				groupId: previewRequiresGroup ? previewGroupId : null,
 				maxRows: normalizePreviewMaxRows(previewMaxRows)
@@ -536,6 +575,15 @@
 			return;
 		}
 
+		if (
+			previewUsesExternalEmails &&
+			(previewExternalEmailReview.validRecipientCount === 0 ||
+				previewExternalEmailReview.hasBlockingIssues)
+		) {
+			savedRuleError = 'Add at least one valid email and remove invalid or duplicate rows.';
+			return;
+		}
+
 		savedRuleState = 'submitting';
 		savedRuleError = null;
 
@@ -549,6 +597,60 @@
 			savedRuleState = 'failed';
 			savedRuleError = toProductApiErrorMessage(error, 'Respondent rule save failed.');
 		}
+	}
+
+	async function loadPreviewExternalEmailFile(file: File | null | undefined) {
+		previewExternalEmailFileError = null;
+		if (!file) {
+			return;
+		}
+
+		try {
+			previewExternalEmailText = await readRecipientImportFile(file);
+		} catch (error) {
+			previewExternalEmailFileError =
+				error instanceof Error ? error.message : 'Recipient file could not be read.';
+		}
+	}
+
+	function addPreviewManualRecipient() {
+		previewManualRecipientError = null;
+		const candidateReview = reviewRecipientImport(
+			appendRecipientImportEntry('', {
+				displayName: previewManualRecipientName,
+				email: previewManualRecipientEmail
+			})
+		);
+		const recipient = candidateReview.recipients[0];
+
+		if (!recipient || candidateReview.hasBlockingIssues) {
+			previewManualRecipientError = 'Enter one valid email address.';
+			return;
+		}
+
+		if (previewExternalEmailReview.recipients.some((item) => item.email === recipient.email)) {
+			previewManualRecipientError = 'This recipient is already in the wave list.';
+			return;
+		}
+
+		previewExternalEmailText = appendRecipientImportEntry(previewExternalEmailText, {
+			displayName: previewManualRecipientName,
+			email: recipient.email
+		});
+		previewManualRecipientName = '';
+		previewManualRecipientEmail = '';
+	}
+
+	function keepOnlyValidPreviewRecipients() {
+		previewExternalEmailText = keepValidRecipientImportRows(previewExternalEmailText);
+		previewExternalEmailFileError = null;
+		previewManualRecipientError = null;
+	}
+
+	function clearPreviewRecipients() {
+		previewExternalEmailText = '';
+		previewExternalEmailFileError = null;
+		previewManualRecipientError = null;
 	}
 
 	async function runAction<T>(
@@ -639,6 +741,10 @@
 
 		if (!previewGroups.some((group) => group.id === previewGroupId)) {
 			previewGroupId = previewGroups[0]?.id ?? '';
+		}
+
+		if (previewGroups.length === 0 && previewRuleKind === 'all_in_group') {
+			previewRuleKind = 'external_emails';
 		}
 	}
 
@@ -822,6 +928,13 @@
 		syncGeneratedScoringIfPristine(nextRows);
 	}
 
+	function copyTemplateQuestionRow(code: string) {
+		const nextRows = duplicateTemplateQuestionRow(templateQuestionRows, code);
+		templateQuestionRows = nextRows;
+		syncIncludedScoreQuestions(nextRows);
+		syncGeneratedScoringIfPristine(nextRows);
+	}
+
 	function reorderTemplateQuestionRow(code: string, direction: 'up' | 'down') {
 		const nextRows = moveTemplateQuestionRow(templateQuestionRows, code, direction);
 		templateQuestionRows = nextRows;
@@ -958,6 +1071,10 @@
 			return 'direct_report';
 		}
 
+		if (kind === 'external_emails') {
+			return 'email_recipient';
+		}
+
 		return 'self';
 	}
 
@@ -967,6 +1084,7 @@
 			role: string;
 			target_subject_id?: string;
 			group_id?: string;
+			emails?: string[];
 		} = {
 			kind: previewRuleKind,
 			role: defaultPreviewRole(previewRuleKind)
@@ -978,6 +1096,10 @@
 
 		if (previewRequiresGroup) {
 			rule.group_id = previewGroupId;
+		}
+
+		if (previewUsesExternalEmails) {
+			rule.emails = previewExternalEmailReview.recipients.map((recipient) => recipient.email);
 		}
 
 		return JSON.stringify(rule);
@@ -1031,12 +1153,20 @@
 	}
 
 	function assignmentPairLabel(assignment: CampaignAssignmentResponse) {
+		if (assignment.role === 'email_recipient') {
+			return assignment.respondent?.label ?? 'Email recipient';
+		}
+
 		return `${assignment.target?.label ?? 'Study audience'} to ${
 			assignment.respondent?.label ?? 'No respondent'
 		}`;
 	}
 
 	function previewPairLabel(row: PreviewRuleRow) {
+		if (row.role === 'email_recipient') {
+			return row.respondent?.label ?? 'Email recipient';
+		}
+
 		return `${row.target?.label ?? 'Study audience'} to ${row.respondent?.label ?? 'No respondent'}`;
 	}
 
@@ -1045,6 +1175,10 @@
 	}
 
 	function savedRecipientSelectionDetail(rule: CampaignRespondentRuleResponse) {
+		if (normalizePreviewRuleKind(rule.ruleKind) === 'external_emails') {
+			return externalEmailRuleDetail(rule.rule);
+		}
+
 		const selector = rule.groupId
 			? previewGroupLabelById(rule.groupId)
 			: rule.targetSubjectId
@@ -1052,6 +1186,16 @@
 				: 'Study audience';
 
 		return selector;
+	}
+
+	function externalEmailRuleDetail(rule: string) {
+		try {
+			const parsed = JSON.parse(rule) as { emails?: string[] };
+			const count = Array.isArray(parsed.emails) ? parsed.emails.length : 0;
+			return `${count} ${count === 1 ? 'email recipient' : 'email recipients'}`;
+		} catch {
+			return 'Email recipient list';
+		}
 	}
 
 	function previewSubjectLabelById(subjectId: string | null | undefined) {
@@ -1075,7 +1219,8 @@
 			value === 'self' ||
 			value === 'all_in_group' ||
 			value === 'manager_of_target' ||
-			value === 'reports_of_target'
+			value === 'reports_of_target' ||
+			value === 'external_emails'
 		) {
 			return value;
 		}
@@ -1093,6 +1238,10 @@
 
 	function assignmentCountLabel(count: number) {
 		return `${count} ${count === 1 ? 'invitation' : 'invitations'}`;
+	}
+
+	function formatCount(count: number) {
+		return new Intl.NumberFormat('en').format(count);
 	}
 
 	function generateSetupRunSuffix() {
@@ -1155,15 +1304,19 @@
 		}
 
 		if (value === 'anonymous_longitudinal') {
-			return 'Use this when respondents enter their own repeat-participation code. Saved audience invitations are not supported yet.';
+			return 'Use this when respondents enter their own repeat-participation code. You can still save recipients for invite-only access; reports link waves by code, not by email.';
 		}
 
-		return 'Use a public link, or save an audience below to send invite-only access while keeping answers anonymous in reports.';
+		return 'Use a public link, or save recipients below to send invite-only access while keeping answers anonymous in reports.';
 	}
 
 	function audienceRuleLabel(value: PreviewRuleKind) {
+		if (value === 'external_emails') {
+			return 'One-off email import';
+		}
+
 		if (value === 'all_in_group') {
-			return 'Everyone in a selected group';
+			return 'Directory group';
 		}
 
 		if (value === 'manager_of_target') {
@@ -1174,12 +1327,16 @@
 			return "One person's direct reports";
 		}
 
-		return 'Everyone in the study audience';
+		return 'All active Directory people';
 	}
 
 	function audienceRuleHelp(value: PreviewRuleKind) {
+		if (value === 'external_emails') {
+			return 'Use this only for an ad hoc wave list you do not want to reuse in Directory.';
+		}
+
 		if (value === 'all_in_group') {
-			return 'Use this when the Directory has a department, cohort, location, or other group for this wave.';
+			return 'Use this for departments, cohorts, classes, locations, or any recurring study population.';
 		}
 
 		if (value === 'manager_of_target') {
@@ -1190,10 +1347,14 @@
 			return 'Use this when direct reports should answer about one selected person.';
 		}
 
-		return 'Use this for a normal invite-only wave across the active study audience.';
+		return 'Use this only when the wave is meant for every active person in the workspace Directory.';
 	}
 
 	function recipientRoleLabel(value: string) {
+		if (value === 'email_recipient') {
+			return 'Email recipient';
+		}
+
 		if (value === 'group_member') {
 			return 'Group invitation';
 		}
@@ -1211,7 +1372,7 @@
 
 	function audienceWarningLabel(warning: { code: string; message: string }) {
 		if (warning.code === 'respondent_rule_preview.audience_missing') {
-			return 'No active study audience is selected yet. Add active people in Directory before launch.';
+			return 'No narrower campaign audience is selected; this selection uses all active Directory people. Use a Directory group when the wave is not for everyone.';
 		}
 
 		if (warning.code === 'respondent_rule_preview.empty') {
@@ -1235,15 +1396,15 @@
 		}
 
 		if (issue.code === 'respondent_rule.email_required') {
-			return 'Every saved audience recipient needs an email address before anonymous invite-only collection can start.';
+			return 'Every saved Directory recipient needs an email address before invite-only collection can start.';
 		}
 
 		if (issue.code === 'respondent_rule.no_recipients') {
-			return 'Saved recipient selections must find at least one active person before launch.';
+			return 'Save at least one recipient selection before launch, and make sure it resolves to active people.';
 		}
 
 		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
-			return 'Saved recipient selections are not available for repeat-participation waves yet. Use Anonymous or Identified collection, or remove the saved selection.';
+			return 'Specific email lists are available for anonymous invite-only or repeat-participation waves only.';
 		}
 
 		return issue.message;
@@ -1560,6 +1721,10 @@
 										</details>
 									{/if}
 									<div class="action-row">
+										<p class="basis-full text-sm text-[var(--color-text-muted)]">
+											Question order below is the order respondents will see. Scoring stays attached to
+											question meaning, not the visual position.
+										</p>
 										<label class="checkbox-field">
 											<input
 												type="checkbox"
@@ -1588,21 +1753,30 @@
 											type="button"
 											class="secondary-button"
 											disabled={index === 0}
-											title="Move question up"
+											title="Move question earlier"
 											onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
 										>
 											<ArrowUp size={16} aria-hidden="true" />
-											<span>Move up</span>
+											<span>Move earlier</span>
 										</button>
 										<button
 											type="button"
 											class="secondary-button"
 											disabled={index === templateQuestionRows.length - 1}
-											title="Move question down"
+											title="Move question later"
 											onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
 										>
 											<ArrowDown size={16} aria-hidden="true" />
-											<span>Move down</span>
+											<span>Move later</span>
+										</button>
+										<button
+											type="button"
+											class="secondary-button"
+											title="Duplicate question"
+											onclick={() => copyTemplateQuestionRow(question.code)}
+										>
+											<Copy size={16} aria-hidden="true" />
+											<span>Duplicate</span>
 										</button>
 										<button
 											type="button"
@@ -1652,19 +1826,39 @@
 							</button>
 						</div>
 						<div class="record-row">
-							<h5 class="record-row__title">Respondent preview</h5>
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">Respondent preview</p>
+									<h5 class="record-row__title">What participants will read</h5>
+								</div>
+								<StatusBadge status="neutral" label={`${respondentPreviewSummaries.length} questions`} />
+							</div>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Use this preview to check wording, order, required questions, and answer shape before saving
+								the questionnaire.
+							</p>
 							<div class="grid gap-3">
 								{#each respondentPreviewSummaries as question (question.ordinal)}
-									<div class="record-field">
-										<p class="record-field__label">
-											Question {question.ordinal} - {question.dimensionLabel}
-										</p>
-										<p class="record-field__value">
-											{question.text}
-										</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{question.answerFormatLabel}. {question.answerFormatDetail}
-										</p>
+									<div class="record-row">
+										<div class="record-row__header">
+											<div>
+												<p class="record-field__label">
+													{question.positionLabel} - {question.dimensionLabel}
+												</p>
+												<p class="record-field__value">{question.text}</p>
+											</div>
+											<StatusBadge
+												status={question.requiredLabel === 'Required' ? 'ready' : 'neutral'}
+												label={question.requiredLabel}
+											/>
+										</div>
+										<div class="record-field">
+											<p class="record-field__label">{question.answerFormatLabel}</p>
+											<p class="record-field__value">{question.responsePreviewLabel}</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{question.answerFormatDetail}
+											</p>
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -2066,43 +2260,186 @@
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Collection audience</p>
+					<p class="record-field__label">Saved people and groups</p>
 					<h4 id="audience-preview-heading" class="record-row__title">Choose recipients for this wave</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Select who gets invited, preview the list, then save it for launch. If you do not save
-						recipients, Collection can still launch an anonymous public link when the wave allows it.
+						Use Directory groups for recurring populations. Use all active Directory people only
+						when the wave is truly for everyone. Use one-off email import for ad hoc recipients you
+						do not want to manage in Directory. Save recipients before launch so Collection can
+						create private respondent links and send email.
 					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
+			</div>
+
+			<div class="record-grid">
+				<div class="record-field">
+					<p class="record-field__label">Reusable population</p>
+					<p class="record-field__value">Directory groups</p>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						Best for departments, cohorts, classes, and repeated waves.
+					</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">One-off population</p>
+					<p class="record-field__value">Email import</p>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						Best for a temporary list copied from a collaborator or spreadsheet export.
+					</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Open participation</p>
+					<p class="record-field__value">Open link in Collection</p>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						Best when anyone with the link may answer and no invite-only list is needed.
+					</p>
+				</div>
 			</div>
 
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
 				<label class="field">
 					<span>Send invitations to</span>
 					<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
-						<option value="self">{audienceRuleLabel('self')}</option>
 						<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
+						<option value="self">{audienceRuleLabel('self')}</option>
 						<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
 						<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
+						<option value="external_emails">{audienceRuleLabel('external_emails')}</option>
 					</select>
 					<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 						{audienceRuleHelp(previewRuleKind)}
 					</span>
 				</label>
 
-				{#if previewRequiresGroup}
-					<label class="field">
-						<span>Group</span>
-						<select
-							bind:value={previewGroupId}
-							disabled={previewGroups.length === 0 || previewState === 'submitting'}
-						>
-							{#each previewGroups as group (group.id)}
-								<option value={group.id}>{group.name}</option>
-							{/each}
-						</select>
-					</label>
+				{#if previewUsesExternalEmails}
+					<div class="record-row lg:col-span-2">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Campaign-local recipients</p>
+								<h5 class="record-row__title">Build a one-off recipient list</h5>
+							</div>
+							<span
+								class="step-pill"
+								data-state={previewExternalEmailReview.hasBlockingIssues ? 'failed' : 'idle'}
+							>
+								{formatCount(previewExternalEmailReview.validRecipientCount)} ready
+							</span>
+						</div>
+						<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+							<label class="field">
+								<span>Name for review</span>
+								<input
+									value={previewManualRecipientName}
+									placeholder="Bo Horvat"
+									disabled={previewState === 'submitting'}
+									oninput={(event) => (previewManualRecipientName = event.currentTarget.value)}
+								/>
+							</label>
+							<label class="field">
+								<span>Email</span>
+								<input
+									type="email"
+									value={previewManualRecipientEmail}
+									placeholder="bo@example.com"
+									disabled={previewState === 'submitting'}
+									oninput={(event) => (previewManualRecipientEmail = event.currentTarget.value)}
+								/>
+							</label>
+							<button
+								type="button"
+								class="secondary-button self-end"
+								disabled={previewState === 'submitting'}
+								onclick={addPreviewManualRecipient}
+							>
+								<Plus size={16} aria-hidden="true" />
+								<span>Add person</span>
+							</button>
+						</div>
+						{#if previewManualRecipientError}
+							<p class="error-line" role="alert">{previewManualRecipientError}</p>
+						{/if}
+						<label class="field">
+							<span>Import recipients</span>
+							<input
+								type="file"
+								accept=".csv,.txt,text/csv,text/plain"
+								disabled={previewState === 'submitting'}
+								onchange={(event) => loadPreviewExternalEmailFile(event.currentTarget.files?.[0])}
+							/>
+							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+								Use a class list, cohort list, HR export, or spreadsheet with an email column
+								when this wave has a one-time audience. For repeated waves or reusable cohorts,
+								import people and groups in Directory instead. Limit:
+								{formatCount(maxRecipientImportRecipients)} recipients per wave update.
+							</span>
+						</label>
+						<details>
+							<summary class="record-row__title">Review or paste source list</summary>
+							<label class="field mt-3">
+								<span>Recipient source</span>
+								<textarea
+									rows="5"
+									value={previewExternalEmailText}
+									placeholder={'ada@example.com\nBo Horvat <bo@example.com>\ncarla@example.com; diego@example.com'}
+									disabled={previewState === 'submitting'}
+									oninput={(event) => (previewExternalEmailText = event.currentTarget.value)}
+								></textarea>
+								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+									{formatCount(previewExternalEmailReview.validRecipientCount)} ready,
+									{formatCount(previewExternalEmailReview.invalidCount)} invalid,
+									{formatCount(previewExternalEmailReview.duplicateCount)} duplicate.
+								</span>
+							</label>
+						</details>
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={!previewExternalEmailReview.hasBlockingIssues || previewState === 'submitting'}
+								onclick={keepOnlyValidPreviewRecipients}
+							>
+								<RefreshCw size={16} aria-hidden="true" />
+								<span>Keep valid only</span>
+							</button>
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={previewExternalEmailReview.rows.length === 0 || previewState === 'submitting'}
+								onclick={clearPreviewRecipients}
+							>
+								<Trash2 size={16} aria-hidden="true" />
+								<span>Clear list</span>
+							</button>
+						</div>
+						{#if previewExternalEmailFileError}
+							<p class="error-line" role="alert">{previewExternalEmailFileError}</p>
+						{/if}
+					</div>
+				{:else if previewRequiresGroup}
+					{#if previewGroups.length === 0}
+						<div class="record-field">
+							<p class="record-field__label">Directory group</p>
+							<p class="record-field__value">No groups available</p>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Create a reusable cohort, department, class, or location in Directory, or switch to
+								one-off email import for this wave only.
+							</p>
+							<a class="secondary-button mt-3" href="/app/directory">Open Directory</a>
+						</div>
+					{:else}
+						<label class="field">
+							<span>Directory group</span>
+							<select
+								bind:value={previewGroupId}
+								disabled={previewGroups.length === 0 || previewState === 'submitting'}
+							>
+								{#each previewGroups as group (group.id)}
+									<option value={group.id}>{group.name}</option>
+								{/each}
+							</select>
+						</label>
+					{/if}
 				{:else if previewRequiresTarget}
 					<label class="field">
 						<span>Focus person</span>
@@ -2117,11 +2454,15 @@
 					</label>
 				{:else}
 					<div class="record-field">
-						<p class="record-field__label">Study audience</p>
+						<p class="record-field__label">Directory people</p>
 						<p class="record-field__value">
 							{previewSubjects.length
 								? `${previewSubjects.length} active people loaded`
 								: 'No active people loaded yet'}
+						</p>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							This selection is broad. Use a Directory group when the wave should only reach a
+							department, cohort, class, or location.
 						</p>
 					</div>
 				{/if}
@@ -2209,7 +2550,7 @@
 				</div>
 
 				{#if previewResult.warnings.length}
-					<ul class="grid gap-2" aria-label="Audience preview warnings">
+					<ul class="grid gap-2" aria-label="Recipient preview warnings">
 						{#each previewResult.warnings as warning}
 							<li class="text-sm text-[var(--color-text-muted)]">
 								{audienceWarningLabel(warning)}
@@ -2244,7 +2585,7 @@
 		<section class="record-row setup-current-task" aria-labelledby="saved-recipient-selection-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Saved audience</p>
+					<p class="record-field__label">Saved recipients</p>
 					<h4 id="saved-recipient-selection-heading" class="record-row__title">Saved recipient selection</h4>
 					<p class="setup-current-task__title">{savedAudienceSummary()}</p>
 				</div>

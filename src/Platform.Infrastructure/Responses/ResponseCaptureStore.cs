@@ -483,6 +483,94 @@ public sealed class ResponseCaptureStore(
             questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
     }
 
+    public async Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
+        string token,
+        CancellationToken cancellationToken)
+    {
+        var parsed = OpenLinkTokens.ParseTenant(token);
+        if (parsed.IsFailure)
+        {
+            return OpenLinkNotAvailable<EmailInvitationUnsubscribeResponse>();
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            parsed.Value.TenantId,
+            cancellationToken: cancellationToken);
+
+        var tokenHash = OpenLinkTokens.Hash(token);
+        var invitationToken = await db.InvitationTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == parsed.Value.TenantId &&
+                    entity.TokenHash == tokenHash &&
+                    entity.Channel == InvitationTokenChannels.Email &&
+                    entity.Recipient != null,
+                cancellationToken);
+
+        if (invitationToken is null || string.IsNullOrWhiteSpace(invitationToken.Recipient))
+        {
+            return OpenLinkNotAvailable<EmailInvitationUnsubscribeResponse>();
+        }
+
+        var suppressedAt = DateTimeOffset.UtcNow;
+        var existingSuppression = await db.EmailSuppressions
+            .SingleOrDefaultAsync(
+                suppression =>
+                    suppression.TenantId == parsed.Value.TenantId &&
+                    suppression.Recipient == invitationToken.Recipient &&
+                    suppression.ReleasedAt == null,
+                cancellationToken);
+        if (existingSuppression is null)
+        {
+            db.EmailSuppressions.Add(new EmailSuppression(
+                PlatformIds.NewId(),
+                parsed.Value.TenantId,
+                invitationToken.Recipient,
+                EmailSuppression.RecipientUnsubscribedReason,
+                EmailSuppression.RespondentInvitationSource,
+                note: null,
+                suppressedAt));
+        }
+
+        var pendingNotifications = await db.Notifications
+            .Where(notification =>
+                notification.TenantId == parsed.Value.TenantId &&
+                notification.Channel == NotificationChannels.Email &&
+                notification.TemplateCode == Notification.InvitationTemplateCode &&
+                notification.Recipient == invitationToken.Recipient &&
+                (notification.Status == NotificationStatuses.Queued ||
+                    notification.Status == NotificationStatuses.Failed))
+            .ToListAsync(cancellationToken);
+        var pendingNotificationIds = pendingNotifications
+            .Select(notification => notification.Id)
+            .ToArray();
+        var preparedAttempts = new List<NotificationDeliveryAttempt>();
+        if (pendingNotificationIds.Length > 0)
+        {
+            preparedAttempts = await db.NotificationDeliveryAttempts
+                .Where(attempt =>
+                    attempt.TenantId == parsed.Value.TenantId &&
+                    pendingNotificationIds.Contains(attempt.NotificationId) &&
+                    attempt.Status == NotificationDeliveryAttempt.PreparedStatus)
+                .ToListAsync(cancellationToken);
+        }
+        foreach (var notification in pendingNotifications)
+        {
+            notification.MarkBounced(EmailSuppression.RecipientUnsubscribedReason, suppressedAt);
+        }
+
+        foreach (var attempt in preparedAttempts)
+        {
+            attempt.MarkFailed(EmailSuppression.RecipientUnsubscribedReason, suppressedAt);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new EmailInvitationUnsubscribeResponse("unsubscribed"));
+    }
+
     public async Task<Result<ResponseSessionResponse>> CreateOpenLinkSessionAsync(
         string token,
         CreateOpenLinkSessionRequest request,
@@ -772,6 +860,15 @@ public sealed class ResponseCaptureStore(
         if (created.IsFailure)
         {
             return created;
+        }
+
+        var tokenMarkedUsed = await MarkIdentifiedEntryTokenUsedAsync(
+            parsed.Value.TenantId,
+            resolved.Value.InvitationTokenId,
+            cancellationToken);
+        if (tokenMarkedUsed.IsFailure)
+        {
+            return Result.Failure<ResponseSessionResponse>(tokenMarkedUsed.Error);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -1489,6 +1586,7 @@ public sealed class ResponseCaptureStore(
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 entity =>
+                    entity.TenantId == tenantId &&
                     entity.TokenHash == tokenHash &&
                     (entity.Channel == InvitationTokenChannels.OpenLink ||
                         entity.Channel == InvitationTokenChannels.Email),
@@ -1503,13 +1601,26 @@ public sealed class ResponseCaptureStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == invitationToken.CampaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == invitationToken.CampaignId,
+                cancellationToken);
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.CampaignId == invitationToken.CampaignId, cancellationToken);
-        var assignment = await db.Assignments
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == invitationToken.CampaignId,
+                cancellationToken);
+        var assignmentQuery = db.Assignments
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.InviteTokenId == invitationToken.Id, cancellationToken);
+            .Where(entity =>
+                entity.TenantId == tenantId &&
+                entity.CampaignId == invitationToken.CampaignId);
+        var assignment = invitationToken.AssignmentId.HasValue
+            ? await assignmentQuery.SingleOrDefaultAsync(
+                entity => entity.Id == invitationToken.AssignmentId.Value,
+                cancellationToken)
+            : await assignmentQuery.SingleOrDefaultAsync(
+                entity => entity.InviteTokenId == invitationToken.Id,
+                cancellationToken);
 
         if (campaign is null ||
             snapshot is null ||
@@ -1527,7 +1638,8 @@ public sealed class ResponseCaptureStore(
         return Result.Success(new ResolvedOpenLink(
             campaign,
             snapshot,
-            assignment));
+            assignment,
+            invitationToken.Id));
     }
 
     private async Task<Result<ResolvedOpenLink>> ResolveIdentifiedEntryAsync(
@@ -1540,6 +1652,7 @@ public sealed class ResponseCaptureStore(
             .AsNoTracking()
             .SingleOrDefaultAsync(
                 entity =>
+                    entity.TenantId == tenantId &&
                     entity.TokenHash == tokenHash &&
                     entity.Channel == InvitationTokenChannels.IdentifiedEntry,
                 cancellationToken);
@@ -1554,13 +1667,19 @@ public sealed class ResponseCaptureStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == invitationToken.CampaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == invitationToken.CampaignId,
+                cancellationToken);
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.CampaignId == invitationToken.CampaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == invitationToken.CampaignId,
+                cancellationToken);
         var assignment = await db.Assignments
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == invitationToken.AssignmentId.Value, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == invitationToken.AssignmentId.Value,
+                cancellationToken);
 
         if (campaign is null ||
             snapshot is null ||
@@ -1580,7 +1699,34 @@ public sealed class ResponseCaptureStore(
         return Result.Success(new ResolvedOpenLink(
             campaign,
             snapshot,
-            assignment));
+            assignment,
+            invitationToken.Id));
+    }
+
+    private async Task<Result<bool>> MarkIdentifiedEntryTokenUsedAsync(
+        Guid tenantId,
+        Guid invitationTokenId,
+        CancellationToken cancellationToken)
+    {
+        var invitationToken = await db.InvitationTokens
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == tenantId &&
+                    entity.Id == invitationTokenId &&
+                    entity.Channel == InvitationTokenChannels.IdentifiedEntry,
+                cancellationToken);
+
+        if (invitationToken is null ||
+            invitationToken.UsedAt.HasValue ||
+            invitationToken.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            return OpenLinkNotAvailable<bool>();
+        }
+
+        invitationToken.MarkUsed(DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(true);
     }
 
     private async Task<Guid> GetSessionTemplateVersionIdAsync(
@@ -1738,7 +1884,8 @@ public sealed class ResponseCaptureStore(
     private sealed record ResolvedOpenLink(
         Campaign Campaign,
         CampaignLaunchSnapshot Snapshot,
-        Assignment Assignment);
+        Assignment Assignment,
+        Guid InvitationTokenId);
 
     private sealed record ResolvedOpenLinkSession(
         Guid TenantId,

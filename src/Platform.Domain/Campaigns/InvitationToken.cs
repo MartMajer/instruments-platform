@@ -52,9 +52,21 @@ public sealed class InvitationToken
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public void ReissueHash(string tokenHash)
+    public void ReissueHash(string tokenHash, DateTimeOffset? expiresAt = null)
     {
         TokenHash = NormalizeRequired(tokenHash, nameof(tokenHash));
+        ExpiresAt = expiresAt;
+        UsedAt = null;
+    }
+
+    public void MarkUsed(DateTimeOffset usedAt)
+    {
+        if (UsedAt.HasValue)
+        {
+            throw new InvalidOperationException("Invitation token has already been used.");
+        }
+
+        UsedAt = usedAt;
     }
 
     public void ScrubForWithdrawal(DateTimeOffset scrubbedAt)

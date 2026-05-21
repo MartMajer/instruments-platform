@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Platform.Domain.Campaigns;
@@ -13,6 +14,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
     public const string AllInGroup = "all_in_group";
     public const string ManagerOfTarget = "manager_of_target";
     public const string ReportsOfTarget = "reports_of_target";
+    public const string ExternalEmails = "external_emails";
+    private const int MaxExternalEmailRecipients = 500;
 
     public async Task<Result<RespondentRuleResolution>> ResolveAsync(
         RespondentRuleResolutionRequest request,
@@ -62,6 +65,7 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                 request.TenantId,
                 targetSubjectId,
                 cancellationToken),
+            ExternalEmails => ResolveExternalEmails(rule.ExternalEmails),
             _ => Result.Failure<IReadOnlyList<RespondentRuleCandidate>>(
                 Error.Validation(
                     "respondent_rule_preview.unsupported_kind",
@@ -271,6 +275,22 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                 .ToArray());
     }
 
+    private static Result<IReadOnlyList<RespondentRuleCandidate>> ResolveExternalEmails(
+        IReadOnlyList<string> emails)
+    {
+        return Result.Success<IReadOnlyList<RespondentRuleCandidate>>(
+            emails
+                .Select((email, index) => new RespondentRuleCandidate(
+                    Target: null,
+                    Respondent: new RespondentRuleSubject(
+                        ExternalEmailPreviewSubjectId(index),
+                        email,
+                        DisplayName: null,
+                        Email: email,
+                        ExternalId: null)))
+                .ToArray());
+    }
+
     private async Task<Result<RespondentRuleSubject>> LoadTargetSubjectAsync(
         Guid tenantId,
         Guid? targetSubjectId,
@@ -330,7 +350,7 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
             }
 
             var kind = NormalizeText(kindElement.GetString())?.ToLowerInvariant();
-            if (kind is not Self and not AllInGroup and not ManagerOfTarget and not ReportsOfTarget)
+            if (kind is not Self and not AllInGroup and not ManagerOfTarget and not ReportsOfTarget and not ExternalEmails)
             {
                 return Result.Failure<ParsedRespondentRule>(
                     Error.Validation(
@@ -349,12 +369,20 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
 
             var targetSubjectId = TryGetGuid(document.RootElement, "target_subject_id");
             var groupId = TryGetGuid(document.RootElement, "group_id");
+            var externalEmails = kind == ExternalEmails
+                ? ParseExternalEmails(document.RootElement)
+                : Result.Success<IReadOnlyList<string>>([]);
+            if (externalEmails.IsFailure)
+            {
+                return Result.Failure<ParsedRespondentRule>(externalEmails.Error);
+            }
 
             return Result.Success(new ParsedRespondentRule(
                 kind,
                 role,
                 targetSubjectId,
-                groupId));
+                groupId,
+                externalEmails.Value));
         }
         catch (JsonException)
         {
@@ -368,6 +396,60 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
             Error.Validation(
                 "respondent_rule_preview.rule_invalid",
                 "Respondent rule must be a JSON object."));
+    }
+
+    private static Result<IReadOnlyList<string>> ParseExternalEmails(JsonElement root)
+    {
+        if (!root.TryGetProperty("emails", out var emailsElement) ||
+            emailsElement.ValueKind != JsonValueKind.Array)
+        {
+            return Result.Failure<IReadOnlyList<string>>(
+                Error.Validation(
+                    "respondent_rule_preview.emails_required",
+                    "External email recipient rules require an emails array."));
+        }
+
+        var emails = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var emailElement in emailsElement.EnumerateArray())
+        {
+            if (emailElement.ValueKind != JsonValueKind.String)
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation(
+                        "respondent_rule_preview.email_invalid",
+                        "Every external email recipient must be an email string."));
+            }
+
+            var email = NormalizeEmail(emailElement.GetString());
+            if (email is null)
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation(
+                        "respondent_rule_preview.email_invalid",
+                        "Every external email recipient must be a valid email address."));
+            }
+
+            if (!seen.Add(email))
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation(
+                        "respondent_rule_preview.duplicate_external_email",
+                        "External email recipient rules cannot contain duplicate email addresses."));
+            }
+
+            if (emails.Count >= MaxExternalEmailRecipients)
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation(
+                        "respondent_rule_preview.too_many_external_emails",
+                        $"External email recipient rules support at most {MaxExternalEmailRecipients} recipients."));
+            }
+
+            emails.Add(email);
+        }
+
+        return Result.Success<IReadOnlyList<string>>(emails);
     }
 
     private static Guid? TryGetGuid(JsonElement root, string propertyName)
@@ -400,13 +482,45 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
             AllInGroup => "group_member",
             ManagerOfTarget => "manager",
             ReportsOfTarget => "direct_report",
+            ExternalEmails => "email_recipient",
             _ => "self"
         };
+    }
+
+    private static string? NormalizeEmail(string? value)
+    {
+        var normalized = NormalizeText(value)?.ToLowerInvariant();
+        if (normalized is null ||
+            normalized.Length > 320 ||
+            normalized.Contains('\r', StringComparison.Ordinal) ||
+            normalized.Contains('\n', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            var address = new MailAddress(normalized);
+            return string.Equals(address.Address, normalized, StringComparison.OrdinalIgnoreCase)
+                ? address.Address.ToLowerInvariant()
+                : null;
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
     }
 
     private static string? NormalizeText(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static Guid ExternalEmailPreviewSubjectId(int index)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        BitConverter.TryWriteBytes(bytes[12..], index + 1);
+        return new Guid(bytes);
     }
 
     private static RespondentRuleSubject CreateSubject(RespondentRuleSubjectRow subject)
@@ -449,6 +563,10 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                 "warning",
                 "Selected target subject has no active direct reports.",
                 SubjectId: subjectId),
+            ExternalEmails => new RespondentRuleResolutionIssue(
+                "respondent_rule_preview.empty",
+                "warning",
+                "No external email recipients were provided."),
             _ => new RespondentRuleResolutionIssue(
                 "respondent_rule_preview.empty",
                 "warning",
@@ -460,7 +578,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
         string Kind,
         string Role,
         Guid? TargetSubjectId,
-        Guid? GroupId);
+        Guid? GroupId,
+        IReadOnlyList<string> ExternalEmails);
 
     private sealed record RespondentRuleSubjectRow(
         Guid Id,

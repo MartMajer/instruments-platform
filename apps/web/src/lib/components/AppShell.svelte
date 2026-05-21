@@ -31,7 +31,10 @@
 	const isProductEntry = $derived(page.url.pathname === '/');
 	const isRegistrationEntry = $derived(page.url.pathname === '/register');
 	const isSignInEntry = $derived(page.url.pathname === '/signin');
-	const isPublicEntry = $derived(isProductEntry || isRegistrationEntry || isSignInEntry);
+	const isRespondentEntry = $derived(page.url.pathname.startsWith('/r/'));
+	const isPublicEntry = $derived(
+		isProductEntry || isRegistrationEntry || isSignInEntry || isRespondentEntry
+	);
 	const shellLabel = $derived(
 		isProductShell ? 'Product workspace' : isPublicEntry ? 'Private beta' : 'Tenant setup'
 	);
@@ -44,6 +47,8 @@
 					? 'Registration'
 					: isSignInEntry
 						? 'Sign in'
+						: isRespondentEntry
+							? 'Respondent'
 						: 'Tenant setup path'
 	);
 	const headerTitle = $derived(
@@ -55,6 +60,8 @@
 					? 'Create workspace'
 					: isSignInEntry
 						? 'Workspace sign-in'
+						: isRespondentEntry
+							? 'Respondent access'
 						: 'Setup APIs and launch readiness'
 	);
 	const mainLabel = $derived(
@@ -66,6 +73,8 @@
 					? 'Registration'
 					: isSignInEntry
 						? 'Workspace sign-in'
+					: isRespondentEntry
+						? 'Respondent access'
 					: 'Tenant setup workspace'
 	);
 	const currentAppArea = $derived(toCurrentAppArea(page.url.pathname));
@@ -213,7 +222,7 @@
 								<a
 									class="app-mobile-menu__link"
 									data-current={item.match(page.url.pathname) ? 'true' : undefined}
-									href={resolve(item.href)}
+									href={item.href}
 								>
 									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
 									<span>{item.label}</span>
@@ -224,7 +233,7 @@
 							<p class="app-mobile-menu__heading">More</p>
 							{#each moreNavItems as item (item.href)}
 								{@const Icon = item.icon}
-								<a class="app-mobile-menu__link" href={resolve(item.href)}>
+								<a class="app-mobile-menu__link" href={item.href}>
 									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
 									<span>
 										<strong>{item.label}</strong>
@@ -270,7 +279,7 @@
 					{#each bottomNavItems as item (item.id)}
 						{@const Icon = item.icon}
 						<a
-							href={resolve(item.href)}
+							href={item.href}
 							class="app-mobile-bottom-nav__link"
 							aria-current={item.match(page.url.pathname) ? 'page' : undefined}
 						>

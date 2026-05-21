@@ -29,6 +29,7 @@
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
 	const pendingRegistrationClockSkewMs = 60 * 1000;
+	let pendingRegistrationLoginUrl = $state('');
 	const hasTenantLoginTarget = $derived(/[?&]tenantId=/.test(loginUrl));
 	const primaryAuthActionUrl = $derived(hasTenantLoginTarget ? loginUrl : resolve('/signin'));
 	const primaryAuthActionLabel = $derived(
@@ -59,7 +60,6 @@
 	let authState = $state<AuthState>('checking');
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let authMessage = $state<string | null>(null);
-	let pendingRegistrationLoginUrl = $state('');
 	const workspaceLogoutUrl = $derived(createWorkspaceLogoutUrl(authSession?.tenantId));
 	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession) : null);
 	const authFailureReason = $derived(page.url.searchParams.get('auth'));

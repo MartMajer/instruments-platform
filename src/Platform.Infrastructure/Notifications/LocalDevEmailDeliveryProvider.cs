@@ -14,7 +14,7 @@ public sealed class LocalDevEmailDeliveryProvider : IEmailDeliveryProvider
 
         return Task.FromResult(new EmailDeliveryResult(
             Provider,
-            $"{Provider}:{message.NotificationId:N}:{sentAt.ToUnixTimeMilliseconds()}",
+            ProviderMessageId: null,
             sentAt));
     }
 }

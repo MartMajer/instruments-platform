@@ -113,8 +113,8 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		{
 			id: 'openLink',
 			step: 'Step 3',
-			title: 'Respondent access',
-			description: 'Create the entry link respondents use to answer this wave.',
+			title: 'Recipient access',
+			description: 'Prepare invited emails or an open respondent link for this wave.',
 			status: !hasCampaign
 				? 'not_available'
 				: launched && hasRespondentAccess
@@ -124,7 +124,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 						: 'blocked',
 			available: launched && !closed,
 			disabledReason: !launched
-				? 'Start collection before creating respondent access.'
+				? 'Start collection before preparing respondent access.'
 				: closed
 					? 'This collection wave is closed.'
 					: null
@@ -239,7 +239,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 			},
 			{
 				id: 'audience',
-				label: 'Audience and access',
+				label: 'Recipients and access',
 				title: 'No recipient access prepared',
 				status: 'not_available',
 				detail: 'Choose recipients or create respondent access after setup is ready.'
@@ -276,7 +276,13 @@ export function toSelectedSeriesCollectionStatusSummary(
 	const preparedInvitations =
 		workspace.summary.queuedInvitationCount +
 		workspace.summary.sentInvitationCount +
-		workspace.summary.failedInvitationCount;
+		workspace.summary.failedInvitationCount +
+		(workspace.summary.bouncedInvitationCount ?? 0);
+	const providerEventCount =
+		(workspace.summary.providerAcceptedEventCount ?? 0) +
+		(workspace.summary.providerDeliveredEventCount ?? 0) +
+		(workspace.summary.providerBouncedEventCount ?? 0) +
+		(workspace.summary.providerComplainedEventCount ?? 0);
 	const openLinks = workspace.summary.openLinkAssignmentCount;
 	const hasRespondentAccess = Boolean(localState.openLinkCreated || preparedInvitations || openLinks);
 	const hasResponseActivity = Boolean(started || drafts || submitted);
@@ -332,25 +338,31 @@ export function toSelectedSeriesCollectionStatusSummary(
 	const audienceLane: SelectedSeriesCollectionStatusLane = hasRespondentAccess
 		? {
 				id: 'audience',
-				label: 'Audience and access',
+				label: 'Recipients and access',
 				title: 'Recipient access prepared',
 				status: 'ready',
-				detail: `${formatCount(openLinks)} respondent link${openLinks === 1 ? '' : 's'} and ${formatCount(preparedInvitations)} prepared invitation${preparedInvitations === 1 ? '' : 's'}. Anonymous reports keep respondent identity out of results.`
+				detail: `${formatCount(openLinks)} respondent link${openLinks === 1 ? '' : 's'} and ${formatCount(preparedInvitations)} prepared invitation${preparedInvitations === 1 ? '' : 's'}. ${
+					providerEventCount > 0
+						? `Provider reported ${formatCount(providerEventCount)} delivery event${providerEventCount === 1 ? '' : 's'}.`
+						: workspace.summary.sentInvitationCount > 0
+							? 'Provider delivery events have not been reconciled yet.'
+							: 'Provider events appear after sent email invitations are reconciled.'
+				} Anonymous reports keep respondent identity out of results.`
 			}
 		: launched
 			? {
 					id: 'audience',
-					label: 'Audience and access',
+					label: 'Recipients and access',
 					title: 'Access not prepared',
 					status: 'pending',
 					detail: 'Create a respondent link or prepare invitations before expecting responses.'
 				}
 			: {
 					id: 'audience',
-					label: 'Audience and access',
+					label: 'Recipients and access',
 					title: 'Access waits for launch',
 					status: 'blocked',
-					detail: 'Recipient access can be prepared after collection starts.'
+					detail: 'Save recipients in Setup before launch, or start collection before creating an open respondent link.'
 				};
 
 	const reportingLane: SelectedSeriesCollectionStatusLane = {

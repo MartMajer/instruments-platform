@@ -1354,10 +1354,14 @@ public sealed class StagingWorkerDeploymentPackageTests
         var api = ExtractServiceSection(compose, "api");
 
         Assert.Contains("EmailDelivery__Provider: ${EmailDelivery__Provider:-local-dev}", api);
+        Assert.Contains("EmailDelivery__ManagedProviderName: ${EmailDelivery__ManagedProviderName:-}", api);
+        Assert.Contains("EmailDelivery__SenderDomainVerified: ${EmailDelivery__SenderDomainVerified:-false}", api);
+        Assert.Contains("EmailDelivery__VerifiedSenderDomain: ${EmailDelivery__VerifiedSenderDomain:-}", api);
         Assert.Contains("EmailDelivery__FromAddress: ${EmailDelivery__FromAddress:-}", api);
+        Assert.Contains("EmailDelivery__AwsSes__SnsTopicArn: ${EmailDelivery__AwsSes__SnsTopicArn:-}", api);
         Assert.Contains("EmailDelivery__Smtp__Host: ${EmailDelivery__Smtp__Host:-}", api);
         Assert.Contains("EmailDelivery__Smtp__Port: ${EmailDelivery__Smtp__Port:-25}", api);
-        Assert.Contains("EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-false}", api);
+        Assert.Contains("EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-true}", api);
         Assert.Contains("EmailDelivery__Smtp__UserName: ${EmailDelivery__Smtp__UserName:-}", api);
         Assert.Contains("EmailDelivery__Smtp__Password: ${EmailDelivery__Smtp__Password:-}", api);
 
@@ -1366,10 +1370,14 @@ public sealed class StagingWorkerDeploymentPackageTests
             var env = ReadRepoFile(path);
 
             Assert.Contains("EmailDelivery__Provider=local-dev", env);
+            Assert.Contains("EmailDelivery__ManagedProviderName=", env);
+            Assert.Contains("EmailDelivery__SenderDomainVerified=false", env);
+            Assert.Contains("EmailDelivery__VerifiedSenderDomain=", env);
             Assert.Contains("EmailDelivery__FromAddress=", env);
+            Assert.Contains("EmailDelivery__AwsSes__SnsTopicArn=", env);
             Assert.Contains("EmailDelivery__Smtp__Host=", env);
             Assert.Contains("EmailDelivery__Smtp__Port=25", env);
-            Assert.Contains("EmailDelivery__Smtp__EnableSsl=false", env);
+            Assert.Contains("EmailDelivery__Smtp__EnableSsl=true", env);
             Assert.Contains("EmailDelivery__Smtp__UserName=", env);
             Assert.Contains("EmailDelivery__Smtp__Password=", env);
         }

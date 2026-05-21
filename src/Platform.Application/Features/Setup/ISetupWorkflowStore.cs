@@ -72,6 +72,11 @@ public interface ISetupWorkflowStore
         Guid campaignId,
         CancellationToken cancellationToken);
 
+    Task<Result<CampaignOpenLinkResponse>> ReplaceCampaignOpenLinkAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken);
+
     Task<Result<CampaignIdentifiedEntryResponse>> CreateCampaignIdentifiedEntryAsync(
         Guid tenantId,
         Guid campaignId,

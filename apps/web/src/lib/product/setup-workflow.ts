@@ -112,7 +112,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 			id: 'readiness',
 			step: 'Step 5',
 			title: 'Launch check',
-			description: 'Check the questionnaire, results, collection wave, audience, and policies before launch.',
+			description: 'Check the questionnaire, results, collection wave, recipients, and policies before launch.',
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
 			available: Boolean(campaignId),
 			disabledReason: campaignId ? null : 'Create the collection wave first.'
@@ -141,15 +141,24 @@ export function toSelectedSeriesSetupLaunchState(
 
 	if (readinessPassed) {
 		const hasSavedRecipients = (options.savedRecipientSelectionCount ?? 0) > 0;
+		const mode = options.responseIdentityMode;
+		const noRecipientStatus =
+			mode === 'identified'
+				? 'Launch check passed; save recipients for identified access'
+				: 'Launch check passed; choose public link or save recipients';
+		const noRecipientNextAction =
+			mode === 'identified'
+				? 'Save a recipient selection below before launch so Collection can create identified access.'
+				: 'Open Collection to launch with a public link, or save recipients below before launch.';
 		return {
 			statusLabel: hasSavedRecipients
 				? 'Launch check passed with saved recipients'
-				: 'Launch check passed; choose public link or save recipients',
+				: noRecipientStatus,
 			nextActionLabel: hasSavedRecipients
 				? 'Open Collection to start the wave with the saved recipient selection.'
-				: 'Open Collection to launch with a public link, or save recipients below before launch.',
+				: noRecipientNextAction,
 			collectionButtonLabel: 'Open Collection launch',
-			collectionButtonAvailable: true,
+			collectionButtonAvailable: mode === 'identified' ? hasSavedRecipients : true,
 			recipientSummary
 		};
 	}
@@ -276,7 +285,7 @@ function toRecipientSummary(options: SelectedSeriesSetupLaunchStateOptions) {
 	}
 
 	if (options.responseIdentityMode === 'anonymous_longitudinal') {
-		return 'No saved recipients; repeat-participation waves use respondent codes instead of saved invitations.';
+		return 'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.';
 	}
 
 	return 'No saved recipients; launch with a public link or save recipients below.';

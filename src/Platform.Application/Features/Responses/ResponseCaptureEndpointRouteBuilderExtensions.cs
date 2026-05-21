@@ -24,6 +24,11 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
             .WithName("GetOpenLinkEntry")
             .WithTags("Responses");
 
+        app.MapPost("/respondent/open-links/{token}/unsubscribe", UnsubscribeEmailInvitation)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
+            .WithName("UnsubscribeEmailInvitation")
+            .WithTags("Responses");
+
         app.MapPost("/respondent/open-links/{token}/sessions", CreateOpenLinkSession)
             .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
             .WithName("CreateOpenLinkSession")
@@ -112,6 +117,19 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new GetOpenLinkEntryQuery(token), cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> UnsubscribeEmailInvitation(
+        string token,
+        UnsubscribeEmailInvitationRequest? request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new UnsubscribeEmailInvitationCommand(token, request?.Confirmed == true),
+            cancellationToken);
 
         return ResponseCaptureHttpResults.ToOk(result);
     }

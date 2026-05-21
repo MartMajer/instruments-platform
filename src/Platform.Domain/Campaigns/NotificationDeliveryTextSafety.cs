@@ -60,6 +60,7 @@ internal static class NotificationDeliveryTextSafety
     private static bool ContainsSensitiveValue(string value)
     {
         return value.Contains("/r/", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("campaign-email:", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("inv_", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("opn_", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("wdr_", StringComparison.OrdinalIgnoreCase) ||

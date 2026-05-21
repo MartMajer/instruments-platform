@@ -66,6 +66,9 @@ describe('registration api', () => {
 				return {
 					loginUrl: '/auth/login?tenantId=11111111-1111-4111-8111-111111111111'
 				} as T;
+			},
+			async requestText() {
+				throw new Error('not used');
 			}
 		});
 

@@ -64,7 +64,8 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
                 WithdrawalTargetKinds.ResponseSession,
                 Guid.NewGuid(),
                 RetentionPolicy.Delete),
-            includeTenantHeader: false);
+            includeTenantHeader: false,
+            includeTenantMemberships: false);
 
         var response = await client.SendAsync(request);
 
@@ -607,7 +608,8 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         object? body = null,
         string? permissions = "setup.manage",
         Guid? userId = null,
-        bool includeTenantHeader = true)
+        bool includeTenantHeader = true,
+        bool includeTenantMemberships = true)
     {
         var request = new HttpRequestMessage(method, url);
         if (includeTenantHeader)
@@ -616,7 +618,10 @@ public sealed class WithdrawalEndpointTests(WebApplicationFactory<Program> facto
         }
 
         request.Headers.Add(TestAuthHandler.UserIdHeader, (userId ?? Guid.NewGuid()).ToString());
-        request.Headers.Add(TestAuthHandler.TenantMembershipsHeader, tenantId.ToString());
+        if (includeTenantMemberships)
+        {
+            request.Headers.Add(TestAuthHandler.TenantMembershipsHeader, tenantId.ToString());
+        }
         if (permissions is not null)
         {
             request.Headers.Add(TestAuthHandler.PermissionsHeader, permissions);

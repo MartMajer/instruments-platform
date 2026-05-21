@@ -8,11 +8,13 @@ public static class EmailDeliveryProviderNames
 
 public sealed record EmailDeliveryMessage(
     Guid NotificationId,
+    string DeliveryAttemptKey,
     string Recipient,
     string Subject,
-    string BodyText);
+    string BodyText,
+    string? UnsubscribeUrl = null);
 
 public sealed record EmailDeliveryResult(
     string Provider,
-    string ProviderMessageId,
+    string? ProviderMessageId,
     DateTimeOffset SentAt);

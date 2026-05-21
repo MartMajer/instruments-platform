@@ -1085,9 +1085,13 @@ public sealed class ProductSurfaceReadStore(
                 .Distinct()
                 .ToArray(),
             cancellationToken);
-        var openLinkCounts = await LoadOpenLinkAssignmentCountsByCampaignAsync(campaignIds, cancellationToken);
-        var notificationCounts = await LoadInvitationNotificationCountsByCampaignAsync(campaignIds, cancellationToken);
-        var deliveryAggregates = await LoadDeliveryAttemptAggregatesByCampaignAsync(campaignIds, cancellationToken);
+        var openLinkCounts = await LoadOpenLinkAssignmentCountsByCampaignAsync(tenantId, campaignIds, cancellationToken);
+        var notificationCounts = await LoadInvitationNotificationCountsByCampaignAsync(tenantId, campaignIds, cancellationToken);
+        var deliveryAggregates = await LoadDeliveryAttemptAggregatesByCampaignAsync(tenantId, campaignIds, cancellationToken);
+        var providerEventAggregates = await LoadProviderDeliveryEventAggregatesByCampaignAsync(
+            tenantId,
+            campaignIds,
+            cancellationToken);
         var campaignResponses = campaigns
             .Select(campaign =>
             {
@@ -1104,7 +1108,8 @@ public sealed class ProductSurfaceReadStore(
                     scoreCoverageInputs[campaign.Id],
                     openLinkCounts.GetValueOrDefault(campaign.Id),
                     notificationCounts.GetValueOrDefault(campaign.Id),
-                    deliveryAggregates.GetValueOrDefault(campaign.Id));
+                    deliveryAggregates.GetValueOrDefault(campaign.Id),
+                    providerEventAggregates.GetValueOrDefault(campaign.Id));
             })
             .ToArray();
         var selectedCampaign = SelectOperationsCampaign(campaigns);
@@ -1137,7 +1142,13 @@ public sealed class ProductSurfaceReadStore(
                 summaryCollectionStatus,
                 summaryReportVisibilityStatus,
                 CreateCollectionGuidance(summaryCollectionStatus, summaryReportVisibilityStatus),
-                missingPrerequisites.Count),
+                missingPrerequisites.Count,
+                campaignResponses.Sum(campaign => campaign.BouncedInvitationCount),
+                campaignResponses.Sum(campaign => campaign.ProviderAcceptedEventCount),
+                campaignResponses.Sum(campaign => campaign.ProviderDeliveredEventCount),
+                campaignResponses.Sum(campaign => campaign.ProviderBouncedEventCount),
+                campaignResponses.Sum(campaign => campaign.ProviderComplainedEventCount),
+                MaxNullableDateTimeOffset(campaignResponses.Select(campaign => campaign.LatestProviderEventAt))),
             selectedCampaign is null
                 ? null
                 : campaignResponses.Single(campaign => campaign.Id == selectedCampaign.Id),
@@ -2240,6 +2251,7 @@ public sealed class ProductSurfaceReadStore(
     }
 
     private async Task<Dictionary<Guid, int>> LoadOpenLinkAssignmentCountsByCampaignAsync(
+        Guid tenantId,
         Guid[] campaignIds,
         CancellationToken cancellationToken)
     {
@@ -2252,7 +2264,9 @@ public sealed class ProductSurfaceReadStore(
                 from assignment in db.Assignments.AsNoTracking()
                 join token in db.InvitationTokens.AsNoTracking()
                     on assignment.InviteTokenId equals token.Id
-                where campaignIds.Contains(assignment.CampaignId) &&
+                where assignment.TenantId == tenantId &&
+                    token.TenantId == tenantId &&
+                    campaignIds.Contains(assignment.CampaignId) &&
                     token.Channel == InvitationTokenChannels.OpenLink
                 group assignment by assignment.CampaignId into grouping
                 select new CampaignCountRow(
@@ -2264,6 +2278,7 @@ public sealed class ProductSurfaceReadStore(
     }
 
     private async Task<Dictionary<Guid, CampaignNotificationCountsRow>> LoadInvitationNotificationCountsByCampaignAsync(
+        Guid tenantId,
         Guid[] campaignIds,
         CancellationToken cancellationToken)
     {
@@ -2275,6 +2290,7 @@ public sealed class ProductSurfaceReadStore(
         var counts = await db.Notifications
             .AsNoTracking()
             .Where(entity =>
+                entity.TenantId == tenantId &&
                 campaignIds.Contains(entity.CampaignId) &&
                 entity.Channel == NotificationChannels.Email &&
                 entity.TemplateCode == Notification.InvitationTemplateCode)
@@ -2292,10 +2308,12 @@ public sealed class ProductSurfaceReadStore(
                 group => new CampaignNotificationCountsRow(
                     group.Where(row => row.Status == NotificationStatuses.Queued).Sum(row => row.Count),
                     group.Where(row => row.Status == NotificationStatuses.Sent).Sum(row => row.Count),
-                    group.Where(row => row.Status == NotificationStatuses.Failed).Sum(row => row.Count)));
+                    group.Where(row => row.Status == NotificationStatuses.Failed).Sum(row => row.Count),
+                    group.Where(row => row.Status == NotificationStatuses.Bounced).Sum(row => row.Count)));
     }
 
     private async Task<Dictionary<Guid, CampaignDeliveryAggregateRow>> LoadDeliveryAttemptAggregatesByCampaignAsync(
+        Guid tenantId,
         Guid[] campaignIds,
         CancellationToken cancellationToken)
     {
@@ -2308,12 +2326,46 @@ public sealed class ProductSurfaceReadStore(
                 from attempt in db.NotificationDeliveryAttempts.AsNoTracking()
                 join notification in db.Notifications.AsNoTracking()
                     on attempt.NotificationId equals notification.Id
-                where campaignIds.Contains(notification.CampaignId)
+                where attempt.TenantId == tenantId &&
+                    notification.TenantId == tenantId &&
+                    campaignIds.Contains(notification.CampaignId)
                 group attempt by notification.CampaignId into grouping
                 select new CampaignDeliveryAggregateRow(
                     grouping.Key,
                     grouping.Count(),
                     grouping.Max(attempt => attempt.CreatedAt)))
+            .ToListAsync(cancellationToken);
+
+        return aggregates.ToDictionary(row => row.CampaignId);
+    }
+
+    private async Task<Dictionary<Guid, CampaignProviderDeliveryEventAggregateRow>> LoadProviderDeliveryEventAggregatesByCampaignAsync(
+        Guid tenantId,
+        Guid[] campaignIds,
+        CancellationToken cancellationToken)
+    {
+        if (campaignIds.Length == 0)
+        {
+            return new Dictionary<Guid, CampaignProviderDeliveryEventAggregateRow>();
+        }
+
+        var aggregates = await (
+                from deliveryEvent in db.NotificationDeliveryEvents.AsNoTracking()
+                join notification in db.Notifications.AsNoTracking()
+                    on deliveryEvent.NotificationId equals notification.Id
+                where deliveryEvent.TenantId == tenantId &&
+                    notification.TenantId == tenantId &&
+                    campaignIds.Contains(notification.CampaignId) &&
+                    notification.Channel == NotificationChannels.Email &&
+                    notification.TemplateCode == Notification.InvitationTemplateCode
+                group deliveryEvent by notification.CampaignId into grouping
+                select new CampaignProviderDeliveryEventAggregateRow(
+                    grouping.Key,
+                    grouping.Count(deliveryEvent => deliveryEvent.EventType == NotificationDeliveryEventTypes.Accepted),
+                    grouping.Count(deliveryEvent => deliveryEvent.EventType == NotificationDeliveryEventTypes.Delivered),
+                    grouping.Count(deliveryEvent => deliveryEvent.EventType == NotificationDeliveryEventTypes.Bounced),
+                    grouping.Count(deliveryEvent => deliveryEvent.EventType == NotificationDeliveryEventTypes.Complained),
+                    grouping.Max(deliveryEvent => deliveryEvent.ReceivedAt)))
             .ToListAsync(cancellationToken);
 
         return aggregates.ToDictionary(row => row.CampaignId);
@@ -3157,7 +3209,8 @@ public sealed class ProductSurfaceReadStore(
         ScoreCoverageCampaignInput scoreCoverageInput,
         int openLinkAssignmentCount,
         CampaignNotificationCountsRow? notificationCounts,
-        CampaignDeliveryAggregateRow? deliveryAggregate)
+        CampaignDeliveryAggregateRow? deliveryAggregate,
+        CampaignProviderDeliveryEventAggregateRow? providerEventAggregate)
     {
         var startedResponseCount = collectionAggregate?.StartedResponseCount ?? 0;
         var submittedResponseCount = collectionAggregate?.SubmittedResponseCount ?? 0;
@@ -3201,7 +3254,13 @@ public sealed class ProductSurfaceReadStore(
             scoreCoverage.NotConfiguredSubmittedResponseCount,
             scoreCoverage.LatestScoringActivityAt,
             scoreCoverage.Status,
-            CreateOperationsLaunchSnapshotResponse(launchDetail));
+            CreateOperationsLaunchSnapshotResponse(launchDetail),
+            notificationCounts?.BouncedCount ?? 0,
+            providerEventAggregate?.AcceptedCount ?? 0,
+            providerEventAggregate?.DeliveredCount ?? 0,
+            providerEventAggregate?.BouncedCount ?? 0,
+            providerEventAggregate?.ComplainedCount ?? 0,
+            providerEventAggregate?.LatestEventAt);
     }
 
     private static CampaignSeriesOperationsLaunchSnapshotResponse? CreateOperationsLaunchSnapshotResponse(
@@ -3600,7 +3659,10 @@ public sealed class ProductSurfaceReadStore(
         }
 
         if (campaigns.Sum(campaign =>
-                campaign.QueuedInvitationCount + campaign.SentInvitationCount + campaign.FailedInvitationCount) == 0)
+                campaign.QueuedInvitationCount +
+                campaign.SentInvitationCount +
+                campaign.FailedInvitationCount +
+                campaign.BouncedInvitationCount) == 0)
         {
             missing.Add(CreateOperationsMissingPrerequisite(
                 "invitations.missing",
@@ -4541,12 +4603,21 @@ public sealed class ProductSurfaceReadStore(
     private sealed record CampaignNotificationCountsRow(
         int QueuedCount,
         int SentCount,
-        int FailedCount);
+        int FailedCount,
+        int BouncedCount);
 
     private sealed record CampaignDeliveryAggregateRow(
         Guid CampaignId,
         int AttemptCount,
         DateTimeOffset? LatestAttemptAt);
+
+    private sealed record CampaignProviderDeliveryEventAggregateRow(
+        Guid CampaignId,
+        int AcceptedCount,
+        int DeliveredCount,
+        int BouncedCount,
+        int ComplainedCount,
+        DateTimeOffset? LatestEventAt);
 
     private sealed record CampaignCollectionAggregateRow(
         Guid CampaignId,

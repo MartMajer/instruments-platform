@@ -65,7 +65,8 @@
 	let savingManager = $state(false);
 	let managerError = $state<string | null>(null);
 	let importCsvContent = $state('');
-	let importingCsv = $state(false);
+	let previewingCsv = $state(false);
+	let applyingCsv = $state(false);
 	let importResult = $state<SubjectDirectoryCsvImportResponse | null>(null);
 	let importError = $state<string | null>(null);
 
@@ -84,6 +85,13 @@
 		subjects.find((subject) => subject.id === selectedSubjectId) ?? null
 	);
 	const managerOptions = $derived(subjects.filter((subject) => subject.id !== selectedSubjectId));
+	const importHasFailures = $derived(
+		importResult?.rows.some((row) => row.status === 'failed') ?? false
+	);
+	const importBusy = $derived(previewingCsv || applyingCsv);
+	const csvTemplateHref = $derived(
+		`data:text/csv;charset=utf-8,${encodeURIComponent('external_id,email,display_name,locale,group_type,group_name,role_in_group\nemp-001,ana@example.test,Ana Analyst,en,department,Research,member\nemp-002,bo@example.test,Bo Builder,en,department,Operations,member')}`
+	);
 
 	$effect(() => {
 		if (canManageSetup && loadState === 'idle') {
@@ -165,7 +173,15 @@
 		}
 	}
 
-	async function importSubjectDirectoryCsv() {
+	async function previewSubjectDirectoryCsv() {
+		await importSubjectDirectoryCsv(true);
+	}
+
+	async function applySubjectDirectoryCsv() {
+		await importSubjectDirectoryCsv(false);
+	}
+
+	async function importSubjectDirectoryCsv(dryRun: boolean) {
 		if (!canManageSetup) {
 			return;
 		}
@@ -175,19 +191,30 @@
 			return;
 		}
 
-		importingCsv = true;
+		if (dryRun) {
+			previewingCsv = true;
+		} else {
+			applyingCsv = true;
+		}
+
 		importError = null;
-		importResult = null;
+		if (dryRun) {
+			importResult = null;
+		}
 
 		try {
 			importResult = await productApi.importSubjectDirectoryCsv({
-				csvContent: importCsvContent
+				csvContent: importCsvContent,
+				dryRun
 			});
-			await loadDirectory();
+			if (!dryRun) {
+				await loadDirectory();
+			}
 		} catch (error) {
 			importError = toProductApiErrorMessage(error, 'CSV audience import could not be completed.');
 		} finally {
-			importingCsv = false;
+			previewingCsv = false;
+			applyingCsv = false;
 		}
 	}
 
@@ -445,66 +472,120 @@
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">CSV import</p>
-				<h2 class="product-title">Import people and groups</h2>
+				<h2 class="product-title">Preview, then import people and groups</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-					Use this when a study audience is already prepared in a spreadsheet. Accepted
-					columns: external_id, email, display_name, locale, group_type, group_name,
-					role_in_group. Use one row per person and group membership.
+					Use this when a study audience is already prepared in a spreadsheet. First preview
+					the rows so you can confirm who will be created, updated, grouped, or rejected. Apply
+					only after the preview looks right.
 				</p>
 			</div>
+			<a class="secondary-button" href={csvTemplateHref} download="directory-import-template.csv">
+				Download template
+			</a>
 		</div>
 
 		<form
 			class="grid gap-4"
 			onsubmit={(event) => {
 				event.preventDefault();
-				void importSubjectDirectoryCsv();
+				void previewSubjectDirectoryCsv();
 			}}
 		>
 			<label class="field">
 				<span>CSV file</span>
-				<input type="file" accept=".csv,text/csv" onchange={loadCsvFile} disabled={importingCsv} />
+				<input type="file" accept=".csv,text/csv" onchange={loadCsvFile} disabled={importBusy} />
 			</label>
 			<label class="field">
 				<span>CSV rows</span>
 				<textarea
 					rows="7"
 					bind:value={importCsvContent}
-					disabled={importingCsv}
+					disabled={importBusy}
 					placeholder={'external_id,email,display_name,locale,group_type,group_name,role_in_group\nemp-001,ana@example.test,Ana Analyst,en,department,Research,member'}
 				></textarea>
+				<span class="text-sm text-[var(--color-text-muted)]">
+					Required identity: external_id or email. Optional grouping: group_type, group_name,
+					role_in_group. One person can appear in multiple rows when they belong to multiple
+					groups.
+				</span>
 			</label>
-			<button type="submit" class="primary-button" disabled={importingCsv}>
-				{#if importingCsv}
-					<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
-				{:else}
-					<Upload size={17} aria-hidden="true" />
-				{/if}
-				<span>{importingCsv ? 'Importing...' : 'Import CSV audience'}</span>
-			</button>
+			<div class="action-row">
+				<button type="submit" class="primary-button" disabled={importBusy}>
+					{#if previewingCsv}
+						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Upload size={17} aria-hidden="true" />
+					{/if}
+					<span>{previewingCsv ? 'Previewing...' : 'Preview CSV'}</span>
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={importBusy || !importResult?.dryRun || importHasFailures}
+					onclick={applySubjectDirectoryCsv}
+				>
+					{#if applyingCsv}
+						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+					{:else}
+						<Save size={17} aria-hidden="true" />
+					{/if}
+					<span>{applyingCsv ? 'Applying...' : 'Apply import'}</span>
+				</button>
+			</div>
+			{#if importResult?.dryRun && importHasFailures}
+				<p class="error-line" role="alert">
+					Fix the failed rows before applying this Directory import.
+				</p>
+			{/if}
+			{#if importResult?.dryRun && !importHasFailures}
+				<InlineAlert
+					variant="info"
+					title="Preview only"
+					message="Nothing has been saved yet. Review the actions below, then apply the import."
+				/>
+			{/if}
+			{#if applyingCsv}
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Applying the reviewed Directory import...
+				</p>
+			{/if}
+			{#if previewingCsv}
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Checking rows without changing Directory records...
+				</p>
+			{/if}
 			{#if importError}
 				<p class="error-line" role="alert">{importError}</p>
 			{/if}
 			{#if importResult}
 				<div class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 					<p class="text-sm font-semibold text-[var(--color-text)]">
-						Imported {importResult.importedRowCount} of {importResult.rowCount} rows
+						{importResult.dryRun ? 'Previewed' : 'Imported'} {importResult.importedRowCount} of
+						{importResult.rowCount} rows
 					</p>
 					<dl class="mt-3 grid gap-2 text-sm md:grid-cols-3">
 						<div>
-							<dt class="text-[var(--color-text-muted)]">People created</dt>
+							<dt class="text-[var(--color-text-muted)]">
+								People {importResult.dryRun ? 'to create' : 'created'}
+							</dt>
 							<dd class="font-semibold">{importResult.createdSubjectCount}</dd>
 						</div>
 						<div>
-							<dt class="text-[var(--color-text-muted)]">People updated</dt>
+							<dt class="text-[var(--color-text-muted)]">
+								People {importResult.dryRun ? 'to update' : 'updated'}
+							</dt>
 							<dd class="font-semibold">{importResult.updatedSubjectCount}</dd>
 						</div>
 						<div>
-							<dt class="text-[var(--color-text-muted)]">Groups created</dt>
+							<dt class="text-[var(--color-text-muted)]">
+								Groups {importResult.dryRun ? 'to create' : 'created'}
+							</dt>
 							<dd class="font-semibold">{importResult.createdGroupCount}</dd>
 						</div>
 						<div>
-							<dt class="text-[var(--color-text-muted)]">Memberships added</dt>
+							<dt class="text-[var(--color-text-muted)]">
+								Memberships {importResult.dryRun ? 'to add' : 'added'}
+							</dt>
 							<dd class="font-semibold">{importResult.addedMembershipCount}</dd>
 						</div>
 						<div>

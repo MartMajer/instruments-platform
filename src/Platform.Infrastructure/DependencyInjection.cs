@@ -143,6 +143,18 @@ public static class DependencyInjection
         });
         services.AddScoped<LocalDevEmailDeliveryProvider>();
         services.AddScoped<SmtpEmailDeliveryProvider>();
+        services
+            .AddHttpClient<IAwsSnsSignatureVerifier, AwsSnsSignatureVerifier>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            });
+        services
+            .AddHttpClient<IAwsSnsSubscriptionConfirmer, AwsSnsSubscriptionConfirmer>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            });
         services.AddScoped<IEmailDeliveryProvider>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<EmailDeliveryOptions>>().Value;

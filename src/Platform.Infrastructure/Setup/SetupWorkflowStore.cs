@@ -4,7 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Platform.Application.Features.Notifications;
 using Platform.Application.Features.Responses;
 using Platform.Application.Features.Setup;
 using Platform.Application.Outbox;
@@ -17,6 +19,7 @@ using Platform.Domain.Subjects;
 using Platform.Domain.Templates;
 using Platform.Infrastructure.Campaigns.RespondentRules;
 using Platform.Infrastructure.Data;
+using Platform.Infrastructure.Notifications;
 using Platform.Infrastructure.Tenancy;
 using Platform.SharedKernel;
 
@@ -26,7 +29,8 @@ public sealed class SetupWorkflowStore(
     ApplicationDbContext db,
     ITenantDbScope tenantDbScope,
     IOutboxEventBuffer? outboxEventBuffer = null,
-    RespondentRuleResolver? respondentRuleResolver = null) : ISetupWorkflowStore
+    RespondentRuleResolver? respondentRuleResolver = null,
+    IOptions<EmailDeliveryOptions>? emailDeliveryOptions = null) : ISetupWorkflowStore
 {
     private static readonly JsonSerializerOptions LaunchSnapshotJsonOptions = new(JsonSerializerDefaults.Web);
     private const string DefaultConsentLocale = "en";
@@ -49,7 +53,9 @@ public sealed class SetupWorkflowStore(
     private const string EmailInvitationAssignmentRole = "invited_respondent";
     private const string NotificationAggregateType = "notification";
     private const string InvitationEmailQueuedEventType = "InvitationEmailQueued";
-    private const int MaxInvitationBatchRecipients = 25;
+    private const int MaxInvitationBatchRecipients = 500;
+    private readonly EmailDeliveryOptions _emailDeliveryOptions =
+        emailDeliveryOptions?.Value ?? new EmailDeliveryOptions();
     private readonly RespondentRuleResolver _respondentRuleResolver =
         respondentRuleResolver ?? new RespondentRuleResolver(db);
 
@@ -414,7 +420,9 @@ public sealed class SetupWorkflowStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
 
         if (campaign is null)
         {
@@ -639,7 +647,9 @@ public sealed class SetupWorkflowStore(
             cancellationToken: cancellationToken);
 
         var campaign = await db.Campaigns
-            .SingleOrDefaultAsync(entity => entity.Id == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
 
         if (campaign is null)
         {
@@ -728,6 +738,10 @@ public sealed class SetupWorkflowStore(
             disclosurePolicyId: readiness.DisclosurePolicy.Id,
             launchPacket: launchPacket);
 
+        await RemoveExternalEmailRespondentRulesAfterMaterializationAsync(
+            campaign.Id,
+            cancellationToken);
+
         try
         {
             campaign.Launch(launchedAt);
@@ -779,7 +793,9 @@ public sealed class SetupWorkflowStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
 
         if (campaign is null)
         {
@@ -789,7 +805,9 @@ public sealed class SetupWorkflowStore(
 
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.CampaignId == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
 
         if (campaign.Status != CampaignStatuses.Live || snapshot is null)
         {
@@ -807,6 +825,30 @@ public sealed class SetupWorkflowStore(
                 Error.Validation(
                     "open_link.identity_mode_not_supported",
                     "Open respondent links support anonymous response modes only."));
+        }
+
+        if (await CampaignHasAccessChannelAsync(
+            tenantId,
+            campaign.Id,
+            InvitationTokenChannels.Email,
+            cancellationToken))
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Conflict(
+                    "open_link.invite_only_access_active",
+                    "This campaign already has private email invitations. Open respondent links are disabled for invite-only collection."));
+        }
+
+        if (await CampaignHasAccessChannelAsync(
+            tenantId,
+            campaign.Id,
+            InvitationTokenChannels.OpenLink,
+            cancellationToken))
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Conflict(
+                    "open_link.already_created",
+                    "This campaign already has an open respondent link. Keep using the created link, or create a new wave if the link was lost."));
         }
 
         var issued = OpenLinkTokens.Issue(tenantId);
@@ -835,6 +877,116 @@ public sealed class SetupWorkflowStore(
             $"/r/{issued.RawToken}"));
     }
 
+    public async Task<Result<CampaignOpenLinkResponse>> ReplaceCampaignOpenLinkAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
+
+        if (campaign is null)
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.NotFound("campaign.not_found", "Campaign was not found."));
+        }
+
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
+
+        if (campaign.Status != CampaignStatuses.Live || snapshot is null)
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Validation(
+                    "campaign.not_launched",
+                    "Campaign must be launched before replacing an open respondent link."));
+        }
+
+        if (snapshot.ResponseIdentityMode is not (
+            ResponseIdentityModes.Anonymous or
+            ResponseIdentityModes.AnonymousLongitudinal))
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Validation(
+                    "open_link.identity_mode_not_supported",
+                    "Open respondent links support anonymous response modes only."));
+        }
+
+        if (await CampaignHasAccessChannelAsync(
+            tenantId,
+            campaign.Id,
+            InvitationTokenChannels.Email,
+            cancellationToken))
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Conflict(
+                    "open_link.invite_only_access_active",
+                    "This campaign already has private email invitations. Open respondent links are disabled for invite-only collection."));
+        }
+
+        var existingOpenLinks = await (
+                from assignment in db.Assignments.AsNoTracking()
+                join invitationToken in db.InvitationTokens
+                    on assignment.InviteTokenId equals invitationToken.Id
+                where assignment.TenantId == tenantId &&
+                    assignment.CampaignId == campaign.Id &&
+                    assignment.Anonymous &&
+                    invitationToken.TenantId == tenantId &&
+                    invitationToken.CampaignId == campaign.Id &&
+                    invitationToken.Channel == InvitationTokenChannels.OpenLink
+                select new
+                {
+                    AssignmentId = assignment.Id,
+                    InvitationToken = invitationToken
+                })
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        if (existingOpenLinks.Count == 0)
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.NotFound(
+                    "open_link.not_found",
+                    "Create an open respondent link before replacing it."));
+        }
+
+        if (existingOpenLinks.Count > 1)
+        {
+            return Result.Failure<CampaignOpenLinkResponse>(
+                Error.Conflict(
+                    "open_link.multiple_active",
+                    "This campaign has more than one open respondent link. Create a new wave before replacing links."));
+        }
+
+        var existing = existingOpenLinks[0];
+        if (db.Entry(existing.InvitationToken).State == EntityState.Detached)
+        {
+            db.InvitationTokens.Attach(existing.InvitationToken);
+        }
+
+        var issued = OpenLinkTokens.Issue(tenantId);
+        existing.InvitationToken.ReissueHash(issued.TokenHash);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignOpenLinkResponse(
+            campaign.Id,
+            existing.AssignmentId,
+            issued.RawToken,
+            $"/r/{issued.RawToken}"));
+    }
+
     public async Task<Result<CampaignIdentifiedEntryResponse>> CreateCampaignIdentifiedEntryAsync(
         Guid tenantId,
         Guid campaignId,
@@ -846,7 +998,9 @@ public sealed class SetupWorkflowStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
 
         if (campaign is null)
         {
@@ -856,7 +1010,9 @@ public sealed class SetupWorkflowStore(
 
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.CampaignId == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
 
         if (campaign.Status != CampaignStatuses.Live || snapshot is null)
         {
@@ -877,6 +1033,7 @@ public sealed class SetupWorkflowStore(
         var assignment = await db.Assignments
             .AsNoTracking()
             .Where(entity =>
+                entity.TenantId == tenantId &&
                 entity.CampaignId == campaign.Id &&
                 !entity.Anonymous &&
                 entity.Role == "self" &&
@@ -884,29 +1041,12 @@ public sealed class SetupWorkflowStore(
             .OrderBy(entity => entity.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
-        Guid subjectId;
         if (assignment is null)
         {
-            var subject = new Subject(
-                PlatformIds.NewId(),
-                tenantId,
-                displayName: "Identified proof respondent",
-                locale: snapshot.DefaultLocale);
-            assignment = Assignment.CreateIdentified(
-                PlatformIds.NewId(),
-                tenantId,
-                campaign.Id,
-                "self",
-                subject.Id,
-                targetSubjectId: subject.Id);
-
-            db.Subjects.Add(subject);
-            db.Assignments.Add(assignment);
-            subjectId = subject.Id;
-        }
-        else
-        {
-            subjectId = assignment.RespondentSubjectId!.Value;
+            return Result.Failure<CampaignIdentifiedEntryResponse>(
+                Error.Validation(
+                    "identified_entry.recipient_assignment_required",
+                    "Save identified recipients before creating identified entry links."));
         }
 
         var issued = OpenLinkTokens.IssueIdentifiedEntry(tenantId);
@@ -925,7 +1065,7 @@ public sealed class SetupWorkflowStore(
         return Result.Success(new CampaignIdentifiedEntryResponse(
             campaign.Id,
             assignment.Id,
-            subjectId,
+            assignment.RespondentSubjectId!.Value,
             issued.RawToken,
             $"/r/{issued.RawToken}"));
     }
@@ -942,7 +1082,9 @@ public sealed class SetupWorkflowStore(
 
         var campaign = await db.Campaigns
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.Id == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
 
         if (campaign is null)
         {
@@ -952,7 +1094,9 @@ public sealed class SetupWorkflowStore(
 
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
-            .SingleOrDefaultAsync(entity => entity.CampaignId == campaignId, cancellationToken);
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
 
         if (campaign.Status != CampaignStatuses.Live || snapshot is null)
         {
@@ -962,12 +1106,24 @@ public sealed class SetupWorkflowStore(
                     "Campaign must be launched before creating invitation batches."));
         }
 
-        if (snapshot.ResponseIdentityMode != ResponseIdentityModes.Anonymous)
+        if (!SupportsAnonymousEmailInvitations(snapshot.ResponseIdentityMode))
         {
             return Result.Failure<CampaignInvitationBatchResponse>(
                 Error.Validation(
                     "invitation_batch.identity_mode_not_supported",
-                    "Email invitation batches support anonymous campaigns only."));
+                    "Email invitation batches support anonymous and anonymous repeat-participation campaigns only."));
+        }
+
+        if (await CampaignHasAccessChannelAsync(
+            tenantId,
+            campaign.Id,
+            InvitationTokenChannels.OpenLink,
+            cancellationToken))
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "invitation_batch.open_link_access_active",
+                    "This campaign already has an open respondent link. Private email invitations are disabled for open-link collection."));
         }
 
         var normalizedRecipients = NormalizeInvitationRecipients(request.Recipients);
@@ -976,14 +1132,28 @@ public sealed class SetupWorkflowStore(
             return Result.Failure<CampaignInvitationBatchResponse>(normalizedRecipients.Error);
         }
 
+        var suppressedRecipients = await LoadSuppressedEmailRecipientsAsync(
+            tenantId,
+            normalizedRecipients.Value,
+            cancellationToken);
+        if (suppressedRecipients.Count > 0)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "invitation_batch.recipient_suppressed",
+                    $"{FormatCountLabel(suppressedRecipients.Count, "recipient")} suppressed and cannot be invited: {FormatRecipientListForError(suppressedRecipients)}."));
+        }
+
         var duplicateRecipients = await db.Notifications
             .AsNoTracking()
             .Where(notification =>
+                notification.TenantId == tenantId &&
                 notification.CampaignId == campaignId &&
                 notification.Channel == NotificationChannels.Email &&
                 notification.TemplateCode == Notification.InvitationTemplateCode &&
                 (notification.Status == NotificationStatuses.Queued ||
-                    notification.Status == NotificationStatuses.Sent) &&
+                    notification.Status == NotificationStatuses.Sent ||
+                    notification.Status == NotificationStatuses.Failed) &&
                 normalizedRecipients.Value.Contains(notification.Recipient))
             .Select(notification => notification.Recipient)
             .Distinct()
@@ -994,8 +1164,8 @@ public sealed class SetupWorkflowStore(
         {
             return Result.Failure<CampaignInvitationBatchResponse>(
                 Error.Conflict(
-                    "invitation_batch.recipient_already_queued",
-                    $"An invitation is already queued or sent for: {string.Join(", ", duplicateRecipients)}."));
+                    "invitation_batch.recipient_already_exists",
+                    $"{FormatCountLabel(duplicateRecipients.Count, "recipient")} already have invitations: {FormatRecipientListForError(duplicateRecipients)}. Use the existing invitation status, or retry only retryable failed invitations instead of creating another invite link."));
         }
 
         var invitations = new List<CampaignInvitationResponse>(normalizedRecipients.Value.Count);
@@ -1033,8 +1203,8 @@ public sealed class SetupWorkflowStore(
                 invitationToken.Id,
                 notification.Id,
                 recipient,
-                issued.RawToken,
-                $"/r/{issued.RawToken}",
+                Token: null,
+                RespondentPath: null,
                 notification.Status));
         }
 
@@ -1299,7 +1469,7 @@ public sealed class SetupWorkflowStore(
             return Result.Failure<IReadOnlyList<string>>(
                 Error.Validation(
                     "invitation_batch.too_many_recipients",
-                    $"Invitation batches support at most {MaxInvitationBatchRecipients} recipients in the MVP."));
+                    $"Invitation batches support at most {MaxInvitationBatchRecipients} recipients per request."));
         }
 
         var normalizedRecipients = new List<string>(recipients.Count);
@@ -1315,10 +1485,15 @@ public sealed class SetupWorkflowStore(
                         "Every invitation recipient must be a valid email address."));
             }
 
-            if (seen.Add(normalized))
+            if (!seen.Add(normalized))
             {
-                normalizedRecipients.Add(normalized);
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation(
+                        "invitation_batch.duplicate_recipient",
+                        "Invitation recipients cannot contain duplicate email addresses."));
             }
+
+            normalizedRecipients.Add(normalized);
         }
 
         return Result.Success<IReadOnlyList<string>>(normalizedRecipients);
@@ -1354,6 +1529,72 @@ public sealed class SetupWorkflowStore(
         {
             return false;
         }
+    }
+
+    private async Task RemoveExternalEmailRespondentRulesAfterMaterializationAsync(
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        var rules = await db.RespondentRules
+            .Where(rule => rule.CampaignId == campaignId)
+            .ToListAsync(cancellationToken);
+        var externalEmailRules = rules
+            .Where(rule => IsExternalEmailRespondentRule(rule.Rule))
+            .ToArray();
+
+        if (externalEmailRules.Length > 0)
+        {
+            db.RespondentRules.RemoveRange(externalEmailRules);
+        }
+    }
+
+    private async Task<bool> CampaignHasAccessChannelAsync(
+        Guid tenantId,
+        Guid campaignId,
+        string invitationTokenChannel,
+        CancellationToken cancellationToken)
+    {
+        return await db.InvitationTokens
+            .AsNoTracking()
+            .Where(invitationToken =>
+                invitationToken.TenantId == tenantId &&
+                invitationToken.CampaignId == campaignId &&
+                invitationToken.Channel == invitationTokenChannel)
+            .AnyAsync(
+                invitationToken => db.Assignments
+                    .AsNoTracking()
+                    .Any(assignment =>
+                        assignment.TenantId == tenantId &&
+                        assignment.CampaignId == campaignId &&
+                        (assignment.InviteTokenId == invitationToken.Id ||
+                            invitationToken.AssignmentId == assignment.Id)),
+                cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<string>> LoadSuppressedEmailRecipientsAsync(
+        Guid tenantId,
+        IReadOnlyCollection<string> recipients,
+        CancellationToken cancellationToken)
+    {
+        if (recipients.Count == 0)
+        {
+            return [];
+        }
+
+        var manuallySuppressedRecipients = await db.EmailSuppressions
+            .AsNoTracking()
+            .Where(suppression =>
+                suppression.TenantId == tenantId &&
+                suppression.ReleasedAt == null &&
+                recipients.Contains(suppression.Recipient))
+            .Select(suppression => suppression.Recipient)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return manuallySuppressedRecipients
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(recipient => recipient, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static OutboxMessage CreateInvitationEmailQueuedMessage(
@@ -1462,15 +1703,28 @@ public sealed class SetupWorkflowStore(
             .ToListAsync(cancellationToken);
         if (rules.Count == 0)
         {
+            if (campaign.ResponseIdentityMode == ResponseIdentityModes.Identified)
+            {
+                issues.Add(Blocker(
+                    "respondent_rule.no_recipients",
+                    "Save identified recipients before launch."));
+            }
+
             return;
         }
 
-        if (campaign.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal)
+        if (!SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode) &&
+            rules.Any(rule => IsExternalEmailRespondentRule(rule.Rule)))
         {
             issues.Add(Blocker(
                 "respondent_rule.identity_mode_not_supported",
-                "Saved audience invitations are not available for anonymous repeat-participation waves yet."));
+                "Specific email recipient lists are available for anonymous invite-only or repeat-participation waves only."));
             return;
+        }
+
+        if (SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode))
+        {
+            AddEmailDeliveryReadinessIssues(issues);
         }
 
         foreach (var rule in rules)
@@ -1491,13 +1745,13 @@ public sealed class SetupWorkflowStore(
 
             issues.AddRange(resolution.Value.Issues.Select(ToLaunchReadinessIssue));
 
-            if (campaign.ResponseIdentityMode == ResponseIdentityModes.Anonymous)
+            if (SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode))
             {
                 if (resolution.Value.Candidates.Count == 0)
                 {
                     issues.Add(Blocker(
                         "respondent_rule.no_recipients",
-                        "Saved audience rules must resolve at least one recipient before anonymous invite-only collection can start."));
+                        "Saved audience rules must resolve at least one recipient before invite-only collection can start."));
                 }
 
                 if (resolution.Value.Candidates.Any(candidate =>
@@ -1505,9 +1759,41 @@ public sealed class SetupWorkflowStore(
                 {
                     issues.Add(Blocker(
                         "respondent_rule.email_required",
-                        "Every saved audience recipient needs an email address before anonymous invite-only collection can start."));
+                        "Every saved audience recipient needs an email address before invite-only collection can start."));
                 }
             }
+        }
+    }
+
+    private void AddEmailDeliveryReadinessIssues(List<LaunchReadinessIssueResponse> issues)
+    {
+        var readiness = EmailDeliveryReadinessEvaluator.Create(new EmailDeliveryReadinessConfiguration(
+            _emailDeliveryOptions.Provider,
+            _emailDeliveryOptions.ManagedProviderName,
+            _emailDeliveryOptions.SenderDomainVerified.ToString(CultureInfo.InvariantCulture),
+            _emailDeliveryOptions.VerifiedSenderDomain,
+            _emailDeliveryOptions.FromAddress,
+            _emailDeliveryOptions.PublicAppBaseUrl,
+            _emailDeliveryOptions.InvitationFooterText,
+            _emailDeliveryOptions.Smtp.Host,
+            _emailDeliveryOptions.Smtp.Port.ToString(CultureInfo.InvariantCulture),
+            _emailDeliveryOptions.Smtp.EnableSsl.ToString(CultureInfo.InvariantCulture),
+            _emailDeliveryOptions.Smtp.UserName,
+            _emailDeliveryOptions.Smtp.Password,
+            _emailDeliveryOptions.ProviderWebhookSecret,
+            _emailDeliveryOptions.AwsSes.SnsTopicArn));
+
+        foreach (var issue in readiness.Issues)
+        {
+            if (issue.Code == "email_delivery.provider_webhook_disabled" &&
+                issue.Severity != EmailDeliveryReadinessEvaluator.BlockingSeverity)
+            {
+                continue;
+            }
+
+            issues.Add(issue.Severity == EmailDeliveryReadinessEvaluator.BlockingSeverity
+                ? Blocker(issue.Code, issue.Message)
+                : Warning(issue.Code, issue.Message));
         }
     }
 
@@ -1523,10 +1809,27 @@ public sealed class SetupWorkflowStore(
             .ToListAsync(cancellationToken);
         if (rules.Count == 0)
         {
+            if (campaign.ResponseIdentityMode == ResponseIdentityModes.Identified)
+            {
+                return Result.Failure<IReadOnlyList<Assignment>>(
+                    Error.Validation(
+                        "respondent_rule.no_recipients",
+                        "Save identified recipients before launch."));
+            }
+
             return Result.Success<IReadOnlyList<Assignment>>([]);
         }
 
-        if (campaign.ResponseIdentityMode == ResponseIdentityModes.Anonymous)
+        if (!SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode) &&
+            rules.Any(rule => IsExternalEmailRespondentRule(rule.Rule)))
+        {
+            return Result.Failure<IReadOnlyList<Assignment>>(
+                Error.Validation(
+                    "respondent_rule.identity_mode_not_supported",
+                    "Specific email recipient lists are available for anonymous invite-only or repeat-participation waves only."));
+        }
+
+        if (SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode))
         {
             return await MaterializeAnonymousInvitationAssignmentsFromRespondentRulesAsync(
                 tenantId,
@@ -1598,6 +1901,7 @@ public sealed class SetupWorkflowStore(
         CancellationToken cancellationToken)
     {
         var assignments = new List<Assignment>();
+        var pendingRecipients = new List<(string Recipient, string Role)>();
         var seenRecipients = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var rule in rules)
@@ -1619,7 +1923,7 @@ public sealed class SetupWorkflowStore(
                 return Result.Failure<IReadOnlyList<Assignment>>(
                     Error.Validation(
                         "respondent_rule.no_recipients",
-                        "Saved audience rules must resolve at least one recipient before anonymous invite-only collection can start."));
+                        "Saved audience rules must resolve at least one recipient before invite-only collection can start."));
             }
 
             foreach (var candidate in resolution.Value.Candidates)
@@ -1629,7 +1933,7 @@ public sealed class SetupWorkflowStore(
                     return Result.Failure<IReadOnlyList<Assignment>>(
                         Error.Validation(
                             "respondent_rule.email_required",
-                            "Every saved audience recipient needs an email address before anonymous invite-only collection can start."));
+                            "Every saved audience recipient needs an email address before invite-only collection can start."));
                 }
 
                 if (!seenRecipients.Add(recipient))
@@ -1637,32 +1941,49 @@ public sealed class SetupWorkflowStore(
                     continue;
                 }
 
-                var issued = OpenLinkTokens.IssueInvitation(tenantId);
-                var invitationToken = new InvitationToken(
-                    PlatformIds.NewId(),
-                    tenantId,
-                    campaign.Id,
-                    issued.TokenHash,
-                    InvitationTokenChannels.Email,
-                    recipient);
-                var assignment = Assignment.CreateAnonymous(
-                    PlatformIds.NewId(),
-                    tenantId,
-                    campaign.Id,
-                    resolution.Value.Role,
-                    invitationToken.Id);
-                var notification = Notification.QueueEmailInvitation(
-                    PlatformIds.NewId(),
-                    tenantId,
-                    campaign.Id,
-                    assignment.Id,
-                    recipient);
-
-                db.InvitationTokens.Add(invitationToken);
-                db.Notifications.Add(notification);
-                outboxEventBuffer?.Enqueue(CreateInvitationEmailQueuedMessage(notification, invitationToken, assignment));
-                assignments.Add(assignment);
+                pendingRecipients.Add((recipient, resolution.Value.Role));
             }
+        }
+
+        var suppressedRecipients = await LoadSuppressedEmailRecipientsAsync(
+            tenantId,
+            pendingRecipients.Select(recipient => recipient.Recipient).ToArray(),
+            cancellationToken);
+        if (suppressedRecipients.Count > 0)
+        {
+            return Result.Failure<IReadOnlyList<Assignment>>(
+                Error.Conflict(
+                    "respondent_rule.recipient_suppressed",
+                    $"{FormatCountLabel(suppressedRecipients.Count, "saved recipient")} suppressed and cannot be invited: {FormatRecipientListForError(suppressedRecipients)}."));
+        }
+
+        foreach (var pendingRecipient in pendingRecipients)
+        {
+            var issued = OpenLinkTokens.IssueInvitation(tenantId);
+            var invitationToken = new InvitationToken(
+                PlatformIds.NewId(),
+                tenantId,
+                campaign.Id,
+                issued.TokenHash,
+                InvitationTokenChannels.Email,
+                pendingRecipient.Recipient);
+            var assignment = Assignment.CreateAnonymous(
+                PlatformIds.NewId(),
+                tenantId,
+                campaign.Id,
+                pendingRecipient.Role,
+                invitationToken.Id);
+            var notification = Notification.QueueEmailInvitation(
+                PlatformIds.NewId(),
+                tenantId,
+                campaign.Id,
+                assignment.Id,
+                pendingRecipient.Recipient);
+
+            db.InvitationTokens.Add(invitationToken);
+            db.Notifications.Add(notification);
+            outboxEventBuffer?.Enqueue(CreateInvitationEmailQueuedMessage(notification, invitationToken, assignment));
+            assignments.Add(assignment);
         }
 
         return Result.Success<IReadOnlyList<Assignment>>(assignments);
@@ -1926,7 +2247,8 @@ public sealed class SetupWorkflowStore(
                 ["materialization"] = campaign.ResponseIdentityMode switch
                 {
                     ResponseIdentityModes.Identified => "identified_assignments",
-                    ResponseIdentityModes.Anonymous when materializedAssignments.Count > 0 =>
+                    _ when SupportsAnonymousEmailInvitations(campaign.ResponseIdentityMode) &&
+                        materializedAssignments.Count > 0 =>
                         "anonymous_invitation_assignments",
                     _ => "not_applicable"
                 },
@@ -1974,6 +2296,46 @@ public sealed class SetupWorkflowStore(
     private static LaunchReadinessIssueResponse ToLaunchReadinessIssue(RespondentRuleResolutionIssue issue)
     {
         return new LaunchReadinessIssueResponse(issue.Code, issue.Severity, issue.Message);
+    }
+
+    private static bool IsExternalEmailRespondentRule(string rule)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(rule);
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("kind", out var kind) &&
+                kind.ValueKind == JsonValueKind.String &&
+                string.Equals(
+                    kind.GetString(),
+                    RespondentRuleResolver.ExternalEmails,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool SupportsAnonymousEmailInvitations(string responseIdentityMode)
+    {
+        return responseIdentityMode is ResponseIdentityModes.Anonymous or ResponseIdentityModes.AnonymousLongitudinal;
+    }
+
+    private static string FormatRecipientListForError(IReadOnlyList<string> recipients)
+    {
+        const int maxVisibleRecipients = 10;
+        var visible = recipients.Take(maxVisibleRecipients).ToArray();
+        var suffix = recipients.Count > maxVisibleRecipients
+            ? $" and {recipients.Count - maxVisibleRecipients} more"
+            : string.Empty;
+
+        return $"{string.Join(", ", visible)}{suffix}";
+    }
+
+    private static string FormatCountLabel(int count, string singularLabel)
+    {
+        return count == 1 ? $"1 {singularLabel} is" : $"{count} {singularLabel}s are";
     }
 
     private static CampaignAssignmentSubjectResponse ToCampaignAssignmentSubject(Subject subject)

@@ -32,21 +32,32 @@ public sealed class NotificationDeliveryContractTests
     [Fact]
     public void Provider_message_id_sanitizer_redacts_sensitive_values()
     {
-        var sanitized = InvokeStoreContract<string>(
+        var sanitized = InvokeStoreContract<string?>(
             "SanitizeProviderMessageId",
-            "smtp:/r/inv_secret:ada@example.test");
+            "smtp:campaign-email:tenant:notification:attempt:/r/inv_secret:ada@example.test");
 
         Assert.Equal("redacted", sanitized);
     }
 
     [Fact]
+    public void Provider_message_id_sanitizer_keeps_missing_ids_missing()
+    {
+        var sanitized = InvokeStoreContract<string?>(
+            "SanitizeProviderMessageId",
+            "   ");
+
+        Assert.Null(sanitized);
+    }
+
+    [Fact]
     public void Provider_message_id_sanitizer_bounds_length()
     {
-        var sanitized = InvokeStoreContract<string>(
+        var sanitized = InvokeStoreContract<string?>(
             "SanitizeProviderMessageId",
             new string('a', 500));
 
-        Assert.True(sanitized.Length <= 200);
+        Assert.NotNull(sanitized);
+        Assert.True(sanitized!.Length <= 200);
     }
 
     [Fact]
@@ -100,22 +111,55 @@ public sealed class NotificationDeliveryContractTests
     }
 
     [Fact]
+    public void Invitation_email_subject_omits_campaign_name()
+    {
+        var subject = InvokeStoreContract<string>(
+            "BuildEmailSubject",
+            "Burnout pulse");
+
+        Assert.Equal("Study invitation", subject);
+        Assert.DoesNotContain("Burnout", subject, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Invitation_email_body_omits_campaign_name()
+    {
+        var body = InvokeStoreContract<string>(
+            "BuildEmailBody",
+            "Burnout pulse",
+            "https://app.example.test/r/inv_example",
+            "https://app.example.test/r/inv_example/unsubscribe",
+            "Workspace footer");
+
+        Assert.DoesNotContain("Burnout", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not include the study title or topic", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("https://app.example.test/r/inv_example", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Smtp_options_require_valid_from_address()
     {
         var options = new EmailDeliveryOptions
         {
             Provider = EmailDeliveryProviderNames.Smtp,
+            ManagedProviderName = "postmark",
+            SenderDomainVerified = true,
+            VerifiedSenderDomain = "example.test",
             FromAddress = "not-an-email",
+            PublicAppBaseUrl = "https://app.example.test",
+            InvitationFooterText = "You received this study invitation from the configured workspace.",
+            ProviderWebhookSecret = "test-provider-webhook-secret-32-chars",
             Smtp = new SmtpEmailDeliveryOptions
             {
                 Host = "smtp.example.test",
-                Port = 25
+                Port = 25,
+                EnableSsl = true
             }
         };
 
         var exception = Assert.Throws<InvalidOperationException>(options.EnsureValidProviderConfiguration);
 
-        Assert.Contains("EmailDelivery:FromAddress", exception.Message);
+        Assert.Contains("email_delivery.from_address_missing", exception.Message);
     }
 
     [Theory]
@@ -126,17 +170,24 @@ public sealed class NotificationDeliveryContractTests
         var options = new EmailDeliveryOptions
         {
             Provider = EmailDeliveryProviderNames.Smtp,
+            ManagedProviderName = "postmark",
+            SenderDomainVerified = true,
+            VerifiedSenderDomain = "example.test",
             FromAddress = "noreply@example.test",
+            PublicAppBaseUrl = "https://app.example.test",
+            InvitationFooterText = "You received this study invitation from the configured workspace.",
+            ProviderWebhookSecret = "test-provider-webhook-secret-32-chars",
             Smtp = new SmtpEmailDeliveryOptions
             {
                 Host = "smtp.example.test",
-                Port = port
+                Port = port,
+                EnableSsl = true
             }
         };
 
         var exception = Assert.Throws<InvalidOperationException>(options.EnsureValidProviderConfiguration);
 
-        Assert.Contains("EmailDelivery:Smtp:Port", exception.Message);
+        Assert.Contains("email_delivery.smtp_port_invalid", exception.Message);
     }
 
     private static T InvokeStoreContract<T>(string name, params object?[] args)

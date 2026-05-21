@@ -14,7 +14,7 @@
 	import { createRegistrationApi } from '$lib/api/registration';
 
 	const registrationApi = createRegistrationApi();
-	let signInUrl = $state(resolve('/signin'));
+	let signInUrl = $state<string>(resolve('/signin'));
 	const pendingRegistrationLoginUrlKey = 'instruments-platform.pending-registration-login-url';
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;

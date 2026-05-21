@@ -501,6 +501,10 @@ export function toCampaignSeriesOperationsWorkspaceView(
 			{ label: 'Sent emails', value: formatCount(workspace.summary.sentInvitationCount) },
 			{ label: 'Failed emails', value: formatCount(workspace.summary.failedInvitationCount) },
 			{
+				label: 'Suppressed emails',
+				value: formatCount(workspace.summary.bouncedInvitationCount ?? 0)
+			},
+			{
 				label: 'Started responses',
 				value: formatCount(workspace.summary.startedResponseCount)
 			},
@@ -1516,6 +1520,7 @@ function toOperationsCampaignSummaryRows(
 		{ label: 'Queued emails', value: formatCount(campaign.queuedInvitationCount) },
 		{ label: 'Sent emails', value: formatCount(campaign.sentInvitationCount) },
 		{ label: 'Failed emails', value: formatCount(campaign.failedInvitationCount) },
+		{ label: 'Suppressed emails', value: formatCount(campaign.bouncedInvitationCount ?? 0) },
 		{
 			label: 'Latest email activity',
 			value: formatCollectionDateTime(campaign.latestDeliveryAttemptAt)
@@ -1723,6 +1728,8 @@ function toOperationsRespondentAccessItem(
 	const sentInvitations = campaign?.sentInvitationCount ?? workspace.summary.sentInvitationCount;
 	const failedInvitations =
 		campaign?.failedInvitationCount ?? workspace.summary.failedInvitationCount;
+	const bouncedInvitations =
+		campaign?.bouncedInvitationCount ?? workspace.summary.bouncedInvitationCount ?? 0;
 	const deliveryAttempts = campaign?.deliveryAttemptCount ?? workspace.summary.deliveryAttemptCount;
 	const latestDeliveryAttempt = campaign?.latestDeliveryAttemptAt ?? null;
 	const hasAccess = openLinkAssignments > 0 || sentInvitations > 0 || deliveryAttempts > 0;
@@ -1749,6 +1756,7 @@ function toOperationsRespondentAccessItem(
 			{ label: 'Queued emails', value: formatCount(queuedInvitations) },
 			{ label: 'Sent emails', value: formatCount(sentInvitations) },
 			{ label: 'Failed emails', value: formatCount(failedInvitations) },
+			{ label: 'Suppressed emails', value: formatCount(bouncedInvitations) },
 			{ label: 'Latest email activity', value: formatCollectionDateTime(latestDeliveryAttempt) }
 		]
 	};
@@ -1892,7 +1900,7 @@ function toRespondentAccessGuidance(
 		return 'Respondents can enter through sent emails.';
 	}
 
-	return 'Create a respondent link before collecting responses.';
+	return 'Prepare respondent access before collecting responses.';
 }
 
 function formatCollectionDateTime(value: string | null | undefined) {

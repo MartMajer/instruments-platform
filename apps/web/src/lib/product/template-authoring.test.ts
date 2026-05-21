@@ -12,6 +12,7 @@ import {
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
 	describeScoreMissingDataStrategy,
+	duplicateTemplateQuestionRow,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeTemplateQuestionRow,
@@ -66,6 +67,28 @@ describe('template authoring helpers', () => {
 		const rows = removeTemplateQuestionRow([createDefaultTemplateQuestionRows()[0]], 'q01');
 
 		expect(rows.map((row) => row.code)).toEqual(['q01']);
+	});
+
+	it('duplicates a question after the source row and gives it a new code', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[1].type = 'single';
+		rows[1].choiceOptions = ['First option', 'Second option'];
+
+		const nextRows = duplicateTemplateQuestionRow(rows, 'q02');
+
+		expect(nextRows.map((row) => ({ ordinal: row.ordinal, code: row.code }))).toEqual([
+			{ ordinal: 1, code: 'q01' },
+			{ ordinal: 2, code: 'q02' },
+			{ ordinal: 3, code: 'q04' },
+			{ ordinal: 4, code: 'q03' }
+		]);
+		expect(nextRows[2]).toMatchObject({
+			code: 'q04',
+			type: 'single',
+			textDefault: `${rows[1].textDefault} (copy)`,
+			choiceOptions: ['First option', 'Second option']
+		});
+		expect(nextRows[2]?.choiceOptions).not.toBe(rows[1].choiceOptions);
 	});
 
 	it('moves questions up and down while renumbering ordinals', () => {
@@ -411,9 +434,12 @@ describe('authoring density and review summaries', () => {
 
 		expect(summarizeRespondentQuestionPreview(rows)[0]).toMatchObject({
 			ordinal: 1,
+			positionLabel: 'Question 1 of 3',
 			dimensionLabel: 'Recovery need',
+			requiredLabel: 'Required',
 			answerFormatLabel: 'Agreement scale',
-			answerFormatDetail: '1 to 5: Strongly disagree -> Strongly agree'
+			answerFormatDetail: '1 to 5: Strongly disagree -> Strongly agree',
+			responsePreviewLabel: '1 Strongly disagree ... 5 Strongly agree'
 		});
 	});
 

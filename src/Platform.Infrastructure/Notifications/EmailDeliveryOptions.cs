@@ -1,5 +1,5 @@
 using Platform.Application.Features.Notifications;
-using System.Net.Mail;
+using System.Globalization;
 
 namespace Platform.Infrastructure.Notifications;
 
@@ -9,88 +9,50 @@ public sealed class EmailDeliveryOptions
 
     public string Provider { get; set; } = EmailDeliveryProviderNames.LocalDev;
 
+    public string? ManagedProviderName { get; set; }
+
+    public bool SenderDomainVerified { get; set; }
+
+    public string? VerifiedSenderDomain { get; set; }
+
     public string? FromAddress { get; set; }
+
+    public string? PublicAppBaseUrl { get; set; }
+
+    public string? InvitationFooterText { get; set; }
+
+    public string? ProviderWebhookSecret { get; set; }
 
     public SmtpEmailDeliveryOptions Smtp { get; set; } = new();
 
+    public AwsSesEmailDeliveryOptions AwsSes { get; set; } = new();
+
     public void EnsureValidProviderConfiguration()
     {
-        if (string.Equals(Provider, EmailDeliveryProviderNames.LocalDev, StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        if (!string.Equals(Provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"EmailDelivery:Provider must be '{EmailDeliveryProviderNames.LocalDev}' or '{EmailDeliveryProviderNames.Smtp}'.");
-        }
-
-        var missing = new List<string>();
-        if (string.IsNullOrWhiteSpace(Smtp.Host))
-        {
-            missing.Add("EmailDelivery:Smtp:Host");
-        }
-        else if (!IsSafeSmtpHost(Smtp.Host))
-        {
-            missing.Add("EmailDelivery:Smtp:Host");
-        }
-
-        if (string.IsNullOrWhiteSpace(FromAddress))
-        {
-            missing.Add("EmailDelivery:FromAddress");
-        }
-        else
-        {
-            try
-            {
-                _ = new MailAddress(FromAddress);
-            }
-            catch (FormatException)
-            {
-                missing.Add("EmailDelivery:FromAddress");
-            }
-        }
-
-        if (Smtp.Port is < 1 or > 65535)
-        {
-            missing.Add("EmailDelivery:Smtp:Port");
-        }
-
-        var hasUserName = !string.IsNullOrWhiteSpace(Smtp.UserName);
-        var hasPassword = !string.IsNullOrWhiteSpace(Smtp.Password);
-        if (hasUserName != hasPassword)
-        {
-            missing.Add("EmailDelivery:Smtp:Credentials");
-        }
-
-        if (missing.Count > 0)
+        var readiness = EmailDeliveryReadinessEvaluator.Create(new EmailDeliveryReadinessConfiguration(
+            Provider,
+            ManagedProviderName,
+            SenderDomainVerified.ToString(CultureInfo.InvariantCulture),
+            VerifiedSenderDomain,
+            FromAddress,
+            PublicAppBaseUrl,
+            InvitationFooterText,
+            Smtp.Host,
+            Smtp.Port.ToString(CultureInfo.InvariantCulture),
+            Smtp.EnableSsl.ToString(CultureInfo.InvariantCulture),
+            Smtp.UserName,
+            Smtp.Password,
+            ProviderWebhookSecret,
+            AwsSes.SnsTopicArn));
+        var blockers = readiness.Issues
+            .Where(issue => issue.Severity == EmailDeliveryReadinessEvaluator.BlockingSeverity)
+            .Select(issue => issue.Code)
+            .ToArray();
+        if (blockers.Length > 0)
         {
             throw new InvalidOperationException(
-                $"SMTP email delivery is enabled but required configuration is missing: {string.Join(", ", missing)}.");
+                $"Email delivery provider has blocking configuration issues: {string.Join(", ", blockers)}.");
         }
-    }
-
-    private static bool IsSafeSmtpHost(string host)
-    {
-        var normalized = host.Trim();
-        if (normalized.Length == 0 ||
-            normalized.Length != host.Length ||
-            normalized.Length > 253)
-        {
-            return false;
-        }
-
-        foreach (var character in normalized)
-        {
-            if (char.IsControl(character) ||
-                char.IsWhiteSpace(character))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
 
@@ -105,4 +67,9 @@ public sealed class SmtpEmailDeliveryOptions
     public string? UserName { get; set; }
 
     public string? Password { get; set; }
+}
+
+public sealed class AwsSesEmailDeliveryOptions
+{
+    public string? SnsTopicArn { get; set; }
 }

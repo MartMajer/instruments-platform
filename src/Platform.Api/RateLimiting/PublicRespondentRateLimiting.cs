@@ -50,6 +50,11 @@ public static class PublicRespondentRateLimitingServiceCollectionExtensions
                 httpContext => RateLimitPartition.GetFixedWindowLimiter(
                     RegistrationRateLimitPartitionKeys.ForIntent(httpContext),
                     _ => CreateFixedWindowLimiter(settings.RegistrationPermitLimit, settings.Window)));
+            options.AddPolicy(
+                PublicRespondentRateLimitPolicies.ProviderWebhook,
+                httpContext => RateLimitPartition.GetFixedWindowLimiter(
+                    ProviderWebhookRateLimitPartitionKeys.ForWebhook(httpContext),
+                    _ => CreateFixedWindowLimiter(settings.ProviderWebhookPermitLimit, settings.Window)));
         });
 
         return services;
@@ -75,6 +80,7 @@ internal sealed record PublicRespondentRateLimitingSettings(
     int SessionPermitLimit,
     int SubmitPermitLimit,
     int RegistrationPermitLimit,
+    int ProviderWebhookPermitLimit,
     TimeSpan Window)
 {
     private const string SectionName = "PublicRespondentRateLimiting";
@@ -86,6 +92,7 @@ internal sealed record PublicRespondentRateLimitingSettings(
             ReadPositiveInt(configuration, "SessionPermitLimit", 180),
             ReadPositiveInt(configuration, "SubmitPermitLimit", 30),
             ReadPositiveInt(configuration, "RegistrationPermitLimit", 10),
+            ReadPositiveInt(configuration, "ProviderWebhookPermitLimit", 120),
             TimeSpan.FromSeconds(ReadPositiveInt(configuration, "WindowSeconds", 60)));
     }
 
@@ -109,23 +116,24 @@ internal static class PublicRespondentRateLimitPartitionKeys
 {
     public static string ForEntry(HttpContext context)
     {
-        return Build(context, includeSessionId: false);
+        var remoteAddressHash = PublicEndpointRateLimitHash.HashString(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+
+        return $"entry:{remoteAddressHash}";
     }
 
     public static string ForSession(HttpContext context)
     {
-        return Build(context, includeSessionId: true);
+        return BuildSession(context);
     }
 
-    private static string Build(HttpContext context, bool includeSessionId)
+    private static string BuildSession(HttpContext context)
     {
         var credentialName = context.Request.RouteValues.ContainsKey("handle")
             ? "handle"
             : "token";
         var credentialHash = HashRouteValue(context, credentialName);
-        var sessionHash = includeSessionId
-            ? HashRouteValue(context, "sessionId")
-            : "none";
+        var sessionHash = HashRouteValue(context, "sessionId");
         var remoteAddressHash = PublicEndpointRateLimitHash.HashString(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
@@ -157,6 +165,17 @@ internal static class RegistrationRateLimitPartitionKeys
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
         return $"registration:intent:{remoteAddressHash}";
+    }
+}
+
+internal static class ProviderWebhookRateLimitPartitionKeys
+{
+    public static string ForWebhook(HttpContext context)
+    {
+        var remoteAddressHash = PublicEndpointRateLimitHash.HashString(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+
+        return $"provider-webhook:{remoteAddressHash}";
     }
 }
 

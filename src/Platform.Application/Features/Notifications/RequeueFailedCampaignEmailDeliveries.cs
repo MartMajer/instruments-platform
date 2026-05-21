@@ -20,6 +20,11 @@ public sealed class RequeueFailedCampaignEmailDeliveriesValidator
         RuleFor(command => command.CampaignId).NotEmpty();
         RuleFor(command => command.Request.BatchSize)
             .InclusiveBetween(1, MaxBatchSize);
+        RuleFor(command => command.Request)
+            .Must(request =>
+                request.ConfirmedAnotherEmailAppropriate ||
+                request.ConfirmedNoPriorDelivery)
+            .WithMessage("Confirm another invitation email is appropriate before requeueing.");
     }
 }
 

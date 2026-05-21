@@ -4600,7 +4600,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         {
             Assert.Equal(NotificationStatuses.Sent, delivery.Status);
             Assert.Equal(EmailDeliveryProviderNames.LocalDev, delivery.Provider);
-            Assert.StartsWith("local-dev:", delivery.ProviderMessageId, StringComparison.Ordinal);
+            Assert.Null(delivery.ProviderMessageId);
             Assert.StartsWith("/r/inv_", delivery.RespondentPath, StringComparison.Ordinal);
             Assert.DoesNotContain(delivery.RespondentPath!, oldPaths);
             Assert.Null(delivery.Error);
@@ -4634,7 +4634,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         {
             Assert.Equal(NotificationStatuses.Sent, attempt.Status);
             Assert.Equal(EmailDeliveryProviderNames.LocalDev, attempt.Provider);
-            Assert.NotNull(attempt.ProviderMessageId);
+            Assert.Null(attempt.ProviderMessageId);
             Assert.Null(attempt.Error);
         });
 

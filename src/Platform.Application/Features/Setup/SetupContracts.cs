@@ -218,6 +218,6 @@ public sealed record CampaignInvitationResponse(
     Guid InvitationTokenId,
     Guid NotificationId,
     string Recipient,
-    string Token,
-    string RespondentPath,
+    string? Token,
+    string? RespondentPath,
     string Status);

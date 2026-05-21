@@ -708,6 +708,7 @@ public sealed class ProductSurfaceWriteStore(
             tenantId,
             actorUserId,
             cancellationToken: cancellationToken);
+        var dryRun = request.DryRun;
 
         var existingSubjects = await db.Subjects
             .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null)
@@ -787,18 +788,26 @@ public sealed class ProductSurfaceWriteStore(
                     displayName: values.DisplayName,
                     locale: values.Locale,
                     attributes: "{}");
-                db.Subjects.Add(subject);
+                if (!dryRun)
+                {
+                    db.Subjects.Add(subject);
+                }
+
                 createdSubjectCount++;
                 actions.Add("created_subject");
             }
             else
             {
-                subject.ChangeDirectoryProfile(
-                    values.DisplayName ?? subject.DisplayName,
-                    values.Email ?? subject.Email,
-                    values.ExternalId ?? subject.ExternalId,
-                    values.Locale,
-                    subject.Attributes);
+                if (!dryRun)
+                {
+                    subject.ChangeDirectoryProfile(
+                        values.DisplayName ?? subject.DisplayName,
+                        values.Email ?? subject.Email,
+                        values.ExternalId ?? subject.ExternalId,
+                        values.Locale,
+                        subject.Attributes);
+                }
+
                 updatedSubjectCount++;
                 actions.Add("updated_subject");
             }
@@ -823,7 +832,11 @@ public sealed class ProductSurfaceWriteStore(
                         tenantId,
                         values.GroupType,
                         values.GroupName);
-                    db.SubjectGroups.Add(group);
+                    if (!dryRun)
+                    {
+                        db.SubjectGroups.Add(group);
+                    }
+
                     groups[groupKey] = group;
                     createdGroupCount++;
                     actions.Add("created_group");
@@ -837,10 +850,14 @@ public sealed class ProductSurfaceWriteStore(
                 }
                 else
                 {
-                    db.SubjectMemberships.Add(new SubjectMembership(
-                        subject.Id,
-                        group.Id,
-                        values.RoleInGroup));
+                    if (!dryRun)
+                    {
+                        db.SubjectMemberships.Add(new SubjectMembership(
+                            subject.Id,
+                            group.Id,
+                            values.RoleInGroup));
+                    }
+
                     memberships.Add(membershipKey);
                     addedMembershipCount++;
                     actions.Add("added_membership");
@@ -850,7 +867,11 @@ public sealed class ProductSurfaceWriteStore(
             rows.Add(CreateImportRowResponse(row.RowNumber, "imported", values, string.Join(",", actions), []));
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        if (!dryRun)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new SubjectDirectoryCsvImportResponse(
@@ -862,7 +883,8 @@ public sealed class ProductSurfaceWriteStore(
             createdGroupCount,
             addedMembershipCount,
             skippedMembershipCount,
-            rows));
+            rows,
+            dryRun));
     }
 
     public async Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(

@@ -1150,6 +1150,66 @@ namespace Platform.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Platform.Domain.Campaigns.EmailSuppression", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Recipient")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("recipient");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<string>("ReleaseReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("release_reason");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_email_suppression");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_email_suppression_tenant_id_created_at");
+
+                    b.HasIndex("TenantId", "Recipient")
+                        .IsUnique()
+                        .HasDatabaseName("ux_email_suppression_tenant_id_recipient_active")
+                        .HasFilter("released_at IS NULL");
+
+                    b.ToTable("email_suppression", (string)null);
+                });
+
             modelBuilder.Entity("Platform.Domain.Campaigns.NotificationDeliveryAttempt", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1180,6 +1240,11 @@ namespace Platform.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("provider_message_id");
 
+                    b.Property<string>("ProviderDeliveryKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("provider_delivery_key");
+
                     b.Property<string>("Recipient")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1204,9 +1269,93 @@ namespace Platform.Infrastructure.Migrations
                     b.HasIndex("TenantId", "NotificationId")
                         .HasDatabaseName("ix_notification_delivery_attempt_tenant_id_notification_id");
 
+                    b.HasIndex("TenantId", "ProviderDeliveryKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_delivery_attempt_tenant_provider_delivery_key")
+                        .HasFilter("provider_delivery_key IS NOT NULL");
+
                     b.ToTable("notification_delivery_attempt", null, t =>
                         {
-                            t.HasCheckConstraint("ck_notification_delivery_attempt_status", "status IN ('sent','failed')");
+                            t.HasCheckConstraint("ck_notification_delivery_attempt_status", "status IN ('prepared','sent','failed')");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.Domain.Campaigns.NotificationDeliveryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DeliveryAttemptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_attempt_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("event_type");
+
+                    b.Property<Guid>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ProviderEventId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("provider_event_id");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("provider_message_id");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notification_delivery_event");
+
+                    b.HasIndex("TenantId", "DeliveryAttemptId")
+                        .HasDatabaseName("ix_notification_delivery_event_tenant_id_delivery_attempt_id");
+
+                    b.HasIndex("TenantId", "NotificationId")
+                        .HasDatabaseName("ix_notification_delivery_event_tenant_id_notification_id");
+
+                    b.HasIndex("TenantId", "Provider", "ProviderEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_delivery_event_tenant_provider_event_id")
+                        .HasFilter("provider_event_id IS NOT NULL");
+
+                    b.HasIndex("TenantId", "DeliveryAttemptId", "EventType")
+                        .IsUnique()
+                        .HasDatabaseName("ux_notification_delivery_event_tenant_attempt_type_without_provider_id")
+                        .HasFilter("provider_event_id IS NULL");
+
+                    b.ToTable("notification_delivery_event", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_notification_delivery_event_type", "event_type IN ('accepted','delivered','bounced','complained')");
                         });
                 });
 
@@ -4294,6 +4443,40 @@ namespace Platform.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_notification_delivery_attempt_tenant_tenant_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Campaigns.NotificationDeliveryEvent", b =>
+                {
+                    b.HasOne("Platform.Domain.Campaigns.NotificationDeliveryAttempt", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_delivery_event_attempt_delivery_attempt_id");
+
+                    b.HasOne("Platform.Domain.Campaigns.Notification", null)
+                        .WithMany()
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_delivery_event_notification_notification_id");
+
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_delivery_event_tenant_tenant_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Campaigns.EmailSuppression", b =>
+                {
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_email_suppression_tenant_tenant_id");
                 });
 
             modelBuilder.Entity("Platform.Domain.Campaigns.ParticipantCode", b =>

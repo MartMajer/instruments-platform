@@ -1617,7 +1617,7 @@
 						<div class="min-w-0">
 							<p class="font-semibold text-[var(--color-text)]">{invitation.recipient}</p>
 							<code class="block break-all text-xs text-[var(--color-text-muted)]"
-								>{invitation.respondentPath}</code
+								>{invitation.respondentPath ?? 'Queued for email delivery'}</code
 							>
 						</div>
 						<span class="step-pill" data-state="succeeded">{invitation.status}</span>
@@ -1634,7 +1634,9 @@
 				{#each deliveryResult.deliveries as delivery (delivery.notificationId)}
 					<div class="grid gap-2 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
 						<div class="min-w-0">
-							<p class="font-semibold text-[var(--color-text)]">{delivery.recipient}</p>
+							<p class="font-semibold text-[var(--color-text)]">
+								{delivery.recipient ?? 'Recipient redacted outside local-dev proof'}
+							</p>
 							<code class="block break-all text-xs text-[var(--color-text-muted)]"
 								>{delivery.respondentPath ?? delivery.providerMessageId}</code
 							>

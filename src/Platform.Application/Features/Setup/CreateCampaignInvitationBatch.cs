@@ -13,7 +13,7 @@ public sealed record CreateCampaignInvitationBatchCommand(
 public sealed class CreateCampaignInvitationBatchValidator
     : AbstractValidator<CreateCampaignInvitationBatchCommand>
 {
-    public const int MaxRecipientCount = 25;
+    public const int MaxRecipientCount = 500;
 
     public CreateCampaignInvitationBatchValidator()
     {
@@ -21,7 +21,7 @@ public sealed class CreateCampaignInvitationBatchValidator
         RuleFor(command => command.Request.Recipients)
             .NotEmpty()
             .Must(recipients => recipients.Count <= MaxRecipientCount)
-            .WithMessage($"Invitation batches support at most {MaxRecipientCount} recipients in the MVP.");
+            .WithMessage($"Invitation batches support at most {MaxRecipientCount} recipients per request.");
         RuleForEach(command => command.Request.Recipients).ChildRules(recipient =>
         {
             recipient.RuleFor(item => item.Email).NotEmpty().EmailAddress();
