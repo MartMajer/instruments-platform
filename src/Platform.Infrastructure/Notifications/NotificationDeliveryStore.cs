@@ -42,6 +42,10 @@ public sealed class NotificationDeliveryStore(
         bool includeReleased,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
         var requestedLimit = Math.Clamp(limit, 1, MaxSuppressionLimit);
         var query = db.EmailSuppressions
             .AsNoTracking()
@@ -60,6 +64,8 @@ public sealed class NotificationDeliveryStore(
             .Select(suppression => ToEmailSuppressionResponse(suppression))
             .ToListAsync(cancellationToken);
 
+        await transaction.CommitAsync(cancellationToken);
+
         return Result.Success(new ListEmailSuppressionsResponse(
             requestedLimit,
             suppressions.Count(suppression => suppression.Active),
@@ -72,6 +78,10 @@ public sealed class NotificationDeliveryStore(
         int limit,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
         var requestedLimit = Math.Clamp(limit, 1, MaxProviderEventLimit);
 
         var events = await (
@@ -97,6 +107,8 @@ public sealed class NotificationDeliveryStore(
                     deliveryEvent.ProviderMessageId != null))
             .Take(requestedLimit)
             .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new ListProviderDeliveryEventsResponse(
             requestedLimit,
@@ -486,6 +498,10 @@ public sealed class NotificationDeliveryStore(
         Guid campaignId,
         CancellationToken cancellationToken)
     {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
         var campaign = await db.Campaigns
             .AsNoTracking()
             .Where(campaign => campaign.TenantId == tenantId && campaign.Id == campaignId)
@@ -567,6 +583,8 @@ public sealed class NotificationDeliveryStore(
             stalePreparedAttemptCount > 0 ||
             retryableFailedNotificationCount > 0 ||
             suppressedFailedNotificationCount > 0;
+
+        await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new CampaignEmailDeliveryRepairReadinessResponse(
             stalePreparedAttemptCount,
