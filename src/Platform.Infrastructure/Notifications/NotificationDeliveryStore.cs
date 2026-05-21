@@ -770,10 +770,17 @@ public sealed class NotificationDeliveryStore(
         {
             var failedAt = DateTimeOffset.UtcNow;
             var provider = SanitizeProvider(emailDeliveryProvider.Provider);
-            var error = SanitizeDeliveryError(exception.Message);
-            logger?.LogWarning(
-                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
+            var failureClass = EmailDeliveryFailureClassifier.Classify(
+                exception,
                 provider,
+                emailDeliveryOptions?.Value.ManagedProviderName,
+                emailDeliveryOptions?.Value.FromAddress,
+                workItem.Recipient);
+            var error = SanitizeDeliveryError(failureClass);
+            logger?.LogWarning(
+                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
+                provider,
+                failureClass,
                 exception.GetType().Name,
                 exception is SmtpException smtpException
                     ? smtpException.StatusCode.ToString()
@@ -1358,6 +1365,11 @@ public sealed class NotificationDeliveryStore(
 
     private static string SanitizeDeliveryError(string? error)
     {
+        if (EmailDeliveryFailureClassifier.IsSafeFailureClass(error))
+        {
+            return error!;
+        }
+
         return SanitizedDeliveryError;
     }
 
