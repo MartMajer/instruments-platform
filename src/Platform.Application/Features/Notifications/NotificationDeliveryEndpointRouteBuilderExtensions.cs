@@ -344,7 +344,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
     {
         var logger = loggerFactory.CreateLogger("AwsSesSnsWebhook");
         logger.LogInformation(
-            "[SNS-DIAG-20260521] AWS SES SNS webhook received. ContentType={ContentType}; ContentLength={ContentLength}.",
+            "AWS SES SNS webhook received. ContentType={ContentType}; ContentLength={ContentLength}.",
             httpRequest.ContentType,
             httpRequest.ContentLength);
 
@@ -360,7 +360,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
                 StringComparison.OrdinalIgnoreCase))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS webhook disabled. Provider={Provider}; ManagedProviderName={ManagedProviderName}.",
+                "AWS SES SNS webhook disabled. Provider={Provider}; ManagedProviderName={ManagedProviderName}.",
                 configuredProvider,
                 configuredManagedProviderName);
             return Results.NotFound();
@@ -370,7 +370,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (!IsSafeAwsSesSnsTopicArn(expectedTopicArn))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS topic configuration invalid. HasTopicArn={HasTopicArn}.",
+                "AWS SES SNS topic configuration invalid. HasTopicArn={HasTopicArn}.",
                 !string.IsNullOrWhiteSpace(expectedTopicArn));
             return Results.Problem(
                 title: "aws_ses_webhook.misconfigured",
@@ -381,7 +381,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (httpRequest.ContentLength is > ProviderWebhookMaxPayloadBytes)
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS payload rejected before read. ContentLength={ContentLength}; MaxBytes={MaxBytes}.",
+                "AWS SES SNS payload rejected before read. ContentLength={ContentLength}; MaxBytes={MaxBytes}.",
                 httpRequest.ContentLength,
                 ProviderWebhookMaxPayloadBytes);
             return Results.Problem(
@@ -393,7 +393,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (!IsAwsSnsContentType(httpRequest.ContentType))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS content type rejected. ContentType={ContentType}.",
+                "AWS SES SNS content type rejected. ContentType={ContentType}.",
                 httpRequest.ContentType);
             return Results.Problem(
                 title: "aws_ses_webhook.content_type_invalid",
@@ -405,7 +405,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (bodyRead.PayloadTooLarge)
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS payload rejected while reading. MaxBytes={MaxBytes}.",
+                "AWS SES SNS payload rejected while reading. MaxBytes={MaxBytes}.",
                 ProviderWebhookMaxPayloadBytes);
             return Results.Problem(
                 title: "aws_ses_webhook.payload_too_large",
@@ -415,7 +415,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
 
         if (bodyRead.InvalidUtf8)
         {
-            logger.LogWarning("[SNS-DIAG-20260521] AWS SES SNS payload rejected because UTF-8 decoding failed.");
+            logger.LogWarning("AWS SES SNS payload rejected because UTF-8 decoding failed.");
             return Results.Problem(
                 title: "aws_ses_webhook.payload_invalid",
                 detail: "AWS SES SNS payload is not valid UTF-8 JSON.",
@@ -433,7 +433,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         {
             logger.LogWarning(
                 exception,
-                "[SNS-DIAG-20260521] AWS SES SNS payload rejected because JSON parsing failed.");
+                "AWS SES SNS payload rejected because JSON parsing failed.");
             return Results.Problem(
                 title: "aws_ses_webhook.payload_invalid",
                 detail: "AWS SES SNS payload is not valid JSON.",
@@ -450,7 +450,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             string.IsNullOrWhiteSpace(envelope.SigningCertURL))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS envelope missing fields. HasType={HasType}; HasMessageId={HasMessageId}; HasTopicArn={HasTopicArn}; HasMessage={HasMessage}; HasSignatureVersion={HasSignatureVersion}; HasSignature={HasSignature}; HasSigningCertUrl={HasSigningCertUrl}.",
+                "AWS SES SNS envelope missing fields. HasType={HasType}; HasMessageId={HasMessageId}; HasTopicArn={HasTopicArn}; HasMessage={HasMessage}; HasSignatureVersion={HasSignatureVersion}; HasSignature={HasSignature}; HasSigningCertUrl={HasSigningCertUrl}.",
                 !string.IsNullOrWhiteSpace(envelope?.Type),
                 !string.IsNullOrWhiteSpace(envelope?.MessageId),
                 !string.IsNullOrWhiteSpace(envelope?.TopicArn),
@@ -465,7 +465,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         }
 
         logger.LogInformation(
-            "[SNS-DIAG-20260521] AWS SES SNS envelope parsed. Type={MessageType}; SignatureVersion={SignatureVersion}; TopicMatches={TopicMatches}; HasTimestamp={HasTimestamp}; HasSubscribeUrl={HasSubscribeUrl}; HasToken={HasToken}; SigningCertHost={SigningCertHost}; SubscribeHost={SubscribeHost}.",
+            "AWS SES SNS envelope parsed. Type={MessageType}; SignatureVersion={SignatureVersion}; TopicMatches={TopicMatches}; HasTimestamp={HasTimestamp}; HasSubscribeUrl={HasSubscribeUrl}; HasToken={HasToken}; SigningCertHost={SigningCertHost}; SubscribeHost={SubscribeHost}.",
             envelope.Type,
             envelope.SignatureVersion,
             string.Equals(envelope.TopicArn, expectedTopicArn, StringComparison.Ordinal),
@@ -479,7 +479,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             !string.Equals(envelope.Type, "SubscriptionConfirmation", StringComparison.Ordinal))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS message type unsupported. Type={MessageType}.",
+                "AWS SES SNS message type unsupported. Type={MessageType}.",
                 envelope.Type);
             return Results.Problem(
                 title: "aws_ses_webhook.message_type_unsupported",
@@ -490,7 +490,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (!string.Equals(envelope.SignatureVersion, "2", StringComparison.Ordinal))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS signature version unsupported. SignatureVersion={SignatureVersion}.",
+                "AWS SES SNS signature version unsupported. SignatureVersion={SignatureVersion}.",
                 envelope.SignatureVersion);
             return Results.Problem(
                 title: "aws_ses_webhook.signature_version_unsupported",
@@ -501,7 +501,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (!IsSafeAwsSnsSigningCertUrl(envelope.SigningCertURL))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS signing certificate URL rejected. SigningCertHost={SigningCertHost}.",
+                "AWS SES SNS signing certificate URL rejected. SigningCertHost={SigningCertHost}.",
                 TryGetSafeHost(envelope.SigningCertURL));
             return Results.Problem(
                 title: "aws_ses_webhook.signing_cert_url_invalid",
@@ -511,7 +511,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
 
         if (string.IsNullOrWhiteSpace(envelope.Timestamp))
         {
-            logger.LogWarning("[SNS-DIAG-20260521] AWS SES SNS envelope missing timestamp.");
+            logger.LogWarning("AWS SES SNS envelope missing timestamp.");
             return Results.Problem(
                 title: "aws_ses_webhook.payload_invalid",
                 detail: "AWS SES SNS payload is missing required envelope timestamp.",
@@ -524,7 +524,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
                 !IsSafeAwsSnsSubscribeUrl(envelope.SubscribeURL, envelope.TopicArn, envelope.Token)))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation payload rejected. HasSubscribeUrl={HasSubscribeUrl}; HasToken={HasToken}; SubscribeHost={SubscribeHost}.",
+                "AWS SES SNS subscription confirmation payload rejected. HasSubscribeUrl={HasSubscribeUrl}; HasToken={HasToken}; SubscribeHost={SubscribeHost}.",
                 !string.IsNullOrWhiteSpace(envelope.SubscribeURL),
                 !string.IsNullOrWhiteSpace(envelope.Token),
                 TryGetSafeHost(envelope.SubscribeURL));
@@ -537,7 +537,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (!string.Equals(envelope.TopicArn, expectedTopicArn, StringComparison.Ordinal))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS topic mismatch. ReceivedTopicArnIsSafe={ReceivedTopicArnIsSafe}; ExpectedTopicArnConfigured={ExpectedTopicArnConfigured}.",
+                "AWS SES SNS topic mismatch. ReceivedTopicArnIsSafe={ReceivedTopicArnIsSafe}; ExpectedTopicArnConfigured={ExpectedTopicArnConfigured}.",
                 IsSafeAwsSesSnsTopicArn(envelope.TopicArn),
                 !string.IsNullOrWhiteSpace(expectedTopicArn));
             return Results.Problem(
@@ -569,7 +569,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             if (!signatureValid)
             {
                 logger.LogWarning(
-                    "[SNS-DIAG-20260521] AWS SES SNS signature verification failed. Type={MessageType}; SignatureVersion={SignatureVersion}; SigningCertHost={SigningCertHost}.",
+                    "AWS SES SNS signature verification failed. Type={MessageType}; SignatureVersion={SignatureVersion}; SigningCertHost={SigningCertHost}.",
                     envelope.Type,
                     envelope.SignatureVersion,
                     TryGetSafeHost(envelope.SigningCertURL));
@@ -582,13 +582,13 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         else
         {
             logger.LogInformation(
-                "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation passed strict unsigned confirmation checks.");
+                "AWS SES SNS subscription confirmation passed strict unsigned confirmation checks.");
         }
 
         if (isSubscriptionConfirmation)
         {
             logger.LogInformation(
-                "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation accepted; confirming with AWS. SubscribeHost={SubscribeHost}.",
+                "AWS SES SNS subscription confirmation accepted; confirming with AWS. SubscribeHost={SubscribeHost}.",
                 TryGetSafeHost(envelope.SubscribeURL));
 
             var confirmed = await subscriptionConfirmer.ConfirmAsync(
@@ -597,7 +597,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             if (!confirmed)
             {
                 logger.LogWarning(
-                    "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation callback failed. SubscribeHost={SubscribeHost}.",
+                    "AWS SES SNS subscription confirmation callback failed. SubscribeHost={SubscribeHost}.",
                     TryGetSafeHost(envelope.SubscribeURL));
                 return Results.Problem(
                     title: "aws_ses_webhook.subscription_confirmation_failed",
@@ -605,7 +605,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
                     statusCode: StatusCodes.Status503ServiceUnavailable);
             }
 
-            logger.LogInformation("[SNS-DIAG-20260521] AWS SES SNS subscription confirmation completed.");
+            logger.LogInformation("AWS SES SNS subscription confirmation completed.");
             return Results.NoContent();
         }
 
@@ -617,7 +617,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             out var messageFailureDetail))
         {
             logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS notification message rejected. FailureTitle={FailureTitle}.",
+                "AWS SES SNS notification message rejected. FailureTitle={FailureTitle}.",
                 messageFailureTitle);
             return Results.Problem(
                 title: messageFailureTitle,
@@ -634,7 +634,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             return Results.NoContent();
         }
 
-        logger.LogWarning("[SNS-DIAG-20260521] AWS SES SNS notification provider event recording failed.");
+        logger.LogWarning("AWS SES SNS notification provider event recording failed.");
         return SetupHttpResults.ToOk(result);
     }
 

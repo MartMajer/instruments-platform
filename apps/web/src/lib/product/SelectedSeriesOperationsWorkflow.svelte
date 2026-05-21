@@ -800,6 +800,72 @@
 		return `${formatCount(result.sentCount)} sent, ${formatCount(result.failedCount)} failed, ${formatCount(bouncedCount)} suppressed`;
 	}
 
+	function deliveryBatchGuidance(result: ProcessCampaignEmailDeliveriesResponse) {
+		if (result.failedCount > 0) {
+			const errors = new Set(
+				result.deliveries
+					.map((delivery) => delivery.error)
+					.filter((error): error is string => Boolean(error))
+			);
+
+			if (errors.has('ses_sandbox_recipient_not_verified')) {
+				return 'AWS SES rejected at least one recipient because the account is still in sandbox. Verify the lowercase recipient email in the same SES region, or wait for SES production access, then use Retry failed emails.';
+			}
+
+			if (errors.has('ses_sender_identity_not_verified')) {
+				return 'AWS SES rejected the sender identity. Check the verified sender domain/from address in SES, then use Retry failed emails.';
+			}
+
+			if (errors.has('ses_identity_not_verified')) {
+				return 'AWS SES rejected a verified-identity check. Confirm sender and sandbox recipient identities in the configured SES region, then retry failed emails.';
+			}
+
+			if (errors.has('smtp_auth_failed')) {
+				return 'The SMTP provider rejected authentication. Check the SES SMTP username/password on the server, then retry failed emails.';
+			}
+
+			if (errors.has('smtp_tls_failed')) {
+				return 'The SMTP TLS handshake failed. Check provider host, port, and TLS settings before retrying failed emails.';
+			}
+
+			if (errors.has('ses_throttled')) {
+				return 'AWS SES throttled this batch. Wait for the provider limit window to clear, then retry failed emails.';
+			}
+
+			if (errors.has('recipient_suppressed')) {
+				return 'At least one recipient is on the workspace do-not-contact list. Review suppressions before retrying.';
+			}
+
+			return 'The provider rejected at least one invitation. Check email setup and provider status, then use Retry failed emails when another send is appropriate.';
+		}
+
+		if (result.sentCount > 0) {
+			return 'Sent means the message was accepted by the SMTP handoff. Delivery, bounce, and complaint evidence appears later under Provider delivery evidence.';
+		}
+
+		return null;
+	}
+
+	function repairReadinessGuidance(result: CampaignEmailDeliveryRepairReadinessResponse) {
+		if (result.retryableFailedNotificationCount > 0) {
+			return 'Failed invitations can be retried after the provider issue is corrected. Use Retry failed emails in the respondent access step.';
+		}
+
+		if (result.suppressedFailedNotificationCount > 0) {
+			return 'Some failed invitations are suppressed by do-not-contact or provider feedback. Review the suppression list before sending again.';
+		}
+
+		if (result.stalePreparedAttemptCount > 0 || result.ambiguousFailedNotificationCount > 0) {
+			return 'Some handoffs are ambiguous. Treat them as possibly sent and retry only after checking provider evidence.';
+		}
+
+		if (result.providerEventCount > 0) {
+			return 'Provider events have reconciled for this campaign. Load recent provider events to inspect accepted, delivered, bounced, or complained counts.';
+		}
+
+		return 'No email delivery cleanup is currently needed for this wave.';
+	}
+
 	function emailReadinessBadgeStatus() {
 		if (!emailReadinessResult) {
 			return 'neutral';
@@ -1677,6 +1743,11 @@
 									<span>Email delivery batch</span>
 									<code>{deliveryBatchSummary(deliveryResult)}</code>
 								</p>
+								{#if deliveryBatchGuidance(deliveryResult)}
+									<p class={deliveryResult.failedCount > 0 ? 'error-line' : 'text-sm text-[var(--color-text-muted)]'}>
+										{deliveryBatchGuidance(deliveryResult)}
+									</p>
+								{/if}
 							{/if}
 							{#if requeueFailedResult}
 								<p class="result-line">
@@ -1933,6 +2004,9 @@
 							changing delivery state.
 						</p>
 						{#if repairReadinessResult}
+							<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+								{repairReadinessGuidance(repairReadinessResult)}
+							</p>
 							<dl class="record-grid">
 								<div class="record-field">
 									<dt class="record-field__label">Stale handoffs</dt>

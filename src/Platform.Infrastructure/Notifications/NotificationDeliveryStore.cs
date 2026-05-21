@@ -778,7 +778,7 @@ public sealed class NotificationDeliveryStore(
                 workItem.Recipient);
             var error = SanitizeDeliveryError(failureClass);
             logger?.LogWarning(
-                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
+                "Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
                 provider,
                 failureClass,
                 exception.GetType().Name,
