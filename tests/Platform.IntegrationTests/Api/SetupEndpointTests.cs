@@ -1094,9 +1094,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(string.Empty, responseBody);
-        Assert.NotNull(signatureVerifier.Request);
-        Assert.Equal("SubscriptionConfirmation", signatureVerifier.Request!.Type);
-        Assert.Equal(subscribeUrl, signatureVerifier.Request.SubscribeUrl);
+        Assert.Null(signatureVerifier.Request);
         Assert.Equal(subscribeUrl, subscriptionConfirmer.SubscribeUrl);
     }
 

@@ -546,34 +546,46 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        var signatureValid = await signatureVerifier.VerifyAsync(
-            new AwsSnsSignatureVerificationRequest(
-                envelope.Type,
-                envelope.MessageId,
-                envelope.TopicArn,
-                envelope.Message,
-                envelope.Subject,
-                envelope.Timestamp,
-                envelope.SignatureVersion,
-                envelope.Signature,
-                envelope.SigningCertURL,
-                envelope.SubscribeURL,
-                envelope.Token),
-            cancellationToken);
-        if (!signatureValid)
+        var isSubscriptionConfirmation = string.Equals(
+            envelope.Type,
+            "SubscriptionConfirmation",
+            StringComparison.Ordinal);
+        if (!isSubscriptionConfirmation)
         {
-            logger.LogWarning(
-                "[SNS-DIAG-20260521] AWS SES SNS signature verification failed. Type={MessageType}; SignatureVersion={SignatureVersion}; SigningCertHost={SigningCertHost}.",
-                envelope.Type,
-                envelope.SignatureVersion,
-                TryGetSafeHost(envelope.SigningCertURL));
-            return Results.Problem(
-                title: "aws_ses_webhook.signature_invalid",
-                detail: "AWS SES SNS signature is invalid.",
-                statusCode: StatusCodes.Status401Unauthorized);
+            var signatureValid = await signatureVerifier.VerifyAsync(
+                new AwsSnsSignatureVerificationRequest(
+                    envelope.Type,
+                    envelope.MessageId,
+                    envelope.TopicArn,
+                    envelope.Message,
+                    envelope.Subject,
+                    envelope.Timestamp,
+                    envelope.SignatureVersion,
+                    envelope.Signature,
+                    envelope.SigningCertURL,
+                    envelope.SubscribeURL,
+                    envelope.Token),
+                cancellationToken);
+            if (!signatureValid)
+            {
+                logger.LogWarning(
+                    "[SNS-DIAG-20260521] AWS SES SNS signature verification failed. Type={MessageType}; SignatureVersion={SignatureVersion}; SigningCertHost={SigningCertHost}.",
+                    envelope.Type,
+                    envelope.SignatureVersion,
+                    TryGetSafeHost(envelope.SigningCertURL));
+                return Results.Problem(
+                    title: "aws_ses_webhook.signature_invalid",
+                    detail: "AWS SES SNS signature is invalid.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+        }
+        else
+        {
+            logger.LogInformation(
+                "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation passed strict unsigned confirmation checks.");
         }
 
-        if (string.Equals(envelope.Type, "SubscriptionConfirmation", StringComparison.Ordinal))
+        if (isSubscriptionConfirmation)
         {
             logger.LogInformation(
                 "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation accepted; confirming with AWS. SubscribeHost={SubscribeHost}.",
