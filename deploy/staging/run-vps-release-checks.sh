@@ -137,6 +137,29 @@ require_status() {
   fi
 }
 
+wait_for_status() {
+  local name="$1"
+  local expected="$2"
+  local url="$3"
+  local attempts="$4"
+  local delay_seconds="$5"
+  local actual=""
+
+  for ((attempt = 1; attempt <= attempts; attempt++)); do
+    actual="$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)"
+    if [[ "$actual" == "$expected" ]]; then
+      printf '%s' "$actual"
+      return 0
+    fi
+
+    if [[ "$attempt" -lt "$attempts" ]]; then
+      sleep "$delay_seconds"
+    fi
+  done
+
+  fail "$name returned HTTP $actual after $attempts attempts; expected $expected."
+}
+
 json_escape() {
   sed 's/\\/\\\\/g; s/"/\\"/g' <<<"$1" | tr -d '\n'
 }
@@ -145,11 +168,9 @@ remote_evidence_path="$evidence_dir/remote-public-smoke.json"
 backup_restore_evidence_path="$evidence_dir/backup-restore.json"
 release_evidence_path="$evidence_dir/release-evidence.json"
 
-api_health_status="$(curl -sS -o /dev/null -w '%{http_code}' "$api_origin/health")"
-require_status "API health" "200" "$api_health_status"
+api_health_status="$(wait_for_status "API health" "200" "$api_origin/health" 30 2)"
 
-web_root_status="$(curl -sS -o /dev/null -w '%{http_code}' "$web_origin/")"
-require_status "Web root" "200" "$web_root_status"
+web_root_status="$(wait_for_status "Web root" "200" "$web_origin/" 15 2)"
 
 unauthenticated_session_status="$(curl -sS -o "$work_dir/unauthenticated-session.body" -w '%{http_code}' -H "Origin: $web_origin" -H "X-Tenant-Id: $tenant_id" "$api_origin/auth/session")"
 require_status "Unauthenticated session" "401" "$unauthenticated_session_status"
