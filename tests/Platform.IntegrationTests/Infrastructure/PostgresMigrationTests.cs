@@ -4582,7 +4582,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var oldPaths = batch.Value.Invitations.Select(invitation => invitation.RespondentPath).ToHashSet();
         var oldHashes = batch.Value.Invitations.ToDictionary(
             invitation => invitation.InvitationTokenId,
-            invitation => OpenLinkTokens.Hash(invitation.Token));
+            invitation => OpenLinkTokens.Hash(invitation.Token!));
 
         var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
             tenantId,
@@ -6358,22 +6358,24 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(launched.IsSuccess, launched.Error.ToString());
         Assert.True(invitationBatch.IsSuccess, invitationBatch.Error.ToString());
         var invite = Assert.Single(invitationBatch.Value.Invitations);
+        var inviteToken = invite.Token!;
+        Assert.NotNull(inviteToken);
 
         var entry = await responseStore.GetOpenLinkEntryAsync(
-            invite.Token,
+            inviteToken,
             CancellationToken.None);
 
         Assert.True(entry.IsSuccess, entry.Error.ToString());
 
         var session = await responseStore.CreateOpenLinkSessionAsync(
-            invite.Token,
+            inviteToken,
             new CreateOpenLinkSessionRequest(
                 "en",
                 entry.Value.ConsentDocument.Id,
                 entry.Value.ConsentDocument.RequiredGrants),
             CancellationToken.None);
         var saved = await responseStore.SaveOpenLinkAnswersAsync(
-            invite.Token,
+            inviteToken,
             session.Value.Id,
             new SaveAnswersRequest(
             [
@@ -6381,7 +6383,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             ]),
             CancellationToken.None);
         var submitted = await responseStore.SubmitOpenLinkSessionAsync(
-            invite.Token,
+            inviteToken,
             session.Value.Id,
             new SubmitResponseSessionRequest(TimeTakenMs: 2400),
             CancellationToken.None);
