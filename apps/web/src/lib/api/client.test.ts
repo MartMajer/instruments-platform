@@ -83,6 +83,27 @@ describe('createApiClient', () => {
 		});
 	});
 
+	it('parses problem+json error responses so product surfaces can show backend details', async () => {
+		const problem = {
+			title: 'Recipient already invited',
+			status: 409,
+			detail: 'This recipient already has an invitation. Retry failed emails instead.'
+		};
+		const fetch = createFetchMock(
+			async () =>
+				new Response(JSON.stringify(problem), {
+					status: 409,
+					headers: { 'content-type': 'application/problem+json; charset=utf-8' }
+				})
+		);
+		const client = createApiClient({ baseUrl: 'https://api.example.test', fetch });
+
+		await expect(client.request('/campaigns/campaign-id/invitation-batches')).rejects.toMatchObject({
+			status: 409,
+			body: problem
+		});
+	});
+
 	it('does not fetch csrf for safe requests when csrf is enabled', async () => {
 		const fetch = createFetchMock(async () => jsonResponse({ ok: true }));
 		const client = createApiClient({ baseUrl: 'https://api.example.test', fetch, csrf: true });

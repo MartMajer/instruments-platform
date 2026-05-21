@@ -187,10 +187,16 @@ async function readBody(response: Response) {
 
 	const contentType = response.headers.get('content-type') ?? '';
 
-	if (contentType.includes('application/json')) {
+	if (isJsonContentType(contentType)) {
 		return response.json();
 	}
 
 	const text = await response.text();
 	return text.length > 0 ? text : null;
+}
+
+function isJsonContentType(contentType: string) {
+	const normalized = contentType.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+
+	return normalized === 'application/json' || normalized.endsWith('+json');
 }

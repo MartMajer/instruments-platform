@@ -772,14 +772,13 @@ public sealed class NotificationDeliveryStore(
             var provider = SanitizeProvider(emailDeliveryProvider.Provider);
             var error = SanitizeDeliveryError(exception.Message);
             logger?.LogWarning(
-                exception,
-                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; HasInnerException={HasInnerException}.",
+                "[EMAIL-DIAG-20260522] Campaign invitation email delivery failed. Provider={Provider}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
                 provider,
                 exception.GetType().Name,
                 exception is SmtpException smtpException
                     ? smtpException.StatusCode.ToString()
                     : "none",
-                exception.InnerException is not null);
+                exception.InnerException?.GetType().Name ?? "none");
             return await FailPreparedDeliveryAsync(
                 tenantId,
                 workItem,
