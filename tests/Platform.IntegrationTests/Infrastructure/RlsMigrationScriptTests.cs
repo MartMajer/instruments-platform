@@ -42,6 +42,8 @@ public sealed class RlsMigrationScriptTests
         "invitation_token",
         "notification",
         "notification_delivery_attempt",
+        "notification_delivery_event",
+        "email_suppression",
         "participant_code",
         "section",
         "scale",
@@ -275,6 +277,8 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains("CREATE TABLE invitation_token", script);
         Assert.Contains("CREATE TABLE notification", script);
         Assert.Contains("CREATE TABLE notification_delivery_attempt", script);
+        Assert.Contains("CREATE TABLE notification_delivery_event", script);
+        Assert.Contains("CREATE TABLE email_suppression", script);
         Assert.Contains("CREATE TABLE participant_code", script);
         Assert.Contains("CONSTRAINT ck_campaign_series_code_salt_length CHECK", script);
         Assert.Contains("CONSTRAINT ck_campaign_response_identity_mode CHECK", script);
@@ -295,16 +299,23 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains(
             "CREATE POLICY notification_delivery_attempt_tenant_isolation ON notification_delivery_attempt",
             script);
+        Assert.Contains(
+            "CREATE POLICY notification_delivery_event_tenant_isolation ON notification_delivery_event",
+            script);
+        Assert.Contains("CREATE POLICY email_suppression_tenant_isolation ON email_suppression", script);
         Assert.Contains("CREATE POLICY participant_code_tenant_isolation ON participant_code", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION campaign_template_version_tenant_guard()", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION audience_member_subject_tenant_guard()", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION assignment_tenant_guard()", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION notification_tenant_guard()", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION notification_delivery_attempt_tenant_guard()", script);
+        Assert.Contains("CREATE OR REPLACE FUNCTION notification_delivery_event_tenant_guard()", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION participant_code_tenant_guard()", script);
         Assert.Contains("assignment shape does not match campaign response identity mode", script);
         Assert.Contains("notification campaign and assignment must belong to the same tenant campaign", script);
         Assert.Contains("notification delivery attempt must belong to the same tenant notification", script);
+        Assert.Contains("notification delivery event must belong to the same tenant notification", script);
+        Assert.Contains("notification delivery event must belong to the same tenant delivery attempt", script);
         Assert.Contains("participant code campaign series must belong to the same tenant", script);
         Assert.Contains("CREATE OR REPLACE FUNCTION invitation_token_assignment_guard()", script);
         Assert.Contains("invitation token assignment must belong to the same tenant campaign", script);
