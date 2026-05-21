@@ -69,34 +69,41 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
             return false;
         }
 
-        using (certificate)
-        using (var chain = new X509Chain())
+        try
         {
-            chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-            chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-            if (!chain.Build(certificate))
+            using (certificate)
+            using (var chain = new X509Chain())
             {
-                return false;
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
+                if (!chain.Build(certificate))
+                {
+                    return false;
+                }
+
+                using var rsa = certificate.GetRSAPublicKey();
+                if (rsa is null)
+                {
+                    return false;
+                }
+
+                var stringToSign = BuildStringToSign(request);
+                if (stringToSign is null)
+                {
+                    return false;
+                }
+
+                return rsa.VerifyData(
+                    Encoding.UTF8.GetBytes(stringToSign),
+                    signature,
+                    HashAlgorithmName.SHA256,
+                    RSASignaturePadding.Pkcs1);
             }
         }
-
-        using var rsa = certificate.GetRSAPublicKey();
-        if (rsa is null)
+        catch (CryptographicException)
         {
             return false;
         }
-
-        var stringToSign = BuildStringToSign(request);
-        if (stringToSign is null)
-        {
-            return false;
-        }
-
-        return rsa.VerifyData(
-            Encoding.UTF8.GetBytes(stringToSign),
-            signature,
-            HashAlgorithmName.SHA256,
-            RSASignaturePadding.Pkcs1);
     }
 
     private static string? BuildStringToSign(AwsSnsSignatureVerificationRequest request)
