@@ -93,17 +93,29 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
                     return false;
                 }
 
-                return rsa.VerifyData(
-                    Encoding.UTF8.GetBytes(stringToSign),
-                    signature,
-                    HashAlgorithmName.SHA256,
-                    RSASignaturePadding.Pkcs1);
+                if (VerifySignature(rsa, stringToSign, signature))
+                {
+                    return true;
+                }
+
+                var compatibilityStringToSign = BuildSubscriptionConfirmationMessageFormatStringToSign(request);
+                return compatibilityStringToSign is not null &&
+                    VerifySignature(rsa, compatibilityStringToSign, signature);
             }
         }
         catch (CryptographicException)
         {
             return false;
         }
+    }
+
+    private static bool VerifySignature(RSA rsa, string stringToSign, byte[] signature)
+    {
+        return rsa.VerifyData(
+            Encoding.UTF8.GetBytes(stringToSign),
+            signature,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
     }
 
     private static string? BuildStringToSign(AwsSnsSignatureVerificationRequest request)
@@ -149,6 +161,23 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
             .Append("SubscribeURL\n").Append(request.SubscribeUrl).Append('\n')
             .Append("Timestamp\n").Append(request.Timestamp).Append('\n')
             .Append("Token\n").Append(request.Token).Append('\n')
+            .Append("TopicArn\n").Append(request.TopicArn).Append('\n')
+            .Append("Type\n").Append(request.Type)
+            .ToString();
+    }
+
+    private static string? BuildSubscriptionConfirmationMessageFormatStringToSign(
+        AwsSnsSignatureVerificationRequest request)
+    {
+        if (!string.Equals(request.Type, "SubscriptionConfirmation", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return new StringBuilder()
+            .Append("Message\n").Append(request.Message).Append('\n')
+            .Append("MessageId\n").Append(request.MessageId).Append('\n')
+            .Append("Timestamp\n").Append(request.Timestamp).Append('\n')
             .Append("TopicArn\n").Append(request.TopicArn).Append('\n')
             .Append("Type\n").Append(request.Type)
             .ToString();

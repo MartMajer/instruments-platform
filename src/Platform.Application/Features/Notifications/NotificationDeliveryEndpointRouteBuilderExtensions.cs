@@ -521,7 +521,7 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         if (string.Equals(envelope.Type, "SubscriptionConfirmation", StringComparison.Ordinal) &&
             (string.IsNullOrWhiteSpace(envelope.SubscribeURL) ||
                 string.IsNullOrWhiteSpace(envelope.Token) ||
-                !IsSafeAwsSnsSubscribeUrl(envelope.SubscribeURL)))
+                !IsSafeAwsSnsSubscribeUrl(envelope.SubscribeURL, envelope.TopicArn, envelope.Token)))
         {
             logger.LogWarning(
                 "[SNS-DIAG-20260521] AWS SES SNS subscription confirmation payload rejected. HasSubscribeUrl={HasSubscribeUrl}; HasToken={HasToken}; SubscribeHost={SubscribeHost}.",
@@ -832,9 +832,14 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             !path.Contains("//", StringComparison.Ordinal);
     }
 
-    private static bool IsSafeAwsSnsSubscribeUrl(string? value)
+    private static bool IsSafeAwsSnsSubscribeUrl(
+        string? value,
+        string expectedTopicArn,
+        string expectedToken)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value) ||
+            string.IsNullOrWhiteSpace(expectedTopicArn) ||
+            string.IsNullOrWhiteSpace(expectedToken))
         {
             return false;
         }
@@ -858,7 +863,43 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
         return TryGetAwsSnsSigningRegion(uri.Host, out var region) &&
             IsSafeAwsRegion(region) &&
             uri.AbsolutePath is "" or "/" &&
-            uri.Query.Contains("Action=ConfirmSubscription", StringComparison.Ordinal);
+            HasQueryParameter(uri, "Action", "ConfirmSubscription") &&
+            HasQueryParameter(uri, "TopicArn", expectedTopicArn) &&
+            HasQueryParameter(uri, "Token", expectedToken);
+    }
+
+    private static bool HasQueryParameter(Uri uri, string name, string expectedValue)
+    {
+        var query = uri.Query;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return false;
+        }
+
+        if (query[0] == '?')
+        {
+            query = query[1..];
+        }
+
+        foreach (var segment in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = segment.Split('=', 2);
+            var key = DecodeQueryValue(pair[0]);
+            if (!string.Equals(key, name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var value = pair.Length == 2 ? DecodeQueryValue(pair[1]) : string.Empty;
+            return string.Equals(value, expectedValue, StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
+    private static string DecodeQueryValue(string value)
+    {
+        return Uri.UnescapeDataString(value.Replace("+", " ", StringComparison.Ordinal));
     }
 
     private static bool TryGetAwsSnsSigningRegion(string host, out string region)
