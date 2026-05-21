@@ -891,7 +891,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
             "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+        request.Content = new StringContent(body, Encoding.UTF8, "text/plain");
 
         var response = await client.SendAsync(request);
 

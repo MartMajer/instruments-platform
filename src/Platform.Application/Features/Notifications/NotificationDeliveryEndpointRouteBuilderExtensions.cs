@@ -369,11 +369,11 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status413PayloadTooLarge);
         }
 
-        if (!IsJsonContentType(httpRequest.ContentType))
+        if (!IsAwsSnsContentType(httpRequest.ContentType))
         {
             return Results.Problem(
                 title: "aws_ses_webhook.content_type_invalid",
-                detail: "AWS SES SNS payload must use a JSON content type.",
+                detail: "AWS SES SNS payload must use a JSON or SNS text content type.",
                 statusCode: StatusCodes.Status415UnsupportedMediaType);
         }
 
@@ -582,6 +582,23 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
 
         return string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) ||
             mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAwsSnsContentType(string? contentType)
+    {
+        if (IsJsonContentType(contentType))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return false;
+        }
+
+        var separatorIndex = contentType.IndexOf(';', StringComparison.Ordinal);
+        var mediaType = separatorIndex >= 0 ? contentType[..separatorIndex] : contentType;
+        return string.Equals(mediaType.Trim(), "text/plain", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSafeAwsSesSnsTopicArn(string? value)
