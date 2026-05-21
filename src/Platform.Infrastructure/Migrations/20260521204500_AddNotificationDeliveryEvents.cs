@@ -1,11 +1,15 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Data;
 
 #nullable disable
 
 namespace Platform.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260521204500_AddNotificationDeliveryEvents")]
     public partial class AddNotificationDeliveryEvents : Migration
     {
         /// <inheritdoc />

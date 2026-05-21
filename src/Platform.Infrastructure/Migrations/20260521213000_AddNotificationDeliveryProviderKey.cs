@@ -1,10 +1,14 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Data;
 
 #nullable disable
 
 namespace Platform.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260521213000_AddNotificationDeliveryProviderKey")]
     public partial class AddNotificationDeliveryProviderKey : Migration
     {
         /// <inheritdoc />

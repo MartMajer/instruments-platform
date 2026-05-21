@@ -1,10 +1,14 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Platform.Infrastructure.Data;
 
 #nullable disable
 
 namespace Platform.Infrastructure.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260521193000_AddPreparedNotificationDeliveryAttempts")]
     public partial class AddPreparedNotificationDeliveryAttempts : Migration
     {
         /// <inheritdoc />
