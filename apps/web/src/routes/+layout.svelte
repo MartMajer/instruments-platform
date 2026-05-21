@@ -19,6 +19,8 @@
 
 {#if page.url.pathname.startsWith('/r/')}
 	{@render children()}
+{:else if page.url.pathname.startsWith('/app')}
+	{@render children()}
 {:else}
 	<AppShell>
 		{@render children()}

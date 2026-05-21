@@ -169,6 +169,8 @@ test('shows email verification recovery after unverified workspace sign-in', asy
 	await page.goto('/app?auth=email_unverified');
 
 	await expect(page.getByRole('heading', { name: 'Verify email, then sign in' })).toBeVisible();
+	await expect(page.getByRole('navigation', { name: 'Product navigation' })).toHaveCount(0);
+	await expect(page.getByLabel('Mobile workspace navigation')).toHaveCount(0);
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
 		'Open the verification email from Auth0, then sign in again with the same account.'
 	);
@@ -440,6 +442,8 @@ test('shows pending registration recovery after failed workspace sign-in', async
 	await page.goto('/app?auth=failed');
 
 	await expect(page.getByRole('heading', { name: 'Registration sign-in did not finish' })).toBeVisible();
+	await expect(page.getByRole('navigation', { name: 'Product navigation' })).toHaveCount(0);
+	await expect(page.getByLabel('Mobile workspace navigation')).toHaveCount(0);
 	await expect(page.getByLabel('Email verification reminder')).toContainText(
 		'Retry the saved registration sign-in link if the Auth0 callback was interrupted.'
 	);
