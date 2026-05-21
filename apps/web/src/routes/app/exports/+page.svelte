@@ -71,7 +71,7 @@
 				<div class="product-panel__header">
 					<div>
 						<p class="product-kicker">Files</p>
-						<h2 class="product-title">Ready downloads and next use</h2>
+						<h2 class="product-title">Downloadable files and next use</h2>
 					</div>
 				</div>
 

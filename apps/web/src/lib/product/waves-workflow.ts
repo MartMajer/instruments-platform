@@ -37,6 +37,7 @@ export type SelectedSeriesGroupTrendPlan = {
 	comparisonName: string | null;
 	baselineResponseCount: number | null;
 	comparisonResponseCount: number | null;
+	safetyRows: Array<{ label: string; value: string }>;
 	primaryLabel: string;
 	primaryHref: string | null;
 	secondaryLabel: string | null;
@@ -150,17 +151,17 @@ export function toSelectedSeriesWavePlan(
 	}
 
 	return {
-		title: 'Compare waves',
+		title: 'Validate linked change',
 		description:
-			'Two longitudinal waves are ready for disclosure-safe change-over-time review.',
-		status: 'ready',
-		primaryLabel: 'Run comparison checks below',
+			'Two repeat-participation waves exist. Run linked trajectory and comparison checks before treating this as same-respondent change.',
+		status: 'pending',
+		primaryLabel: 'Run linked checks below',
 		primaryHref: null,
 		secondaryLabel: 'Review results',
 		secondaryHref: reportsHref,
 		guidance: [
-			'Use the comparison workflow below to check linked trajectories, disclosure, scoring compatibility, and visible deltas.',
-			'Use Results for wave-level exports; use Waves when you need change-over-time context.',
+			'Use the comparison workflow below to prove linked trajectories, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
+			'Use Results for wave-level exports; use Waves only when you need validated change-over-time context.',
 			'Create another follow-up wave from Setup when the next collection round starts.'
 		]
 	};
@@ -184,6 +185,10 @@ export function toSelectedSeriesGroupTrendPlan(
 			comparisonName: null,
 			baselineResponseCount: waves[0]?.submittedResponseCount ?? null,
 			comparisonResponseCount: null,
+			safetyRows: [
+				{ label: 'Linked-change proof', value: 'Not available until two repeated waves exist' },
+				{ label: 'Disclosure status', value: 'Review after follow-up wave results exist' }
+			],
 			primaryLabel: nextWaveLabel,
 			primaryHref: setupHref,
 			secondaryLabel: workspace.summary.campaignCount > 0 ? 'Review results' : null,
@@ -200,15 +205,37 @@ export function toSelectedSeriesGroupTrendPlan(
 	const scoresReady = baselineWave.scoreCount > 0 && comparisonWave.scoreCount > 0;
 
 	return {
-		title: `${baselineWave.name} to ${comparisonWave.name}`,
+		title: `Aggregate group trend only: ${baselineWave.name} to ${comparisonWave.name}`,
 		description: scoresReady
-			? 'Wave-level results are ready to review as a group trend. This is not same-respondent change.'
+			? 'Aggregate group-level results are ready to review as a trend. This is not same-respondent change.'
 			: 'Both waves have responses. Finish score output before treating the trend as ready.',
 		status: scoresReady ? 'ready' : 'pending',
 		baselineName: baselineWave.name,
 		comparisonName: comparisonWave.name,
 		baselineResponseCount: baselineWave.submittedResponseCount,
 		comparisonResponseCount: comparisonWave.submittedResponseCount,
+		safetyRows: [
+			{ label: 'First wave scores', value: String(baselineWave.scoreCount) },
+			{ label: 'Second wave scores', value: String(comparisonWave.scoreCount) },
+			{
+				label: 'Linked-change proof',
+				value:
+					workspace.summary.longitudinalWaveCount >= 2
+						? 'Run linked-change checks before making same-respondent claims'
+						: 'Not configured for same-respondent linked change'
+			},
+			{
+				label: 'Disclosure status',
+				value:
+					workspace.comparison.disclosureState === 'not_available'
+						? 'Review wave-level disclosure in Results before making claims'
+						: workspace.comparison.disclosureState.replaceAll('_', ' ')
+			},
+			{
+				label: 'Suppressed linked comparisons',
+				value: String(workspace.summary.suppressedComparisonCount)
+			}
+		],
 		primaryLabel: 'Open Results',
 		primaryHref: reportsHref,
 		secondaryLabel: nextWaveLabel,

@@ -246,6 +246,12 @@
 				<dt class="record-field__label">Second wave responses</dt>
 				<dd class="record-field__value">{groupTrendPlan.comparisonResponseCount ?? 0}</dd>
 			</div>
+			{#each groupTrendPlan.safetyRows as row}
+				<div class="record-field">
+					<dt class="record-field__label">{row.label}</dt>
+					<dd class="record-field__value">{row.value}</dd>
+				</div>
+			{/each}
 		</dl>
 		<ul class="grid gap-2 text-sm leading-6 text-[var(--color-text-muted)]">
 			{#each groupTrendPlan.guidance as item}
@@ -312,7 +318,7 @@
 						<dd class="record-field__value">{workspace.summary.longitudinalWaveCount}</dd>
 					</div>
 					<div class="record-field">
-						<dt class="record-field__label">Complete trajectories</dt>
+						<dt class="record-field__label">Potential complete trajectories</dt>
 						<dd class="record-field__value">{workspace.summary.completeTrajectoryCount}</dd>
 					</div>
 				</dl>
@@ -341,6 +347,20 @@
 					<div class="record-field">
 						<dt class="record-field__label">Compatibility</dt>
 						<dd class="record-field__value">{humanize(workspace.comparison.compatibilityState)}</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">Disclosure</dt>
+						<dd class="record-field__value">{humanize(workspace.comparison.disclosureState)}</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">Minimum group size</dt>
+						<dd class="record-field__value">
+							{workspace.comparison.disclosureKMin ?? 'Not configured'}
+						</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">Suppressed comparisons</dt>
+						<dd class="record-field__value">{workspace.summary.suppressedComparisonCount}</dd>
 					</div>
 				</dl>
 				<SelectedSeriesWaveComparisonSnapshot {workspace} embedded={true} />

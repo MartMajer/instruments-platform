@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
 import {
+	toSelectedSeriesGroupTrendPlan,
 	toSelectedSeriesWavePlan,
 	toSelectedSeriesWavesPath,
 	toSelectedSeriesWavesWorkflowActions
@@ -41,15 +42,15 @@ describe('selected-series waves workflow model', () => {
 		const plan = toSelectedSeriesWavePlan(comparisonReadyWorkspace);
 
 		expect(plan).toMatchObject({
-			title: 'Compare waves',
-			primaryLabel: 'Run comparison checks below',
+			title: 'Validate linked change',
+			primaryLabel: 'Run linked checks below',
 			primaryHref: null,
 			secondaryLabel: 'Review results',
 			secondaryHref: '/app/campaign-series/series-id/reports',
-			status: 'ready'
+			status: 'pending'
 		});
 		expect(plan.guidance).toContain(
-			'Use the comparison workflow below to check linked trajectories, disclosure, scoring compatibility, and visible deltas.'
+			'Use the comparison workflow below to prove linked trajectories, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.'
 		);
 	});
 
@@ -70,6 +71,21 @@ describe('selected-series waves workflow model', () => {
 		expect(plan.guidance).toContain(
 			'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.'
 		);
+	});
+
+	it('labels the group trend itself as aggregate-only', () => {
+		const groupTrendPlan = toSelectedSeriesGroupTrendPlan(twoAnonymousClosedWorkspace);
+
+		expect(groupTrendPlan.title).toBe('Aggregate group trend only: Wave 1 to Wave 2');
+		expect(groupTrendPlan.description).toContain('group-level results');
+		expect(groupTrendPlan.safetyRows).toContainEqual({
+			label: 'Linked-change proof',
+			value: 'Not configured for same-respondent linked change'
+		});
+		expect(groupTrendPlan.safetyRows).toContainEqual({
+			label: 'Disclosure status',
+			value: 'Review wave-level disclosure in Results before making claims'
+		});
 	});
 
 	it('blocks wave actions when the series has no longitudinal waves', () => {

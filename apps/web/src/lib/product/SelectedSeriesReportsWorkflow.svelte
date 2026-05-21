@@ -104,6 +104,11 @@
 			latestDownloadableExportArtifact?.fileName ??
 			null
 	);
+	const currentExportPurpose = $derived(
+		currentExportArtifactId === latestResponseExportArtifact?.id || responseExportResult?.id === currentExportArtifactId
+			? 'Response dataset CSV and codebook'
+			: 'Report-summary CSV, not analysis-ready response dataset'
+	);
 	const localState = $derived({
 		reportProofViewed: Boolean(reportProofResult),
 		exportCreated: Boolean(exportResult),
@@ -487,12 +492,12 @@
 							result: exportResult,
 							ariaLabel: 'Report export result',
 							kicker: 'Report export',
-							title: 'Aggregate CSV and codebook'
+							title: 'Report-summary CSV and codebook'
 						})}
 					{/if}
 					{@render ActionFooter({
 						id: 'exportArtifact',
-						label: 'Create client export',
+						label: 'Create report-summary export',
 						resultLabel: 'Export file',
 						resultValue:
 							exportResult?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null,
@@ -538,7 +543,7 @@
 						<div class="record-field">
 							<dt class="record-field__label">Download status</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? 'Ready to download' : 'Not ready'}
+								{currentDownloadableExportArtifactId ? 'Downloadable' : 'Not ready'}
 							</dd>
 						</div>
 					</dl>
@@ -557,7 +562,7 @@
 						<div class="record-field">
 							<dt class="record-field__label">Download status</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? 'Ready to download' : 'Not ready'}
+								{currentDownloadableExportArtifactId ? 'Downloadable' : 'Not ready'}
 							</dd>
 						</div>
 						<div class="record-field">
@@ -569,13 +574,17 @@
 									'Not available'}
 							</dd>
 						</div>
+						<div class="record-field">
+							<dt class="record-field__label">File purpose</dt>
+							<dd class="record-field__value">{currentExportPurpose}</dd>
+						</div>
 					</dl>
 					{#if downloadResult}
 						{@render CsvDownloadResult()}
 					{/if}
 					{@render ActionFooter({
 						id: 'downloadCsv',
-						label: 'Download CSV',
+						label: currentAction.title,
 						resultLabel: 'Downloaded file',
 						resultValue:
 							downloadResult?.fileName ??
@@ -598,10 +607,10 @@
 					<p class="product-kicker">Results preview</p>
 					<h4 class="record-row__title">Aggregate result preview</h4>
 				</div>
-				<StatusBadge status="ready" label="Preview ready" />
+				<StatusBadge status="ready" label="Internal preview" />
 			</div>
 			<div class="response-lab__meta">
-				<span>Preview ready</span>
+				<span>Internal preview</span>
 				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} responses</span>
 				<span>Minimum group {reportProofResult.disclosurePolicy.kMin}</span>
 			</div>
@@ -665,12 +674,12 @@
 				</div>
 			<StatusBadge
 				status={result.canDownload ? 'ready' : 'pending'}
-				label={result.canDownload ? 'Export ready' : 'Preparing'}
+				label={result.canDownload ? 'Downloadable' : 'Preparing'}
 			/>
 		</div>
 		<div class="response-lab__meta">
 			<span>Export file</span>
-			<span>{result.canDownload ? 'Ready to download' : humanize(result.status)}</span>
+			<span>{result.canDownload ? 'Downloadable' : humanize(result.status)}</span>
 			<span>{result.rowCount} rows</span>
 		</div>
 		<div class="score-result-panel__footer">
@@ -696,7 +705,7 @@
 			<div class="record-field">
 				<dt class="record-field__label">Download status</dt>
 				<dd class="record-field__value">
-					{storedExportResult.canDownload ? 'Ready to download' : humanize(storedExportResult.status)}
+					{storedExportResult.canDownload ? 'Downloadable' : humanize(storedExportResult.status)}
 				</dd>
 			</div>
 		</dl>

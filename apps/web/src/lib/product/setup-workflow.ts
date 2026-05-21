@@ -39,6 +39,22 @@ export type SelectedSeriesSetupPath = {
 	totalCount: number;
 };
 
+export type SelectedSeriesSetupLaunchStateOptions = {
+	readinessPassed?: boolean;
+	savedRecipientSelectionCount?: number;
+	savedRecipientPairCount?: number;
+	savedRecipientLoading?: boolean;
+	responseIdentityMode?: string | null;
+};
+
+export type SelectedSeriesSetupLaunchState = {
+	statusLabel: string;
+	nextActionLabel: string;
+	collectionButtonLabel: string;
+	collectionButtonAvailable: boolean;
+	recipientSummary: string;
+};
+
 export function defaultCampaignWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
 	const nextWaveNumber = Math.max(0, workspace.summary.campaignCount) + 1;
 	return `Wave ${nextWaveNumber}`;
@@ -72,7 +88,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 				'Build the questions respondents will answer in this study.',
 			status: templateVersionId ? 'ready' : 'blocked',
 			available: true,
-			disabledReason: null
+			disabledReason: instrumentConfigured ? null : 'Confirm the instrument first.'
 		},
 		{
 			id: 'scoring',
@@ -102,6 +118,50 @@ export function toSelectedSeriesSetupWorkflowActions(
 			disabledReason: campaignId ? null : 'Create the collection wave first.'
 		}
 	];
+}
+
+export function toSelectedSeriesSetupLaunchState(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	localState: SelectedSeriesSetupWorkflowLocalState = {},
+	options: SelectedSeriesSetupLaunchStateOptions = {}
+): SelectedSeriesSetupLaunchState {
+	const campaignId = selectSetupCampaignId(workspace, localState);
+	const readinessPassed = Boolean(options.readinessPassed ?? workspace.readiness.ready);
+	const recipientSummary = toRecipientSummary(options);
+
+	if (!campaignId) {
+		return {
+			statusLabel: 'Create collection wave first',
+			nextActionLabel: 'Create and save the collection wave before checking launch.',
+			collectionButtonLabel: 'Run launch check first',
+			collectionButtonAvailable: false,
+			recipientSummary
+		};
+	}
+
+	if (readinessPassed) {
+		const hasSavedRecipients = (options.savedRecipientSelectionCount ?? 0) > 0;
+		return {
+			statusLabel: hasSavedRecipients
+				? 'Launch check passed with saved recipients'
+				: 'Launch check passed; choose public link or save recipients',
+			nextActionLabel: hasSavedRecipients
+				? 'Open Collection to start the wave with the saved recipient selection.'
+				: 'Open Collection to launch with a public link, or save recipients below before launch.',
+			collectionButtonLabel: 'Open Collection launch',
+			collectionButtonAvailable: true,
+			recipientSummary
+		};
+	}
+
+	return {
+		statusLabel:
+			workspace.readiness.status === 'not_available' ? 'Run launch check' : 'Needs attention',
+		nextActionLabel: 'Run the launch check and resolve any listed issues before opening Collection.',
+		collectionButtonLabel: 'Run launch check first',
+		collectionButtonAvailable: false,
+		recipientSummary
+	};
 }
 
 export function toSelectedSeriesSetupPath(
@@ -196,4 +256,28 @@ function toPathStepState(
 	}
 
 	return 'blocked';
+}
+
+function toRecipientSummary(options: SelectedSeriesSetupLaunchStateOptions) {
+	if (options.savedRecipientLoading) {
+		return 'Loading saved recipient selection...';
+	}
+
+	const selectionCount = options.savedRecipientSelectionCount ?? 0;
+	if (selectionCount > 0) {
+		const pairCount = options.savedRecipientPairCount ?? 0;
+		return `${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
+			pairCount === 1 ? 'invitation pair' : 'invitation pairs'
+		} ready.`;
+	}
+
+	if (options.responseIdentityMode === 'identified') {
+		return 'No saved recipients yet; save a recipient selection before invite-only launch.';
+	}
+
+	if (options.responseIdentityMode === 'anonymous_longitudinal') {
+		return 'No saved recipients; repeat-participation waves use respondent codes instead of saved invitations.';
+	}
+
+	return 'No saved recipients; launch with a public link or save recipients below.';
 }

@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
 	appendTemplateQuestionRow,
+	appendScoreOutputRow,
+	applyQuestionScalePreset,
 	buildScoreProduces,
 	buildScoringDocument,
 	buildMeanScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
 	describeQuestionResultUsage,
+	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
+	describeScoreMissingDataStrategy,
 	moveTemplateQuestionRow,
+	questionScalePresetOptions,
 	removeTemplateQuestionRow,
+	summarizeAuthoringReadiness,
+	summarizeCollectedContextQuestions,
+	summarizeQuestionAuthoringCards,
+	summarizeRespondentQuestionPreview,
+	summarizeReverseScoringReview,
+	summarizeScorePlan,
+	summarizeQuestionDimensions,
 	toCreateTemplateQuestions,
 	validateTemplateQuestionRows
 } from './template-authoring';
@@ -102,7 +114,7 @@ describe('template authoring helpers', () => {
 				code: 'energy',
 				type: 'likert',
 				textDefault: 'I have enough energy after work.',
-				sectionCode: 'core',
+				sectionCode: 'recovery_need',
 				scaleCode: 'scale_energy',
 				required: false,
 				reverseCoded: false,
@@ -225,5 +237,252 @@ describe('template authoring helpers', () => {
 		expect(describeQuestionResultUsage(rows[1], outputs)).toBe(
 			'Not included in any result output yet.'
 		);
+	});
+});
+
+describe('questionnaire dimension and scale intent authoring', () => {
+	it('creates default rows with researcher-facing dimension labels', () => {
+		const rows = createDefaultTemplateQuestionRows();
+
+		expect(rows.map((row) => row.dimensionLabel)).toEqual([
+			'Recovery need',
+			'Workload strain',
+			'Recovery capacity'
+		]);
+	});
+
+	it('uses dimension labels as template section codes', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0].dimensionLabel = 'Psychological demands';
+		rows[1].dimensionLabel = 'Psychological demands';
+		rows[2].dimensionLabel = 'Recovery capacity';
+
+		const questions = toCreateTemplateQuestions(rows);
+
+		expect(questions.map((question) => question.sectionCode)).toEqual([
+			'psychological_demands',
+			'psychological_demands',
+			'recovery_capacity'
+		]);
+	});
+
+	it('summarizes question dimensions with question counts', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0].dimensionLabel = 'Workload';
+		rows[1].dimensionLabel = 'Workload';
+		rows[2].dimensionLabel = 'Recovery';
+
+		expect(summarizeQuestionDimensions(rows)).toEqual([
+			{ code: 'workload', label: 'Workload', questionCount: 2 },
+			{ code: 'recovery', label: 'Recovery', questionCount: 1 }
+		]);
+	});
+
+	it('explains scale intent in research language', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0].scaleLowLabel = 'Never';
+		rows[0].scaleHighLabel = 'Always';
+		rows[1].type = 'number';
+		rows[2].type = 'text';
+
+		expect(describeQuestionScaleIntent(rows[0]).label).toBe('Frequency scale');
+		expect(describeQuestionScaleIntent(rows[1]).label).toBe('Number entry');
+		expect(describeQuestionScaleIntent(rows[2]).label).toBe('Written response');
+	});
+});
+
+describe('scoring plan summaries', () => {
+	it('summarizes result outputs by dimensions, included questions, reverse scoring, and missing data', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeScorePlan(outputs, rows)).toEqual([
+			{
+				localId: outputs[0].localId,
+				code: 'total',
+				name: 'Total score',
+				includedQuestionCount: 3,
+				dimensionLabels: ['Recovery need', 'Workload strain', 'Recovery capacity'],
+				reverseScoredQuestionCount: 1,
+				calculationLabel: 'Mean score',
+				missingPolicyLabel: 'Requires every selected question'
+			}
+		]);
+	});
+
+	it('summarizes minimum-answered missing-data rules', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows).map((output) => ({
+			...output,
+			missingStrategy: 'min_valid_count' as const,
+			minValidCount: 2
+		}));
+
+		expect(summarizeScorePlan(outputs, rows)[0]?.missingPolicyLabel).toBe(
+			'Requires at least 2 selected questions'
+		);
+	});
+});
+
+describe('dimension-based result output defaults', () => {
+	it('adds a result output for the first authored dimension after the total score', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		const nextOutputs = appendScoreOutputRow(outputs, rows);
+
+		expect(nextOutputs[1]).toMatchObject({
+			name: 'Recovery need',
+			code: 'recovery_need',
+			includedQuestionCodes: ['q01']
+		});
+	});
+
+	it('walks through uncovered dimensions when adding repeated result outputs', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = appendScoreOutputRow(createDefaultScoreOutputRows(rows), rows);
+
+		const nextOutputs = appendScoreOutputRow(outputs, rows);
+
+		expect(nextOutputs[2]).toMatchObject({
+			name: 'Workload strain',
+			code: 'workload_strain',
+			includedQuestionCodes: ['q02']
+		});
+	});
+});
+
+describe('authoring density and review summaries', () => {
+	it('summarizes question cards with dimension, scale, requiredness, and score usage', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeQuestionAuthoringCards(rows, outputs)[0]).toMatchObject({
+			code: 'q01',
+			title: 'After work, I need time to recover mentally.',
+			dimensionLabel: 'Recovery need',
+			scaleLabel: 'Agreement scale',
+			requiredLabel: 'Required',
+			resultUsageLabel: 'Used in: Total score.'
+		});
+	});
+
+	it('describes missing-data strategy tradeoffs in researcher language', () => {
+		const [output] = createDefaultScoreOutputRows(createDefaultTemplateQuestionRows());
+
+		expect(describeScoreMissingDataStrategy(output)).toMatchObject({
+			label: 'Strict missing-data rule',
+			detail: 'A respondent needs every selected question answered for this result score.'
+		});
+		expect(describeScoreMissingDataStrategy({ ...output, missingStrategy: 'min_valid_count', minValidCount: 2 })).toMatchObject({
+			label: 'Minimum answered rule',
+			detail: 'A respondent needs at least 2 selected questions answered for this result score.'
+		});
+	});
+
+	it('summarizes reverse-scoring review items', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeReverseScoringReview(rows, outputs)).toMatchObject({
+			reverseScoredQuestionCount: 1,
+			reverseScoredQuestionLabels: ['I can usually regain focus after a short break.'],
+			affectedResultLabels: ['Total score']
+		});
+	});
+
+	it('summarizes collected context questions separately from scored questions', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[1].type = 'text';
+		rows[1].dimensionLabel = 'Open context';
+
+		expect(summarizeCollectedContextQuestions(rows)).toEqual([
+			{
+				code: 'q02',
+				dimensionLabel: 'Open context',
+				typeLabel: 'Written response',
+				text: 'During demanding weeks, small interruptions feel harder to handle.'
+			}
+		]);
+	});
+
+	it('summarizes respondent preview cards with dimension and answer format', () => {
+		const rows = createDefaultTemplateQuestionRows();
+
+		expect(summarizeRespondentQuestionPreview(rows)[0]).toMatchObject({
+			ordinal: 1,
+			dimensionLabel: 'Recovery need',
+			answerFormatLabel: 'Agreement scale',
+			answerFormatDetail: '1 to 5: Strongly disagree -> Strongly agree'
+		});
+	});
+
+	it('summarizes authoring readiness across questionnaire and scoring plan', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeAuthoringReadiness(rows, outputs)).toEqual({
+			dimensionCount: 3,
+			questionCount: 3,
+			scoredQuestionCount: 3,
+			contextQuestionCount: 0,
+			resultOutputCount: 1,
+			reverseScoredQuestionCount: 1,
+			label: '3 dimensions, 3 scored questions, 1 result output'
+		});
+	});
+});
+
+describe('answer scale presets', () => {
+	it('defaults scale-backed questions to the five-point agreement preset', () => {
+		const rows = createDefaultTemplateQuestionRows();
+
+		expect(rows.map((row) => row.scalePreset)).toEqual([
+			'agreement_5',
+			'agreement_5',
+			'agreement_5'
+		]);
+	});
+
+	it('applies frequency and four-point agreement presets', () => {
+		const [row] = createDefaultTemplateQuestionRows();
+
+		expect(applyQuestionScalePreset(row, 'frequency_5')).toMatchObject({
+			scalePreset: 'frequency_5',
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Always'
+		});
+		expect(applyQuestionScalePreset(row, 'agreement_4')).toMatchObject({
+			scalePreset: 'agreement_4',
+			scaleMin: 1,
+			scaleMax: 4,
+			scaleLowLabel: 'Strongly disagree',
+			scaleHighLabel: 'Strongly agree'
+		});
+	});
+
+	it('keeps current scale values for the custom preset', () => {
+		const [row] = createDefaultTemplateQuestionRows();
+		const customRow = { ...row, scaleMin: 0, scaleMax: 10, scaleLowLabel: 'Low', scaleHighLabel: 'High' };
+
+		expect(applyQuestionScalePreset(customRow, 'custom')).toMatchObject({
+			scalePreset: 'custom',
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'Low',
+			scaleHighLabel: 'High'
+		});
+	});
+
+	it('offers the supported scale presets in researcher language', () => {
+		expect(questionScalePresetOptions.map((option) => option.value)).toEqual([
+			'agreement_5',
+			'agreement_4',
+			'frequency_5',
+			'intensity_5',
+			'custom'
+		]);
 	});
 });

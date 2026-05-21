@@ -89,6 +89,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 	const exportCreated = Boolean(localState.exportCreated);
 	const responseExportCreated = Boolean(localState.responseExportCreated);
 	const hasResponseExport = hasExistingResponseExport || responseExportCreated;
+	const downloadIsResponseDataset = hasResponseExport;
 	const hasExport =
 		Boolean(selectedCampaign?.latestExportArtifactId) || exportCreated || hasResponseExport;
 	const hasDownloadableExport =
@@ -112,8 +113,9 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'exportArtifact',
 			step: 'Step 2',
-			title: 'Create client export',
-			description: 'Create the aggregate results CSV and codebook for handoff.',
+			title: 'Create report-summary export',
+			description:
+				'Create the aggregate results CSV and codebook. Use it for client handoff only after interpretation and finality are ready.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -157,8 +159,10 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'downloadCsv',
 			step: 'Step 5',
-			title: 'Download CSV',
-			description: 'Download the selected CSV when it is ready.',
+			title: downloadIsResponseDataset ? 'Download response dataset CSV' : 'Download report-summary CSV',
+			description: downloadIsResponseDataset
+				? 'Download the analysis-ready response dataset CSV and codebook when it is ready.'
+				: 'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.',
 			status: toDownloadStatus(hasCampaign, hasDownloadableExport, csvDownloaded),
 			available: hasCampaign && hasDownloadableExport,
 			disabledReason: hasDownloadableExport
@@ -232,6 +236,8 @@ export function toSelectedSeriesResultsHandoffStatus(
 	);
 	const collectionClosed = isCollectionClosed(selectedCampaign.status);
 	const collectionLive = selectedCampaign.status === 'live';
+	const scoreVisibilityGap = Math.max(0, submittedResponses - visibleScores);
+	const exportClientReady = hasDownloadableExport && interpretationValidated && collectionClosed;
 
 	const operationalLane: SelectedSeriesResultsHandoffLane = !reportable
 		? {
@@ -247,7 +253,10 @@ export function toSelectedSeriesResultsHandoffStatus(
 					label: 'Operational status',
 					title: 'Preview data is ready',
 					status: 'ready',
-					detail: `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review.`
+					detail:
+						scoreVisibilityGap > 0
+							? `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review. ${scoreVisibilityGap} submitted response${scoreVisibilityGap === 1 ? ' is' : 's are'} not visible as scores because scoring, missing-answer rules, or disclosure still exclude them. Resolve or document the gap before client handoff.`
+							: `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review.`
 				}
 			: {
 					id: 'operational',
@@ -286,9 +295,11 @@ export function toSelectedSeriesResultsHandoffStatus(
 		? {
 				id: 'export',
 				label: 'Export status',
-				title: 'Client export ready',
-				status: 'ready',
-				detail: 'A downloadable export file is available for handoff.'
+				title: exportClientReady ? 'Client export ready' : 'Internal preview export ready',
+				status: exportClientReady ? 'ready' : 'pending',
+				detail: exportClientReady
+					? 'A downloadable export file is available for client handoff.'
+					: 'A downloadable file exists, but use it internally until interpretation validation and collection finality are ready.'
 			}
 		: hasExport
 			? {
@@ -629,7 +640,7 @@ function toHandoffNextAction(
 	const finalityOpen = finalityLane.status !== 'ready';
 
 	if (interpretationOpen && exportOpen) {
-		return 'Validate interpretation limits, then create a client export.';
+		return 'Validate interpretation limits before client handoff; keep the current report-summary export internal.';
 	}
 
 	if (interpretationOpen) {
@@ -637,7 +648,7 @@ function toHandoffNextAction(
 	}
 
 	if (exportOpen) {
-		return 'Create and review the client export file.';
+		return 'Generate a client-ready export only after the remaining gates pass.';
 	}
 
 	if (finalityOpen) {

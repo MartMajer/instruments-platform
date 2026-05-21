@@ -2296,14 +2296,17 @@ describe('product view models', () => {
 		expect(view.exportOverview).toEqual([
 			{
 				id: 'ready_downloads',
-				label: 'Ready downloads',
+				label: 'Downloadable files',
 				status: 'ready',
 				badgeLabel: '1 downloadable',
 				summary: '1 export file is ready to download.',
-				guidance: 'Use ready export files for analysis handoff, review packets, or codebook checks.',
+				guidance:
+					'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.',
 				detailRows: [
 					{ label: 'Export files', value: '2' },
-					{ label: 'Downloadable', value: '1' }
+					{ label: 'Downloadable', value: '1' },
+					{ label: 'Report-summary exports', value: '1' },
+					{ label: 'Response datasets', value: '1' }
 				]
 			},
 			{
@@ -2402,14 +2405,16 @@ describe('product view models', () => {
 		expect(view.exportOverview).toEqual([
 			{
 				id: 'ready_downloads',
-				label: 'Ready downloads',
+				label: 'Downloadable files',
 				status: 'empty',
 				badgeLabel: '0 downloadable',
 				summary: 'No export files are ready to download yet.',
 				guidance: 'Create an export from a study results page after results are available.',
 				detailRows: [
 					{ label: 'Export files', value: '0' },
-					{ label: 'Downloadable', value: '0' }
+					{ label: 'Downloadable', value: '0' },
+					{ label: 'Report-summary exports', value: '0' },
+					{ label: 'Response datasets', value: '0' }
 				]
 			},
 			{

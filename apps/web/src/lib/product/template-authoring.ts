@@ -10,9 +10,23 @@ export type TemplateQuestionAnswerType =
 	| 'nps'
 	| 'ranking';
 
+export type QuestionScalePreset =
+	| 'agreement_5'
+	| 'agreement_4'
+	| 'frequency_5'
+	| 'intensity_5'
+	| 'custom';
+
+export type QuestionScalePresetOption = {
+	value: QuestionScalePreset;
+	label: string;
+	detail: string;
+};
+
 export type TemplateQuestionAuthoringRow = {
 	ordinal: number;
 	code: string;
+	dimensionLabel: string;
 	type: TemplateQuestionAnswerType;
 	textDefault: string;
 	required: boolean;
@@ -21,6 +35,7 @@ export type TemplateQuestionAuthoringRow = {
 	scaleMax: number;
 	scaleLowLabel: string;
 	scaleHighLabel: string;
+	scalePreset: QuestionScalePreset;
 	choiceOptions: string[];
 };
 
@@ -47,6 +62,62 @@ export type ScoreOutputAuthoringRow = {
 	includedQuestionCodes: string[];
 };
 
+export type ScorePlanOutputSummary = {
+	localId: string;
+	code: string;
+	name: string;
+	includedQuestionCount: number;
+	dimensionLabels: string[];
+	reverseScoredQuestionCount: number;
+	calculationLabel: string;
+	missingPolicyLabel: string;
+};
+
+export type QuestionAuthoringCardSummary = {
+	code: string;
+	title: string;
+	dimensionLabel: string;
+	scaleLabel: string;
+	requiredLabel: string;
+	resultUsageLabel: string;
+};
+
+export type ScoreMissingDataStrategySummary = {
+	label: string;
+	detail: string;
+};
+
+export type ReverseScoringReviewSummary = {
+	reverseScoredQuestionCount: number;
+	reverseScoredQuestionLabels: string[];
+	affectedResultLabels: string[];
+};
+
+export type CollectedContextQuestionSummary = {
+	code: string;
+	dimensionLabel: string;
+	typeLabel: string;
+	text: string;
+};
+
+export type RespondentQuestionPreviewSummary = {
+	ordinal: number;
+	dimensionLabel: string;
+	text: string;
+	answerFormatLabel: string;
+	answerFormatDetail: string;
+};
+
+export type AuthoringReadinessSummary = {
+	dimensionCount: number;
+	questionCount: number;
+	scoredQuestionCount: number;
+	contextQuestionCount: number;
+	resultOutputCount: number;
+	reverseScoredQuestionCount: number;
+	label: string;
+};
+
 export type QuestionScoringDirectionKind =
 	| 'higher_increases_score'
 	| 'higher_reversed_before_score'
@@ -59,19 +130,74 @@ export type QuestionScoringDirectionSummary = {
 	detail: string;
 };
 
+export type QuestionScaleIntentKind =
+	| 'agreement'
+	| 'frequency'
+	| 'intensity'
+	| 'recommendation'
+	| 'number'
+	| 'choice'
+	| 'written'
+	| 'date'
+	| 'ranking'
+	| 'rating';
+
+export type QuestionScaleIntentSummary = {
+	kind: QuestionScaleIntentKind;
+	label: string;
+	detail: string;
+};
+
+export type QuestionDimensionSummary = {
+	code: string;
+	label: string;
+	questionCount: number;
+};
+
 const defaultQuestionText = [
 	'After work, I need time to recover mentally.',
 	'During demanding weeks, small interruptions feel harder to handle.',
 	'I can usually regain focus after a short break.'
 ];
 
+const defaultQuestionDimensions = ['Recovery need', 'Workload strain', 'Recovery capacity'];
+
 const defaultChoiceOptions = ['Option 1', 'Option 2'];
+
+export const questionScalePresetOptions: QuestionScalePresetOption[] = [
+	{
+		value: 'agreement_5',
+		label: 'Agreement, 1-5',
+		detail: 'Strongly disagree to strongly agree, with a middle option.'
+	},
+	{
+		value: 'agreement_4',
+		label: 'Agreement, 1-4',
+		detail: 'Strongly disagree to strongly agree, without a middle option.'
+	},
+	{
+		value: 'frequency_5',
+		label: 'Frequency, 1-5',
+		detail: 'Never to always.'
+	},
+	{
+		value: 'intensity_5',
+		label: 'Intensity, 1-5',
+		detail: 'Very low to very high.'
+	},
+	{
+		value: 'custom',
+		label: 'Custom',
+		detail: 'Keep the current scale values and labels.'
+	}
+];
 
 export function createDefaultTemplateQuestionRows(): TemplateQuestionAuthoringRow[] {
 	return defaultQuestionText.map((textDefault, index) =>
 		createQuestionRow({
 			ordinal: index + 1,
 			code: `q${String(index + 1).padStart(2, '0')}`,
+			dimensionLabel: defaultQuestionDimensions[index] ?? 'Study measure',
 			textDefault,
 			reverseCoded: index === 2
 		})
@@ -176,6 +302,51 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 	return errors;
 }
 
+export function applyQuestionScalePreset(
+	row: TemplateQuestionAuthoringRow,
+	preset: QuestionScalePreset
+): TemplateQuestionAuthoringRow {
+	if (preset === 'custom') {
+		return { ...row, scalePreset: 'custom' };
+	}
+
+	const presetValues: Record<
+		Exclude<QuestionScalePreset, 'custom'>,
+		Pick<TemplateQuestionAuthoringRow, 'scaleMin' | 'scaleMax' | 'scaleLowLabel' | 'scaleHighLabel'>
+	> = {
+		agreement_5: {
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Strongly disagree',
+			scaleHighLabel: 'Strongly agree'
+		},
+		agreement_4: {
+			scaleMin: 1,
+			scaleMax: 4,
+			scaleLowLabel: 'Strongly disagree',
+			scaleHighLabel: 'Strongly agree'
+		},
+		frequency_5: {
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Always'
+		},
+		intensity_5: {
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Very low',
+			scaleHighLabel: 'Very high'
+		}
+	};
+
+	return {
+		...row,
+		scalePreset: preset,
+		...presetValues[preset]
+	};
+}
+
 export function toCreateQuestionScales(
 	rows: TemplateQuestionAuthoringRow[]
 ): CreateQuestionScaleRequest[] {
@@ -203,7 +374,7 @@ export function toCreateTemplateQuestions(
 		code: row.code.trim(),
 		type: row.type,
 		textDefault: row.textDefault.trim(),
-		sectionCode: 'core',
+		sectionCode: dimensionCodeForLabel(row.dimensionLabel),
 		scaleCode: isScaleBackedType(row.type) ? questionScaleCode(row) : null,
 		required: row.required,
 		reverseCoded: isScaleBackedType(row.type) ? row.reverseCoded : false,
@@ -252,17 +423,34 @@ export function appendScoreOutputRow(
 	rows: TemplateQuestionAuthoringRow[]
 ): ScoreOutputAuthoringRow[] {
 	const index = outputs.length + 1;
-	const defaultCode = nextScoreCode(outputs, `dimension_${index}`);
+	const usedOutputCodes = new Set(normalizeScoreCodes(outputs));
+	const dimensions = summarizeQuestionDimensions(rows);
+	const selectedDimension =
+		dimensions.find((dimension) => !usedOutputCodes.has(dimension.code)) ?? dimensions[0];
+	const selectedDimensionRows = selectedDimension
+		? rows.filter(
+				(row) =>
+					isMeanScoreEligible(row) &&
+					dimensionCodeForLabel(row.dimensionLabel) === selectedDimension.code
+			)
+		: [];
+	const fallbackRows = rows.filter(isMeanScoreEligible);
+	const includedRows = selectedDimensionRows.length ? selectedDimensionRows : fallbackRows;
+	const defaultName = selectedDimension?.label ?? `Dimension ${index}`;
+	const defaultCode = nextScoreCode(
+		outputs,
+		selectedDimension?.code ?? `dimension_${index}`
+	);
 	return [
 		...outputs,
 		{
 			localId: createScoreOutputLocalId(),
-			name: `Dimension ${index}`,
+			name: defaultName,
 			code: defaultCode,
 			calculation: 'mean',
 			missingStrategy: 'require_all',
 			minValidCount: 1,
-			includedQuestionCodes: rows.filter(isMeanScoreEligible).map((row) => row.code)
+			includedQuestionCodes: includedRows.map((row) => row.code)
 		}
 	];
 }
@@ -498,6 +686,251 @@ export function describeQuestionResultUsage(
 	return `Used in: ${labels.join(', ')}.`;
 }
 
+export function describeQuestionScaleIntent(
+	row: TemplateQuestionAuthoringRow
+): QuestionScaleIntentSummary {
+	if (row.type === 'number') {
+		return {
+			kind: 'number',
+			label: 'Number entry',
+			detail: 'Respondents enter a numeric value. Use this for counts, minutes, ratings with known units, or direct measurements.'
+		};
+	}
+
+	if (row.type === 'text') {
+		return {
+			kind: 'written',
+			label: 'Written response',
+			detail: 'Respondents write free text. This is collected for review but is not included in numeric scoring.'
+		};
+	}
+
+	if (row.type === 'date') {
+		return {
+			kind: 'date',
+			label: 'Date',
+			detail: 'Respondents provide a date. This is collected for context and is not included in numeric scoring.'
+		};
+	}
+
+	if (row.type === 'ranking') {
+		return {
+			kind: 'ranking',
+			label: 'Ranking',
+			detail: 'Respondents order choices. Ranking can support descriptive review but is not included in current numeric result outputs.'
+		};
+	}
+
+	if (row.type === 'single' || row.type === 'multi') {
+		return {
+			kind: 'choice',
+			label: row.type === 'single' ? 'Single choice' : 'Multiple choice',
+			detail: 'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.'
+		};
+	}
+
+	if (row.type === 'nps') {
+		return {
+			kind: 'recommendation',
+			label: 'Recommendation scale',
+			detail: 'Respondents answer on a recommendation-style numeric scale. Higher values increase included result scores unless reversed.'
+		};
+	}
+
+	const low = row.scaleLowLabel.trim().toLowerCase();
+	const high = row.scaleHighLabel.trim().toLowerCase();
+
+	if (low.includes('never') || high.includes('always')) {
+		return {
+			kind: 'frequency',
+			label: 'Frequency scale',
+			detail: 'Respondents report how often something happens. Higher answers increase included result scores unless reversed.'
+		};
+	}
+
+	if (low.includes('disagree') || high.includes('agree')) {
+		return {
+			kind: 'agreement',
+			label: 'Agreement scale',
+			detail: 'Respondents report how much they agree with a statement. Higher answers increase included result scores unless reversed.'
+		};
+	}
+
+	if (low.includes('low') || high.includes('high') || high.includes('extreme') || high.includes('very')) {
+		return {
+			kind: 'intensity',
+			label: 'Intensity scale',
+			detail: 'Respondents report strength or intensity. Higher answers increase included result scores unless reversed.'
+		};
+	}
+
+	return {
+		kind: 'rating',
+		label: 'Rating scale',
+		detail: 'Respondents answer on a numeric rating scale. Higher answers increase included result scores unless reversed.'
+	};
+}
+
+export function summarizeQuestionDimensions(
+	rows: TemplateQuestionAuthoringRow[]
+): QuestionDimensionSummary[] {
+	const summaries = new Map<string, QuestionDimensionSummary>();
+
+	for (const row of rows) {
+		const label = normalizeDimensionLabel(row.dimensionLabel);
+		const code = dimensionCodeForLabel(label);
+		const existing = summaries.get(code);
+
+		if (existing) {
+			existing.questionCount += 1;
+		} else {
+			summaries.set(code, { code, label, questionCount: 1 });
+		}
+	}
+
+	return [...summaries.values()];
+}
+
+export function summarizeScorePlan(
+	outputs: ScoreOutputAuthoringRow[],
+	rows: TemplateQuestionAuthoringRow[]
+): ScorePlanOutputSummary[] {
+	return normalizeScoreOutputs(outputs, rows).map((output) => {
+		const outputRows = rows.filter((row) =>
+			output.includedQuestionCodes.some(
+				(code) => code.trim().toLowerCase() === row.code.trim().toLowerCase()
+			)
+		);
+		const dimensionLabels = [
+			...new Set(outputRows.map((row) => normalizeDimensionLabel(row.dimensionLabel)))
+		];
+
+		return {
+			localId: output.localId,
+			code: output.code,
+			name: output.name.trim() || output.code,
+			includedQuestionCount: outputRows.length,
+			dimensionLabels,
+			reverseScoredQuestionCount: outputRows.filter(
+				(row) => row.reverseCoded && isScaleBackedType(row.type)
+			).length,
+			calculationLabel: output.calculation === 'sum' ? 'Sum score' : 'Mean score',
+			missingPolicyLabel:
+				output.missingStrategy === 'min_valid_count'
+					? `Requires at least ${Math.max(1, Math.trunc(output.minValidCount || 1))} selected questions`
+					: 'Requires every selected question'
+		};
+	});
+}
+
+export function summarizeQuestionAuthoringCards(
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): QuestionAuthoringCardSummary[] {
+	return rows.map((row) => ({
+		code: row.code,
+		title: questionTitle(row),
+		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
+		scaleLabel: describeQuestionScaleIntent(row).label,
+		requiredLabel: row.required ? 'Required' : 'Optional',
+		resultUsageLabel: describeQuestionResultUsage(row, outputs)
+	}));
+}
+
+export function describeScoreMissingDataStrategy(
+	output: ScoreOutputAuthoringRow
+): ScoreMissingDataStrategySummary {
+	if (output.missingStrategy === 'min_valid_count') {
+		const count = Math.max(1, Math.trunc(output.minValidCount || 1));
+		return {
+			label: 'Minimum answered rule',
+			detail: `A respondent needs at least ${count} selected questions answered for this result score.`
+		};
+	}
+
+	return {
+		label: 'Strict missing-data rule',
+		detail: 'A respondent needs every selected question answered for this result score.'
+	};
+}
+
+export function summarizeReverseScoringReview(
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): ReverseScoringReviewSummary {
+	const reverseRows = rows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
+	const reverseCodeSet = new Set(reverseRows.map((row) => row.code.trim().toLowerCase()));
+	const affectedResultLabels = outputs
+		.filter((output) =>
+			output.includedQuestionCodes.some((code) => reverseCodeSet.has(code.trim().toLowerCase()))
+		)
+		.map((output) => output.name.trim() || output.code.trim() || 'Untitled result');
+
+	return {
+		reverseScoredQuestionCount: reverseRows.length,
+		reverseScoredQuestionLabels: reverseRows.map(questionTitle),
+		affectedResultLabels
+	};
+}
+
+export function summarizeCollectedContextQuestions(
+	rows: TemplateQuestionAuthoringRow[]
+): CollectedContextQuestionSummary[] {
+	return rows.filter((row) => !isMeanScoreEligible(row)).map((row) => ({
+		code: row.code,
+		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
+		typeLabel: describeQuestionScaleIntent(row).label,
+		text: questionTitle(row)
+	}));
+}
+
+export function summarizeRespondentQuestionPreview(
+	rows: TemplateQuestionAuthoringRow[]
+): RespondentQuestionPreviewSummary[] {
+	return renumberRows(rows).map((row) => ({
+		ordinal: row.ordinal,
+		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
+		text: questionTitle(row),
+		answerFormatLabel: describeQuestionScaleIntent(row).label,
+		answerFormatDetail: answerFormatDetail(row)
+	}));
+}
+
+export function summarizeAuthoringReadiness(
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): AuthoringReadinessSummary {
+	const dimensionCount = summarizeQuestionDimensions(rows).length;
+	const scoredQuestionCount = rows.filter(isMeanScoreEligible).length;
+	const contextQuestionCount = rows.length - scoredQuestionCount;
+	const reverseScoredQuestionCount = rows.filter(
+		(row) => row.reverseCoded && isScaleBackedType(row.type)
+	).length;
+	const dimensionLabel = `${dimensionCount} ${dimensionCount === 1 ? 'dimension' : 'dimensions'}`;
+	const scoredLabel = `${scoredQuestionCount} scored ${scoredQuestionCount === 1 ? 'question' : 'questions'}`;
+	const outputLabel = `${outputs.length} result ${outputs.length === 1 ? 'output' : 'outputs'}`;
+
+	return {
+		dimensionCount,
+		questionCount: rows.length,
+		scoredQuestionCount,
+		contextQuestionCount,
+		resultOutputCount: outputs.length,
+		reverseScoredQuestionCount,
+		label: `${dimensionLabel}, ${scoredLabel}, ${outputLabel}`
+	};
+}
+
+export function dimensionCodeForLabel(label: string): string {
+	return (
+		label
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '_')
+			.replace(/^_+|_+$/g, '') || 'study_measure'
+	);
+}
+
 function normalizeScoreOutputs(
 	outputs: ScoreOutputAuthoringRow[],
 	rows: TemplateQuestionAuthoringRow[]
@@ -564,6 +997,7 @@ function createQuestionRow(
 	return {
 		ordinal: row.ordinal,
 		code: row.code,
+		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel ?? 'Study measure'),
 		type: row.type ?? 'likert',
 		textDefault: row.textDefault,
 		required: row.required ?? true,
@@ -572,6 +1006,7 @@ function createQuestionRow(
 		scaleMax: row.scaleMax ?? 5,
 		scaleLowLabel: row.scaleLowLabel ?? 'Strongly disagree',
 		scaleHighLabel: row.scaleHighLabel ?? 'Strongly agree',
+		scalePreset: row.scalePreset ?? 'agreement_5',
 		choiceOptions: row.choiceOptions ?? defaultChoiceOptions
 	};
 }
@@ -650,6 +1085,42 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 
 function normalizedChoiceOptions(row: TemplateQuestionAuthoringRow): string[] {
 	return row.choiceOptions.map((option) => option.trim()).filter(Boolean);
+}
+
+function normalizeDimensionLabel(label: string): string {
+	return label.trim() || 'Study measure';
+}
+
+function questionTitle(row: TemplateQuestionAuthoringRow): string {
+	return row.textDefault.trim() || row.code.trim() || 'Untitled question';
+}
+
+function answerFormatDetail(row: TemplateQuestionAuthoringRow): string {
+	if (isScaleBackedType(row.type)) {
+		return `${row.scaleMin} to ${row.scaleMax}: ${row.scaleLowLabel.trim()} -> ${row.scaleHighLabel.trim()}`;
+	}
+
+	if (row.type === 'single') {
+		return `Choose one: ${normalizedChoiceOptions(row).join(', ')}`;
+	}
+
+	if (row.type === 'multi') {
+		return `Choose any: ${normalizedChoiceOptions(row).join(', ')}`;
+	}
+
+	if (row.type === 'ranking') {
+		return `Rank: ${normalizedChoiceOptions(row).join(', ')}`;
+	}
+
+	if (row.type === 'number') {
+		return 'Number entry';
+	}
+
+	if (row.type === 'date') {
+		return 'Date entry';
+	}
+
+	return 'Text response';
 }
 
 function scoreCode(label: string): string {

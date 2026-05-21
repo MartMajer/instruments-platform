@@ -2686,7 +2686,7 @@ function toExportArtifactLibraryOverview(
 	return [
 		{
 			id: 'ready_downloads',
-			label: 'Ready downloads',
+			label: 'Downloadable files',
 			status: downloadableCount > 0 ? 'ready' : 'empty',
 			badgeLabel: `${formatCount(downloadableCount)} downloadable`,
 			summary:
@@ -2699,11 +2699,15 @@ function toExportArtifactLibraryOverview(
 					: 'No export files are ready to download yet.',
 			guidance:
 				downloadableCount > 0
-					? 'Use ready export files for analysis handoff, review packets, or codebook checks.'
+					? responseDatasetCount > 0
+						? 'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.'
+						: 'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.'
 					: 'Create an export from a study results page after results are available.',
 			detailRows: [
 				{ label: 'Export files', value: formatCount(totalCount) },
-				{ label: 'Downloadable', value: formatCount(downloadableCount) }
+				{ label: 'Downloadable', value: formatCount(downloadableCount) },
+				{ label: 'Report-summary exports', value: formatCount(reportSummaryCount) },
+				{ label: 'Response datasets', value: formatCount(responseDatasetCount) }
 			]
 		},
 		{

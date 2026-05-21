@@ -28,26 +28,39 @@
 		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
+		toSelectedSeriesSetupLaunchState,
 		toSelectedSeriesSetupPath,
 		type SelectedSeriesSetupWorkflowActionId
 	} from './setup-workflow';
 	import {
 		appendScoreOutputRow,
+		applyQuestionScalePreset,
 		appendTemplateQuestionRow,
 	buildScoreProduces,
 	buildScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
 	describeQuestionResultUsage,
+	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
+	describeScoreMissingDataStrategy,
 	isMeanScoreEligible,
 	moveTemplateQuestionRow,
-		removeScoreOutputRow,
-		removeTemplateQuestionRow,
-		syncScoreOutputQuestionCodes,
+	questionScalePresetOptions,
+	removeScoreOutputRow,
+	removeTemplateQuestionRow,
+	summarizeAuthoringReadiness,
+	summarizeCollectedContextQuestions,
+	summarizeQuestionDimensions,
+	summarizeQuestionAuthoringCards,
+	summarizeRespondentQuestionPreview,
+	summarizeReverseScoringReview,
+	summarizeScorePlan,
+	syncScoreOutputQuestionCodes,
 		toCreateQuestionScales,
 		toCreateTemplateQuestions,
 		validateScoreOutputRows,
+		type QuestionScalePreset,
 		type ScoreCalculation,
 		type ScoreMissingStrategy,
 		type ScoreOutputAuthoringRow,
@@ -165,13 +178,14 @@
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
 	let activeActionInitialized = $state(false);
+	const activeActionIdForView = $derived(activeActionInitialized ? activeActionId : currentActionId);
 	const activeStep = $derived(
-		setupPath.steps.find((step) => step.id === activeActionId) ??
+		setupPath.steps.find((step) => step.id === activeActionIdForView) ??
 			setupPath.steps.find((step) => step.id === currentActionId) ??
 			setupPath.steps[0]
 	);
 	const activeActionIndex = $derived(
-		workflowActions.findIndex((action) => action.id === activeActionId)
+		workflowActions.findIndex((action) => action.id === activeActionIdForView)
 	);
 	const previousAction = $derived(
 		activeActionIndex > 0 ? workflowActions[activeActionIndex - 1] : null
@@ -203,11 +217,17 @@
 		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
 	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
-	const scoreableQuestionRows = $derived(templateQuestionRows.filter(isMeanScoreEligible));
-	const nonScoreableQuestionRows = $derived(
-		templateQuestionRows.filter((row) => !isMeanScoreEligible(row))
+	const questionDimensionSummaries = $derived(summarizeQuestionDimensions(templateQuestionRows));
+	const questionAuthoringSummaries = $derived(
+		summarizeQuestionAuthoringCards(templateQuestionRows, scoreOutputs)
 	);
+	const scoreableQuestionRows = $derived(templateQuestionRows.filter(isMeanScoreEligible));
+	const collectedContextSummaries = $derived(summarizeCollectedContextQuestions(templateQuestionRows));
 	const scoreOutputErrors = $derived(validateScoreOutputRows(scoreOutputs, templateQuestionRows));
+	const scorePlanSummaries = $derived(summarizeScorePlan(scoreOutputs, templateQuestionRows));
+	const reverseScoringReview = $derived(summarizeReverseScoringReview(templateQuestionRows, scoreOutputs));
+	const respondentPreviewSummaries = $derived(summarizeRespondentQuestionPreview(templateQuestionRows));
+	const authoringReadiness = $derived(summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs));
 	const selectedScoreQuestionRows = $derived(
 		scoreableQuestionRows.filter((row) =>
 			scoreOutputs.some((output) => output.includedQuestionCodes.includes(row.code))
@@ -563,7 +583,11 @@
 			semver: '1.0.0',
 			defaultLocale: questionnaireLocale,
 			instrumentId: instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
-			sections: [{ ordinal: 1, code: 'core', titleDefault: sectionTitle }],
+			sections: questionDimensionSummaries.map((dimension, index) => ({
+				ordinal: index + 1,
+				code: dimension.code,
+				titleDefault: dimension.label || sectionTitle
+			})),
 			scales: toCreateQuestionScales(templateQuestionRows),
 			questions: toCreateTemplateQuestions(templateQuestionRows)
 		};
@@ -665,8 +689,18 @@
 			scaleMin: type === 'nps' ? 0 : current.scaleMin,
 			scaleMax: type === 'nps' ? 10 : current.scaleMax,
 			scaleLowLabel: type === 'nps' ? 'Not at all likely' : current.scaleLowLabel,
-			scaleHighLabel: type === 'nps' ? 'Extremely likely' : current.scaleHighLabel
+			scaleHighLabel: type === 'nps' ? 'Extremely likely' : current.scaleHighLabel,
+			scalePreset: type === 'nps' ? 'custom' : current.scalePreset
 		});
+	}
+
+	function updateTemplateQuestionScalePreset(rowIndex: number, preset: QuestionScalePreset) {
+		const current = templateQuestionRows[rowIndex];
+		if (!current) {
+			return;
+		}
+
+		updateTemplateQuestionRow(rowIndex, applyQuestionScalePreset(current, preset));
 	}
 
 	function updateChoiceOptions(rowIndex: number, value: string) {
@@ -686,7 +720,8 @@
 	) {
 		const parsed = Number.parseInt(value, 10);
 		updateTemplateQuestionRow(rowIndex, {
-			[field]: Number.isFinite(parsed) ? parsed : fallback
+			[field]: Number.isFinite(parsed) ? parsed : fallback,
+			scalePreset: 'custom'
 		});
 	}
 
@@ -744,8 +779,33 @@
 		return describeQuestionScoringDirection(question);
 	}
 
+	function questionScaleIntent(question: TemplateQuestionAuthoringRow) {
+		return describeQuestionScaleIntent(question);
+	}
+
 	function questionResultUsage(question: TemplateQuestionAuthoringRow) {
 		return describeQuestionResultUsage(question, scoreOutputs);
+	}
+
+	function questionAuthoringSummary(code: string) {
+		return questionAuthoringSummaries.find((summary) => summary.code === code);
+	}
+
+	function dimensionCoverageLabel(labels: string[]) {
+		return labels.length ? labels.join(', ') : 'No questionnaire dimensions selected';
+	}
+
+	function reverseScoredCountLabel(count: number) {
+		if (count === 0) {
+			return 'No reverse-scored questions';
+		}
+
+		return `${count} reverse-scored ${count === 1 ? 'question' : 'questions'}`;
+	}
+
+	function scoreOutputMissingDataDetail(localId: string) {
+		const output = scoreOutputs.find((candidate) => candidate.localId === localId);
+		return output ? describeScoreMissingDataStrategy(output).detail : 'Missing-data rule not configured.';
 	}
 
 	function addTemplateQuestionRow() {
@@ -937,17 +997,25 @@
 	}
 
 	function savedAudienceSummary() {
-		const rules = savedRuleResult?.rules ?? [];
-		if (savedRuleState === 'submitting') {
-			return 'Loading saved recipient selection...';
-		}
+		return currentLaunchState().recipientSummary;
+	}
 
-		if (!rules.length) {
-			return 'No recipient selection saved yet.';
-		}
+	function savedRecipientSelectionCount() {
+		return savedRuleResult?.rules.length ?? 0;
+	}
 
-		const totalPairs = rules.reduce((sum, rule) => sum + rule.assignmentPairCount, 0);
-		return `${ruleCountLabel(rules.length)} saved, ${pairCountLabel(totalPairs)} ready.`;
+	function savedRecipientPairCount() {
+		return (savedRuleResult?.rules ?? []).reduce((sum, rule) => sum + rule.assignmentPairCount, 0);
+	}
+
+	function currentLaunchState() {
+		return toSelectedSeriesSetupLaunchState(workspace, localState, {
+			readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
+			savedRecipientSelectionCount: savedRecipientSelectionCount(),
+			savedRecipientPairCount: savedRecipientPairCount(),
+			savedRecipientLoading: savedRuleState === 'submitting',
+			responseIdentityMode: selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode
+		});
 	}
 
 	function deliveryRosterSummary() {
@@ -1182,15 +1250,15 @@
 	}
 
 	function readinessLabel() {
-		if (readinessResult) {
-			return readinessResult.ready ? 'Ready to launch' : 'Needs attention';
-		}
+		return currentLaunchState().statusLabel;
+	}
 
-		if (workspace.readiness.ready) {
-			return 'Ready to launch';
-		}
+	function canOpenLaunchSurface() {
+		return currentLaunchState().collectionButtonAvailable;
+	}
 
-		return 'Not checked yet';
+	function launchSurfaceButtonLabel() {
+		return currentLaunchState().collectionButtonLabel;
 	}
 </script>
 
@@ -1226,7 +1294,7 @@
 					<p class="record-field__label">Current setup step</p>
 					<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
 					<p class="setup-current-task__title">
-						{activeActionId === currentActionId ? 'Next step' : pathStateLabel(activeStep.pathState)}
+						{activeActionIdForView === currentActionId ? 'Next step' : pathStateLabel(activeStep.pathState)}
 					</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
 				</div>
@@ -1240,7 +1308,7 @@
 			{/if}
 
 			<div class="setup-current-task__body">
-				{#if activeActionId === 'instrument'}
+				{#if activeActionIdForView === 'instrument'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -1271,7 +1339,7 @@
 							onclick: createInstrumentImport
 						})}
 					{/if}
-				{:else if activeActionId === 'template'}
+				{:else if activeActionIdForView === 'template'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -1301,6 +1369,42 @@
 							</label>
 						</div>
 						<div class="mt-4 grid gap-4">
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">Authoring summary</p>
+										<h5 class="record-row__title">{authoringReadiness.label}</h5>
+									</div>
+									<StatusBadge status="neutral" label={`${authoringReadiness.questionCount} questions`} />
+								</div>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{authoringReadiness.contextQuestionCount}
+									{authoringReadiness.contextQuestionCount === 1 ? 'context question is' : 'context questions are'}
+									collected but not scored.
+									{reverseScoredCountLabel(authoringReadiness.reverseScoredQuestionCount)}.
+								</p>
+							</div>
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">Study dimensions</p>
+										<h5 class="record-row__title">What this questionnaire measures</h5>
+									</div>
+									<StatusBadge status="neutral" label={`${questionDimensionSummaries.length} dimensions`} />
+								</div>
+								<div class="record-grid">
+									{#each questionDimensionSummaries as dimension (dimension.code)}
+										<div class="record-field">
+											<p class="record-field__label">{dimension.code}</p>
+											<p class="record-field__value">{dimension.label}</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{dimension.questionCount}
+												{dimension.questionCount === 1 ? 'question' : 'questions'}
+											</p>
+										</div>
+									{/each}
+								</div>
+							</div>
 							{#each templateQuestionRows as question, index (question.ordinal)}
 								<div class="question-row">
 									<div class="record-row__header">
@@ -1309,6 +1413,13 @@
 											<h5 class="record-row__title">
 												{question.textDefault.trim() || 'Untitled question'}
 											</h5>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{questionAuthoringSummary(question.code)?.dimensionLabel ?? question.dimensionLabel}
+												-
+												{questionAuthoringSummary(question.code)?.scaleLabel ?? questionTypeLabel(question.type)}
+												-
+												{questionAuthoringSummary(question.code)?.resultUsageLabel ?? questionResultUsage(question)}
+											</p>
 										</div>
 										<StatusBadge
 											status="neutral"
@@ -1330,6 +1441,19 @@
 											></textarea>
 										</label>
 										<label class="field">
+											<span>Dimension / construct</span>
+											<input
+												value={question.dimensionLabel}
+												oninput={(event) =>
+													updateTemplateQuestionRow(index, {
+														dimensionLabel: event.currentTarget.value
+													})}
+											/>
+											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+												Group questions by what they measure, for example workload, recovery, or autonomy.
+											</span>
+										</label>
+										<label class="field">
 											<span>Answer format</span>
 											<select
 												value={question.type}
@@ -1348,62 +1472,92 @@
 												<option value="date">Date</option>
 												<option value="ranking">Ranking</option>
 											</select>
+											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+												{questionScaleIntent(question).label}. {questionScaleIntent(question).detail}
+											</span>
 										</label>
 									</div>
 									{#if isScaleQuestion(question)}
-										<div class="grid gap-3 lg:grid-cols-4">
-											<label class="field">
-												<span>Lowest value</span>
-												<input
-													type="number"
-													value={question.scaleMin}
-													oninput={(event) =>
-														updateScaleNumber(index, 'scaleMin', event.currentTarget.value, 1)}
-												/>
-											</label>
-											<label class="field">
-												<span>Highest value</span>
-												<input
-													type="number"
-													value={question.scaleMax}
-													oninput={(event) =>
-														updateScaleNumber(index, 'scaleMax', event.currentTarget.value, 5)}
-												/>
-											</label>
-											<label class="field">
-												<span>Low label</span>
-												<input
-													value={question.scaleLowLabel}
-													oninput={(event) =>
-														updateTemplateQuestionRow(index, {
-															scaleLowLabel: event.currentTarget.value
-														})}
-												/>
-											</label>
-											<label class="field">
-												<span>High label</span>
-												<input
-													value={question.scaleHighLabel}
-													oninput={(event) =>
-														updateTemplateQuestionRow(index, {
-															scaleHighLabel: event.currentTarget.value
-														})}
-												/>
-											</label>
-										</div>
+										<details class="record-row">
+											<summary class="record-row__title">Scale values and labels</summary>
+											<div class="mt-3 grid gap-3 lg:grid-cols-5">
+												<label class="field">
+													<span>Scale preset</span>
+													<select
+														value={question.scalePreset}
+														onchange={(event) =>
+															updateTemplateQuestionScalePreset(
+																index,
+																event.currentTarget.value as QuestionScalePreset
+															)}
+													>
+														{#each questionScalePresetOptions as option (option.value)}
+															<option value={option.value}>{option.label}</option>
+														{/each}
+													</select>
+													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+														{questionScalePresetOptions.find((option) => option.value === question.scalePreset)
+															?.detail ?? 'Keep the current scale values and labels.'}
+													</span>
+												</label>
+												<label class="field">
+													<span>Lowest value</span>
+													<input
+														type="number"
+														value={question.scaleMin}
+														oninput={(event) =>
+															updateScaleNumber(index, 'scaleMin', event.currentTarget.value, 1)}
+													/>
+												</label>
+												<label class="field">
+													<span>Highest value</span>
+													<input
+														type="number"
+														value={question.scaleMax}
+														oninput={(event) =>
+															updateScaleNumber(index, 'scaleMax', event.currentTarget.value, 5)}
+													/>
+												</label>
+												<label class="field">
+													<span>Low label</span>
+													<input
+														value={question.scaleLowLabel}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, {
+																scaleLowLabel: event.currentTarget.value,
+																scalePreset: 'custom'
+															})}
+													/>
+												</label>
+												<label class="field">
+													<span>High label</span>
+													<input
+														value={question.scaleHighLabel}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, {
+																scaleHighLabel: event.currentTarget.value,
+																scalePreset: 'custom'
+															})}
+													/>
+												</label>
+											</div>
+										</details>
 									{/if}
 									{#if isChoiceQuestion(question) || question.type === 'ranking'}
-										<label class="field">
-											<span>Answer options</span>
-											<textarea
-												rows="3"
-												value={question.choiceOptions.join('\n')}
-												oninput={(event) => updateChoiceOptions(index, event.currentTarget.value)}
-											></textarea>
-											<span class="text-sm text-[var(--color-text-muted)]">
-												Enter one option per line.
-											</span>
-										</label>
+										<details class="record-row">
+											<summary class="record-row__title">Answer options</summary>
+											<label class="field mt-3">
+												<span>Options</span>
+												<textarea
+													rows="3"
+													value={question.choiceOptions.join('\n')}
+													oninput={(event) => updateChoiceOptions(index, event.currentTarget.value)}
+												></textarea>
+												<span class="text-sm text-[var(--color-text-muted)]">
+													Enter one option per line.
+												</span>
+											</label>
+										</details>
 									{/if}
 									<div class="action-row">
 										<label class="checkbox-field">
@@ -1464,6 +1618,18 @@
 									<div class="record-row">
 										<div class="record-row__header">
 											<div>
+												<p class="record-field__label">Answer scale</p>
+												<h6 class="record-row__title">{questionScaleIntent(question).label}</h6>
+											</div>
+											<StatusBadge status="neutral" label={questionTypeLabel(question.type)} />
+										</div>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{questionScaleIntent(question).detail}
+										</p>
+									</div>
+									<div class="record-row">
+										<div class="record-row__header">
+											<div>
 												<p class="record-field__label">Scoring meaning</p>
 												<h6 class="record-row__title">{questionScoringDetail(question).label}</h6>
 											</div>
@@ -1488,14 +1654,16 @@
 						<div class="record-row">
 							<h5 class="record-row__title">Respondent preview</h5>
 							<div class="grid gap-3">
-								{#each templateQuestionRows as question, index (question.ordinal)}
+								{#each respondentPreviewSummaries as question (question.ordinal)}
 									<div class="record-field">
-										<p class="record-field__label">Question {index + 1}</p>
+										<p class="record-field__label">
+											Question {question.ordinal} - {question.dimensionLabel}
+										</p>
 										<p class="record-field__value">
-											{question.textDefault.trim() || 'Question text'}
+											{question.text}
 										</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{questionPreviewDetail(question)}
+											{question.answerFormatLabel}. {question.answerFormatDetail}
 										</p>
 									</div>
 								{/each}
@@ -1515,7 +1683,7 @@
 							onclick: createTemplateVersion
 						})}
 					{/if}
-				{:else if activeActionId === 'scoring'}
+				{:else if activeActionIdForView === 'scoring'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<h5 class="record-row__title">Results setup ready</h5>
@@ -1677,15 +1845,15 @@
 							</button>
 						</div>
 
-						{#if nonScoreableQuestionRows.length}
+						{#if collectedContextSummaries.length}
 							<div class="record-row">
 								<h5 class="record-row__title">Collected but not scored</h5>
 								<div class="grid gap-2">
-									{#each nonScoreableQuestionRows as question (question.code)}
+									{#each collectedContextSummaries as question (question.code)}
 										<div class="record-field">
-											<p class="record-field__label">{questionTypeLabel(question.type)}</p>
+											<p class="record-field__label">{question.dimensionLabel} - {question.typeLabel}</p>
 											<p class="record-field__value">
-												{question.textDefault.trim() || question.code}
+												{question.text}
 											</p>
 										</div>
 									{/each}
@@ -1694,21 +1862,43 @@
 						{/if}
 
 						<div class="record-row">
-							<h5 class="record-row__title">Result preview</h5>
+							<h5 class="record-row__title">Scoring plan preview</h5>
 							<div class="grid gap-2">
-								{#each scoreOutputs as output (output.localId)}
+								{#each scorePlanSummaries as summary (summary.localId)}
 									<div class="record-field">
-										<p class="record-field__label">{output.code || scoreCodeFromName(output.name)}</p>
-										<p class="record-field__value">
-											{output.name || 'Result'} uses the {scoreCalculationLabel(output.calculation)} of
-											{output.includedQuestionCodes.length}
-											selected {output.includedQuestionCodes.length === 1 ? 'question' : 'questions'}.
+										<p class="record-field__label">{summary.code}</p>
+										<p class="record-field__value">{summary.name}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											Measures {dimensionCoverageLabel(summary.dimensionLabels)} from
+											{summary.includedQuestionCount}
+											selected {summary.includedQuestionCount === 1 ? 'question' : 'questions'}.
 										</p>
-										<p class="text-sm text-[var(--color-text-muted)]">{missingPolicyLabel(output)}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{summary.calculationLabel}. {summary.missingPolicyLabel}.
+											{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{scoreOutputMissingDataDetail(summary.localId)}
+										</p>
 									</div>
 								{/each}
 							</div>
 						</div>
+
+						{#if reverseScoringReview.reverseScoredQuestionCount > 0}
+							<div class="record-row">
+								<h5 class="record-row__title">Reverse-scoring review</h5>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{reverseScoringReview.reverseScoredQuestionCount}
+									{reverseScoringReview.reverseScoredQuestionCount === 1 ? 'question is' : 'questions are'}
+									reversed before scoring:
+									{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
+								</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									Affects: {reverseScoringReview.affectedResultLabels.join(', ') || 'no result outputs yet'}.
+								</p>
+							</div>
+						{/if}
 
 						{#if scoreOutputErrors.length > 0}
 							<ul class="grid gap-1" aria-label="Results setup errors">
@@ -1725,7 +1915,7 @@
 							onclick: createScoringRule
 						})}
 					{/if}
-				{:else if activeActionId === 'campaign'}
+				{:else if activeActionIdForView === 'campaign'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<h5 class="record-row__title">Collection wave ready</h5>
@@ -1775,7 +1965,7 @@
 							onclick: createCampaignDraft
 						})}
 					{/if}
-				{:else if activeActionId === 'readiness'}
+				{:else if activeActionIdForView === 'readiness'}
 					<div class="record-row">
 						<h5 class="record-row__title">Launch checklist</h5>
 						<div class="record-grid">
@@ -1803,6 +1993,10 @@
 								<p class="record-field__label">Status</p>
 								<p class="record-field__value">{readinessLabel()}</p>
 							</div>
+							<div class="record-field">
+								<p class="record-field__label">Recipient selection</p>
+								<p class="record-field__value">{currentLaunchState().recipientSummary}</p>
+							</div>
 						</div>
 					</div>
 					{#if readinessResult?.issues.length}
@@ -1814,6 +2008,10 @@
 							{/each}
 						</ul>
 					{/if}
+					<p class="result-line">
+						<span>Next action</span>
+						<span>{currentLaunchState().nextActionLabel}</span>
+					</p>
 					{@render ActionFooter({
 						id: 'readiness',
 						label: 'Run launch check',
@@ -1834,10 +2032,10 @@
 				<button
 					type="button"
 					class="secondary-button"
-					disabled={!canGoNext && activeActionId !== 'readiness'}
-					onclick={activeActionId === 'readiness' ? openLaunchSurface : goToNextSetupAction}
+					disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
+					onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
 				>
-					{activeActionId === 'readiness' ? 'Go to launch' : 'Next step'}
+					{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : 'Next step'}
 				</button>
 			</div>
 		</section>
@@ -1846,7 +2044,7 @@
 			<p class="error-line">{refreshWarning}</p>
 		{/if}
 
-		{#if lockedSelectedCampaign && activeActionId === 'campaign'}
+		{#if lockedSelectedCampaign && activeActionIdForView === 'campaign'}
 		<section class="record-row setup-current-task" aria-labelledby="locked-wave-heading">
 			<div class="setup-current-task__header">
 				<div>
@@ -1864,7 +2062,7 @@
 		</section>
 		{/if}
 
-		{#if selectedCampaignId && (activeActionId === 'campaign' || activeActionId === 'readiness')}
+		{#if selectedCampaignId && (activeActionIdForView === 'campaign' || activeActionIdForView === 'readiness')}
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
@@ -1872,8 +2070,8 @@
 					<h4 id="audience-preview-heading" class="record-row__title">Choose recipients for this wave</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Select who gets invited, preview the list, then save it for launch. Anonymous waves still
-						report answers anonymously.
+						Select who gets invited, preview the list, then save it for launch. If you do not save
+						recipients, Collection can still launch an anonymous public link when the wave allows it.
 					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
@@ -1988,6 +2186,13 @@
 			{/if}
 
 			{#if previewResult}
+				<p class="result-line">
+					<span>Previewed selection</span>
+					<span>
+						{audienceRuleLabel(previewRuleKind)} - {previewResult.summary.respondentCount}
+						{previewResult.summary.respondentCount === 1 ? 'recipient' : 'recipients'} found
+					</span>
+				</p>
 				<div class="record-grid">
 					<div class="record-field">
 						<p class="record-field__label">Recipients found</p>
@@ -2123,9 +2328,9 @@
 			<button
 				type="button"
 				class="setup-path__item"
-				data-state={step.id === activeActionId ? 'current' : step.pathState}
+				data-state={step.id === activeActionIdForView ? 'current' : step.pathState}
 				disabled={!canSelectSetupAction(step.id)}
-				aria-current={step.id === activeActionId ? 'step' : undefined}
+				aria-current={step.id === activeActionIdForView ? 'step' : undefined}
 				onclick={() => selectSetupAction(step.id)}
 			>
 				<span class="setup-path__marker" aria-hidden="true">{step.step.replace('Step ', '')}</span>

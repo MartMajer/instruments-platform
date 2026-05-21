@@ -4,6 +4,7 @@ import {
 	defaultCampaignWaveName,
 	selectSetupCampaignId,
 	selectSetupTemplateVersionId,
+	toSelectedSeriesSetupLaunchState,
 	toSelectedSeriesSetupPath,
 	toSelectedSeriesSetupWorkflowActions
 } from './setup-workflow';
@@ -34,7 +35,7 @@ describe('selected-series setup workflow model', () => {
 				id: 'template',
 				status: 'blocked',
 				available: true,
-				disabledReason: null
+				disabledReason: 'Confirm the instrument first.'
 			}),
 			expect.objectContaining({
 				id: 'scoring',
@@ -151,6 +152,61 @@ describe('selected-series setup workflow model', () => {
 			status: 'ready',
 			available: true
 		});
+	});
+
+	it('separates launch-check state from recipient and collection launch state', () => {
+		const launchState = toSelectedSeriesSetupLaunchState(
+			{
+				...configuredWorkspace,
+				readiness: {
+					campaignId: 'campaign-id',
+					status: 'proof_only',
+					ready: true
+				}
+			},
+			{},
+			{
+				readinessPassed: true,
+				savedRecipientSelectionCount: 0,
+				savedRecipientPairCount: 0,
+				responseIdentityMode: 'anonymous'
+			}
+		);
+
+		expect(launchState).toEqual({
+			statusLabel: 'Launch check passed; choose public link or save recipients',
+			nextActionLabel:
+				'Open Collection to launch with a public link, or save recipients below before launch.',
+			collectionButtonLabel: 'Open Collection launch',
+			collectionButtonAvailable: true,
+			recipientSummary: 'No saved recipients; launch with a public link or save recipients below.'
+		});
+	});
+
+	it('summarizes saved recipients before launch', () => {
+		const launchState = toSelectedSeriesSetupLaunchState(
+			{
+				...configuredWorkspace,
+				readiness: {
+					campaignId: 'campaign-id',
+					status: 'proof_only',
+					ready: true
+				}
+			},
+			{},
+			{
+				readinessPassed: true,
+				savedRecipientSelectionCount: 1,
+				savedRecipientPairCount: 2,
+				responseIdentityMode: 'anonymous'
+			}
+		);
+
+		expect(launchState.statusLabel).toBe('Launch check passed with saved recipients');
+		expect(launchState.recipientSummary).toBe('1 selection saved, 2 invitation pairs ready.');
+		expect(launchState.nextActionLabel).toBe(
+			'Open Collection to start the wave with the saved recipient selection.'
+		);
 	});
 
 	it('selects instrument import as the current task for an empty setup workspace', () => {

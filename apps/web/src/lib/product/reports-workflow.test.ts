@@ -267,6 +267,7 @@ describe('selected-series reports workflow model', () => {
 		});
 
 		expect(path.currentActionId).toBe('downloadCsv');
+		expect(path.currentAction.title).toBe('Download response dataset CSV');
 		expect(path.completedCount).toBe(4);
 		expect(path.steps.find((step) => step.id === 'fetchArtifact')).toMatchObject({
 			pathState: 'done'
@@ -285,7 +286,8 @@ describe('selected-series reports workflow model', () => {
 			headline: 'Preview ready; client handoff not ready',
 			guidance:
 				'Use these results for internal review only. Validate interpretation, create the client export, and resolve finality before client handoff.',
-			nextAction: 'Validate interpretation limits, then create a client export.'
+			nextAction:
+				'Validate interpretation limits before client handoff; keep the current report-summary export internal.'
 		});
 		expect(handoffStatus.lanes).toEqual([
 			expect.objectContaining({
@@ -318,6 +320,46 @@ describe('selected-series reports workflow model', () => {
 				detail: 'Collection is still live. Results can change until the wave is closed.'
 			})
 		]);
+	});
+
+	it('does not label a downloadable export client-ready before interpretation and finality are ready', () => {
+		const handoffStatus = toSelectedSeriesResultsHandoffStatus(reportableWorkspaceWithExport);
+
+		expect(handoffStatus.overallLabel).toBe('Not client-ready');
+		expect(handoffStatus.lanes.find((lane) => lane.id === 'export')).toMatchObject({
+			title: 'Internal preview export ready',
+			status: 'pending',
+			detail:
+				'A downloadable file exists, but use it internally until interpretation validation and collection finality are ready.'
+		});
+	});
+
+	it('labels report-summary downloads as not analysis-ready when no response export exists', () => {
+		const downloadAction = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithExport).find(
+			(action) => action.id === 'downloadCsv'
+		);
+
+		expect(downloadAction).toMatchObject({
+			title: 'Download report-summary CSV',
+			description:
+				'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+		});
+	});
+
+	it('explains score coverage gaps before client handoff', () => {
+		const workspace: CampaignSeriesReportsWorkspaceResponse = {
+			...reportableWorkspace,
+			selectedCampaign: {
+				...reportableWorkspace.selectedCampaign!,
+				submittedResponseCount: 12,
+				visibleScoreCount: 10
+			}
+		};
+		const handoffStatus = toSelectedSeriesResultsHandoffStatus(workspace);
+
+		expect(handoffStatus.lanes.find((lane) => lane.id === 'operational')?.detail).toContain(
+			'2 submitted responses are not visible as scores because scoring, missing-answer rules, or disclosure still exclude them.'
+		);
 	});
 });
 
