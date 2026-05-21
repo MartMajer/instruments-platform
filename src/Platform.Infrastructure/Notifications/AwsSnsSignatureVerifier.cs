@@ -1,11 +1,14 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Platform.Application.Features.Notifications;
 
 namespace Platform.Infrastructure.Notifications;
 
-public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSignatureVerifier
+public sealed class AwsSnsSignatureVerifier(
+    HttpClient httpClient,
+    ILogger<AwsSnsSignatureVerifier> logger) : IAwsSnsSignatureVerifier
 {
     private const int MaxCertificateBytes = 64 * 1024;
 
@@ -17,6 +20,7 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
             string.IsNullOrWhiteSpace(request.Signature) ||
             !Uri.TryCreate(request.SigningCertUrl, UriKind.Absolute, out var certificateUri))
         {
+            logger.LogWarning("[SNS-DIAG-20260521] AWS SNS signature verifier rejected invalid input.");
             return false;
         }
 
@@ -27,16 +31,36 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
         }
         catch (FormatException)
         {
+            logger.LogWarning("[SNS-DIAG-20260521] AWS SNS signature verifier rejected invalid base64 signature.");
             return false;
         }
 
-        using var certificateResponse = await httpClient.GetAsync(
-            certificateUri,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
+        HttpResponseMessage certificateResponse;
+        try
+        {
+            certificateResponse = await httpClient.GetAsync(
+                certificateUri,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "[SNS-DIAG-20260521] AWS SNS signing certificate download failed. CertHost={CertHost}.",
+                certificateUri.Host);
+            return false;
+        }
+
+        using (certificateResponse)
+        {
         if (!certificateResponse.IsSuccessStatusCode ||
             certificateResponse.Content.Headers.ContentLength is > MaxCertificateBytes)
         {
+            logger.LogWarning(
+                "[SNS-DIAG-20260521] AWS SNS signing certificate response rejected. StatusCode={StatusCode}; ContentLength={ContentLength}.",
+                (int)certificateResponse.StatusCode,
+                certificateResponse.Content.Headers.ContentLength);
             return false;
         }
 
@@ -53,6 +77,9 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
 
             if (certificateBytes.Length + bytesRead > MaxCertificateBytes)
             {
+                logger.LogWarning(
+                    "[SNS-DIAG-20260521] AWS SNS signing certificate payload rejected while reading. MaxBytes={MaxBytes}.",
+                    MaxCertificateBytes);
                 return false;
             }
 
@@ -66,6 +93,7 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
         }
         catch (CryptographicException)
         {
+            logger.LogWarning("[SNS-DIAG-20260521] AWS SNS signing certificate could not be loaded.");
             return false;
         }
 
@@ -78,34 +106,53 @@ public sealed class AwsSnsSignatureVerifier(HttpClient httpClient) : IAwsSnsSign
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
                 if (!chain.Build(certificate))
                 {
+                    logger.LogWarning(
+                        "[SNS-DIAG-20260521] AWS SNS signing certificate chain validation failed. Statuses={ChainStatuses}.",
+                        string.Join(",", chain.ChainStatus.Select(status => status.Status.ToString())));
                     return false;
                 }
 
                 using var rsa = certificate.GetRSAPublicKey();
                 if (rsa is null)
                 {
+                    logger.LogWarning("[SNS-DIAG-20260521] AWS SNS signing certificate has no RSA public key.");
                     return false;
                 }
 
                 var stringToSign = BuildStringToSign(request);
                 if (stringToSign is null)
                 {
+                    logger.LogWarning(
+                        "[SNS-DIAG-20260521] AWS SNS signature verifier could not build primary string to sign. Type={MessageType}.",
+                        request.Type);
                     return false;
                 }
 
                 if (VerifySignature(rsa, stringToSign, signature))
                 {
+                    logger.LogInformation("[SNS-DIAG-20260521] AWS SNS signature verified with primary string.");
                     return true;
                 }
 
                 var compatibilityStringToSign = BuildSubscriptionConfirmationMessageFormatStringToSign(request);
-                return compatibilityStringToSign is not null &&
-                    VerifySignature(rsa, compatibilityStringToSign, signature);
+                if (compatibilityStringToSign is not null &&
+                    VerifySignature(rsa, compatibilityStringToSign, signature))
+                {
+                    logger.LogInformation("[SNS-DIAG-20260521] AWS SNS signature verified with subscription compatibility string.");
+                    return true;
+                }
+
+                logger.LogWarning(
+                    "[SNS-DIAG-20260521] AWS SNS signature mismatch after all string variants. Type={MessageType}.",
+                    request.Type);
+                return false;
             }
         }
         catch (CryptographicException)
         {
+            logger.LogWarning("[SNS-DIAG-20260521] AWS SNS signature verifier hit a cryptographic error.");
             return false;
+        }
         }
     }
 
