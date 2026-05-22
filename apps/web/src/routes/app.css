@@ -503,8 +503,9 @@ a {
 }
 
 .setup-path__item[data-state='current'] {
-	border-color: color-mix(in srgb, var(--color-accent) 34%, white);
-	background: var(--color-accent-soft);
+	border-color: color-mix(in srgb, #b45309 48%, var(--color-border));
+	background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(255, 251, 235, 0.72));
+	box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.08), 0 14px 30px rgba(146, 64, 14, 0.1);
 }
 
 .setup-path__item[data-state='done'] {
@@ -557,9 +558,16 @@ a {
 	text-transform: uppercase;
 }
 
+.setup-path__item[data-state='current'] .setup-path__marker {
+	border-color: rgba(180, 83, 9, 0.45);
+	background: #b45309;
+	color: #fff7ed;
+}
+
 .setup-path__item[data-state='current'] .setup-path__state {
-	border-color: color-mix(in srgb, var(--color-accent) 28%, white);
-	color: var(--color-accent);
+	border-color: rgba(180, 83, 9, 0.38);
+	background: rgba(255, 251, 235, 0.86);
+	color: #92400e;
 }
 
 .setup-path__item[data-state='done'] .setup-path__state {
@@ -589,81 +597,6 @@ a {
 .setup-current-task__body {
 	display: grid;
 	gap: 1rem;
-}
-
-.study-journey {
-	display: grid;
-	gap: 0.875rem;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-section);
-	background: color-mix(in srgb, var(--color-surface-raised) 82%, var(--color-background));
-	padding: 0.875rem;
-	box-shadow: var(--shadow-subtle);
-}
-
-.study-journey__header h4 {
-	margin: 0.25rem 0 0;
-	font-family: var(--font-serif);
-	font-size: 1.2rem;
-	font-weight: 430;
-	line-height: 1.15;
-	color: var(--color-text);
-}
-
-.study-journey__header p:not(.product-kicker) {
-	margin: 0.35rem 0 0;
-	font-size: 0.875rem;
-	line-height: 1.5;
-	color: var(--color-text-muted);
-}
-
-.study-journey__items {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
-	gap: 0.5rem;
-}
-
-.study-journey__item {
-	display: grid;
-	gap: 0.25rem;
-	align-content: start;
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-control);
-	background: var(--color-surface-muted);
-	padding: 0.625rem;
-}
-
-.study-journey__item[data-state='current'] {
-	border-color: color-mix(in srgb, var(--color-accent) 36%, var(--color-border));
-	background: color-mix(in srgb, var(--color-accent-soft) 62%, var(--color-surface-raised));
-}
-
-.study-journey__item[data-state='done'] {
-	border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
-	background: color-mix(in srgb, var(--color-success-soft) 70%, var(--color-surface-raised));
-}
-
-.study-journey__state {
-	width: fit-content;
-	border: 1px solid var(--color-border);
-	border-radius: 999px;
-	background: var(--color-surface-raised);
-	padding: 0.125rem 0.45rem;
-	font-size: 0.68rem;
-	font-weight: 800;
-	color: var(--color-text-muted);
-	text-transform: uppercase;
-}
-
-.study-journey__item strong {
-	font-size: 0.86rem;
-	color: var(--color-text);
-}
-
-.study-journey__item span:last-child {
-	font-size: 0.76rem;
-	line-height: 1.4;
-	color: var(--color-text-muted);
 }
 
 .questionnaire-blueprint-review {

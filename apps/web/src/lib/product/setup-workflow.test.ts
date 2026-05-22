@@ -4,7 +4,6 @@ import {
 	defaultCampaignWaveName,
 	selectSetupCampaignId,
 	selectSetupTemplateVersionId,
-	toSelectedSeriesSetupBlueprintJourney,
 	toSelectedSeriesSetupLaunchPlan,
 	toSelectedSeriesSetupLaunchState,
 	toSelectedSeriesSetupPath,
@@ -57,32 +56,6 @@ describe('selected-series setup workflow model', () => {
 				available: false,
 				disabledReason: 'Create the collection wave first.'
 			})
-		]);
-	});
-
-	it('summarizes setup as a study blueprint journey', () => {
-		const emptyJourney = toSelectedSeriesSetupBlueprintJourney(emptyWorkspace);
-		const configuredJourney = toSelectedSeriesSetupBlueprintJourney(configuredWorkspace);
-
-		expect(emptyJourney).toMatchObject({
-			title: 'Study blueprint journey',
-			summary: 'Turn the research idea into questions, results, recipients, and a launch-ready wave.',
-			currentItemId: 'questionnaire'
-		});
-		expect(emptyJourney.items.map((item) => ({ id: item.id, state: item.state }))).toEqual([
-			{ id: 'purpose', state: 'done' },
-			{ id: 'questionnaire', state: 'current' },
-			{ id: 'results', state: 'blocked' },
-			{ id: 'wave_recipients', state: 'blocked' },
-			{ id: 'launch', state: 'blocked' }
-		]);
-		expect(configuredJourney.currentItemId).toBe('launch');
-		expect(configuredJourney.items.map((item) => ({ id: item.id, state: item.state }))).toEqual([
-			{ id: 'purpose', state: 'done' },
-			{ id: 'questionnaire', state: 'done' },
-			{ id: 'results', state: 'done' },
-			{ id: 'wave_recipients', state: 'done' },
-			{ id: 'launch', state: 'current' }
 		]);
 	});
 

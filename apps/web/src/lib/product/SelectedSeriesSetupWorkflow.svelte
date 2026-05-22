@@ -28,8 +28,7 @@
 		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
-		toSelectedSeriesSetupBlueprintJourney,
-		toSelectedSeriesSetupLaunchPlan,
+			toSelectedSeriesSetupLaunchPlan,
 		toSelectedSeriesSetupLaunchState,
 		toSelectedSeriesSetupPath,
 		type SelectedSeriesSetupWorkflowActionId
@@ -196,7 +195,6 @@
 		campaignId: campaignResult?.id ?? null
 	});
 	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState));
-	const blueprintJourney = $derived(toSelectedSeriesSetupBlueprintJourney(workspace, localState));
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
@@ -1460,12 +1458,10 @@
 			<strong class="record-row__title">Read-only access</strong>
 			<span>Setup workflow actions require setup management access.</span>
 		</p>
-		{@render BlueprintJourney()}
-		{@render SetupPath()}
+			{@render SetupPath()}
 	{:else}
 		<div class="grid gap-3">
-			{@render BlueprintJourney()}
-			<p class="record-field__label">
+					<p class="record-field__label">
 				{setupPath.completedCount} of {setupPath.totalCount} required steps complete
 			</p>
 			{@render SetupPath()}
@@ -2767,26 +2763,6 @@
 	</div>
 {/snippet}
 
-{#snippet BlueprintJourney()}
-	<section class="study-journey" aria-label="Study blueprint journey">
-		<div class="study-journey__header">
-			<div>
-				<p class="product-kicker">Guided setup</p>
-				<h4>{blueprintJourney.title}</h4>
-				<p>{blueprintJourney.summary}</p>
-			</div>
-		</div>
-		<div class="study-journey__items">
-			{#each blueprintJourney.items as item}
-				<article class="study-journey__item" data-state={item.state}>
-					<span class="study-journey__state">{pathStateLabel(item.state)}</span>
-					<strong>{item.label}</strong>
-					<span>{item.description}</span>
-				</article>
-			{/each}
-		</div>
-	</section>
-{/snippet}
 
 {#snippet ActionFooter({
 	id,

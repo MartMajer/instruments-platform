@@ -85,29 +85,6 @@ export type SelectedSeriesSetupLaunchPlan = {
 	items: SelectedSeriesSetupLaunchPlanItem[];
 };
 
-export type SelectedSeriesSetupBlueprintJourneyItemId =
-	| 'purpose'
-	| 'questionnaire'
-	| 'results'
-	| 'wave_recipients'
-	| 'launch';
-
-export type SelectedSeriesSetupBlueprintJourneyItemState = 'done' | 'current' | 'blocked';
-
-export type SelectedSeriesSetupBlueprintJourneyItem = {
-	id: SelectedSeriesSetupBlueprintJourneyItemId;
-	label: string;
-	description: string;
-	state: SelectedSeriesSetupBlueprintJourneyItemState;
-};
-
-export type SelectedSeriesSetupBlueprintJourney = {
-	title: string;
-	summary: string;
-	currentItemId: SelectedSeriesSetupBlueprintJourneyItemId;
-	items: SelectedSeriesSetupBlueprintJourneyItem[];
-};
-
 export function defaultCampaignWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
 	const nextWaveNumber = Math.max(0, workspace.summary.campaignCount) + 1;
 	return `Wave ${nextWaveNumber}`;
@@ -313,60 +290,6 @@ export function toSelectedSeriesSetupPath(
 		currentAction,
 		completedCount: steps.filter((step) => step.pathState === 'done').length,
 		totalCount: steps.length
-	};
-}
-
-export function toSelectedSeriesSetupBlueprintJourney(
-	workspace: CampaignSeriesSetupWorkspaceResponse,
-	localState: SelectedSeriesSetupWorkflowLocalState = {}
-): SelectedSeriesSetupBlueprintJourney {
-	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
-	const scoringConfigured = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
-	const campaignId = selectSetupCampaignId(workspace, localState);
-	const questionnaireDone = Boolean(templateVersionId);
-	const resultsDone = scoringConfigured;
-	const waveRecipientsDone = Boolean(campaignId);
-	const launchDone = workspace.readiness.ready;
-
-	const items: SelectedSeriesSetupBlueprintJourneyItem[] = [
-		{
-			id: 'purpose',
-			label: 'Purpose',
-			description: 'Keep the study name and intent clear before authoring questions.',
-			state: 'done'
-		},
-		{
-			id: 'questionnaire',
-			label: 'Questionnaire',
-			description: 'Write the questions and answer formats respondents will see.',
-			state: questionnaireDone ? 'done' : 'current'
-		},
-		{
-			id: 'results',
-			label: 'Results setup',
-			description: 'Decide which answers become scores or summaries.',
-			state: resultsDone ? 'done' : questionnaireDone ? 'current' : 'blocked'
-		},
-		{
-			id: 'wave_recipients',
-			label: 'Wave and recipients',
-			description: 'Create the collection wave and save who should receive it.',
-			state: waveRecipientsDone ? 'done' : resultsDone ? 'current' : 'blocked'
-		},
-		{
-			id: 'launch',
-			label: 'Launch check',
-			description: 'Confirm the study can move into collection.',
-			state: launchDone ? 'done' : waveRecipientsDone ? 'current' : 'blocked'
-		}
-	];
-	const currentItem = items.find((item) => item.state === 'current') ?? items.at(-1) ?? items[0];
-
-	return {
-		title: 'Study blueprint journey',
-		summary: 'Turn the research idea into questions, results, recipients, and a launch-ready wave.',
-		currentItemId: currentItem.id,
-		items
 	};
 }
 
