@@ -367,29 +367,85 @@ describe('selected-series reports workflow model', () => {
 		const packet = toSelectedSeriesResultsPacketReview(reportableWorkspace);
 
 		expect(packet).toMatchObject({
-			title: 'Results packet',
+			title: 'Can these results be used?',
 			status: 'pending',
-			primaryAction: 'Review interpretation limits before sharing; keep the current report-summary export internal.'
+			primaryAction:
+				'Create a response export for analysis, or create a report-summary file for internal review.'
 		});
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
-				id: 'results',
+				id: 'responses',
 				status: 'ready',
-				summary: 'Results preview is ready'
+				summary: '12 responses collected'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'scores',
+				status: 'ready',
+				summary: '12 scores visible'
 			})
 		);
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
 				id: 'export_files',
 				status: 'pending',
-				summary: 'Create the response dataset when ready'
+				summary: 'Create response export'
 			})
 		);
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
-				id: 'sharing',
+				id: 'use_status',
+				status: 'pending',
+				summary: 'Internal review only'
+			})
+		);
+	});
+
+	it('does not call results ready when responses exist but no scores are visible', () => {
+		const packet = toSelectedSeriesResultsPacketReview({
+			...reportableWorkspace,
+			summary: {
+				...reportableWorkspace.summary,
+				submittedResponseCount: 1,
+				scoreCount: 1,
+				visibleScoreCount: 0
+			},
+			selectedCampaign: {
+				...reportableWorkspace.selectedCampaign!,
+				submittedResponseCount: 1,
+				scoreCount: 1,
+				visibleScoreCount: 0
+			}
+		});
+
+		expect(packet).toMatchObject({
+			title: 'Can these results be used?',
+			status: 'blocked',
+			primaryAction:
+				'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.'
+		});
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'responses',
+				status: 'ready',
+				summary: '1 response collected'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'scores',
 				status: 'blocked',
-				summary: 'Do not share yet'
+				summary: 'No scores visible',
+				detail:
+					'1 response exists, but no scored result is visible. Check scoring setup, missing-answer rules, and disclosure before treating this as scored results.'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'use_status',
+				status: 'blocked',
+				summary: 'Raw responses only'
 			})
 		);
 	});
@@ -398,15 +454,15 @@ describe('selected-series reports workflow model', () => {
 		const packet = toSelectedSeriesResultsPacketReview(shareReadyWorkspace);
 
 		expect(packet).toMatchObject({
-			title: 'Results packet',
+			title: 'Can these results be used?',
 			status: 'ready',
-			primaryAction: 'Download the response dataset or review waves.'
+			primaryAction: 'Download the response dataset for analysis.'
 		});
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
-				id: 'interpretation',
+				id: 'scores',
 				status: 'ready',
-				summary: 'Interpretation reviewed'
+				summary: '12 scores visible'
 			})
 		);
 		expect(packet.items).toContainEqual(
@@ -418,9 +474,9 @@ describe('selected-series reports workflow model', () => {
 		);
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
-				id: 'sharing',
+				id: 'use_status',
 				status: 'ready',
-				summary: 'Ready to share'
+				summary: 'Ready for controlled sharing'
 			})
 		);
 	});

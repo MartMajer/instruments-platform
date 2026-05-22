@@ -64,10 +64,10 @@ export type SelectedSeriesResultsHandoffStatus = {
 };
 
 export type SelectedSeriesResultsPacketReviewItemId =
-	| 'results'
-	| 'interpretation'
+	| 'responses'
+	| 'scores'
 	| 'export_files'
-	| 'sharing';
+	| 'use_status';
 
 export type SelectedSeriesResultsPacketReviewItem = {
 	id: SelectedSeriesResultsPacketReviewItemId;
@@ -412,32 +412,52 @@ export function toSelectedSeriesResultsPacketReview(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
 ): SelectedSeriesResultsPacketReview {
-	const handoffStatus = toSelectedSeriesResultsHandoffStatus(workspace, localState);
-	const operationalLane = findHandoffLane(handoffStatus, 'operational');
-	const hasCampaign = Boolean(workspace.selectedCampaign);
+	const campaign = workspace.selectedCampaign;
+	const hasCampaign = Boolean(campaign);
 	const hasResponseDataset = hasResponseDatasetExport(workspace, localState);
+	const hasDownloadableExport = hasAnyDownloadableExport(workspace, localState);
+	const submittedResponses = campaign?.submittedResponseCount ?? 0;
+	const visibleScores = campaign?.visibleScoreCount ?? 0;
+	const hasResponses = submittedResponses > 0;
+	const hasVisibleScores = visibleScores > 0;
+	const interpretationReviewed = isInterpretationValidated(campaign?.interpretationStatus);
+	const collectionClosed = isCollectionClosed(campaign?.status);
+	const responseDatasetReady = hasResponseDataset && hasDownloadableExport;
+	const controlledSharingReady =
+		hasVisibleScores && responseDatasetReady && interpretationReviewed && collectionClosed;
 	const items: SelectedSeriesResultsPacketReviewItem[] = [
-		toResultsPacketItem(handoffStatus),
-		toInterpretationPacketItem(handoffStatus),
-		toExportFilesPacketItem(workspace, localState, operationalLane.status === 'ready'),
-		toSharingPacketItem(handoffStatus)
+		toResponsesPacketItem(campaign?.submittedResponseCount ?? null),
+		toScoresPacketItem(campaign?.submittedResponseCount ?? null, campaign?.visibleScoreCount ?? null),
+		toExportFilesPacketItem(workspace, localState, hasVisibleScores),
+		toUseStatusPacketItem({
+			hasCampaign,
+			hasResponses,
+			hasVisibleScores,
+			responseDatasetReady,
+			interpretationReviewed,
+			collectionClosed
+		})
 	];
 
 	return {
-		title: 'Results packet',
-		description:
-			'Check what can be reviewed, which export file is appropriate, and whether anything is safe to share outside the team.',
+		title: 'Can these results be used?',
+		description: 'Check whether you have responses, visible scores, an export file, and a clear use limit.',
 		status: !hasCampaign
 			? 'not_available'
-			: handoffStatus.overallStatus === 'ready'
+			: controlledSharingReady
 				? 'ready'
-				: operationalLane.status === 'ready'
+				: hasResponses && hasVisibleScores
 					? 'pending'
 					: 'blocked',
-		primaryAction:
-			handoffStatus.overallStatus === 'ready' && hasResponseDataset
-				? 'Download the response dataset or review waves.'
-				: handoffStatus.nextAction,
+		primaryAction: toResultsPacketPrimaryAction({
+			hasCampaign,
+			hasResponses,
+			hasVisibleScores,
+			responseDatasetReady,
+			controlledSharingReady,
+			interpretationReviewed,
+			collectionClosed
+		}),
 		items
 	};
 }
@@ -686,41 +706,65 @@ function isCollectionClosed(status: string | null | undefined) {
 	return status === 'closed' || status === 'completed' || status === 'ended';
 }
 
-function toResultsPacketItem(
-	handoffStatus: SelectedSeriesResultsHandoffStatus
+function toResponsesPacketItem(
+	submittedResponseCount: number | null
 ): SelectedSeriesResultsPacketReviewItem {
-	const lane = findHandoffLane(handoffStatus, 'operational');
+	const submittedResponses = submittedResponseCount ?? 0;
 
-	if (lane.status === 'ready') {
+	if (submittedResponses > 0) {
 		return {
-			id: 'results',
-			label: 'Results',
+			id: 'responses',
+			label: 'Responses',
 			status: 'ready',
-			summary: 'Results preview is ready',
-			detail: lane.detail
+			summary: `${submittedResponses} response${submittedResponses === 1 ? '' : 's'} collected`,
+			detail:
+				'Raw submitted responses exist. They can be exported for internal analysis when an export file is created.'
 		};
 	}
 
 	return {
-		id: 'results',
-		label: 'Results',
-		status: lane.status,
-		summary: lane.title,
-		detail: lane.detail
+		id: 'responses',
+		label: 'Responses',
+		status: 'blocked',
+		summary: 'No responses yet',
+		detail: 'Collect at least one response before reviewing or exporting results.'
 	};
 }
 
-function toInterpretationPacketItem(
-	handoffStatus: SelectedSeriesResultsHandoffStatus
+function toScoresPacketItem(
+	submittedResponseCount: number | null,
+	visibleScoreCount: number | null
 ): SelectedSeriesResultsPacketReviewItem {
-	const lane = findHandoffLane(handoffStatus, 'interpretation');
+	const submittedResponses = submittedResponseCount ?? 0;
+	const visibleScores = visibleScoreCount ?? 0;
+
+	if (visibleScores > 0) {
+		return {
+			id: 'scores',
+			label: 'Scores',
+			status: 'ready',
+			summary: `${visibleScores} score${visibleScores === 1 ? '' : 's'} visible`,
+			detail:
+				'Scored results are visible for internal review. Keep score meaning and method notes with any exported analysis.'
+		};
+	}
+
+	if (submittedResponses > 0) {
+		return {
+			id: 'scores',
+			label: 'Scores',
+			status: 'blocked',
+			summary: 'No scores visible',
+			detail: `${submittedResponses} response${submittedResponses === 1 ? '' : 's'} exist${submittedResponses === 1 ? 's' : ''}, but no scored result is visible. Check scoring setup, missing-answer rules, and disclosure before treating this as scored results.`
+		};
+	}
 
 	return {
-		id: 'interpretation',
-		label: 'Interpretation',
-		status: lane.status,
-		summary: lane.status === 'ready' ? 'Interpretation reviewed' : lane.title,
-		detail: lane.detail
+		id: 'scores',
+		label: 'Scores',
+		status: 'blocked',
+		summary: 'No scores yet',
+		detail: 'Scores appear after responses can be scored and disclosure allows them to be shown.'
 	};
 }
 
@@ -745,7 +789,7 @@ function toExportFilesPacketItem(
 			label: 'Export files',
 			status: 'ready',
 			summary: 'Response dataset ready',
-			detail: 'Use this CSV and codebook for analysis. Keep interpretation and finality checks with the file.'
+			detail: 'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.'
 		};
 	}
 
@@ -774,45 +818,74 @@ function toExportFilesPacketItem(
 		id: 'export_files',
 		label: 'Export files',
 		status: resultsReady ? 'pending' : 'blocked',
-		summary: resultsReady ? 'Create the response dataset when ready' : 'Export blocked',
+		summary: resultsReady ? 'Create response export' : 'Export blocked',
 		detail: resultsReady
 			? 'Create the response dataset for analysis, or create the report-summary file for internal review.'
 			: 'Results must be ready before export files can be created.'
 	};
 }
 
-function toSharingPacketItem(
-	handoffStatus: SelectedSeriesResultsHandoffStatus
-): SelectedSeriesResultsPacketReviewItem {
-	if (handoffStatus.overallStatus === 'ready') {
+function toUseStatusPacketItem(options: {
+	hasCampaign: boolean;
+	hasResponses: boolean;
+	hasVisibleScores: boolean;
+	responseDatasetReady: boolean;
+	interpretationReviewed: boolean;
+	collectionClosed: boolean;
+}): SelectedSeriesResultsPacketReviewItem {
+	if (!options.hasCampaign) {
 		return {
-			id: 'sharing',
-			label: 'Sharing',
-			status: 'ready',
-			summary: 'Ready to share',
-			detail:
-				'Results, interpretation, export file, and collection finality are ready. Keep disclosure limits with the shared packet.'
+			id: 'use_status',
+			label: 'Use status',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before deciding how results can be used.'
 		};
 	}
 
-	const operationalLane = findHandoffLane(handoffStatus, 'operational');
-
-	if (operationalLane.status === 'ready') {
+	if (!options.hasResponses) {
 		return {
-			id: 'sharing',
-			label: 'Sharing',
+			id: 'use_status',
+			label: 'Use status',
 			status: 'blocked',
-			summary: 'Do not share yet',
-			detail: handoffStatus.guidance
+			summary: 'No result data yet',
+			detail: 'Collect responses before using or exporting results.'
+		};
+	}
+
+	if (!options.hasVisibleScores) {
+		return {
+			id: 'use_status',
+			label: 'Use status',
+			status: 'blocked',
+			summary: 'Raw responses only',
+			detail:
+				'Do not present scored results yet. Use raw responses internally or fix scoring, missing-answer rules, and disclosure.'
+		};
+	}
+
+	if (
+		options.responseDatasetReady &&
+		options.interpretationReviewed &&
+		options.collectionClosed
+	) {
+		return {
+			id: 'use_status',
+			label: 'Use status',
+			status: 'ready',
+			summary: 'Ready for controlled sharing',
+			detail:
+				'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.'
 		};
 	}
 
 	return {
-		id: 'sharing',
-		label: 'Sharing',
-		status: operationalLane.status,
-		summary: 'Nothing ready to share yet',
-		detail: handoffStatus.guidance
+		id: 'use_status',
+		label: 'Use status',
+		status: 'pending',
+		summary: 'Internal review only',
+		detail:
+			'Use these results inside the workspace while export, interpretation, or collection status still needs review.'
 	};
 }
 
@@ -833,6 +906,46 @@ function hasResponseDatasetExport(
 				(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
 			)
 	);
+}
+
+function toResultsPacketPrimaryAction(options: {
+	hasCampaign: boolean;
+	hasResponses: boolean;
+	hasVisibleScores: boolean;
+	responseDatasetReady: boolean;
+	controlledSharingReady: boolean;
+	interpretationReviewed: boolean;
+	collectionClosed: boolean;
+}) {
+	if (!options.hasCampaign) {
+		return 'Create or select a wave before reviewing results.';
+	}
+
+	if (!options.hasResponses) {
+		return 'Collect responses before reviewing results.';
+	}
+
+	if (!options.hasVisibleScores) {
+		return 'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.';
+	}
+
+	if (!options.responseDatasetReady) {
+		return 'Create a response export for analysis, or create a report-summary file for internal review.';
+	}
+
+	if (options.controlledSharingReady) {
+		return 'Download the response dataset for analysis.';
+	}
+
+	if (!options.interpretationReviewed) {
+		return 'Use the response dataset internally; document score meaning before sharing conclusions.';
+	}
+
+	if (!options.collectionClosed) {
+		return 'Use as preliminary internal data until collection is closed.';
+	}
+
+	return 'Download the response dataset for analysis.';
 }
 
 function toHandoffNextAction(

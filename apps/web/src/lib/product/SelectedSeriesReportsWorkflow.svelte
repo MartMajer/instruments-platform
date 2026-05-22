@@ -14,7 +14,6 @@
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
 		toSelectedSeriesResultsPacketReview,
-		toSelectedSeriesResultsHandoffStatus,
 		toSelectedSeriesReportsPath,
 		type SelectedSeriesReportsPathStepState,
 		type SelectedSeriesReportsWorkflowActionId
@@ -118,7 +117,6 @@
 		csvDownloaded: Boolean(downloadResult)
 	});
 	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
-	const handoffStatus = $derived(toSelectedSeriesResultsHandoffStatus(workspace, localState));
 	const packetReview = $derived(toSelectedSeriesResultsPacketReview(workspace, localState));
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
@@ -362,17 +360,17 @@
 				Review aggregate results, check whether they are ready to share, and create export files when ready.
 			</p>
 		</div>
-		<StatusBadge status={handoffStatus.overallStatus} label={handoffStatus.overallLabel} />
+		<StatusBadge status={packetReview.status} />
 	</div>
 
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Results packet review">
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Results use review">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Final review</p>
+				<p class="product-kicker">Use decision</p>
 				<h4 class="setup-current-task__title">{packetReview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{packetReview.description}</p>
 			</div>
@@ -397,32 +395,6 @@
 		<p class="result-line">
 			<span>Next action</span>
 			<span>{packetReview.primaryAction}</span>
-		</p>
-	</article>
-
-	<article class="score-result-panel report-proof-panel" role="region" aria-label="Results status">
-		<div class="score-result-panel__header">
-			<div>
-				<p class="product-kicker">Results status</p>
-				<h4 class="record-row__title">{handoffStatus.headline}</h4>
-				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-					{handoffStatus.guidance}
-				</p>
-			</div>
-			<StatusBadge status={handoffStatus.overallStatus} label={handoffStatus.overallLabel} />
-		</div>
-		<dl class="record-grid">
-			{#each handoffStatus.lanes as lane (lane.id)}
-				<div class="record-field">
-					<dt class="record-field__label">{lane.label}</dt>
-					<dd class="record-field__value">{lane.title}</dd>
-					<dd class="text-sm text-[var(--color-text-muted)]">{lane.detail}</dd>
-				</div>
-			{/each}
-		</dl>
-		<p class="result-line">
-			<span>Next action</span>
-			<span>{handoffStatus.nextAction}</span>
 		</p>
 	</article>
 
