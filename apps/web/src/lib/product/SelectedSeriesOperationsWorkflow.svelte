@@ -22,8 +22,11 @@
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import {
+		emailSuppressionReasonLabel,
+		emailSuppressionSourceLabel,
 		toSelectedSeriesCollectionStatusSummary,
 		toSelectedSeriesOperationsPath,
+		toRecipientSuppressionReview,
 		type SelectedSeriesOperationsPathStep,
 		type SelectedSeriesOperationsWorkflowActionId
 	} from './operations-workflow';
@@ -211,6 +214,9 @@
 	const activeEmailSuppressions = $derived(
 		suppressionListResult?.suppressions.filter((suppression) => suppression.active) ?? []
 	);
+	const recipientSuppressionReview = $derived(
+		toRecipientSuppressionReview(recipientImportReview.recipients, activeEmailSuppressions)
+	);
 	const providerDeliveryEventRows = $derived(providerDeliveryEventsResult?.events ?? []);
 	const latestResponseActivity = $derived(
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
@@ -376,6 +382,23 @@
 			return;
 		}
 
+		const suppressionReviewResult = await loadEmailSuppressionsForInviteReview();
+		if (!suppressionReviewResult) {
+			return;
+		}
+
+		const latestSuppressionReview = toRecipientSuppressionReview(
+			recipientImportReview.recipients,
+			suppressionReviewResult.suppressions.filter((suppression) => suppression.active)
+		);
+		if (latestSuppressionReview.hasBlockedRecipients) {
+			actionErrors = {
+				...actionErrors,
+				openLink: `${latestSuppressionReview.headline}. ${latestSuppressionReview.guidance}`
+			};
+			return;
+		}
+
 		const result = await runAction('openLink', () =>
 			setupApi.createCampaignInvitationBatch(selectedCampaign.id, {
 				recipients: recipientImportReview.recipients
@@ -391,6 +414,14 @@
 			manualRecipientName = '';
 			manualRecipientEmail = '';
 		}
+	}
+
+	async function loadEmailSuppressionsForInviteReview() {
+		const result = await runAction('openLink', () => setupApi.listEmailSuppressions(100, false));
+		if (result) {
+			suppressionListResult = result;
+		}
+		return result;
 	}
 
 	async function loadRecipientImportFile(file: File | null | undefined) {
@@ -623,15 +654,38 @@
 	}
 
 	async function releaseEmailSuppression(suppression: EmailSuppressionResponse) {
+		const confirmed =
+			typeof window === 'undefined'
+				? true
+				: window.confirm(
+						`Allow future invitations to ${suppression.recipient}?\n\nOnly do this when the recipient should receive new explicit invitations. Old suppressed emails stay closed.`
+					);
+		if (!confirmed) {
+			return;
+		}
+
 		const result = await runAction('openLink', () =>
 			setupApi.releaseEmailSuppression(suppression.id, {
-				reason: 'operator_released'
+				reason: 'owner_operator_allow_future_invitations'
 			})
 		);
 
 		if (result) {
 			upsertEmailSuppression(result);
 		}
+	}
+
+	async function releaseRecipientSuppressionReviewItem(id: string) {
+		const suppression = activeEmailSuppressions.find((candidate) => candidate.id === id);
+		if (!suppression) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Refresh the do-not-contact list before releasing this recipient.'
+			};
+			return;
+		}
+
+		await releaseEmailSuppression(suppression);
 	}
 
 	function upsertEmailSuppression(suppression: EmailSuppressionResponse) {
@@ -1377,7 +1431,9 @@
 								<div class="grid gap-2">
 									{#each activeEmailSuppressions.slice(0, 6) as suppression (suppression.id)}
 										<div class="record-field">
-											<p class="record-field__label">{suppression.reason.replaceAll('_', ' ')}</p>
+											<p class="record-field__label">
+												{emailSuppressionReasonLabel(suppression.reason)}
+											</p>
 											<div class="flex flex-wrap items-center justify-between gap-3">
 												<p class="record-field__value">{suppression.recipient}</p>
 												<button
@@ -1390,6 +1446,9 @@
 													Allow future invites
 												</button>
 											</div>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{emailSuppressionSourceLabel(suppression.source)} - Added {formatDateTime(suppression.createdAt)}
+											</p>
 											{#if suppression.note}
 												<p class="text-sm text-[var(--color-text-muted)]">{suppression.note}</p>
 											{/if}
@@ -1650,6 +1709,46 @@
 									</div>
 								</div>
 							{/if}
+							{#if recipientSuppressionReview.hasBlockedRecipients}
+								<div class="record-row">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">Do-not-contact match</p>
+											<h6 class="record-row__title">{recipientSuppressionReview.headline}</h6>
+										</div>
+										<StatusBadge
+											status="blocked"
+											label={`${formatCount(recipientSuppressionReview.blockedCount)} blocked`}
+										/>
+									</div>
+									<p class="error-line" role="alert">{recipientSuppressionReview.guidance}</p>
+									<div class="grid gap-2">
+										{#each recipientSuppressionReview.items as item (item.id)}
+											<div class="record-field">
+												<p class="record-field__label">{item.reasonLabel}</p>
+												<div class="flex flex-wrap items-center justify-between gap-3">
+													<p class="record-field__value">{item.recipient}</p>
+													<button
+														type="button"
+														class="secondary-button"
+														disabled={actionStates.openLink === 'submitting'}
+														title="Allow future explicit invitations. Existing suppressed emails stay closed."
+														onclick={() => releaseRecipientSuppressionReviewItem(item.id)}
+													>
+														Allow future invites
+													</button>
+												</div>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{item.sourceLabel} - Added {formatDateTime(item.createdAt)}
+												</p>
+												{#if item.note}
+													<p class="text-sm text-[var(--color-text-muted)]">{item.note}</p>
+												{/if}
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
 							<details class="record-row">
 								<summary class="record-row__title">Invitation email preview</summary>
 								<div class="mt-3 record-field">
@@ -1688,7 +1787,12 @@
 								<button
 									type="button"
 									class="primary-button"
-									disabled={!canCreateEmailInvitations || actionStates.openLink === 'submitting'}
+									disabled={!canCreateEmailInvitations ||
+										recipientSuppressionReview.hasBlockedRecipients ||
+										actionStates.openLink === 'submitting'}
+									title={recipientSuppressionReview.hasBlockedRecipients
+										? recipientSuppressionReview.headline
+										: undefined}
 									onclick={createEmailInvitations}
 								>
 									<Send size={17} aria-hidden="true" />

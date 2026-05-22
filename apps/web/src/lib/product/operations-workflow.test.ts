@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesOperationsWorkspaceResponse } from '$lib/api/product';
 import {
+	emailSuppressionReasonLabel,
+	emailSuppressionSourceLabel,
 	toSelectedSeriesCollectionStatusSummary,
 	toSelectedSeriesOperationsPath,
+	toRecipientSuppressionReview,
 	toSelectedSeriesOperationsWorkflowActions
 } from './operations-workflow';
 
@@ -306,6 +309,89 @@ describe('selected-series operations workflow model', () => {
 					'Results can be reviewed, but live collection data should be treated as preliminary until closed.'
 			})
 		]);
+	});
+
+	it('explains which imported recipients are blocked by active email suppressions', () => {
+		const review = toRecipientSuppressionReview(
+			[
+				{ email: 'Ada@Example.com' },
+				{ email: 'bo@example.com' },
+				{ email: 'released@example.com' }
+			],
+			[
+				{
+					id: 'suppression-1',
+					recipient: 'ada@example.com',
+					reason: 'recipient_unsubscribed',
+					source: 'respondent_invitation_link',
+					note: null,
+					createdAt: '2026-05-21T23:11:52Z',
+					releasedAt: null,
+					releaseReason: null,
+					active: true
+				},
+				{
+					id: 'suppression-2',
+					recipient: 'bo@example.com',
+					reason: 'provider_complained',
+					source: 'provider_delivery_event',
+					note: 'SES complaint event',
+					createdAt: '2026-05-22T08:00:00Z',
+					releasedAt: null,
+					releaseReason: null,
+					active: true
+				},
+				{
+					id: 'suppression-3',
+					recipient: 'released@example.com',
+					reason: 'operator_do_not_contact',
+					source: 'tenant_operator',
+					note: null,
+					createdAt: '2026-05-22T09:00:00Z',
+					releasedAt: '2026-05-22T10:00:00Z',
+					releaseReason: 'owner test release',
+					active: false
+				}
+			]
+		);
+
+		expect(review).toMatchObject({
+			hasBlockedRecipients: true,
+			blockedCount: 2,
+			headline: '2 recipients are on the do-not-contact list',
+			guidance:
+				'Use another email, remove the recipient, or release the suppression only when you are sure future invitations are appropriate.'
+		});
+		expect(review.items).toEqual([
+			expect.objectContaining({
+				id: 'suppression-1',
+				recipient: 'ada@example.com',
+				reasonLabel: 'Unsubscribed',
+				sourceLabel: 'Invitation unsubscribe link'
+			}),
+			expect.objectContaining({
+				id: 'suppression-2',
+				recipient: 'bo@example.com',
+				reasonLabel: 'Spam complaint',
+				sourceLabel: 'Provider delivery event',
+				note: 'SES complaint event'
+			})
+		]);
+	});
+
+	it('labels suppression reasons and sources in operator language', () => {
+		expect(emailSuppressionReasonLabel('recipient_unsubscribed')).toBe('Unsubscribed');
+		expect(emailSuppressionReasonLabel('provider_bounced')).toBe('Bounced');
+		expect(emailSuppressionReasonLabel('provider_complained')).toBe('Spam complaint');
+		expect(emailSuppressionReasonLabel('operator_do_not_contact')).toBe('Manually suppressed');
+		expect(emailSuppressionReasonLabel('custom_reason')).toBe('Custom reason');
+		expect(emailSuppressionSourceLabel('respondent_invitation_link')).toBe(
+			'Invitation unsubscribe link'
+		);
+		expect(emailSuppressionSourceLabel('provider_delivery_event')).toBe(
+			'Provider delivery event'
+		);
+		expect(emailSuppressionSourceLabel('tenant_operator')).toBe('Workspace admin');
 	});
 });
 

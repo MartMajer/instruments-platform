@@ -1,4 +1,5 @@
 import type { CampaignSeriesOperationsWorkspaceResponse } from '$lib/api/product';
+import type { EmailSuppressionResponse } from '$lib/api/setup';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesOperationsWorkflowActionId =
@@ -61,6 +62,106 @@ export type SelectedSeriesCollectionStatusSummary = {
 	nextAction: string;
 	lanes: SelectedSeriesCollectionStatusLane[];
 };
+
+export type RecipientSuppressionReviewRecipient = {
+	email: string;
+};
+
+export type RecipientSuppressionReviewItem = {
+	id: string;
+	recipient: string;
+	reason: string;
+	reasonLabel: string;
+	source: string;
+	sourceLabel: string;
+	note: string | null;
+	createdAt: string;
+};
+
+export type RecipientSuppressionReview = {
+	hasBlockedRecipients: boolean;
+	blockedCount: number;
+	headline: string;
+	guidance: string;
+	items: RecipientSuppressionReviewItem[];
+};
+
+export function toRecipientSuppressionReview(
+	recipients: readonly RecipientSuppressionReviewRecipient[],
+	suppressions: readonly EmailSuppressionResponse[]
+): RecipientSuppressionReview {
+	const activeSuppressionByRecipient = new Map(
+		suppressions
+			.filter((suppression) => suppression.active)
+			.map((suppression) => [normalizeRecipientEmail(suppression.recipient), suppression])
+	);
+	const seenSuppressionIds = new Set<string>();
+	const items = recipients
+		.map((recipient) => activeSuppressionByRecipient.get(normalizeRecipientEmail(recipient.email)))
+		.filter((suppression): suppression is EmailSuppressionResponse => Boolean(suppression))
+		.filter((suppression) => {
+			if (seenSuppressionIds.has(suppression.id)) {
+				return false;
+			}
+			seenSuppressionIds.add(suppression.id);
+			return true;
+		})
+		.map((suppression) => ({
+			id: suppression.id,
+			recipient: suppression.recipient,
+			reason: suppression.reason,
+			reasonLabel: emailSuppressionReasonLabel(suppression.reason),
+			source: suppression.source,
+			sourceLabel: emailSuppressionSourceLabel(suppression.source),
+			note: suppression.note ?? null,
+			createdAt: suppression.createdAt
+		}));
+	const blockedCount = items.length;
+
+	return {
+		hasBlockedRecipients: blockedCount > 0,
+		blockedCount,
+		headline:
+			blockedCount === 1
+				? '1 recipient is on the do-not-contact list'
+				: blockedCount > 1
+					? `${formatCount(blockedCount)} recipients are on the do-not-contact list`
+					: 'No recipients are on the do-not-contact list',
+		guidance:
+			blockedCount > 0
+				? 'Use another email, remove the recipient, or release the suppression only when you are sure future invitations are appropriate.'
+				: 'Recipient list is not blocked by active do-not-contact records.',
+		items
+	};
+}
+
+export function emailSuppressionReasonLabel(reason: string | null | undefined) {
+	switch (reason) {
+		case 'recipient_unsubscribed':
+			return 'Unsubscribed';
+		case 'provider_bounced':
+			return 'Bounced';
+		case 'provider_complained':
+			return 'Spam complaint';
+		case 'operator_do_not_contact':
+			return 'Manually suppressed';
+		default:
+			return titleCaseLabel(reason);
+	}
+}
+
+export function emailSuppressionSourceLabel(source: string | null | undefined) {
+	switch (source) {
+		case 'respondent_invitation_link':
+			return 'Invitation unsubscribe link';
+		case 'provider_delivery_event':
+			return 'Provider delivery event';
+		case 'tenant_operator':
+			return 'Workspace admin';
+		default:
+			return titleCaseLabel(source);
+	}
+}
 
 export function toSelectedSeriesOperationsWorkflowActions(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
@@ -490,6 +591,19 @@ function formatCount(value: number | null | undefined) {
 
 function humanize(value: string | null | undefined) {
 	return value ? value.replaceAll('_', ' ') : 'Not available';
+}
+
+function normalizeRecipientEmail(value: string) {
+	return value.trim().toLowerCase();
+}
+
+function titleCaseLabel(value: string | null | undefined) {
+	const label = humanize(value).trim();
+	if (!label || label === 'Not available') {
+		return 'Not available';
+	}
+
+	return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function toReportingStatus(
