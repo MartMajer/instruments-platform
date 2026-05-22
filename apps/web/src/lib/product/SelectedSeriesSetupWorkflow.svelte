@@ -28,9 +28,11 @@
 		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
-			toSelectedSeriesSetupLaunchPlan,
+		toSelectedSeriesSetupLaunchPlan,
 		toSelectedSeriesSetupLaunchState,
 		toSelectedSeriesSetupPath,
+		toSelectedSeriesSetupPathStepDisplay,
+		type SelectedSeriesSetupPathStep,
 		type SelectedSeriesSetupWorkflowActionId
 	} from './setup-workflow';
 	import {
@@ -1084,16 +1086,16 @@
 		return 'Ready';
 	}
 
-	function pathStateLabel(state: 'done' | 'current' | 'blocked') {
-		if (state === 'done') {
-			return 'Done';
-		}
+	function setupPathStepDisplay(step: SelectedSeriesSetupPathStep) {
+		return toSelectedSeriesSetupPathStepDisplay(step, currentActionId, activeActionIdForView);
+	}
 
-		if (state === 'current') {
-			return 'Current';
-		}
+	function activeSetupStepEyebrow() {
+		return activeStep.pathState === 'current' ? 'Current setup step' : 'Selected setup step';
+	}
 
-		return 'Blocked';
+	function activeSetupStepLabel() {
+		return setupPathStepDisplay(activeStep).label;
 	}
 
 	function defaultPreviewRole(kind: PreviewRuleKind) {
@@ -1490,11 +1492,9 @@
 		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Current setup step</p>
+					<p class="record-field__label">{activeSetupStepEyebrow()}</p>
 					<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
-					<p class="setup-current-task__title">
-						{activeActionIdForView === currentActionId ? 'Next step' : pathStateLabel(activeStep.pathState)}
-					</p>
+					<p class="setup-current-task__title">{activeSetupStepLabel()}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
 				</div>
 				<StatusBadge
@@ -2791,10 +2791,11 @@
 {#snippet SetupPath()}
 	<div class="setup-path" aria-label="Setup path">
 		{#each setupPath.steps as step}
+			{@const display = setupPathStepDisplay(step)}
 			<button
 				type="button"
 				class="setup-path__item"
-				data-state={step.id === activeActionIdForView ? 'current' : step.pathState}
+				data-state={display.state}
 				disabled={!canSelectSetupAction(step.id)}
 				aria-current={step.id === activeActionIdForView ? 'step' : undefined}
 				onclick={() => selectSetupAction(step.id)}
@@ -2804,7 +2805,7 @@
 					<span class="setup-path__title">{step.title}</span>
 					<span class="setup-path__description">{step.description}</span>
 				</span>
-				<span class="setup-path__state">{pathStateLabel(step.pathState)}</span>
+				<span class="setup-path__state">{display.label}</span>
 			</button>
 		{/each}
 	</div>

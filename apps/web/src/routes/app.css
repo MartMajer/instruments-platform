@@ -502,10 +502,17 @@ a {
 	padding: 0.75rem;
 }
 
-.setup-path__item[data-state='current'] {
+.setup-path__item[data-state='current'],
+.setup-path__item[data-state='selected'] {
 	border-color: color-mix(in srgb, #b45309 48%, var(--color-border));
 	background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(255, 251, 235, 0.72));
 	box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.08), 0 14px 30px rgba(146, 64, 14, 0.1);
+}
+
+.setup-path__item[data-state='next'] {
+	border-color: color-mix(in srgb, #2563eb 34%, var(--color-border));
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(239, 246, 255, 0.68));
+	box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06), 0 14px 30px rgba(30, 64, 175, 0.08);
 }
 
 .setup-path__item[data-state='done'] {
@@ -558,16 +565,30 @@ a {
 	text-transform: uppercase;
 }
 
-.setup-path__item[data-state='current'] .setup-path__marker {
+.setup-path__item[data-state='current'] .setup-path__marker,
+.setup-path__item[data-state='selected'] .setup-path__marker {
 	border-color: rgba(180, 83, 9, 0.45);
 	background: #b45309;
 	color: #fff7ed;
 }
 
-.setup-path__item[data-state='current'] .setup-path__state {
+.setup-path__item[data-state='next'] .setup-path__marker {
+	border-color: rgba(37, 99, 235, 0.42);
+	background: #2563eb;
+	color: #eff6ff;
+}
+
+.setup-path__item[data-state='current'] .setup-path__state,
+.setup-path__item[data-state='selected'] .setup-path__state {
 	border-color: rgba(180, 83, 9, 0.38);
 	background: rgba(255, 251, 235, 0.86);
 	color: #92400e;
+}
+
+.setup-path__item[data-state='next'] .setup-path__state {
+	border-color: rgba(37, 99, 235, 0.34);
+	background: rgba(239, 246, 255, 0.86);
+	color: #1d4ed8;
 }
 
 .setup-path__item[data-state='done'] .setup-path__state {

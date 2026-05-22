@@ -7,6 +7,7 @@ import {
 	toSelectedSeriesSetupLaunchPlan,
 	toSelectedSeriesSetupLaunchState,
 	toSelectedSeriesSetupPath,
+	toSelectedSeriesSetupPathStepDisplay,
 	toSelectedSeriesSetupWorkflowActions
 } from './setup-workflow';
 
@@ -317,6 +318,25 @@ describe('selected-series setup workflow model', () => {
 		expect(path.completedCount).toBe(4);
 		expect(path.steps.find((step) => step.id === 'instrument')).toMatchObject({
 			pathState: 'done'
+		});
+	});
+
+	it('separates the viewed setup step from the next unfinished setup step', () => {
+		const path = toSelectedSeriesSetupPath(configuredWorkspace);
+		const selectedStep = path.steps.find((step) => step.id === 'scoring')!;
+		const nextStep = path.steps.find((step) => step.id === path.currentActionId)!;
+
+		expect(toSelectedSeriesSetupPathStepDisplay(selectedStep, path.currentActionId, 'scoring')).toEqual({
+			label: 'Selected',
+			state: 'selected'
+		});
+		expect(toSelectedSeriesSetupPathStepDisplay(nextStep, path.currentActionId, 'scoring')).toEqual({
+			label: 'Next',
+			state: 'next'
+		});
+		expect(toSelectedSeriesSetupPathStepDisplay(nextStep, path.currentActionId, nextStep.id)).toEqual({
+			label: 'Current',
+			state: 'current'
 		});
 	});
 });

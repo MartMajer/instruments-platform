@@ -31,6 +31,18 @@ export type SelectedSeriesSetupPathStep = SelectedSeriesSetupWorkflowAction & {
 	pathState: SelectedSeriesSetupPathStepState;
 };
 
+export type SelectedSeriesSetupPathStepDisplayState =
+	| 'done'
+	| 'current'
+	| 'selected'
+	| 'next'
+	| 'blocked';
+
+export type SelectedSeriesSetupPathStepDisplay = {
+	state: SelectedSeriesSetupPathStepDisplayState;
+	label: string;
+};
+
 export type SelectedSeriesSetupPath = {
 	steps: SelectedSeriesSetupPathStep[];
 	currentActionId: SelectedSeriesSetupWorkflowActionId;
@@ -291,6 +303,33 @@ export function toSelectedSeriesSetupPath(
 		completedCount: steps.filter((step) => step.pathState === 'done').length,
 		totalCount: steps.length
 	};
+}
+
+export function toSelectedSeriesSetupPathStepDisplay(
+	step: Pick<SelectedSeriesSetupPathStep, 'id' | 'pathState'>,
+	currentActionId: SelectedSeriesSetupWorkflowActionId,
+	selectedActionId: SelectedSeriesSetupWorkflowActionId
+): SelectedSeriesSetupPathStepDisplay {
+	const isSelected = step.id === selectedActionId;
+	const isNextUnfinished = step.id === currentActionId && step.pathState === 'current';
+
+	if (isSelected && isNextUnfinished) {
+		return { state: 'current', label: 'Current' };
+	}
+
+	if (isSelected) {
+		return { state: 'selected', label: 'Selected' };
+	}
+
+	if (isNextUnfinished) {
+		return { state: 'next', label: 'Next' };
+	}
+
+	if (step.pathState === 'done') {
+		return { state: 'done', label: 'Done' };
+	}
+
+	return { state: 'blocked', label: 'Blocked' };
 }
 
 export function selectSetupTemplateVersionId(
