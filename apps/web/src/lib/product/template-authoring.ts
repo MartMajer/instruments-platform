@@ -15,7 +15,18 @@ export type QuestionScalePreset =
 	| 'agreement_4'
 	| 'frequency_5'
 	| 'intensity_5'
+	| 'discomfort_0_10'
 	| 'custom';
+
+export type StudyAuthoringPresetId = 'blank' | 'osh_ergonomics';
+
+export type StudyAuthoringPresetOption = {
+	id: StudyAuthoringPresetId;
+	label: string;
+	summary: string;
+	detail: string;
+	questionCount: number;
+};
 
 export type QuestionScalePresetOption = {
 	value: QuestionScalePreset;
@@ -123,6 +134,7 @@ export type AuthoringReadinessSummary = {
 
 export type QuestionnaireBlueprintReviewItemId =
 	| 'constructs'
+	| 'answer_formats'
 	| 'respondent_order'
 	| 'requiredness'
 	| 'results';
@@ -144,7 +156,8 @@ export type ResultsBlueprintReviewItemId =
 	| 'coverage'
 	| 'missing_answers'
 	| 'direction'
-	| 'interpretation';
+	| 'interpretation'
+	| 'export_schema';
 
 export type ResultsBlueprintReviewItem = {
 	id: ResultsBlueprintReviewItemId;
@@ -226,6 +239,11 @@ export const questionScalePresetOptions: QuestionScalePresetOption[] = [
 		detail: 'Very low to very high.'
 	},
 	{
+		value: 'discomfort_0_10',
+		label: 'Discomfort severity, 0-10',
+		detail: 'No discomfort to worst imaginable discomfort.'
+	},
+	{
 		value: 'custom',
 		label: 'Custom',
 		detail: 'Keep the current scale values and labels.'
@@ -242,6 +260,129 @@ export function createDefaultTemplateQuestionRows(): TemplateQuestionAuthoringRo
 			reverseCoded: index === 2
 		})
 	);
+}
+
+export function listStudyAuthoringPresetOptions(): StudyAuthoringPresetOption[] {
+	return [
+		{
+			id: 'blank',
+			label: 'Blank study',
+			summary: 'Start with three editable placeholder questions.',
+			detail: 'Use this when the study structure is already clear and you want to write everything manually.',
+			questionCount: 3
+		},
+		{
+			id: 'osh_ergonomics',
+			label: 'OSH / ergonomics starter',
+			summary: 'Start from a practical workplace-risk questionnaire with mixed answer formats.',
+			detail:
+				'Includes task exposure, manual handling, posture frequency, discomfort severity, recovery, existing controls, priority ranking, and open context.',
+			questionCount: 8
+		}
+	];
+}
+
+export function createTemplateQuestionRowsForStudyPreset(
+	presetId: StudyAuthoringPresetId
+): TemplateQuestionAuthoringRow[] {
+	if (presetId === 'osh_ergonomics') {
+		return createOshErgonomicsTemplateQuestionRows();
+	}
+
+	return createDefaultTemplateQuestionRows();
+}
+
+function createOshErgonomicsTemplateQuestionRows(): TemplateQuestionAuthoringRow[] {
+	return renumberRows([
+		createQuestionRow({
+			ordinal: 1,
+			code: 'primary_tasks',
+			dimensionLabel: 'Task profile',
+			type: 'multi',
+			textDefault: 'Which tasks were part of your normal work during this period?',
+			choiceOptions: [
+				'Manual handling or lifting',
+				'Repetitive hand or arm work',
+				'Prolonged sitting or screen work',
+				'Standing or walking for long periods',
+				'Driving or mobile work',
+				'Other task pattern'
+			],
+			reverseCoded: false
+		}),
+		createQuestionRow({
+			ordinal: 2,
+			code: 'manual_handling_exposure',
+			dimensionLabel: 'Manual handling',
+			type: 'single',
+			textDefault: 'How much manual handling or forceful work did this period include?',
+			choiceOptions: ['None or almost none', 'Occasional', 'Frequent', 'Most of the shift'],
+			reverseCoded: false
+		}),
+		createQuestionRow({
+			ordinal: 3,
+			code: 'awkward_posture_frequency',
+			dimensionLabel: 'Posture and repetition',
+			textDefault:
+				'I often worked in awkward postures, repetitive movements, or fixed positions.',
+			scalePreset: 'frequency_5',
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Always'
+		}),
+		createQuestionRow({
+			ordinal: 4,
+			code: 'discomfort_severity',
+			dimensionLabel: 'Discomfort',
+			type: 'number',
+			textDefault:
+				'What was your highest work-related physical discomfort level during this period?',
+			scalePreset: 'discomfort_0_10',
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'Worst imaginable discomfort'
+		}),
+		createQuestionRow({
+			ordinal: 5,
+			code: 'break_recovery',
+			dimensionLabel: 'Recovery and control',
+			textDefault: 'I had enough breaks, task variation, or recovery time to manage strain.',
+			reverseCoded: true
+		}),
+		createQuestionRow({
+			ordinal: 6,
+			code: 'equipment_support',
+			dimensionLabel: 'Existing controls',
+			type: 'single',
+			textDefault: 'Were suitable tools, workstation adjustments, or aids available when needed?',
+			choiceOptions: ['Yes', 'Partly', 'No', 'Not applicable'],
+			reverseCoded: false
+		}),
+		createQuestionRow({
+			ordinal: 7,
+			code: 'change_priority',
+			dimensionLabel: 'Intervention priorities',
+			type: 'ranking',
+			textDefault: 'Rank the changes that would most reduce strain for this work.',
+			choiceOptions: [
+				'Task rotation or work pacing',
+				'Equipment or workstation changes',
+				'Staffing, scheduling, or workload change',
+				'Training, instructions, or supervision'
+			],
+			reverseCoded: false
+		}),
+		createQuestionRow({
+			ordinal: 8,
+			code: 'worker_context',
+			dimensionLabel: 'Worker context',
+			type: 'text',
+			textDefault:
+				'What context should be understood before interpreting your answers or planning changes?',
+			required: false,
+			reverseCoded: false
+		})
+	]);
 }
 
 export function appendTemplateQuestionRow(
@@ -400,6 +541,12 @@ export function applyQuestionScalePreset(
 			scaleMax: 5,
 			scaleLowLabel: 'Very low',
 			scaleHighLabel: 'Very high'
+		},
+		discomfort_0_10: {
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'Worst imaginable discomfort'
 		}
 	};
 
@@ -970,6 +1117,13 @@ export function summarizeResultsBlueprintReview(
 				status: 'ready',
 				detail:
 					'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
+			},
+			{
+				id: 'export_schema',
+				label: 'Export schema',
+				status: normalizedOutputs.length > 0 ? 'ready' : 'attention',
+				detail:
+					'CSV/report exports should preserve question codes, answer formats, score outputs, missing-answer rules, and visibility guardrails.'
 			}
 		]
 	};
@@ -1095,6 +1249,15 @@ export function summarizeQuestionnaireBlueprintReview(
 	const scoredQuestionsInResults = orderedRows.filter(
 		(row) => isMeanScoreEligible(row) && outputQuestionCodes.has(row.code.trim().toLowerCase())
 	).length;
+	const answerFormatLabels = [
+		...new Set(orderedRows.map((row) => describeQuestionScaleIntent(row).label))
+	];
+	const answerFormatDetail =
+		answerFormatLabels.length > 1
+			? `Uses ${formatInlineList(answerFormatLabels)}. Review whether each format matches the evidence you need.`
+			: `Uses ${
+					answerFormatLabels[0] ?? 'one answer format'
+				} only. Add choice, number, ranking, or written context questions when the study needs richer evidence.`;
 
 	return {
 		label: `${dimensions.length} ${dimensions.length === 1 ? 'construct' : 'constructs'}, ${
@@ -1111,6 +1274,12 @@ export function summarizeQuestionnaireBlueprintReview(
 								dimensions.map((dimension) => dimension.label)
 							)}.`
 						: 'Add at least one construct or dimension label before saving.'
+			},
+			{
+				id: 'answer_formats',
+				label: 'Answer formats',
+				status: answerFormatLabels.length > 1 ? 'ready' : 'attention',
+				detail: answerFormatDetail
 			},
 			{
 				id: 'respondent_order',

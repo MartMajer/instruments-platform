@@ -8,11 +8,13 @@ import {
 	buildMeanScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
+	createTemplateQuestionRowsForStudyPreset,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
 	describeScoreMissingDataStrategy,
 	duplicateTemplateQuestionRow,
+	listStudyAuthoringPresetOptions,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeTemplateQuestionRow,
@@ -54,6 +56,58 @@ describe('template authoring helpers', () => {
 			required: true,
 			reverseCoded: false
 		});
+	});
+
+	it('lists study authoring presets for credible first-study starts', () => {
+		expect(listStudyAuthoringPresetOptions()).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: 'blank',
+					label: 'Blank study',
+					questionCount: 3
+				}),
+				expect.objectContaining({
+					id: 'osh_ergonomics',
+					label: 'OSH / ergonomics starter',
+					questionCount: 8
+				})
+			])
+		);
+	});
+
+	it('creates an OSH ergonomics starter with mixed answer formats and no named-instrument claims', () => {
+		const rows = createTemplateQuestionRowsForStudyPreset('osh_ergonomics');
+
+		expect(rows).toHaveLength(8);
+		expect(rows.map((row) => row.code)).toEqual([
+			'primary_tasks',
+			'manual_handling_exposure',
+			'awkward_posture_frequency',
+			'discomfort_severity',
+			'break_recovery',
+			'equipment_support',
+			'change_priority',
+			'worker_context'
+		]);
+		expect([...new Set(rows.map((row) => row.type))].sort()).toEqual([
+			'likert',
+			'multi',
+			'number',
+			'ranking',
+			'single',
+			'text'
+		]);
+		expect(rows.find((row) => row.code === 'discomfort_severity')).toMatchObject({
+			dimensionLabel: 'Discomfort',
+			type: 'number',
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'Worst imaginable discomfort'
+		});
+
+		const combinedText = rows.map((row) => `${row.dimensionLabel} ${row.textDefault}`).join(' ');
+		expect(combinedText).not.toMatch(/OLBI|COPSOQ|MBI|PHQ-9|UWES|\bnorms?\b|\bbenchmarks?\b/i);
 	});
 
 	it('removes a question and renumbers ordinals', () => {
@@ -385,6 +439,13 @@ describe('scoring plan summaries', () => {
 					status: 'ready',
 					detail:
 						'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
+				},
+				{
+					id: 'export_schema',
+					label: 'Export schema',
+					status: 'ready',
+					detail:
+						'CSV/report exports should preserve question codes, answer formats, score outputs, missing-answer rules, and visibility guardrails.'
 				}
 			]
 		});
@@ -520,6 +581,13 @@ describe('authoring density and review summaries', () => {
 					detail: 'Questions are grouped into Workload and Recovery.'
 				},
 				{
+					id: 'answer_formats',
+					label: 'Answer formats',
+					status: 'attention',
+					detail:
+						'Uses Agreement scale only. Add choice, number, ranking, or written context questions when the study needs richer evidence.'
+				},
+				{
 					id: 'respondent_order',
 					label: 'Respondent order',
 					status: 'ready',
@@ -571,6 +639,13 @@ describe('answer scale presets', () => {
 			scaleLowLabel: 'Strongly disagree',
 			scaleHighLabel: 'Strongly agree'
 		});
+		expect(applyQuestionScalePreset(row, 'discomfort_0_10')).toMatchObject({
+			scalePreset: 'discomfort_0_10',
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'Worst imaginable discomfort'
+		});
 	});
 
 	it('keeps current scale values for the custom preset', () => {
@@ -592,6 +667,7 @@ describe('answer scale presets', () => {
 			'agreement_4',
 			'frequency_5',
 			'intensity_5',
+			'discomfort_0_10',
 			'custom'
 		]);
 	});

@@ -41,19 +41,21 @@
 		reviewRecipientImport
 	} from './recipient-import';
 	import {
-		appendScoreOutputRow,
-		applyQuestionScalePreset,
-		appendTemplateQuestionRow,
+	appendScoreOutputRow,
+	applyQuestionScalePreset,
+	appendTemplateQuestionRow,
 	buildScoreProduces,
 	buildScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
+	createTemplateQuestionRowsForStudyPreset,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
 	describeScoreMissingDataStrategy,
 	duplicateTemplateQuestionRow,
 	isMeanScoreEligible,
+	listStudyAuthoringPresetOptions,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeScoreOutputRow,
@@ -75,6 +77,7 @@
 		type ScoreCalculation,
 		type ScoreMissingStrategy,
 		type ScoreOutputAuthoringRow,
+		type StudyAuthoringPresetId,
 		validateTemplateQuestionRows,
 		type TemplateQuestionAnswerType,
 		type TemplateQuestionAuthoringRow
@@ -106,12 +109,14 @@
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
 	const initialScoreOutputs = createDefaultScoreOutputRows(initialTemplateQuestionRows);
+	const studyAuthoringPresetOptions = listStudyAuthoringPresetOptions();
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
 	let scoringResult = $state<SetupIdResponse | null>(null);
 	let campaignResult = $state<CampaignDraftResponse | null>(null);
 	let readinessResult = $state<LaunchReadinessResponse | null>(null);
+	let selectedStudyAuthoringPreset = $state<StudyAuthoringPresetId>('blank');
 	let refreshWarning = $state<string | null>(null);
 	let actionStates = $state<Record<SelectedSeriesSetupWorkflowActionId, StepState>>({
 		instrument: 'idle',
@@ -142,6 +147,21 @@
 	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
 	let scoreOutputs = $state<ScoreOutputAuthoringRow[]>(initialScoreOutputs);
+
+	function applyStudyAuthoringPreset(presetId: StudyAuthoringPresetId) {
+		const nextRows = createTemplateQuestionRowsForStudyPreset(presetId);
+		const nextOutputs = createDefaultScoreOutputRows(nextRows);
+
+		selectedStudyAuthoringPreset = presetId;
+		templateQuestionRows = nextRows;
+		scoreOutputs = nextOutputs;
+		scoringForm.document = buildScoringDocument(scoringForm.ruleKey, nextRows, nextOutputs);
+		scoringForm.produces = buildScoreProduces(nextOutputs);
+		templateResult = null;
+		scoringResult = null;
+		campaignResult = null;
+		readinessResult = null;
+	}
 	let scoringDocumentManuallyEdited = $state(false);
 	let scoringForm = $state({
 		ruleKey: initialScoringRuleKey,
@@ -1542,6 +1562,33 @@
 									<option value="hr">Croatian</option>
 								</select>
 							</label>
+						</div>
+						<div class="mt-4 record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">Study starter</p>
+									<h5 class="record-row__title">Choose a starting structure</h5>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										Start blank, or load a practical workplace-risk questionnaire you can edit before saving.
+									</p>
+								</div>
+								<StatusBadge status="neutral" label="Editable" />
+							</div>
+							<div class="record-grid">
+								{#each studyAuthoringPresetOptions as preset (preset.id)}
+									<button
+										type="button"
+										class="record-field text-left"
+										aria-pressed={selectedStudyAuthoringPreset === preset.id}
+										onclick={() => applyStudyAuthoringPreset(preset.id)}
+									>
+										<p class="record-field__label">{preset.questionCount} questions</p>
+										<p class="record-field__value">{preset.label}</p>
+										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
+										<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
+									</button>
+								{/each}
+							</div>
 						</div>
 						<div class="mt-4 grid gap-4">
 							<div class="record-row">

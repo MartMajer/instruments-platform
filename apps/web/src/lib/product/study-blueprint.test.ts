@@ -24,6 +24,23 @@ describe('study blueprint model', () => {
 		expect(serialized).not.toMatch(/\b(norm|benchmark|official threshold|validated scale included)\b/i);
 	});
 
+	it('offers an OSH ergonomics study blueprint without canonical claims', () => {
+		const option = getStudyBlueprintOption('osh_ergonomics_study');
+
+		expect(option).toMatchObject({
+			id: 'osh_ergonomics_study',
+			title: 'OSH / ergonomics study',
+			namePlaceholder: 'e.g. Warehouse strain and recovery pulse'
+		});
+		expect(option.highlights).toContain('Mixed answer formats');
+		expect(option.nextSteps).toContainEqual(
+			expect.objectContaining({ description: 'Map task exposure and recipient groups.' })
+		);
+		expect(buildStudyNamePlaceholder('osh_ergonomics_study')).toBe(
+			'e.g. Warehouse strain and recovery pulse'
+		);
+	});
+
 	it('returns the default option for unknown ids', () => {
 		expect(getStudyBlueprintOption('missing')).toEqual(
 			getStudyBlueprintOption(defaultStudyBlueprintId)
@@ -36,5 +53,8 @@ describe('study blueprint model', () => {
 		);
 		expect(buildStudyNamePlaceholder('team_pulse')).toBe('e.g. Q3 team pulse');
 		expect(buildStudyNamePlaceholder('repeated_wave')).toBe('e.g. Follow-up wellbeing study');
+		expect(buildStudyNamePlaceholder('osh_ergonomics_study')).toBe(
+			'e.g. Warehouse strain and recovery pulse'
+		);
 	});
 });

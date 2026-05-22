@@ -1,4 +1,8 @@
-export type StudyBlueprintId = 'custom_research_study' | 'team_pulse' | 'repeated_wave';
+export type StudyBlueprintId =
+	| 'custom_research_study'
+	| 'team_pulse'
+	| 'repeated_wave'
+	| 'osh_ergonomics_study';
 
 export type StudyBlueprintStep = {
 	label: string;
@@ -89,6 +93,31 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 			{
 				label: 'Results',
 				description: 'Review both group trends and same-respondent change when enough data exists.'
+			}
+		]
+	},
+	{
+		id: 'osh_ergonomics_study',
+		eyebrow: 'Workplace risk and ergonomics',
+		title: 'OSH / ergonomics study',
+		summary:
+			'Use this when you need a practical workplace study with task exposure, discomfort, recovery, and intervention follow-up.',
+		bestFor: 'OSH consultants, ergonomics reviews, and workplace wellbeing checks.',
+		namePlaceholder: 'e.g. Warehouse strain and recovery pulse',
+		highlights: ['Mixed answer formats', 'Dimension-based results', 'Recipient groups'],
+		nextStepsTitle: 'You will adapt a practical workplace-risk starter',
+		nextSteps: [
+			{
+				label: 'Task exposure',
+				description: 'Map task exposure and recipient groups.'
+			},
+			{
+				label: 'Questionnaire',
+				description: 'Review the starter questionnaire and adjust wording to the workplace.'
+			},
+			{
+				label: 'Results',
+				description: 'Plan result outputs before launching the first wave.'
 			}
 		]
 	}
