@@ -83,6 +83,7 @@ services:
       Registration__Enabled: ${Registration__Enabled:-false}
       Registration__IntentMinutes: ${Registration__IntentMinutes:-15}
       Registration__BetaAccessCodeSha256Hashes__0: ${Registration__BetaAccessCodeSha256Hashes__0:-}
+      TestDataTools__Enabled: ${TestDataTools__Enabled:-false}
       Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:-http://127.0.0.1:5174}
       Cors__AllowedOrigins__1: ${Cors__AllowedOrigins__1:-http://localhost:5174}
       EmailDelivery__Provider: ${EmailDelivery__Provider:-local-dev}
