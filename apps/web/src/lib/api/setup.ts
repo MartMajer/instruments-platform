@@ -357,6 +357,40 @@ export type CampaignInvitationResponse = {
 	status: string;
 };
 
+export type CreateCampaignTestRecipientsRequest = {
+	count: number;
+	groupName?: string;
+	emailDomain?: string;
+	locale?: string;
+};
+
+export type CreateCampaignTestRecipientsResponse = {
+	campaignId: string;
+	groupId: string;
+	groupName: string;
+	createdSubjectCount: number;
+	savedRecipientRuleCount: number;
+	previewRecipientCount: number;
+};
+
+export type CreateCampaignTestResponsesRequest = {
+	responseCount: number;
+	targetOutcome: number;
+	variation: 'tight' | 'normal' | 'noisy';
+	includeComments: boolean;
+};
+
+export type CreateCampaignTestResponsesResponse = {
+	campaignId: string;
+	requestedResponseCount: number;
+	submittedResponseCount: number;
+	answerCount: number;
+	scoredResponseCount: number;
+	markedEmailSentCount: number;
+	targetOutcome: number;
+	variation: string;
+};
+
 export type ProcessCampaignEmailDeliveriesRequest = {
 	batchSize?: number;
 };
@@ -803,6 +837,24 @@ export function createSetupApi(client: ApiClient) {
 		) {
 			return client.request<CampaignInvitationBatchResponse>(
 				`/campaigns/${campaignId}/invitation-batches`,
+				jsonPost(request)
+			);
+		},
+		createCampaignTestRecipients(
+			campaignId: string,
+			request: CreateCampaignTestRecipientsRequest
+		) {
+			return client.request<CreateCampaignTestRecipientsResponse>(
+				`/test-data/campaigns/${campaignId}/recipients`,
+				jsonPost(request)
+			);
+		},
+		createCampaignTestResponses(
+			campaignId: string,
+			request: CreateCampaignTestResponsesRequest
+		) {
+			return client.request<CreateCampaignTestResponsesResponse>(
+				`/test-data/campaigns/${campaignId}/responses`,
 				jsonPost(request)
 			);
 		},

@@ -10,6 +10,7 @@
 		CampaignInvitationBatchResponse,
 		CampaignIdentifiedEntryResponse,
 		CampaignOpenLinkResponse,
+		CreateCampaignTestResponsesResponse,
 		EmailDeliveryReadinessResponse,
 		EmailSuppressionResponse,
 		LaunchCampaignResponse,
@@ -77,6 +78,11 @@
 	let invitationBatchResult = $state<CampaignInvitationBatchResponse | null>(null);
 	let deliveryResult = $state<ProcessCampaignEmailDeliveriesResponse | null>(null);
 	let requeueFailedResult = $state<RequeueFailedCampaignEmailDeliveriesResponse | null>(null);
+	let testResponseResult = $state<CreateCampaignTestResponsesResponse | null>(null);
+	let testResponseCount = $state(25);
+	let testResponseTargetOutcome = $state(7);
+	let testResponseVariation = $state<'tight' | 'normal' | 'noisy'>('normal');
+	let testResponseIncludeComments = $state(true);
 	let recipientImportText = $state('');
 	let recipientImportFileError = $state<string | null>(null);
 	let manualRecipientName = $state('');
@@ -123,7 +129,11 @@
 		readinessReady: readinessResult?.ready === true,
 		launched: Boolean(launchResult),
 		openLinkCreated: Boolean(
-			openLinkResult || identifiedEntryResult || invitationBatchResult || deliveryResult
+			openLinkResult ||
+				identifiedEntryResult ||
+				invitationBatchResult ||
+				deliveryResult ||
+				testResponseResult
 		),
 		closed: Boolean(closeResult)
 	});
@@ -266,6 +276,7 @@
 			invitationBatchResult = null;
 			deliveryResult = null;
 			requeueFailedResult = null;
+			testResponseResult = null;
 			localQueuedInvitationOverride = null;
 			localSentInvitationOverride = null;
 			localFailedInvitationOverride = null;
@@ -576,6 +587,36 @@
 		}
 	}
 
+	async function simulateTestResponses() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: 'Create and start a collection wave before simulating responses.'
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.createCampaignTestResponses(selectedCampaign.id, {
+				responseCount: clampNumber(testResponseCount, 1, 1000),
+				targetOutcome: clampNumber(testResponseTargetOutcome, 0, 10),
+				variation: testResponseVariation,
+				includeComments: testResponseIncludeComments
+			})
+		);
+
+		if (result) {
+			testResponseResult = result;
+			deliveryResult = null;
+			localQueuedInvitationOverride = Math.max(
+				0,
+				(localQueuedInvitationOverride ?? queuedInvitationCount) - result.markedEmailSentCount
+			);
+			localSentInvitationOverride =
+				(localSentInvitationOverride ?? sentInvitationCount) + result.markedEmailSentCount;
+		}
+	}
+
 	async function loadEmailSuppressions() {
 		const result = await runAction('openLink', () => setupApi.listEmailSuppressions(50, false));
 		if (result) {
@@ -822,6 +863,14 @@
 
 	function formatCount(value: number | null | undefined) {
 		return countFormatter.format(value ?? 0);
+	}
+
+	function clampNumber(value: number, min: number, max: number) {
+		if (!Number.isFinite(value)) {
+			return min;
+		}
+
+		return Math.min(Math.max(Math.round(value), min), max);
 	}
 
 	function formatDateTime(value: string | null | undefined) {
@@ -1869,6 +1918,98 @@
 								wave. Use Setup to change the response mode, or use the access option below for this
 								wave.
 							</p>
+						{/if}
+					</div>
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Demo/test data</p>
+								<h5 class="record-row__title">Simulate collection responses</h5>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									Use this for staging demos and workflow checks when real email delivery or manual
+									respondents would slow you down. It submits marked synthetic answers through the
+									selected wave and updates queued test invitations as sent.
+								</p>
+							</div>
+							<StatusBadge
+								status={testResponseResult ? 'ready' : 'neutral'}
+								label={testResponseResult ? 'Responses created' : 'Staging/demo'}
+							/>
+						</div>
+						<div class="grid gap-3 lg:grid-cols-[minmax(7rem,10rem)_minmax(7rem,10rem)_minmax(9rem,12rem)_auto]">
+							<label class="field">
+								<span>Responses</span>
+								<input
+									type="number"
+									min="1"
+									max="1000"
+									bind:value={testResponseCount}
+									disabled={actionStates.openLink === 'submitting'}
+								/>
+							</label>
+							<label class="field">
+								<span>Average target</span>
+								<input
+									type="number"
+									min="0"
+									max="10"
+									bind:value={testResponseTargetOutcome}
+									disabled={actionStates.openLink === 'submitting'}
+								/>
+							</label>
+							<label class="field">
+								<span>Variation</span>
+								<select
+									bind:value={testResponseVariation}
+									disabled={actionStates.openLink === 'submitting'}
+								>
+									<option value="tight">Tight</option>
+									<option value="normal">Normal</option>
+									<option value="noisy">Noisy</option>
+								</select>
+							</label>
+							<button
+								type="button"
+								class="secondary-button self-end"
+								disabled={!selectedCampaign || actionStates.openLink === 'submitting'}
+								onclick={simulateTestResponses}
+							>
+								{#if actionStates.openLink === 'submitting'}
+									<LoaderCircle size={17} aria-hidden="true" />
+								{:else}
+									<Plus size={17} aria-hidden="true" />
+								{/if}
+								<span>Simulate collection</span>
+							</button>
+						</div>
+						<label class="inline-flex items-start gap-2 text-sm text-[var(--color-text-muted)]">
+							<input
+								type="checkbox"
+								checked={testResponseIncludeComments}
+								disabled={actionStates.openLink === 'submitting'}
+								onchange={(event) => (testResponseIncludeComments = event.currentTarget.checked)}
+							/>
+							<span>Add short synthetic text answers when the questionnaire has comment fields.</span>
+						</label>
+						{#if testResponseResult}
+							<div class="record-grid">
+								<div class="record-field">
+									<p class="record-field__label">Submitted</p>
+									<p class="record-field__value">
+										{formatCount(testResponseResult.submittedResponseCount)}
+									</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Answers saved</p>
+									<p class="record-field__value">{formatCount(testResponseResult.answerCount)}</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">Scored responses</p>
+									<p class="record-field__value">
+										{formatCount(testResponseResult.scoredResponseCount)}
+									</p>
+								</div>
+							</div>
 						{/if}
 					</div>
 					<div class="record-row">

@@ -14,6 +14,7 @@ using Platform.Application.Features.Retention;
 using Platform.Application.Features.Scoring;
 using Platform.Application.Features.Setup;
 using Platform.Application.Features.System.GetHealth;
+using Platform.Application.Features.TestData;
 using Platform.Application.Tenancy;
 using Platform.Infrastructure;
 
@@ -109,6 +110,7 @@ app.MapPlatformAuthEndpoints();
 app.MapRegistrationEndpoints();
 app.MapGetCurrentSession();
 app.MapSetupEndpoints();
+app.MapTestDataSimulatorEndpoints();
 app.MapProductSurfaceEndpoints();
 app.MapNotificationDeliveryEndpoints();
 app.MapWithdrawalEndpoints();

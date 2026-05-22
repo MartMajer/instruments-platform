@@ -14,6 +14,7 @@
 		CampaignRespondentRuleListResponse,
 		CampaignRespondentRuleResponse,
 		CreateCampaignRequest,
+		CreateCampaignTestRecipientsResponse,
 		CreatePrivateInstrumentImportRequest,
 		CreateScoringRuleRequest,
 		CreateTemplateVersionRequest,
@@ -208,6 +209,11 @@
 	let assignmentState = $state<StepState>('idle');
 	let assignmentError = $state<string | null>(null);
 	let assignmentResult = $state<CampaignAssignmentListResponse | null>(null);
+	let testRecipientCount = $state(50);
+	let testRecipientGroupName = $state('Demo respondents');
+	let testRecipientState = $state<StepState>('idle');
+	let testRecipientError = $state<string | null>(null);
+	let testRecipientResult = $state<CreateCampaignTestRecipientsResponse | null>(null);
 
 	const workspaceView = $derived(toCampaignSeriesSetupWorkspaceView(workspace));
 	const localState = $derived({
@@ -636,6 +642,52 @@
 		} catch (error) {
 			savedRuleState = 'failed';
 			savedRuleError = toProductApiErrorMessage(error, 'Respondent rule save failed.');
+		}
+	}
+
+	async function createTestRecipients() {
+		const campaignId = selectedCampaignId;
+		if (!campaignId) {
+			testRecipientError = 'Create the collection wave first.';
+			return;
+		}
+
+		testRecipientState = 'submitting';
+		testRecipientError = null;
+
+		try {
+			const result = await setupApi.createCampaignTestRecipients(campaignId, {
+				count: clampNumber(testRecipientCount, 1, 1000),
+				groupName: testRecipientGroupName.trim() || 'Demo respondents',
+				emailDomain: 'test.validatedscale.local',
+				locale: campaignForm.defaultLocale || 'en'
+			});
+			testRecipientResult = result;
+			previewRuleKind = 'all_in_group';
+			previewGroupId = result.groupId;
+			previewResult = null;
+			previewGroups = [
+				...previewGroups.filter((group) => group.id !== result.groupId),
+				{
+					id: result.groupId,
+					type: 'cohort',
+					name: result.groupName,
+					parentGroupId: null,
+					attributes: '{"simulated_test_data":true}',
+					memberCount: result.createdSubjectCount
+				}
+			];
+			savedRuleResult = await setupApi.listCampaignRespondentRules(campaignId);
+			savedRuleState = 'succeeded';
+			assignmentResult = null;
+			testRecipientState = 'succeeded';
+			const refreshed = await onWorkspaceRefresh?.();
+			if (refreshed === false) {
+				refreshWarning = 'Test recipients were saved, but this setup view could not refresh.';
+			}
+		} catch (error) {
+			testRecipientState = 'failed';
+			testRecipientError = toProductApiErrorMessage(error, 'Test recipients could not be created.');
 		}
 	}
 
@@ -1282,6 +1334,14 @@
 
 	function formatCount(count: number) {
 		return new Intl.NumberFormat('en').format(count);
+	}
+
+	function clampNumber(value: number, min: number, max: number) {
+		if (!Number.isFinite(value)) {
+			return min;
+		}
+
+		return Math.min(Math.max(Math.round(value), min), max);
 	}
 
 	function generateSetupRunSuffix() {
@@ -2420,6 +2480,66 @@
 						Best when anyone with the link may answer and no invite-only list is needed.
 					</p>
 				</div>
+			</div>
+
+			<div class="record-row">
+				<div class="record-row__header">
+					<div>
+						<p class="record-field__label">Demo/test data</p>
+						<h5 class="record-row__title">Create test recipients for this wave</h5>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							Use this in staging or demos when you need realistic recipients without importing a
+							real directory. It creates a marked test cohort and saves it as this wave's recipient
+							selection.
+						</p>
+					</div>
+					<p class="step-pill" data-state={testRecipientState}>{stepLabel(testRecipientState)}</p>
+				</div>
+				<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto]">
+					<label class="field">
+						<span>Group name</span>
+						<input
+							value={testRecipientGroupName}
+							disabled={testRecipientState === 'submitting'}
+							oninput={(event) => (testRecipientGroupName = event.currentTarget.value)}
+						/>
+					</label>
+					<label class="field">
+						<span>People</span>
+						<input
+							type="number"
+							min="1"
+							max="1000"
+							bind:value={testRecipientCount}
+							disabled={testRecipientState === 'submitting'}
+						/>
+					</label>
+					<button
+						type="button"
+						class="secondary-button self-end"
+						disabled={!canManageSetup || testRecipientState === 'submitting'}
+						onclick={createTestRecipients}
+					>
+						{#if testRecipientState === 'submitting'}
+							<LoaderCircle size={16} aria-hidden="true" />
+						{:else}
+							<Plus size={16} aria-hidden="true" />
+						{/if}
+						<span>Create test recipients</span>
+					</button>
+				</div>
+				{#if testRecipientError}
+					<p class="error-line" role="alert">{testRecipientError}</p>
+				{/if}
+				{#if testRecipientResult}
+					<p class="result-line">
+						<span>Test cohort saved</span>
+						<span>
+							{testRecipientResult.groupName} -
+							{formatCount(testRecipientResult.createdSubjectCount)} recipients
+						</span>
+					</p>
+				{/if}
 			</div>
 
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">

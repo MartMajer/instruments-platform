@@ -12,6 +12,7 @@ using Platform.Application.Features.Responses;
 using Platform.Application.Features.Retention;
 using Platform.Application.Features.Scoring;
 using Platform.Application.Features.Setup;
+using Platform.Application.Features.TestData;
 using Platform.Infrastructure.Campaigns.RespondentRules;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Data.Interceptors;
@@ -26,6 +27,7 @@ using Platform.Infrastructure.Scoring;
 using Platform.Infrastructure.Setup;
 using Platform.Infrastructure.Health;
 using Platform.Infrastructure.Tenancy;
+using Platform.Infrastructure.TestData;
 
 namespace Platform.Infrastructure;
 
@@ -93,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<IPlatformHealthCheck, EmailDeliveryConfigurationHealthCheck>();
         services.AddScoped<RespondentRuleResolver>();
         services.AddScoped<ISetupWorkflowStore, SetupWorkflowStore>();
+        services.AddScoped<ITestDataSimulatorStore, TestDataSimulatorStore>();
         services.AddScoped<ICampaignSeriesProofStore, CampaignSeriesProofStore>();
         services.AddScoped<IProductSurfaceReadStore, ProductSurfaceReadStore>();
         services.AddScoped<IProductSurfaceWriteStore, ProductSurfaceWriteStore>();
