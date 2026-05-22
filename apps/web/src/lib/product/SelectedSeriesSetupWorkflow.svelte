@@ -46,7 +46,7 @@
 	appendTemplateQuestionRow,
 	buildScoreProduces,
 	buildScoringDocument,
-	createDefaultScoreOutputRows,
+	createScoreOutputRowsForStudyPreset,
 	createDefaultTemplateQuestionRows,
 	createTemplateQuestionRowsForStudyPreset,
 	describeQuestionResultUsage,
@@ -108,7 +108,7 @@
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
-	const initialScoreOutputs = createDefaultScoreOutputRows(initialTemplateQuestionRows);
+	const initialScoreOutputs = createScoreOutputRowsForStudyPreset('blank', initialTemplateQuestionRows);
 	const studyAuthoringPresetOptions = listStudyAuthoringPresetOptions();
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
@@ -150,7 +150,7 @@
 
 	function applyStudyAuthoringPreset(presetId: StudyAuthoringPresetId) {
 		const nextRows = createTemplateQuestionRowsForStudyPreset(presetId);
-		const nextOutputs = createDefaultScoreOutputRows(nextRows);
+		const nextOutputs = createScoreOutputRowsForStudyPreset(presetId, nextRows);
 
 		selectedStudyAuthoringPreset = presetId;
 		templateQuestionRows = nextRows;

@@ -155,6 +155,7 @@ export type ResultsBlueprintReviewItemId =
 	| 'outputs'
 	| 'coverage'
 	| 'missing_answers'
+	| 'scale_compatibility'
 	| 'direction'
 	| 'interpretation'
 	| 'export_schema';
@@ -628,6 +629,54 @@ export function createDefaultScoreOutputRows(
 	];
 }
 
+export function createScoreOutputRowsForStudyPreset(
+	presetId: StudyAuthoringPresetId,
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	if (presetId === 'osh_ergonomics') {
+		return createOshErgonomicsScoreOutputRows(rows);
+	}
+
+	return [];
+}
+
+function createOshErgonomicsScoreOutputRows(
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	const definitions = [
+		{
+			name: 'Posture and repetition strain',
+			code: 'posture_repetition_strain',
+			includedQuestionCodes: ['awkward_posture_frequency']
+		},
+		{
+			name: 'Discomfort severity',
+			code: 'discomfort_severity',
+			includedQuestionCodes: ['discomfort_severity']
+		},
+		{
+			name: 'Recovery and control',
+			code: 'recovery_control',
+			includedQuestionCodes: ['break_recovery']
+		}
+	];
+	const eligibleCodeSet = new Set(rows.filter(isMeanScoreEligible).map((row) => row.code));
+
+	return definitions
+		.map((definition) => ({
+			localId: createScoreOutputLocalId(),
+			name: definition.name,
+			code: definition.code,
+			calculation: 'mean' as const,
+			missingStrategy: 'require_all' as const,
+			minValidCount: 1,
+			includedQuestionCodes: definition.includedQuestionCodes.filter((code) =>
+				eligibleCodeSet.has(code)
+			)
+		}))
+		.filter((output) => output.includedQuestionCodes.length > 0);
+}
+
 export function appendScoreOutputRow(
 	outputs: ScoreOutputAuthoringRow[],
 	rows: TemplateQuestionAuthoringRow[]
@@ -743,6 +792,11 @@ export function validateScoreOutputRows(
 		);
 		if (!selectedCodes.length) {
 			errors.push(`${label} needs at least one rating, recommendation, or number question.`);
+		}
+
+		const compatibilityWarning = scoreScaleCompatibilityWarning(output, rows);
+		if (compatibilityWarning) {
+			errors.push(compatibilityWarning);
 		}
 
 		if (
@@ -1057,6 +1111,9 @@ export function summarizeResultsBlueprintReview(
 	const allRequireEveryQuestion =
 		normalizedOutputs.length > 0 &&
 		normalizedOutputs.every((output) => output.missingStrategy === 'require_all');
+	const scaleCompatibilityWarnings = normalizedOutputs
+		.map((output) => scoreScaleCompatibilityWarning(output, rows))
+		.filter((warning): warning is string => Boolean(warning));
 
 	return {
 		label: `${normalizedOutputs.length} result ${
@@ -1099,6 +1156,19 @@ export function summarizeResultsBlueprintReview(
 				detail: allRequireEveryQuestion
 					? 'All outputs require every selected question.'
 					: 'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.'
+			},
+			{
+				id: 'scale_compatibility',
+				label: 'Scale compatibility',
+				status:
+					normalizedOutputs.length > 0 && scaleCompatibilityWarnings.length === 0
+						? 'ready'
+						: 'attention',
+				detail:
+					scaleCompatibilityWarnings[0] ??
+					(normalizedOutputs.length > 0
+						? 'Each result output uses one compatible answer-scale family.'
+						: 'Add result outputs before reviewing scale compatibility.')
 			},
 			{
 				id: 'direction',
@@ -1344,6 +1414,81 @@ function normalizeScoreOutputs(
 
 function normalizeScoreCodes(outputs: ScoreOutputAuthoringRow[]) {
 	return outputs.map((output) => scoreCode(output.code || output.name)).filter(Boolean);
+}
+
+function scoreScaleCompatibilityWarning(
+	output: Pick<ScoreOutputAuthoringRow, 'name' | 'code' | 'includedQuestionCodes'>,
+	rows: TemplateQuestionAuthoringRow[]
+): string | null {
+	const rowByCode = new Map(rows.map((row) => [row.code.trim().toLowerCase(), row]));
+	const families = new Map<string, string>();
+
+	for (const code of output.includedQuestionCodes) {
+		const row = rowByCode.get(code.trim().toLowerCase());
+		if (!row || !isMeanScoreEligible(row)) {
+			continue;
+		}
+
+		const family = scoreScaleFamilyForQuestion(row);
+		families.set(family.id, family.label);
+	}
+
+	if (families.size <= 1) {
+		return null;
+	}
+
+	const label = output.name.trim() || output.code.trim() || 'Result output';
+	return `${label} mixes incompatible answer scales: ${formatInlineList([
+		...families.values()
+	])}. Create separate result outputs or normalize outside this release.`;
+}
+
+function scoreScaleFamilyForQuestion(row: TemplateQuestionAuthoringRow): { id: string; label: string } {
+	if (row.type === 'number') {
+		if (
+			row.scalePreset === 'discomfort_0_10' ||
+			(row.scaleMin === 0 &&
+				row.scaleMax === 10 &&
+				row.scaleLowLabel.toLowerCase().includes('discomfort'))
+		) {
+			return { id: 'discomfort_0_10', label: 'Discomfort severity, 0-10' };
+		}
+
+		return { id: 'number', label: 'Number entry' };
+	}
+
+	if (row.type === 'nps') {
+		return { id: 'recommendation', label: 'Recommendation scale' };
+	}
+
+	if (row.scalePreset === 'frequency_5') {
+		return { id: 'frequency', label: 'Frequency scale' };
+	}
+
+	if (row.scalePreset === 'intensity_5') {
+		return { id: 'intensity', label: 'Intensity scale' };
+	}
+
+	if (row.scalePreset === 'discomfort_0_10') {
+		return { id: 'discomfort_0_10', label: 'Discomfort severity, 0-10' };
+	}
+
+	const low = row.scaleLowLabel.trim().toLowerCase();
+	const high = row.scaleHighLabel.trim().toLowerCase();
+
+	if (low.includes('never') || high.includes('always')) {
+		return { id: 'frequency', label: 'Frequency scale' };
+	}
+
+	if (low.includes('disagree') || high.includes('agree')) {
+		return { id: 'agreement', label: 'Agreement scale' };
+	}
+
+	if (low.includes('low') || high.includes('high')) {
+		return { id: 'intensity', label: 'Intensity scale' };
+	}
+
+	return { id: 'rating', label: 'Rating scale' };
 }
 
 function missingPolicyDocument(output: ScoreOutputAuthoringRow) {

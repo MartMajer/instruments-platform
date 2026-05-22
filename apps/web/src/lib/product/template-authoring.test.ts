@@ -8,6 +8,7 @@ import {
 	buildMeanScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
+	createScoreOutputRowsForStudyPreset,
 	createTemplateQuestionRowsForStudyPreset,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
@@ -28,6 +29,7 @@ import {
 	summarizeScorePlan,
 	summarizeQuestionDimensions,
 	toCreateTemplateQuestions,
+	validateScoreOutputRows,
 	validateTemplateQuestionRows
 } from './template-authoring';
 
@@ -108,6 +110,36 @@ describe('template authoring helpers', () => {
 
 		const combinedText = rows.map((row) => `${row.dimensionLabel} ${row.textDefault}`).join(' ');
 		expect(combinedText).not.toMatch(/OLBI|COPSOQ|MBI|PHQ-9|UWES|\bnorms?\b|\bbenchmarks?\b/i);
+	});
+
+	it('does not invent a default score for blank custom studies', () => {
+		const rows = createTemplateQuestionRowsForStudyPreset('blank');
+
+		expect(createScoreOutputRowsForStudyPreset('blank', rows)).toEqual([]);
+	});
+
+	it('creates separate OSH ergonomics result outputs instead of a mixed total score', () => {
+		const rows = createTemplateQuestionRowsForStudyPreset('osh_ergonomics');
+		const outputs = createScoreOutputRowsForStudyPreset('osh_ergonomics', rows);
+
+		expect(outputs.map((output) => ({ name: output.name, code: output.code, includedQuestionCodes: output.includedQuestionCodes }))).toEqual([
+			{
+				name: 'Posture and repetition strain',
+				code: 'posture_repetition_strain',
+				includedQuestionCodes: ['awkward_posture_frequency']
+			},
+			{
+				name: 'Discomfort severity',
+				code: 'discomfort_severity',
+				includedQuestionCodes: ['discomfort_severity']
+			},
+			{
+				name: 'Recovery and control',
+				code: 'recovery_control',
+				includedQuestionCodes: ['break_recovery']
+			}
+		]);
+		expect(validateScoreOutputRows(outputs, rows)).toEqual([]);
 	});
 
 	it('removes a question and renumbers ordinals', () => {
@@ -428,6 +460,12 @@ describe('scoring plan summaries', () => {
 					detail: 'All outputs require every selected question.'
 				},
 				{
+					id: 'scale_compatibility',
+					label: 'Scale compatibility',
+					status: 'ready',
+					detail: 'Each result output uses one compatible answer-scale family.'
+				},
+				{
 					id: 'direction',
 					label: 'Score direction',
 					status: 'attention',
@@ -448,6 +486,32 @@ describe('scoring plan summaries', () => {
 						'CSV/report exports should preserve question codes, answer formats, score outputs, missing-answer rules, and visibility guardrails.'
 				}
 			]
+		});
+	});
+
+	it('blocks result outputs that mix incompatible answer-scale families', () => {
+		const rows = createTemplateQuestionRowsForStudyPreset('osh_ergonomics');
+		const outputs = [
+			{
+				localId: 'score-mixed',
+				name: 'Unsafe total score',
+				code: 'unsafe_total_score',
+				calculation: 'mean' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: ['awkward_posture_frequency', 'discomfort_severity', 'break_recovery']
+			}
+		];
+
+		expect(validateScoreOutputRows(outputs, rows)).toContain(
+			'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Create separate result outputs or normalize outside this release.'
+		);
+		expect(summarizeResultsBlueprintReview(rows, outputs).items).toContainEqual({
+			id: 'scale_compatibility',
+			label: 'Scale compatibility',
+			status: 'attention',
+			detail:
+				'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Create separate result outputs or normalize outside this release.'
 		});
 	});
 });
