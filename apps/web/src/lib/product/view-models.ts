@@ -116,10 +116,10 @@ export function toLaunchReadinessView(readiness: LaunchReadinessResponse) {
 		statusLabel: readiness.ready ? 'Ready' : 'Blocked',
 		rows: readiness.issues.map((issue) => ({
 			code: issue.code,
-			label: labelFromCode(issue.code),
+			label: toProductDisplayCopy(labelFromCode(issue.code)),
 			severity: issue.severity,
 			state: 'blocked',
-			message: issue.message
+			message: toProductDisplayCopy(issue.message)
 		}))
 	};
 }
@@ -408,7 +408,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 			'Prepare this study for collection by completing setup tasks and launch-readiness checks.',
 		referenceTitle: 'Setup reference',
 		referenceDescription:
-			'Detailed setup records, policy versions, selected wave fields, and launch-check notes stay here for review.',
+			'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
@@ -430,7 +430,6 @@ export function toCampaignSeriesSetupWorkspaceView(
 		templateRows: workspace.template
 			? [
 					{ label: 'Template', value: workspace.template.templateName },
-					{ label: 'Version', value: workspace.template.semver },
 					{ label: 'Status', value: humanizeValue(workspace.template.status) },
 					{ label: 'Locale', value: workspace.template.defaultLocale },
 					{ label: 'Questions', value: formatCount(workspace.template.questionCount) }
@@ -439,7 +438,6 @@ export function toCampaignSeriesSetupWorkspaceView(
 		scoringRows: workspace.scoring
 			? [
 					{ label: 'Rule', value: workspace.scoring.ruleKey, mono: true },
-					{ label: 'Version', value: workspace.scoring.ruleVersion },
 					{ label: 'Status', value: humanizeValue(workspace.scoring.status) },
 					{ label: 'Source', value: humanizeValue(workspace.scoring.source) }
 				]
@@ -779,7 +777,7 @@ export function toReportProofView(report: CampaignReportProofResponse) {
 			{ label: 'Scoring rule', value: report.launchSnapshot.scoringRuleId, mono: true },
 			{ label: 'Disclosure k', value: String(report.disclosurePolicy.kMin) },
 			{ label: 'Interpretation', value: report.interpretationStatus },
-			...optionalTextRow('Closed at', report.closedAt),
+			...optionalDateTimeRow('Closed at', report.closedAt),
 			...optionalDataFinalityRow('Data finality', report.dataFinality)
 		],
 		scoreRows: report.scores.map((score) => {
@@ -1243,7 +1241,7 @@ function toSelectedSeriesCampaignRows(
 				{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 				{ label: 'Locale', value: campaign.defaultLocale },
 				{ label: 'Submitted responses', value: formatCount(campaign.submittedResponseCount) },
-				{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' }
+				{ label: 'Latest launch', value: formatCollectionDateTime(campaign.latestLaunchAt) }
 			];
 		case 'setup':
 			return [
@@ -1277,11 +1275,10 @@ function toSetupPreparationChecklist(
 				: 'Missing template',
 			guidance: workspace.template
 				? 'Template is available for campaign drafts.'
-				: 'Create or select a template version before scoring or campaign drafts.',
+				: 'Save the questionnaire before results setup or wave drafts.',
 			detailRows: workspace.template
 				? [
 						{ label: 'Template', value: workspace.template.templateName },
-						{ label: 'Version', value: workspace.template.semver },
 						{ label: 'Questions', value: formatCount(workspace.template.questionCount) }
 					]
 				: []
@@ -1293,14 +1290,13 @@ function toSetupPreparationChecklist(
 			badgeLabel: workspace.scoring ? 'Ready' : 'Blocked',
 			summary: workspace.scoring
 				? `${workspace.scoring.ruleKey} / ${humanizeValue(workspace.scoring.status)}`
-				: 'Missing scoring rule',
+				: 'Missing results setup',
 			guidance: workspace.scoring
-				? 'Scoring is available for launch-readiness checks.'
-				: 'Create or attach a scoring rule before launch-readiness checks.',
+				? 'Results setup is available for launch-readiness checks.'
+				: 'Save results setup before launch-readiness checks.',
 			detailRows: workspace.scoring
 				? [
-						{ label: 'Rule', value: workspace.scoring.ruleKey, mono: true },
-						{ label: 'Version', value: workspace.scoring.ruleVersion }
+						{ label: 'Rule', value: workspace.scoring.ruleKey, mono: true }
 					]
 				: []
 		},
@@ -1319,9 +1315,9 @@ function toSetupPreparationChecklist(
 							'Configure missing policies before launch.'
 						),
 			detailRows: [
-				{ label: 'Consent', value: workspace.policies.consent.version ?? 'Missing' },
-				{ label: 'Retention', value: workspace.policies.retention.version ?? 'Missing' },
-				{ label: 'Disclosure', value: workspace.policies.disclosure.version ?? 'Missing' }
+				{ label: 'Consent', value: sentenceCase(humanizeValue(workspace.policies.consent.status)) },
+				{ label: 'Retention', value: sentenceCase(humanizeValue(workspace.policies.retention.status)) },
+				{ label: 'Disclosure', value: sentenceCase(humanizeValue(workspace.policies.disclosure.status)) }
 			]
 		},
 		{
@@ -1435,7 +1431,7 @@ function toSetupPolicyRow(label: string, policy: CampaignSeriesSetupPolicyRespon
 
 	return {
 		label,
-		value: policy.version ?? 'Missing',
+		value: configured ? 'Configured' : sentenceCase(humanizeValue(policy.status)),
 		status,
 		badgeLabel: configured ? 'Configured' : sentenceCase(humanizeValue(policy.status)),
 		details: (policy.details ?? []).map((detail) => ({
@@ -1451,8 +1447,7 @@ function toSetupCampaignDetailRows(campaign: CampaignSeriesSetupCampaignResponse
 		{ label: 'Status', value: humanizeValue(campaign.status) },
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
-		{ label: 'Template version', value: campaign.templateVersionId, mono: true },
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' }
+		{ label: 'Latest launch', value: formatCollectionDateTime(campaign.latestLaunchAt) }
 	];
 }
 
@@ -1460,8 +1455,7 @@ function toSetupCampaignSummaryRows(campaign: CampaignSeriesSetupCampaignRespons
 	return [
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
-		{ label: 'Template version', value: campaign.templateVersionId, mono: true },
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' }
+		{ label: 'Latest launch', value: formatCollectionDateTime(campaign.latestLaunchAt) }
 	];
 }
 
@@ -1544,23 +1538,11 @@ function toOperationsLaunchSnapshotRows(
 	snapshot: CampaignSeriesOperationsLaunchSnapshotResponse
 ): DisplayRow[] {
 	return [
-		{ label: 'Launch snapshot', value: snapshot.id, mono: true },
-		{ label: 'Template version', value: snapshot.templateVersionId, mono: true },
-		{ label: 'Scoring rule', value: snapshot.scoringRuleId, mono: true },
-		{ label: 'Scoring hash', value: snapshot.scoringRuleDocumentHash, mono: true },
-		operationSnapshotIdRow('Consent document', snapshot.consentDocumentId),
-		operationSnapshotIdRow('Retention policy', snapshot.retentionPolicyId),
-		operationSnapshotIdRow('Disclosure policy', snapshot.disclosurePolicyId),
 		{ label: 'Frozen identity mode', value: humanizeValue(snapshot.responseIdentityMode) },
 		{ label: 'Frozen locale', value: snapshot.defaultLocale },
 		{ label: 'Template questions', value: formatCount(snapshot.templateQuestionCount) },
-		{ label: 'Launched at', value: snapshot.launchedAt },
-		operationSnapshotIdRow('Launched by', snapshot.launchedByUserId)
+		{ label: 'Launched at', value: formatCollectionDateTime(snapshot.launchedAt) }
 	];
-}
-
-function operationSnapshotIdRow(label: string, id: string | null): DisplayRow {
-	return id ? { label, value: id, mono: true } : { label, value: 'Not available' };
 }
 
 function latestWorkspaceResponseActivity(workspace: CampaignSeriesOperationsWorkspaceResponse) {
@@ -1615,7 +1597,7 @@ function toScoreCoverageMonitor(
 
 	summaryRows.push({
 		label: 'Latest scoring activity',
-		value: coverage.latestScoringActivityAt ?? 'Not available'
+		value: formatCollectionDateTime(coverage.latestScoringActivityAt)
 	});
 
 	return {
@@ -1635,14 +1617,14 @@ function latestResponseActivity(campaign: CampaignSeriesOperationsCampaignRespon
 
 function latestResponseTimestamp(startedAt: string | null, submittedAt: string | null) {
 	if (!startedAt) {
-		return submittedAt ?? 'Not available';
+		return formatCollectionDateTime(submittedAt);
 	}
 
 	if (!submittedAt) {
-		return startedAt;
+		return formatCollectionDateTime(startedAt);
 	}
 
-	return Date.parse(startedAt) > Date.parse(submittedAt) ? startedAt : submittedAt;
+	return formatCollectionDateTime(Date.parse(startedAt) > Date.parse(submittedAt) ? startedAt : submittedAt);
 }
 
 function operationLaunchSnapshotRow(
@@ -1789,11 +1771,11 @@ function toOperationsResponseProgressItem(
 			{ label: 'Submitted responses', value: formatCount(submittedResponses) },
 			{
 				label: 'Latest started',
-				value: workspace.summary.latestResponseStartedAt ?? 'Not available'
+				value: formatCollectionDateTime(workspace.summary.latestResponseStartedAt)
 			},
 			{
 				label: 'Latest submitted',
-				value: workspace.summary.latestResponseSubmittedAt ?? 'Not available'
+				value: formatCollectionDateTime(workspace.summary.latestResponseSubmittedAt)
 			}
 		]
 	};
@@ -1833,7 +1815,7 @@ function toOperationsScoreReadinessItem(
 			},
 			{
 				label: 'Latest scoring activity',
-				value: scoreCoverage.latestScoringActivityAt ?? 'Not available'
+				value: formatCollectionDateTime(scoreCoverage.latestScoringActivityAt)
 			}
 		]
 	};
@@ -1908,7 +1890,7 @@ function formatCollectionDateTime(value: string | null | undefined) {
 		return 'Not available';
 	}
 
-	const date = new Date(value);
+	const date = new Date(normalizeTimestampForDate(value));
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
@@ -2212,12 +2194,12 @@ function toReportsCampaignProvenanceRows(
 ): DisplayRow[] {
 	return [
 		reportsIdRow('Launch snapshot', campaign.latestLaunchSnapshotId),
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
+		{ label: 'Latest launch', value: formatCollectionDateTime(campaign.latestLaunchAt) },
 		reportsIdRow('Scoring rule', campaign.scoringRuleId),
 		reportsIdRow('Consent document', campaign.consentDocumentId),
 		reportsIdRow('Retention policy', campaign.retentionPolicyId),
 		reportsIdRow('Disclosure policy', campaign.disclosurePolicyId),
-		...optionalTextRow('Closed at', campaign.closedAt),
+		...optionalDateTimeRow('Closed at', campaign.closedAt),
 		...optionalIdRow('Closed by', campaign.closedByUserId),
 		...optionalTextRow('Close reason', campaign.closeReason),
 		reportsIdRow('Latest export record', campaign.latestExportArtifactId),
@@ -2247,11 +2229,11 @@ function toReportsCampaignProvenanceRows(
 		},
 		{
 			label: 'Latest export expires',
-			value: campaign.latestExportArtifactExpiresAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactExpiresAt)
 		},
 		{
 			label: 'Latest export deleted',
-			value: campaign.latestExportArtifactDeletedAt ?? 'Not available'
+			value: formatNullableDateTime(campaign.latestExportArtifactDeletedAt)
 		},
 		{
 			label: 'Latest export failure reason',
@@ -2271,7 +2253,7 @@ function toReportsCampaignSummaryRows(
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
 		reportsIdRow('Launch snapshot', campaign.latestLaunchSnapshotId),
-		{ label: 'Latest launch', value: campaign.latestLaunchAt ?? 'Not available' },
+		{ label: 'Latest launch', value: formatCollectionDateTime(campaign.latestLaunchAt) },
 		{ label: 'Submitted responses', value: formatCount(campaign.submittedResponseCount) },
 		{ label: 'Scores', value: formatCount(campaign.scoreCount) },
 		{ label: 'Visible scores', value: formatCount(campaign.visibleScoreCount) },
@@ -2316,10 +2298,10 @@ function toWavesWaveProvenanceRows(
 ): DisplayRow[] {
 	return [
 		wavesIdRow(`${prefix} launch snapshot`, wave.latestLaunchSnapshotId),
-		{ label: `${prefix} latest launch`, value: wave.latestLaunchAt ?? 'Not available' },
+		{ label: `${prefix} latest launch`, value: formatCollectionDateTime(wave.latestLaunchAt) },
 		{ label: `${prefix} scoring rule`, value: wavesScoringRuleLabel(wave) },
 		wavesIdRow(`${prefix} disclosure policy`, wave.disclosurePolicyId),
-		...optionalTextRow(`${prefix} closed at`, wave.closedAt),
+		...optionalDateTimeRow(`${prefix} closed at`, wave.closedAt),
 		...optionalIdRow(`${prefix} closed by`, wave.closedByUserId),
 		...optionalTextRow(`${prefix} close reason`, wave.closeReason)
 	];
@@ -2332,7 +2314,7 @@ function toWavesWaveSummaryRows(wave: CampaignSeriesWavesWaveResponse): DisplayR
 		{ label: 'Wave state', value: humanizeValue(wave.waveState) },
 		...optionalDataFinalityRow('Data finality', wave.dataFinality),
 		wavesIdRow('Launch snapshot', wave.latestLaunchSnapshotId),
-		{ label: 'Latest launch', value: wave.latestLaunchAt ?? 'Not available' },
+		{ label: 'Latest launch', value: formatCollectionDateTime(wave.latestLaunchAt) },
 		{ label: 'Scoring rule', value: wavesScoringRuleLabel(wave) },
 		{ label: 'Disclosure k', value: String(wave.disclosureKMin ?? 'Not configured') },
 		{ label: 'Submitted responses', value: formatCount(wave.submittedResponseCount) },
@@ -2346,11 +2328,7 @@ function wavesIdRow(label: string, id: string | null): DisplayRow {
 }
 
 function wavesScoringRuleLabel(wave: CampaignSeriesWavesWaveResponse) {
-	if (wave.scoringRuleKey && wave.scoringRuleVersion) {
-		return `${wave.scoringRuleKey} ${wave.scoringRuleVersion}`;
-	}
-
-	return wave.scoringRuleId ?? 'Not available';
+	return wave.scoringRuleKey ?? (wave.scoringRuleId ? 'Configured' : 'Not available');
 }
 
 function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
@@ -2621,7 +2599,7 @@ function toSampleStudyReadOnlyMessage(sampleScenario: string | null) {
 }
 
 function latestActivityLabel(item: CampaignSeriesListItemResponse) {
-	return latestIsoTimestamp(item.latestSubmissionAt, item.latestLaunchAt) ?? 'Not available';
+	return formatNullableDateTime(latestIsoTimestamp(item.latestSubmissionAt, item.latestLaunchAt));
 }
 
 function latestIsoTimestamp(first: string | null, second: string | null) {
@@ -2953,6 +2931,10 @@ function toProductDisplayCopy(value: string) {
 		.replace(/\bexport artifacts\b/g, 'export files')
 		.replace(/\bExport artifact\b/g, 'Export file')
 		.replace(/\bexport artifact\b/g, 'export file')
+		.replace(/\bTemplate version\b/g, 'Questionnaire')
+		.replace(/\btemplate version\b/g, 'questionnaire')
+		.replace(/\bScoring rule\b/g, 'Results setup')
+		.replace(/\bscoring rule\b/g, 'results setup')
 		.replace(/\bproof-only\b/g, 'preview')
 		.replace(/\bProof-only\b/g, 'Preview')
 		.replace(/\bproof only\b/g, 'preview')
@@ -2965,6 +2947,10 @@ function optionalCountRow(label: string, value: number | undefined): DisplayRow[
 
 function optionalTextRow(label: string, value: string | null | undefined): DisplayRow[] {
 	return value === undefined ? [] : [{ label, value: value ?? 'Not available' }];
+}
+
+function optionalDateTimeRow(label: string, value: string | null | undefined): DisplayRow[] {
+	return value === undefined ? [] : [{ label, value: formatNullableDateTime(value) }];
 }
 
 function optionalIdRow(label: string, id: string | null | undefined): DisplayRow[] {
@@ -3011,7 +2997,7 @@ function formatNullableDateTime(value: string | null | undefined) {
 }
 
 function formatDateTime(value: string) {
-	const date = new Date(value);
+	const date = new Date(normalizeTimestampForDate(value));
 	if (Number.isNaN(date.getTime())) {
 		return value;
 	}
@@ -3024,6 +3010,10 @@ function formatDateTime(value: string) {
 		minute: '2-digit',
 		hour12: false
 	}).format(date);
+}
+
+function normalizeTimestampForDate(value: string) {
+	return value.replace(/\.(\d{3})\d+(?=(Z|[+-]\d{2}:?\d{2})$)/, '.$1');
 }
 
 function pluralize(count: number, singular: string, plural: string) {

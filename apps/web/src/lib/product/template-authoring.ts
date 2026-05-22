@@ -158,12 +158,12 @@ export type QuestionDimensionSummary = {
 };
 
 const defaultQuestionText = [
-	'After work, I need time to recover mentally.',
-	'During demanding weeks, small interruptions feel harder to handle.',
-	'I can usually regain focus after a short break.'
+	'Write the first question for this study.',
+	'Write the second question for this study.',
+	'Write the third question for this study.'
 ];
 
-const defaultQuestionDimensions = ['Recovery need', 'Workload strain', 'Recovery capacity'];
+const defaultQuestionDimensions = ['Topic 1', 'Topic 2', 'Topic 3'];
 
 const defaultChoiceOptions = ['Option 1', 'Option 2'];
 

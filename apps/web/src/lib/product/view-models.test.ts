@@ -100,10 +100,10 @@ describe('product view models', () => {
 		expect(view.rows).toEqual([
 			{
 				code: 'template.version_missing',
-				label: 'Template version missing',
+				label: 'Questionnaire missing',
 				severity: 'error',
 				state: 'blocked',
-				message: 'Template version is required before launch.'
+				message: 'Questionnaire is required before launch.'
 			},
 			{
 				code: 'disclosure.policy_missing',
@@ -220,7 +220,7 @@ describe('product view models', () => {
 					{ label: 'Campaigns', value: '2' },
 					{ label: 'Live campaigns', value: '1' },
 					{ label: 'Submitted responses', value: '14' },
-					{ label: 'Latest activity', value: '2026-05-03T11:00:00Z' }
+					{ label: 'Latest activity', value: '03. 05. 2026. 13:00' }
 				]
 			}
 		]);
@@ -443,7 +443,7 @@ describe('product view models', () => {
 					{ label: 'Campaigns', value: '2' },
 					{ label: 'Live campaigns', value: '1' },
 					{ label: 'Submitted responses', value: '14' },
-					{ label: 'Latest activity', value: '2026-05-03T11:00:00Z' }
+					{ label: 'Latest activity', value: '03. 05. 2026. 13:00' }
 				]
 			}
 		]);
@@ -495,7 +495,7 @@ describe('product view models', () => {
 				{ label: 'Campaigns', value: '2' },
 				{ label: 'Live campaigns', value: '1' },
 				{ label: 'Submitted responses', value: '14' },
-				{ label: 'Latest activity', value: '2026-05-03T11:00:00Z' },
+				{ label: 'Latest activity', value: '03. 05. 2026. 13:00' },
 				{ label: 'Archived', value: '2026-05-11T13:15:00Z' }
 			]
 		});
@@ -948,7 +948,7 @@ describe('product view models', () => {
 		expect(view.policyRows).toEqual([
 			{
 				label: 'Consent',
-				value: '1.0.0',
+				value: 'Configured',
 				status: 'ready',
 				badgeLabel: 'Configured',
 				details: [
@@ -961,7 +961,7 @@ describe('product view models', () => {
 			},
 			{
 				label: 'Retention',
-				value: '1.0.0',
+				value: 'Configured',
 				status: 'ready',
 				badgeLabel: 'Configured',
 				details: [
@@ -973,7 +973,7 @@ describe('product view models', () => {
 			},
 			{
 				label: 'Disclosure',
-				value: 'Missing',
+				value: 'Not configured',
 				status: 'not_configured',
 				badgeLabel: 'Not configured',
 				details: []
@@ -984,19 +984,16 @@ describe('product view models', () => {
 			{ label: 'Status', value: 'draft' },
 			{ label: 'Identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Locale', value: 'en' },
-			{ label: 'Template version', value: 'template-version-id', mono: true },
 			{ label: 'Latest launch', value: 'Not available' }
 		]);
 		expect(view.templateRows).toEqual([
 			{ label: 'Template', value: 'Tenant burnout pulse template' },
-			{ label: 'Version', value: '1.0.0' },
 			{ label: 'Status', value: 'draft' },
 			{ label: 'Locale', value: 'en' },
 			{ label: 'Questions', value: '5' }
 		]);
 		expect(view.scoringRows).toEqual([
 			{ label: 'Rule', value: 'burnout.total', mono: true },
-			{ label: 'Version', value: '1.0.0' },
 			{ label: 'Status', value: 'draft' },
 			{ label: 'Source', value: 'template version' }
 		]);
@@ -1025,7 +1022,7 @@ describe('product view models', () => {
 		);
 		expect(view.referenceTitle).toBe('Setup reference');
 		expect(view.referenceDescription).toBe(
-			'Detailed setup records, policy versions, selected wave fields, and launch-check notes stay here for review.'
+			'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.'
 		);
 		expect(view.preparationChecklist).toEqual([
 			{
@@ -1037,7 +1034,6 @@ describe('product view models', () => {
 				guidance: 'Template is available for campaign drafts.',
 				detailRows: [
 					{ label: 'Template', value: 'Tenant burnout pulse template' },
-					{ label: 'Version', value: '1.0.0' },
 					{ label: 'Questions', value: '5' }
 				]
 			},
@@ -1047,10 +1043,9 @@ describe('product view models', () => {
 				status: 'ready',
 				badgeLabel: 'Ready',
 				summary: 'burnout.total / draft',
-				guidance: 'Scoring is available for launch-readiness checks.',
+				guidance: 'Results setup is available for launch-readiness checks.',
 				detailRows: [
-					{ label: 'Rule', value: 'burnout.total', mono: true },
-					{ label: 'Version', value: '1.0.0' }
+					{ label: 'Rule', value: 'burnout.total', mono: true }
 				]
 			},
 			{
@@ -1061,9 +1056,9 @@ describe('product view models', () => {
 				summary: '2 of 3 policies configured',
 				guidance: 'Disclosure policy: Add a disclosure policy for this series.',
 				detailRows: [
-					{ label: 'Consent', value: '1.0.0' },
-					{ label: 'Retention', value: '1.0.0' },
-					{ label: 'Disclosure', value: 'Missing' }
+					{ label: 'Consent', value: 'Configured' },
+					{ label: 'Retention', value: 'Configured' },
+					{ label: 'Disclosure', value: 'Not configured' }
 				]
 			},
 			{
@@ -1116,7 +1111,7 @@ describe('product view models', () => {
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Submitted responses', value: '31' },
-					{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' }
+					{ label: 'Latest launch', value: '05. 05. 2026. 10:30' }
 				]
 			}
 		]);
@@ -1139,7 +1134,7 @@ describe('product view models', () => {
 			{ label: 'Started responses', value: '36' },
 			{ label: 'Draft responses', value: '5' },
 			{ label: 'Submitted responses', value: '31' },
-			{ label: 'Latest response activity', value: '2026-05-05T10:15:00Z' },
+			{ label: 'Latest response activity', value: '05. 05. 2026. 12:15' },
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
 		expect(view.collectionMonitor).toEqual({
@@ -1166,7 +1161,7 @@ describe('product view models', () => {
 				{ label: 'Not configured', value: '0' },
 				{ label: 'Campaigns with scoring', value: '1' },
 				{ label: 'Campaigns without scoring', value: '1' },
-				{ label: 'Latest scoring activity', value: '2026-05-05T10:20:00Z' }
+				{ label: 'Latest scoring activity', value: '05. 05. 2026. 12:20' }
 			]
 		});
 		expect(view.selectedCampaignRows).toEqual([
@@ -1180,7 +1175,7 @@ describe('product view models', () => {
 			{ label: 'Started responses', value: '36' },
 			{ label: 'Draft responses', value: '5' },
 			{ label: 'Submitted responses', value: '31' },
-			{ label: 'Latest response activity', value: '2026-05-05T10:15:00Z' },
+			{ label: 'Latest response activity', value: '05. 05. 2026. 12:15' },
 			{ label: 'Collection status', value: 'has submissions' },
 			{ label: 'Report visibility', value: 'ready for aggregate report' },
 			{ label: 'Score coverage', value: 'complete' },
@@ -1193,22 +1188,10 @@ describe('product view models', () => {
 			{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' }
 		]);
 		expect(view.launchSnapshotRows).toEqual([
-			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-			{ label: 'Template version', value: 'template-version-id', mono: true },
-			{ label: 'Scoring rule', value: 'scoring-rule-id', mono: true },
-			{
-				label: 'Scoring hash',
-				value: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-				mono: true
-			},
-			{ label: 'Consent document', value: 'consent-id', mono: true },
-			{ label: 'Retention policy', value: 'retention-id', mono: true },
-			{ label: 'Disclosure policy', value: 'disclosure-id', mono: true },
 			{ label: 'Frozen identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Frozen locale', value: 'en' },
 			{ label: 'Template questions', value: '5' },
-			{ label: 'Launched at', value: '2026-05-05T08:30:00Z' },
-			{ label: 'Launched by', value: 'owner-user-id', mono: true }
+			{ label: 'Launched at', value: '05. 05. 2026. 10:30' }
 		]);
 		expect(view.missingPrerequisiteRows).toEqual([
 			{
@@ -1238,7 +1221,7 @@ describe('product view models', () => {
 					{ label: 'Started responses', value: '36' },
 					{ label: 'Draft responses', value: '5' },
 					{ label: 'Submitted responses', value: '31' },
-					{ label: 'Latest response activity', value: '2026-05-05T10:15:00Z' },
+					{ label: 'Latest response activity', value: '05. 05. 2026. 12:15' },
 					{ label: 'Score coverage', value: 'complete' },
 					{ label: 'Unscored submitted', value: '0' }
 				]
@@ -1328,8 +1311,8 @@ describe('product view models', () => {
 					{ label: 'Started responses', value: '36' },
 					{ label: 'Draft responses', value: '5' },
 					{ label: 'Submitted responses', value: '31' },
-					{ label: 'Latest started', value: '2026-05-05T10:15:00Z' },
-					{ label: 'Latest submitted', value: '2026-05-05T10:10:00Z' }
+					{ label: 'Latest started', value: '05. 05. 2026. 12:15' },
+					{ label: 'Latest submitted', value: '05. 05. 2026. 12:10' }
 				]
 			},
 			{
@@ -1345,7 +1328,7 @@ describe('product view models', () => {
 					{ label: 'Scored submitted', value: '31' },
 					{ label: 'Unscored submitted', value: '0' },
 					{ label: 'Not configured', value: '0' },
-					{ label: 'Latest scoring activity', value: '2026-05-05T10:20:00Z' }
+					{ label: 'Latest scoring activity', value: '05. 05. 2026. 12:20' }
 				]
 			}
 		]);
@@ -1570,7 +1553,7 @@ describe('product view models', () => {
 		]);
 		expect(view.provenanceRows).toEqual([
 			{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-			{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
+			{ label: 'Latest launch', value: '05. 05. 2026. 10:30' },
 			{ label: 'Scoring rule', value: 'scoring-rule-id', mono: true },
 			{ label: 'Consent document', value: 'consent-id', mono: true },
 			{ label: 'Retention policy', value: 'retention-id', mono: true },
@@ -1605,7 +1588,7 @@ describe('product view models', () => {
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
-					{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
+					{ label: 'Latest launch', value: '05. 05. 2026. 10:30' },
 					{ label: 'Submitted responses', value: '31' },
 					{ label: 'Scores', value: '28' },
 					{ label: 'Visible scores', value: '25' },
@@ -1649,7 +1632,7 @@ describe('product view models', () => {
 				{ label: 'Scored submitted', value: '28' },
 				{ label: 'Unscored submitted', value: '3' },
 				{ label: 'Not configured', value: '0' },
-				{ label: 'Latest scoring activity', value: '2026-05-05T10:20:00Z' }
+				{ label: 'Latest scoring activity', value: '05. 05. 2026. 12:20' }
 			]
 		});
 	});
@@ -1710,7 +1693,7 @@ describe('product view models', () => {
 		});
 		expect(view.provenanceRows).toEqual(
 			expect.arrayContaining([
-				{ label: 'Closed at', value: '2026-05-11T10:15:00Z' },
+					{ label: 'Closed at', value: '11. 05. 2026. 12:15' },
 				{ label: 'Closed by', value: 'owner-user-id', mono: true },
 				{ label: 'Close reason', value: 'Owner closed collection' }
 			])
@@ -1900,12 +1883,12 @@ describe('product view models', () => {
 		]);
 		expect(view.provenanceRows).toEqual([
 			{ label: 'Baseline launch snapshot', value: 'wave-1-launch-id', mono: true },
-			{ label: 'Baseline latest launch', value: '2026-05-05T08:30:00Z' },
-			{ label: 'Baseline scoring rule', value: 'burnout.total 1.0.0' },
+			{ label: 'Baseline latest launch', value: '05. 05. 2026. 10:30' },
+			{ label: 'Baseline scoring rule', value: 'burnout.total' },
 			{ label: 'Baseline disclosure policy', value: 'wave-1-disclosure-id', mono: true },
 			{ label: 'Comparison launch snapshot', value: 'wave-2-launch-id', mono: true },
-			{ label: 'Comparison latest launch', value: '2026-05-12T08:30:00Z' },
-			{ label: 'Comparison scoring rule', value: 'burnout.total 1.0.0' },
+			{ label: 'Comparison latest launch', value: '12. 05. 2026. 10:30' },
+			{ label: 'Comparison scoring rule', value: 'burnout.total' },
 			{ label: 'Comparison disclosure policy', value: 'wave-2-disclosure-id', mono: true }
 		]);
 		expect(view.missingPrerequisiteRows).toEqual([]);
@@ -1919,8 +1902,8 @@ describe('product view models', () => {
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Wave state', value: 'wave' },
 					{ label: 'Launch snapshot', value: 'wave-1-launch-id', mono: true },
-					{ label: 'Latest launch', value: '2026-05-05T08:30:00Z' },
-					{ label: 'Scoring rule', value: 'burnout.total 1.0.0' },
+					{ label: 'Latest launch', value: '05. 05. 2026. 10:30' },
+					{ label: 'Scoring rule', value: 'burnout.total' },
 					{ label: 'Disclosure k', value: '5' },
 					{ label: 'Submitted responses', value: '6' },
 					{ label: 'Scores', value: '6' },
@@ -1936,8 +1919,8 @@ describe('product view models', () => {
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Wave state', value: 'wave' },
 					{ label: 'Launch snapshot', value: 'wave-2-launch-id', mono: true },
-					{ label: 'Latest launch', value: '2026-05-12T08:30:00Z' },
-					{ label: 'Scoring rule', value: 'burnout.total 1.0.0' },
+					{ label: 'Latest launch', value: '12. 05. 2026. 10:30' },
+					{ label: 'Scoring rule', value: 'burnout.total' },
 					{ label: 'Disclosure k', value: '5' },
 					{ label: 'Submitted responses', value: '6' },
 					{ label: 'Scores', value: '6' },
@@ -1985,7 +1968,7 @@ describe('product view models', () => {
 		);
 		expect(view.provenanceRows).toEqual(
 			expect.arrayContaining([
-				{ label: 'Baseline closed at', value: '2026-05-11T10:20:00Z' },
+					{ label: 'Baseline closed at', value: '11. 05. 2026. 12:20' },
 				{ label: 'Baseline closed by', value: 'owner-user-id', mono: true },
 				{ label: 'Baseline close reason', value: 'Baseline complete' }
 			])
@@ -2164,7 +2147,7 @@ describe('product view models', () => {
 
 		expect(view.provenance).toEqual(
 			expect.arrayContaining([
-				{ label: 'Closed at', value: '2026-05-11T10:15:00Z' },
+					{ label: 'Closed at', value: '11. 05. 2026. 12:15' },
 				{ label: 'Data finality', value: 'closed wave' }
 			])
 		);

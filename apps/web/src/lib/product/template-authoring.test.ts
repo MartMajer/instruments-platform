@@ -137,7 +137,7 @@ describe('template authoring helpers', () => {
 				code: 'energy',
 				type: 'likert',
 				textDefault: 'I have enough energy after work.',
-				sectionCode: 'recovery_need',
+				sectionCode: 'topic_1',
 				scaleCode: 'scale_energy',
 				required: false,
 				reverseCoded: false,
@@ -268,9 +268,9 @@ describe('questionnaire dimension and scale intent authoring', () => {
 		const rows = createDefaultTemplateQuestionRows();
 
 		expect(rows.map((row) => row.dimensionLabel)).toEqual([
-			'Recovery need',
-			'Workload strain',
-			'Recovery capacity'
+			'Topic 1',
+			'Topic 2',
+			'Topic 3'
 		]);
 	});
 
@@ -325,7 +325,7 @@ describe('scoring plan summaries', () => {
 				code: 'total',
 				name: 'Total score',
 				includedQuestionCount: 3,
-				dimensionLabels: ['Recovery need', 'Workload strain', 'Recovery capacity'],
+				dimensionLabels: ['Topic 1', 'Topic 2', 'Topic 3'],
 				reverseScoredQuestionCount: 1,
 				calculationLabel: 'Mean score',
 				missingPolicyLabel: 'Requires every selected question'
@@ -355,8 +355,8 @@ describe('dimension-based result output defaults', () => {
 		const nextOutputs = appendScoreOutputRow(outputs, rows);
 
 		expect(nextOutputs[1]).toMatchObject({
-			name: 'Recovery need',
-			code: 'recovery_need',
+			name: 'Topic 1',
+			code: 'topic_1',
 			includedQuestionCodes: ['q01']
 		});
 	});
@@ -368,8 +368,8 @@ describe('dimension-based result output defaults', () => {
 		const nextOutputs = appendScoreOutputRow(outputs, rows);
 
 		expect(nextOutputs[2]).toMatchObject({
-			name: 'Workload strain',
-			code: 'workload_strain',
+			name: 'Topic 2',
+			code: 'topic_2',
 			includedQuestionCodes: ['q02']
 		});
 	});
@@ -382,8 +382,8 @@ describe('authoring density and review summaries', () => {
 
 		expect(summarizeQuestionAuthoringCards(rows, outputs)[0]).toMatchObject({
 			code: 'q01',
-			title: 'After work, I need time to recover mentally.',
-			dimensionLabel: 'Recovery need',
+			title: 'Write the first question for this study.',
+			dimensionLabel: 'Topic 1',
 			scaleLabel: 'Agreement scale',
 			requiredLabel: 'Required',
 			resultUsageLabel: 'Used in: Total score.'
@@ -409,7 +409,7 @@ describe('authoring density and review summaries', () => {
 
 		expect(summarizeReverseScoringReview(rows, outputs)).toMatchObject({
 			reverseScoredQuestionCount: 1,
-			reverseScoredQuestionLabels: ['I can usually regain focus after a short break.'],
+			reverseScoredQuestionLabels: ['Write the third question for this study.'],
 			affectedResultLabels: ['Total score']
 		});
 	});
@@ -424,7 +424,7 @@ describe('authoring density and review summaries', () => {
 				code: 'q02',
 				dimensionLabel: 'Open context',
 				typeLabel: 'Written response',
-				text: 'During demanding weeks, small interruptions feel harder to handle.'
+				text: 'Write the second question for this study.'
 			}
 		]);
 	});
@@ -435,7 +435,7 @@ describe('authoring density and review summaries', () => {
 		expect(summarizeRespondentQuestionPreview(rows)[0]).toMatchObject({
 			ordinal: 1,
 			positionLabel: 'Question 1 of 3',
-			dimensionLabel: 'Recovery need',
+			dimensionLabel: 'Topic 1',
 			requiredLabel: 'Required',
 			answerFormatLabel: 'Agreement scale',
 			answerFormatDetail: '1 to 5: Strongly disagree -> Strongly agree',

@@ -125,9 +125,9 @@
 		readiness: null
 	});
 	let instrumentForm = $state<CreatePrivateInstrumentImportRequest>({
-		code: `tenant-burnout-pulse-${initialSetupRunSuffix}`,
+		code: `custom-study-${initialSetupRunSuffix}`,
 		version: '1.0.0',
-		fullName: `Tenant burnout pulse ${initialSetupRunSuffix}`,
+		fullName: `Custom study ${initialSetupRunSuffix}`,
 		domain: 'psychometric',
 		provenanceNote: 'Tenant provided item text and attested rights for internal use.',
 		rightsStatus: 'attested_by_tenant',
@@ -1474,28 +1474,24 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">Instrument ready</h5>
+									<h5 class="record-row__title">Study source ready</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										This study has an instrument foundation. Continue to the questionnaire template.
+										The study source is saved. Continue to the questionnaire.
 									</p>
 								</div>
 								<StatusBadge status="ready" label="Done" />
 							</div>
 						</div>
 					{:else}
-						<div class="grid gap-4 lg:grid-cols-2">
+						<div class="grid gap-4">
 							<label class="field lg:col-span-2">
-								<span>Instrument name</span>
+								<span>Study source name</span>
 								<input bind:value={instrumentForm.fullName} />
-							</label>
-							<label class="field">
-								<span>Version</span>
-								<input bind:value={instrumentForm.version} />
 							</label>
 						</div>
 						{@render ActionFooter({
 							id: 'instrument',
-							label: 'Save instrument',
+							label: 'Save study source',
 							icon: 'plus',
 							onclick: createInstrumentImport
 						})}
@@ -2063,7 +2059,7 @@
 										<p class="record-field__label">{summary.code}</p>
 										<p class="record-field__value">{summary.name}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											Measures {dimensionCoverageLabel(summary.dimensionLabels)} from
+											Uses {dimensionCoverageLabel(summary.dimensionLabels)} from
 											{summary.includedQuestionCount}
 											selected {summary.includedQuestionCount === 1 ? 'question' : 'questions'}.
 										</p>
@@ -2260,8 +2256,8 @@
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Saved people and groups</p>
-					<h4 id="audience-preview-heading" class="record-row__title">Choose recipients for this wave</h4>
+					<p class="record-field__label">Recipient selection</p>
+					<h4 id="audience-preview-heading" class="record-row__title">Preview recipients, then save the selection</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						Use Directory groups for recurring populations. Use all active Directory people only
@@ -2272,6 +2268,18 @@
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
 			</div>
+
+			{#if savedRuleResult?.rules.length}
+				<p class="result-line">
+					<span>Saved for launch</span>
+					<span>{savedAudienceSummary()}</span>
+				</p>
+			{:else}
+				<p class="error-line" role="status">
+					No recipient selection is saved yet. Preview recipients first, then save the previewed
+					selection before launch.
+				</p>
+			{/if}
 
 			<div class="record-grid">
 				<div class="record-field">
@@ -2499,7 +2507,7 @@
 					{:else}
 						<Send size={16} aria-hidden="true" />
 					{/if}
-					<span>Save recipient selection</span>
+					<span>Save previewed recipients</span>
 				</button>
 				<button
 					type="button"

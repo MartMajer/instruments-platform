@@ -775,12 +775,16 @@
 			return 'Not available';
 		}
 
-		const date = new Date(value);
+		const date = new Date(normalizeTimestampForDate(value));
 		if (Number.isNaN(date.getTime())) {
 			return value;
 		}
 
 		return dateTimeFormatter.format(date);
+	}
+
+	function normalizeTimestampForDate(value: string) {
+		return value.replace(/\.(\d{3})\d+(?=(Z|[+-]\d{2}:?\d{2})$)/, '.$1');
 	}
 
 	function humanize(value: string | null | undefined) {

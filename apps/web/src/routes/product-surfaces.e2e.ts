@@ -3038,30 +3038,13 @@ test('operations launch snapshot review shows frozen campaign configuration', as
 	await expect(
 		launchReview.getByRole('heading', { name: 'Frozen launch configuration' })
 	).toBeVisible();
-	await expect(launchReview.getByText('launch-snapshot-id', { exact: true })).toBeVisible();
-	await expect(launchReview.getByText('template-version-id', { exact: true })).toBeVisible();
-	await expect(
-		launchReview.getByText('716b2246-70f7-4728-9f44-150bd3b8da7a', { exact: true })
-	).toBeVisible();
-	await expect(
-		launchReview.getByText('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', {
-			exact: true
-		})
-	).toBeVisible();
-	await expect(
-		launchReview.getByText('7a8b40d5-5083-4b90-a521-6de19f88d108', { exact: true })
-	).toBeVisible();
-	await expect(
-		launchReview.getByText('06e242a5-6fc1-4e51-9af9-0d0cbf8c0872', { exact: true })
-	).toBeVisible();
-	await expect(
-		launchReview.getByText('a0910474-79b6-444d-9d21-8e89c82b6d72', { exact: true })
-	).toBeVisible();
 	await expect(launchReview.getByText('anonymous', { exact: true })).toBeVisible();
 	await expect(launchReview.getByText('en', { exact: true })).toBeVisible();
 	await expect(launchReview.getByText('8', { exact: true })).toBeVisible();
-	await expect(launchReview.getByText('2026-05-05T10:15:00Z', { exact: true })).toBeVisible();
-	await expect(launchReview.getByText('owner-user-id', { exact: true })).toBeVisible();
+	await expect(launchReview.getByText('05. 05. 2026. 12:15', { exact: true })).toBeVisible();
+	await expect(launchReview.getByText('launch-snapshot-id')).toHaveCount(0);
+	await expect(launchReview.getByText('template-version-id')).toHaveCount(0);
+	await expect(launchReview.getByText('owner-user-id')).toHaveCount(0);
 	await expect(launchReview.getByText('sensitive-answer')).toHaveCount(0);
 	await expect(launchReview.getByText('opn_')).toHaveCount(0);
 	await expect(launchReview.getByText('inv_')).toHaveCount(0);
@@ -4245,7 +4228,7 @@ test('waves workspace loads the dedicated read model and renders wave state', as
 	await expect(workspace.getByRole('group', { name: 'Waves selected waves' })).toBeVisible();
 	await expect(workspace.getByRole('group', { name: 'Waves provenance' })).toBeVisible();
 	await expect(workspace.getByText('wave-1-launch-id', { exact: true }).first()).toBeVisible();
-	await expect(workspace.getByText('burnout.total 1.0.0', { exact: true }).first()).toBeVisible();
+	await expect(workspace.getByText('burnout.total', { exact: true }).first()).toBeVisible();
 	await expect(workspace.getByRole('article', { name: 'Pulse wave 1' })).toBeVisible();
 	await expect(workspace.getByRole('article', { name: 'Pulse wave 2' })).toBeVisible();
 
@@ -4342,7 +4325,7 @@ test('wave dashboard renders selected comparison decision surface semantics', as
 	await expect(provenance.getByText('wave-1-launch-id', { exact: true })).toBeVisible();
 	await expect(provenance.getByText('Comparison launch snapshot', { exact: true })).toBeVisible();
 	await expect(provenance.getByText('wave-2-launch-id', { exact: true })).toBeVisible();
-	await expect(provenance.getByText('burnout.total 1.0.0', { exact: true }).first()).toBeVisible();
+	await expect(provenance.getByText('burnout.total', { exact: true }).first()).toBeVisible();
 
 	const visualAnalytics = dashboard.getByRole('group', { name: 'Wave visual analytics' });
 	await expect(
@@ -5007,7 +4990,7 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Choose recipients for this wave' });
+	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
 	await expect(preview).toBeVisible();
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
 	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
@@ -5124,10 +5107,10 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Choose recipients for this wave' });
+	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
 	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
-	await preview.getByRole('button', { name: 'Save recipient selection' }).click();
+	await preview.getByRole('button', { name: 'Save previewed recipients' }).click();
 
 	await expect.poll(() => saveBodies).toHaveLength(1);
 	expect(saveBodies[0]).toEqual({
