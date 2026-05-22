@@ -291,7 +291,7 @@ describe('selected-series operations workflow model', () => {
 			}),
 			expect.objectContaining({
 				id: 'audience',
-				label: 'Recipients and access',
+				label: 'Access',
 				title: 'Recipient access prepared',
 				status: 'ready',
 				detail:

@@ -464,7 +464,7 @@
 			previewGroups = groupList.groups;
 			syncPreviewSelections();
 		} catch (error) {
-			previewOptionsError = toProductApiErrorMessage(error, 'Audience preview options failed to load.');
+			previewOptionsError = toProductApiErrorMessage(error, 'Recipient preview options failed to load.');
 		} finally {
 			previewOptionsLoading = false;
 		}
@@ -514,7 +514,7 @@
 			previewState = 'succeeded';
 		} catch (error) {
 			previewState = 'failed';
-			previewError = toProductApiErrorMessage(error, 'Audience preview failed.');
+			previewError = toProductApiErrorMessage(error, 'Recipient preview failed.');
 		}
 	}
 
@@ -535,7 +535,7 @@
 		} catch (error) {
 			if (campaignId === selectedCampaignId) {
 				savedRuleState = 'failed';
-				savedRuleError = toProductApiErrorMessage(error, 'Saved respondent rules failed to load.');
+				savedRuleError = toProductApiErrorMessage(error, 'Saved recipient selections failed to load.');
 			}
 		}
 	}
@@ -1157,7 +1157,7 @@
 			return assignment.respondent?.label ?? 'Email recipient';
 		}
 
-		return `${assignment.target?.label ?? 'Study audience'} to ${
+		return `${assignment.target?.label ?? 'Study recipients'} to ${
 			assignment.respondent?.label ?? 'No respondent'
 		}`;
 	}
@@ -1167,7 +1167,7 @@
 			return row.respondent?.label ?? 'Email recipient';
 		}
 
-		return `${row.target?.label ?? 'Study audience'} to ${row.respondent?.label ?? 'No respondent'}`;
+		return `${row.target?.label ?? 'Study recipients'} to ${row.respondent?.label ?? 'No respondent'}`;
 	}
 
 	function savedRecipientSelectionLabel(rule: CampaignRespondentRuleResponse) {
@@ -1183,7 +1183,7 @@
 			? previewGroupLabelById(rule.groupId)
 			: rule.targetSubjectId
 				? previewSubjectLabelById(rule.targetSubjectId)
-				: 'Study audience';
+				: 'Study recipients';
 
 		return selector;
 	}
@@ -1200,7 +1200,7 @@
 
 	function previewSubjectLabelById(subjectId: string | null | undefined) {
 		if (!subjectId) {
-			return 'Study audience';
+			return 'Study recipients';
 		}
 
 		return previewSubjectLabel(previewSubjects.find((subject) => subject.id === subjectId));
@@ -1208,7 +1208,7 @@
 
 	function previewGroupLabelById(groupId: string | null | undefined) {
 		if (!groupId) {
-			return 'Study audience';
+			return 'Study recipients';
 		}
 
 		return previewGroups.find((group) => group.id === groupId)?.name ?? 'Selected group';
@@ -1367,12 +1367,12 @@
 			return 'Direct-report invitation';
 		}
 
-		return 'Audience invitation';
+		return 'Recipient invitation';
 	}
 
 	function audienceWarningLabel(warning: { code: string; message: string }) {
 		if (warning.code === 'respondent_rule_preview.audience_missing') {
-			return 'No narrower campaign audience is selected; this selection uses all active Directory people. Use a Directory group when the wave is not for everyone.';
+			return 'No narrower Directory group is selected; this selection uses all active Directory people. Use a Directory group when the wave is not for everyone.';
 		}
 
 		if (warning.code === 'respondent_rule_preview.empty') {
@@ -2265,7 +2265,7 @@
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						Use Directory groups for recurring populations. Use all active Directory people only
-						when the wave is truly for everyone. Use one-off email import for ad hoc recipients you
+						when the wave is truly for everyone. Use one-off email list for ad hoc recipients you
 						do not want to manage in Directory. Save recipients before launch so Collection can
 						create private respondent links and send email.
 					</p>
@@ -2369,7 +2369,7 @@
 							/>
 							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 								Use a class list, cohort list, HR export, or spreadsheet with an email column
-								when this wave has a one-time audience. For repeated waves or reusable cohorts,
+								when this wave has a one-time recipient list. For repeated waves or reusable cohorts,
 								import people and groups in Directory instead. Limit:
 								{formatCount(maxRecipientImportRecipients)} recipients per wave update.
 							</span>

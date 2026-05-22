@@ -127,7 +127,7 @@ export function toSelectedSeriesWavePlan(
 			guidance: [
 				'Use Setup to create the next campaign draft inside this same study, then launch it from Collection.',
 				'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
-				'Review recipients before launching the new wave; do not assume the audience is unchanged unless Collection shows it.'
+				'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
 			]
 		};
 	}
@@ -143,7 +143,7 @@ export function toSelectedSeriesWavePlan(
 			secondaryLabel: 'Review results',
 			secondaryHref: reportsHref,
 			guidance: [
-				'Use the workflow below to confirm both waves can be linked safely.',
+				'Use the checks below to confirm both waves can be linked safely.',
 				'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
 				'If the comparison is blocked, use the details section to see which prerequisite is missing.'
 			]
@@ -151,17 +151,17 @@ export function toSelectedSeriesWavePlan(
 	}
 
 	return {
-		title: 'Validate linked change',
+		title: 'Check same-respondent change',
 		description:
-			'Two repeat-participation waves exist. Run linked trajectory and comparison checks before treating this as same-respondent change.',
+			'Two repeat-participation waves exist. Run the comparison checks before treating this as same-respondent change.',
 		status: 'pending',
 		primaryLabel: 'Run linked checks below',
 		primaryHref: null,
 		secondaryLabel: 'Review results',
 		secondaryHref: reportsHref,
 		guidance: [
-			'Use the comparison workflow below to prove linked trajectories, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
-			'Use Results for wave-level exports; use Waves only when you need validated change-over-time context.',
+			'Use the comparison checks below to confirm linked responses, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
+			'Use Results for wave-level exports; use Waves only when you need reviewed change-over-time context.',
 			'Create another follow-up wave from Setup when the next collection round starts.'
 		]
 	};
@@ -186,7 +186,7 @@ export function toSelectedSeriesGroupTrendPlan(
 			baselineResponseCount: waves[0]?.submittedResponseCount ?? null,
 			comparisonResponseCount: null,
 			safetyRows: [
-				{ label: 'Linked-change proof', value: 'Not available until two repeated waves exist' },
+				{ label: 'Same-respondent comparison', value: 'Not available until two repeated waves exist' },
 				{ label: 'Disclosure status', value: 'Review after follow-up wave results exist' }
 			],
 			primaryLabel: nextWaveLabel,
@@ -218,10 +218,10 @@ export function toSelectedSeriesGroupTrendPlan(
 			{ label: 'First wave scores', value: String(baselineWave.scoreCount) },
 			{ label: 'Second wave scores', value: String(comparisonWave.scoreCount) },
 			{
-				label: 'Linked-change proof',
+				label: 'Same-respondent comparison',
 				value:
 					workspace.summary.longitudinalWaveCount >= 2
-						? 'Run linked-change checks before making same-respondent claims'
+						? 'Run comparison checks before making same-respondent claims'
 						: 'Not configured for same-respondent linked change'
 			},
 			{

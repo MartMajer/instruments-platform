@@ -277,17 +277,17 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
-	it('separates preview readiness from client handoff readiness for live unexported results', () => {
+	it('separates preview readiness from share readiness for live unexported results', () => {
 		const handoffStatus = toSelectedSeriesResultsHandoffStatus(reportableWorkspace);
 
 		expect(handoffStatus).toMatchObject({
 			overallStatus: 'blocked',
-			overallLabel: 'Not client-ready',
-			headline: 'Preview ready; client handoff not ready',
+			overallLabel: 'Not share-ready',
+			headline: 'Preview ready; not ready to share',
 			guidance:
-				'Use these results for internal review only. Validate interpretation, create the client export, and resolve finality before client handoff.',
+				'Use these results for internal review only. Review interpretation, create the export file, and resolve finality before sharing outside the team.',
 			nextAction:
-				'Validate interpretation limits before client handoff; keep the current report-summary export internal.'
+				'Review interpretation limits before sharing; keep the current report-summary export internal.'
 		});
 		expect(handoffStatus.lanes).toEqual([
 			expect.objectContaining({
@@ -303,14 +303,14 @@ describe('selected-series reports workflow model', () => {
 				title: 'Needs interpretation validation',
 				status: 'blocked',
 				detail:
-					'Scoring is available, but the meaning, limits, and client-facing claims have not been validated.'
+					'Scoring is available, but the meaning, limits, and external claims have not been reviewed.'
 			}),
 			expect.objectContaining({
 				id: 'export',
 				label: 'Export status',
-				title: 'Client export not created',
+				title: 'Share-ready export not created',
 				status: 'pending',
-				detail: 'Create a client export before sharing files or closing the report handoff.'
+				detail: 'Create a share-ready export before sending files outside the team.'
 			}),
 			expect.objectContaining({
 				id: 'finality',
@@ -322,10 +322,10 @@ describe('selected-series reports workflow model', () => {
 		]);
 	});
 
-	it('does not label a downloadable export client-ready before interpretation and finality are ready', () => {
+	it('does not label a downloadable export share-ready before interpretation and finality are ready', () => {
 		const handoffStatus = toSelectedSeriesResultsHandoffStatus(reportableWorkspaceWithExport);
 
-		expect(handoffStatus.overallLabel).toBe('Not client-ready');
+		expect(handoffStatus.overallLabel).toBe('Not share-ready');
 		expect(handoffStatus.lanes.find((lane) => lane.id === 'export')).toMatchObject({
 			title: 'Internal preview export ready',
 			status: 'pending',
@@ -346,7 +346,7 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
-	it('explains score coverage gaps before client handoff', () => {
+	it('explains score coverage gaps before external sharing', () => {
 		const workspace: CampaignSeriesReportsWorkspaceResponse = {
 			...reportableWorkspace,
 			selectedCampaign: {

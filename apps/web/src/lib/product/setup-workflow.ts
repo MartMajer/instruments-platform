@@ -74,8 +74,8 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'instrument',
 			step: 'Step 1',
-			title: 'Instrument',
-			description: 'Confirm the instrument this study will use before building the questionnaire.',
+			title: 'Study source',
+			description: 'Confirm what this study is based on before building the questionnaire.',
 			status: instrumentConfigured ? 'ready' : 'pending',
 			available: true,
 			disabledReason: null
@@ -102,8 +102,8 @@ export function toSelectedSeriesSetupWorkflowActions(
 		{
 			id: 'campaign',
 			step: 'Step 4',
-			title: 'Collection setup',
-			description: 'Name the collection wave and choose how respondents will answer.',
+			title: 'Wave and recipients',
+			description: 'Name the collection wave, choose the response mode, and prepare recipients.',
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
 			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
@@ -112,7 +112,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 			id: 'readiness',
 			step: 'Step 5',
 			title: 'Launch check',
-			description: 'Check the questionnaire, results, collection wave, recipients, and policies before launch.',
+			description: 'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.',
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
 			available: Boolean(campaignId),
 			disabledReason: campaignId ? null : 'Create the collection wave first.'
@@ -148,14 +148,14 @@ export function toSelectedSeriesSetupLaunchState(
 				: 'Launch check passed; choose public link or save recipients';
 		const noRecipientNextAction =
 			mode === 'identified'
-				? 'Save a recipient selection below before launch so Collection can create identified access.'
+				? 'Save recipients below before launch so Collection can create identified access.'
 				: 'Open Collection to launch with a public link, or save recipients below before launch.';
 		return {
 			statusLabel: hasSavedRecipients
 				? 'Launch check passed with saved recipients'
 				: noRecipientStatus,
 			nextActionLabel: hasSavedRecipients
-				? 'Open Collection to start the wave with the saved recipient selection.'
+				? 'Open Collection to start the wave and send the saved recipients.'
 				: noRecipientNextAction,
 			collectionButtonLabel: 'Open Collection launch',
 			collectionButtonAvailable: mode === 'identified' ? hasSavedRecipients : true,
@@ -281,7 +281,7 @@ function toRecipientSummary(options: SelectedSeriesSetupLaunchStateOptions) {
 	}
 
 	if (options.responseIdentityMode === 'identified') {
-		return 'No saved recipients yet; save a recipient selection before invite-only launch.';
+		return 'No saved recipients yet; save recipients before invite-only launch.';
 	}
 
 	if (options.responseIdentityMode === 'anonymous_longitudinal') {

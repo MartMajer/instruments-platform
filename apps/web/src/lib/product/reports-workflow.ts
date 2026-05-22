@@ -115,7 +115,7 @@ export function toSelectedSeriesReportsWorkflowActions(
 			step: 'Step 2',
 			title: 'Create report-summary export',
 			description:
-				'Create the aggregate results CSV and codebook. Use it for client handoff only after interpretation and finality are ready.',
+				'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -255,7 +255,7 @@ export function toSelectedSeriesResultsHandoffStatus(
 					status: 'ready',
 					detail:
 						scoreVisibilityGap > 0
-							? `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review. ${scoreVisibilityGap} submitted response${scoreVisibilityGap === 1 ? ' is' : 's are'} not visible as scores because scoring, missing-answer rules, or disclosure still exclude them. Resolve or document the gap before client handoff.`
+							? `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review. ${scoreVisibilityGap} submitted response${scoreVisibilityGap === 1 ? ' is' : 's are'} not visible as scores because scoring, missing-answer rules, or disclosure still exclude them. Resolve or document the gap before sharing outside the team.`
 							: `${submittedResponses} submitted response${submittedResponses === 1 ? '' : 's'} and ${visibleScores} visible score${visibleScores === 1 ? '' : 's'} are available for review.`
 				}
 			: {
@@ -270,9 +270,9 @@ export function toSelectedSeriesResultsHandoffStatus(
 		? {
 				id: 'interpretation',
 				label: 'Interpretation status',
-				title: 'Interpretation validated',
+				title: 'Interpretation reviewed',
 				status: 'ready',
-				detail: 'The interpretation state is marked validated for client-facing claims.'
+				detail: 'The interpretation state is ready for external result claims.'
 			}
 		: selectedCampaign.interpretationStatus === 'not_available'
 			? {
@@ -285,20 +285,20 @@ export function toSelectedSeriesResultsHandoffStatus(
 			: {
 					id: 'interpretation',
 					label: 'Interpretation status',
-					title: 'Needs interpretation validation',
-					status: 'blocked',
-					detail:
-						'Scoring is available, but the meaning, limits, and client-facing claims have not been validated.'
+				title: 'Needs interpretation validation',
+				status: 'blocked',
+				detail:
+					'Scoring is available, but the meaning, limits, and external claims have not been reviewed.'
 				};
 
 	const exportLane: SelectedSeriesResultsHandoffLane = hasDownloadableExport
 		? {
 				id: 'export',
 				label: 'Export status',
-				title: exportClientReady ? 'Client export ready' : 'Internal preview export ready',
+				title: exportClientReady ? 'Share-ready export ready' : 'Internal preview export ready',
 				status: exportClientReady ? 'ready' : 'pending',
 				detail: exportClientReady
-					? 'A downloadable export file is available for client handoff.'
+					? 'A downloadable export file is available for external sharing.'
 					: 'A downloadable file exists, but use it internally until interpretation validation and collection finality are ready.'
 			}
 		: hasExport
@@ -307,15 +307,15 @@ export function toSelectedSeriesResultsHandoffStatus(
 					label: 'Export status',
 					title: 'Export exists but is not downloadable',
 					status: 'pending',
-					detail: 'Review the export file and confirm it is downloadable before handoff.'
+					detail: 'Review the export file and confirm it is downloadable before sharing.'
 				}
 			: reportable
 				? {
 						id: 'export',
 						label: 'Export status',
-						title: 'Client export not created',
+						title: 'Share-ready export not created',
 						status: 'pending',
-						detail: 'Create a client export before sharing files or closing the report handoff.'
+						detail: 'Create a share-ready export before sending files outside the team.'
 					}
 				: {
 						id: 'export',
@@ -331,7 +331,7 @@ export function toSelectedSeriesResultsHandoffStatus(
 				label: 'Finality status',
 				title: 'Collection closed',
 				status: 'ready',
-				detail: 'The response window is closed, so the result set is stable for handoff.'
+				detail: 'The response window is closed, so the result set is stable for sharing.'
 			}
 		: collectionLive
 			? {
@@ -356,10 +356,10 @@ export function toSelectedSeriesResultsHandoffStatus(
 	if (clientReady) {
 		return {
 			overallStatus: 'ready',
-			overallLabel: 'Client-ready',
-			headline: 'Results are ready for client handoff',
+			overallLabel: 'Ready to share',
+			headline: 'Results are ready to share',
 			guidance: 'Operational data, interpretation, export, and finality are ready.',
-			nextAction: 'Download the client export or review waves.',
+			nextAction: 'Download the export file or review waves.',
 			lanes
 		};
 	}
@@ -367,10 +367,10 @@ export function toSelectedSeriesResultsHandoffStatus(
 	if (previewReady) {
 		return {
 			overallStatus: 'blocked',
-			overallLabel: 'Not client-ready',
-			headline: 'Preview ready; client handoff not ready',
+			overallLabel: 'Not share-ready',
+			headline: 'Preview ready; not ready to share',
 			guidance:
-				'Use these results for internal review only. Validate interpretation, create the client export, and resolve finality before client handoff.',
+				'Use these results for internal review only. Review interpretation, create the export file, and resolve finality before sharing outside the team.',
 			nextAction: toHandoffNextAction(interpretationLane, exportLane, finalityLane),
 			lanes
 		};
@@ -640,7 +640,7 @@ function toHandoffNextAction(
 	const finalityOpen = finalityLane.status !== 'ready';
 
 	if (interpretationOpen && exportOpen) {
-		return 'Validate interpretation limits before client handoff; keep the current report-summary export internal.';
+		return 'Review interpretation limits before sharing; keep the current report-summary export internal.';
 	}
 
 	if (interpretationOpen) {
@@ -648,12 +648,12 @@ function toHandoffNextAction(
 	}
 
 	if (exportOpen) {
-		return 'Generate a client-ready export only after the remaining gates pass.';
+		return 'Generate a share-ready export only after the remaining gates pass.';
 	}
 
 	if (finalityOpen) {
 		return 'Close collection or keep the results clearly marked as preliminary live data.';
 	}
 
-	return 'Review the client export.';
+	return 'Review the share-ready export.';
 }

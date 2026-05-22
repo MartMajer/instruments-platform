@@ -1011,7 +1011,7 @@
 			return {
 				title: 'Add recipient email addresses',
 				detail:
-					'Open Directory and add email addresses for everyone in the saved audience, then rerun the pre-launch check.',
+					'Open Directory and add email addresses for everyone in the saved recipient selection, then rerun the pre-launch check.',
 				severity: issue.severity
 			};
 		}
@@ -1027,9 +1027,9 @@
 
 		if (code === 'respondent_rule_preview.audience_missing') {
 			return {
-				title: 'Audience is empty',
+				title: 'Recipient selection is empty',
 				detail:
-					'Add active people to the campaign audience in Setup, or remove the audience rule if this wave should use the general respondent link.',
+					'Add active people to the selected group in Setup, or remove the saved recipient selection if this wave should use a general respondent link.',
 				severity: issue.severity
 			};
 		}
@@ -1038,7 +1038,7 @@
 			return {
 				title: 'Fix who can answer',
 				detail:
-					'Open Setup and adjust the audience rule until the preview resolves the respondents you expect.',
+					'Open Setup and adjust the recipient selection until the preview finds the people you expect.',
 				severity: issue.severity
 			};
 		}
@@ -1060,7 +1060,7 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Collection workflow">
+<section class="product-panel" role="group" aria-label="Study collection flow">
 	<div class="product-panel__header">
 		<div>
 			<p class="product-kicker">Study collection</p>
@@ -1152,7 +1152,7 @@
 				{#if activeAction.id === 'readiness'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 						Use this before opening collection. The check confirms that the questionnaire, scoring,
-						audience, and policy setup can support responses and reporting.
+						recipients, and policy setup can support responses and reporting.
 					</p>
 					<dl class="record-grid">
 						<div class="record-field">
@@ -1263,7 +1263,7 @@
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 							This check shows whether the current environment can send real SMTP invitations, or
-							whether it is still in local proof mode or missing required email settings. It never
+							whether it is still in local test mode or missing required email settings. It never
 							exposes provider secrets or SMTP credentials.
 						</p>
 						{#if emailReadinessResult}
@@ -1311,7 +1311,7 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Tenant do-not-contact</p>
+								<p class="record-field__label">Do-not-contact list</p>
 								<h5 class="record-row__title">Suppress emails before inviting</h5>
 							</div>
 							<StatusBadge
@@ -1325,7 +1325,7 @@
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 							Add addresses that must not receive campaign invitations from this tenant. Suppression is
-							checked when invitations are created, when saved audiences launch, and again before email
+							checked when invitations are created, when saved recipient lists are launched, and again before email
 							delivery. Releasing an address only allows future explicit invitations; it does not resend
 							or restore old suppressed emails.
 						</p>
@@ -1556,7 +1556,7 @@
 									/>
 									<span class="text-sm text-[var(--color-text-muted)]">
 										Use this for late additions or a one-time list after launch. For the normal study
-										audience, use Directory groups or the saved recipient selection in Setup before
+										recipient list, use Directory groups or the saved recipient selection in Setup before
 										launch. Review happens in this browser before private invitation links are created.
 										Limit: {formatCount(maxRecipientImportRecipients)} recipients per wave update.
 									</span>

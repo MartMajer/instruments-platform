@@ -140,7 +140,7 @@
 		return [
 			humanize(interpretation.status),
 			humanize(interpretation.source),
-			interpretation.isValidated ? 'validated' : 'not validated',
+			interpretation.isValidated ? 'reviewed' : 'not reviewed',
 			interpretation.isOfficial ? 'official' : 'not official'
 		].join(' / ');
 	}
@@ -354,10 +354,10 @@
 <section class="product-panel" role="group" aria-label="Review and export actions">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Results workflow</p>
+			<p class="product-kicker">Study flow · Results</p>
 			<h3 class="product-title">Review and export results</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Review aggregate results, resolve client-readiness gaps, and create export files when ready.
+				Review aggregate results, check whether they are ready to share, and create export files when ready.
 			</p>
 		</div>
 		<StatusBadge status={handoffStatus.overallStatus} label={handoffStatus.overallLabel} />
@@ -367,10 +367,10 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="score-result-panel report-proof-panel" role="region" aria-label="Client handoff status">
+	<article class="score-result-panel report-proof-panel" role="region" aria-label="Results status">
 		<div class="score-result-panel__header">
 			<div>
-				<p class="product-kicker">Client handoff status</p>
+				<p class="product-kicker">Results status</p>
 				<h4 class="record-row__title">{handoffStatus.headline}</h4>
 				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
 					{handoffStatus.guidance}
@@ -421,9 +421,9 @@
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">
-						{reportsPath.completedCount} of {reportsPath.totalCount} review/export tasks done
+						{reportsPath.completedCount} of {reportsPath.totalCount} results tasks done
 					</p>
-					<h4 class="setup-current-task__title">Current review task</h4>
+					<h4 class="setup-current-task__title">Current results task</h4>
 					<p class="record-row__title">{currentAction.title}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 				</div>

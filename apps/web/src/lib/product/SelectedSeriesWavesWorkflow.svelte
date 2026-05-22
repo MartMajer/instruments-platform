@@ -72,7 +72,7 @@
 		return [
 			humanize(interpretation.status),
 			humanize(interpretation.source),
-			interpretation.isValidated ? 'validated' : 'not validated',
+			interpretation.isValidated ? 'reviewed' : 'not reviewed',
 			interpretation.isOfficial ? 'official' : 'not official'
 		].join(' / ');
 	}
@@ -180,11 +180,10 @@
 <section class="product-panel" role="group" aria-label="Waves action workflow">
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Waves workflow</p>
-			<h3 class="product-title">Plan repeated collection</h3>
+			<p class="product-kicker">Study flow · Waves</p>
+			<h3 class="product-title">Repeat the study and compare waves</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Create follow-up waves, review group trends, and use linked change only when the
-				study was configured for repeat participation.
+				Create follow-up waves from Setup, collect responses from Collection, then compare closed waves here.
 			</p>
 		</div>
 		<StatusBadge status={wavePlan.status} label={wavePlan.title} />
@@ -197,7 +196,7 @@
 	<article class="record-row setup-current-task" role="region" aria-label="Wave plan">
 		<div class="setup-current-task__header">
 			<div>
-				<p class="record-field__label">How multiple waves work</p>
+				<p class="record-field__label">Where waves fit</p>
 				<h4 class="setup-current-task__title">{wavePlan.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{wavePlan.description}</p>
 			</div>
@@ -296,7 +295,7 @@
 				<p class="record-field__label">
 					{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
 				</p>
-				<h4 class="setup-current-task__title">Current linked-change task</h4>
+				<h4 class="setup-current-task__title">Current comparison task</h4>
 				<p class="record-row__title">{currentAction.title}</p>
 				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 			</div>

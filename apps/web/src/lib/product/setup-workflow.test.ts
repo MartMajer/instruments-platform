@@ -205,7 +205,7 @@ describe('selected-series setup workflow model', () => {
 		expect(launchState.statusLabel).toBe('Launch check passed with saved recipients');
 		expect(launchState.recipientSummary).toBe('1 selection saved, 2 invitation pairs ready.');
 		expect(launchState.nextActionLabel).toBe(
-			'Open Collection to start the wave with the saved recipient selection.'
+			'Open Collection to start the wave and send the saved recipients.'
 		);
 	});
 

@@ -811,7 +811,7 @@ describe('product view models', () => {
 				id: 'setup',
 				label: 'Prepare',
 				status: 'ready',
-				description: 'Configure instruments, policies, scoring, and launch readiness.',
+				description: 'Build the questionnaire, results setup, policies, wave, and launch check.',
 				guidance: 'Governance prerequisites are configured for this series.',
 				route: 'setup',
 				href: '/app/campaign-series/series-id/setup',
@@ -821,7 +821,7 @@ describe('product view models', () => {
 				id: 'operations',
 				label: 'Collect',
 				status: 'pending',
-				description: 'Launch collection, check respondent access, and monitor submissions.',
+				description: 'Start the wave, share access, send invitations, and monitor submissions.',
 				guidance: 'Collection is live, but no submitted responses are available yet.',
 				route: 'operations',
 				href: '/app/campaign-series/series-id/operations',
@@ -831,7 +831,7 @@ describe('product view models', () => {
 				id: 'reports',
 				label: 'Review results',
 				status: 'ready',
-				description: 'Inspect findings, result summaries, limitations, and exports.',
+				description: 'Review findings, limitations, and export files after responses are ready.',
 				guidance: 'Submitted responses are available for aggregate review.',
 				route: 'reports',
 				href: '/app/campaign-series/series-id/reports',
@@ -841,14 +841,14 @@ describe('product view models', () => {
 				id: 'waves',
 				label: 'Compare waves',
 				status: 'pending',
-				description: 'Inspect longitudinal waves and linked-trajectory comparisons.',
+				description: 'Create follow-up waves and compare results across collection rounds.',
 				guidance: 'A second wave can be compared when linked responses exist.',
 				route: 'waves',
 				href: '/app/campaign-series/series-id/waves',
 				actionLabel: 'Open waves'
 			}
 		]);
-		expect(view.lifecycleMap.items[2].description).toContain('exports');
+		expect(view.lifecycleMap.items[2].description).toContain('export files');
 		for (const item of view.lifecycleMap.items) {
 			expectStatusBadgeStatus(item.status);
 		}
@@ -916,7 +916,7 @@ describe('product view models', () => {
 		const view = toSelectedSeriesSurfaceView(sampleCampaignSeriesHub, 'setup');
 
 		expect(view.title).toBe('Quarterly burnout pulse');
-		expect(view.surfaceLabel).toBe('Setup');
+		expect(view.surfaceLabel).toBe('Prepare study');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '1' }
@@ -1025,7 +1025,7 @@ describe('product view models', () => {
 		);
 		expect(view.referenceTitle).toBe('Setup reference');
 		expect(view.referenceDescription).toBe(
-			'Technical setup details, policy records, selected campaign fields, and prerequisite codes stay here for audit and troubleshooting.'
+			'Detailed setup records, policy versions, selected wave fields, and launch-check notes stay here for review.'
 		);
 		expect(view.preparationChecklist).toEqual([
 			{
@@ -1072,7 +1072,7 @@ describe('product view models', () => {
 				status: 'ready',
 				badgeLabel: 'Ready',
 				summary: 'Wave 1 / draft / anonymous longitudinal',
-				guidance: 'Campaign draft is ready for audience setup and launch-readiness checks.',
+				guidance: 'Campaign draft is ready for recipient setup and launch-readiness checks.',
 				detailRows: [
 					{ label: 'Selected campaign', value: 'Wave 1' },
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
@@ -1280,11 +1280,11 @@ describe('product view models', () => {
 		expect(view.surfaceDescription).toBe(
 			'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.'
 		);
-		expect(view.referenceTitle).toBe('Technical collection details');
+		expect(view.referenceTitle).toBe('Collection reference');
 		expect(view.referenceDescription).toBe(
-			'Audit records, launch snapshots, prerequisite codes, and campaign fields stay here for troubleshooting.'
+			'Launch records, prerequisite checks, and selected wave details stay here for review.'
 		);
-		expect(view.proofActionTitle).toBe('Collection workflow');
+		expect(view.proofActionTitle).toBe('Collection actions');
 		expect(view.collectionOverview).toEqual([
 			{
 				id: 'collection_state',
@@ -1473,7 +1473,7 @@ describe('product view models', () => {
 		);
 		expect(view.referenceTitle).toBe('Results reference');
 		expect(view.referenceDescription).toBe(
-			'Campaign ids, selected campaign fields, provenance rows, prerequisite codes, and campaign rows stay here for audit and troubleshooting.'
+			'Selected wave details, limitations, prerequisite checks, and export records stay here for review.'
 		);
 		expect(view.resultsOverview).toEqual([
 			{
@@ -1871,7 +1871,7 @@ describe('product view models', () => {
 
 		expect(view.title).toBe('Quarterly burnout pulse');
 		expect(view.subtitle).toBe('2 campaigns, 2 live');
-		expect(view.surfaceLabel).toBe('Waves');
+		expect(view.surfaceLabel).toBe('Compare waves');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '2' },
@@ -2022,14 +2022,14 @@ describe('product view models', () => {
 		expect(view.campaignRows).toEqual([]);
 		expect(view.emptyState).toEqual({
 			title: 'No waves yet',
-			message: 'Create and launch campaign waves before comparing linked trajectories.'
+			message: 'Create and launch at least two waves before comparing results over time.'
 		});
 	});
 
 	it('maps reports selected-series surface with score and export counts', () => {
 		const view = toSelectedSeriesSurfaceView(sampleCampaignSeriesHub, 'reports');
 
-		expect(view.surfaceLabel).toBe('Reports');
+		expect(view.surfaceLabel).toBe('Review results');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
@@ -2042,7 +2042,7 @@ describe('product view models', () => {
 	it('maps waves selected-series surface with wave identity posture', () => {
 		const view = toSelectedSeriesSurfaceView(sampleCampaignSeriesHub, 'waves');
 
-		expect(view.surfaceLabel).toBe('Waves');
+		expect(view.surfaceLabel).toBe('Compare waves');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '1' },
@@ -2072,7 +2072,7 @@ describe('product view models', () => {
 
 		expect(view.emptyState).toEqual({
 			title: 'No waves yet',
-			message: 'Create and launch campaign waves before comparing linked trajectories.'
+			message: 'Create and launch at least two waves before comparing results over time.'
 		});
 		expect(view.campaignRows).toEqual([]);
 	});
@@ -2101,7 +2101,7 @@ describe('product view models', () => {
 			guardrails: [
 				'Aggregate only',
 				'Disclosure guardrails still apply',
-				'Interpretation labels are tenant-attested or not validated unless explicitly approved.'
+				'Interpretation labels are tenant-attested or not reviewed unless explicitly approved.'
 			]
 		});
 		expect(view.scoreRows).toEqual([
@@ -2114,7 +2114,7 @@ describe('product view models', () => {
 				mean: '3.42',
 				range: '1.00-5.00',
 				interpretationLabel: 'Tenant middle range',
-				interpretationMeta: 'tenant attested / tenant defined / not validated / not official',
+				interpretationMeta: 'tenant attested / tenant defined / not reviewed / not official',
 				note: null
 			},
 			{
@@ -2486,7 +2486,7 @@ describe('product view models', () => {
 				comparisonScoreMetadata: 'n 8/8 / ok',
 				baselineInterpretationLabel: 'Tenant higher range',
 				comparisonInterpretationLabel: 'Tenant higher range',
-				interpretationMeta: 'tenant attested / tenant defined / not validated / not official',
+				interpretationMeta: 'tenant attested / tenant defined / not reviewed / not official',
 				note: null
 			},
 			{

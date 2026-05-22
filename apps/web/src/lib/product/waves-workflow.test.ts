@@ -42,7 +42,7 @@ describe('selected-series waves workflow model', () => {
 		const plan = toSelectedSeriesWavePlan(comparisonReadyWorkspace);
 
 		expect(plan).toMatchObject({
-			title: 'Validate linked change',
+			title: 'Check same-respondent change',
 			primaryLabel: 'Run linked checks below',
 			primaryHref: null,
 			secondaryLabel: 'Review results',
@@ -50,7 +50,7 @@ describe('selected-series waves workflow model', () => {
 			status: 'pending'
 		});
 		expect(plan.guidance).toContain(
-			'Use the comparison workflow below to prove linked trajectories, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.'
+			'Use the comparison checks below to confirm linked responses, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.'
 		);
 	});
 
@@ -79,7 +79,7 @@ describe('selected-series waves workflow model', () => {
 		expect(groupTrendPlan.title).toBe('Aggregate group trend only: Wave 1 to Wave 2');
 		expect(groupTrendPlan.description).toContain('group-level results');
 		expect(groupTrendPlan.safetyRows).toContainEqual({
-			label: 'Linked-change proof',
+			label: 'Same-respondent comparison',
 			value: 'Not configured for same-respondent linked change'
 		});
 		expect(groupTrendPlan.safetyRows).toContainEqual({

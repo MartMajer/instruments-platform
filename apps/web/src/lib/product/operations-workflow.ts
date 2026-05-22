@@ -94,7 +94,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 			id: 'readiness',
 			step: 'Step 1',
 			title: 'Pre-launch check',
-			description: 'Confirm the questionnaire, scoring, audience, and policies are ready.',
+			description: 'Confirm the questionnaire, results setup, recipients, and policies are ready.',
 			status: !hasCampaign ? 'not_available' : readinessReady ? 'ready' : 'pending',
 			available: hasCampaign,
 			disabledReason: hasCampaign
@@ -113,8 +113,8 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		{
 			id: 'openLink',
 			step: 'Step 3',
-			title: 'Recipient access',
-			description: 'Prepare invited emails or an open respondent link for this wave.',
+			title: 'Share access',
+			description: 'Send saved invitations or create an open respondent link for this wave.',
 			status: !hasCampaign
 				? 'not_available'
 				: launched && hasRespondentAccess
@@ -239,7 +239,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 			},
 			{
 				id: 'audience',
-				label: 'Recipients and access',
+				label: 'Access',
 				title: 'No recipient access prepared',
 				status: 'not_available',
 				detail: 'Choose recipients or create respondent access after setup is ready.'
@@ -338,7 +338,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 	const audienceLane: SelectedSeriesCollectionStatusLane = hasRespondentAccess
 		? {
 				id: 'audience',
-				label: 'Recipients and access',
+				label: 'Access',
 				title: 'Recipient access prepared',
 				status: 'ready',
 				detail: `${formatCount(openLinks)} respondent link${openLinks === 1 ? '' : 's'} and ${formatCount(preparedInvitations)} prepared invitation${preparedInvitations === 1 ? '' : 's'}. ${
@@ -352,14 +352,14 @@ export function toSelectedSeriesCollectionStatusSummary(
 		: launched
 			? {
 					id: 'audience',
-					label: 'Recipients and access',
+					label: 'Access',
 					title: 'Access not prepared',
 					status: 'pending',
 					detail: 'Create a respondent link or prepare invitations before expecting responses.'
 				}
 			: {
 					id: 'audience',
-					label: 'Recipients and access',
+					label: 'Access',
 					title: 'Access waits for launch',
 					status: 'blocked',
 					detail: 'Save recipients in Setup before launch, or start collection before creating an open respondent link.'
@@ -384,7 +384,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 			overallLabel: 'Closed',
 			headline: `Closed: ${formatCount(submitted)} submitted response${submitted === 1 ? '' : 's'}`,
 			guidance: 'Collection is closed. Submitted responses are stable for Results review.',
-			nextAction: 'Open Results to review client handoff status.',
+			nextAction: 'Open Results to review findings and exports.',
 			lanes
 		};
 	}

@@ -281,7 +281,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse) {
 			'Use this overview to prepare, collect, review results, and compare waves for the selected study.',
 		referenceTitle: 'Study reference',
 		referenceDescription:
-			'Technical identifiers, governance records, and campaign rows for this selected study.',
+			'Detailed records, governance status, and wave rows for this selected study.',
 		title: hub.name.trim() || 'Untitled campaign series',
 		subtitle: `${hub.totals.campaignCount} ${hub.totals.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${hub.totals.liveCampaignCount} live`,
 		rows,
@@ -345,22 +345,22 @@ function campaignSeriesHubLifecyclePhase(id: CampaignSeriesHubResponse['lifecycl
 		case 'setup':
 			return {
 				label: 'Prepare',
-				description: 'Configure instruments, policies, scoring, and launch readiness.'
+				description: 'Build the questionnaire, results setup, policies, wave, and launch check.'
 			};
 		case 'operations':
 			return {
 				label: 'Collect',
-				description: 'Launch collection, check respondent access, and monitor submissions.'
+				description: 'Start the wave, share access, send invitations, and monitor submissions.'
 			};
 		case 'reports':
 			return {
 				label: 'Review results',
-				description: 'Inspect findings, result summaries, limitations, and exports.'
+				description: 'Review findings, limitations, and export files after responses are ready.'
 			};
 		case 'waves':
 			return {
 				label: 'Compare waves',
-				description: 'Inspect longitudinal waves and linked-trajectory comparisons.'
+				description: 'Create follow-up waves and compare results across collection rounds.'
 			};
 	}
 }
@@ -408,7 +408,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 			'Prepare this study for collection by completing setup tasks and launch-readiness checks.',
 		referenceTitle: 'Setup reference',
 		referenceDescription:
-			'Technical setup details, policy records, selected campaign fields, and prerequisite codes stay here for audit and troubleshooting.',
+			'Detailed setup records, policy versions, selected wave fields, and launch-check notes stay here for review.',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
@@ -487,9 +487,9 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		surfaceEyebrow: 'Study collection',
 		surfaceDescription:
 			'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.',
-		referenceTitle: 'Technical collection details',
+		referenceTitle: 'Collection reference',
 		referenceDescription:
-			'Audit records, launch snapshots, prerequisite codes, and campaign fields stay here for troubleshooting.',
+			'Launch records, prerequisite checks, and selected wave details stay here for review.',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
@@ -581,7 +581,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 						message: 'Create a campaign draft in setup, then start collection here.'
 					}
 				: null,
-		proofActionTitle: 'Collection workflow',
+		proofActionTitle: 'Collection actions',
 		proofActionDescription:
 			'Run the pre-launch check, start collection, share respondent access, monitor submissions, and close the wave.'
 	};
@@ -606,7 +606,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 			'Review result availability, coverage, limitations, and export next use for the selected campaign.',
 		referenceTitle: 'Results reference',
 		referenceDescription:
-			'Campaign ids, selected campaign fields, provenance rows, prerequisite codes, and campaign rows stay here for audit and troubleshooting.',
+			'Selected wave details, limitations, prerequisite checks, and export records stay here for review.',
 		resultsOverview: toReportsResultsOverview(workspace, scoreCoverage),
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
@@ -657,9 +657,9 @@ export function toCampaignSeriesReportsWorkspaceView(
 						message: 'Submit responses and compute scores before report previews are available.'
 					}
 				: null,
-		proofActionTitle: 'Review and export actions',
+		proofActionTitle: 'Results actions',
 		proofActionDescription:
-			'Report preview, client export files, response exports, and download actions stay available below.'
+			'Review aggregate results, create export files, and download files when they are ready.'
 	};
 }
 
@@ -675,7 +675,7 @@ export function toCampaignSeriesWavesWorkspaceView(
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
-		surfaceLabel: 'Waves',
+		surfaceLabel: 'Compare waves',
 		surfaceEyebrow: 'Wave comparison',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
@@ -745,12 +745,12 @@ export function toCampaignSeriesWavesWorkspaceView(
 			workspace.waves.length === 0
 				? {
 						title: 'No waves yet',
-						message: 'Create and launch campaign waves before comparing linked trajectories.'
+						message: 'Create and launch at least two waves before comparing results over time.'
 					}
 				: null,
-		proofActionTitle: 'Wave comparison actions',
+		proofActionTitle: 'Comparison actions',
 		proofActionDescription:
-			'Linked trajectory checks and wave-comparison previews remain available for anonymous-longitudinal series.'
+			'Check whether repeated waves can be compared, then review safe change-over-time summaries.'
 	};
 }
 
@@ -844,7 +844,7 @@ function toReportProofSummary(report: CampaignReportProofResponse) {
 		guardrails: [
 			'Aggregate only',
 			'Disclosure guardrails still apply',
-			'Interpretation labels are tenant-attested or not validated unless explicitly approved.'
+			'Interpretation labels are tenant-attested or not reviewed unless explicitly approved.'
 		]
 	};
 }
@@ -1333,7 +1333,7 @@ function toSetupPreparationChecklist(
 				? `${campaign.name.trim() || 'Untitled campaign'} / ${humanizeValue(campaign.status)} / ${humanizeValue(campaign.responseIdentityMode)}`
 				: 'Missing campaign draft',
 			guidance: campaign
-				? 'Campaign draft is ready for audience setup and launch-readiness checks.'
+				? 'Campaign draft is ready for recipient setup and launch-readiness checks.'
 				: 'Create a campaign draft before checking launch readiness.',
 			detailRows: campaign
 				? [
@@ -2357,8 +2357,8 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 	switch (surface) {
 		case 'setup':
 			return {
-				label: 'Setup',
-				eyebrow: 'Configuration',
+				label: 'Prepare study',
+				eyebrow: 'Study preparation',
 				emptyState: {
 					title: 'No campaigns yet',
 					message: 'Create a campaign draft before running launch readiness.'
@@ -2377,31 +2377,31 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 				},
 				proofActionTitle: 'Collection actions',
 				proofActionDescription:
-					'Launch readiness, campaign launch, entry links, invitation batches, and local delivery stay available below.'
+					'Run the pre-launch check, start collection, share access, send invitations, and monitor responses.'
 			};
 		case 'reports':
 			return {
-				label: 'Reports',
-				eyebrow: 'Reporting',
+				label: 'Review results',
+				eyebrow: 'Study results',
 				emptyState: {
 					title: 'No reportable campaigns yet',
 					message: 'Submit responses and compute scores before report previews are available.'
 				},
-				proofActionTitle: 'Report preview actions',
+				proofActionTitle: 'Results actions',
 				proofActionDescription:
-					'Report preview, client export files, and download actions stay available for result review.'
+					'Review aggregate results, create export files, and download files when they are ready.'
 			};
 		case 'waves':
 			return {
-				label: 'Waves',
+				label: 'Compare waves',
 				eyebrow: 'Wave comparison',
 				emptyState: {
 					title: 'No waves yet',
-					message: 'Create and launch campaign waves before comparing linked trajectories.'
+					message: 'Create and launch at least two waves before comparing results over time.'
 				},
-				proofActionTitle: 'Wave comparison actions',
+				proofActionTitle: 'Comparison actions',
 				proofActionDescription:
-					'Linked trajectory checks and wave-comparison previews remain available for anonymous-longitudinal series.'
+					'Check whether repeated waves can be compared, then review safe change-over-time summaries.'
 			};
 	}
 }
@@ -2987,7 +2987,7 @@ function formatInterpretationMeta(interpretation: ScoreInterpretationResponse | 
 	return [
 		humanizeValue(interpretation.status),
 		humanizeValue(interpretation.source),
-		interpretation.isValidated ? 'validated' : 'not validated',
+		interpretation.isValidated ? 'reviewed' : 'not reviewed',
 		interpretation.isOfficial ? 'official' : 'not official'
 	].join(' / ');
 }
