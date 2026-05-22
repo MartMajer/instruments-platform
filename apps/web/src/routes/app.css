@@ -591,6 +591,252 @@ a {
 	gap: 1rem;
 }
 
+.study-journey {
+	display: grid;
+	gap: 0.875rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-section);
+	background: color-mix(in srgb, var(--color-surface-raised) 82%, var(--color-background));
+	padding: 0.875rem;
+	box-shadow: var(--shadow-subtle);
+}
+
+.study-journey__header h4 {
+	margin: 0.25rem 0 0;
+	font-family: var(--font-serif);
+	font-size: 1.2rem;
+	font-weight: 430;
+	line-height: 1.15;
+	color: var(--color-text);
+}
+
+.study-journey__header p:not(.product-kicker) {
+	margin: 0.35rem 0 0;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: var(--color-text-muted);
+}
+
+.study-journey__items {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+	gap: 0.5rem;
+}
+
+.study-journey__item {
+	display: grid;
+	gap: 0.25rem;
+	align-content: start;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	padding: 0.625rem;
+}
+
+.study-journey__item[data-state='current'] {
+	border-color: color-mix(in srgb, var(--color-accent) 36%, var(--color-border));
+	background: color-mix(in srgb, var(--color-accent-soft) 62%, var(--color-surface-raised));
+}
+
+.study-journey__item[data-state='done'] {
+	border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border));
+	background: color-mix(in srgb, var(--color-success-soft) 70%, var(--color-surface-raised));
+}
+
+.study-journey__state {
+	width: fit-content;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	background: var(--color-surface-raised);
+	padding: 0.125rem 0.45rem;
+	font-size: 0.68rem;
+	font-weight: 800;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+}
+
+.study-journey__item strong {
+	font-size: 0.86rem;
+	color: var(--color-text);
+}
+
+.study-journey__item span:last-child {
+	font-size: 0.76rem;
+	line-height: 1.4;
+	color: var(--color-text-muted);
+}
+
+.questionnaire-blueprint-review {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+	gap: 0.5rem;
+}
+
+.questionnaire-blueprint-review__item {
+	display: grid;
+	gap: 0.25rem;
+	align-content: start;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	padding: 0.625rem;
+}
+
+.questionnaire-blueprint-review__item[data-state='attention'] {
+	border-color: color-mix(in srgb, var(--color-warning) 30%, var(--color-border));
+	background: color-mix(in srgb, var(--color-warning-soft) 70%, var(--color-surface-raised));
+}
+
+.questionnaire-blueprint-review__item[data-state='blocked'] {
+	border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+	background: color-mix(in srgb, var(--color-danger-soft) 72%, var(--color-surface-raised));
+}
+
+.study-blueprint-picker {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+	gap: 0.75rem;
+}
+
+.study-blueprint-card {
+	display: grid;
+	gap: 0.5rem;
+	align-content: start;
+	min-height: 100%;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-section);
+	background: color-mix(in srgb, var(--color-surface-raised) 88%, var(--color-background));
+	padding: 0.875rem;
+	text-align: left;
+	color: var(--color-text);
+	cursor: pointer;
+	box-shadow: var(--shadow-subtle);
+	transition:
+		border-color 140ms ease,
+		background 140ms ease,
+		transform 140ms ease;
+}
+
+.study-blueprint-card:hover {
+	border-color: color-mix(in srgb, var(--color-text) 26%, var(--color-border));
+	transform: translateY(-1px);
+}
+
+.study-blueprint-card--selected {
+	border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
+	background: color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-surface-raised));
+}
+
+.study-blueprint-card__eyebrow {
+	font-size: 0.72rem;
+	font-weight: 800;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.study-blueprint-card strong {
+	font-family: var(--font-serif);
+	font-size: 1.25rem;
+	font-weight: 430;
+	line-height: 1.1;
+	color: var(--color-text);
+}
+
+.study-blueprint-card span,
+.study-blueprint-card small {
+	font-size: 0.84rem;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}
+
+.study-blueprint-card__highlights {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin-top: 0.125rem;
+}
+
+.study-blueprint-card__highlights span {
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	background: var(--color-surface-raised);
+	padding: 0.2rem 0.5rem;
+	font-size: 0.72rem;
+	font-weight: 750;
+	color: var(--color-text-muted);
+}
+
+.study-blueprint-plan {
+	display: grid;
+	grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+	gap: 1rem;
+	align-items: start;
+	border-block: 1px solid var(--color-border);
+	padding-block: 1rem;
+}
+
+.study-blueprint-plan h3 {
+	margin: 0.25rem 0 0;
+	font-size: 1.05rem;
+	font-weight: 750;
+	color: var(--color-text);
+}
+
+.study-blueprint-plan p {
+	margin: 0.35rem 0 0;
+	font-size: 0.875rem;
+	line-height: 1.55;
+	color: var(--color-text-muted);
+}
+
+.study-blueprint-plan ol {
+	display: grid;
+	gap: 0.625rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	counter-reset: blueprint-step;
+}
+
+.study-blueprint-plan li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 0.625rem;
+	align-items: start;
+	counter-increment: blueprint-step;
+}
+
+.study-blueprint-plan li::before {
+	display: inline-grid;
+	place-items: center;
+	width: 1.65rem;
+	height: 1.65rem;
+	border: 1px solid var(--color-border-strong);
+	border-radius: 999px;
+	background: var(--color-surface-raised);
+	content: counter(blueprint-step);
+	font-size: 0.75rem;
+	font-weight: 800;
+	color: var(--color-text);
+}
+
+.study-blueprint-plan li strong,
+.study-blueprint-plan li span {
+	grid-column: 2;
+}
+
+.study-blueprint-plan li strong {
+	font-size: 0.875rem;
+	color: var(--color-text);
+}
+
+.study-blueprint-plan li span {
+	font-size: 0.8rem;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}
+
 .status-badge[data-status='ready'] {
 	border-color: color-mix(in srgb, var(--color-success) 26%, white);
 	background: var(--color-success-soft);

@@ -17,6 +17,13 @@
 		createProductRequestGate,
 		createSetupApiFromEnv
 	} from '$lib/product/route-state';
+	import {
+		buildStudyNamePlaceholder,
+		defaultStudyBlueprintId,
+		getStudyBlueprintOption,
+		listStudyBlueprintOptions,
+		type StudyBlueprintId
+	} from '$lib/product/study-blueprint';
 	import { toCampaignSeriesListView, toProductApiErrorMessage } from '$lib/product/view-models';
 	import {
 		getProductAuthContext,
@@ -36,11 +43,13 @@
 	const setupApi = createSetupApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
+	const blueprintOptions = listStudyBlueprintOptions();
 
 	let loadState = $state<LoadState>('loading');
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let campaignSeriesList = $state<CampaignSeriesListResponse | null>(null);
 	let errorMessage = $state<string | null>(null);
+	let selectedBlueprintId = $state<StudyBlueprintId>(defaultStudyBlueprintId);
 	let newSeriesName = $state('');
 	let creatingSeries = $state(false);
 	let createSeriesError = $state<string | null>(null);
@@ -63,6 +72,8 @@
 	const listView = $derived(
 		campaignSeriesList ? toCampaignSeriesListView(campaignSeriesList, portfolioQuery) : null
 	);
+	const selectedBlueprint = $derived(getStudyBlueprintOption(selectedBlueprintId));
+	const studyNamePlaceholder = $derived(buildStudyNamePlaceholder(selectedBlueprintId));
 
 	$effect(() => {
 		void loadCampaignSeries(portfolioQuery);
@@ -284,10 +295,50 @@
 				<section class="portfolio-create" aria-label="Create your study">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Your studies</p>
-							<h2 class="product-title">Create your study</h2>
+							<p class="product-kicker">Guided study design</p>
+							<h2 class="product-title">Start a study blueprint</h2>
 						</div>
 					</div>
+
+					<div class="study-blueprint-picker" aria-label="Choose a study starting point">
+						{#each blueprintOptions as option}
+							<button
+								type="button"
+								class="study-blueprint-card"
+								class:study-blueprint-card--selected={selectedBlueprintId === option.id}
+								aria-pressed={selectedBlueprintId === option.id}
+								onclick={() => {
+									selectedBlueprintId = option.id;
+								}}
+							>
+								<span class="study-blueprint-card__eyebrow">{option.eyebrow}</span>
+								<strong>{option.title}</strong>
+								<span>{option.summary}</span>
+								<small>{option.bestFor}</small>
+								<span class="study-blueprint-card__highlights">
+									{#each option.highlights as highlight}
+										<span>{highlight}</span>
+									{/each}
+								</span>
+							</button>
+						{/each}
+					</div>
+
+					<section class="study-blueprint-plan" aria-label="Selected study blueprint plan">
+						<div>
+							<p class="product-kicker">Selected starting point</p>
+							<h3>{selectedBlueprint.nextStepsTitle}</h3>
+							<p>{selectedBlueprint.summary}</p>
+						</div>
+						<ol>
+							{#each selectedBlueprint.nextSteps as step}
+								<li>
+									<strong>{step.label}</strong>
+									<span>{step.description}</span>
+								</li>
+							{/each}
+						</ol>
+					</section>
 
 					<form
 						class="portfolio-create__form"
@@ -301,7 +352,7 @@
 							<input
 								bind:value={newSeriesName}
 								disabled={creatingSeries}
-								placeholder="e.g. Q3 employee pulse"
+								placeholder={studyNamePlaceholder}
 							/>
 						</label>
 						<button type="submit" class="primary-button" disabled={creatingSeries}>
@@ -310,7 +361,7 @@
 							{:else}
 								<Plus size={17} aria-hidden="true" />
 							{/if}
-							<span>{creatingSeries ? 'Creating...' : 'Create study'}</span>
+							<span>{creatingSeries ? 'Creating...' : 'Continue to guided setup'}</span>
 						</button>
 					</form>
 

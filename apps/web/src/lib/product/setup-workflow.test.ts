@@ -4,6 +4,8 @@ import {
 	defaultCampaignWaveName,
 	selectSetupCampaignId,
 	selectSetupTemplateVersionId,
+	toSelectedSeriesSetupBlueprintJourney,
+	toSelectedSeriesSetupLaunchPlan,
 	toSelectedSeriesSetupLaunchState,
 	toSelectedSeriesSetupPath,
 	toSelectedSeriesSetupWorkflowActions
@@ -55,6 +57,32 @@ describe('selected-series setup workflow model', () => {
 				available: false,
 				disabledReason: 'Create the collection wave first.'
 			})
+		]);
+	});
+
+	it('summarizes setup as a study blueprint journey', () => {
+		const emptyJourney = toSelectedSeriesSetupBlueprintJourney(emptyWorkspace);
+		const configuredJourney = toSelectedSeriesSetupBlueprintJourney(configuredWorkspace);
+
+		expect(emptyJourney).toMatchObject({
+			title: 'Study blueprint journey',
+			summary: 'Turn the research idea into questions, results, recipients, and a launch-ready wave.',
+			currentItemId: 'questionnaire'
+		});
+		expect(emptyJourney.items.map((item) => ({ id: item.id, state: item.state }))).toEqual([
+			{ id: 'purpose', state: 'done' },
+			{ id: 'questionnaire', state: 'current' },
+			{ id: 'results', state: 'blocked' },
+			{ id: 'wave_recipients', state: 'blocked' },
+			{ id: 'launch', state: 'blocked' }
+		]);
+		expect(configuredJourney.currentItemId).toBe('launch');
+		expect(configuredJourney.items.map((item) => ({ id: item.id, state: item.state }))).toEqual([
+			{ id: 'purpose', state: 'done' },
+			{ id: 'questionnaire', state: 'done' },
+			{ id: 'results', state: 'done' },
+			{ id: 'wave_recipients', state: 'done' },
+			{ id: 'launch', state: 'current' }
 		]);
 	});
 
@@ -207,6 +235,73 @@ describe('selected-series setup workflow model', () => {
 		expect(launchState.nextActionLabel).toBe(
 			'Open Collection to start the wave and send the saved recipients.'
 		);
+	});
+
+	it('summarizes wave and recipient setup as one launch plan', () => {
+		const plan = toSelectedSeriesSetupLaunchPlan(
+			configuredWorkspace,
+			{},
+			{
+				responseIdentityMode: 'anonymous',
+				savedRecipientSelectionCount: 0,
+				savedRecipientPairCount: 0,
+				readinessPassed: false
+			}
+		);
+
+		expect(plan).toEqual({
+			title: 'Launch plan',
+			label: 'Wave 1',
+			summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
+			items: [
+				{
+					id: 'wave',
+					label: 'Wave',
+					status: 'ready',
+					detail: 'Wave 1 is the draft wave for this study.'
+				},
+				{
+					id: 'response_mode',
+					label: 'Response mode',
+					status: 'ready',
+					detail: 'Anonymous collection can use a public link or saved email recipients.'
+				},
+				{
+					id: 'recipients',
+					label: 'Recipients',
+					status: 'attention',
+					detail: 'No saved recipients yet. You can still launch anonymous collection with a public link.'
+				},
+				{
+					id: 'collection_handoff',
+					label: 'Collection handoff',
+					status: 'blocked',
+					detail: 'Run launch check before opening Collection.'
+				}
+			]
+		});
+	});
+
+	it('blocks identified launch plans until recipients are saved', () => {
+		const plan = toSelectedSeriesSetupLaunchPlan(
+			configuredWorkspace,
+			{},
+			{
+				responseIdentityMode: 'identified',
+				savedRecipientSelectionCount: 0,
+				savedRecipientPairCount: 0,
+				readinessPassed: true
+			}
+		);
+
+		expect(plan.items.find((item) => item.id === 'recipients')).toMatchObject({
+			status: 'blocked',
+			detail: 'Identified collection needs saved recipients before launch.'
+		});
+		expect(plan.items.find((item) => item.id === 'collection_handoff')).toMatchObject({
+			status: 'blocked',
+			detail: 'Save recipients before opening Collection for identified launch.'
+		});
 	});
 
 	it('selects instrument import as the current task for an empty setup workspace', () => {

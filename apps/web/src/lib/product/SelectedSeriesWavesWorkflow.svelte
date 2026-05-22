@@ -10,6 +10,7 @@
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
 		toSelectedSeriesGroupTrendPlan,
+		toSelectedSeriesWaveComparisonReview,
 		toSelectedSeriesWavePlan,
 		toSelectedSeriesWavesPath,
 		type SelectedSeriesWavesPathStepState,
@@ -48,6 +49,7 @@
 	});
 	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace));
 	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace));
+	const comparisonReview = $derived(toSelectedSeriesWaveComparisonReview(workspace));
 	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
@@ -216,6 +218,33 @@
 			{#if wavePlan.secondaryHref && wavePlan.secondaryLabel}
 				<a class="secondary-button" href={wavePlan.secondaryHref}>{wavePlan.secondaryLabel}</a>
 			{/if}
+		</div>
+	</article>
+
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Wave comparison plan">
+		<div class="questionnaire-blueprint-review__header">
+			<div>
+				<p class="product-kicker">Comparison plan</p>
+				<h4 class="setup-current-task__title">{comparisonReview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{comparisonReview.description}</p>
+			</div>
+			<StatusBadge status={comparisonReview.status} />
+		</div>
+		<div class="questionnaire-blueprint-review__grid">
+			{#each comparisonReview.items as item (item.id)}
+				<section
+					class="questionnaire-blueprint-review__item"
+					data-state={item.status}
+					aria-label={item.label}
+				>
+					<div class="questionnaire-blueprint-review__item-header">
+						<p class="record-field__label">{item.label}</p>
+						<StatusBadge status={item.status} />
+					</div>
+					<p class="record-row__title">{item.summary}</p>
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+				</section>
+			{/each}
 		</div>
 	</article>
 

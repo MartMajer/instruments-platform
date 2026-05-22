@@ -28,6 +28,8 @@
 		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
+		toSelectedSeriesSetupBlueprintJourney,
+		toSelectedSeriesSetupLaunchPlan,
 		toSelectedSeriesSetupLaunchState,
 		toSelectedSeriesSetupPath,
 		type SelectedSeriesSetupWorkflowActionId
@@ -61,8 +63,10 @@
 	summarizeCollectedContextQuestions,
 	summarizeQuestionDimensions,
 	summarizeQuestionAuthoringCards,
+	summarizeQuestionnaireBlueprintReview,
 	summarizeRespondentQuestionPreview,
 	summarizeReverseScoringReview,
+	summarizeResultsBlueprintReview,
 	summarizeScorePlan,
 	syncScoreOutputQuestionCodes,
 		toCreateQuestionScales,
@@ -192,6 +196,7 @@
 		campaignId: campaignResult?.id ?? null
 	});
 	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState));
+	const blueprintJourney = $derived(toSelectedSeriesSetupBlueprintJourney(workspace, localState));
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
@@ -246,10 +251,16 @@
 	const questionAuthoringSummaries = $derived(
 		summarizeQuestionAuthoringCards(templateQuestionRows, scoreOutputs)
 	);
+	const questionnaireBlueprintReview = $derived(
+		summarizeQuestionnaireBlueprintReview(templateQuestionRows, scoreOutputs)
+	);
 	const scoreableQuestionRows = $derived(templateQuestionRows.filter(isMeanScoreEligible));
 	const collectedContextSummaries = $derived(summarizeCollectedContextQuestions(templateQuestionRows));
 	const scoreOutputErrors = $derived(validateScoreOutputRows(scoreOutputs, templateQuestionRows));
 	const scorePlanSummaries = $derived(summarizeScorePlan(scoreOutputs, templateQuestionRows));
+	const resultsBlueprintReview = $derived(
+		summarizeResultsBlueprintReview(templateQuestionRows, scoreOutputs)
+	);
 	const reverseScoringReview = $derived(summarizeReverseScoringReview(templateQuestionRows, scoreOutputs));
 	const respondentPreviewSummaries = $derived(summarizeRespondentQuestionPreview(templateQuestionRows));
 	const authoringReadiness = $derived(summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs));
@@ -257,6 +268,15 @@
 		scoreableQuestionRows.filter((row) =>
 			scoreOutputs.some((output) => output.includedQuestionCodes.includes(row.code))
 		)
+	);
+	const launchPlan = $derived(
+		toSelectedSeriesSetupLaunchPlan(workspace, localState, {
+			responseIdentityMode: selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode,
+			savedRecipientSelectionCount: savedRuleResult?.rules.length ?? 0,
+			savedRecipientPairCount: assignmentResult?.assignmentCount ?? 0,
+			readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
+			waveName: selectedCampaignId ? selectedCampaignLabel : campaignForm.name
+		})
 	);
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
@@ -1440,9 +1460,11 @@
 			<strong class="record-row__title">Read-only access</strong>
 			<span>Setup workflow actions require setup management access.</span>
 		</p>
+		{@render BlueprintJourney()}
 		{@render SetupPath()}
 	{:else}
 		<div class="grid gap-3">
+			{@render BlueprintJourney()}
 			<p class="record-field__label">
 				{setupPath.completedCount} of {setupPath.totalCount} required steps complete
 			</p>
@@ -1540,6 +1562,23 @@
 									collected but not scored.
 									{reverseScoredCountLabel(authoringReadiness.reverseScoredQuestionCount)}.
 								</p>
+							</div>
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">Questionnaire blueprint</p>
+										<h5 class="record-row__title">{questionnaireBlueprintReview.label}</h5>
+									</div>
+									<StatusBadge status="neutral" label="Design review" />
+								</div>
+								<div class="questionnaire-blueprint-review">
+									{#each questionnaireBlueprintReview.items as item (item.id)}
+										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
+											<p class="record-field__label">{item.label}</p>
+											<p class="record-field__value">{item.detail}</p>
+										</div>
+									{/each}
+								</div>
 							</div>
 							<div class="record-row">
 								<div class="record-row__header">
@@ -1904,6 +1943,23 @@
 						</div>
 
 						<div class="grid gap-4">
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">Results blueprint</p>
+										<h5 class="record-row__title">{resultsBlueprintReview.label}</h5>
+									</div>
+									<StatusBadge status="neutral" label="Results plan" />
+								</div>
+								<div class="questionnaire-blueprint-review">
+									{#each resultsBlueprintReview.items as item (item.id)}
+										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
+											<p class="record-field__label">{item.label}</p>
+											<p class="record-field__value">{item.detail}</p>
+										</div>
+									{/each}
+								</div>
+							</div>
 							{#each scoreOutputs as output, outputIndex (output.localId)}
 								<div class="record-row">
 									<div class="setup-current-task__header">
@@ -2127,6 +2183,24 @@
 							</div>
 						</div>
 					{:else}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">Launch plan</p>
+									<h5 class="record-row__title">{launchPlan.label}</h5>
+									<p class="text-sm text-[var(--color-text-muted)]">{launchPlan.summary}</p>
+								</div>
+								<StatusBadge status="neutral" label="Wave plan" />
+							</div>
+							<div class="questionnaire-blueprint-review">
+								{#each launchPlan.items as item (item.id)}
+									<div class="questionnaire-blueprint-review__item" data-state={item.status}>
+										<p class="record-field__label">{item.label}</p>
+										<p class="record-field__value">{item.detail}</p>
+									</div>
+								{/each}
+							</div>
+						</div>
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
 								<span>Wave name</span>
@@ -2691,6 +2765,27 @@
 			</button>
 		{/each}
 	</div>
+{/snippet}
+
+{#snippet BlueprintJourney()}
+	<section class="study-journey" aria-label="Study blueprint journey">
+		<div class="study-journey__header">
+			<div>
+				<p class="product-kicker">Guided setup</p>
+				<h4>{blueprintJourney.title}</h4>
+				<p>{blueprintJourney.summary}</p>
+			</div>
+		</div>
+		<div class="study-journey__items">
+			{#each blueprintJourney.items as item}
+				<article class="study-journey__item" data-state={item.state}>
+					<span class="study-journey__state">{pathStateLabel(item.state)}</span>
+					<strong>{item.label}</strong>
+					<span>{item.description}</span>
+				</article>
+			{/each}
+		</div>
+	</section>
 {/snippet}
 
 {#snippet ActionFooter({

@@ -19,8 +19,10 @@ import {
 	summarizeAuthoringReadiness,
 	summarizeCollectedContextQuestions,
 	summarizeQuestionAuthoringCards,
+	summarizeQuestionnaireBlueprintReview,
 	summarizeRespondentQuestionPreview,
 	summarizeReverseScoringReview,
+	summarizeResultsBlueprintReview,
 	summarizeScorePlan,
 	summarizeQuestionDimensions,
 	toCreateTemplateQuestions,
@@ -345,6 +347,48 @@ describe('scoring plan summaries', () => {
 			'Requires at least 2 selected questions'
 		);
 	});
+
+	it('summarizes results blueprint review with coverage, missing answers, direction, and boundaries', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeResultsBlueprintReview(rows, outputs)).toEqual({
+			label: '1 result output, 3 scored questions, 1 reversed',
+			items: [
+				{
+					id: 'outputs',
+					label: 'Result outputs',
+					status: 'ready',
+					detail: '1 result output will be saved: Total score.'
+				},
+				{
+					id: 'coverage',
+					label: 'Question coverage',
+					status: 'ready',
+					detail: '3 of 3 scoreable questions are included in at least one result output.'
+				},
+				{
+					id: 'missing_answers',
+					label: 'Missing answers',
+					status: 'ready',
+					detail: 'All outputs require every selected question.'
+				},
+				{
+					id: 'direction',
+					label: 'Score direction',
+					status: 'attention',
+					detail: '1 reverse-scored question affects Total score.'
+				},
+				{
+					id: 'interpretation',
+					label: 'Interpretation boundary',
+					status: 'ready',
+					detail:
+						'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
+				}
+			]
+		});
+	});
 });
 
 describe('dimension-based result output defaults', () => {
@@ -455,6 +499,46 @@ describe('authoring density and review summaries', () => {
 			resultOutputCount: 1,
 			reverseScoredQuestionCount: 1,
 			label: '3 dimensions, 3 scored questions, 1 result output'
+		});
+	});
+
+	it('summarizes questionnaire blueprint review for constructs, order, requiredness, and results', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0].dimensionLabel = 'Workload';
+		rows[1].dimensionLabel = 'Workload';
+		rows[2].dimensionLabel = 'Recovery';
+		rows[2].required = false;
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeQuestionnaireBlueprintReview(rows, outputs)).toEqual({
+			label: '2 constructs, 3 questions, 2 required',
+			items: [
+				{
+					id: 'constructs',
+					label: 'Construct plan',
+					status: 'ready',
+					detail: 'Questions are grouped into Workload and Recovery.'
+				},
+				{
+					id: 'respondent_order',
+					label: 'Respondent order',
+					status: 'ready',
+					detail:
+						'Respondents answer 3 questions in order, from "Write the first question for this study." to "Write the third question for this study."'
+				},
+				{
+					id: 'requiredness',
+					label: 'Required answers',
+					status: 'ready',
+					detail: '2 required, 1 optional.'
+				},
+				{
+					id: 'results',
+					label: 'Results coverage',
+					status: 'ready',
+					detail: '3 scored questions feed 1 result output.'
+				}
+			]
 		});
 	});
 });

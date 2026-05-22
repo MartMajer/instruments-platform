@@ -45,6 +45,27 @@ export type SelectedSeriesGroupTrendPlan = {
 	guidance: string[];
 };
 
+export type SelectedSeriesWaveComparisonReviewItemId =
+	| 'wave_sequence'
+	| 'comparison_type'
+	| 'data_readiness'
+	| 'claim_boundary';
+
+export type SelectedSeriesWaveComparisonReviewItem = {
+	id: SelectedSeriesWaveComparisonReviewItemId;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	summary: string;
+	detail: string;
+};
+
+export type SelectedSeriesWaveComparisonReview = {
+	title: string;
+	description: string;
+	status: ProductReadModelBadgeStatus;
+	items: SelectedSeriesWaveComparisonReviewItem[];
+};
+
 export type SelectedSeriesWavesPathStepState = 'done' | 'current' | 'blocked';
 
 export type SelectedSeriesWavesPathStep = SelectedSeriesWavesWorkflowAction & {
@@ -248,6 +269,33 @@ export function toSelectedSeriesGroupTrendPlan(
 	};
 }
 
+export function toSelectedSeriesWaveComparisonReview(
+	workspace: CampaignSeriesWavesWorkspaceResponse
+): SelectedSeriesWaveComparisonReview {
+	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace);
+	const sameRespondentReady = isSameRespondentComparisonReady(workspace);
+	const groupTrendReady = groupTrendPlan.status === 'ready';
+	const items: SelectedSeriesWaveComparisonReviewItem[] = [
+		toWaveSequenceReviewItem(workspace),
+		toComparisonTypeReviewItem(workspace, groupTrendPlan, sameRespondentReady),
+		toDataReadinessReviewItem(workspace, groupTrendPlan, sameRespondentReady),
+		toClaimBoundaryReviewItem(workspace, groupTrendPlan, sameRespondentReady)
+	];
+
+	return {
+		title: 'Comparison plan',
+		description:
+			'See whether this study is ready for a follow-up wave, aggregate group trend, or same-respondent linked change.',
+		status:
+			workspace.summary.campaignCount === 0
+				? 'blocked'
+				: sameRespondentReady || groupTrendReady
+					? 'ready'
+					: 'pending',
+		items
+	};
+}
+
 export function toSelectedSeriesWavesWorkflowActions(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	localState: SelectedSeriesWavesWorkflowLocalState = {}
@@ -379,11 +427,223 @@ function toPathStepState(
 	return 'blocked';
 }
 
+function toWaveSequenceReviewItem(
+	workspace: CampaignSeriesWavesWorkspaceResponse
+): SelectedSeriesWaveComparisonReviewItem {
+	if (workspace.summary.campaignCount === 0) {
+		return {
+			id: 'wave_sequence',
+			label: 'Wave sequence',
+			status: 'blocked',
+			summary: 'No wave exists yet',
+			detail: 'Create Wave 1 in Setup, launch it from Collection, then return here after responses arrive.'
+		};
+	}
+
+	if (workspace.summary.campaignCount === 1) {
+		return {
+			id: 'wave_sequence',
+			label: 'Wave sequence',
+			status: 'pending',
+			summary: 'Wave 2 is the next study round',
+			detail:
+				'Use Setup to create the follow-up wave inside this same study when you are ready to repeat collection.'
+		};
+	}
+
+	return {
+		id: 'wave_sequence',
+		label: 'Wave sequence',
+		status: 'ready',
+		summary: `${workspace.summary.campaignCount} waves exist`,
+		detail:
+			'Review the latest two waves below. Add another wave only when a new collection round is actually planned.'
+	};
+}
+
+function toComparisonTypeReviewItem(
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	groupTrendPlan: SelectedSeriesGroupTrendPlan,
+	sameRespondentReady: boolean
+): SelectedSeriesWaveComparisonReviewItem {
+	if (workspace.summary.campaignCount < 2) {
+		return {
+			id: 'comparison_type',
+			label: 'Comparison type',
+			status: 'pending',
+			summary: 'No comparison yet',
+			detail: 'A comparison needs at least two waves with responses.'
+		};
+	}
+
+	if (sameRespondentReady) {
+		return {
+			id: 'comparison_type',
+			label: 'Comparison type',
+			status: 'ready',
+			summary: 'Same-respondent linked change',
+			detail:
+				'These waves have repeat-participation linking, scoring compatibility, and disclosure-visible comparison output.'
+		};
+	}
+
+	if (workspace.summary.longitudinalWaveCount >= 2) {
+		return {
+			id: 'comparison_type',
+			label: 'Comparison type',
+			status: 'pending',
+			summary: 'Linked comparison needs checks',
+			detail:
+				'The study has repeat-participation waves, but linked pairs, scoring compatibility, or disclosure output still need confirmation.'
+		};
+	}
+
+	if (groupTrendPlan.status !== 'blocked') {
+		return {
+			id: 'comparison_type',
+			label: 'Comparison type',
+			status: groupTrendPlan.status,
+			summary: 'Group trend only',
+			detail:
+				'These waves can show aggregate movement between rounds, but not individual respondent change.'
+		};
+	}
+
+	return {
+		id: 'comparison_type',
+		label: 'Comparison type',
+		status: 'blocked',
+		summary: 'No comparison yet',
+		detail: 'Collect responses in at least two waves before reviewing change over time.'
+	};
+}
+
+function toDataReadinessReviewItem(
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	groupTrendPlan: SelectedSeriesGroupTrendPlan,
+	sameRespondentReady: boolean
+): SelectedSeriesWaveComparisonReviewItem {
+	if (sameRespondentReady) {
+		return {
+			id: 'data_readiness',
+			label: 'Data readiness',
+			status: 'ready',
+			summary: `${workspace.comparison.linkedPairCount} linked ${pluralize(
+				workspace.comparison.linkedPairCount,
+				'pair',
+				'pairs'
+			)}, ${workspace.comparison.visibleScoreCount} visible ${pluralize(
+				workspace.comparison.visibleScoreCount,
+				'score',
+				'scores'
+			)}`,
+			detail:
+				'The linked comparison is visible after disclosure and scoring checks. Suppressed scores stay hidden.'
+		};
+	}
+
+	if (workspace.summary.campaignCount < 2) {
+		return {
+			id: 'data_readiness',
+			label: 'Data readiness',
+			status: 'blocked',
+			summary: 'Collect a follow-up wave first',
+			detail: 'One wave can be reviewed in Results, but it cannot show change over time.'
+		};
+	}
+
+	if (groupTrendPlan.status !== 'blocked') {
+		const firstScores = groupTrendPlan.safetyRows.find((row) => row.label === 'First wave scores');
+		const secondScores = groupTrendPlan.safetyRows.find((row) => row.label === 'Second wave scores');
+
+		return {
+			id: 'data_readiness',
+			label: 'Data readiness',
+			status: groupTrendPlan.status,
+			summary:
+				groupTrendPlan.status === 'ready'
+					? `${firstScores?.value ?? 0} first-wave scores, ${secondScores?.value ?? 0} second-wave scores`
+					: 'Finish score output before reading the trend',
+			detail:
+				'Use Results for the actual score tables and exports before making claims from this trend.'
+		};
+	}
+
+	return {
+		id: 'data_readiness',
+		label: 'Data readiness',
+		status: 'pending',
+		summary: 'Comparison output is not ready',
+		detail: 'Run the checks below to see whether linked pairs, scoring, or disclosure are blocking review.'
+	};
+}
+
+function toClaimBoundaryReviewItem(
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	groupTrendPlan: SelectedSeriesGroupTrendPlan,
+	sameRespondentReady: boolean
+): SelectedSeriesWaveComparisonReviewItem {
+	if (sameRespondentReady) {
+		return {
+			id: 'claim_boundary',
+			label: 'Claim boundary',
+			status: 'ready',
+			summary: 'Disclosure-gated custom-study comparison',
+			detail:
+				'Describe this as change in this tenant-provided custom study, not as an official benchmark or clinical threshold.'
+		};
+	}
+
+	if (groupTrendPlan.status !== 'blocked') {
+		return {
+			id: 'claim_boundary',
+			label: 'Claim boundary',
+			status: 'ready',
+			summary: 'Do not call this same-respondent change',
+			detail:
+				'Use group-level wording such as aggregate trend between waves unless repeat-participation linking is ready.'
+		};
+	}
+
+	if (workspace.summary.campaignCount === 1) {
+		return {
+			id: 'claim_boundary',
+			label: 'Claim boundary',
+			status: 'ready',
+			summary: 'Current results are wave-level only',
+			detail: 'Review Wave 1 on its own. Do not describe movement until a follow-up wave exists.'
+		};
+	}
+
+	return {
+		id: 'claim_boundary',
+		label: 'Claim boundary',
+		status: 'blocked',
+		summary: 'No change claim available',
+		detail: 'Create and collect waves before writing any change-over-time interpretation.'
+	};
+}
+
+function isSameRespondentComparisonReady(workspace: CampaignSeriesWavesWorkspaceResponse) {
+	return (
+		workspace.summary.longitudinalWaveCount >= 2 &&
+		workspace.comparison.status !== 'not_available' &&
+		workspace.comparison.compatibilityState === 'compatible' &&
+		workspace.comparison.disclosureState === 'visible' &&
+		workspace.comparison.linkedPairCount > 0 &&
+		workspace.comparison.visibleScoreCount > 0
+	);
+}
+
 function toGroupTrendWaves(workspace: CampaignSeriesWavesWorkspaceResponse) {
 	return [...workspace.waves]
 		.filter((wave) => wave.submittedResponseCount > 0)
 		.sort((left, right) => toTimestamp(left.latestLaunchAt) - toTimestamp(right.latestLaunchAt))
 		.slice(-2);
+}
+
+function pluralize(value: number, singular: string, plural: string) {
+	return value === 1 ? singular : plural;
 }
 
 function toTimestamp(value: string | null | undefined) {

@@ -13,6 +13,7 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
+		toSelectedSeriesResultsPacketReview,
 		toSelectedSeriesResultsHandoffStatus,
 		toSelectedSeriesReportsPath,
 		type SelectedSeriesReportsPathStepState,
@@ -118,6 +119,7 @@
 	});
 	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
 	const handoffStatus = $derived(toSelectedSeriesResultsHandoffStatus(workspace, localState));
+	const packetReview = $derived(toSelectedSeriesResultsPacketReview(workspace, localState));
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
 	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);
@@ -366,6 +368,37 @@
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
+
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Results packet review">
+		<div class="questionnaire-blueprint-review__header">
+			<div>
+				<p class="product-kicker">Final review</p>
+				<h4 class="setup-current-task__title">{packetReview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{packetReview.description}</p>
+			</div>
+			<StatusBadge status={packetReview.status} />
+		</div>
+		<div class="questionnaire-blueprint-review__grid">
+			{#each packetReview.items as item (item.id)}
+				<section
+					class="questionnaire-blueprint-review__item"
+					data-state={item.status}
+					aria-label={item.label}
+				>
+					<div class="questionnaire-blueprint-review__item-header">
+						<p class="record-field__label">{item.label}</p>
+						<StatusBadge status={item.status} />
+					</div>
+					<p class="record-row__title">{item.summary}</p>
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+				</section>
+			{/each}
+		</div>
+		<p class="result-line">
+			<span>Next action</span>
+			<span>{packetReview.primaryAction}</span>
+		</p>
+	</article>
 
 	<article class="score-result-panel report-proof-panel" role="region" aria-label="Results status">
 		<div class="score-result-panel__header">

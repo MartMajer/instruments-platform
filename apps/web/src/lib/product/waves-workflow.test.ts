@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
 import {
 	toSelectedSeriesGroupTrendPlan,
+	toSelectedSeriesWaveComparisonReview,
 	toSelectedSeriesWavePlan,
 	toSelectedSeriesWavesPath,
 	toSelectedSeriesWavesWorkflowActions
@@ -86,6 +87,89 @@ describe('selected-series waves workflow model', () => {
 			label: 'Disclosure status',
 			value: 'Review wave-level disclosure in Results before making claims'
 		});
+	});
+
+	it('explains that one wave is not yet a comparison', () => {
+		const review = toSelectedSeriesWaveComparisonReview(oneWaveWorkspace);
+
+		expect(review).toMatchObject({
+			title: 'Comparison plan',
+			status: 'pending'
+		});
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'wave_sequence',
+				status: 'pending',
+				summary: 'Wave 2 is the next study round'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'comparison_type',
+				status: 'pending',
+				summary: 'No comparison yet'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'claim_boundary',
+				status: 'ready',
+				summary: 'Current results are wave-level only'
+			})
+		);
+	});
+
+	it('explains that two anonymous waves support group trend only', () => {
+		const review = toSelectedSeriesWaveComparisonReview(twoAnonymousClosedWorkspace);
+
+		expect(review).toMatchObject({
+			title: 'Comparison plan',
+			status: 'ready'
+		});
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'comparison_type',
+				status: 'ready',
+				summary: 'Group trend only'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'claim_boundary',
+				status: 'ready',
+				summary: 'Do not call this same-respondent change'
+			})
+		);
+	});
+
+	it('explains when same-respondent linked change is ready for review', () => {
+		const review = toSelectedSeriesWaveComparisonReview(comparisonReadyWorkspace);
+
+		expect(review).toMatchObject({
+			title: 'Comparison plan',
+			status: 'ready'
+		});
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'comparison_type',
+				status: 'ready',
+				summary: 'Same-respondent linked change'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'data_readiness',
+				status: 'ready',
+				summary: '6 linked pairs, 1 visible score'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'claim_boundary',
+				status: 'ready',
+				summary: 'Disclosure-gated custom-study comparison'
+			})
+		);
 	});
 
 	it('blocks wave actions when the series has no longitudinal waves', () => {

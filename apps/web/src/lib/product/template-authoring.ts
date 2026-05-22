@@ -121,6 +121,43 @@ export type AuthoringReadinessSummary = {
 	label: string;
 };
 
+export type QuestionnaireBlueprintReviewItemId =
+	| 'constructs'
+	| 'respondent_order'
+	| 'requiredness'
+	| 'results';
+
+export type QuestionnaireBlueprintReviewItem = {
+	id: QuestionnaireBlueprintReviewItemId;
+	label: string;
+	status: 'ready' | 'attention';
+	detail: string;
+};
+
+export type QuestionnaireBlueprintReview = {
+	label: string;
+	items: QuestionnaireBlueprintReviewItem[];
+};
+
+export type ResultsBlueprintReviewItemId =
+	| 'outputs'
+	| 'coverage'
+	| 'missing_answers'
+	| 'direction'
+	| 'interpretation';
+
+export type ResultsBlueprintReviewItem = {
+	id: ResultsBlueprintReviewItemId;
+	label: string;
+	status: 'ready' | 'attention';
+	detail: string;
+};
+
+export type ResultsBlueprintReview = {
+	label: string;
+	items: ResultsBlueprintReviewItem[];
+};
+
 export type QuestionScoringDirectionKind =
 	| 'higher_increases_score'
 	| 'higher_reversed_before_score'
@@ -849,6 +886,95 @@ export function summarizeScorePlan(
 	});
 }
 
+export function summarizeResultsBlueprintReview(
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): ResultsBlueprintReview {
+	const scoreableRows = rows.filter(isMeanScoreEligible);
+	const normalizedOutputs = normalizeScoreOutputs(outputs, rows);
+	const includedQuestionCodes = new Set(
+		normalizedOutputs.flatMap((output) =>
+			output.includedQuestionCodes.map((code) => code.trim().toLowerCase())
+		)
+	);
+	const includedScoreableCount = scoreableRows.filter((row) =>
+		includedQuestionCodes.has(row.code.trim().toLowerCase())
+	).length;
+	const reverseRows = rows.filter((row) => row.reverseCoded && isMeanScoreEligible(row));
+	const affectedReverseCodes = new Set(reverseRows.map((row) => row.code.trim().toLowerCase()));
+	const affectedReverseOutputLabels = normalizedOutputs
+		.filter((output) =>
+			output.includedQuestionCodes.some((code) => affectedReverseCodes.has(code.trim().toLowerCase()))
+		)
+		.map((output) => output.name.trim() || output.code);
+	const allRequireEveryQuestion =
+		normalizedOutputs.length > 0 &&
+		normalizedOutputs.every((output) => output.missingStrategy === 'require_all');
+
+	return {
+		label: `${normalizedOutputs.length} result ${
+			normalizedOutputs.length === 1 ? 'output' : 'outputs'
+		}, ${includedScoreableCount} scored ${
+			includedScoreableCount === 1 ? 'question' : 'questions'
+		}, ${reverseRows.length} reversed`,
+		items: [
+			{
+				id: 'outputs',
+				label: 'Result outputs',
+				status: normalizedOutputs.length > 0 ? 'ready' : 'attention',
+				detail:
+					normalizedOutputs.length > 0
+						? `${normalizedOutputs.length} result ${
+								normalizedOutputs.length === 1 ? 'output' : 'outputs'
+							} will be saved: ${formatInlineList(
+								normalizedOutputs.map((output) => output.name.trim() || output.code)
+							)}.`
+						: 'Add at least one result output.'
+			},
+			{
+				id: 'coverage',
+				label: 'Question coverage',
+				status:
+					scoreableRows.length > 0 && includedScoreableCount === scoreableRows.length
+						? 'ready'
+						: 'attention',
+				detail:
+					scoreableRows.length > 0
+						? `${includedScoreableCount} of ${scoreableRows.length} scoreable ${
+								scoreableRows.length === 1 ? 'question is' : 'questions are'
+							} included in at least one result output.`
+						: 'Add rating, recommendation, or number questions before saving numeric results.'
+			},
+			{
+				id: 'missing_answers',
+				label: 'Missing answers',
+				status: normalizedOutputs.length > 0 ? 'ready' : 'attention',
+				detail: allRequireEveryQuestion
+					? 'All outputs require every selected question.'
+					: 'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.'
+			},
+			{
+				id: 'direction',
+				label: 'Score direction',
+				status: reverseRows.length > 0 ? 'attention' : 'ready',
+				detail:
+					reverseRows.length > 0
+						? `${reverseRows.length} reverse-scored ${
+								reverseRows.length === 1 ? 'question affects' : 'questions affect'
+							} ${formatInlineList(affectedReverseOutputLabels)}.`
+						: 'No questions are reversed before scoring.'
+			},
+			{
+				id: 'interpretation',
+				label: 'Interpretation boundary',
+				status: 'ready',
+				detail:
+					'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
+			}
+		]
+	};
+}
+
 export function summarizeQuestionAuthoringCards(
 	rows: TemplateQuestionAuthoringRow[],
 	outputs: ScoreOutputAuthoringRow[]
@@ -949,6 +1075,74 @@ export function summarizeAuthoringReadiness(
 		resultOutputCount: outputs.length,
 		reverseScoredQuestionCount,
 		label: `${dimensionLabel}, ${scoredLabel}, ${outputLabel}`
+	};
+}
+
+export function summarizeQuestionnaireBlueprintReview(
+	rows: TemplateQuestionAuthoringRow[],
+	outputs: ScoreOutputAuthoringRow[]
+): QuestionnaireBlueprintReview {
+	const orderedRows = renumberRows(rows);
+	const dimensions = summarizeQuestionDimensions(orderedRows);
+	const requiredCount = orderedRows.filter((row) => row.required).length;
+	const optionalCount = orderedRows.length - requiredCount;
+	const scoredQuestionCount = orderedRows.filter(isMeanScoreEligible).length;
+	const outputQuestionCodes = new Set(
+		outputs.flatMap((output) =>
+			output.includedQuestionCodes.map((code) => code.trim().toLowerCase()).filter(Boolean)
+		)
+	);
+	const scoredQuestionsInResults = orderedRows.filter(
+		(row) => isMeanScoreEligible(row) && outputQuestionCodes.has(row.code.trim().toLowerCase())
+	).length;
+
+	return {
+		label: `${dimensions.length} ${dimensions.length === 1 ? 'construct' : 'constructs'}, ${
+			orderedRows.length
+		} ${orderedRows.length === 1 ? 'question' : 'questions'}, ${requiredCount} required`,
+		items: [
+			{
+				id: 'constructs',
+				label: 'Construct plan',
+				status: dimensions.length > 0 ? 'ready' : 'attention',
+				detail:
+					dimensions.length > 0
+						? `Questions are grouped into ${formatInlineList(
+								dimensions.map((dimension) => dimension.label)
+							)}.`
+						: 'Add at least one construct or dimension label before saving.'
+			},
+			{
+				id: 'respondent_order',
+				label: 'Respondent order',
+				status: orderedRows.length > 0 ? 'ready' : 'attention',
+				detail:
+					orderedRows.length > 0
+						? `Respondents answer ${orderedRows.length} ${
+								orderedRows.length === 1 ? 'question' : 'questions'
+							} in order, from "${questionTitle(orderedRows[0])}" to "${questionTitle(
+								orderedRows[orderedRows.length - 1]
+							)}"`
+						: 'Add questions before reviewing respondent order.'
+			},
+			{
+				id: 'requiredness',
+				label: 'Required answers',
+				status: orderedRows.length > 0 ? 'ready' : 'attention',
+				detail: `${requiredCount} required, ${optionalCount} optional.`
+			},
+			{
+				id: 'results',
+				label: 'Results coverage',
+				status: scoredQuestionCount > 0 && outputs.length > 0 ? 'ready' : 'attention',
+				detail:
+					scoredQuestionCount > 0 && outputs.length > 0
+						? `${scoredQuestionsInResults} scored ${
+								scoredQuestionsInResults === 1 ? 'question feeds' : 'questions feed'
+							} ${outputs.length} result ${outputs.length === 1 ? 'output' : 'outputs'}.`
+						: 'Add at least one rating, recommendation, or number question for numeric results.'
+			}
+		]
 	};
 }
 
@@ -1188,6 +1382,22 @@ function respondentResponsePreview(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	return 'Short written response field';
+}
+
+function formatInlineList(values: string[]) {
+	if (values.length === 0) {
+		return 'no constructs';
+	}
+
+	if (values.length === 1) {
+		return values[0];
+	}
+
+	if (values.length === 2) {
+		return `${values[0]} and ${values[1]}`;
+	}
+
+	return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
 }
 
 function scoreCode(label: string): string {

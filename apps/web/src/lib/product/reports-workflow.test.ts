@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 import {
+	toSelectedSeriesResultsPacketReview,
 	toSelectedSeriesResultsHandoffStatus,
 	toSelectedSeriesReportsPath,
 	toSelectedSeriesReportsWorkflowActions
@@ -361,6 +362,68 @@ describe('selected-series reports workflow model', () => {
 			'2 submitted responses are not visible as scores because scoring, missing-answer rules, or disclosure still exclude them.'
 		);
 	});
+
+	it('summarizes a live results packet as internal review only', () => {
+		const packet = toSelectedSeriesResultsPacketReview(reportableWorkspace);
+
+		expect(packet).toMatchObject({
+			title: 'Results packet',
+			status: 'pending',
+			primaryAction: 'Review interpretation limits before sharing; keep the current report-summary export internal.'
+		});
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'results',
+				status: 'ready',
+				summary: 'Results preview is ready'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'export_files',
+				status: 'pending',
+				summary: 'Create the response dataset when ready'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'sharing',
+				status: 'blocked',
+				summary: 'Do not share yet'
+			})
+		);
+	});
+
+	it('summarizes a closed validated response export as ready to share', () => {
+		const packet = toSelectedSeriesResultsPacketReview(shareReadyWorkspace);
+
+		expect(packet).toMatchObject({
+			title: 'Results packet',
+			status: 'ready',
+			primaryAction: 'Download the response dataset or review waves.'
+		});
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'interpretation',
+				status: 'ready',
+				summary: 'Interpretation reviewed'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'export_files',
+				status: 'ready',
+				summary: 'Response dataset ready'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'sharing',
+				status: 'ready',
+				summary: 'Ready to share'
+			})
+		);
+	});
 });
 
 const emptyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
@@ -533,4 +596,13 @@ const reportableWorkspaceWithResponseExport: CampaignSeriesReportsWorkspaceRespo
 			canDownload: true
 		}
 	]
+};
+
+const shareReadyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
+	...reportableWorkspaceWithResponseExport,
+	selectedCampaign: {
+		...reportableWorkspaceWithResponseExport.selectedCampaign!,
+		status: 'closed',
+		interpretationStatus: 'validated_interpretation'
+	}
 };

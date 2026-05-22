@@ -63,6 +63,28 @@ export type SelectedSeriesResultsHandoffStatus = {
 	lanes: SelectedSeriesResultsHandoffLane[];
 };
 
+export type SelectedSeriesResultsPacketReviewItemId =
+	| 'results'
+	| 'interpretation'
+	| 'export_files'
+	| 'sharing';
+
+export type SelectedSeriesResultsPacketReviewItem = {
+	id: SelectedSeriesResultsPacketReviewItemId;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	summary: string;
+	detail: string;
+};
+
+export type SelectedSeriesResultsPacketReview = {
+	title: string;
+	description: string;
+	status: ProductReadModelBadgeStatus;
+	primaryAction: string;
+	items: SelectedSeriesResultsPacketReviewItem[];
+};
+
 export function toSelectedSeriesReportsWorkflowActions(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
@@ -386,6 +408,40 @@ export function toSelectedSeriesResultsHandoffStatus(
 	};
 }
 
+export function toSelectedSeriesResultsPacketReview(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState = {}
+): SelectedSeriesResultsPacketReview {
+	const handoffStatus = toSelectedSeriesResultsHandoffStatus(workspace, localState);
+	const operationalLane = findHandoffLane(handoffStatus, 'operational');
+	const hasCampaign = Boolean(workspace.selectedCampaign);
+	const hasResponseDataset = hasResponseDatasetExport(workspace, localState);
+	const items: SelectedSeriesResultsPacketReviewItem[] = [
+		toResultsPacketItem(handoffStatus),
+		toInterpretationPacketItem(handoffStatus),
+		toExportFilesPacketItem(workspace, localState, operationalLane.status === 'ready'),
+		toSharingPacketItem(handoffStatus)
+	];
+
+	return {
+		title: 'Results packet',
+		description:
+			'Check what can be reviewed, which export file is appropriate, and whether anything is safe to share outside the team.',
+		status: !hasCampaign
+			? 'not_available'
+			: handoffStatus.overallStatus === 'ready'
+				? 'ready'
+				: operationalLane.status === 'ready'
+					? 'pending'
+					: 'blocked',
+		primaryAction:
+			handoffStatus.overallStatus === 'ready' && hasResponseDataset
+				? 'Download the response dataset or review waves.'
+				: handoffStatus.nextAction,
+		items
+	};
+}
+
 export function toSelectedSeriesReportsPath(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
@@ -628,6 +684,155 @@ function isInterpretationValidated(status: string | null | undefined) {
 
 function isCollectionClosed(status: string | null | undefined) {
 	return status === 'closed' || status === 'completed' || status === 'ended';
+}
+
+function toResultsPacketItem(
+	handoffStatus: SelectedSeriesResultsHandoffStatus
+): SelectedSeriesResultsPacketReviewItem {
+	const lane = findHandoffLane(handoffStatus, 'operational');
+
+	if (lane.status === 'ready') {
+		return {
+			id: 'results',
+			label: 'Results',
+			status: 'ready',
+			summary: 'Results preview is ready',
+			detail: lane.detail
+		};
+	}
+
+	return {
+		id: 'results',
+		label: 'Results',
+		status: lane.status,
+		summary: lane.title,
+		detail: lane.detail
+	};
+}
+
+function toInterpretationPacketItem(
+	handoffStatus: SelectedSeriesResultsHandoffStatus
+): SelectedSeriesResultsPacketReviewItem {
+	const lane = findHandoffLane(handoffStatus, 'interpretation');
+
+	return {
+		id: 'interpretation',
+		label: 'Interpretation',
+		status: lane.status,
+		summary: lane.status === 'ready' ? 'Interpretation reviewed' : lane.title,
+		detail: lane.detail
+	};
+}
+
+function toExportFilesPacketItem(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState,
+	resultsReady: boolean
+): SelectedSeriesResultsPacketReviewItem {
+	if (!workspace.selectedCampaign) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'not_available',
+			summary: 'No export file yet',
+			detail: 'Select a wave before preparing files.'
+		};
+	}
+
+	if (hasResponseDatasetExport(workspace, localState) && hasAnyDownloadableExport(workspace, localState)) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'ready',
+			summary: 'Response dataset ready',
+			detail: 'Use this CSV and codebook for analysis. Keep interpretation and finality checks with the file.'
+		};
+	}
+
+	if (hasAnyDownloadableExport(workspace, localState)) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'pending',
+			summary: 'Report-summary file ready for internal review',
+			detail:
+				'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.'
+		};
+	}
+
+	if (hasAnyExport(workspace, localState)) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'pending',
+			summary: 'Export file needs review',
+			detail: 'Review the generated file and confirm it is downloadable before relying on it.'
+		};
+	}
+
+	return {
+		id: 'export_files',
+		label: 'Export files',
+		status: resultsReady ? 'pending' : 'blocked',
+		summary: resultsReady ? 'Create the response dataset when ready' : 'Export blocked',
+		detail: resultsReady
+			? 'Create the response dataset for analysis, or create the report-summary file for internal review.'
+			: 'Results must be ready before export files can be created.'
+	};
+}
+
+function toSharingPacketItem(
+	handoffStatus: SelectedSeriesResultsHandoffStatus
+): SelectedSeriesResultsPacketReviewItem {
+	if (handoffStatus.overallStatus === 'ready') {
+		return {
+			id: 'sharing',
+			label: 'Sharing',
+			status: 'ready',
+			summary: 'Ready to share',
+			detail:
+				'Results, interpretation, export file, and collection finality are ready. Keep disclosure limits with the shared packet.'
+		};
+	}
+
+	const operationalLane = findHandoffLane(handoffStatus, 'operational');
+
+	if (operationalLane.status === 'ready') {
+		return {
+			id: 'sharing',
+			label: 'Sharing',
+			status: 'blocked',
+			summary: 'Do not share yet',
+			detail: handoffStatus.guidance
+		};
+	}
+
+	return {
+		id: 'sharing',
+		label: 'Sharing',
+		status: operationalLane.status,
+		summary: 'Nothing ready to share yet',
+		detail: handoffStatus.guidance
+	};
+}
+
+function findHandoffLane(
+	handoffStatus: SelectedSeriesResultsHandoffStatus,
+	id: SelectedSeriesResultsHandoffLaneId
+) {
+	return handoffStatus.lanes.find((lane) => lane.id === id) ?? handoffStatus.lanes[0];
+}
+
+function hasResponseDatasetExport(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState
+) {
+	return Boolean(
+		localState.responseExportCreated ||
+			workspace.exportArtifacts.some(
+				(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
+			)
+	);
 }
 
 function toHandoffNextAction(
