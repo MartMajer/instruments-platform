@@ -410,7 +410,7 @@ describe('selected-series setup workflow model', () => {
 
 		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Val 1');
 		expect(path.steps[0]).toMatchObject({
-			step: 'Korak 1',
+			step: '1',
 			title: 'Izvor studije',
 			description: 'Potvrdite na čemu se studija temelji prije izrade upitnika.'
 		});

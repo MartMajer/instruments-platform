@@ -362,7 +362,7 @@ const en = {
 			}
 		},
 		setupWorkflow: {
-			stepNumber: (number: number) => `Step ${number}`,
+			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Wave ${number}`,
 			steps: {
 				instrument: {
@@ -503,7 +503,7 @@ const en = {
 			}
 		},
 		operationsWorkflow: {
-			stepNumber: (number: number) => `Step ${number}`,
+			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
 					title: 'Pre-launch check',
@@ -1092,7 +1092,7 @@ const hr: typeof en = {
 			}
 		},
 		setupWorkflow: {
-			stepNumber: (number: number) => `Korak ${number}`,
+			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Val ${number}`,
 			steps: {
 				instrument: {
@@ -1233,7 +1233,7 @@ const hr: typeof en = {
 			}
 		},
 		operationsWorkflow: {
-			stepNumber: (number: number) => `Korak ${number}`,
+			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
 					title: 'Provjera prije pokretanja',

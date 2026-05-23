@@ -435,7 +435,7 @@ describe('selected-series operations workflow model', () => {
 		const summary = toSelectedSeriesCollectionStatusSummary(liveWithResponsesWorkspace, {}, copy);
 
 		expect(path.steps[0]).toMatchObject({
-			step: 'Korak 1',
+			step: '1',
 			title: 'Provjera prije pokretanja',
 			description: 'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
 		});
