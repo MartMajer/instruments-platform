@@ -18,7 +18,7 @@ describe('respondent receipt view', () => {
 
 		expect(view.title).toBe('Response submitted');
 		expect(view.headline).toBe('Your response for Wave 1 was received.');
-		expect(view.submittedAt).toBe('2026-05-07T12:05:00Z');
+		expect(view.submittedAt).toBe('May 7, 2026, 2:05 PM');
 		expect(view.metrics).toEqual([
 			{ label: 'Study', value: 'Wave 1' },
 			{ label: 'Response mode', value: 'anonymous' },
@@ -42,9 +42,17 @@ describe('respondent receipt view', () => {
 			submitted: sampleSubmitted()
 		});
 
-		expect(view.metrics).toContainEqual({ label: 'Response mode', value: 'anonymous longitudinal' });
-		expect(view.metrics).toContainEqual({ label: 'Locale', value: 'hr' });
-		expect(view.guidance).toContain('Keep your participant code. The platform cannot recover it later.');
+		expect(view.title).toBe('Odgovor je poslan');
+		expect(view.headline).toBe('Vaš odgovor za Wave 1 je zaprimljen.');
+		expect(view.submittedAt).toBe('07.05.2026. 14:05');
+		expect(view.metrics).toContainEqual({
+			label: 'Način odgovora',
+			value: 'anonimno longitudinalno'
+		});
+		expect(view.metrics).toContainEqual({ label: 'Jezik', value: 'hr' });
+		expect(view.guidance).toContain(
+			'Sačuvajte svoj sudionički kod. Platforma ga kasnije ne može vratiti.'
+		);
 	});
 
 	it('omits answer count when saved-answer state is unavailable', () => {

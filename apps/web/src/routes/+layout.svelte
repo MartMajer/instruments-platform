@@ -1,10 +1,18 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/AppShell.svelte';
 	import favicon from '$lib/assets/favicon.svg';
+	import { htmlLangForLocale, normalizeAppLocale } from '$lib/i18n/localization';
+	import { onMount } from 'svelte';
 	import './app.css';
 
-	let { children } = $props();
+	let { children, data } = $props();
+	const appLocale = $derived(normalizeAppLocale(data.appLocale));
+
+	onMount(() => {
+		document.documentElement.lang = htmlLangForLocale(appLocale);
+	});
 </script>
 
 <svelte:head>

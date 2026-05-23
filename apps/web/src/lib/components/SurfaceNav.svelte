@@ -16,68 +16,72 @@
 		UsersRound,
 		Waves
 	} from 'lucide-svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { surfaceNavCopy } from '$lib/i18n/ui-copy';
 
 	const activeSeriesId = $derived(page.params.seriesId);
 	const demoSurfacesEnabled = $derived(env.PUBLIC_DEMO_SURFACES_ENABLED === 'true');
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(surfaceNavCopy(locale));
 
 	const globalNavigationSections = $derived([
 		{
 			id: 'studies',
-			label: 'Studies',
+			label: copy.sections.studies,
 			surfaces: [
 				{
-					label: 'Home',
+					label: copy.surfaces.home,
 					href: '/app',
 					icon: Home,
-					description: 'Start here'
+					description: copy.descriptions.startHere
 				},
 				{
-					label: 'Studies',
+					label: copy.surfaces.studies,
 					href: '/app/campaign-series',
 					icon: FolderKanban,
-					description: 'Plan studies'
+					description: copy.descriptions.planStudies
 				},
 				{
-					label: 'Instrument library',
+					label: copy.surfaces.instrumentLibrary,
 					href: '/app/instruments',
 					icon: BookOpen,
-					description: 'Question sets'
+					description: copy.descriptions.questionSets
 				},
 				{
-					label: 'Exports',
+					label: copy.surfaces.exports,
 					href: '/app/exports',
 					icon: FileDown,
-					description: 'Files'
+					description: copy.descriptions.files
 				}
 			]
 		},
 		{
 			id: 'people-access',
-			label: 'People and access',
+			label: copy.sections.peopleAccess,
 			surfaces: [
 				{
-					label: 'Directory',
+					label: copy.surfaces.directory,
 					href: '/app/directory',
 					icon: Network,
-					description: 'Audiences and groups'
+					description: copy.descriptions.audiencesGroups
 				},
 				{
-					label: 'Team',
+					label: copy.surfaces.team,
 					href: '/app/team',
 					icon: UsersRound,
-					description: 'Workspace access'
+					description: copy.descriptions.workspaceAccess
 				}
 			]
 		},
 		{
 			id: 'workspace-admin',
-			label: 'Workspace admin',
+			label: copy.sections.workspaceAdmin,
 			surfaces: [
 				{
-					label: 'Settings',
+					label: copy.surfaces.settings,
 					href: '/app/settings',
 					icon: Building2,
-					description: 'Workspace profile'
+					description: copy.descriptions.workspaceProfile
 				}
 			]
 		}
@@ -87,37 +91,37 @@
 		activeSeriesId
 			? {
 					id: 'selected-study',
-					label: 'Selected study',
+					label: copy.sections.selectedStudy,
 					surfaces: [
 						{
-							label: 'Overview',
+							label: copy.surfaces.overview,
 							href: `/app/campaign-series/${activeSeriesId}`,
 							icon: ClipboardList,
-							description: 'Plan and status'
+							description: copy.descriptions.planStatus
 						},
 						{
-							label: 'Setup',
+							label: copy.surfaces.setup,
 							href: `/app/campaign-series/${activeSeriesId}/setup`,
 							icon: Settings2,
-							description: 'Build study'
+							description: copy.descriptions.buildStudy
 						},
 						{
-							label: 'Collect',
+							label: copy.surfaces.collect,
 							href: `/app/campaign-series/${activeSeriesId}/operations`,
 							icon: RadioTower,
-							description: 'Run collection'
+							description: copy.descriptions.collect
 						},
 						{
-							label: 'Results',
+							label: copy.surfaces.results,
 							href: `/app/campaign-series/${activeSeriesId}/reports`,
 							icon: BarChart3,
-							description: 'Reports and exports'
+							description: copy.descriptions.reportsExports
 						},
 						{
-							label: 'Waves',
+							label: copy.surfaces.waves,
 							href: `/app/campaign-series/${activeSeriesId}/waves`,
 							icon: Waves,
-							description: 'Compare waves'
+							description: copy.descriptions.compareWaves
 						}
 					]
 				}
@@ -128,13 +132,13 @@
 		demoSurfacesEnabled
 			? {
 					id: 'internal-tools',
-					label: 'Internal tools',
+					label: copy.sections.internalTools,
 					surfaces: [
 						{
-							label: 'Demo fixtures',
+							label: copy.surfaces.demoFixtures,
 							href: '/app/demo',
 							icon: ListChecks,
-							description: 'Local gated states'
+							description: copy.descriptions.localGatedStates
 						}
 					]
 				}
@@ -148,7 +152,7 @@
 	]);
 </script>
 
-<nav class="product-nav" aria-label="Product navigation">
+<nav class="product-nav" aria-label={copy.aria.productNavigation}>
 	{#each navigationSections as section (section.id)}
 		{@const sectionLabelId = `product-nav-${section.id}-label`}
 		<div class="product-nav__section" role="group" aria-labelledby={sectionLabelId}>

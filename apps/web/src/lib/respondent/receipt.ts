@@ -4,6 +4,8 @@ import type {
 	SaveAnswersResponse,
 	SubmitResponseSessionResponse
 } from '$lib/api/setup';
+import { formatAppDateTime, normalizeAppLocale, type AppLocale } from '$lib/i18n/localization';
+import { respondentReceiptCopy } from '$lib/i18n/ui-copy';
 
 export type RespondentReceiptMetric = {
 	label: string;
@@ -29,36 +31,44 @@ export function toRespondentReceiptView({
 	savedAnswers: SaveAnswersResponse | null;
 	submitted: SubmitResponseSessionResponse;
 }): RespondentReceiptView {
+	const locale = normalizeAppLocale(session.locale || entry.defaultLocale);
+	const copy = respondentReceiptCopy(locale);
 	const metrics: RespondentReceiptMetric[] = [
-		{ label: 'Study', value: entry.name },
-		{ label: 'Response mode', value: humanizeValue(entry.responseIdentityMode) },
-		{ label: 'Locale', value: session.locale || entry.defaultLocale },
-		{ label: 'Consent version', value: entry.consentDocument.version }
+		{ label: copy.metrics.study, value: entry.name },
+		{ label: copy.metrics.responseMode, value: humanizeResponseMode(entry.responseIdentityMode, locale) },
+		{ label: copy.metrics.locale, value: session.locale || entry.defaultLocale },
+		{ label: copy.metrics.consentVersion, value: entry.consentDocument.version }
 	];
 
 	if (savedAnswers) {
-		metrics.push({ label: 'Answers received', value: String(savedAnswers.savedAnswerCount) });
+		metrics.push({ label: copy.metrics.answersReceived, value: String(savedAnswers.savedAnswerCount) });
 	}
 
-	const guidance = [
-		'You can close this page.',
-		'This page does not show scores or interpretation.',
-		'For questions about withdrawal or data use, use the study contact named in the consent information.'
-	];
+	const guidance = [copy.guidance.close, copy.guidance.noScores, copy.guidance.contact];
 
 	if (entry.requiresParticipantCode) {
-		guidance.push('Keep your participant code. The platform cannot recover it later.');
+		guidance.push(copy.guidance.participantCode);
 	}
 
 	return {
-		title: 'Response submitted',
-		headline: `Your response for ${entry.name} was received.`,
-		submittedAt: submitted.submittedAt,
+		title: copy.title,
+		headline: copy.headline(entry.name),
+		submittedAt: formatAppDateTime(submitted.submittedAt, locale, { fallback: copy.notAvailable }),
 		metrics,
 		guidance
 	};
 }
 
-function humanizeValue(value: string) {
+function humanizeResponseMode(value: string, locale: AppLocale) {
+	if (locale === 'hr-HR') {
+		if (value === 'anonymous') {
+			return 'anonimno';
+		}
+
+		if (value === 'anonymous_longitudinal') {
+			return 'anonimno longitudinalno';
+		}
+	}
+
 	return value.replaceAll('_', ' ');
 }

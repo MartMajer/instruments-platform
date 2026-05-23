@@ -16,6 +16,8 @@
 	} from '$lib/api/session-headers';
 	import { createSetupApi, type AuthSessionResponse } from '$lib/api/setup';
 	import AppShell from '$lib/components/AppShell.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { appShellCopy, authBoundaryCopy } from '$lib/i18n/ui-copy';
 	import { createProductAuthContext, setProductAuthContext } from '$lib/product/auth-context';
 	import { toSessionProfileView } from '$lib/product/session-profile';
 
@@ -29,20 +31,23 @@
 	const pendingRegistrationStage = 'auth0-sign-in';
 	const pendingRegistrationMaxAgeMs = 15 * 60 * 1000;
 	const pendingRegistrationClockSkewMs = 60 * 1000;
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(authBoundaryCopy(locale));
+	const shellCopy = $derived(appShellCopy(locale));
 	let pendingRegistrationLoginUrl = $state('');
 	const hasTenantLoginTarget = $derived(/[?&]tenantId=/.test(loginUrl));
 	const primaryAuthActionUrl = $derived(hasTenantLoginTarget ? loginUrl : resolve('/signin'));
 	const primaryAuthActionLabel = $derived(
-		hasTenantLoginTarget ? 'Sign in' : 'Sign in to existing workspace'
+		hasTenantLoginTarget ? copy.access.signIn : copy.access.signInExistingWorkspace
 	);
 	const completeLogoutUrl = $derived(createProviderLogoutUrl(resolve('/')));
 	const authFailedPrimaryUrl = $derived(pendingRegistrationLoginUrl || primaryAuthActionUrl);
 	const emailVerificationSignInUrl = $derived(withPromptLogin(authFailedPrimaryUrl));
 	const authFailedPrimaryLabel = $derived(
 		pendingRegistrationLoginUrl
-			? 'Try registration sign-in again'
+			? copy.access.tryRegistrationSignInAgain
 			: hasTenantLoginTarget
-			? 'Sign in to existing workspace'
+			? copy.access.signInExistingWorkspace
 			: primaryAuthActionLabel
 	);
 	const authFailedHasPendingRegistration = $derived(pendingRegistrationLoginUrl.length > 0);
@@ -123,17 +128,17 @@
 	function formatError(error: unknown) {
 		if (error instanceof ApiError) {
 			if (error.status >= 500) {
-				return 'The API could not confirm workspace access. Retry, then sign out and sign in again if it continues.';
+				return copy.access.apiRetry500;
 			}
 
-			return 'The app could not confirm workspace access. Sign out and sign in again if retry does not recover.';
+			return copy.access.apiRetryGeneral;
 		}
 
 		if (error instanceof Error) {
 			return error.message;
 		}
 
-		return 'Session check failed.';
+		return copy.access.sessionCheckFailed;
 	}
 
 	function clearAuthFailureMarker() {
@@ -264,58 +269,58 @@
 </script>
 
 <svelte:head>
-	<title>Workspace</title>
+	<title>{copy.head.title}</title>
 	<meta
 		name="description"
-		content="Authenticated campaign-series workspace for the Instruments Platform."
+		content={copy.head.description}
 	/>
 </svelte:head>
 
 {#if authState === 'checking'}
-	<main class="auth-boundary-shell" aria-label="Workspace access">
+	<main class="auth-boundary-shell" aria-label={copy.access.workspaceAccess}>
 		<section class="setup-panel" aria-labelledby="auth-boundary-title">
 			<div class="setup-panel__header">
 				<div>
-					<p class="setup-panel__eyebrow">Workspace access</p>
-					<h1 id="auth-boundary-title" class="setup-panel__title">Checking workspace access</h1>
+					<p class="setup-panel__eyebrow">{copy.access.workspaceAccess}</p>
+					<h1 id="auth-boundary-title" class="setup-panel__title">{copy.access.checkingTitle}</h1>
 				</div>
 			</div>
-			<p class="text-sm text-[var(--color-text-muted)]">Confirming your signed-in account and workspace membership.</p>
+			<p class="text-sm text-[var(--color-text-muted)]">{copy.access.checkingDetail}</p>
 		</section>
 	</main>
 {:else if authState === 'authenticated' && authSession}
 	<AppShell>
 		<div class="grid gap-6">
 			{#if authSession.emailVerificationRequired === true}
-				<div class="email-verification-reminder" role="status" aria-label="Email verification required">
+				<div class="email-verification-reminder" role="status" aria-label={copy.access.emailVerificationRequired}>
 					<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 					<div class="email-verification-reminder__body">
-						<h2 class="email-verification-reminder__title">Verify your email</h2>
+						<h2 class="email-verification-reminder__title">{copy.access.verifyEmailTitle}</h2>
 						<p class="email-verification-reminder__text">
-							Open the verification email from your sign-in provider to keep access after signing out.
+							{copy.access.verifyEmailDetail}
 						</p>
 					</div>
 				</div>
 			{/if}
 
-			<section class="setup-callout" aria-label="Signed-in workspace account">
+			<section class="setup-callout" aria-label={copy.access.signedInWorkspaceAccount}>
 				{#if sessionProfile}
 					<div class="session-callout__header">
 						<div>
-							<p class="setup-callout__key">Signed in as</p>
+							<p class="setup-callout__key">{copy.access.signedInAs}</p>
 							<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
 							<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
 						</div>
-						<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
+						<a class="secondary-button" href={workspaceLogoutUrl}>{shellCopy.actions.signOut}</a>
 					</div>
-					<div class="session-callout__badges" aria-label="Workspace access">
+					<div class="session-callout__badges" aria-label={copy.access.workspaceAccess}>
 						{#each sessionProfile.permissionBadges as badge}
 							<span class="status-badge" data-status="ready">{badge}</span>
 						{/each}
 					</div>
 					{#if sessionProfile.technicalRows.length > 0}
-						<details class="session-callout__details" aria-label="Session technical details">
-							<summary>Technical details</summary>
+						<details class="session-callout__details" aria-label={copy.access.sessionTechnicalDetails}>
+							<summary>{copy.access.technicalDetails}</summary>
 							<dl class="session-callout__technical-list">
 								{#each sessionProfile.technicalRows as row}
 									<div class="session-callout__technical-row">
@@ -333,60 +338,58 @@
 		</div>
 	</AppShell>
 {:else if authState === 'unauthenticated'}
-	<main class="auth-boundary-shell" aria-label="Workspace access">
+	<main class="auth-boundary-shell" aria-label={copy.access.workspaceAccess}>
 		<section class="setup-panel" aria-labelledby="auth-boundary-title">
 			<div class="setup-panel__header">
 				<div>
-					<p class="setup-panel__eyebrow">Workspace access</p>
-					<h1 id="auth-boundary-title" class="setup-panel__title">Workspace sign-in needed</h1>
+					<p class="setup-panel__eyebrow">{copy.access.workspaceAccess}</p>
+					<h1 id="auth-boundary-title" class="setup-panel__title">{copy.access.workspaceSignInNeeded}</h1>
 				</div>
 			</div>
 			{#if authRecoveryRedirect}
 				<div
 					class="email-verification-reminder"
 					role="status"
-					aria-label="Email verification reminder"
+					aria-label={copy.access.emailVerificationReminder}
 				>
 					<div class="email-verification-reminder__icon" aria-hidden="true">!</div>
 					<div class="email-verification-reminder__body">
 						<h2 class="email-verification-reminder__title">
 							{authEmailUnverifiedRedirect
-								? 'Verify email, then sign in'
+								? copy.access.verifyThenSignIn
 								: authEmailMismatchRedirect
-								? 'Choose the requested account'
+								? copy.access.chooseRequestedAccount
 								: authFailedHasPendingRegistration
-								? 'Registration sign-in did not finish'
-								: 'Sign in with your workspace account'}
+								? copy.access.registrationSignInDidNotFinish
+								: copy.access.signInWithWorkspaceAccount}
 						</h2>
 						{#if authEmailUnverifiedRedirect}
 							<p class="email-verification-reminder__text">
-								Open the verification email from your sign-in provider, then sign in again with the same account.
+								{copy.access.openVerificationEmail}
 							</p>
 							<p class="email-verification-reminder__note">
-								If the browser keeps choosing the wrong account, sign out completely and choose the intended email.
+								{copy.access.wrongAccountSignOut}
 							</p>
 						{:else if authEmailMismatchRedirect}
 							<p class="email-verification-reminder__text">
-								The selected sign-in account did not match the workspace email you entered.
-								Sign out completely, then choose the same account again.
+								{copy.access.emailMismatchText}
 							</p>
 							<p class="email-verification-reminder__note">
-								This protects the workspace from stale provider sessions and wrong account selection.
+								{copy.access.emailMismatchNote}
 							</p>
 						{:else if authFailedHasPendingRegistration}
 							<p class="email-verification-reminder__text">
-								Retry the saved registration sign-in link if sign-in was interrupted.
+								{copy.access.registrationRetryText}
 							</p>
 							<p class="email-verification-reminder__note">
-								If the browser keeps choosing the wrong account, sign out completely first.
+								{copy.access.registrationRetryNote}
 							</p>
 						{:else}
 							<p class="email-verification-reminder__text">
-								The selected account does not have access to this workspace. Sign in with
-								the email that owns the workspace, or create a new workspace from registration.
+								{copy.access.noWorkspaceAccountText}
 							</p>
 							<p class="email-verification-reminder__note">
-								If the browser keeps choosing the wrong account, sign out completely and choose the intended email.
+								{copy.access.noWorkspaceAccountNote}
 							</p>
 						{/if}
 					</div>
@@ -395,15 +398,15 @@
 			<p class="text-sm text-[var(--color-text-muted)]">
 				{authRecoveryRedirect
 					? authEmailUnverifiedRedirect
-						? 'Email verification is required before signing in again after sign-out.'
+						? copy.access.emailVerificationRequired
 						: authEmailMismatchRedirect
-						? 'Use the same email you entered on the workspace sign-in page.'
+						? copy.access.useSameEmail
 						: authFailedHasPendingRegistration
-						? 'Use the saved registration link only when registration was interrupted before the workspace opened.'
-						: 'Use an account that already belongs to this workspace. If this is not the account you intended, sign out completely.'
+						? copy.access.useSavedRegistrationLink
+						: copy.access.useWorkspaceAccount
 					: hasTenantLoginTarget
-						? 'Sign in with an account that belongs to this workspace before opening product screens.'
-						: 'No workspace session is active. Sign in with your workspace email, or create a workspace first.'}
+						? copy.access.signInWithTenantAccount
+						: copy.access.noWorkspaceSession}
 			</p>
 			<div class="flex flex-wrap gap-3">
 				{#if authRecoveryRedirect}
@@ -414,54 +417,54 @@
 							: authFailedPrimaryUrl}
 					>
 						{authEmailUnverifiedRedirect
-							? 'Sign in after verifying email'
+							? copy.access.signInAfterVerification
 							: authEmailMismatchRedirect
-							? 'Choose account again'
+							? copy.access.chooseAccountAgain
 							: authFailedPrimaryLabel}
 					</a>
-					<a class="secondary-button" href={completeLogoutUrl}>Sign out completely</a>
+					<a class="secondary-button" href={completeLogoutUrl}>{copy.access.signOutCompletely}</a>
 				{:else}
 					<a class="primary-button" href={primaryAuthActionUrl}>{primaryAuthActionLabel}</a>
 					{#if !hasTenantLoginTarget}
-						<a class="secondary-button" href={resolve('/register')}>Create workspace</a>
+						<a class="secondary-button" href={resolve('/register')}>{copy.access.createWorkspace}</a>
 					{/if}
-					<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
+					<button type="button" class="secondary-button" onclick={checkSession}>{copy.access.retry}</button>
 				{/if}
 			</div>
 		</section>
 	</main>
 {:else if authState === 'forbidden'}
-	<main class="auth-boundary-shell" aria-label="Workspace access">
+	<main class="auth-boundary-shell" aria-label={copy.access.workspaceAccess}>
 		<section class="setup-panel" aria-labelledby="auth-boundary-title">
 			<div class="setup-panel__header">
 				<div>
-					<p class="setup-panel__eyebrow">Workspace access</p>
-					<h1 id="auth-boundary-title" class="setup-panel__title">Workspace access unavailable</h1>
+					<p class="setup-panel__eyebrow">{copy.access.workspaceAccess}</p>
+					<h1 id="auth-boundary-title" class="setup-panel__title">{copy.access.workspaceAccessUnavailable}</h1>
 				</div>
 			</div>
 			<p class="text-sm text-[var(--color-text-muted)]">
-				This account is signed in, but it is not a member of the workspace the app tried to open.
+				{copy.access.forbiddenDetail}
 			</p>
 			<div class="flex flex-wrap gap-3">
-				<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
-				<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
-				<a class="primary-button" href={resolve('/register')}>Create workspace</a>
+				<button type="button" class="secondary-button" onclick={checkSession}>{copy.access.retry}</button>
+				<a class="secondary-button" href={workspaceLogoutUrl}>{shellCopy.actions.signOut}</a>
+				<a class="primary-button" href={resolve('/register')}>{copy.access.createWorkspace}</a>
 			</div>
 		</section>
 	</main>
 {:else}
-	<main class="auth-boundary-shell" aria-label="Workspace access">
+	<main class="auth-boundary-shell" aria-label={copy.access.workspaceAccess}>
 		<section class="setup-panel" aria-labelledby="auth-boundary-title" role="alert">
 			<div class="setup-panel__header">
 				<div>
-					<p class="setup-panel__eyebrow">Workspace access</p>
-					<h1 id="auth-boundary-title" class="setup-panel__title">Could not verify workspace access</h1>
+					<p class="setup-panel__eyebrow">{copy.access.workspaceAccess}</p>
+					<h1 id="auth-boundary-title" class="setup-panel__title">{copy.access.couldNotVerifyWorkspaceAccess}</h1>
 				</div>
 			</div>
 			<p class="text-sm text-[var(--color-text-muted)]">{authMessage}</p>
 			<div class="flex flex-wrap gap-3">
-				<button type="button" class="secondary-button" onclick={checkSession}>Retry</button>
-				<a class="secondary-button" href={workspaceLogoutUrl}>Sign out</a>
+				<button type="button" class="secondary-button" onclick={checkSession}>{copy.access.retry}</button>
+				<a class="secondary-button" href={workspaceLogoutUrl}>{shellCopy.actions.signOut}</a>
 			</div>
 		</section>
 	</main>

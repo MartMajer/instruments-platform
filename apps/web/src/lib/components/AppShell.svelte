@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { env } from '$env/dynamic/public';
@@ -20,12 +20,17 @@
 	} from 'lucide-svelte';
 	import SurfaceNav from '$lib/components/SurfaceNav.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { appShellCopy } from '$lib/i18n/ui-copy';
 	import { setupStages } from '$lib/setup/stages';
 
 	let { children } = $props();
 	let mobileMenuOpen = $state(false);
 
 	const stageIcons = [LibraryBig, FileStack, Gauge, Send, ClipboardCheck];
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(appShellCopy(locale));
 	const isProductShell = $derived(page.url.pathname.startsWith('/app'));
 	const activeSeriesId = $derived(page.params.seriesId);
 	const isProductEntry = $derived(page.url.pathname === '/');
@@ -36,46 +41,50 @@
 		isProductEntry || isRegistrationEntry || isSignInEntry || isRespondentEntry
 	);
 	const shellLabel = $derived(
-		isProductShell ? 'Product workspace' : isPublicEntry ? 'Private beta' : 'Tenant setup'
+		isProductShell
+			? copy.shell.productWorkspace
+			: isPublicEntry
+				? copy.shell.privateBeta
+				: copy.shell.tenantSetup
 	);
 	const headerKicker = $derived(
 		isProductShell
-			? 'Tenant workspace'
+			? copy.shell.tenantWorkspace
 			: isProductEntry
-				? 'Product entry'
+				? copy.shell.productEntry
 				: isRegistrationEntry
-					? 'Registration'
+					? copy.shell.registration
 					: isSignInEntry
-						? 'Sign in'
+						? copy.shell.signIn
 						: isRespondentEntry
-							? 'Respondent'
-						: 'Tenant setup path'
+							? copy.shell.respondent
+						: copy.shell.tenantSetupPath
 	);
 	const headerTitle = $derived(
 		isProductShell
-			? 'Tenant command workspace'
+			? copy.shell.tenantCommandWorkspace
 			: isProductEntry
-				? 'Authenticated workspace gateway'
+				? copy.shell.authenticatedWorkspaceGateway
 				: isRegistrationEntry
-					? 'Create workspace'
+					? copy.shell.createWorkspace
 					: isSignInEntry
-						? 'Workspace sign-in'
+						? copy.shell.workspaceSignIn
 						: isRespondentEntry
-							? 'Respondent access'
-						: 'Setup APIs and launch readiness'
+							? copy.shell.respondentAccess
+						: copy.shell.setupApisLaunchReadiness
 	);
 	const mainLabel = $derived(
 		isProductShell
-			? 'Product workspace'
+			? copy.shell.productWorkspace
 			: isProductEntry
-				? 'Product entry'
+				? copy.shell.productEntry
 				: isRegistrationEntry
-					? 'Registration'
+					? copy.shell.registration
 					: isSignInEntry
-						? 'Workspace sign-in'
+						? copy.shell.workspaceSignIn
 					: isRespondentEntry
-						? 'Respondent access'
-					: 'Tenant setup workspace'
+						? copy.shell.respondentAccess
+					: copy.shell.tenantSetupWorkspace
 	);
 	const currentAppArea = $derived(toCurrentAppArea(page.url.pathname));
 	const currentStudyHref = $derived(
@@ -83,10 +92,10 @@
 	);
 	const logoutUrl = $derived(env.PUBLIC_AUTH_LOGOUT_URL || resolve('/'));
 	const bottomNavItems = $derived([
-		{ id: 'home', label: 'Home', href: '/app', icon: Home, match: (path: string) => path === '/app' },
+		{ id: 'home', label: copy.nav.home, href: '/app', icon: Home, match: (path: string) => path === '/app' },
 		{
 			id: 'studies',
-			label: 'Studies',
+			label: copy.nav.studies,
 			href: '/app/campaign-series',
 			icon: FolderKanban,
 			match: (path: string) => path === '/app/campaign-series'
@@ -95,7 +104,7 @@
 			? [
 					{
 						id: 'study',
-						label: 'Study',
+						label: copy.nav.study,
 						href: currentStudyHref,
 						icon: FileStack,
 						match: (path: string) => /^\/app\/campaign-series\/[^/]+/.test(path)
@@ -104,17 +113,17 @@
 			: []),
 		{
 			id: 'directory',
-			label: 'Directory',
+			label: copy.nav.directory,
 			href: '/app/directory',
 			icon: Network,
 			match: (path: string) => path === '/app/directory'
 		}
 	]);
-	const moreNavItems = [
-		{ label: 'Team', href: '/app/team', icon: UsersRound, description: 'Workspace access' },
-		{ label: 'Exports', href: '/app/exports', icon: FileDown, description: 'Files and downloads' },
-		{ label: 'Settings', href: '/app/settings', icon: Settings2, description: 'Workspace settings' }
-	];
+	const moreNavItems = $derived([
+		{ label: copy.nav.team, href: '/app/team', icon: UsersRound, description: copy.descriptions.workspaceAccess },
+		{ label: copy.nav.exports, href: '/app/exports', icon: FileDown, description: copy.descriptions.filesAndDownloads },
+		{ label: copy.nav.settings, href: '/app/settings', icon: Settings2, description: copy.descriptions.workspaceSettings }
+	]);
 
 	$effect(() => {
 		page.url.pathname;
@@ -122,15 +131,15 @@
 	});
 
 	function toCurrentAppArea(pathname: string) {
-		if (pathname === '/app') return 'Home';
-		if (pathname === '/app/campaign-series') return 'Studies';
-		if (pathname.startsWith('/app/campaign-series/')) return 'Study';
-		if (pathname === '/app/directory') return 'Directory';
-		if (pathname === '/app/team') return 'Team';
-		if (pathname === '/app/exports') return 'Exports';
-		if (pathname === '/app/settings') return 'Settings';
-		if (pathname === '/app/instruments') return 'Instruments';
-		return 'Workspace';
+		if (pathname === '/app') return copy.nav.home;
+		if (pathname === '/app/campaign-series') return copy.nav.studies;
+		if (pathname.startsWith('/app/campaign-series/')) return copy.nav.study;
+		if (pathname === '/app/directory') return copy.nav.directory;
+		if (pathname === '/app/team') return copy.nav.team;
+		if (pathname === '/app/exports') return copy.nav.exports;
+		if (pathname === '/app/settings') return copy.nav.settings;
+		if (pathname === '/app/instruments') return copy.nav.instruments;
+		return copy.nav.workspace;
 	}
 </script>
 
@@ -151,11 +160,12 @@
 						<p class="app-brand__context">{shellLabel}</p>
 					</div>
 				</div>
+				<LocaleSwitcher compact />
 
 				{#if isProductShell}
 					<SurfaceNav />
 				{:else}
-					<nav class="mt-5" aria-label="Setup stages">
+					<nav class="mt-5" aria-label={copy.aria.setupStages}>
 						<ol class="grid gap-2">
 							{#each setupStages as stage, index (stage.href)}
 								{@const Icon = stageIcons[index]}
@@ -190,7 +200,7 @@
 
 		<div class="min-w-0">
 			{#if isProductShell}
-				<header class="app-mobile-topbar" aria-label="Mobile workspace navigation">
+				<header class="app-mobile-topbar" aria-label={copy.aria.mobileWorkspaceNavigation}>
 					<a class="app-mobile-topbar__brand" href={resolve('/app')}>
 						<span class="app-mobile-topbar__mark" aria-hidden="true">IP</span>
 						<span>
@@ -201,7 +211,7 @@
 					<button
 						type="button"
 						class="app-mobile-topbar__menu"
-						aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+						aria-label={mobileMenuOpen ? copy.actions.closeNavigationMenu : copy.actions.openNavigationMenu}
 						aria-expanded={mobileMenuOpen}
 						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
 					>
@@ -214,9 +224,9 @@
 				</header>
 
 				{#if mobileMenuOpen}
-					<div class="app-mobile-menu" role="dialog" aria-label="Workspace menu">
-						<nav class="app-mobile-menu__section" aria-label="Primary workspace routes">
-							<p class="app-mobile-menu__heading">Workspace</p>
+					<div class="app-mobile-menu" role="dialog" aria-label={copy.aria.workspaceMenu}>
+						<nav class="app-mobile-menu__section" aria-label={copy.aria.primaryWorkspaceRoutes}>
+							<p class="app-mobile-menu__heading">{copy.nav.workspace}</p>
 							{#each bottomNavItems as item (item.id)}
 								{@const Icon = item.icon}
 								<a
@@ -229,8 +239,8 @@
 								</a>
 							{/each}
 						</nav>
-						<nav class="app-mobile-menu__section" aria-label="More workspace routes">
-							<p class="app-mobile-menu__heading">More</p>
+						<nav class="app-mobile-menu__section" aria-label={copy.aria.moreWorkspaceRoutes}>
+							<p class="app-mobile-menu__heading">{copy.nav.more}</p>
 							{#each moreNavItems as item (item.href)}
 								{@const Icon = item.icon}
 								<a class="app-mobile-menu__link" href={item.href}>
@@ -241,8 +251,9 @@
 									</span>
 								</a>
 							{/each}
+							<LocaleSwitcher compact />
 							<a class="app-mobile-menu__link app-mobile-menu__link--muted" href={logoutUrl}>
-								<span>Sign out</span>
+								<span>{copy.actions.signOut}</span>
 							</a>
 						</nav>
 					</div>
@@ -256,7 +267,7 @@
 							<p class="app-topbar__kicker">{headerKicker}</p>
 							<p class="app-topbar__title">{headerTitle}</p>
 						</div>
-						<div class="app-topbar__meta" aria-label="Workspace posture">
+						<div class="app-topbar__meta" aria-label={copy.aria.workspacePosture}>
 							<span class="app-chip">
 								{isProductEntry ? 'App-first route' : 'Rights-attested content'}
 							</span>
@@ -275,7 +286,7 @@
 			</main>
 
 			{#if isProductShell}
-				<nav class="app-mobile-bottom-nav" aria-label="Primary mobile navigation">
+				<nav class="app-mobile-bottom-nav" aria-label={copy.aria.primaryMobileNavigation}>
 					{#each bottomNavItems as item (item.id)}
 						{@const Icon = item.icon}
 						<a
@@ -295,7 +306,7 @@
 						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
 					>
 						<Menu size={18} strokeWidth={2.1} aria-hidden="true" />
-						<span>More</span>
+						<span>{copy.nav.more}</span>
 					</button>
 				</nav>
 			{/if}
