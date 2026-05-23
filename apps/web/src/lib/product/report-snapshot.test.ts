@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 import {
+	selectedSeriesReportSnapshotCopy,
 	toSelectedSeriesReportDashboardView,
 	toSelectedSeriesReportSnapshotState
 } from './report-snapshot';
@@ -131,6 +132,7 @@ describe('selected-series report snapshot model', () => {
 				campaignId: null,
 				campaignName: null,
 				title: 'campaign-series-responses.csv',
+				badgeStatus: 'failed',
 				badgeLabel: 'failed',
 				meta: ['response dataset CSV and codebook', 'csv codebook', '0 rows', '0 bytes'],
 				rows: [
@@ -156,6 +158,7 @@ describe('selected-series report snapshot model', () => {
 				campaignId: 'campaign-id',
 				campaignName: 'Live wave',
 				title: 'report-proof.csv',
+				badgeStatus: 'ready',
 				badgeLabel: 'succeeded',
 				meta: ['report summary CSV and codebook', 'csv codebook', '12 rows', '512 bytes'],
 				rows: [
@@ -195,6 +198,46 @@ describe('selected-series report snapshot model', () => {
 		expect(dashboard.provenanceRows).toEqual([]);
 		expect(dashboard.exportRows).toEqual([]);
 		expect(dashboard.artifactRegistry).toEqual([]);
+	});
+
+	it('localizes Croatian report dashboard rows and artifact status labels', () => {
+		const copy = selectedSeriesReportSnapshotCopy('hr-HR');
+		const state = toSelectedSeriesReportSnapshotState(emptyWorkspace, {}, copy);
+		const dashboard = toSelectedSeriesReportDashboardView(
+			reportableWorkspaceWithExport,
+			{ loadedCampaignId: 'campaign-id' },
+			copy
+		);
+
+		expect(state).toMatchObject({
+			badgeLabel: 'Nije dostupno',
+			disabledReason: 'Izradite ili odaberite val prije učitavanja pregleda izvještaja.'
+		});
+		expect(dashboard).toMatchObject({
+			title: 'Nadzorna ploča izvještaja za Live wave',
+			badgeLabel: 'Pregled spreman'
+		});
+		expect(dashboard.readinessRows).toEqual([
+			{ label: 'Odabrani val', value: 'Live wave' },
+			{ label: 'Status vala', value: 'u tijeku' },
+			{ label: 'Status izvještaja', value: 'pregled' },
+			{ label: 'Tumačenje', value: 'tumačenje nije potvrđeno' },
+			{ label: 'Predani odgovori', value: '12' },
+			{ label: 'Rezultati', value: '12' }
+		]);
+		expect(dashboard.exportRows).toContainEqual({
+			label: 'Zadnji izvoz dostupan za preuzimanje',
+			value: 'Da'
+		});
+		expect(dashboard.artifactRegistry[0]).toMatchObject({
+			badgeStatus: 'failed',
+			badgeLabel: 'Neuspjelo',
+			meta: ['CSV i šifrarnik s odgovorima', 'CSV šifrarnik', '0 redaka', '0 bajtova']
+		});
+		expect(dashboard.artifactRegistry[0].rows).toContainEqual({
+			label: 'Vrsta konteksta',
+			value: 'studija'
+		});
 	});
 });
 

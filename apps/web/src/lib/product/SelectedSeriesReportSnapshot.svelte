@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { FileSearch, LoaderCircle, RefreshCw } from 'lucide-svelte';
 	import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 	import type { CampaignReportProofResponse } from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import VisualAnalyticsChart from './VisualAnalyticsChart.svelte';
 	import {
+		selectedSeriesReportSnapshotCopy,
 		toSelectedSeriesReportDashboardView,
 		toSelectedSeriesReportSnapshotState
 	} from './report-snapshot';
@@ -18,6 +21,8 @@
 	let { workspace }: { workspace: CampaignSeriesReportsWorkspaceResponse } = $props();
 
 	const setupApi = createSetupApiFromEnv(env);
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const snapshotCopy = $derived(selectedSeriesReportSnapshotCopy(appLocale));
 
 	let snapshotResult = $state<CampaignReportProofResponse | null>(null);
 	let loadedCampaignId = $state<string | null>(null);
@@ -37,12 +42,12 @@
 	const snapshotState = $derived(
 		toSelectedSeriesReportSnapshotState(workspace, {
 			loadedCampaignId: snapshotLoadedForSelectedCampaign ? loadedCampaignId : null
-		})
+		}, snapshotCopy)
 	);
 	const dashboardView = $derived(
 		toSelectedSeriesReportDashboardView(workspace, {
 			loadedCampaignId: snapshotLoadedForSelectedCampaign ? loadedCampaignId : null
-		})
+		}, snapshotCopy)
 	);
 	const snapshotView = $derived(
 		snapshotLoadedForSelectedCampaign && snapshotResult ? toReportProofView(snapshotResult) : null
@@ -51,16 +56,18 @@
 		snapshotLoadedForSelectedCampaign ? toReportVisualAnalyticsView(snapshotResult) : null
 	);
 	const snapshotBadgeStatus = $derived(loadState === 'error' ? 'failed' : snapshotState.status);
-	const snapshotBadgeLabel = $derived(loadState === 'error' ? 'Failed' : snapshotState.badgeLabel);
+	const snapshotBadgeLabel = $derived(
+		loadState === 'error' ? snapshotCopy.panel.failed : snapshotState.badgeLabel
+	);
 	const snapshotStepState = $derived(loadState === 'error' ? 'failed' : loadState);
 	const snapshotStepLabel = $derived(
 		loadState === 'loading'
-			? 'Loading'
+			? snapshotCopy.panel.loading
 			: loadState === 'ready'
-				? 'Ready'
+				? snapshotCopy.panel.ready
 				: loadState === 'error'
-					? 'Failed'
-					: 'Local'
+					? snapshotCopy.panel.failed
+					: snapshotCopy.panel.local
 	);
 
 	$effect(() => {
@@ -88,7 +95,7 @@
 
 	async function loadReportSnapshot(campaignId: string | null = selectedCampaign?.id ?? null) {
 		if (!campaignId) {
-			errorMessage = 'Create or select a campaign before loading the report snapshot.';
+			errorMessage = snapshotCopy.disabled.noCampaign;
 			loadState = 'error';
 			return;
 		}
@@ -96,7 +103,7 @@
 		if (!snapshotState.available) {
 			errorMessage =
 				snapshotState.disabledReason ??
-				'Resolve report prerequisites before loading the report snapshot.';
+				snapshotCopy.disabled.blocked;
 			loadState = 'error';
 			return;
 		}
@@ -133,13 +140,13 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Report snapshot">
+<section class="product-panel" role="group" aria-label={snapshotCopy.panel.reportSnapshotAria}>
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Report snapshot</p>
-			<h3 class="product-title">Selected-series report snapshot</h3>
+			<p class="product-kicker">{snapshotCopy.panel.snapshotKicker}</p>
+			<h3 class="product-title">{snapshotCopy.panel.snapshotTitle}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Aggregate preview for the selected report campaign.
+				{snapshotCopy.panel.snapshotDescription}
 			</p>
 		</div>
 		<StatusBadge status={snapshotBadgeStatus} label={snapshotBadgeLabel} />
@@ -147,14 +154,14 @@
 
 	<section
 		role="group"
-		aria-label="Report dashboard"
+		aria-label={snapshotCopy.panel.dashboardAria}
 		class="grid gap-4 border-t border-[var(--color-border)] pt-4"
 	>
 		<div>
-			<p class="product-kicker">Report dashboard</p>
-			<h4 class="record-row__title">Selected-series report dashboard</h4>
+			<p class="product-kicker">{snapshotCopy.panel.dashboardKicker}</p>
+			<h4 class="record-row__title">{snapshotCopy.panel.dashboardTitle}</h4>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Latest report preview for the selected campaign.
+				{snapshotCopy.panel.dashboardDescription}
 			</p>
 		</div>
 
@@ -165,10 +172,12 @@
 			</p>
 		{/if}
 
-		<div role="group" aria-label="Report readiness" class="grid gap-3">
+		<div role="group" aria-label={snapshotCopy.panel.readinessAria} class="grid gap-3">
 			<div>
-				<p class="product-kicker">Readiness</p>
-				<h5 class="text-base font-semibold text-[var(--color-text)]">Report readiness</h5>
+				<p class="product-kicker">{snapshotCopy.panel.readinessKicker}</p>
+				<h5 class="text-base font-semibold text-[var(--color-text)]">
+					{snapshotCopy.panel.readinessTitle}
+				</h5>
 			</div>
 			<dl class="record-grid">
 				{#each dashboardView.readinessRows as row}
@@ -189,13 +198,13 @@
 		{#if dashboardView.disclosureRows.length > 0}
 			<div
 				role="group"
-				aria-label="Disclosure guardrails"
+				aria-label={snapshotCopy.panel.disclosureAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Disclosure</p>
+					<p class="product-kicker">{snapshotCopy.panel.disclosureKicker}</p>
 					<h5 class="text-base font-semibold text-[var(--color-text)]">
-						Disclosure guardrails
+						{snapshotCopy.panel.disclosureTitle}
 					</h5>
 				</div>
 				<dl class="record-grid">
@@ -212,12 +221,14 @@
 		{#if dashboardView.provenanceRows.length > 0}
 			<div
 				role="group"
-				aria-label="Report provenance"
+				aria-label={snapshotCopy.panel.provenanceAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Provenance</p>
-					<h5 class="text-base font-semibold text-[var(--color-text)]">Report provenance</h5>
+					<p class="product-kicker">{snapshotCopy.panel.provenanceKicker}</p>
+					<h5 class="text-base font-semibold text-[var(--color-text)]">
+						{snapshotCopy.panel.provenanceTitle}
+					</h5>
 				</div>
 				<dl class="record-grid">
 					{#each dashboardView.provenanceRows as row}
@@ -239,12 +250,14 @@
 		{#if dashboardView.exportRows.length > 0}
 			<div
 				role="group"
-				aria-label="Export readiness"
+				aria-label={snapshotCopy.panel.exportReadinessAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Exports</p>
-					<h5 class="text-base font-semibold text-[var(--color-text)]">Export readiness</h5>
+					<p class="product-kicker">{snapshotCopy.panel.exportsKicker}</p>
+					<h5 class="text-base font-semibold text-[var(--color-text)]">
+						{snapshotCopy.panel.exportReadinessTitle}
+					</h5>
 				</div>
 				<dl class="record-grid">
 					{#each dashboardView.exportRows as row}
@@ -265,24 +278,29 @@
 
 		<div
 			role="group"
-			aria-label="Export files"
+			aria-label={snapshotCopy.panel.exportFilesAria}
 			class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 		>
 			<div>
-				<p class="product-kicker">Exports</p>
-				<h5 class="text-base font-semibold text-[var(--color-text)]">Export files</h5>
+				<p class="product-kicker">{snapshotCopy.panel.exportsKicker}</p>
+				<h5 class="text-base font-semibold text-[var(--color-text)]">
+					{snapshotCopy.panel.exportFilesTitle}
+				</h5>
 			</div>
 			{#if dashboardView.artifactRegistry.length > 0}
 				<div class="record-list">
 					{#each dashboardView.artifactRegistry as artifact (artifact.id)}
-						<article class="record-row" aria-label={`Export file ${artifact.title}`}>
+						<article
+							class="record-row"
+							aria-label={`${snapshotCopy.panel.exportFileAriaPrefix} ${artifact.title}`}
+						>
 							<div class="record-row__header">
 								<div>
 									<p class="record-field__label">{artifact.targetLabel}</p>
 									<h6 class="record-row__title">{artifact.title}</h6>
 								</div>
 								<StatusBadge
-									status={artifact.badgeLabel === 'succeeded' ? 'ready' : 'pending'}
+									status={artifact.badgeStatus}
 									label={artifact.badgeLabel}
 								/>
 							</div>
@@ -310,8 +328,8 @@
 				</div>
 			{:else if dashboardView.available}
 				<p class="record-row text-sm text-[var(--color-text-muted)]">
-					<strong class="record-row__title">No stored export files yet</strong>
-					<span>Create a report export before downloading a file.</span>
+					<strong class="record-row__title">{snapshotCopy.panel.noStoredExportsTitle}</strong>
+					<span>{snapshotCopy.panel.noStoredExportsMessage}</span>
 				</p>
 			{/if}
 		</div>
@@ -335,12 +353,16 @@
 				{:else}
 					<FileSearch size={17} aria-hidden="true" />
 				{/if}
-				<span>{loadState === 'loading' ? 'Loading snapshot' : 'Refresh report snapshot'}</span>
+				<span>
+					{loadState === 'loading'
+						? snapshotCopy.panel.loadingSnapshot
+						: snapshotCopy.panel.refreshSnapshot}
+				</span>
 			</button>
 			<p class="step-pill" data-state={snapshotStepState}>{snapshotStepLabel}</p>
 			{#if snapshotState.campaignId}
 				<p class="result-line">
-					<span>Campaign</span>
+					<span>{snapshotCopy.panel.campaign}</span>
 					<code>{snapshotState.campaignId}</code>
 				</p>
 			{/if}
@@ -358,13 +380,16 @@
 				/>
 			{/if}
 
-			<section class="score-result-panel report-proof-panel" aria-label="Aggregate report snapshot">
+			<section
+				class="score-result-panel report-proof-panel"
+				aria-label={snapshotCopy.panel.aggregateReportSnapshotAria}
+			>
 				<div class="score-result-panel__header">
 					<div>
-						<p class="product-kicker">Report preview</p>
+						<p class="product-kicker">{snapshotCopy.panel.reportPreviewKicker}</p>
 						<h4 class="record-row__title">{snapshotView.campaignName}</h4>
 					</div>
-					<StatusBadge status="proof_only" label="Preview" />
+					<StatusBadge status="proof_only" label={snapshotCopy.panel.previewLabel} />
 				</div>
 
 				<div class="response-lab__meta">
@@ -390,10 +415,10 @@
 
 				<section
 					class="record-row border-t border-[var(--color-border)] pt-4"
-					aria-label="Preliminary report summary"
+					aria-label={snapshotCopy.panel.preliminarySummaryAria}
 				>
 					<div>
-						<p class="product-kicker">Preliminary summary</p>
+						<p class="product-kicker">{snapshotCopy.panel.preliminarySummaryKicker}</p>
 						<h5 class="record-row__title">{snapshotView.summary.title}</h5>
 						<p class="mt-1 text-sm leading-6 text-[var(--color-text)]">
 							{snapshotView.summary.headline}
@@ -419,9 +444,12 @@
 					</ul>
 				</section>
 
-				<div class="score-card-list" role="region" aria-label="Report score rows">
+				<div class="score-card-list" role="region" aria-label={snapshotCopy.panel.reportScoreRowsAria}>
 					{#each snapshotView.scoreRows as score (score.dimensionCode)}
-						<article class="score-card" aria-label={`Report score ${score.dimensionCode}`}>
+						<article
+							class="score-card"
+							aria-label={`${snapshotCopy.panel.reportScoreAriaPrefix} ${score.dimensionCode}`}
+						>
 							<div>
 								<p class="score-card__label">{score.dimensionCode}</p>
 								<p
@@ -433,12 +461,14 @@
 								</p>
 							</div>
 							<p class="score-card__meta">{score.disclosureState}</p>
-							<p class="score-card__interpretation">mean {score.mean}</p>
-							<p class="score-card__interpretation">scores {score.scoreCount}</p>
+							<p class="score-card__interpretation">{snapshotCopy.panel.meanLabel} {score.mean}</p>
+							<p class="score-card__interpretation">
+								{snapshotCopy.panel.scoresLabel} {score.scoreCount}
+							</p>
 							{#if score.scoreMetadata}
 								<p class="score-card__interpretation">{score.scoreMetadata}</p>
 							{/if}
-							<p class="score-card__interpretation">range {score.range}</p>
+							<p class="score-card__interpretation">{snapshotCopy.panel.rangeLabel} {score.range}</p>
 							{#if score.interpretationLabel}
 								<p class="score-card__interpretation">{score.interpretationLabel}</p>
 							{/if}
