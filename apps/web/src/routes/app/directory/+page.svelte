@@ -389,7 +389,7 @@
 
 	function subjectLabel(subject: SubjectDirectoryItemResponse | null) {
 		if (!subject) {
-			return 'No subject selected';
+			return text.directory.noSubjectSelected;
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
@@ -397,7 +397,7 @@
 
 	function groupParentLabel(group: SubjectGroupResponse) {
 		if (!group.parentGroupId) {
-			return 'Root group';
+			return text.directory.rootGroup;
 		}
 
 		return (
@@ -439,7 +439,7 @@
 			<a class="primary-button" href="#directory-create">{text.directory.addPeopleOrGroups}</a>
 		</div>
 
-		<dl class="directory-count-list" role="group" aria-label="People and targeting counts">
+		<dl class="directory-count-list" role="group" aria-label={text.directory.countsAria}>
 			<div class="directory-count-row">
 				<dt class="directory-count-row__label">{text.directory.people}</dt>
 				<dd class="directory-count-row__value">{directory?.summary.subjectCount ?? 0}</dd>
@@ -476,13 +476,11 @@
 				<p class="product-kicker">{text.directory.csvImport}</p>
 				<h2 class="product-title">{text.directory.csvTitle}</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-					Use this when a study audience is already prepared in a spreadsheet. First preview
-					the rows so you can confirm who will be created, updated, grouped, or rejected. Apply
-					only after the preview looks right.
+					{text.directory.csvBody}
 				</p>
 			</div>
 			<a class="secondary-button" href={csvTemplateHref} download="directory-import-template.csv">
-				Download template
+				{text.directory.downloadTemplate}
 			</a>
 		</div>
 
@@ -494,11 +492,11 @@
 			}}
 		>
 			<label class="field">
-				<span>CSV file</span>
+				<span>{text.directory.csvFile}</span>
 				<input type="file" accept=".csv,text/csv" onchange={loadCsvFile} disabled={importBusy} />
 			</label>
 			<label class="field">
-				<span>CSV rows</span>
+				<span>{text.directory.csvRows}</span>
 				<textarea
 					rows="7"
 					bind:value={importCsvContent}
@@ -506,9 +504,7 @@
 					placeholder={'external_id,email,display_name,locale,group_type,group_name,role_in_group\nemp-001,ana@example.test,Ana Analyst,en,department,Research,member'}
 				></textarea>
 				<span class="text-sm text-[var(--color-text-muted)]">
-					Required identity: external_id or email. Optional grouping: group_type, group_name,
-					role_in_group. One person can appear in multiple rows when they belong to multiple
-					groups.
+					{text.directory.csvHelp}
 				</span>
 			</label>
 			<div class="action-row">
@@ -518,7 +514,7 @@
 					{:else}
 						<Upload size={17} aria-hidden="true" />
 					{/if}
-					<span>{previewingCsv ? 'Previewing...' : 'Preview CSV'}</span>
+					<span>{previewingCsv ? text.directory.previewing : text.directory.previewCsv}</span>
 				</button>
 				<button
 					type="button"
@@ -531,12 +527,12 @@
 					{:else}
 						<Save size={17} aria-hidden="true" />
 					{/if}
-					<span>{applyingCsv ? 'Applying...' : 'Apply import'}</span>
+					<span>{applyingCsv ? text.directory.applying : text.directory.applyImport}</span>
 				</button>
 			</div>
 			{#if importResult?.dryRun && importHasFailures}
 				<p class="error-line" role="alert">
-					Fix the failed rows before applying this Directory import.
+					{text.directory.fixFailedRows}
 				</p>
 			{/if}
 			{#if importResult?.dryRun && !importHasFailures}
@@ -548,12 +544,12 @@
 			{/if}
 			{#if applyingCsv}
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Applying the reviewed Directory import...
+					{text.directory.applyingImport}
 				</p>
 			{/if}
 			{#if previewingCsv}
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Checking rows without changing Directory records...
+					{text.directory.checkingRows}
 				</p>
 			{/if}
 			{#if importError}
@@ -568,30 +564,30 @@
 					<dl class="mt-3 grid gap-2 text-sm md:grid-cols-3">
 						<div>
 							<dt class="text-[var(--color-text-muted)]">
-								People {importResult.dryRun ? 'to create' : 'created'}
+								{importResult.dryRun ? text.directory.peopleToCreate : text.directory.peopleCreated}
 							</dt>
 							<dd class="font-semibold">{importResult.createdSubjectCount}</dd>
 						</div>
 						<div>
 							<dt class="text-[var(--color-text-muted)]">
-								People {importResult.dryRun ? 'to update' : 'updated'}
+								{importResult.dryRun ? text.directory.peopleToUpdate : text.directory.peopleUpdated}
 							</dt>
 							<dd class="font-semibold">{importResult.updatedSubjectCount}</dd>
 						</div>
 						<div>
 							<dt class="text-[var(--color-text-muted)]">
-								Groups {importResult.dryRun ? 'to create' : 'created'}
+								{importResult.dryRun ? text.directory.groupsToCreate : text.directory.groupsCreated}
 							</dt>
 							<dd class="font-semibold">{importResult.createdGroupCount}</dd>
 						</div>
 						<div>
 							<dt class="text-[var(--color-text-muted)]">
-								Memberships {importResult.dryRun ? 'to add' : 'added'}
+								{importResult.dryRun ? text.directory.membershipsToAdd : text.directory.membershipsAdded}
 							</dt>
 							<dd class="font-semibold">{importResult.addedMembershipCount}</dd>
 						</div>
 						<div>
-							<dt class="text-[var(--color-text-muted)]">Memberships already present</dt>
+							<dt class="text-[var(--color-text-muted)]">{text.directory.membershipsPresent}</dt>
 							<dd class="font-semibold">{importResult.skippedMembershipCount}</dd>
 						</div>
 					</dl>
@@ -635,7 +631,7 @@
 		</form>
 	</section>
 
-	<section class="product-panel" aria-label="People directory">
+	<section class="product-panel" aria-label={text.directory.peopleDirectoryAria}>
 		<LoadingBoundary loading={loadState === 'loading'} label="Loading subject directory">
 			{#if loadState === 'error' && errorMessage}
 				<ErrorPanel
@@ -652,7 +648,7 @@
 					</div>
 				</div>
 
-				<dl class="directory-count-list" role="group" aria-label="Directory graph counts">
+				<dl class="directory-count-list" role="group" aria-label={text.directory.directoryGraphCounts}>
 					<div class="directory-count-row">
 						<dt class="directory-count-row__label">Subjects</dt>
 						<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
@@ -780,7 +776,7 @@
 			</div>
 			<button type="button" class="secondary-button" onclick={loadDirectory}>
 				<RefreshCcw size={16} aria-hidden="true" />
-				<span>Refresh</span>
+				<span>{text.directory.refresh}</span>
 			</button>
 		</div>
 
@@ -802,7 +798,7 @@
 						<input bind:value={newSubjectDisplayName} disabled={creatingSubject} />
 					</label>
 					<label class="field">
-						<span>Email</span>
+						<span>{text.directory.email}</span>
 						<input type="email" bind:value={newSubjectEmail} disabled={creatingSubject} />
 					</label>
 					<label class="field">
@@ -891,7 +887,7 @@
 		</div>
 	</section>
 
-	<section class="product-panel" aria-label="Directory relationships">
+	<section class="product-panel" aria-label={text.directory.directoryRelationshipsAria}>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">Hierarchy setup</p>
@@ -924,7 +920,7 @@
 					<input bind:value={editSubjectDisplayName} disabled={savingSubject || !selectedSubject} />
 				</label>
 				<label class="field">
-					<span>Email</span>
+					<span>{text.directory.email}</span>
 					<input
 						type="email"
 						bind:value={editSubjectEmail}
@@ -959,7 +955,7 @@
 				{:else}
 					<Save size={16} aria-hidden="true" />
 				{/if}
-				<span>{savingSubject ? 'Saving...' : 'Save person'}</span>
+				<span>{savingSubject ? text.directory.saving : text.directory.savePerson}</span>
 			</button>
 			{#if editSubjectError}
 				<p class="error-line" role="alert">{editSubjectError}</p>
@@ -996,7 +992,7 @@
 					</label>
 				</div>
 				<label class="field">
-					<span>Role in group</span>
+					<span>{text.directory.roleInGroup}</span>
 					<input bind:value={membershipRole} disabled={addingMembership} />
 				</label>
 				<button
@@ -1009,7 +1005,7 @@
 					{:else}
 						<Link2 size={16} aria-hidden="true" />
 					{/if}
-					<span>{addingMembership ? 'Saving...' : 'Add membership'}</span>
+					<span>{addingMembership ? text.directory.saving : text.directory.addMembership}</span>
 				</button>
 				{#if membershipError}
 					<p class="error-line" role="alert">{membershipError}</p>
@@ -1062,7 +1058,7 @@
 					{:else}
 						<Save size={16} aria-hidden="true" />
 					{/if}
-					<span>{savingManager ? 'Saving...' : 'Save manager'}</span>
+					<span>{savingManager ? text.directory.saving : text.directory.saveManager}</span>
 				</button>
 				{#if selectedSubject}
 					<p class="text-sm text-[var(--color-text-muted)]">

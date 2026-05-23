@@ -55,4 +55,16 @@ describe('localized route body copy', () => {
 		expect(copy.simulation.simulateCollection).toBe('Simuliraj prikupljanje');
 		expect(copy.navigation.goToResults).toBe('Idi na rezultate');
 	});
+
+	it('provides Croatian directory, team, and settings body copy', () => {
+		const copy = routePageCopy('hr-HR');
+
+		expect(copy.directory.csvFile).toBe('CSV datoteka');
+		expect(copy.directory.previewCsv).toBe('Pregledaj CSV');
+		expect(copy.team.memberEmail).toBe('E-pošta člana');
+		expect(copy.team.copyLink).toBe('Kopiraj poveznicu');
+		expect(copy.settings.directoryShortcut).toBe('Imenik');
+		expect(copy.settings.exportsShortcut).toBe('Izvozi');
+	});
+
 });

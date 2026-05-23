@@ -450,7 +450,7 @@
 					</div>
 				</div>
 
-				<dl class="team-stat-list" role="group" aria-label="Team access overview counts">
+				<dl class="team-stat-list" role="group" aria-label={text.team.teamOverviewCountsAria}>
 					{#each toTeamOverviewRows(roster) as row}
 						<div class="team-stat-item">
 							<dt class="team-stat-item__label">{row.label}</dt>
@@ -460,7 +460,7 @@
 				</dl>
 
 				{#if toTeamCapabilityRows(roster).length > 0}
-					<div class="team-capability-list" aria-label="Team capability coverage">
+					<div class="team-capability-list" aria-label={text.team.capabilityCoverageAria}>
 						{#each toTeamCapabilityRows(roster) as row}
 							<article class="team-capability-row" aria-label={row.label}>
 								<div>
@@ -470,7 +470,7 @@
 								<div class="team-capability-row__count">
 									<span>{row.count}</span>
 									<div>
-										{row.count === 1 ? 'member' : 'members'}
+										{row.count === 1 ? text.team.memberSingular : text.team.memberPlural}
 									</div>
 								</div>
 							</article>
@@ -496,9 +496,9 @@
 
 		{#if roleLoadState === 'error' && roleErrorMessage}
 			<ErrorPanel
-				title="Tenant roles unavailable"
+				title={text.team.tenantRolesUnavailable}
 				message={roleErrorMessage}
-				retryLabel="Retry roles"
+				retryLabel={text.team.retryRoles}
 				onRetry={loadTenantRoles}
 			/>
 		{:else}
@@ -510,7 +510,7 @@
 				}}
 			>
 				<label class="field">
-					<span>Member email</span>
+					<span>{text.team.memberEmail}</span>
 					<input
 						type="email"
 						bind:value={newMemberEmail}
@@ -520,7 +520,7 @@
 				</label>
 
 				<label class="field">
-					<span>Member role</span>
+					<span>{text.team.memberRole}</span>
 					<select
 						bind:value={newMemberRoleCode}
 						disabled={creatingMember || roleLoadState !== 'ready' || tenantRoles.length === 0}
@@ -532,7 +532,7 @@
 				</label>
 
 				<label class="field">
-					<span>Member locale</span>
+					<span>{text.team.memberLocale}</span>
 					<input bind:value={newMemberLocale} disabled={creatingMember} />
 				</label>
 
@@ -543,16 +543,16 @@
 				>
 					{#if creatingMember}
 						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
-						<span>Adding...</span>
+						<span>{text.team.adding}</span>
 					{:else}
 						<Plus size={17} aria-hidden="true" />
-						<span>Add member</span>
+						<span>{text.team.addMember}</span>
 					{/if}
 				</button>
 			</form>
 
 			{#if roleLoadState === 'loading'}
-				<p class="text-sm text-[var(--color-text-muted)]">Loading tenant roles.</p>
+				<p class="text-sm text-[var(--color-text-muted)]">{text.team.loadingRoles}</p>
 			{/if}
 
 			{#if createMemberError}
@@ -561,14 +561,13 @@
 
 			{#if createMemberNotice}
 				<p class="text-sm text-[var(--color-text-muted)]" role="status">
-					{createMemberNotice} The roster marks the member pending until the first matching Auth0
-					sign-in.
+					{createMemberNotice} {text.team.pendingNoticeSuffix}
 				</p>
 			{/if}
 		{/if}
 	</section>
 {:else}
-	<section class="product-panel" aria-label="Read-only team access">
+	<section class="product-panel" aria-label={text.team.readOnlyAria}>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.team.tenantTeam}</p>
@@ -581,34 +580,34 @@
 	</section>
 {/if}
 
-<section class="product-panel" aria-label="Team roster">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading team members">
+<section class="product-panel" aria-label={text.team.teamRoster}>
+	<LoadingBoundary loading={loadState === 'loading'} label={text.team.loadingMembers}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Team members unavailable"
+				title={text.team.teamMembersUnavailable}
 				message={errorMessage}
-				retryLabel="Retry members"
+				retryLabel={text.team.retryMembers}
 				onRetry={loadTenantMembers}
 			/>
 		{:else if roster}
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Team roster</p>
+					<p class="product-kicker">{text.team.teamRoster}</p>
 					<h2 class="product-title">{text.team.rosterTitle}</h2>
 				</div>
 			</div>
 
-			<dl class="team-stat-list" role="group" aria-label="Tenant member roster counts">
+			<dl class="team-stat-list" role="group" aria-label={text.team.rosterCountsAria}>
 				<div class="team-stat-item">
-					<dt class="team-stat-item__label">Members</dt>
+					<dt class="team-stat-item__label">{text.team.membersLabel}</dt>
 					<dd class="team-stat-item__value">{roster.members.length}</dd>
 				</div>
 			</dl>
 
 			{#if roster.members.length === 0}
 				<EmptyState
-					title="No tenant members"
-					description="No active tenant role assignments are available for this tenant."
+					title={text.team.noMembersTitle}
+					description={text.team.noMembersBody}
 				/>
 			{:else}
 				<div class="record-list">
@@ -621,29 +620,29 @@
 										{identityStatusLabel(member)}
 									</span>
 									{#if isCurrentUser(member.userId)}
-										<span class="status-badge" data-status="ready">Current user</span>
+										<span class="status-badge" data-status="ready">{text.team.currentUser}</span>
 									{/if}
 								</span>
 							</span>
 
 							<span class="record-grid">
 								<span class="record-field">
-									<span class="record-field__label">Locale</span>
+									<span class="record-field__label">{text.team.localeLabel}</span>
 									<span class="record-field__value">{member.locale}</span>
 								</span>
 								<span class="record-field">
-									<span class="record-field__label">Created</span>
+									<span class="record-field__label">{text.team.created}</span>
 									<span class="record-field__value">{formatDate(member.createdAt)}</span>
 								</span>
 								<span class="record-field">
-									<span class="record-field__label">Last login</span>
+									<span class="record-field__label">{text.team.lastLogin}</span>
 									<span class="record-field__value">{formatDate(member.lastLoginAt)}</span>
 								</span>
 							</span>
 
 							<div class="grid gap-2">
 								<div>
-									<p class="record-field__label">Roles</p>
+									<p class="record-field__label">{text.team.roles}</p>
 									<div
 										class="mt-2 flex flex-wrap gap-2"
 										role="group"
@@ -659,7 +658,7 @@
 									</div>
 								</div>
 								<div>
-									<p class="record-field__label">Capabilities</p>
+									<p class="record-field__label">{text.team.capabilities}</p>
 									<div
 										class="mt-2 flex flex-wrap gap-2"
 										role="group"
@@ -677,19 +676,19 @@
 							{#if canManageTeam && member.identityStatus !== 'active'}
 								<div class="grid gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
 									<div>
-										<p class="record-field__label">First sign-in</p>
+										<p class="record-field__label">{text.team.firstSignIn}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
 											Send this link to {member.email}. They stay pending until Auth0 returns the
 											same email for this workspace.
 										</p>
 									</div>
-									<a class="secondary-button" href={memberSignInUrl(member)}>Open link</a>
+									<a class="secondary-button" href={memberSignInUrl(member)}>{text.team.openLink}</a>
 									<button
 										type="button"
 										class="secondary-button"
 										onclick={() => void copyMemberSignInUrl(member)}
 									>
-										{copiedMemberUserId === member.userId ? 'Copied' : 'Copy link'}
+										{copiedMemberUserId === member.userId ? text.team.copied : text.team.copyLink}
 									</button>
 								</div>
 							{/if}
@@ -703,7 +702,7 @@
 									}}
 								>
 									<label class="field">
-										<span>Role for {member.email}</span>
+										<span>{text.team.roleFor(member.email)}</span>
 										<select
 											value={selectedRoleCode(member)}
 											disabled={changingRoleUserId === member.userId}
@@ -717,15 +716,15 @@
 									<button
 										type="submit"
 										class="secondary-button"
-										aria-label={`Change role for ${member.email}`}
+										aria-label={text.team.changeRoleAria(member.email)}
 										disabled={!canSubmitRoleChange(member)}
 									>
 										{#if changingRoleUserId === member.userId}
 											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
-											<span>Saving...</span>
+											<span>{text.team.saving}</span>
 										{:else}
 											<Check size={16} aria-hidden="true" />
-											<span>Change role</span>
+											<span>{text.team.changeRole}</span>
 										{/if}
 									</button>
 								</form>

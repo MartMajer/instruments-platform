@@ -83,7 +83,7 @@
 					<StatusBadge status={settingsView.status} />
 				</div>
 
-				<div class="record-list" aria-label="Workspace setting shortcuts">
+				<div class="record-list" aria-label={text.settings.shortcutsAria}>
 					<a class="record-row" href="/app/team">
 						<span class="record-row__header">
 							<span class="record-row__title">{text.settings.teamAccess}</span>
@@ -95,7 +95,7 @@
 					</a>
 					<a class="record-row" href="/app/directory">
 						<span class="record-row__header">
-							<span class="record-row__title">Directory</span>
+							<span class="record-row__title">{text.settings.directoryShortcut}</span>
 							<span class="secondary-button">{text.common.open}</span>
 						</span>
 						<span class="text-sm leading-6 text-[var(--color-text-muted)]">
@@ -113,7 +113,7 @@
 					</a>
 					<a class="record-row" href="/app/exports">
 						<span class="record-row__header">
-							<span class="record-row__title">Exports</span>
+							<span class="record-row__title">{text.settings.exportsShortcut}</span>
 							<span class="secondary-button">{text.common.open}</span>
 						</span>
 						<span class="text-sm leading-6 text-[var(--color-text-muted)]">
@@ -122,7 +122,7 @@
 					</a>
 				</div>
 
-				<details class="record-row" aria-label="Workspace details">
+				<details class="record-row" aria-label={text.settings.workspaceDetailsAria}>
 					<summary class="record-row__title">{text.settings.workspaceDetails}</summary>
 					<div class="grid gap-4 pt-4">
 						<div>
@@ -132,7 +132,7 @@
 							</h3>
 						</div>
 
-						<dl class="record-grid" role="group" aria-label="Workspace profile details">
+						<dl class="record-grid" role="group" aria-label={text.settings.profileDetailsAria}>
 							{#each settingsView.profileRows.filter((row) => !row.mono) as row}
 								<div class="record-field">
 									<dt class="record-field__label">{row.label}</dt>
@@ -149,7 +149,7 @@
 								</h3>
 							</div>
 
-							<dl class="settings-count-list" role="group" aria-label="Workspace counts">
+							<dl class="settings-count-list" role="group" aria-label={text.settings.countsAria}>
 								{#each settingsView.metricRows as row}
 									<div class="settings-count-row">
 										<dt class="settings-count-row__label">{row.label}</dt>
