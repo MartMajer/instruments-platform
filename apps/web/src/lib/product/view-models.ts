@@ -3154,9 +3154,46 @@ function localizeReadModelString(value: string) {
 		.replace(/^Copy of (.+)$/u, 'Kopija: $1')
 		.replace(/^(\d+) campaign, (\d+) live$/u, '$1 val, $2 u tijeku')
 		.replace(/^(\d+) campaigns, (\d+) live$/u, '$1 valova, $2 u tijeku')
+		.replace(
+			/^(\d+) export (?:file is|files are) ready to download\.$/u,
+			(_, count: string) =>
+				count === '1'
+					? '1 izvozna datoteka spremna je za preuzimanje.'
+					: `${count} izvoznih datoteka spremno je za preuzimanje.`
+		)
+		.replace(
+			/^(\d+) export (?:file needs|files need) attention\.$/u,
+			(_, count: string) =>
+				count === '1'
+					? '1 izvozna datoteka traži pažnju.'
+					: `${count} izvoznih datoteka traži pažnju.`
+		)
+		.replace(
+			/^(\d+) export (?:file is|files are) still queued or rendering\.$/u,
+			(_, count: string) =>
+				count === '1'
+					? '1 izvozna datoteka još je u redu čekanja ili se izrađuje.'
+					: `${count} izvoznih datoteka još je u redu čekanja ili se izrađuje.`
+		)
+		.replace(/^Exports cover (.+)\.$/u, (_, items: string) => {
+			const localizedItems = items
+				.replace(/\bReport summary export\b/gu, 'izvoz sažetka izvještaja')
+				.replace(/\bResponse dataset export\b/gu, 'izvoz skupa podataka odgovora')
+				.replace(/\band\b/gu, 'i');
+			return `Izvozi pokrivaju ${localizedItems}.`;
+		})
+		.replace(
+			/^Export files are tied to (.+)\.$/u,
+			(_, items: string) => `Izvozne datoteke povezane su s ${items.replace(/\band\b/gu, 'i')}.`
+		)
+		.replace(/^Campaign series \/ (.+)$/u, 'Studija / $1')
+		.replace(/^Campaign \/ (.+)$/u, 'Val / $1')
 		.replace(/^(\d+) downloadable$/u, '$1 dostupno za preuzimanje')
 		.replace(/^(\d+) failed$/u, '$1 neuspjelo')
+		.replace(/^(\d+) pending$/u, '$1 na čekanju')
+		.replace(/^(\d+) purpose$/u, '$1 svrha')
 		.replace(/^(\d+) purposes$/u, '$1 svrhe')
+		.replace(/^(\d+) source$/u, '$1 izvor')
 		.replace(/^(\d+) sources$/u, '$1 izvora')
 		.replace(/^(\d+) file$/u, '$1 datoteka')
 		.replace(/^(\d+) files$/u, '$1 datoteka')
@@ -3344,6 +3381,8 @@ const hrReadModelStrings: Record<string, string> = {
 	// Actions and lifecycle.
 	Prepare: 'Priprema',
 	Collect: 'Prikupljanje',
+	Review: 'Pregled',
+	Export: 'Izvoz',
 	'Compare results': 'Usporedba rezultata',
 	'Build the questionnaire, results setup, policies, wave, and launch check.':
 		'Izradite upitnik, postavke rezultata, pravila, val i provjeru pokretanja.',
@@ -3351,6 +3390,10 @@ const hrReadModelStrings: Record<string, string> = {
 		'Pokrenite val, podijelite pristup, pošaljite pozive i pratite predaje.',
 	'Review findings, limitations, and export files after responses are ready.':
 		'Pregledajte nalaze, ograničenja i izvozne datoteke nakon što su odgovori spremni.',
+	'Inspect coverage, findings, limitations, and comparisons.':
+		'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
+	'Use generated CSV and codebook files for analysis.':
+		'Koristite generirane CSV i šifrarnik datoteke za analizu.',
 	'Create follow-up waves and compare results across collection rounds.':
 		'Izradite sljedeće valove i usporedite rezultate kroz krugove prikupljanja.',
 	'Setup actions': 'Radnje postavljanja',
@@ -3420,6 +3463,39 @@ const hrReadModelStrings: Record<string, string> = {
 	'Needs attention': 'Treba pažnju',
 	'File purpose': 'Svrha datoteke',
 	'Study context and next use': 'Kontekst studije i sljedeća upotreba',
+	'No export files are ready to download yet.':
+		'Još nema izvoznih datoteka spremnih za preuzimanje.',
+	'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.':
+		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
+	'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.':
+		'Datoteke sažetka izvještaja dostupne su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup podataka odgovora spreman za analizu još nije dostupan.',
+	'Create an export from a study results page after results are available.':
+		'Izradite izvoz na stranici Rezultata studije nakon što rezultati budu dostupni.',
+	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.',
+	'Review the failed export file, then recreate it from the source study after the cause is resolved.':
+		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon što se uzrok riješi.',
+	'Wait for generation to finish before using the export file for handoff.':
+		'Pričekajte da izrada završi prije korištenja izvozne datoteke za predaju.',
+	'New export issues will appear here when generation fails or remains pending.':
+		'Novi problemi s izvozom pojavit će se ovdje kada izrada ne uspije ili ostane na čekanju.',
+	'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.':
+		'Odaberite izvoze sažetka izvještaja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa šifrarnikom.',
+	'No generated export purposes are available yet.':
+		'Još nema dostupnih svrha generiranih izvoza.',
+	'Create report summary or response dataset exports from a study when results are ready.':
+		'Izradite izvoz sažetka izvještaja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
+	'No export files are tied to a study yet.':
+		'Još nema izvoznih datoteka povezanih sa studijom.',
+	'Open the source study or report context when you need to understand how an export file was generated.':
+		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvozna datoteka izrađena.',
+	'Generated export files will link back to their study or report context when that context is available.':
+		'Generirane izvozne datoteke povezivat će se natrag na studiju ili kontekst izvještaja kada taj kontekst bude dostupan.',
+	'Use this export for report handoff, summary review, or codebook checks.':
+		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
+	'Use this export for response-level analysis with the generated codebook.':
+		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
+	'Use this export with its source context and generated codebook.':
+		'Koristite ovaj izvoz s izvornim kontekstom i generiranim šifrarnikom.',
 	'Report-summary exports': 'Izvozi sažetka izvještaja',
 	'Report summary exports': 'Izvozi sažetka izvještaja',
 	'Response datasets': 'Skupovi podataka odgovora',

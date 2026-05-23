@@ -66,7 +66,7 @@
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let authMessage = $state<string | null>(null);
 	const workspaceLogoutUrl = $derived(createWorkspaceLogoutUrl(authSession?.tenantId));
-	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession) : null);
+	const sessionProfile = $derived(authSession ? toSessionProfileView(authSession, locale) : null);
 	const authFailureReason = $derived(page.url.searchParams.get('auth'));
 	const authFailedRedirect = $derived(authFailureReason === 'failed');
 	const authEmailUnverifiedRedirect = $derived(authFailureReason === 'email_unverified');

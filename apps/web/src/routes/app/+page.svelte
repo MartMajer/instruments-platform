@@ -34,26 +34,26 @@
 	const firstRunActions = $derived([
 		{
 			title: text.workspaceHome.firstRunActions[0],
-			status: 'Start here',
-			description: 'Start a real study and continue through setup, collection, and results.',
+			status: text.workspaceHome.firstRunActionStatuses[0],
+			description: text.workspaceHome.firstRunActionDescriptions[0],
 			href: resolve('/app/campaign-series')
 		},
 		{
 			title: text.workspaceHome.firstRunActions[1],
-			status: 'Access',
-			description: 'Prepare tenant member access before sharing the first sign-in link.',
+			status: text.workspaceHome.firstRunActionStatuses[1],
+			description: text.workspaceHome.firstRunActionDescriptions[1],
 			href: resolve('/app/team')
 		},
 		{
 			title: text.workspaceHome.firstRunActions[2],
-			status: 'People',
-			description: 'Create people, groups, memberships, and manager links for targeting.',
+			status: text.workspaceHome.firstRunActionStatuses[2],
+			description: text.workspaceHome.firstRunActionDescriptions[2],
 			href: resolve('/app/directory')
 		},
 		{
 			title: text.workspaceHome.firstRunActions[3],
-			status: 'Library',
-			description: 'Confirm which instruments are available before starting production study work.',
+			status: text.workspaceHome.firstRunActionStatuses[3],
+			description: text.workspaceHome.firstRunActionDescriptions[3],
 			href: resolve('/app/instruments')
 		}
 	]);

@@ -176,6 +176,13 @@ const en = {
 			'Set up directory',
 			'Review instruments'
 		],
+		firstRunActionStatuses: ['Start here', 'Access', 'People', 'Library'],
+		firstRunActionDescriptions: [
+			'Start a real study and continue through setup, collection, and results.',
+			'Prepare tenant member access before sharing the first sign-in link.',
+			'Create people, groups, memberships, and manager links for targeting.',
+			'Confirm which instruments are available before starting production study work.'
+		],
 		nextActions: 'Next actions',
 		openStudies: 'Open Studies',
 		examples: 'Examples',
@@ -1623,6 +1630,13 @@ const hr: typeof en = {
 		setupWorkspace: 'Postavite radni prostor',
 		chooseNext: 'Odaberite sljedeću radnju',
 		firstRunActions: ['Izradi prvu studiju', 'Pozovi tim', 'Postavi imenik', 'Pregledaj instrumente'],
+		firstRunActionStatuses: ['Počnite ovdje', 'Pristup', 'Ljudi', 'Knjižnica'],
+		firstRunActionDescriptions: [
+			'Pokrenite stvarnu studiju i nastavite kroz postavljanje, prikupljanje i rezultate.',
+			'Pripremite pristup članova radnog prostora prije dijeljenja prve poveznice za prijavu.',
+			'Izradite ljude, grupe, članstva i veze s voditeljima za ciljanje.',
+			'Potvrdite koji su instrumenti dostupni prije početka produkcijskog rada na studiji.'
+		],
 		nextActions: 'Sljedeće radnje',
 		openStudies: 'Otvori Studije',
 		examples: 'Primjeri',

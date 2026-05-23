@@ -46,4 +46,18 @@ describe('toSessionProfileView', () => {
 		expect(view.permissionSummary).toBe('Reporting access');
 		expect(view.permissionBadges).toEqual(['Reports']);
 	});
+
+	it('localizes session permission summaries and badges', () => {
+		const session: AuthSessionResponse = {
+			userId: '22222222-2222-4222-8222-222222222222',
+			tenantId: '11111111-1111-4111-8111-111111111111',
+			email: 'owner@example.test',
+			permissions: ['setup.manage', 'team.manage', 'report.view_series']
+		};
+
+		const view = toSessionProfileView(session, 'hr-HR');
+
+		expect(view.permissionSummary).toBe('Administracija radnog prostora i pristup izvještajima');
+		expect(view.permissionBadges).toEqual(['Postavljanje', 'Tim', 'Izvještaji']);
+	});
 });

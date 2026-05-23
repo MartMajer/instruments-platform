@@ -2527,6 +2527,96 @@ describe('product view models', () => {
 		]);
 	});
 
+	it('localizes export file library summaries and cards for Croatian app mode', () => {
+		const library: ExportArtifactLibraryResponse = {
+			tenantId: 'tenant-id',
+			summary: {
+				totalCount: 2,
+				downloadableCount: 2,
+				failedCount: 0,
+				pendingCount: 0
+			},
+			artifacts: [
+				{
+					id: 'artifact-id-1',
+					targetKind: 'campaign',
+					targetId: 'campaign-id',
+					targetLabel: 'Wave 1',
+					campaignId: 'campaign-id',
+					campaignName: 'Wave 1',
+					artifactType: 'report_proof_csv_codebook',
+					status: 'succeeded',
+					format: 'csv_codebook',
+					fileName: 'wave-1-report.csv',
+					rowCount: 1,
+					byteSize: 1500,
+					checksumSha256: 'a'.repeat(64),
+					createdAt: '2026-05-22T18:56:00Z',
+					completedAt: '2026-05-22T18:56:02Z',
+					startedAt: '2026-05-22T18:56:00Z',
+					failedAt: null,
+					expiresAt: null,
+					deletedAt: null,
+					failureReasonCode: null,
+					canDownload: true,
+					campaignStatus: 'closed',
+					campaignClosedAt: '2026-05-22T19:00:00Z',
+					dataFinality: 'closed_wave'
+				},
+				{
+					id: 'artifact-id-2',
+					targetKind: 'campaign_series',
+					targetId: 'series-id',
+					targetLabel: 'AA',
+					campaignId: null,
+					campaignName: null,
+					artifactType: 'campaign_series_response_csv_codebook',
+					status: 'succeeded',
+					format: 'csv_codebook',
+					fileName: 'aa-responses.csv',
+					rowCount: 25,
+					byteSize: 15200,
+					checksumSha256: 'b'.repeat(64),
+					createdAt: '2026-05-22T18:55:00Z',
+					completedAt: '2026-05-22T18:55:02Z',
+					startedAt: '2026-05-22T18:55:00Z',
+					failedAt: null,
+					expiresAt: null,
+					deletedAt: null,
+					failureReasonCode: null,
+					canDownload: true,
+					campaignStatus: null,
+					campaignClosedAt: null,
+					dataFinality: null
+				}
+			]
+		};
+
+		const view = toExportArtifactLibraryView(library, 'hr-HR');
+
+		expect(view.exportOverview[0].summary).toBe(
+			'2 izvoznih datoteka spremno je za preuzimanje.'
+		);
+		expect(view.exportOverview[0].guidance).toContain(
+			'Koristite izvoze skupa podataka odgovora za analizu.'
+		);
+		expect(view.exportOverview[1].summary).toBe(
+			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
+		);
+		expect(view.exportOverview[2].summary).toBe(
+			'Izvozi pokrivaju izvoz sažetka izvještaja i izvoz skupa podataka odgovora.'
+		);
+		expect(view.exportOverview[3].summary).toBe('Izvozne datoteke povezane su s Wave 1 i AA.');
+		expect(view.cards[0].nextUse).toBe(
+			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.'
+		);
+		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Val / Wave 1' });
+		expect(view.cards[1].nextUse).toBe(
+			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.'
+		);
+		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
+	});
+
 	it('maps session success and API errors to route-friendly states', () => {
 		const session: AuthSessionResponse = {
 			userId: 'user-id',
