@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { onDestroy } from 'svelte';
 	import { LoaderCircle, RefreshCw } from 'lucide-svelte';
 	import type {
@@ -16,6 +17,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import RouteGuidancePanel from '$lib/components/RouteGuidancePanel.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import ProofWorkflowSurface from '$lib/product/ProofWorkflowSurface.svelte';
 	import SelectedSeriesOperationsWorkflow from '$lib/product/SelectedSeriesOperationsWorkflow.svelte';
 	import SelectedSeriesReportsWorkflow from '$lib/product/SelectedSeriesReportsWorkflow.svelte';
@@ -58,6 +61,8 @@
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(routePageCopy(appLocale).selectedStudy.surfaceChrome);
 
 	let loadState = $state<LoadState>('loading');
 	let authSession = $state<AuthSessionResponse | null>(null);
@@ -105,9 +110,9 @@
 	);
 	const scoreRemediationDisabledReason = $derived(
 		!operationsWorkspace?.scoreCoverage
-			? 'Score coverage is not available.'
+			? copy.scoreCoverageUnavailable
 			: operationsWorkspace.scoreCoverage.unscoredSubmittedResponseCount <= 0
-				? 'No missing submitted scores to remediate.'
+				? copy.noMissingScores
 				: null
 	);
 	const canRemediateScores = $derived(
@@ -117,7 +122,9 @@
 			scoreRemediationState !== 'submitting'
 		)
 	);
-	const scoreRemediationStateLabel = $derived(actionStateLabel(scoreRemediationState));
+	const scoreRemediationStateLabel = $derived(
+		actionStateLabel(scoreRemediationState, copy.actionStates)
+	);
 
 	$effect(() => {
 		void loadSelectedSeries(seriesId);
@@ -135,7 +142,7 @@
 			reportsWidgetManifestWarning = null;
 			wavesWorkspace = null;
 			resetScoreRemediationState();
-			errorMessage = 'Select a study before opening this surface.';
+			errorMessage = copy.missingStudy;
 			loadState = 'error';
 			return;
 		}
@@ -213,7 +220,7 @@
 			resetScoreRemediationState();
 			errorMessage = toSelectedSeriesErrorMessage(
 				error,
-				'Campaign series surface could not be loaded.'
+				copy.surfaceUnavailableFallback
 			);
 			loadState = 'error';
 		}
@@ -307,7 +314,7 @@
 			reportsWidgetManifest = null;
 			reportsWidgetManifestWarning = toSelectedSeriesErrorMessage(
 				error,
-				'Results summary could not be loaded.'
+				copy.resultsSummaryUnavailable
 			);
 		}
 	}
@@ -374,44 +381,44 @@
 		scoreRemediationRefreshWarning = null;
 	}
 
-	function actionStateLabel(state: ActionState) {
+	function actionStateLabel(state: ActionState, labels: typeof copy.actionStates) {
 		if (state === 'submitting') {
-			return 'Running';
+			return labels.running;
 		}
 
 		if (state === 'succeeded') {
-			return 'Done';
+			return labels.done;
 		}
 
 		if (state === 'failed') {
-			return 'Failed';
+			return labels.failed;
 		}
 
-		return 'Ready';
+		return labels.ready;
 	}
 </script>
 
 <section class="product-stack" aria-label={ariaLabel}>
-	<LoadingBoundary loading={loadState === 'loading'} label={`Loading ${surface} context`}>
+	<LoadingBoundary loading={loadState === 'loading'} label={copy.loadingContext(surface)}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Campaign series unavailable"
+				title={copy.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry surface"
+				retryLabel={copy.retry}
 				onRetry={() => loadSelectedSeries()}
 			/>
 		{:else if setupWorkspaceView}
 			{#if setupWorkspaceView.readOnlyMessage}
-				<section class="product-panel" aria-label="Sample study read-only state">
+				<section class="product-panel" aria-label={copy.readOnlyStateAria}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Study ownership</p>
+							<p class="product-kicker">{copy.ownershipKicker}</p>
 							<h2 class="product-title">{setupWorkspaceView.ownership.label}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								{setupWorkspaceView.readOnlyMessage}
 							</p>
 						</div>
-						<StatusBadge status={setupWorkspaceView.ownership.badgeStatus} label="Read-only" />
+						<StatusBadge status={setupWorkspaceView.ownership.badgeStatus} label={copy.readOnly} />
 					</div>
 				</section>
 			{/if}
@@ -426,16 +433,16 @@
 
 		{:else if operationsWorkspaceView}
 			{#if operationsWorkspaceView.readOnlyMessage}
-				<section class="product-panel" aria-label="Sample study read-only state">
+				<section class="product-panel" aria-label={copy.readOnlyStateAria}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Study ownership</p>
+							<p class="product-kicker">{copy.ownershipKicker}</p>
 							<h2 class="product-title">{operationsWorkspaceView.ownership.label}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								{operationsWorkspaceView.readOnlyMessage}
 							</p>
 						</div>
-						<StatusBadge status={operationsWorkspaceView.ownership.badgeStatus} label="Read-only" />
+						<StatusBadge status={operationsWorkspaceView.ownership.badgeStatus} label={copy.readOnly} />
 					</div>
 				</section>
 			{/if}
@@ -448,15 +455,14 @@
 				/>
 			{/if}
 
-			<details class="product-panel reference-context" aria-label="Collection details">
-				<summary class="record-row__title">Collection details</summary>
+			<details class="product-panel reference-context" aria-label={copy.collectionDetails.summary}>
+				<summary class="record-row__title">{copy.collectionDetails.summary}</summary>
 				<div class="product-panel__header mt-4">
 					<div>
-						<p class="product-kicker">Collection details</p>
-						<h2 class="product-title">Operational details</h2>
+						<p class="product-kicker">{copy.collectionDetails.kicker}</p>
+						<h2 class="product-title">{copy.collectionDetails.title}</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							Audit and troubleshooting details for this collection wave. Most collection work
-							should happen in the workflow above.
+							{copy.collectionDetails.description}
 						</p>
 					</div>
 				</div>
@@ -473,12 +479,12 @@
 				{#if operationsWorkspaceView.collectionMonitor}
 					<div
 						role="group"
-						aria-label="Collection monitor"
+						aria-label={copy.collectionDetails.monitorAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Collection monitor</p>
-							<h3 class="text-base font-semibold text-[var(--color-text)]">Response collection</h3>
+							<p class="product-kicker">{copy.collectionDetails.monitorKicker}</p>
+							<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.collectionDetails.monitorTitle}</h3>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{operationsWorkspaceView.collectionMonitor.guidance}
 							</p>
@@ -498,13 +504,13 @@
 				{#if operationsWorkspaceView.scoreCoverageMonitor}
 					<div
 						role="group"
-						aria-label="Score coverage"
+						aria-label={copy.collectionDetails.scoreCoverageAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Score coverage</p>
+							<p class="product-kicker">{copy.collectionDetails.scoreCoverageKicker}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Submitted scoring coverage
+								{copy.collectionDetails.scoreCoverageTitle}
 							</h3>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{operationsWorkspaceView.scoreCoverageMonitor.guidance}
@@ -536,8 +542,8 @@
 									{/if}
 									<span>
 										{scoreRemediationState === 'submitting'
-											? 'Remediating scores'
-											: 'Remediate missing scores'}
+											? copy.collectionDetails.remediatingScores
+											: copy.collectionDetails.remediateMissingScores}
 									</span>
 								</button>
 								<p class="step-pill" data-state={scoreRemediationState}>
@@ -556,44 +562,44 @@
 							{/if}
 						{:else}
 							<p class="text-sm text-[var(--color-text-muted)]">
-								Score remediation requires setup management access.
+								{copy.collectionDetails.remediationRequiresAccess}
 							</p>
 						{/if}
 
 						{#if scoreRemediationResult}
-							<dl class="record-grid" aria-label="Score remediation result">
+							<dl class="record-grid" aria-label={copy.collectionDetails.resultAria}>
 								<div class="record-field">
-									<dt class="record-field__label">Submitted responses</dt>
+									<dt class="record-field__label">{copy.collectionDetails.submittedResponses}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.submittedResponseCount}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Eligible submitted</dt>
+									<dt class="record-field__label">{copy.collectionDetails.eligibleSubmitted}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.eligibleSubmittedResponseCount}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Already scored</dt>
+									<dt class="record-field__label">{copy.collectionDetails.alreadyScored}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.alreadyScoredSubmittedResponseCount}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Remediated</dt>
+									<dt class="record-field__label">{copy.collectionDetails.remediated}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.remediatedSubmittedResponseCount}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Not configured</dt>
+									<dt class="record-field__label">{copy.collectionDetails.notConfigured}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.skippedNotConfiguredSubmittedResponseCount}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Latest scoring activity</dt>
+									<dt class="record-field__label">{copy.collectionDetails.latestScoringActivity}</dt>
 									<dd class="record-field__value">
 										{scoreRemediationResult.latestScoringActivityAt ?? 'Not available'}
 									</dd>
@@ -606,13 +612,13 @@
 				{#if operationsWorkspaceView.missingPrerequisiteRows.length > 0}
 					<div
 						role="group"
-						aria-label="Missing collection prerequisites"
+						aria-label={copy.collectionDetails.prerequisitesAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Prerequisites</p>
+							<p class="product-kicker">{copy.collectionDetails.prerequisitesKicker}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Missing collection requirements
+								{copy.collectionDetails.prerequisitesTitle}
 							</h3>
 						</div>
 						<div class="record-list">
@@ -633,16 +639,16 @@
 			</details>
 		{:else if reportsWorkspaceView}
 			{#if reportsWorkspaceView.readOnlyMessage}
-				<section class="product-panel" aria-label="Sample study read-only state">
+				<section class="product-panel" aria-label={copy.readOnlyStateAria}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Study ownership</p>
+							<p class="product-kicker">{copy.ownershipKicker}</p>
 							<h2 class="product-title">{reportsWorkspaceView.ownership.label}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								{reportsWorkspaceView.readOnlyMessage}
 							</p>
 						</div>
-						<StatusBadge status={reportsWorkspaceView.ownership.badgeStatus} label="Read-only" />
+						<StatusBadge status={reportsWorkspaceView.ownership.badgeStatus} label={copy.readOnly} />
 					</div>
 				</section>
 			{/if}
@@ -656,15 +662,14 @@
 					onWorkspaceRefresh={() => refreshReportsWorkspace()}
 				/>
 
-				<details class="product-panel reference-context" aria-label="Results details">
-					<summary class="record-row__title">Results details</summary>
+				<details class="product-panel reference-context" aria-label={copy.resultsDetails.summary}>
+					<summary class="record-row__title">{copy.resultsDetails.summary}</summary>
 					<div class="product-panel__header mt-4">
 						<div>
-							<p class="product-kicker">Results details</p>
-							<h2 class="product-title">Audit and troubleshooting</h2>
+							<p class="product-kicker">{copy.resultsDetails.kicker}</p>
+							<h2 class="product-title">{copy.resultsDetails.title}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-								Use these details when results or exports are blocked. Normal review and
-								export work should happen in the workflow above.
+								{copy.resultsDetails.description}
 							</p>
 						</div>
 					</div>
@@ -681,13 +686,13 @@
 					{#if reportsWorkspaceView.resultsOverview.length > 0}
 						<div
 							role="group"
-							aria-label="Results readiness"
+							aria-label={copy.resultsDetails.readinessAria}
 							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 						>
 							<div>
-								<p class="product-kicker">Readiness</p>
+								<p class="product-kicker">{copy.resultsDetails.readinessKicker}</p>
 								<h3 class="text-base font-semibold text-[var(--color-text)]">
-									What is ready?
+									{copy.resultsDetails.readinessTitle}
 								</h3>
 							</div>
 							<div class="record-list">
@@ -712,13 +717,13 @@
 				{#if reportsWorkspaceView.scoreCoverageSignal}
 					<div
 						role="group"
-						aria-label="Score coverage"
+						aria-label={copy.resultsDetails.scoreCoverageAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div class="product-panel__header">
 							<div>
-								<p class="product-kicker">Score coverage</p>
-								<h3 class="text-base font-semibold text-[var(--color-text)]">Report readiness</h3>
+								<p class="product-kicker">{copy.resultsDetails.scoreCoverageKicker}</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.resultsDetails.scoreCoverageTitle}</h3>
 								<p class="text-sm text-[var(--color-text-muted)]">
 									{reportsWorkspaceView.scoreCoverageSignal.guidance}
 								</p>
@@ -738,12 +743,12 @@
 
 				<div
 					role="group"
-					aria-label="Results selected campaign"
+					aria-label={copy.resultsDetails.selectedCampaignAria}
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Selected wave</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Report state</h3>
+						<p class="product-kicker">{copy.resultsDetails.selectedWaveKicker}</p>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.resultsDetails.reportStateTitle}</h3>
 					</div>
 
 					{#if reportsWorkspaceView.selectedCampaignRows.some((row) => !row.mono)}
@@ -766,13 +771,13 @@
 				{#if reportsWorkspaceView.provenanceRows.length > 0}
 					<div
 						role="group"
-						aria-label="Results source context"
+						aria-label={copy.resultsDetails.sourceAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Based on</p>
+							<p class="product-kicker">{copy.resultsDetails.basedOn}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Launch, policy, and export context
+								{copy.resultsDetails.launchPolicyExport}
 							</h3>
 						</div>
 						<dl class="record-grid">
@@ -789,13 +794,13 @@
 				{#if reportsWorkspaceView.missingPrerequisiteRows.length > 0}
 					<div
 						role="group"
-						aria-label="Missing results prerequisites"
+						aria-label={copy.resultsDetails.prerequisitesAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Prerequisites</p>
+							<p class="product-kicker">{copy.resultsDetails.prerequisitesKicker}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Missing result requirements
+								{copy.resultsDetails.prerequisitesTitle}
 							</h3>
 						</div>
 						<div class="record-list">
@@ -816,9 +821,9 @@
 
 				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
 					<div>
-						<p class="product-kicker">Waves</p>
+						<p class="product-kicker">{copy.resultsDetails.waves}</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Included result waves
+							{copy.resultsDetails.includedWaves}
 						</h3>
 					</div>
 
@@ -852,16 +857,16 @@
 			{/if}
 		{:else if wavesWorkspaceView}
 			{#if wavesWorkspaceView.readOnlyMessage}
-				<section class="product-panel" aria-label="Sample study read-only state">
+				<section class="product-panel" aria-label={copy.readOnlyStateAria}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Study ownership</p>
+							<p class="product-kicker">{copy.ownershipKicker}</p>
 							<h2 class="product-title">{wavesWorkspaceView.ownership.label}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 								{wavesWorkspaceView.readOnlyMessage}
 							</p>
 						</div>
-						<StatusBadge status={wavesWorkspaceView.ownership.badgeStatus} label="Read-only" />
+						<StatusBadge status={wavesWorkspaceView.ownership.badgeStatus} label={copy.readOnly} />
 					</div>
 				</section>
 			{/if}
@@ -872,15 +877,14 @@
 					onWorkspaceRefresh={() => refreshWavesWorkspace()}
 				/>
 
-				<details class="product-panel reference-context" aria-label="Waves details">
-					<summary class="record-row__title">Waves details</summary>
+				<details class="product-panel reference-context" aria-label={copy.wavesDetails.summary}>
+					<summary class="record-row__title">{copy.wavesDetails.summary}</summary>
 					<div class="product-panel__header mt-4">
 						<div>
-							<p class="product-kicker">Waves details</p>
-							<h2 class="product-title">Comparison details</h2>
+							<p class="product-kicker">{copy.wavesDetails.kicker}</p>
+							<h2 class="product-title">{copy.wavesDetails.title}</h2>
 							<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-								Use these details when a wave comparison is blocked or needs audit context.
-								Normal comparison work should happen in the workflow above.
+								{copy.wavesDetails.description}
 							</p>
 						</div>
 					</div>
@@ -896,38 +900,38 @@
 
 					<div
 						role="group"
-						aria-label="Compared waves"
+						aria-label={copy.wavesDetails.comparedWavesAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Compared waves</p>
+							<p class="product-kicker">{copy.wavesDetails.comparedWavesKicker}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Selected comparison
+								{copy.wavesDetails.selectedComparison}
 							</h3>
 						</div>
 						<dl class="record-grid">
 							<div class="record-field">
-								<dt class="record-field__label">Baseline wave</dt>
+								<dt class="record-field__label">{copy.wavesDetails.baselineWave}</dt>
 								<dd class="record-field__value">
-									{wavesWorkspace.selectedBaselineWave?.name ?? 'Missing'}
+									{wavesWorkspace.selectedBaselineWave?.name ?? copy.wavesDetails.missing}
 								</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Comparison wave</dt>
+								<dt class="record-field__label">{copy.wavesDetails.comparisonWave}</dt>
 								<dd class="record-field__value">
-									{wavesWorkspace.selectedComparisonWave?.name ?? 'Missing'}
+									{wavesWorkspace.selectedComparisonWave?.name ?? copy.wavesDetails.missing}
 								</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Comparison status</dt>
+								<dt class="record-field__label">{copy.wavesDetails.comparisonStatus}</dt>
 								<dd class="record-field__value">{wavesWorkspace.comparison.status}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Disclosure</dt>
+								<dt class="record-field__label">{copy.wavesDetails.disclosure}</dt>
 								<dd class="record-field__value">{wavesWorkspace.comparison.disclosureState}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Compatibility</dt>
+								<dt class="record-field__label">{copy.wavesDetails.compatibility}</dt>
 								<dd class="record-field__value">{wavesWorkspace.comparison.compatibilityState}</dd>
 							</div>
 						</dl>
@@ -936,13 +940,13 @@
 					{#if wavesWorkspaceView.selectedWaveRows.length > 0}
 						<div
 							role="group"
-							aria-label="Wave readiness"
+							aria-label={copy.wavesDetails.readinessAria}
 							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 						>
 							<div>
-								<p class="product-kicker">Comparison readiness</p>
+								<p class="product-kicker">{copy.wavesDetails.readinessKicker}</p>
 								<h3 class="text-base font-semibold text-[var(--color-text)]">
-									What is available?
+									{copy.wavesDetails.availableTitle}
 								</h3>
 							</div>
 							<dl class="record-grid">
@@ -964,13 +968,13 @@
 					{#if wavesWorkspaceView.provenanceRows.length > 0}
 						<div
 							role="group"
-							aria-label="Wave source context"
+							aria-label={copy.wavesDetails.sourceAria}
 							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 						>
 							<div>
-								<p class="product-kicker">Based on</p>
+								<p class="product-kicker">{copy.wavesDetails.basedOn}</p>
 								<h3 class="text-base font-semibold text-[var(--color-text)]">
-									Launch and policy context
+									{copy.wavesDetails.launchPolicy}
 								</h3>
 							</div>
 							<dl class="record-grid">
@@ -987,13 +991,13 @@
 					{#if wavesWorkspaceView.missingPrerequisiteRows.length > 0}
 						<div
 							role="group"
-							aria-label="Missing wave prerequisites"
+							aria-label={copy.wavesDetails.prerequisitesAria}
 							class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 						>
 							<div>
-								<p class="product-kicker">Blocked comparison</p>
+								<p class="product-kicker">{copy.wavesDetails.prerequisitesKicker}</p>
 								<h3 class="text-base font-semibold text-[var(--color-text)]">
-									What needs attention?
+									{copy.wavesDetails.prerequisitesTitle}
 								</h3>
 							</div>
 							<div class="record-list">
@@ -1014,13 +1018,13 @@
 
 					<div
 						role="group"
-						aria-label="Available waves"
+						aria-label={copy.wavesDetails.availableWavesAria}
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Available waves</p>
+							<p class="product-kicker">{copy.wavesDetails.availableWavesKicker}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Wave history
+								{copy.wavesDetails.waveHistory}
 							</h3>
 						</div>
 
@@ -1055,7 +1059,7 @@
 		{:else if surfaceView}
 			<section
 				class="product-panel"
-				aria-label={`${surfaceView.surfaceLabel} selected-series context`}
+				aria-label={`${surfaceView.surfaceLabel} ${copy.fallback.selectedSeriesContext}`}
 			>
 				<div class="product-panel__header">
 					<div>
@@ -1083,9 +1087,9 @@
 						class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 					>
 						<div>
-							<p class="product-kicker">Governance</p>
+							<p class="product-kicker">{copy.fallback.governance}</p>
 							<h3 class="text-base font-semibold text-[var(--color-text)]">
-								Selected-series readiness
+								{copy.fallback.selectedSeriesReadiness}
 							</h3>
 						</div>
 						<div class="record-grid">
@@ -1106,13 +1110,13 @@
 
 				<div
 					role="group"
-					aria-label="Selected series campaign rows"
+					aria-label={copy.fallback.campaignRowsAria}
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Campaign rows</p>
+						<p class="product-kicker">{copy.fallback.campaignRows}</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Selected-series campaign context
+							{copy.fallback.campaignContext}
 						</h3>
 					</div>
 
@@ -1148,13 +1152,13 @@
 				<section class="proof-workbench" aria-label="Action workflow">
 					<div class="proof-workbench__header">
 						<div>
-							<p class="product-kicker">Product workflow</p>
+							<p class="product-kicker">{copy.fallback.productWorkflow}</p>
 							<h3 class="product-title">{surfaceView.proofActionTitle}</h3>
 							<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
 								{surfaceView.proofActionDescription}
 							</p>
 						</div>
-						<span class="status-badge" data-status="proof_only">Preview workflow</span>
+						<span class="status-badge" data-status="proof_only">{copy.fallback.previewWorkflow}</span>
 					</div>
 					<ProofWorkflowSurface
 						{surface}
@@ -1168,12 +1172,12 @@
 				<section class="product-panel" aria-label="Read-only selected-series access">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Product workflow</p>
-							<h3 class="product-title">Read-only access</h3>
+							<p class="product-kicker">{copy.fallback.productWorkflow}</p>
+							<h3 class="product-title">{copy.fallback.readOnlyAccess}</h3>
 						</div>
 					</div>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Workflow actions require setup management access.
+						{copy.fallback.workflowRequiresSetup}
 					</p>
 				</section>
 			{/if}

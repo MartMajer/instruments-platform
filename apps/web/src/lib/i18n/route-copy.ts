@@ -296,6 +296,180 @@ const en = {
 		profile: 'Workspace profile',
 		scale: 'Workspace scale',
 		footprint: 'Current footprint'
+	},
+	selectedStudy: {
+		overview: {
+			eyebrow: 'Selected study',
+			title: 'Overview',
+			description:
+				'See where this study stands, then continue setup, collection, results, or wave comparison.',
+			ariaLabel: 'Selected study overview',
+			loading: 'Loading study overview',
+			errorTitle: 'Study overview unavailable',
+			retry: 'Retry overview',
+			missingId: 'Study id is missing.',
+			unavailableFallback: 'Selected study overview could not be loaded.',
+			restoreFailed: 'Study could not be restored.',
+			duplicateFailed: 'Sample study could not be duplicated.',
+			selectedStudy: 'Selected study',
+			studyDetails: 'Study details',
+			statusRecords: 'Status and records',
+			statusDescription: 'Review readiness, governance, and campaigns linked to this study.',
+			dates: 'Dates',
+			datesAria: 'Selected study dates',
+			lifecycle: 'Lifecycle',
+			governance: 'Governance',
+			governanceAria: 'Governance status',
+			policyScoring: 'Policy and scoring status',
+			campaigns: 'Campaigns',
+			campaignsAria: 'Selected series campaign rows',
+			campaignsInStudy: 'Campaigns in this study',
+			noCampaigns: 'No campaigns are linked to this series.',
+			restore: 'Restore',
+			restoring: 'Restoring...',
+			readOnly: 'Read-only',
+			duplicateAsStudy: 'Duplicate as study',
+			duplicating: 'Duplicating...',
+			duplicateAria: (title: string) => `Duplicate as study ${title}`
+		},
+		surfaces: {
+			setup: {
+				eyebrow: 'Setup',
+				title: 'Study setup',
+				description: 'Work through the setup steps in order before collection starts.',
+				ariaLabel: 'Setup workspace'
+			},
+			operations: {
+				eyebrow: 'Study collection',
+				title: 'Collect responses',
+				description:
+					'Start collection, share respondent access, monitor submissions, and close the response window.',
+				ariaLabel: 'Collection workspace'
+			},
+			reports: {
+				eyebrow: 'Study results',
+				title: 'Review results',
+				description:
+					'Review available findings, score coverage, limitations, and export next use for this study.',
+				ariaLabel: 'Results workspace'
+			},
+			waves: {
+				eyebrow: 'Wave comparison',
+				title: 'Waves',
+				description:
+					'Create follow-up collection waves, then compare linked longitudinal change when the study is ready.',
+				ariaLabel: 'Waves and linked trajectories'
+			}
+		},
+		surfaceChrome: {
+			loadingContext: (surface: string) => `Loading ${surface} context`,
+			missingStudy: 'Select a study before opening this surface.',
+			surfaceUnavailableFallback: 'Campaign series surface could not be loaded.',
+			resultsSummaryUnavailable: 'Results summary could not be loaded.',
+			errorTitle: 'Campaign series unavailable',
+			retry: 'Retry surface',
+			readOnlyStateAria: 'Sample study read-only state',
+			ownershipKicker: 'Study ownership',
+			readOnly: 'Read-only',
+			scoreCoverageUnavailable: 'Score coverage is not available.',
+			noMissingScores: 'No missing submitted scores to remediate.',
+			actionStates: {
+				running: 'Running',
+				done: 'Done',
+				failed: 'Failed',
+				ready: 'Ready'
+			},
+			collectionDetails: {
+				summary: 'Collection details',
+				kicker: 'Collection details',
+				title: 'Operational details',
+				description:
+					'Audit and troubleshooting details for this collection wave. Most collection work should happen in the workflow above.',
+				monitorAria: 'Collection monitor',
+				monitorKicker: 'Collection monitor',
+				monitorTitle: 'Response collection',
+				scoreCoverageAria: 'Score coverage',
+				scoreCoverageKicker: 'Score coverage',
+				scoreCoverageTitle: 'Submitted scoring coverage',
+				remediatingScores: 'Remediating scores',
+				remediateMissingScores: 'Remediate missing scores',
+				remediationRequiresAccess: 'Score remediation requires setup management access.',
+				resultAria: 'Score remediation result',
+				submittedResponses: 'Submitted responses',
+				eligibleSubmitted: 'Eligible submitted',
+				alreadyScored: 'Already scored',
+				remediated: 'Remediated',
+				notConfigured: 'Not configured',
+				latestScoringActivity: 'Latest scoring activity',
+				prerequisitesAria: 'Missing collection prerequisites',
+				prerequisitesKicker: 'Prerequisites',
+				prerequisitesTitle: 'Missing collection requirements'
+			},
+			resultsDetails: {
+				summary: 'Results details',
+				kicker: 'Results details',
+				title: 'Audit and troubleshooting',
+				description:
+					'Use these details when results or exports are blocked. Normal review and export work should happen in the workflow above.',
+				readinessAria: 'Results readiness',
+				readinessKicker: 'Readiness',
+				readinessTitle: 'What is ready?',
+				scoreCoverageAria: 'Score coverage',
+				scoreCoverageKicker: 'Score coverage',
+				scoreCoverageTitle: 'Report readiness',
+				selectedCampaignAria: 'Results selected campaign',
+				selectedWaveKicker: 'Selected wave',
+				reportStateTitle: 'Report state',
+				sourceAria: 'Results source context',
+				basedOn: 'Based on',
+				launchPolicyExport: 'Launch, policy, and export context',
+				prerequisitesAria: 'Missing results prerequisites',
+				prerequisitesKicker: 'Prerequisites',
+				prerequisitesTitle: 'Missing result requirements',
+				waves: 'Waves',
+				includedWaves: 'Included result waves'
+			},
+			wavesDetails: {
+				summary: 'Waves details',
+				kicker: 'Waves details',
+				title: 'Comparison details',
+				description:
+					'Use these details when a wave comparison is blocked or needs audit context. Normal comparison work should happen in the workflow above.',
+				comparedWavesAria: 'Compared waves',
+				comparedWavesKicker: 'Compared waves',
+				selectedComparison: 'Selected comparison',
+				baselineWave: 'Baseline wave',
+				comparisonWave: 'Comparison wave',
+				comparisonStatus: 'Comparison status',
+				disclosure: 'Disclosure',
+				compatibility: 'Compatibility',
+				missing: 'Missing',
+				readinessAria: 'Wave readiness',
+				readinessKicker: 'Comparison readiness',
+				availableTitle: 'What is available?',
+				sourceAria: 'Wave source context',
+				basedOn: 'Based on',
+				launchPolicy: 'Launch and policy context',
+				prerequisitesAria: 'Missing wave prerequisites',
+				prerequisitesKicker: 'Blocked comparison',
+				prerequisitesTitle: 'What needs attention?',
+				availableWavesAria: 'Available waves',
+				availableWavesKicker: 'Available waves',
+				waveHistory: 'Wave history'
+			},
+			fallback: {
+				selectedSeriesContext: 'selected-series context',
+				productWorkflow: 'Product workflow',
+				previewWorkflow: 'Preview workflow',
+				governance: 'Governance',
+				selectedSeriesReadiness: 'Selected-series readiness',
+				campaignRows: 'Campaign rows',
+				campaignRowsAria: 'Selected series campaign rows',
+				campaignContext: 'Selected-series campaign context',
+				readOnlyAccess: 'Read-only access',
+				workflowRequiresSetup: 'Workflow actions require setup management access.'
+			}
+		}
 	}
 };
 
@@ -592,6 +766,180 @@ const hr: typeof en = {
 		profile: 'Profil radnog prostora',
 		scale: 'Veličina radnog prostora',
 		footprint: 'Trenutni opseg'
+	},
+	selectedStudy: {
+		overview: {
+			eyebrow: 'Odabrana studija',
+			title: 'Pregled',
+			description:
+				'Pogledajte gdje studija stoji, zatim nastavite postavljanje, prikupljanje, rezultate ili usporedbu valova.',
+			ariaLabel: 'Pregled odabrane studije',
+			loading: 'Učitavanje pregleda studije',
+			errorTitle: 'Pregled studije nije dostupan',
+			retry: 'Pokušaj pregled ponovno',
+			missingId: 'Nedostaje id studije.',
+			unavailableFallback: 'Pregled odabrane studije nije se mogao učitati.',
+			restoreFailed: 'Studija se nije mogla vratiti.',
+			duplicateFailed: 'Primjer studije nije se mogao duplicirati.',
+			selectedStudy: 'Odabrana studija',
+			studyDetails: 'Detalji studije',
+			statusRecords: 'Status i zapisi',
+			statusDescription: 'Pregledajte spremnost, pravila i valove povezane s ovom studijom.',
+			dates: 'Datumi',
+			datesAria: 'Datumi odabrane studije',
+			lifecycle: 'Životni ciklus',
+			governance: 'Upravljanje',
+			governanceAria: 'Status upravljanja',
+			policyScoring: 'Status pravila i bodovanja',
+			campaigns: 'Valovi',
+			campaignsAria: 'Redci valova odabrane studije',
+			campaignsInStudy: 'Valovi u ovoj studiji',
+			noCampaigns: 'Nijedan val još nije povezan s ovom studijom.',
+			restore: 'Vrati',
+			restoring: 'Vraćanje...',
+			readOnly: 'Samo za čitanje',
+			duplicateAsStudy: 'Dupliciraj kao studiju',
+			duplicating: 'Dupliciranje...',
+			duplicateAria: (title: string) => `Dupliciraj kao studiju ${title}`
+		},
+		surfaces: {
+			setup: {
+				eyebrow: 'Postavljanje',
+				title: 'Postavljanje studije',
+				description: 'Prođite korake postavljanja redom prije početka prikupljanja.',
+				ariaLabel: 'Radni prostor postavljanja'
+			},
+			operations: {
+				eyebrow: 'Prikupljanje studije',
+				title: 'Prikupljanje odgovora',
+				description:
+					'Pokrenite prikupljanje, podijelite pristup sudionicima, pratite odgovore i zatvorite prozor odgovaranja.',
+				ariaLabel: 'Radni prostor prikupljanja'
+			},
+			reports: {
+				eyebrow: 'Rezultati studije',
+				title: 'Pregled rezultata',
+				description:
+					'Pregledajte dostupne nalaze, pokrivenost bodovanja, ograničenja i sljedeću upotrebu izvoza za ovu studiju.',
+				ariaLabel: 'Radni prostor rezultata'
+			},
+			waves: {
+				eyebrow: 'Usporedba valova',
+				title: 'Valovi',
+				description:
+					'Izradite naknadne valove prikupljanja, zatim usporedite povezanu longitudinalnu promjenu kad je studija spremna.',
+				ariaLabel: 'Valovi i povezane putanje'
+			}
+		},
+		surfaceChrome: {
+			loadingContext: (surface: string) => `Učitavanje konteksta: ${surface}`,
+			missingStudy: 'Odaberite studiju prije otvaranja ove površine.',
+			surfaceUnavailableFallback: 'Površina odabrane studije nije se mogla učitati.',
+			resultsSummaryUnavailable: 'Sažetak rezultata nije se mogao učitati.',
+			errorTitle: 'Odabrana studija nije dostupna',
+			retry: 'Pokušaj ponovno',
+			readOnlyStateAria: 'Stanje primjera studije samo za čitanje',
+			ownershipKicker: 'Vlasništvo studije',
+			readOnly: 'Samo za čitanje',
+			scoreCoverageUnavailable: 'Pokrivenost bodovanja nije dostupna.',
+			noMissingScores: 'Nema predanih odgovora bez bodovanja za popravak.',
+			actionStates: {
+				running: 'U tijeku',
+				done: 'Gotovo',
+				failed: 'Neuspjelo',
+				ready: 'Spremno'
+			},
+			collectionDetails: {
+				summary: 'Detalji prikupljanja',
+				kicker: 'Detalji prikupljanja',
+				title: 'Operativni detalji',
+				description:
+					'Detalji za audit i rješavanje problema za ovaj val prikupljanja. Većina rada prikupljanja treba biti u tijeku iznad.',
+				monitorAria: 'Nadzor prikupljanja',
+				monitorKicker: 'Nadzor prikupljanja',
+				monitorTitle: 'Prikupljanje odgovora',
+				scoreCoverageAria: 'Pokrivenost bodovanja',
+				scoreCoverageKicker: 'Pokrivenost bodovanja',
+				scoreCoverageTitle: 'Pokrivenost bodovanja predanih odgovora',
+				remediatingScores: 'Popravljanje bodovanja',
+				remediateMissingScores: 'Popravi nedostajuća bodovanja',
+				remediationRequiresAccess: 'Popravak bodovanja zahtijeva pristup za upravljanje postavljanjem.',
+				resultAria: 'Rezultat popravka bodovanja',
+				submittedResponses: 'Predani odgovori',
+				eligibleSubmitted: 'Prihvatljivi predani',
+				alreadyScored: 'Već bodovano',
+				remediated: 'Popravljeno',
+				notConfigured: 'Nije postavljeno',
+				latestScoringActivity: 'Zadnja aktivnost bodovanja',
+				prerequisitesAria: 'Nedostajući uvjeti prikupljanja',
+				prerequisitesKicker: 'Preduvjeti',
+				prerequisitesTitle: 'Nedostajući uvjeti prikupljanja'
+			},
+			resultsDetails: {
+				summary: 'Detalji rezultata',
+				kicker: 'Detalji rezultata',
+				title: 'Audit i rješavanje problema',
+				description:
+					'Koristite ove detalje kad su rezultati ili izvozi blokirani. Normalan pregled i izvoz trebaju biti u tijeku iznad.',
+				readinessAria: 'Spremnost rezultata',
+				readinessKicker: 'Spremnost',
+				readinessTitle: 'Što je spremno?',
+				scoreCoverageAria: 'Pokrivenost bodovanja',
+				scoreCoverageKicker: 'Pokrivenost bodovanja',
+				scoreCoverageTitle: 'Spremnost izvještaja',
+				selectedCampaignAria: 'Odabrani val rezultata',
+				selectedWaveKicker: 'Odabrani val',
+				reportStateTitle: 'Stanje izvještaja',
+				sourceAria: 'Kontekst izvora rezultata',
+				basedOn: 'Temeljeno na',
+				launchPolicyExport: 'Pokretanje, pravila i kontekst izvoza',
+				prerequisitesAria: 'Nedostajući uvjeti rezultata',
+				prerequisitesKicker: 'Preduvjeti',
+				prerequisitesTitle: 'Nedostajući uvjeti rezultata',
+				waves: 'Valovi',
+				includedWaves: 'Uključeni valovi rezultata'
+			},
+			wavesDetails: {
+				summary: 'Detalji valova',
+				kicker: 'Detalji valova',
+				title: 'Detalji usporedbe',
+				description:
+					'Koristite ove detalje kad je usporedba valova blokirana ili treba audit kontekst. Normalna usporedba treba biti u tijeku iznad.',
+				comparedWavesAria: 'Uspoređeni valovi',
+				comparedWavesKicker: 'Uspoređeni valovi',
+				selectedComparison: 'Odabrana usporedba',
+				baselineWave: 'Početni val',
+				comparisonWave: 'Usporedni val',
+				comparisonStatus: 'Status usporedbe',
+				disclosure: 'Prikaz',
+				compatibility: 'Kompatibilnost',
+				missing: 'Nedostaje',
+				readinessAria: 'Spremnost valova',
+				readinessKicker: 'Spremnost usporedbe',
+				availableTitle: 'Što je dostupno?',
+				sourceAria: 'Kontekst izvora valova',
+				basedOn: 'Temeljeno na',
+				launchPolicy: 'Kontekst pokretanja i pravila',
+				prerequisitesAria: 'Nedostajući uvjeti valova',
+				prerequisitesKicker: 'Blokirana usporedba',
+				prerequisitesTitle: 'Što treba pažnju?',
+				availableWavesAria: 'Dostupni valovi',
+				availableWavesKicker: 'Dostupni valovi',
+				waveHistory: 'Povijest valova'
+			},
+			fallback: {
+				selectedSeriesContext: 'kontekst odabrane studije',
+				productWorkflow: 'Tijek rada proizvoda',
+				previewWorkflow: 'Pregled tijeka rada',
+				governance: 'Upravljanje',
+				selectedSeriesReadiness: 'Spremnost odabrane studije',
+				campaignRows: 'Redci valova',
+				campaignRowsAria: 'Redci valova odabrane studije',
+				campaignContext: 'Kontekst valova odabrane studije',
+				readOnlyAccess: 'Pristup samo za čitanje',
+				workflowRequiresSetup: 'Radnje tijeka rada zahtijevaju pristup za upravljanje postavljanjem.'
+			}
+		}
 	}
 };
 

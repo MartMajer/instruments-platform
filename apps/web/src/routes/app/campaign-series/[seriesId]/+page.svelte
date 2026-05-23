@@ -9,6 +9,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { Copy, LoaderCircle, RotateCcw } from 'lucide-svelte';
 	import { onDestroy } from 'svelte';
 	import {
@@ -30,6 +32,8 @@
 	const authContext = getProductAuthContext();
 
 	const seriesId = $derived(page.params.seriesId ?? '');
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(routePageCopy(appLocale).selectedStudy.overview);
 
 	let loadState = $state<LoadState>('loading');
 	let authSession = $state<AuthSessionResponse | null>(null);
@@ -57,7 +61,7 @@
 
 		if (!selectedSeriesId) {
 			campaignSeriesHub = null;
-			errorMessage = 'Study id is missing.';
+			errorMessage = copy.missingId;
 			loadState = 'error';
 			return;
 		}
@@ -82,7 +86,7 @@
 			campaignSeriesHub = null;
 			errorMessage = toSelectedSeriesErrorMessage(
 				error,
-				'Selected study overview could not be loaded.'
+				copy.unavailableFallback
 			);
 			loadState = 'error';
 		}
@@ -100,7 +104,7 @@
 			await productApi.restoreCampaignSeries(seriesId);
 			await loadCampaignSeriesHub(seriesId);
 		} catch (error) {
-			restoreError = toSelectedSeriesErrorMessage(error, 'Study could not be restored.');
+			restoreError = toSelectedSeriesErrorMessage(error, copy.restoreFailed);
 		} finally {
 			restoringSeries = false;
 		}
@@ -122,7 +126,7 @@
 		} catch (error) {
 			duplicateActionError = toSelectedSeriesErrorMessage(
 				error,
-				'Sample study could not be duplicated.'
+				copy.duplicateFailed
 			);
 		} finally {
 			duplicateActionInFlight = false;
@@ -131,25 +135,25 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Selected study"
-	title="Overview"
-	description="See where this study stands, then continue setup, collection, results, or wave comparison."
+	eyebrow={copy.eyebrow}
+	title={copy.title}
+	description={copy.description}
 />
 
-<section class="product-stack" aria-label="Selected study overview">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading study overview">
+<section class="product-stack" aria-label={copy.ariaLabel}>
+	<LoadingBoundary loading={loadState === 'loading'} label={copy.loading}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Study overview unavailable"
+				title={copy.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry overview"
+				retryLabel={copy.retry}
 				onRetry={() => loadCampaignSeriesHub()}
 			/>
 		{:else if hubView}
 			<section class="product-panel" data-priority="primary" aria-label="Selected study summary">
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Selected study</p>
+						<p class="product-kicker">{copy.selectedStudy}</p>
 						<h2 class="product-title">{hubView.title}</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">{hubView.subtitle}</p>
 					</div>
@@ -168,7 +172,7 @@
 								{:else}
 									<RotateCcw size={17} aria-hidden="true" />
 								{/if}
-								<span>{restoringSeries ? 'Restoring...' : 'Restore'}</span>
+								<span>{restoringSeries ? copy.restoring : copy.restore}</span>
 							</button>
 						{/if}
 					</div>
@@ -184,12 +188,12 @@
 								</p>
 							</div>
 							<div class="action-row">
-								<StatusBadge status={hubView.ownership.badgeStatus} label="Read-only" />
+								<StatusBadge status={hubView.ownership.badgeStatus} label={copy.readOnly} />
 								{#if canManageSetup && hubView.ownership.isSample}
 									<button
 										type="button"
 										class="secondary-button"
-										aria-label={`Duplicate as study ${hubView.title}`}
+										aria-label={copy.duplicateAria(hubView.title)}
 										disabled={duplicateActionInFlight}
 										onclick={duplicateCampaignSeries}
 									>
@@ -198,7 +202,7 @@
 										{:else}
 											<Copy size={17} aria-hidden="true" />
 										{/if}
-										<span>{duplicateActionInFlight ? 'Duplicating...' : 'Duplicate as study'}</span>
+										<span>{duplicateActionInFlight ? copy.duplicating : copy.duplicateAsStudy}</span>
 									</button>
 								{/if}
 							</div>
@@ -220,7 +224,7 @@
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Lifecycle</p>
+						<p class="product-kicker">{copy.lifecycle}</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
 							{hubView.lifecycleMap.title}
 						</h3>
@@ -257,15 +261,15 @@
 			<section class="product-panel" aria-label={hubView.referenceTitle}>
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Study details</p>
-						<h2 class="product-title">Status and records</h2>
+						<p class="product-kicker">{copy.studyDetails}</p>
+						<h2 class="product-title">{copy.statusRecords}</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							Review readiness, governance, and campaigns linked to this study.
+							{copy.statusDescription}
 						</p>
 					</div>
 				</div>
 
-				<dl class="selected-reference-total-list" role="group" aria-label="Selected study totals">
+				<dl class="selected-reference-total-list" role="group" aria-label={copy.statusRecords}>
 					{#each hubView.totalRows as row}
 						<div class="selected-reference-total-row">
 							<dt class="selected-reference-total-row__label">{row.label}</dt>
@@ -277,12 +281,12 @@
 				{#if hubView.rows.length > 0}
 					<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 						<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-							Dates
+							{copy.dates}
 						</summary>
 						<dl
 							class="record-grid mt-3"
 							role="group"
-							aria-label="Selected study dates"
+							aria-label={copy.datesAria}
 						>
 							{#each hubView.rows as row}
 								<div class="record-field">
@@ -298,12 +302,12 @@
 
 				<div
 					role="group"
-					aria-label="Governance status"
+					aria-label={copy.governanceAria}
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Governance</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Policy and scoring status</h3>
+						<p class="product-kicker">{copy.governance}</p>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.policyScoring}</h3>
 					</div>
 					<div class="record-list">
 						{#each hubView.governanceRows as row}
@@ -322,17 +326,17 @@
 
 				<div
 					role="group"
-					aria-label="Selected series campaign rows"
+					aria-label={copy.campaignsAria}
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>
 					<div>
-						<p class="product-kicker">Campaigns</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">Campaigns in this study</h3>
+						<p class="product-kicker">{copy.campaigns}</p>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.campaignsInStudy}</h3>
 					</div>
 
 					{#if hubView.campaignRows.length === 0}
 						<p class="text-sm text-[var(--color-text-muted)]">
-							No campaigns are linked to this series.
+							{copy.noCampaigns}
 						</p>
 					{:else}
 						<div class="record-list">

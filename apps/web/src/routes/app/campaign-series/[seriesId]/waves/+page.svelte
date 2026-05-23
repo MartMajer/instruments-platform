@@ -2,14 +2,18 @@
 	import { page } from '$app/state';
 	import SelectedSeriesSurface from '$lib/product/SelectedSeriesSurface.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const seriesId = $derived(page.params.seriesId ?? '');
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(routePageCopy(appLocale).selectedStudy.surfaces.waves);
 </script>
 
 <SurfaceHeader
-	eyebrow="Wave comparison"
-	title="Waves"
-	description="Create follow-up collection waves, then compare linked longitudinal change when the study is ready."
+	eyebrow={copy.eyebrow}
+	title={copy.title}
+	description={copy.description}
 />
 
-<SelectedSeriesSurface seriesId={seriesId} surface="waves" ariaLabel="Waves and linked trajectories" />
+<SelectedSeriesSurface seriesId={seriesId} surface="waves" ariaLabel={copy.ariaLabel} />

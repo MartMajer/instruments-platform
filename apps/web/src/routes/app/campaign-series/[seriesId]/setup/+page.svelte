@@ -2,14 +2,18 @@
 	import { page } from '$app/state';
 	import SelectedSeriesSurface from '$lib/product/SelectedSeriesSurface.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const seriesId = $derived(page.params.seriesId ?? '');
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(routePageCopy(appLocale).selectedStudy.surfaces.setup);
 </script>
 
 <SurfaceHeader
-	eyebrow="Setup"
-	title="Study setup"
-	description="Work through the setup steps in order before collection starts."
+	eyebrow={copy.eyebrow}
+	title={copy.title}
+	description={copy.description}
 />
 
-<SelectedSeriesSurface seriesId={seriesId} surface="setup" ariaLabel="Setup workspace" />
+<SelectedSeriesSurface seriesId={seriesId} surface="setup" ariaLabel={copy.ariaLabel} />

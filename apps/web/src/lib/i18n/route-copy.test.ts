@@ -21,4 +21,15 @@ describe('localized route body copy', () => {
 		expect(copy.team.title).toBe('Tim');
 		expect(copy.settings.title).toBe('Postavke radnog prostora');
 	});
+
+	it('provides Croatian selected-study surface copy', () => {
+		const copy = routePageCopy('hr-HR');
+
+		expect(copy.selectedStudy.overview.title).toBe('Pregled');
+		expect(copy.selectedStudy.surfaces.setup.title).toBe('Postavljanje studije');
+		expect(copy.selectedStudy.surfaces.operations.title).toBe('Prikupljanje odgovora');
+		expect(copy.selectedStudy.surfaces.reports.title).toBe('Pregled rezultata');
+		expect(copy.selectedStudy.surfaces.waves.title).toBe('Valovi');
+		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
+	});
 });
