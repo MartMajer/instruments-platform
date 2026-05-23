@@ -22,9 +22,8 @@
 	onMount(() => {
 		const storedTenantId = readLastTenantId(window.localStorage);
 		const tenantId = tenantIdFromUrl || storedTenantId;
-		const loginHint = tenantId && tenantId === storedTenantId
-			? readLastWorkspaceEmail(window.localStorage)
-			: '';
+		const loginHint =
+			tenantId && tenantId === storedTenantId ? readLastWorkspaceEmail(window.localStorage) : '';
 
 		if (tenantIdFromUrl) {
 			rememberLastTenantId(window.localStorage, tenantIdFromUrl);
@@ -38,9 +37,7 @@
 
 		const registrationReturnUrl = encodeURIComponent(absoluteWebUrl(resolve('/register')));
 		window.location.replace(
-			resolveAuthRedirectUrl(
-				`/auth/login?registration=1&returnUrl=${registrationReturnUrl}`
-			)
+			resolveAuthRedirectUrl(`/auth/login?registration=1&returnUrl=${registrationReturnUrl}`)
 		);
 	});
 
@@ -80,10 +77,10 @@
 </script>
 
 <svelte:head>
-	<title>Instruments Platform | Study management platform</title>
+	<title>Instruments Platform | Research study operations</title>
 	<meta
 		name="description"
-		content="Tenant-scoped app for survey setup, response collection, reports, and exports."
+		content="EU-hosted private-beta workspace for study setup, response collection, results review, and exports."
 	/>
 </svelte:head>
 
@@ -96,12 +93,12 @@
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
 				<strong>Instruments Platform</strong>
-				<small>Studies, surveys, results</small>
+				<small>Research studies and wellbeing programs</small>
 			</span>
 		</a>
 		<nav class="launchpad-nav__links" aria-label="Product entry actions">
 			<a href="#workflow">Workflow</a>
-			<a href="#proof">Beta boundary</a>
+			<a href="#trust">Trust model</a>
 			<a href={resolve('/register')}>Create workspace</a>
 			<a href={loginUrl}>Sign in</a>
 		</nav>
@@ -118,7 +115,7 @@
 	{#if mobileEntryMenuOpen}
 		<nav class="launchpad-mobile-menu" aria-label="Mobile product entry actions">
 			<a href="#workflow">Workflow</a>
-			<a href="#proof">Beta boundary</a>
+			<a href="#trust">Trust model</a>
 			<a href={resolve('/register')}>Create workspace</a>
 			<a href={loginUrl}>Sign in</a>
 		</nav>
@@ -126,14 +123,16 @@
 
 	<section class="launchpad-hero">
 		<div class="launchpad-hero__copy">
-			<p class="launchpad-kicker">Private beta · EU-hosted app · demo data only</p>
-			<h1 id="product-entry-title">Run studies from setup to results without spreadsheets holding it together.</h1>
+			<p class="launchpad-kicker">EU-hosted workspace for research and wellbeing studies</p>
+			<h1 id="product-entry-title">Run research studies from setup to defensible results.</h1>
 			<p>
-				Prepare surveys, collect responses, review results, and export files without
-				forcing researchers to stitch together forms, spreadsheets, scripts, and screenshots.
+				Build questionnaires, collect anonymous or identified responses, review scoring context, and
+				export datasets without stitching together forms, spreadsheets, scripts, and screenshots.
 			</p>
 			<div class="launchpad-actions">
-				<a class="launchpad-button launchpad-button--primary" href={resolve('/register')}>Create workspace</a>
+				<a class="launchpad-button launchpad-button--primary" href={resolve('/register')}
+					>Create workspace</a
+				>
 				<a class="launchpad-button launchpad-button--secondary" href={loginUrl}>Sign in</a>
 			</div>
 		</div>
@@ -141,7 +140,7 @@
 		<div class="showcase" aria-label="Product preview">
 			<div class="showcase__chrome" aria-hidden="true">
 				<span></span><span></span><span></span>
-				<strong>workspace / study cockpit</strong>
+				<strong>workspace / study operations</strong>
 			</div>
 			<div class="showcase__body">
 				<aside class="showcase-rail" aria-hidden="true">
@@ -174,8 +173,14 @@
 								</linearGradient>
 							</defs>
 							<path class="chart-grid" d="M20 48H500M20 98H500M20 148H500M20 198H500" />
-							<path class="chart-area" d="M24 184C70 176 90 154 128 148C176 141 190 96 238 102C298 110 322 62 372 70C420 78 440 42 496 36V204H24Z" />
-							<path class="chart-line" d="M24 184C70 176 90 154 128 148C176 141 190 96 238 102C298 110 322 62 372 70C420 78 440 42 496 36" />
+							<path
+								class="chart-area"
+								d="M24 184C70 176 90 154 128 148C176 141 190 96 238 102C298 110 322 62 372 70C420 78 440 42 496 36V204H24Z"
+							/>
+							<path
+								class="chart-line"
+								d="M24 184C70 176 90 154 128 148C176 141 190 96 238 102C298 110 322 62 372 70C420 78 440 42 496 36"
+							/>
 							<circle cx="496" cy="36" r="7" />
 						</svg>
 					</section>
@@ -183,35 +188,42 @@
 					<div class="showcase-grid">
 						<section class="showcase-panel" aria-label="Preparation state">
 							<span>Prepare</span>
-							<strong>4 / 5 checks ready</strong>
-							<p>One policy gap blocks launch. Template, scoring, and audience are ready.</p>
+							<strong>Launch checklist</strong>
+							<p>
+								Questionnaire, scoring, audience, and collection settings stay visible before
+								launch.
+							</p>
 						</section>
 						<section class="showcase-panel showcase-panel--dark" aria-label="Export state">
 							<span>Export</span>
-							<strong>PDF + CSV ready</strong>
-							<p>Exports keep source, finality, and suppression context.</p>
+							<strong>Dataset + codebook</strong>
+							<p>Exports keep source, finality, and suppression context attached to the file.</p>
 						</section>
 					</div>
 				</main>
 			</div>
 			<div class="floating-card floating-card--receipt" aria-hidden="true">
 				<span>Respondent</span>
-				<strong>Anonymous receipt</strong>
-				<small>Tokenless return path · withdrawal ready</small>
+				<strong>Private response receipt</strong>
+				<small>Completion state without exposing respondent identity</small>
 			</div>
 			<div class="floating-card floating-card--proof" aria-hidden="true">
-				<span>Operations</span>
-				<strong>Recovery posture ready</strong>
-				<small>Backup · restore · rollback · release path</small>
+				<span>Governance</span>
+				<strong>Study context preserved</strong>
+				<small>Consent, retention, finality, and provenance</small>
 			</div>
 		</div>
 	</section>
 
-	<section class="proof-ribbon" id="proof" aria-label="Beta boundary">
-		<div><span>Runtime</span><strong>Setup to collection, scoring, reports, and exports</strong></div>
-		<div><span>Access</span><strong>Tenant-scoped authenticated workspace</strong></div>
-		<div><span>Operations</span><strong>Backup, restore, and release recovery prepared</strong></div>
-		<div><span>Beta boundary</span><strong>Demo and owner-controlled data only</strong></div>
+	<section class="proof-ribbon" id="trust" aria-label="Trust model">
+		<div>
+			<span>Workflow</span><strong>Setup, collection, scoring, reports, and exports</strong>
+		</div>
+		<div><span>Access</span><strong>Tenant-scoped authenticated workspaces</strong></div>
+		<div>
+			<span>Data controls</span><strong>Consent, retention, finality, and export provenance</strong>
+		</div>
+		<div><span>Product stage</span><strong>Private beta with staged onboarding</strong></div>
 	</section>
 
 	<section class="suite-map" aria-labelledby="suite-map-title">
@@ -219,30 +231,38 @@
 			<p class="launchpad-kicker">Workspace overview</p>
 			<h2 id="suite-map-title">See what is ready, blocked, live, or ready to export.</h2>
 			<p>
-				Users should know what to fix next, where to go, and whether each study is still being prepared, collecting responses, or ready for results.
+				Keep every study's next action visible: preparation gaps, live collection, result review,
+				and export readiness.
 			</p>
 		</div>
 
 		<div class="suite-console" aria-label="App preview">
 			<section class="command-card">
-				<span>Needs attention</span>
-				<strong>What needs attention before launch?</strong>
-				<div class="command-card__input">Launch readiness: retention review date missing</div>
+				<span>Next action</span>
+				<strong>What should the team do next?</strong>
+				<div class="command-card__input">Launch readiness: review retention setting</div>
 				<ul>
-					<li><b>Policy gap</b><small>Retention review date missing</small></li>
-					<li><b>Audience ready</b><small>Directory group resolves 1,240 subjects</small></li>
-					<li><b>Export ready</b><small>CSV, codebook, and PDF exports available</small></li>
+					<li><b>Review setting</b><small>Retention date needs confirmation</small></li>
+					<li><b>Audience prepared</b><small>Directory group resolves 1,240 subjects</small></li>
+					<li>
+						<b>Export plan defined</b><small>Dataset and codebook outputs are selected</small>
+					</li>
 				</ul>
 			</section>
 
 			<section class="module-stack">
 				<span>App areas</span>
 				<div class="module-grid">
-					<a href={resolve('/app/campaign-series')}><b>Studies</b><small>portfolio + lifecycle</small></a>
-					<a href={resolve('/app/instruments')}><b>Instruments</b><small>rights + launch eligibility</small></a>
-					<a href={resolve('/app/directory')}><b>Directory</b><small>subjects + hierarchy</small></a>
+					<a href={resolve('/app/campaign-series')}
+						><b>Studies</b><small>portfolio + lifecycle</small></a
+					>
+					<a href={resolve('/app/instruments')}
+						><b>Instruments</b><small>available study content</small></a
+					>
+					<a href={resolve('/app/directory')}><b>Directory</b><small>subjects + hierarchy</small></a
+					>
 					<a href={resolve('/app/team')}><b>Team</b><small>roles + capabilities</small></a>
-					<a href={resolve('/app/exports')}><b>Exports</b><small>artifacts + provenance</small></a>
+					<a href={resolve('/app/exports')}><b>Exports</b><small>files + provenance</small></a>
 					<a href={resolve('/app/settings')}><b>Settings</b><small>tenant profile</small></a>
 				</div>
 			</section>
@@ -255,20 +275,20 @@
 				<div class="board-columns">
 					<div>
 						<h3>Prepare</h3>
-						<p>Template ready</p>
-						<p>Scoring ready</p>
-						<p class="is-warning">Policy gap</p>
+						<p>Questionnaire ready</p>
+						<p>Scoring configured</p>
+						<p class="is-warning">Retention review</p>
 					</div>
 					<div>
 						<h3>Collect</h3>
 						<p>Wave 2 live</p>
 						<p>412 submitted</p>
-						<p>Invite batch sent</p>
+						<p>Delivery monitored</p>
 					</div>
 					<div>
 						<h3>Review</h3>
-						<p>Safe aggregate reports</p>
-						<p>PDF staged</p>
+						<p>Aggregate reports</p>
+						<p>Codebook export</p>
 						<p>Wave comparison</p>
 					</div>
 				</div>
@@ -277,29 +297,29 @@
 	</section>
 	<section class="workflow" id="workflow" aria-labelledby="workflow-title">
 		<div class="workflow__intro">
-			<p class="launchpad-kicker">The app flow</p>
-			<h2 id="workflow-title">Every screen should answer the obvious question first.</h2>
+			<p class="launchpad-kicker">Study workflow</p>
+			<h2 id="workflow-title">A clear path from study design to reusable evidence.</h2>
 		</div>
 		<div class="workflow-lane">
 			<a href={resolve('/app/campaign-series')}>
 				<span>01</span>
 				<strong>Portfolio</strong>
-				<p>Sample and own studies, with duplicate-to-edit instead of a separate demo island.</p>
+				<p>Create, compare, and return to active study programs from one workspace.</p>
 			</a>
 			<a href={resolve('/app/campaign-series')}>
 				<span>02</span>
 				<strong>Prepare</strong>
-				<p>Instrument, scoring, policies, audience, launch readiness.</p>
+				<p>Define questionnaire, scoring, policies, audience, and launch checks.</p>
 			</a>
 			<a href={resolve('/app')}>
 				<span>03</span>
 				<strong>Collect</strong>
-				<p>Launch state, respondent access, delivery, response progress.</p>
+				<p>Open links or invite lists, track response progress, and monitor delivery.</p>
 			</a>
 			<a href={resolve('/app/exports')}>
 				<span>04</span>
 				<strong>Review</strong>
-				<p>Reports, suppression, PDFs, CSV/codebook, provenance.</p>
+				<p>Inspect reports, compare waves, and export datasets with provenance.</p>
 			</a>
 		</div>
 	</section>

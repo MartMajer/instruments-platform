@@ -293,7 +293,7 @@
 			}
 
 			if (error.status === 403) {
-				return 'This account cannot create a workspace. Sign out and use the approved owner account, or ask for beta access.';
+				return 'This account cannot create a workspace. Sign out and use an approved beta account, or ask for beta access.';
 			}
 
 			if (error.status === 409) {
@@ -352,7 +352,8 @@
 			<p class="launchpad-kicker">Private beta access</p>
 			<h1 id="registration-title">Create your workspace.</h1>
 			<p>
-				Use the email that should own the workspace. Password and MFA stay with your sign-in provider; this page only names the workspace and checks beta access.
+				Use the email that should own the workspace. Password and MFA stay with your sign-in
+				provider; this page only names the workspace and checks beta access.
 			</p>
 			<div class="registration-steps" aria-label="Registration steps">
 				<div>
@@ -363,12 +364,16 @@
 				<div>
 					<span>02</span>
 					<strong>Verify email</strong>
-					<p>If your sign-in provider asks for verification, confirm the email and continue here.</p>
+					<p>
+						If your sign-in provider asks for verification, confirm the email and continue here.
+					</p>
 				</div>
 				<div>
 					<span>03</span>
 					<strong>Open the app</strong>
-					<p>The workspace is created from the approved registration and opens with your session.</p>
+					<p>
+						The workspace is created from the approved registration and opens with your session.
+					</p>
 				</div>
 			</div>
 		</section>
@@ -385,13 +390,17 @@
 			{:else if sessionState === 'signed-out'}
 				<form class="registration-form" onsubmit={submitRegistrationIntent}>
 					{#if sessionErrorMessage}
-						<p class="registration-alert registration-alert--error" role="alert">{sessionErrorMessage}</p>
+						<p class="registration-alert registration-alert--error" role="alert">
+							{sessionErrorMessage}
+						</p>
 					{/if}
 
 					{#if (emailVerificationRequired || emailMismatchRequired) && pendingRegistrationLoginUrl}
 						<div class="registration-alert" role="status">
 							<strong>
-								{emailMismatchRequired ? 'Choose the account you started with' : 'Verify email, then sign in'}
+								{emailMismatchRequired
+									? 'Choose the account you started with'
+									: 'Verify email, then sign in'}
 							</strong>
 							<span>
 								{emailMismatchRequired
@@ -399,7 +408,9 @@
 									: 'Open the verification email from your sign-in provider, then retry registration sign-in with the same email.'}
 							</span>
 						</div>
-						<a class="registration-submit" href={pendingRegistrationLoginUrl}>Retry registration sign-in</a>
+						<a class="registration-submit" href={pendingRegistrationLoginUrl}
+							>Retry registration sign-in</a
+						>
 						<button class="secondary-button" type="button" onclick={restartRegistration}>
 							Start over
 						</button>
@@ -438,11 +449,15 @@
 						</label>
 
 						{#if errorMessage}
-							<p class="registration-alert registration-alert--error" role="alert">{errorMessage}</p>
+							<p class="registration-alert registration-alert--error" role="alert">
+								{errorMessage}
+							</p>
 						{/if}
 
 						{#if statusMessage}
-							<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
+							<p class="registration-alert registration-alert--success" role="status">
+								{statusMessage}
+							</p>
 						{/if}
 
 						{#if existingWorkspaceSignInUrl}
@@ -490,7 +505,9 @@
 					{/if}
 
 					{#if statusMessage}
-						<p class="registration-alert registration-alert--success" role="status">{statusMessage}</p>
+						<p class="registration-alert registration-alert--success" role="status">
+							{statusMessage}
+						</p>
 					{/if}
 
 					<button class="registration-submit" type="submit" disabled={isSubmitting}>
@@ -501,13 +518,11 @@
 
 			<div class="registration-boundary">
 				<strong>Private beta</strong>
-				<p>Use demo or owner-controlled data only until production review is closed.</p>
+				<p>
+					Real participant use starts only after the required legal and deployment review for the
+					workspace.
+				</p>
 			</div>
 		</section>
 	</div>
 </section>
-
-
-
-
-
