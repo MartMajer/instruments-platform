@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import type { CampaignSeriesReportsWidgetManifestResponse } from '$lib/api/product';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { getReportWidgetComponent } from './report-widget-registry';
 
 	let {
@@ -11,6 +14,9 @@
 		warning?: string | null;
 		embedded?: boolean;
 	} = $props();
+
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const copy = $derived(routePageCopy(appLocale).selectedStudy.reportWidgets);
 </script>
 
 {#if embedded}
@@ -55,7 +61,7 @@
 		<div class="report-widget-grid">
 			{#each manifest.widgets as widget (widget.id)}
 				{@const WidgetComponent = getReportWidgetComponent(widget.kind)}
-				<WidgetComponent {widget} />
+				<WidgetComponent {widget} {copy} />
 			{/each}
 		</div>
 	{:else}

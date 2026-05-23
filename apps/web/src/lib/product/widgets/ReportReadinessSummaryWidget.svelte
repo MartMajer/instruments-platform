@@ -2,17 +2,17 @@
 	import type { ReportWidget } from '$lib/api/product';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { isReportReadinessSummaryWidgetData } from './report-widget-data';
-	import { formatProductCopy } from './report-widget-format';
+	import { formatProductCopy, type ReportWidgetFormatCopy } from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
-	let { widget }: { widget: ReportWidget } = $props();
+	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
 
 	const data = $derived(
 		isReportReadinessSummaryWidgetData(widget.data) ? widget.data : null
 	);
 </script>
 
-<ReportWidgetShell {widget}>
+<ReportWidgetShell {widget} {copy}>
 	{#if data}
 		<dl class="record-grid">
 			<div class="record-field">

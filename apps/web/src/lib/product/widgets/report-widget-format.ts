@@ -1,18 +1,41 @@
-export function formatCodeLabel(value: string | null | undefined) {
+export type ReportWidgetFormatCopy = {
+	notAvailable: string;
+	yes: string;
+	no: string;
+	codeLabels: Record<string, string>;
+};
+
+const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
+	notAvailable: 'Not available',
+	yes: 'Yes',
+	no: 'No',
+	codeLabels: {
+		proof_only: 'preview'
+	}
+};
+
+export function formatCodeLabel(
+	value: string | null | undefined,
+	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
+) {
 	if (!value) {
-		return 'Not available';
+		return copy.notAvailable;
 	}
 
-	if (value === 'proof_only') {
-		return 'preview';
+	const mapped = copy.codeLabels[value];
+	if (mapped) {
+		return mapped;
 	}
 
 	return value.replaceAll('_', ' ');
 }
 
-export function formatNullableDate(value: string | null | undefined) {
+export function formatNullableDate(
+	value: string | null | undefined,
+	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
+) {
 	if (!value) {
-		return 'Not available';
+		return copy.notAvailable;
 	}
 
 	const date = new Date(value);
@@ -30,12 +53,18 @@ export function formatNullableDate(value: string | null | undefined) {
 	}).format(date);
 }
 
-export function formatNullableNumber(value: number | null | undefined) {
-	return value === null || value === undefined ? 'Not available' : String(value);
+export function formatNullableNumber(
+	value: number | null | undefined,
+	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
+) {
+	return value === null || value === undefined ? copy.notAvailable : String(value);
 }
 
-export function formatBooleanLabel(value: boolean) {
-	return value ? 'Yes' : 'No';
+export function formatBooleanLabel(
+	value: boolean,
+	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
+) {
+	return value ? copy.yes : copy.no;
 }
 
 export function formatBytes(value: number) {

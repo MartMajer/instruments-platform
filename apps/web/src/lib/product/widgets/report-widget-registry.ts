@@ -1,5 +1,6 @@
 import type { Component } from 'svelte';
 import type { ReportWidget } from '$lib/api/product';
+import type { ReportWidgetFormatCopy } from './report-widget-format';
 import ExportArtifactRegistryWidget from './ExportArtifactRegistryWidget.svelte';
 import FinalityProvenanceSummaryWidget from './FinalityProvenanceSummaryWidget.svelte';
 import ReportReadinessSummaryWidget from './ReportReadinessSummaryWidget.svelte';
@@ -8,7 +9,10 @@ import SelectedCampaignReportStateWidget from './SelectedCampaignReportStateWidg
 import UnsupportedReportWidget from './UnsupportedReportWidget.svelte';
 import VisualAnalyticsEntryWidget from './VisualAnalyticsEntryWidget.svelte';
 
-export type ReportWidgetComponent = Component<{ widget: ReportWidget }>;
+export type ReportWidgetComponent = Component<{
+	widget: ReportWidget;
+	copy?: ReportWidgetFormatCopy;
+}>;
 
 const registry: Record<string, ReportWidgetComponent> = {
 	'report-readiness-summary/v1': ReportReadinessSummaryWidget,

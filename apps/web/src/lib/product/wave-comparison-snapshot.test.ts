@@ -145,7 +145,107 @@ describe('selected-series wave comparison snapshot model', () => {
 		expect(dashboard.guardrailRows).toEqual([]);
 		expect(dashboard.provenanceRows).toEqual([]);
 	});
+
+	it('localizes app-owned wave dashboard labels and code values', () => {
+		const dashboard = toSelectedSeriesWaveDashboardView(
+			comparisonReadyWorkspace,
+			{ loadedSeriesId: 'series-id' },
+			hrWaveSnapshotCopy
+		);
+
+		expect(dashboard.title).toBe('Pulse wave 1 prema Pulse wave 2 pregled valova');
+		expect(dashboard.badgeLabel).toBe('Pregled spreman');
+		expect(dashboard.readinessRows).toEqual([
+			{ label: 'Početni val', value: 'Pulse wave 1' },
+			{ label: 'Status početnog vala', value: 'u tijeku' },
+			{ label: 'Predani odgovori početnog vala', value: '6' },
+			{ label: 'Usporedni val', value: 'Pulse wave 2' },
+			{ label: 'Status usporednog vala', value: 'u tijeku' },
+			{ label: 'Predani odgovori usporednog vala', value: '6' },
+			{ label: 'Povezane putanje', value: '6' },
+			{ label: 'Potpune putanje', value: '6' }
+		]);
+		expect(dashboard.comparisonRows).toEqual([
+			{ label: 'Status pregleda', value: 'pregled' },
+			{ label: 'Tumačenje', value: 'tumačenje nije validirano' },
+			{ label: 'Povezani parovi', value: '6' }
+		]);
+		expect(dashboard.guardrailRows).toEqual([
+			{ label: 'Prikaz', value: 'vidljivo' },
+			{ label: 'Minimalna grupa', value: '5' },
+			{ label: 'Kompatibilnost', value: 'kompatibilno' },
+			{ label: 'Vidljivi rezultati', value: '1' },
+			{ label: 'Skriveni rezultati', value: '0' },
+			{ label: 'Blokirani rezultati', value: '0' }
+		]);
+		expect(dashboard.provenanceRows).toEqual([
+			{ label: 'Početni zapis pokretanja', value: 'baseline-launch-id', mono: true },
+			{ label: 'Zadnje pokretanje početnog vala', value: '2026-05-05T08:30:00Z' },
+			{ label: 'Bodovanje početnog vala', value: 'burnout.total 1.0.0' },
+			{ label: 'Pravilo prikaza početnog vala', value: 'disclosure-id', mono: true },
+			{ label: 'Usporedni zapis pokretanja', value: 'comparison-launch-id', mono: true },
+			{ label: 'Zadnje pokretanje usporednog vala', value: '2026-05-12T08:30:00Z' },
+			{ label: 'Bodovanje usporednog vala', value: 'burnout.total 1.0.0' },
+			{ label: 'Pravilo prikaza usporednog vala', value: 'disclosure-id', mono: true }
+		]);
+	});
 });
+
+const hrWaveSnapshotCopy = {
+	status: {
+		notAvailable: 'Nije dostupno',
+		blocked: 'Blokirano',
+		previewReady: 'Pregled spreman',
+		previewAvailable: 'Pregled dostupan'
+	},
+	disabled: {
+		selectComparableWaves: 'Odaberite dva usporediva vala prije učitavanja pregleda usporedbe.',
+		runLinkedTrajectoryCheck: 'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
+	},
+	dashboard: {
+		unavailableTitle: 'Pregled valova nije dostupan',
+		unavailableMessage: 'Odaberite dva usporediva vala prije pregleda nadzorne ploče valova.',
+		title: (baselineName: string, comparisonName: string) =>
+			`${baselineName} prema ${comparisonName} pregled valova`,
+		campaigns: 'Valovi',
+		longitudinalWaves: 'Longitudinalni valovi',
+		submittedWaves: 'Valovi s odgovorima',
+		missingPrerequisites: 'Nedostajući preduvjeti',
+		baselineWave: 'Početni val',
+		baselineStatus: 'Status početnog vala',
+		baselineSubmittedResponses: 'Predani odgovori početnog vala',
+		comparisonWave: 'Usporedni val',
+		comparisonStatus: 'Status usporednog vala',
+		comparisonSubmittedResponses: 'Predani odgovori usporednog vala',
+		linkedTrajectories: 'Povezane putanje',
+		completeTrajectories: 'Potpune putanje',
+		previewStatus: 'Status pregleda',
+		interpretation: 'Tumačenje',
+		linkedPairs: 'Povezani parovi',
+		disclosure: 'Prikaz',
+		disclosureK: 'Minimalna grupa',
+		compatibility: 'Kompatibilnost',
+		visibleScores: 'Vidljivi rezultati',
+		suppressedScores: 'Skriveni rezultati',
+		blockedScores: 'Blokirani rezultati',
+		baselineLaunchSnapshot: 'Početni zapis pokretanja',
+		baselineLatestLaunch: 'Zadnje pokretanje početnog vala',
+		baselineScoringRule: 'Bodovanje početnog vala',
+		baselineDisclosurePolicy: 'Pravilo prikaza početnog vala',
+		comparisonLaunchSnapshot: 'Usporedni zapis pokretanja',
+		comparisonLatestLaunch: 'Zadnje pokretanje usporednog vala',
+		comparisonScoringRule: 'Bodovanje usporednog vala',
+		comparisonDisclosurePolicy: 'Pravilo prikaza usporednog vala',
+		untitledWave: 'Neimenovani val'
+	},
+	codeLabels: {
+		live: 'u tijeku',
+		proof_only: 'pregled',
+		not_validated_interpretation: 'tumačenje nije validirano',
+		visible: 'vidljivo',
+		compatible: 'kompatibilno'
+	}
+};
 
 const emptyWorkspace: CampaignSeriesWavesWorkspaceResponse = {
 	series: {

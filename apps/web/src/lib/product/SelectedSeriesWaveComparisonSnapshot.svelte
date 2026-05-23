@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { GitCompareArrows, LoaderCircle, RefreshCw } from 'lucide-svelte';
 	import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
 	import type { CampaignSeriesWaveComparisonProofResponse } from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import VisualAnalyticsChart from './VisualAnalyticsChart.svelte';
 	import {
 		toSelectedSeriesWaveComparisonSnapshotState,
@@ -21,6 +24,8 @@
 	}: { workspace: CampaignSeriesWavesWorkspaceResponse; embedded?: boolean } = $props();
 
 	const setupApi = createSetupApiFromEnv(env);
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const waveSnapshotCopy = $derived(routePageCopy(appLocale).selectedStudy.waveSnapshot);
 
 	let snapshotResult = $state<CampaignSeriesWaveComparisonProofResponse | null>(null);
 	let loadedSeriesId = $state<string | null>(null);
@@ -36,14 +41,22 @@
 			snapshotResult?.campaignSeriesId === workspace.series.id
 	);
 	const snapshotState = $derived(
-		toSelectedSeriesWaveComparisonSnapshotState(workspace, {
-			loadedSeriesId: snapshotLoadedForSelectedSeries ? loadedSeriesId : null
-		})
+		toSelectedSeriesWaveComparisonSnapshotState(
+			workspace,
+			{
+				loadedSeriesId: snapshotLoadedForSelectedSeries ? loadedSeriesId : null
+			},
+			waveSnapshotCopy
+		)
 	);
 	const dashboardView = $derived(
-		toSelectedSeriesWaveDashboardView(workspace, {
-			loadedSeriesId: snapshotLoadedForSelectedSeries ? loadedSeriesId : null
-		})
+		toSelectedSeriesWaveDashboardView(
+			workspace,
+			{
+				loadedSeriesId: snapshotLoadedForSelectedSeries ? loadedSeriesId : null
+			},
+			waveSnapshotCopy
+		)
 	);
 	const snapshotView = $derived(
 		snapshotLoadedForSelectedSeries && snapshotResult ? toWaveComparisonView(snapshotResult) : null
@@ -52,16 +65,18 @@
 		snapshotLoadedForSelectedSeries ? toWaveVisualAnalyticsView(snapshotResult) : null
 	);
 	const snapshotBadgeStatus = $derived(loadState === 'error' ? 'failed' : snapshotState.status);
-	const snapshotBadgeLabel = $derived(loadState === 'error' ? 'Failed' : snapshotState.badgeLabel);
+	const snapshotBadgeLabel = $derived(
+		loadState === 'error' ? waveSnapshotCopy.status.failed : snapshotState.badgeLabel
+	);
 	const snapshotStepState = $derived(loadState === 'error' ? 'failed' : loadState);
 	const snapshotStepLabel = $derived(
 		loadState === 'loading'
-			? 'Loading'
+			? waveSnapshotCopy.status.loading
 			: loadState === 'ready'
-				? 'Ready'
+				? waveSnapshotCopy.status.ready
 				: loadState === 'error'
-					? 'Failed'
-					: 'Ready'
+					? waveSnapshotCopy.status.failed
+					: waveSnapshotCopy.status.ready
 	);
 
 	$effect(() => {
@@ -90,7 +105,7 @@
 		if (!snapshotState.available) {
 			errorMessage =
 				snapshotState.disabledReason ??
-				'Resolve wave comparison prerequisites before loading the snapshot.';
+				waveSnapshotCopy.chrome.resolvePrerequisites;
 			loadState = 'error';
 			return;
 		}
@@ -119,7 +134,7 @@
 			loadedSeriesId = null;
 			errorMessage = toProductApiErrorMessage(
 				error,
-				'Wave comparison snapshot could not be loaded.'
+				waveSnapshotCopy.chrome.loadFailed
 			);
 			loadState = 'error';
 		} finally {
@@ -133,15 +148,15 @@
 <section
 	class={embedded ? 'score-result-panel report-proof-panel' : 'product-panel'}
 	role="group"
-	aria-label="Wave comparison preview"
+	aria-label={waveSnapshotCopy.chrome.sectionAria}
 >
 	<div class={embedded ? 'score-result-panel__header' : 'product-panel__header'}>
 		<div>
-			<p class="product-kicker">Wave comparison</p>
-			<h3 class={embedded ? 'record-row__title' : 'product-title'}>Compared waves</h3>
+			<p class="product-kicker">{waveSnapshotCopy.chrome.kicker}</p>
+			<h3 class={embedded ? 'record-row__title' : 'product-title'}>{waveSnapshotCopy.chrome.title}</h3>
 			{#if !embedded}
 				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-					Disclosure-safe comparison for the selected baseline and comparison waves.
+					{waveSnapshotCopy.chrome.description}
 				</p>
 			{/if}
 		</div>
@@ -150,14 +165,14 @@
 
 	<section
 		role="group"
-		aria-label="Wave comparison summary"
+		aria-label={waveSnapshotCopy.chrome.summaryAria}
 		class="grid gap-4 border-t border-[var(--color-border)] pt-4"
 	>
 		<div>
-			<p class="product-kicker">Comparison readiness</p>
-			<h4 class="record-row__title">Can these waves be compared?</h4>
+			<p class="product-kicker">{waveSnapshotCopy.chrome.readinessKicker}</p>
+			<h4 class="record-row__title">{waveSnapshotCopy.chrome.readinessTitle}</h4>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Checks whether the selected waves can be compared without exposing small groups.
+				{waveSnapshotCopy.chrome.readinessDescription}
 			</p>
 		</div>
 
@@ -168,10 +183,12 @@
 			</p>
 		{/if}
 
-		<div role="group" aria-label="Wave readiness" class="grid gap-3">
+		<div role="group" aria-label={waveSnapshotCopy.chrome.waveReadinessAria} class="grid gap-3">
 			<div>
-				<p class="product-kicker">Readiness</p>
-				<h5 class="text-base font-semibold text-[var(--color-text)]">Wave readiness</h5>
+				<p class="product-kicker">{waveSnapshotCopy.chrome.waveReadinessKicker}</p>
+				<h5 class="text-base font-semibold text-[var(--color-text)]">
+					{waveSnapshotCopy.chrome.waveReadinessTitle}
+				</h5>
 			</div>
 			<dl class="record-grid">
 				{#each dashboardView.readinessRows.filter((row) => !row.mono) as row}
@@ -186,12 +203,14 @@
 		{#if dashboardView.comparisonRows.length > 0}
 			<div
 				role="group"
-				aria-label="Comparison status"
+				aria-label={waveSnapshotCopy.chrome.comparisonAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Comparison</p>
-					<h5 class="text-base font-semibold text-[var(--color-text)]">Comparison status</h5>
+					<p class="product-kicker">{waveSnapshotCopy.chrome.comparisonKicker}</p>
+					<h5 class="text-base font-semibold text-[var(--color-text)]">
+						{waveSnapshotCopy.chrome.comparisonTitle}
+					</h5>
 				</div>
 				<dl class="record-grid">
 					{#each dashboardView.comparisonRows as row}
@@ -207,13 +226,13 @@
 		{#if dashboardView.guardrailRows.length > 0}
 			<div
 				role="group"
-				aria-label="Disclosure and compatibility"
+				aria-label={waveSnapshotCopy.chrome.guardrailsAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Guardrails</p>
+					<p class="product-kicker">{waveSnapshotCopy.chrome.guardrailsKicker}</p>
 					<h5 class="text-base font-semibold text-[var(--color-text)]">
-						Disclosure and compatibility
+						{waveSnapshotCopy.chrome.guardrailsTitle}
 					</h5>
 				</div>
 				<dl class="record-grid">
@@ -230,13 +249,13 @@
 		{#if dashboardView.provenanceRows.length > 0}
 			<div
 				role="group"
-				aria-label="Wave source context"
+				aria-label={waveSnapshotCopy.chrome.sourceAria}
 				class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 			>
 				<div>
-					<p class="product-kicker">Based on</p>
+					<p class="product-kicker">{waveSnapshotCopy.chrome.sourceKicker}</p>
 					<h5 class="text-base font-semibold text-[var(--color-text)]">
-						Launch and policy context
+						{waveSnapshotCopy.chrome.sourceTitle}
 					</h5>
 				</div>
 				<dl class="record-grid">
@@ -272,13 +291,13 @@
 					{/if}
 					<span
 						>{loadState === 'loading'
-							? 'Loading comparison'
-							: 'Refresh wave comparison'}</span
+							? waveSnapshotCopy.chrome.loadingComparison
+							: waveSnapshotCopy.chrome.refreshComparison}</span
 					>
 				</button>
 				<p class="step-pill" data-state={snapshotStepState}>{snapshotStepLabel}</p>
 				<p class="result-line">
-					<span>Study</span>
+					<span>{waveSnapshotCopy.chrome.study}</span>
 					<span>{workspace.series.name}</span>
 				</p>
 			</div>

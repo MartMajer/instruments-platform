@@ -2,9 +2,13 @@
 	import type { Snippet } from 'svelte';
 	import type { ReportWidget } from '$lib/api/product';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { formatProductCopy } from './report-widget-format';
+	import { formatProductCopy, type ReportWidgetFormatCopy } from './report-widget-format';
 
-	let { widget, children }: { widget: ReportWidget; children?: Snippet } = $props();
+	let {
+		widget,
+		copy,
+		children
+	}: { widget: ReportWidget; copy?: ReportWidgetFormatCopy; children?: Snippet } = $props();
 
 	const displayTitle = $derived(
 		formatProductCopy(widget.kind === 'export-artifact-registry/v1' ? 'Export files' : widget.title)

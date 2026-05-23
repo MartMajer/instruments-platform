@@ -1222,7 +1222,124 @@ const en = {
 					'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.',
 				needScoredResponses: 'Collect scored responses in at least two waves before comparison tasks apply.'
 			}
-		},		surfaceChrome: {
+		},
+		waveSnapshot: {
+			status: {
+				notAvailable: 'Not available',
+				blocked: 'Blocked',
+				previewReady: 'Preview ready',
+				previewAvailable: 'Preview available',
+				failed: 'Failed',
+				loading: 'Loading',
+				ready: 'Ready'
+			},
+			disabled: {
+				selectComparableWaves:
+					'Select two comparable waves before loading the wave comparison snapshot.',
+				runLinkedTrajectoryCheck:
+					'Run the linked trajectory check before loading the wave comparison snapshot.'
+			},
+			dashboard: {
+				unavailableTitle: 'Wave dashboard unavailable',
+				unavailableMessage: 'Select two comparable waves before reviewing the wave dashboard.',
+				title: (baselineName: string, comparisonName: string) =>
+					`${baselineName} vs ${comparisonName} wave dashboard`,
+				campaigns: 'Campaigns',
+				longitudinalWaves: 'Longitudinal waves',
+				submittedWaves: 'Submitted waves',
+				missingPrerequisites: 'Missing prerequisites',
+				baselineWave: 'Baseline wave',
+				baselineStatus: 'Baseline status',
+				baselineSubmittedResponses: 'Baseline submitted responses',
+				comparisonWave: 'Comparison wave',
+				comparisonStatus: 'Comparison status',
+				comparisonSubmittedResponses: 'Comparison submitted responses',
+				linkedTrajectories: 'Linked trajectories',
+				completeTrajectories: 'Complete trajectories',
+				previewStatus: 'Preview status',
+				interpretation: 'Interpretation',
+				linkedPairs: 'Linked pairs',
+				disclosure: 'Disclosure',
+				disclosureK: 'Disclosure k',
+				compatibility: 'Compatibility',
+				visibleScores: 'Visible scores',
+				suppressedScores: 'Suppressed scores',
+				blockedScores: 'Blocked scores',
+				baselineLaunchSnapshot: 'Baseline launch snapshot',
+				baselineLatestLaunch: 'Baseline latest launch',
+				baselineScoringRule: 'Baseline scoring rule',
+				baselineDisclosurePolicy: 'Baseline disclosure policy',
+				comparisonLaunchSnapshot: 'Comparison launch snapshot',
+				comparisonLatestLaunch: 'Comparison latest launch',
+				comparisonScoringRule: 'Comparison scoring rule',
+				comparisonDisclosurePolicy: 'Comparison disclosure policy',
+				untitledWave: 'Untitled wave'
+			},
+			chrome: {
+				sectionAria: 'Wave comparison preview',
+				kicker: 'Wave comparison',
+				title: 'Compared waves',
+				description: 'Disclosure-safe comparison for the selected baseline and comparison waves.',
+				summaryAria: 'Wave comparison summary',
+				readinessKicker: 'Comparison readiness',
+				readinessTitle: 'Can these waves be compared?',
+				readinessDescription:
+					'Checks whether the selected waves can be compared without exposing small groups.',
+				waveReadinessAria: 'Wave readiness',
+				waveReadinessKicker: 'Readiness',
+				waveReadinessTitle: 'Wave readiness',
+				comparisonAria: 'Comparison status',
+				comparisonKicker: 'Comparison',
+				comparisonTitle: 'Comparison status',
+				guardrailsAria: 'Disclosure and compatibility',
+				guardrailsKicker: 'Guardrails',
+				guardrailsTitle: 'Disclosure and compatibility',
+				sourceAria: 'Wave source context',
+				sourceKicker: 'Based on',
+				sourceTitle: 'Launch and policy context',
+				resolvePrerequisites: 'Resolve wave comparison prerequisites before loading the snapshot.',
+				loadFailed: 'Wave comparison snapshot could not be loaded.',
+				loadingComparison: 'Loading comparison',
+				refreshComparison: 'Refresh wave comparison',
+				study: 'Study'
+			},
+			codeLabels: {
+				proof_only: 'preview',
+				not_validated_interpretation: 'not validated interpretation',
+				visible: 'visible',
+				suppressed: 'suppressed',
+				compatible: 'compatible',
+				not_available: 'not available',
+				live: 'live',
+				draft: 'draft',
+				closed: 'closed'
+			}
+		},
+		reportWidgets: {
+			notAvailable: 'Not available',
+			yes: 'Yes',
+			no: 'No',
+			codeLabels: {
+				proof_only: 'preview',
+				not_validated_interpretation: 'not validated interpretation',
+				not_available: 'not available',
+				visible: 'visible',
+				suppressed: 'suppressed',
+				complete: 'complete',
+				partial: 'partial',
+				no_submissions: 'no submissions',
+				ready_for_aggregate_report: 'ready for aggregate report',
+				closed_wave: 'closed wave',
+				preliminary_live: 'preliminary live data',
+				not_reportable: 'not reportable',
+				succeeded: 'succeeded',
+				failed: 'failed',
+				queued: 'queued',
+				rendering: 'rendering',
+				csv: 'CSV'
+			}
+		},
+		surfaceChrome: {
 			loadingContext: (surface: string) => `Loading ${surface} context`,
 			missingStudy: 'Select a study before opening this surface.',
 			surfaceUnavailableFallback: 'Campaign series surface could not be loaded.',
@@ -2552,7 +2669,124 @@ const hr: typeof en = {
 					'Pregledajte Val 1 u Rezultatima. Planirajte Val 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
 				needScoredResponses: 'Prikupite bodovane odgovore u barem dva vala prije zadataka usporedbe.'
 			}
-		},		surfaceChrome: {
+		},
+		waveSnapshot: {
+			status: {
+				notAvailable: 'Nije dostupno',
+				blocked: 'Blokirano',
+				previewReady: 'Pregled spreman',
+				previewAvailable: 'Pregled dostupan',
+				failed: 'Neuspjelo',
+				loading: 'Učitavanje',
+				ready: 'Spremno'
+			},
+			disabled: {
+				selectComparableWaves:
+					'Odaberite dva usporediva vala prije učitavanja pregleda usporedbe.',
+				runLinkedTrajectoryCheck:
+					'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
+			},
+			dashboard: {
+				unavailableTitle: 'Pregled valova nije dostupan',
+				unavailableMessage: 'Odaberite dva usporediva vala prije pregleda nadzorne ploče valova.',
+				title: (baselineName: string, comparisonName: string) =>
+					`${baselineName} prema ${comparisonName} pregled valova`,
+				campaigns: 'Valovi',
+				longitudinalWaves: 'Longitudinalni valovi',
+				submittedWaves: 'Valovi s odgovorima',
+				missingPrerequisites: 'Nedostajući preduvjeti',
+				baselineWave: 'Početni val',
+				baselineStatus: 'Status početnog vala',
+				baselineSubmittedResponses: 'Predani odgovori početnog vala',
+				comparisonWave: 'Usporedni val',
+				comparisonStatus: 'Status usporednog vala',
+				comparisonSubmittedResponses: 'Predani odgovori usporednog vala',
+				linkedTrajectories: 'Povezane putanje',
+				completeTrajectories: 'Potpune putanje',
+				previewStatus: 'Status pregleda',
+				interpretation: 'Tumačenje',
+				linkedPairs: 'Povezani parovi',
+				disclosure: 'Prikaz',
+				disclosureK: 'Minimalna grupa',
+				compatibility: 'Kompatibilnost',
+				visibleScores: 'Vidljivi rezultati',
+				suppressedScores: 'Skriveni rezultati',
+				blockedScores: 'Blokirani rezultati',
+				baselineLaunchSnapshot: 'Početni zapis pokretanja',
+				baselineLatestLaunch: 'Zadnje pokretanje početnog vala',
+				baselineScoringRule: 'Bodovanje početnog vala',
+				baselineDisclosurePolicy: 'Pravilo prikaza početnog vala',
+				comparisonLaunchSnapshot: 'Usporedni zapis pokretanja',
+				comparisonLatestLaunch: 'Zadnje pokretanje usporednog vala',
+				comparisonScoringRule: 'Bodovanje usporednog vala',
+				comparisonDisclosurePolicy: 'Pravilo prikaza usporednog vala',
+				untitledWave: 'Neimenovani val'
+			},
+			chrome: {
+				sectionAria: 'Pregled usporedbe valova',
+				kicker: 'Usporedba valova',
+				title: 'Uspoređeni valovi',
+				description: 'Usporedba odabranog početnog i usporednog vala uz pravila prikaza.',
+				summaryAria: 'Sažetak usporedbe valova',
+				readinessKicker: 'Spremnost usporedbe',
+				readinessTitle: 'Mogu li se ovi valovi usporediti?',
+				readinessDescription:
+					'Provjerava mogu li se odabrani valovi usporediti bez otkrivanja premalih grupa.',
+				waveReadinessAria: 'Spremnost valova',
+				waveReadinessKicker: 'Spremnost',
+				waveReadinessTitle: 'Spremnost valova',
+				comparisonAria: 'Status usporedbe',
+				comparisonKicker: 'Usporedba',
+				comparisonTitle: 'Status usporedbe',
+				guardrailsAria: 'Prikaz i kompatibilnost',
+				guardrailsKicker: 'Zaštitna pravila',
+				guardrailsTitle: 'Prikaz i kompatibilnost',
+				sourceAria: 'Kontekst izvora valova',
+				sourceKicker: 'Temeljeno na',
+				sourceTitle: 'Kontekst pokretanja i pravila',
+				resolvePrerequisites: 'Riješite preduvjete usporedbe valova prije učitavanja pregleda.',
+				loadFailed: 'Pregled usporedbe valova nije se mogao učitati.',
+				loadingComparison: 'Učitavanje usporedbe',
+				refreshComparison: 'Osvježi usporedbu valova',
+				study: 'Studija'
+			},
+			codeLabels: {
+				proof_only: 'pregled',
+				not_validated_interpretation: 'tumačenje nije validirano',
+				visible: 'vidljivo',
+				suppressed: 'skriveno',
+				compatible: 'kompatibilno',
+				not_available: 'nije dostupno',
+				live: 'u tijeku',
+				draft: 'nacrt',
+				closed: 'zatvoreno'
+			}
+		},
+		reportWidgets: {
+			notAvailable: 'Nije dostupno',
+			yes: 'Da',
+			no: 'Ne',
+			codeLabels: {
+				proof_only: 'pregled',
+				not_validated_interpretation: 'tumačenje nije validirano',
+				not_available: 'nije dostupno',
+				visible: 'vidljivo',
+				suppressed: 'skriveno',
+				complete: 'potpuno',
+				partial: 'djelomično',
+				no_submissions: 'bez odgovora',
+				ready_for_aggregate_report: 'spremno za agregirani izvještaj',
+				closed_wave: 'zatvoren val',
+				preliminary_live: 'preliminarni podaci uživo',
+				not_reportable: 'nije za izvještaj',
+				succeeded: 'uspjelo',
+				failed: 'neuspjelo',
+				queued: 'u redu čekanja',
+				rendering: 'izrada',
+				csv: 'CSV'
+			}
+		},
+		surfaceChrome: {
 			loadingContext: (surface: string) => `Učitavanje konteksta: ${surface}`,
 			missingStudy: 'Odaberite studiju prije otvaranja ove površine.',
 			surfaceUnavailableFallback: 'Površina odabrane studije nije se mogla učitati.',

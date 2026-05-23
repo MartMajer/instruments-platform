@@ -7,16 +7,17 @@
 		formatBytes,
 		formatCodeLabel,
 		formatNullableDate,
-		formatProductCopy
+		formatProductCopy,
+		type ReportWidgetFormatCopy
 	} from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
-	let { widget }: { widget: ReportWidget } = $props();
+	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
 
 	const data = $derived(isExportArtifactRegistryWidgetData(widget.data) ? widget.data : null);
 </script>
 
-<ReportWidgetShell {widget}>
+<ReportWidgetShell {widget} {copy}>
 	{#if data}
 		<dl class="record-grid">
 			<div class="metric-card">
@@ -37,10 +38,10 @@
 							<div>
 								<p class="record-row__title">{artifact.fileName}</p>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									{artifact.targetLabel} / {formatCodeLabel(artifact.format)}
+									{artifact.targetLabel} / {formatCodeLabel(artifact.format, copy)}
 								</p>
 							</div>
-							<StatusBadge status="neutral" label={formatCodeLabel(artifact.status)} />
+							<StatusBadge status="neutral" label={formatCodeLabel(artifact.status, copy)} />
 						</div>
 
 						<dl class="record-grid">
@@ -54,20 +55,20 @@
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Created</dt>
-								<dd class="record-field__value">{formatNullableDate(artifact.createdAt)}</dd>
+								<dd class="record-field__value">{formatNullableDate(artifact.createdAt, copy)}</dd>
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Completed</dt>
-								<dd class="record-field__value">{formatNullableDate(artifact.completedAt)}</dd>
+								<dd class="record-field__value">{formatNullableDate(artifact.completedAt, copy)}</dd>
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Download</dt>
-								<dd class="record-field__value">{formatBooleanLabel(artifact.canDownload)}</dd>
+								<dd class="record-field__value">{formatBooleanLabel(artifact.canDownload, copy)}</dd>
 							</div>
 							<div class="record-field">
 								<dt class="record-field__label">Failure reason</dt>
 								<dd class="record-field__value">
-									{formatCodeLabel(artifact.failureReasonCode)}
+									{formatCodeLabel(artifact.failureReasonCode, copy)}
 								</dd>
 							</div>
 						</dl>

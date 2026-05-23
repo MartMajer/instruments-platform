@@ -1,14 +1,15 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
 	import { isVisualAnalyticsEntryWidgetData } from './report-widget-data';
+	import type { ReportWidgetFormatCopy } from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
-	let { widget }: { widget: ReportWidget } = $props();
+	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
 
 	const data = $derived(isVisualAnalyticsEntryWidgetData(widget.data) ? widget.data : null);
 </script>
 
-<ReportWidgetShell {widget}>
+<ReportWidgetShell {widget} {copy}>
 	{#if data}
 		<dl class="record-grid">
 			<div class="metric-card">

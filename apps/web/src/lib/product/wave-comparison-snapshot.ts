@@ -37,9 +37,113 @@ export type SelectedSeriesWaveDashboardView = {
 	provenanceRows: SelectedSeriesWaveDashboardRow[];
 };
 
+export type SelectedSeriesWaveSnapshotCopy = {
+	status: {
+		notAvailable: string;
+		blocked: string;
+		previewReady: string;
+		previewAvailable: string;
+	};
+	disabled: {
+		selectComparableWaves: string;
+		runLinkedTrajectoryCheck: string;
+	};
+	dashboard: {
+		unavailableTitle: string;
+		unavailableMessage: string;
+		title: (baselineName: string, comparisonName: string) => string;
+		campaigns: string;
+		longitudinalWaves: string;
+		submittedWaves: string;
+		missingPrerequisites: string;
+		baselineWave: string;
+		baselineStatus: string;
+		baselineSubmittedResponses: string;
+		comparisonWave: string;
+		comparisonStatus: string;
+		comparisonSubmittedResponses: string;
+		linkedTrajectories: string;
+		completeTrajectories: string;
+		previewStatus: string;
+		interpretation: string;
+		linkedPairs: string;
+		disclosure: string;
+		disclosureK: string;
+		compatibility: string;
+		visibleScores: string;
+		suppressedScores: string;
+		blockedScores: string;
+		baselineLaunchSnapshot: string;
+		baselineLatestLaunch: string;
+		baselineScoringRule: string;
+		baselineDisclosurePolicy: string;
+		comparisonLaunchSnapshot: string;
+		comparisonLatestLaunch: string;
+		comparisonScoringRule: string;
+		comparisonDisclosurePolicy: string;
+		untitledWave: string;
+	};
+	codeLabels: Record<string, string>;
+};
+
+const defaultWaveSnapshotCopy: SelectedSeriesWaveSnapshotCopy = {
+	status: {
+		notAvailable: 'Not available',
+		blocked: 'Blocked',
+		previewReady: 'Preview ready',
+		previewAvailable: 'Preview available'
+	},
+	disabled: {
+		selectComparableWaves:
+			'Select two comparable waves before loading the wave comparison snapshot.',
+		runLinkedTrajectoryCheck:
+			'Run the linked trajectory check before loading the wave comparison snapshot.'
+	},
+	dashboard: {
+		unavailableTitle: 'Wave dashboard unavailable',
+		unavailableMessage: 'Select two comparable waves before reviewing the wave dashboard.',
+		title: (baselineName: string, comparisonName: string) =>
+			`${baselineName} vs ${comparisonName} wave dashboard`,
+		campaigns: 'Campaigns',
+		longitudinalWaves: 'Longitudinal waves',
+		submittedWaves: 'Submitted waves',
+		missingPrerequisites: 'Missing prerequisites',
+		baselineWave: 'Baseline wave',
+		baselineStatus: 'Baseline status',
+		baselineSubmittedResponses: 'Baseline submitted responses',
+		comparisonWave: 'Comparison wave',
+		comparisonStatus: 'Comparison status',
+		comparisonSubmittedResponses: 'Comparison submitted responses',
+		linkedTrajectories: 'Linked trajectories',
+		completeTrajectories: 'Complete trajectories',
+		previewStatus: 'Preview status',
+		interpretation: 'Interpretation',
+		linkedPairs: 'Linked pairs',
+		disclosure: 'Disclosure',
+		disclosureK: 'Disclosure k',
+		compatibility: 'Compatibility',
+		visibleScores: 'Visible scores',
+		suppressedScores: 'Suppressed scores',
+		blockedScores: 'Blocked scores',
+		baselineLaunchSnapshot: 'Baseline launch snapshot',
+		baselineLatestLaunch: 'Baseline latest launch',
+		baselineScoringRule: 'Baseline scoring rule',
+		baselineDisclosurePolicy: 'Baseline disclosure policy',
+		comparisonLaunchSnapshot: 'Comparison launch snapshot',
+		comparisonLatestLaunch: 'Comparison latest launch',
+		comparisonScoringRule: 'Comparison scoring rule',
+		comparisonDisclosurePolicy: 'Comparison disclosure policy',
+		untitledWave: 'Untitled wave'
+	},
+	codeLabels: {
+		proof_only: 'preview'
+	}
+};
+
 export function toSelectedSeriesWaveComparisonSnapshotState(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	localState: SelectedSeriesWaveComparisonSnapshotLocalState = {}
+	localState: SelectedSeriesWaveComparisonSnapshotLocalState = {},
+	copy: SelectedSeriesWaveSnapshotCopy = defaultWaveSnapshotCopy
 ): SelectedSeriesWaveComparisonSnapshotState {
 	const baselineWave = workspace.selectedBaselineWave;
 	const comparisonWave = workspace.selectedComparisonWave;
@@ -51,8 +155,8 @@ export function toSelectedSeriesWaveComparisonSnapshotState(
 			seriesId: workspace.series.id,
 			baselineWaveName: baselineWave?.name ?? null,
 			comparisonWaveName: comparisonWave?.name ?? null,
-			badgeLabel: 'Not available',
-			disabledReason: 'Select two comparable waves before loading the wave comparison snapshot.'
+			badgeLabel: copy.status.notAvailable,
+			disabledReason: copy.disabled.selectComparableWaves
 		};
 	}
 
@@ -65,8 +169,8 @@ export function toSelectedSeriesWaveComparisonSnapshotState(
 			seriesId: workspace.series.id,
 			baselineWaveName: baselineWave.name,
 			comparisonWaveName: comparisonWave.name,
-			badgeLabel: 'Blocked',
-			disabledReason: 'Run the linked trajectory check before loading the wave comparison snapshot.'
+			badgeLabel: copy.status.blocked,
+			disabledReason: copy.disabled.runLinkedTrajectoryCheck
 		};
 	}
 
@@ -78,32 +182,36 @@ export function toSelectedSeriesWaveComparisonSnapshotState(
 		seriesId: workspace.series.id,
 		baselineWaveName: baselineWave.name,
 		comparisonWaveName: comparisonWave.name,
-		badgeLabel: loadedForSelectedSeries ? 'Preview ready' : 'Preview available',
+		badgeLabel: loadedForSelectedSeries ? copy.status.previewReady : copy.status.previewAvailable,
 		disabledReason: null
 	};
 }
 
 export function toSelectedSeriesWaveDashboardView(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	localState: SelectedSeriesWaveComparisonSnapshotLocalState = {}
+	localState: SelectedSeriesWaveComparisonSnapshotLocalState = {},
+	copy: SelectedSeriesWaveSnapshotCopy = defaultWaveSnapshotCopy
 ): SelectedSeriesWaveDashboardView {
-	const snapshotState = toSelectedSeriesWaveComparisonSnapshotState(workspace, localState);
+	const snapshotState = toSelectedSeriesWaveComparisonSnapshotState(workspace, localState, copy);
 	const baselineWave = workspace.selectedBaselineWave;
 	const comparisonWave = workspace.selectedComparisonWave;
 
 	if (!baselineWave || !comparisonWave) {
 		return {
-			title: 'Wave dashboard unavailable',
+			title: copy.dashboard.unavailableTitle,
 			status: snapshotState.status,
 			available: false,
 			badgeLabel: snapshotState.badgeLabel,
-			emptyMessage: 'Select two comparable waves before reviewing the wave dashboard.',
+			emptyMessage: copy.dashboard.unavailableMessage,
 			readinessRows: [
-				{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
-				{ label: 'Longitudinal waves', value: formatCount(workspace.summary.longitudinalWaveCount) },
-				{ label: 'Submitted waves', value: formatCount(workspace.summary.submittedWaveCount) },
+				{ label: copy.dashboard.campaigns, value: formatCount(workspace.summary.campaignCount) },
 				{
-					label: 'Missing prerequisites',
+					label: copy.dashboard.longitudinalWaves,
+					value: formatCount(workspace.summary.longitudinalWaveCount)
+				},
+				{ label: copy.dashboard.submittedWaves, value: formatCount(workspace.summary.submittedWaveCount) },
+				{
+					label: copy.dashboard.missingPrerequisites,
 					value: formatCount(workspace.summary.missingPrerequisiteCount)
 				}
 			],
@@ -114,17 +222,35 @@ export function toSelectedSeriesWaveDashboardView(
 	}
 
 	return {
-		title: `${waveName(baselineWave)} vs ${waveName(comparisonWave)} wave dashboard`,
+		title: copy.dashboard.title(waveName(baselineWave, copy), waveName(comparisonWave, copy)),
 		status: snapshotState.status,
 		available: snapshotState.available,
 		badgeLabel: snapshotState.badgeLabel,
 		emptyMessage: snapshotState.available ? null : snapshotState.disabledReason,
-		readinessRows: toWaveReadinessRows(workspace, baselineWave, comparisonWave),
-		comparisonRows: toWaveComparisonRows(workspace.comparison),
-		guardrailRows: toWaveGuardrailRows(workspace.comparison),
+		readinessRows: toWaveReadinessRows(workspace, baselineWave, comparisonWave, copy),
+		comparisonRows: toWaveComparisonRows(workspace.comparison, copy),
+		guardrailRows: toWaveGuardrailRows(workspace.comparison, copy),
 		provenanceRows: [
-			...toWaveProvenanceRows('Baseline', baselineWave),
-			...toWaveProvenanceRows('Comparison', comparisonWave)
+			...toWaveProvenanceRows(
+				baselineWave,
+				{
+					launchSnapshot: copy.dashboard.baselineLaunchSnapshot,
+					latestLaunch: copy.dashboard.baselineLatestLaunch,
+					scoringRule: copy.dashboard.baselineScoringRule,
+					disclosurePolicy: copy.dashboard.baselineDisclosurePolicy
+				},
+				copy
+			),
+			...toWaveProvenanceRows(
+				comparisonWave,
+				{
+					launchSnapshot: copy.dashboard.comparisonLaunchSnapshot,
+					latestLaunch: copy.dashboard.comparisonLatestLaunch,
+					scoringRule: copy.dashboard.comparisonScoringRule,
+					disclosurePolicy: copy.dashboard.comparisonDisclosurePolicy
+				},
+				copy
+			)
 		]
 	};
 }
@@ -132,90 +258,107 @@ export function toSelectedSeriesWaveDashboardView(
 function toWaveReadinessRows(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	baselineWave: CampaignSeriesWavesWaveResponse,
-	comparisonWave: CampaignSeriesWavesWaveResponse
+	comparisonWave: CampaignSeriesWavesWaveResponse,
+	copy: SelectedSeriesWaveSnapshotCopy
 ): SelectedSeriesWaveDashboardRow[] {
 	return [
-		{ label: 'Baseline wave', value: waveName(baselineWave) },
-		{ label: 'Baseline status', value: formatCodeLabel(baselineWave.status) },
+		{ label: copy.dashboard.baselineWave, value: waveName(baselineWave, copy) },
+		{ label: copy.dashboard.baselineStatus, value: formatCodeLabel(baselineWave.status, copy) },
 		{
-			label: 'Baseline submitted responses',
+			label: copy.dashboard.baselineSubmittedResponses,
 			value: formatCount(baselineWave.submittedResponseCount)
 		},
-		{ label: 'Comparison wave', value: waveName(comparisonWave) },
-		{ label: 'Comparison status', value: formatCodeLabel(comparisonWave.status) },
+		{ label: copy.dashboard.comparisonWave, value: waveName(comparisonWave, copy) },
+		{ label: copy.dashboard.comparisonStatus, value: formatCodeLabel(comparisonWave.status, copy) },
 		{
-			label: 'Comparison submitted responses',
+			label: copy.dashboard.comparisonSubmittedResponses,
 			value: formatCount(comparisonWave.submittedResponseCount)
 		},
-		{ label: 'Linked trajectories', value: formatCount(workspace.summary.linkedTrajectoryCount) },
+		{ label: copy.dashboard.linkedTrajectories, value: formatCount(workspace.summary.linkedTrajectoryCount) },
 		{
-			label: 'Complete trajectories',
+			label: copy.dashboard.completeTrajectories,
 			value: formatCount(workspace.summary.completeTrajectoryCount)
 		}
 	];
 }
 
 function toWaveComparisonRows(
-	comparison: CampaignSeriesWavesComparisonResponse
+	comparison: CampaignSeriesWavesComparisonResponse,
+	copy: SelectedSeriesWaveSnapshotCopy
 ): SelectedSeriesWaveDashboardRow[] {
 	return [
-		{ label: 'Preview status', value: formatCodeLabel(comparison.status) },
-		{ label: 'Interpretation', value: formatCodeLabel(comparison.interpretationStatus) },
-		{ label: 'Linked pairs', value: formatCount(comparison.linkedPairCount) }
+		{ label: copy.dashboard.previewStatus, value: formatCodeLabel(comparison.status, copy) },
+		{ label: copy.dashboard.interpretation, value: formatCodeLabel(comparison.interpretationStatus, copy) },
+		{ label: copy.dashboard.linkedPairs, value: formatCount(comparison.linkedPairCount) }
 	];
 }
 
 function toWaveGuardrailRows(
-	comparison: CampaignSeriesWavesComparisonResponse
+	comparison: CampaignSeriesWavesComparisonResponse,
+	copy: SelectedSeriesWaveSnapshotCopy
 ): SelectedSeriesWaveDashboardRow[] {
 	return [
-		{ label: 'Disclosure', value: formatCodeLabel(comparison.disclosureState) },
+		{ label: copy.dashboard.disclosure, value: formatCodeLabel(comparison.disclosureState, copy) },
 		{
-			label: 'Disclosure k',
-			value: comparison.disclosureKMin === null ? 'Not available' : String(comparison.disclosureKMin)
+			label: copy.dashboard.disclosureK,
+			value: comparison.disclosureKMin === null ? copy.status.notAvailable : String(comparison.disclosureKMin)
 		},
-		{ label: 'Compatibility', value: formatCodeLabel(comparison.compatibilityState) },
-		{ label: 'Visible scores', value: formatCount(comparison.visibleScoreCount) },
-		{ label: 'Suppressed scores', value: formatCount(comparison.suppressedScoreCount) },
-		{ label: 'Blocked scores', value: formatCount(comparison.blockedScoreCount) }
+		{ label: copy.dashboard.compatibility, value: formatCodeLabel(comparison.compatibilityState, copy) },
+		{ label: copy.dashboard.visibleScores, value: formatCount(comparison.visibleScoreCount) },
+		{ label: copy.dashboard.suppressedScores, value: formatCount(comparison.suppressedScoreCount) },
+		{ label: copy.dashboard.blockedScores, value: formatCount(comparison.blockedScoreCount) }
 	];
 }
 
 function toWaveProvenanceRows(
-	prefix: string,
-	wave: CampaignSeriesWavesWaveResponse
+	wave: CampaignSeriesWavesWaveResponse,
+	labels: {
+		launchSnapshot: string;
+		latestLaunch: string;
+		scoringRule: string;
+		disclosurePolicy: string;
+	},
+	copy: SelectedSeriesWaveSnapshotCopy
 ): SelectedSeriesWaveDashboardRow[] {
 	return [
-		idRow(`${prefix} launch snapshot`, wave.latestLaunchSnapshotId),
-		{ label: `${prefix} latest launch`, value: wave.latestLaunchAt ?? 'Not available' },
-		{ label: `${prefix} scoring rule`, value: scoringRuleLabel(wave) },
-		idRow(`${prefix} disclosure policy`, wave.disclosurePolicyId)
+		idRow(labels.launchSnapshot, wave.latestLaunchSnapshotId, copy),
+		{ label: labels.latestLaunch, value: wave.latestLaunchAt ?? copy.status.notAvailable },
+		{ label: labels.scoringRule, value: scoringRuleLabel(wave, copy) },
+		idRow(labels.disclosurePolicy, wave.disclosurePolicyId, copy)
 	];
 }
 
-function waveName(wave: CampaignSeriesWavesWaveResponse) {
-	return wave.name.trim() || 'Untitled wave';
+function waveName(wave: CampaignSeriesWavesWaveResponse, copy: SelectedSeriesWaveSnapshotCopy) {
+	return wave.name.trim() || copy.dashboard.untitledWave;
 }
 
-function idRow(label: string, value: string | null): SelectedSeriesWaveDashboardRow {
-	return value ? { label, value, mono: true } : { label, value: 'Not available' };
+function idRow(
+	label: string,
+	value: string | null,
+	copy: SelectedSeriesWaveSnapshotCopy
+): SelectedSeriesWaveDashboardRow {
+	return value ? { label, value, mono: true } : { label, value: copy.status.notAvailable };
 }
 
-function scoringRuleLabel(wave: CampaignSeriesWavesWaveResponse) {
+function scoringRuleLabel(
+	wave: CampaignSeriesWavesWaveResponse,
+	copy: SelectedSeriesWaveSnapshotCopy
+) {
 	if (wave.scoringRuleKey && wave.scoringRuleVersion) {
 		return `${wave.scoringRuleKey} ${wave.scoringRuleVersion}`;
 	}
 
-	return wave.scoringRuleId ?? 'Not available';
+	return wave.scoringRuleId ?? copy.status.notAvailable;
 }
 
 function formatCount(value: number) {
 	return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value);
 }
 
-function formatCodeLabel(value: string) {
-	if (value === 'proof_only') {
-		return 'preview';
+function formatCodeLabel(value: string, copy: SelectedSeriesWaveSnapshotCopy) {
+	const mapped = copy.codeLabels[value];
+	if (mapped) {
+		return mapped;
 	}
 
 	return value.replaceAll('_', ' ');

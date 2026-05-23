@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
+	import type { ReportWidgetFormatCopy } from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
-	let { widget }: { widget: ReportWidget } = $props();
+	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
 
 	const fallbackWidget = $derived({
 		...widget,
@@ -11,7 +12,7 @@
 	});
 </script>
 
-<ReportWidgetShell widget={fallbackWidget}>
+<ReportWidgetShell widget={fallbackWidget} {copy}>
 	<p class="result-line">
 		<span>Kind</span>
 		<code>{widget.kind}</code>
