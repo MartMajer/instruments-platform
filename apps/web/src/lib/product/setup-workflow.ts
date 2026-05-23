@@ -105,14 +105,243 @@ export type SelectedSeriesSetupWaveContext = {
 	guidance: string[];
 };
 
-export function defaultCampaignWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
+export type SelectedSeriesSetupWorkflowCopy = {
+	stepNumber: (number: number) => string;
+	defaultWaveName: (number: number) => string;
+	steps: Record<
+		SelectedSeriesSetupWorkflowActionId,
+		{
+			title: string;
+			description: string;
+		}
+	>;
+	disabled: {
+		confirmInstrument: string;
+		saveQuestionnaire: string;
+		createCollectionWave: string;
+	};
+	pathDisplay: Record<SelectedSeriesSetupPathStepDisplayState, string>;
+	launchState: {
+		createWaveFirstStatus: string;
+		createWaveFirstNext: string;
+		runLaunchCheckFirst: string;
+		launchPassedSaveRecipients: string;
+		launchPassedChooseAccess: string;
+		saveRecipientsForIdentified: string;
+		openCollectionOrSaveRecipients: string;
+		launchPassedWithRecipients: string;
+		openCollectionStartSavedRecipients: string;
+		openCollectionLaunch: string;
+		runLaunchCheck: string;
+		needsAttention: string;
+		resolveBeforeCollection: string;
+		loadingSavedRecipients: string;
+		savedSelections: (selectionCount: number, pairCount: number) => string;
+		noSavedIdentified: string;
+		noSavedLongitudinal: string;
+		noSavedAnonymous: string;
+	};
+	launchPlan: {
+		title: string;
+		summary: string;
+		draftWave: string;
+		wave: string;
+		responseMode: string;
+		recipients: string;
+		collectionHandoff: string;
+		waveDraftReady: (waveName: string) => string;
+		waveWillBeCreated: (waveName: string) => string;
+		identifiedModeDetail: string;
+		longitudinalModeDetail: string;
+		anonymousModeDetail: string;
+		chooseModeDetail: string;
+		savedRecipientDetail: (selectionCount: number, pairCount: number) => string;
+		identifiedNeedsRecipients: string;
+		longitudinalNoRecipients: string;
+		anonymousNoRecipients: string;
+		saveRecipientsBeforeIdentifiedLaunch: string;
+		launchPassedOpenCollection: string;
+		runLaunchCheckBeforeCollection: string;
+	};
+	waveContext: {
+		prepareForCollection: (waveName: string) => string;
+		firstWaveSetup: string;
+		currentDraftWave: string;
+		followUpDraftWave: string;
+		futureWaveSetup: string;
+		firstWaveSummary: string;
+		currentDraftSummary: string;
+		followUpDraftSummary: (waveName: string) => string;
+		closedOneWaveSummary: (
+			previousWaveName: string,
+			previousWaveStatus: string,
+			nextWaveName: string
+		) => string;
+		multipleWaveSummary: (existingWaveCount: number, nextWaveName: string) => string;
+		createFirstAfterSetup: string;
+		recipientBelongsUntilLaunch: (waveName: string) => string;
+		reviewResultsBeforeFollowup: string;
+		doNotAssumeRecipients: string;
+		reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) => string;
+		reviewExistingBeforePreparing: (nextWaveName: string) => string;
+		openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) => string;
+		createOnlyWhenIntentional: (nextWaveName: string) => string;
+		recipientBelongsToNewDraft: (previousLabel: string) => string;
+		previousWaves: string;
+	};
+	misc: {
+		notEditable: string;
+		and: string;
+	};
+};
+
+export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflowCopy = {
+	stepNumber: (number) => `Step ${number}`,
+	defaultWaveName: (number) => `Wave ${number}`,
+	steps: {
+		instrument: {
+			title: 'Study source',
+			description: 'Confirm what this study is based on before building the questionnaire.'
+		},
+		template: {
+			title: 'Questionnaire',
+			description: 'Build the questions respondents will answer in this study.'
+		},
+		scoring: {
+			title: 'Results setup',
+			description: 'Choose which answers become study results and how missing answers are handled.'
+		},
+		campaign: {
+			title: 'Wave and recipients',
+			description: 'Name the collection wave, choose the response mode, and prepare recipients.'
+		},
+		readiness: {
+			title: 'Launch check',
+			description:
+				'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.'
+		}
+	},
+	disabled: {
+		confirmInstrument: 'Confirm the instrument first.',
+		saveQuestionnaire: 'Save the questionnaire first.',
+		createCollectionWave: 'Create the collection wave first.'
+	},
+	pathDisplay: {
+		done: 'Done',
+		current: 'Current',
+		selected: 'Selected',
+		next: 'Next',
+		blocked: 'Blocked'
+	},
+	launchState: {
+		createWaveFirstStatus: 'Create collection wave first',
+		createWaveFirstNext: 'Create and save the collection wave before checking launch.',
+		runLaunchCheckFirst: 'Run launch check first',
+		launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
+		launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
+		saveRecipientsForIdentified:
+			'Save recipients below before launch so Collection can create identified access.',
+		openCollectionOrSaveRecipients:
+			'Open Collection to launch with a public link, or save recipients below before launch.',
+		launchPassedWithRecipients: 'Launch check passed with saved recipients',
+		openCollectionStartSavedRecipients:
+			'Open Collection to start the wave and send the saved recipients.',
+		openCollectionLaunch: 'Open Collection launch',
+		runLaunchCheck: 'Run launch check',
+		needsAttention: 'Needs attention',
+		resolveBeforeCollection:
+			'Run the launch check and resolve any listed issues before opening Collection.',
+		loadingSavedRecipients: 'Loading saved recipient selection...',
+		savedSelections: (selectionCount, pairCount) =>
+			`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
+				pairCount === 1 ? 'invitation pair' : 'invitation pairs'
+			} ready.`,
+		noSavedIdentified: 'No saved recipients yet; save recipients before invite-only launch.',
+		noSavedLongitudinal:
+			'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.',
+		noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
+	},
+	launchPlan: {
+		title: 'Launch plan',
+		summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
+		draftWave: 'Draft wave',
+		wave: 'Wave',
+		responseMode: 'Response mode',
+		recipients: 'Recipients',
+		collectionHandoff: 'Collection handoff',
+		waveDraftReady: (waveName) => `${waveName} is the draft wave for this study.`,
+		waveWillBeCreated: (waveName) => `${waveName} will be created when you save this step.`,
+		identifiedModeDetail:
+			'Identified collection requires saved recipients so each respondent can receive assigned access.',
+		longitudinalModeDetail:
+			'Repeat-participation collection can use public access or saved recipients; respondents use their own repeat code for comparison.',
+		anonymousModeDetail: 'Anonymous collection can use a public link or saved email recipients.',
+		chooseModeDetail: 'Choose how respondents should enter this wave.',
+		savedRecipientDetail: (selectionCount, pairCount) =>
+			`${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
+				pairCount === 1 ? 'invitation pair' : 'invitation pairs'
+			}.`,
+		identifiedNeedsRecipients: 'Identified collection needs saved recipients before launch.',
+		longitudinalNoRecipients:
+			'No saved recipients yet. You can use a public link, or save recipients for invite-only repeat participation.',
+		anonymousNoRecipients:
+			'No saved recipients yet. You can still launch anonymous collection with a public link.',
+		saveRecipientsBeforeIdentifiedLaunch:
+			'Save recipients before opening Collection for identified launch.',
+		launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
+		runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
+	},
+	waveContext: {
+		prepareForCollection: (waveName) => `Prepare ${waveName} for collection`,
+		firstWaveSetup: 'First wave setup',
+		currentDraftWave: 'Current draft wave',
+		followUpDraftWave: 'Follow-up draft wave',
+		futureWaveSetup: 'Future wave setup',
+		firstWaveSummary: 'Use this step to create the first collection wave and decide who can answer.',
+		currentDraftSummary: 'Use this step to finish the current draft wave before opening Collection.',
+		followUpDraftSummary: (waveName) =>
+			`${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+		closedOneWaveSummary: (previousWaveName, previousWaveStatus, nextWaveName) =>
+			`${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`,
+		multipleWaveSummary: (existingWaveCount, nextWaveName) =>
+			`${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
+		createFirstAfterSetup: 'Create Wave 1 only after the questionnaire and results setup are saved.',
+		recipientBelongsUntilLaunch: (waveName) =>
+			`Recipient selection belongs to ${waveName} until this wave is launched.`,
+		reviewResultsBeforeFollowup:
+			'Review the previous wave in Results before treating this as a follow-up collection.',
+		doNotAssumeRecipients:
+			'Do not assume recipients are unchanged; save the intended people or group for this wave.',
+		reviewBeforePreparing: (previousWaveName, nextWaveName) =>
+			`Review ${previousWaveName} before preparing ${nextWaveName}`,
+		reviewExistingBeforePreparing: (nextWaveName) =>
+			`Review existing waves before preparing ${nextWaveName}`,
+		openResultsBeforeCreating: (reviewTarget, nextWaveName) =>
+			`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
+		createOnlyWhenIntentional: (nextWaveName) =>
+			`Create ${nextWaveName} only when the next collection round is intentional.`,
+		recipientBelongsToNewDraft: (previousLabel) =>
+			`Recipient selection in this step will belong to the new draft wave, not to ${previousLabel}.`,
+		previousWaves: 'the previous waves'
+	},
+	misc: {
+		notEditable: 'not editable',
+		and: 'and'
+	}
+};
+
+export function defaultCampaignWaveName(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
+) {
 	const nextWaveNumber = Math.max(0, workspace.summary.campaignCount) + 1;
-	return `Wave ${nextWaveNumber}`;
+	return copy.defaultWaveName(nextWaveNumber);
 }
 
 export function toSelectedSeriesSetupWorkflowActions(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
-	localState: SelectedSeriesSetupWorkflowLocalState = {}
+	localState: SelectedSeriesSetupWorkflowLocalState = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupWorkflowAction[] {
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
@@ -123,49 +352,48 @@ export function toSelectedSeriesSetupWorkflowActions(
 	return [
 		{
 			id: 'instrument',
-			step: 'Step 1',
-			title: 'Study source',
-			description: 'Confirm what this study is based on before building the questionnaire.',
+			step: copy.stepNumber(1),
+			title: copy.steps.instrument.title,
+			description: copy.steps.instrument.description,
 			status: instrumentConfigured ? 'ready' : 'pending',
 			available: true,
 			disabledReason: null
 		},
 		{
 			id: 'template',
-			step: 'Step 2',
-			title: 'Questionnaire',
-			description:
-				'Build the questions respondents will answer in this study.',
+			step: copy.stepNumber(2),
+			title: copy.steps.template.title,
+			description: copy.steps.template.description,
 			status: templateVersionId ? 'ready' : 'blocked',
 			available: true,
-			disabledReason: instrumentConfigured ? null : 'Confirm the instrument first.'
+			disabledReason: instrumentConfigured ? null : copy.disabled.confirmInstrument
 		},
 		{
 			id: 'scoring',
-			step: 'Step 3',
-			title: 'Results setup',
-			description: 'Choose which answers become study results and how missing answers are handled.',
+			step: copy.stepNumber(3),
+			title: copy.steps.scoring.title,
+			description: copy.steps.scoring.description,
 			status: scoringConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
+			disabledReason: templateVersionId ? null : copy.disabled.saveQuestionnaire
 		},
 		{
 			id: 'campaign',
-			step: 'Step 4',
-			title: 'Wave and recipients',
-			description: 'Name the collection wave, choose the response mode, and prepare recipients.',
+			step: copy.stepNumber(4),
+			title: copy.steps.campaign.title,
+			description: copy.steps.campaign.description,
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
 			available: Boolean(templateVersionId),
-			disabledReason: templateVersionId ? null : 'Save the questionnaire first.'
+			disabledReason: templateVersionId ? null : copy.disabled.saveQuestionnaire
 		},
 		{
 			id: 'readiness',
-			step: 'Step 5',
-			title: 'Launch check',
-			description: 'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.',
+			step: copy.stepNumber(5),
+			title: copy.steps.readiness.title,
+			description: copy.steps.readiness.description,
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
 			available: Boolean(campaignId),
-			disabledReason: campaignId ? null : 'Create the collection wave first.'
+			disabledReason: campaignId ? null : copy.disabled.createCollectionWave
 		}
 	];
 }
@@ -173,17 +401,18 @@ export function toSelectedSeriesSetupWorkflowActions(
 export function toSelectedSeriesSetupLaunchState(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {},
-	options: SelectedSeriesSetupLaunchStateOptions = {}
+	options: SelectedSeriesSetupLaunchStateOptions = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupLaunchState {
 	const campaignId = selectSetupCampaignId(workspace, localState);
 	const readinessPassed = Boolean(options.readinessPassed ?? workspace.readiness.ready);
-	const recipientSummary = toRecipientSummary(options);
+	const recipientSummary = toRecipientSummary(options, copy);
 
 	if (!campaignId) {
 		return {
-			statusLabel: 'Create collection wave first',
-			nextActionLabel: 'Create and save the collection wave before checking launch.',
-			collectionButtonLabel: 'Run launch check first',
+			statusLabel: copy.launchState.createWaveFirstStatus,
+			nextActionLabel: copy.launchState.createWaveFirstNext,
+			collectionButtonLabel: copy.launchState.runLaunchCheckFirst,
 			collectionButtonAvailable: false,
 			recipientSummary
 		};
@@ -194,20 +423,20 @@ export function toSelectedSeriesSetupLaunchState(
 		const mode = options.responseIdentityMode;
 		const noRecipientStatus =
 			mode === 'identified'
-				? 'Launch check passed; save recipients for identified access'
-				: 'Launch check passed; choose public link or save recipients';
+				? copy.launchState.launchPassedSaveRecipients
+				: copy.launchState.launchPassedChooseAccess;
 		const noRecipientNextAction =
 			mode === 'identified'
-				? 'Save recipients below before launch so Collection can create identified access.'
-				: 'Open Collection to launch with a public link, or save recipients below before launch.';
+				? copy.launchState.saveRecipientsForIdentified
+				: copy.launchState.openCollectionOrSaveRecipients;
 		return {
 			statusLabel: hasSavedRecipients
-				? 'Launch check passed with saved recipients'
+				? copy.launchState.launchPassedWithRecipients
 				: noRecipientStatus,
 			nextActionLabel: hasSavedRecipients
-				? 'Open Collection to start the wave and send the saved recipients.'
+				? copy.launchState.openCollectionStartSavedRecipients
 				: noRecipientNextAction,
-			collectionButtonLabel: 'Open Collection launch',
+			collectionButtonLabel: copy.launchState.openCollectionLaunch,
 			collectionButtonAvailable: mode === 'identified' ? hasSavedRecipients : true,
 			recipientSummary
 		};
@@ -215,9 +444,11 @@ export function toSelectedSeriesSetupLaunchState(
 
 	return {
 		statusLabel:
-			workspace.readiness.status === 'not_available' ? 'Run launch check' : 'Needs attention',
-		nextActionLabel: 'Run the launch check and resolve any listed issues before opening Collection.',
-		collectionButtonLabel: 'Run launch check first',
+			workspace.readiness.status === 'not_available'
+				? copy.launchState.runLaunchCheck
+				: copy.launchState.needsAttention,
+		nextActionLabel: copy.launchState.resolveBeforeCollection,
+		collectionButtonLabel: copy.launchState.runLaunchCheckFirst,
 		collectionButtonAvailable: false,
 		recipientSummary
 	};
@@ -226,7 +457,8 @@ export function toSelectedSeriesSetupLaunchState(
 export function toSelectedSeriesSetupLaunchPlan(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {},
-	options: SelectedSeriesSetupLaunchPlanOptions = {}
+	options: SelectedSeriesSetupLaunchPlanOptions = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupLaunchPlan {
 	const campaignId = selectSetupCampaignId(workspace, localState);
 	const waveName =
@@ -234,7 +466,7 @@ export function toSelectedSeriesSetupLaunchPlan(
 		(campaignId && workspace.selectedCampaign?.id === campaignId
 			? workspace.selectedCampaign.name.trim()
 			: '') ||
-		(campaignId ? 'Draft wave' : defaultCampaignWaveName(workspace));
+		(campaignId ? copy.launchPlan.draftWave : defaultCampaignWaveName(workspace, copy));
 	const mode = options.responseIdentityMode ?? workspace.selectedCampaign?.responseIdentityMode ?? null;
 	const savedRecipientSelectionCount = options.savedRecipientSelectionCount ?? 0;
 	const savedRecipientPairCount = options.savedRecipientPairCount ?? 0;
@@ -243,35 +475,44 @@ export function toSelectedSeriesSetupLaunchPlan(
 	const identifiedNeedsRecipients = mode === 'identified' && !hasSavedRecipients;
 
 	return {
-		title: 'Launch plan',
+		title: copy.launchPlan.title,
 		label: waveName,
-		summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
+		summary: copy.launchPlan.summary,
 		items: [
 			{
 				id: 'wave',
-				label: 'Wave',
+				label: copy.launchPlan.wave,
 				status: campaignId ? 'ready' : 'attention',
 				detail: campaignId
-					? `${waveName} is the draft wave for this study.`
-					: `${waveName} will be created when you save this step.`
+					? copy.launchPlan.waveDraftReady(waveName)
+					: copy.launchPlan.waveWillBeCreated(waveName)
 			},
 			{
 				id: 'response_mode',
-				label: 'Response mode',
+				label: copy.launchPlan.responseMode,
 				status: mode ? 'ready' : 'attention',
-				detail: responseModeLaunchPlanDetail(mode)
+				detail: responseModeLaunchPlanDetail(mode, copy)
 			},
 			{
 				id: 'recipients',
-				label: 'Recipients',
+				label: copy.launchPlan.recipients,
 				status: identifiedNeedsRecipients ? 'blocked' : hasSavedRecipients ? 'ready' : 'attention',
-				detail: recipientLaunchPlanDetail(mode, savedRecipientSelectionCount, savedRecipientPairCount)
+				detail: recipientLaunchPlanDetail(
+					mode,
+					savedRecipientSelectionCount,
+					savedRecipientPairCount,
+					copy
+				)
 			},
 			{
 				id: 'collection_handoff',
-				label: 'Collection handoff',
+				label: copy.launchPlan.collectionHandoff,
 				status: readinessPassed && !identifiedNeedsRecipients ? 'ready' : 'blocked',
-				detail: collectionHandoffLaunchPlanDetail(readinessPassed, identifiedNeedsRecipients)
+				detail: collectionHandoffLaunchPlanDetail(
+					readinessPassed,
+					identifiedNeedsRecipients,
+					copy
+				)
 			}
 		]
 	};
@@ -279,21 +520,22 @@ export function toSelectedSeriesSetupLaunchPlan(
 
 export function toSelectedSeriesSetupWaveContext(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
-	localState: SelectedSeriesSetupWorkflowLocalState = {}
+	localState: SelectedSeriesSetupWorkflowLocalState = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupWaveContext {
 	const campaignId = selectSetupCampaignId(workspace, localState);
-	const nextWaveName = defaultCampaignWaveName(workspace);
+	const nextWaveName = defaultCampaignWaveName(workspace, copy);
 
 	if (workspace.summary.campaignCount === 0 && !campaignId) {
 		return {
-			title: 'Prepare Wave 1 for collection',
-			label: 'First wave setup',
+			title: copy.waveContext.prepareForCollection(copy.defaultWaveName(1)),
+			label: copy.waveContext.firstWaveSetup,
 			status: 'pending',
-			summary: 'Use this step to create the first collection wave and decide who can answer.',
+			summary: copy.waveContext.firstWaveSummary,
 			guidance: [
-				'Create Wave 1 only after the questionnaire and results setup are saved.',
-				'Recipient selection belongs to Wave 1 until this wave is launched.',
-				'After responses arrive, review Results before planning a follow-up wave.'
+				copy.waveContext.createFirstAfterSetup,
+				copy.waveContext.recipientBelongsUntilLaunch(copy.defaultWaveName(1)),
+				copy.waveContext.reviewResultsBeforeFollowup
 			]
 		};
 	}
@@ -302,54 +544,58 @@ export function toSelectedSeriesSetupWaveContext(
 		const waveName = selectedSetupWaveName(workspace, campaignId) ?? nextWaveName;
 		const isFirstWave = workspace.summary.campaignCount <= 1;
 		return {
-			title: `Prepare ${waveName} for collection`,
-			label: isFirstWave ? 'Current draft wave' : 'Follow-up draft wave',
+			title: copy.waveContext.prepareForCollection(waveName),
+			label: isFirstWave ? copy.waveContext.currentDraftWave : copy.waveContext.followUpDraftWave,
 			status: 'pending',
 			summary: isFirstWave
-				? 'Use this step to finish the current draft wave before opening Collection.'
-				: `${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+				? copy.waveContext.currentDraftSummary
+				: copy.waveContext.followUpDraftSummary(waveName),
 			guidance: [
-				`Recipient selection belongs to ${waveName} until this wave is launched.`,
-				'Review the previous wave in Results before treating this as a follow-up collection.',
-				'Do not assume recipients are unchanged; save the intended people or group for this wave.'
+				copy.waveContext.recipientBelongsUntilLaunch(waveName),
+				copy.waveContext.reviewResultsBeforeFollowup,
+				copy.waveContext.doNotAssumeRecipients
 			]
 		};
 	}
 
 	const existingWaveCount = Math.max(1, workspace.summary.campaignCount);
-	const previousWaveName = latestSetupWaveName(workspace) ?? `Wave ${existingWaveCount}`;
+	const previousWaveName = latestSetupWaveName(workspace) ?? copy.defaultWaveName(existingWaveCount);
 	const previousWaveStatus = formatCampaignStatus(
-		workspace.selectedCampaign?.status ?? workspace.campaigns.at(-1)?.status
+		workspace.selectedCampaign?.status ?? workspace.campaigns.at(-1)?.status,
+		copy
 	);
 	const reviewTarget =
-		existingWaveCount === 1 ? previousWaveName : `${firstSetupWaveName(workspace)} and ${previousWaveName}`;
+		existingWaveCount === 1
+			? previousWaveName
+			: `${firstSetupWaveName(workspace, copy)} ${copy.misc.and} ${previousWaveName}`;
 
 	return {
 		title:
 			existingWaveCount === 1
-				? `Review ${previousWaveName} before preparing ${nextWaveName}`
-				: `Review existing waves before preparing ${nextWaveName}`,
-		label: 'Future wave setup',
+				? copy.waveContext.reviewBeforePreparing(previousWaveName, nextWaveName)
+				: copy.waveContext.reviewExistingBeforePreparing(nextWaveName),
+		label: copy.waveContext.futureWaveSetup,
 		status: 'pending',
 		summary:
 			existingWaveCount === 1
-				? `${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`
-				: `${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
+				? copy.waveContext.closedOneWaveSummary(previousWaveName, previousWaveStatus, nextWaveName)
+				: copy.waveContext.multipleWaveSummary(existingWaveCount, nextWaveName),
 		guidance: [
-			`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
-			`Create ${nextWaveName} only when the next collection round is intentional.`,
-			`Recipient selection in this step will belong to the new draft wave, not to ${
-				existingWaveCount === 1 ? previousWaveName : 'the previous waves'
-			}.`
+			copy.waveContext.openResultsBeforeCreating(reviewTarget, nextWaveName),
+			copy.waveContext.createOnlyWhenIntentional(nextWaveName),
+			copy.waveContext.recipientBelongsToNewDraft(
+				existingWaveCount === 1 ? previousWaveName : copy.waveContext.previousWaves
+			)
 		]
 	};
 }
 
 export function toSelectedSeriesSetupPath(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
-	localState: SelectedSeriesSetupWorkflowLocalState = {}
+	localState: SelectedSeriesSetupWorkflowLocalState = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupPath {
-	const actions = toSelectedSeriesSetupWorkflowActions(workspace, localState);
+	const actions = toSelectedSeriesSetupWorkflowActions(workspace, localState, copy);
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
 	const instrumentDone = Boolean(
@@ -384,28 +630,29 @@ export function toSelectedSeriesSetupPath(
 export function toSelectedSeriesSetupPathStepDisplay(
 	step: Pick<SelectedSeriesSetupPathStep, 'id' | 'pathState'>,
 	currentActionId: SelectedSeriesSetupWorkflowActionId,
-	selectedActionId: SelectedSeriesSetupWorkflowActionId
+	selectedActionId: SelectedSeriesSetupWorkflowActionId,
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupPathStepDisplay {
 	const isSelected = step.id === selectedActionId;
 	const isNextUnfinished = step.id === currentActionId && step.pathState === 'current';
 
 	if (isSelected && isNextUnfinished) {
-		return { state: 'current', label: 'Current' };
+		return { state: 'current', label: copy.pathDisplay.current };
 	}
 
 	if (isSelected) {
-		return { state: 'selected', label: 'Selected' };
+		return { state: 'selected', label: copy.pathDisplay.selected };
 	}
 
 	if (isNextUnfinished) {
-		return { state: 'next', label: 'Next' };
+		return { state: 'next', label: copy.pathDisplay.next };
 	}
 
 	if (step.pathState === 'done') {
-		return { state: 'done', label: 'Done' };
+		return { state: 'done', label: copy.pathDisplay.done };
 	}
 
-	return { state: 'blocked', label: 'Blocked' };
+	return { state: 'blocked', label: copy.pathDisplay.blocked };
 }
 
 export function selectSetupTemplateVersionId(
@@ -440,8 +687,11 @@ function selectedSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse, 
 	);
 }
 
-function firstSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
-	return workspace.campaigns[0]?.name.trim() || 'Wave 1';
+function firstSetupWaveName(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	copy: SelectedSeriesSetupWorkflowCopy
+) {
+	return workspace.campaigns[0]?.name.trim() || copy.defaultWaveName(1);
 }
 
 function latestSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
@@ -453,8 +703,11 @@ function latestSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
 	);
 }
 
-function formatCampaignStatus(status: string | null | undefined) {
-	return status?.replaceAll('_', ' ') || 'not editable';
+function formatCampaignStatus(
+	status: string | null | undefined,
+	copy: SelectedSeriesSetupWorkflowCopy
+) {
+	return status?.replaceAll('_', ' ') || copy.misc.notEditable;
 }
 
 function toActionReadinessStatus(
@@ -491,76 +744,83 @@ function toPathStepState(
 	return 'blocked';
 }
 
-function toRecipientSummary(options: SelectedSeriesSetupLaunchStateOptions) {
+function toRecipientSummary(
+	options: SelectedSeriesSetupLaunchStateOptions,
+	copy: SelectedSeriesSetupWorkflowCopy
+) {
 	if (options.savedRecipientLoading) {
-		return 'Loading saved recipient selection...';
+		return copy.launchState.loadingSavedRecipients;
 	}
 
 	const selectionCount = options.savedRecipientSelectionCount ?? 0;
 	if (selectionCount > 0) {
 		const pairCount = options.savedRecipientPairCount ?? 0;
-		return `${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
-			pairCount === 1 ? 'invitation pair' : 'invitation pairs'
-		} ready.`;
+		return copy.launchState.savedSelections(selectionCount, pairCount);
 	}
 
 	if (options.responseIdentityMode === 'identified') {
-		return 'No saved recipients yet; save recipients before invite-only launch.';
+		return copy.launchState.noSavedIdentified;
 	}
 
 	if (options.responseIdentityMode === 'anonymous_longitudinal') {
-		return 'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.';
+		return copy.launchState.noSavedLongitudinal;
 	}
 
-	return 'No saved recipients; launch with a public link or save recipients below.';
+	return copy.launchState.noSavedAnonymous;
 }
 
-function responseModeLaunchPlanDetail(mode: string | null | undefined) {
+function responseModeLaunchPlanDetail(
+	mode: string | null | undefined,
+	copy: SelectedSeriesSetupWorkflowCopy
+) {
 	if (mode === 'identified') {
-		return 'Identified collection requires saved recipients so each respondent can receive assigned access.';
+		return copy.launchPlan.identifiedModeDetail;
 	}
 
 	if (mode === 'anonymous_longitudinal') {
-		return 'Repeat-participation collection can use public access or saved recipients; respondents use their own repeat code for comparison.';
+		return copy.launchPlan.longitudinalModeDetail;
 	}
 
 	if (mode === 'anonymous') {
-		return 'Anonymous collection can use a public link or saved email recipients.';
+		return copy.launchPlan.anonymousModeDetail;
 	}
 
-	return 'Choose how respondents should enter this wave.';
+	return copy.launchPlan.chooseModeDetail;
 }
 
 function recipientLaunchPlanDetail(
 	mode: string | null | undefined,
 	selectionCount: number,
-	pairCount: number
+	pairCount: number,
+	copy: SelectedSeriesSetupWorkflowCopy
 ) {
 	if (selectionCount > 0 || pairCount > 0) {
-		return `${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
-			pairCount === 1 ? 'invitation pair' : 'invitation pairs'
-		}.`;
+		return copy.launchPlan.savedRecipientDetail(selectionCount, pairCount);
 	}
 
 	if (mode === 'identified') {
-		return 'Identified collection needs saved recipients before launch.';
+		return copy.launchPlan.identifiedNeedsRecipients;
 	}
 
 	if (mode === 'anonymous_longitudinal') {
-		return 'No saved recipients yet. You can use a public link, or save recipients for invite-only repeat participation.';
+		return copy.launchPlan.longitudinalNoRecipients;
 	}
 
-	return 'No saved recipients yet. You can still launch anonymous collection with a public link.';
+	return copy.launchPlan.anonymousNoRecipients;
 }
 
-function collectionHandoffLaunchPlanDetail(readinessPassed: boolean, identifiedNeedsRecipients: boolean) {
+function collectionHandoffLaunchPlanDetail(
+	readinessPassed: boolean,
+	identifiedNeedsRecipients: boolean,
+	copy: SelectedSeriesSetupWorkflowCopy
+) {
 	if (identifiedNeedsRecipients) {
-		return 'Save recipients before opening Collection for identified launch.';
+		return copy.launchPlan.saveRecipientsBeforeIdentifiedLaunch;
 	}
 
 	if (readinessPassed) {
-		return 'Launch check passed; open Collection to start the wave.';
+		return copy.launchPlan.launchPassedOpenCollection;
 	}
 
-	return 'Run launch check before opening Collection.';
+	return copy.launchPlan.runLaunchCheckBeforeCollection;
 }

@@ -361,6 +361,147 @@ const en = {
 				ariaLabel: 'Waves and linked trajectories'
 			}
 		},
+		setupWorkflow: {
+			stepNumber: (number: number) => `Step ${number}`,
+			defaultWaveName: (number: number) => `Wave ${number}`,
+			steps: {
+				instrument: {
+					title: 'Study source',
+					description: 'Confirm what this study is based on before building the questionnaire.'
+				},
+				template: {
+					title: 'Questionnaire',
+					description: 'Build the questions respondents will answer in this study.'
+				},
+				scoring: {
+					title: 'Results setup',
+					description:
+						'Choose which answers become study results and how missing answers are handled.'
+				},
+				campaign: {
+					title: 'Wave and recipients',
+					description: 'Name the collection wave, choose the response mode, and prepare recipients.'
+				},
+				readiness: {
+					title: 'Launch check',
+					description:
+						'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.'
+				}
+			},
+			disabled: {
+				confirmInstrument: 'Confirm the instrument first.',
+				saveQuestionnaire: 'Save the questionnaire first.',
+				createCollectionWave: 'Create the collection wave first.'
+			},
+			pathDisplay: {
+				done: 'Done',
+				current: 'Current',
+				selected: 'Selected',
+				next: 'Next',
+				blocked: 'Blocked'
+			},
+			launchState: {
+				createWaveFirstStatus: 'Create collection wave first',
+				createWaveFirstNext: 'Create and save the collection wave before checking launch.',
+				runLaunchCheckFirst: 'Run launch check first',
+				launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
+				launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
+				saveRecipientsForIdentified:
+					'Save recipients below before launch so Collection can create identified access.',
+				openCollectionOrSaveRecipients:
+					'Open Collection to launch with a public link, or save recipients below before launch.',
+				launchPassedWithRecipients: 'Launch check passed with saved recipients',
+				openCollectionStartSavedRecipients:
+					'Open Collection to start the wave and send the saved recipients.',
+				openCollectionLaunch: 'Open Collection launch',
+				runLaunchCheck: 'Run launch check',
+				needsAttention: 'Needs attention',
+				resolveBeforeCollection:
+					'Run the launch check and resolve any listed issues before opening Collection.',
+				loadingSavedRecipients: 'Loading saved recipient selection...',
+				savedSelections: (selectionCount: number, pairCount: number) =>
+					`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
+						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
+					} ready.`,
+				noSavedIdentified: 'No saved recipients yet; save recipients before invite-only launch.',
+				noSavedLongitudinal:
+					'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.',
+				noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
+			},
+			launchPlan: {
+				title: 'Launch plan',
+				summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
+				draftWave: 'Draft wave',
+				wave: 'Wave',
+				responseMode: 'Response mode',
+				recipients: 'Recipients',
+				collectionHandoff: 'Collection handoff',
+				waveDraftReady: (waveName: string) => `${waveName} is the draft wave for this study.`,
+				waveWillBeCreated: (waveName: string) =>
+					`${waveName} will be created when you save this step.`,
+				identifiedModeDetail:
+					'Identified collection requires saved recipients so each respondent can receive assigned access.',
+				longitudinalModeDetail:
+					'Repeat-participation collection can use public access or saved recipients; respondents use their own repeat code for comparison.',
+				anonymousModeDetail: 'Anonymous collection can use a public link or saved email recipients.',
+				chooseModeDetail: 'Choose how respondents should enter this wave.',
+				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
+					`${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
+						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
+					}.`,
+				identifiedNeedsRecipients: 'Identified collection needs saved recipients before launch.',
+				longitudinalNoRecipients:
+					'No saved recipients yet. You can use a public link, or save recipients for invite-only repeat participation.',
+				anonymousNoRecipients:
+					'No saved recipients yet. You can still launch anonymous collection with a public link.',
+				saveRecipientsBeforeIdentifiedLaunch:
+					'Save recipients before opening Collection for identified launch.',
+				launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
+				runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
+			},
+			waveContext: {
+				prepareForCollection: (waveName: string) => `Prepare ${waveName} for collection`,
+				firstWaveSetup: 'First wave setup',
+				currentDraftWave: 'Current draft wave',
+				followUpDraftWave: 'Follow-up draft wave',
+				futureWaveSetup: 'Future wave setup',
+				firstWaveSummary: 'Use this step to create the first collection wave and decide who can answer.',
+				currentDraftSummary: 'Use this step to finish the current draft wave before opening Collection.',
+				followUpDraftSummary: (waveName: string) =>
+					`${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+				closedOneWaveSummary: (
+					previousWaveName: string,
+					previousWaveStatus: string,
+					nextWaveName: string
+				) =>
+					`${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`,
+				multipleWaveSummary: (existingWaveCount: number, nextWaveName: string) =>
+					`${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
+				createFirstAfterSetup:
+					'Create Wave 1 only after the questionnaire and results setup are saved.',
+				recipientBelongsUntilLaunch: (waveName: string) =>
+					`Recipient selection belongs to ${waveName} until this wave is launched.`,
+				reviewResultsBeforeFollowup:
+					'Review the previous wave in Results before treating this as a follow-up collection.',
+				doNotAssumeRecipients:
+					'Do not assume recipients are unchanged; save the intended people or group for this wave.',
+				reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) =>
+					`Review ${previousWaveName} before preparing ${nextWaveName}`,
+				reviewExistingBeforePreparing: (nextWaveName: string) =>
+					`Review existing waves before preparing ${nextWaveName}`,
+				openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) =>
+					`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
+				createOnlyWhenIntentional: (nextWaveName: string) =>
+					`Create ${nextWaveName} only when the next collection round is intentional.`,
+				recipientBelongsToNewDraft: (previousLabel: string) =>
+					`Recipient selection in this step will belong to the new draft wave, not to ${previousLabel}.`,
+				previousWaves: 'the previous waves'
+			},
+			misc: {
+				notEditable: 'not editable',
+				and: 'and'
+			}
+		},
 		surfaceChrome: {
 			loadingContext: (surface: string) => `Loading ${surface} context`,
 			missingStudy: 'Select a study before opening this surface.',
@@ -829,6 +970,147 @@ const hr: typeof en = {
 				description:
 					'Izradite naknadne valove prikupljanja, zatim usporedite povezanu longitudinalnu promjenu kad je studija spremna.',
 				ariaLabel: 'Valovi i povezane putanje'
+			}
+		},
+		setupWorkflow: {
+			stepNumber: (number: number) => `Korak ${number}`,
+			defaultWaveName: (number: number) => `Val ${number}`,
+			steps: {
+				instrument: {
+					title: 'Izvor studije',
+					description: 'Potvrdite na čemu se studija temelji prije izrade upitnika.'
+				},
+				template: {
+					title: 'Upitnik',
+					description: 'Izradite pitanja na koja će sudionici odgovarati u ovoj studiji.'
+				},
+				scoring: {
+					title: 'Postavljanje rezultata',
+					description:
+						'Odaberite koji odgovori postaju rezultati studije i kako se obrađuju nedostajući odgovori.'
+				},
+				campaign: {
+					title: 'Val i primatelji',
+					description: 'Imenujte val prikupljanja, odaberite način odgovaranja i pripremite primatelje.'
+				},
+				readiness: {
+					title: 'Provjera pokretanja',
+					description:
+						'Provjerite upitnik, postavljanje rezultata, val, primatelje i pravila prije početka prikupljanja.'
+				}
+			},
+			disabled: {
+				confirmInstrument: 'Prvo potvrdite izvor studije.',
+				saveQuestionnaire: 'Prvo spremite upitnik.',
+				createCollectionWave: 'Prvo izradite val prikupljanja.'
+			},
+			pathDisplay: {
+				done: 'Gotovo',
+				current: 'Trenutno',
+				selected: 'Odabrano',
+				next: 'Sljedeće',
+				blocked: 'Blokirano'
+			},
+			launchState: {
+				createWaveFirstStatus: 'Prvo izradite val prikupljanja',
+				createWaveFirstNext: 'Izradite i spremite val prikupljanja prije provjere pokretanja.',
+				runLaunchCheckFirst: 'Prvo pokrenite provjeru',
+				launchPassedSaveRecipients: 'Provjera je prošla; spremite primatelje za identificirani pristup',
+				launchPassedChooseAccess: 'Provjera je prošla; odaberite javnu poveznicu ili spremite primatelje',
+				saveRecipientsForIdentified:
+					'Spremite primatelje ispod prije pokretanja kako bi Prikupljanje moglo izraditi identificirani pristup.',
+				openCollectionOrSaveRecipients:
+					'Otvorite Prikupljanje za pokretanje javnom poveznicom ili spremite primatelje ispod prije pokretanja.',
+				launchPassedWithRecipients: 'Provjera je prošla sa spremljenim primateljima',
+				openCollectionStartSavedRecipients:
+					'Otvorite Prikupljanje za pokretanje vala i slanje spremljenim primateljima.',
+				openCollectionLaunch: 'Otvori pokretanje u Prikupljanju',
+				runLaunchCheck: 'Pokreni provjeru',
+				needsAttention: 'Treba pažnju',
+				resolveBeforeCollection:
+					'Pokrenite provjeru pokretanja i riješite navedene probleme prije otvaranja Prikupljanja.',
+				loadingSavedRecipients: 'Učitavanje spremljenog odabira primatelja...',
+				savedSelections: (selectionCount: number, pairCount: number) =>
+					`${selectionCount} ${selectionCount === 1 ? 'odabir spremljen' : 'odabira spremljeno'}, ${pairCount} ${
+						pairCount === 1 ? 'pozivni par spreman' : 'pozivnih parova spremno'
+					}.`,
+				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih prije invite-only pokretanja.',
+				noSavedLongitudinal:
+					'Nema spremljenih primatelja; spremite primatelje za invite-only pristup ili upotrijebite javnu poveznicu i neka sudionici unesu svoj kod ponovnog sudjelovanja.',
+				noSavedAnonymous: 'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje ispod.'
+			},
+			launchPlan: {
+				title: 'Plan pokretanja',
+				summary: 'Pripremite val, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.',
+				draftWave: 'Nacrt vala',
+				wave: 'Val',
+				responseMode: 'Način odgovaranja',
+				recipients: 'Primatelji',
+				collectionHandoff: 'Prijenos u Prikupljanje',
+				waveDraftReady: (waveName: string) => `${waveName} je nacrt vala za ovu studiju.`,
+				waveWillBeCreated: (waveName: string) =>
+					`${waveName} nastat će kad spremite ovaj korak.`,
+				identifiedModeDetail:
+					'Identificirano prikupljanje zahtijeva spremljene primatelje kako bi svaki sudionik dobio dodijeljeni pristup.',
+				longitudinalModeDetail:
+					'Prikupljanje s ponovnim sudjelovanjem može koristiti javni pristup ili spremljene primatelje; sudionici koriste vlastiti ponovni kod za usporedbu.',
+				anonymousModeDetail: 'Anonimno prikupljanje može koristiti javnu poveznicu ili spremljene pozive e-poštom.',
+				chooseModeDetail: 'Odaberite kako sudionici ulaze u ovaj val.',
+				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
+					`${selectionCount} ${selectionCount === 1 ? 'spremljen odabir' : 'spremljena odabira'} s ${pairCount} ${
+						pairCount === 1 ? 'pozivnim parom' : 'pozivnih parova'
+					}.`,
+				identifiedNeedsRecipients: 'Identificirano prikupljanje treba spremljene primatelje prije pokretanja.',
+				longitudinalNoRecipients:
+					'Nema spremljenih primatelja. Možete koristiti javnu poveznicu ili spremiti primatelje za invite-only ponovno sudjelovanje.',
+				anonymousNoRecipients:
+					'Nema spremljenih primatelja. Anonimno prikupljanje još možete pokrenuti javnom poveznicom.',
+				saveRecipientsBeforeIdentifiedLaunch:
+					'Spremite primatelje prije otvaranja Prikupljanja za identificirano pokretanje.',
+				launchPassedOpenCollection: 'Provjera je prošla; otvorite Prikupljanje za pokretanje vala.',
+				runLaunchCheckBeforeCollection: 'Pokrenite provjeru prije otvaranja Prikupljanja.'
+			},
+			waveContext: {
+				prepareForCollection: (waveName: string) => `Pripremite ${waveName} za prikupljanje`,
+				firstWaveSetup: 'Postavljanje prvog vala',
+				currentDraftWave: 'Trenutni nacrt vala',
+				followUpDraftWave: 'Nacrt naknadnog vala',
+				futureWaveSetup: 'Postavljanje budućeg vala',
+				firstWaveSummary: 'Ovdje izradite prvi val prikupljanja i odlučite tko može odgovoriti.',
+				currentDraftSummary: 'Dovršite trenutni nacrt vala prije otvaranja Prikupljanja.',
+				followUpDraftSummary: (waveName: string) =>
+					`${waveName} je nacrt naknadnog vala. Koristite ga samo kad je sljedeći krug prikupljanja namjeran.`,
+				closedOneWaveSummary: (
+					previousWaveName: string,
+					previousWaveStatus: string,
+					nextWaveName: string
+				) =>
+					`${previousWaveName} je već ${previousWaveStatus}. Izradite ${nextWaveName} samo kad je sljedeći krug prikupljanja namjeran.`,
+				multipleWaveSummary: (existingWaveCount: number, nextWaveName: string) =>
+					`${existingWaveCount} valova već postoji. Izradite ${nextWaveName} tek nakon pregleda rezultata trenutnog vala.`,
+				createFirstAfterSetup:
+					'Izradite Val 1 tek nakon što su upitnik i postavljanje rezultata spremljeni.',
+				recipientBelongsUntilLaunch: (waveName: string) =>
+					'Odabir primatelja pripada ' + waveName + ' dok se taj val ne pokrene.',
+				reviewResultsBeforeFollowup:
+					'Pregledajte prethodni val u Rezultatima prije nego ga tretirate kao naknadno prikupljanje.',
+				doNotAssumeRecipients:
+					'Nemojte pretpostaviti da su primatelji isti; spremite namjeravane ljude ili grupu za ovaj val.',
+				reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) =>
+					`Pregledajte ${previousWaveName} prije pripreme ${nextWaveName}`,
+				reviewExistingBeforePreparing: (nextWaveName: string) =>
+					`Pregledajte postojeće valove prije pripreme ${nextWaveName}`,
+				openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) =>
+					`Otvorite Rezultate za pregled ili izvoz ${reviewTarget} prije izrade ${nextWaveName}.`,
+				createOnlyWhenIntentional: (nextWaveName: string) =>
+					`Izradite ${nextWaveName} samo kad je sljedeći krug prikupljanja namjeran.`,
+				recipientBelongsToNewDraft: (previousLabel: string) =>
+					`Odabir primatelja u ovom koraku pripadat će novom nacrtu vala, ne ${previousLabel}.`,
+				previousWaves: 'prethodnim valovima'
+			},
+			misc: {
+				notEditable: 'nije moguće uređivati',
+				and: 'i'
 			}
 		},
 		surfaceChrome: {

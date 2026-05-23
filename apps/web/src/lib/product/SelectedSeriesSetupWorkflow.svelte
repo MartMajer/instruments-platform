@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { ArrowDown, ArrowUp, Copy, LoaderCircle, Plus, RefreshCw, SearchCheck, Send, Trash2 } from 'lucide-svelte';
 	import type {
 		CampaignSeriesSetupWorkspaceResponse,
@@ -24,6 +25,8 @@
 		TemplateVersionDetailResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { createProductApiFromEnv, createSetupApiFromEnv } from './route-state';
 	import {
 		defaultCampaignWaveName,
@@ -111,6 +114,8 @@
 
 	const productApi = createProductApiFromEnv(env);
 	const setupApi = createSetupApiFromEnv(env);
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const setupWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.setupWorkflow);
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
@@ -225,7 +230,7 @@
 		scoringRuleId: scoringResult?.id ?? null,
 		campaignId: campaignResult?.id ?? null
 	});
-	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState));
+	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState, setupWorkflowCopy));
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
@@ -307,9 +312,9 @@
 			savedRecipientPairCount: assignmentResult?.assignmentCount ?? 0,
 			readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
 			waveName: selectedCampaignId ? selectedCampaignLabel : campaignForm.name
-		})
+		}, setupWorkflowCopy)
 	);
-	const waveContext = $derived(toSelectedSeriesSetupWaveContext(workspace, localState));
+	const waveContext = $derived(toSelectedSeriesSetupWaveContext(workspace, localState, setupWorkflowCopy));
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
 	);
@@ -349,7 +354,7 @@
 
 	$effect(() => {
 		if (!campaignNameInitialized) {
-			campaignForm.name = defaultCampaignWaveName(workspace);
+			campaignForm.name = defaultCampaignWaveName(workspace, setupWorkflowCopy);
 			campaignNameInitialized = true;
 		}
 	});
@@ -1168,7 +1173,12 @@
 	}
 
 	function setupPathStepDisplay(step: SelectedSeriesSetupPathStep) {
-		return toSelectedSeriesSetupPathStepDisplay(step, currentActionId, activeActionIdForView);
+		return toSelectedSeriesSetupPathStepDisplay(
+			step,
+			currentActionId,
+			activeActionIdForView,
+			setupWorkflowCopy
+		);
 	}
 
 	function activeSetupStepEyebrow() {
@@ -1258,7 +1268,7 @@
 			savedRecipientPairCount: savedRecipientPairCount(),
 			savedRecipientLoading: savedRuleState === 'submitting',
 			responseIdentityMode: selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode
-		});
+		}, setupWorkflowCopy);
 	}
 
 	function deliveryRosterSummary() {

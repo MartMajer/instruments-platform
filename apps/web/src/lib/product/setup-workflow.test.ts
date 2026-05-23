@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesSetupWorkspaceResponse } from '$lib/api/product';
+import { routePageCopy } from '$lib/i18n/route-copy';
 import {
 	defaultCampaignWaveName,
 	selectSetupCampaignId,
@@ -390,6 +391,44 @@ describe('selected-series setup workflow model', () => {
 			label: 'Current',
 			state: 'current'
 		});
+	});
+
+	it('localizes setup workflow model copy for Croatian route context', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.setupWorkflow;
+		const path = toSelectedSeriesSetupPath(emptyWorkspace, {}, copy);
+		const plan = toSelectedSeriesSetupLaunchPlan(
+			configuredWorkspace,
+			{},
+			{
+				responseIdentityMode: 'anonymous',
+				savedRecipientSelectionCount: 0,
+				savedRecipientPairCount: 0,
+				readinessPassed: false
+			},
+			copy
+		);
+
+		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Val 1');
+		expect(path.steps[0]).toMatchObject({
+			step: 'Korak 1',
+			title: 'Izvor studije',
+			description: 'Potvrdite na čemu se studija temelji prije izrade upitnika.'
+		});
+		expect(path.steps[1]?.disabledReason).toBe('Prvo potvrdite izvor studije.');
+		expect(toSelectedSeriesSetupPathStepDisplay(path.steps[0]!, path.currentActionId, 'template', copy)).toEqual({
+			label: 'Sljedeće',
+			state: 'next'
+		});
+		expect(plan).toMatchObject({
+			title: 'Plan pokretanja',
+			summary: 'Pripremite val, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.'
+		});
+		expect(plan.items.map((item) => item.label)).toEqual([
+			'Val',
+			'Način odgovaranja',
+			'Primatelji',
+			'Prijenos u Prikupljanje'
+		]);
 	});
 });
 
