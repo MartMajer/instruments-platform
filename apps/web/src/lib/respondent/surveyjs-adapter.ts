@@ -9,7 +9,7 @@ export type RespondentSurveyJson = {
 };
 
 export type RespondentSurveyElement = {
-	type: 'text' | 'comment' | 'rating' | 'radiogroup' | 'checkbox' | 'ranking';
+	type: 'text' | 'comment' | 'rating' | 'radiogroup' | 'checkbox' | 'ranking' | 'matrix';
 	name: string;
 	title: string;
 	isRequired: boolean;
@@ -27,6 +27,8 @@ export type RespondentSurveyElement = {
 	minRateDescription?: string;
 	maxRateDescription?: string;
 	choices?: RespondentSurveyChoice[];
+	rows?: RespondentSurveyChoice[];
+	columns?: RespondentSurveyChoice[];
 };
 
 export type RespondentSurveyChoice = {
@@ -128,6 +130,16 @@ function toSurveyElement(question: RespondentQuestionResponse): RespondentSurvey
 		};
 	}
 
+	if (question.type === 'matrix') {
+		const matrix = readObject(parseObject(question.payload), 'matrix');
+		return {
+			...element,
+			type: 'matrix',
+			rows: matrixChoices(matrix, 'rows'),
+			columns: matrixChoices(matrix, 'columns')
+		};
+	}
+
 	if (question.type === 'number') {
 		const validation = readObject(parseObject(question.payload), 'validation');
 		element.inputType = 'number';
@@ -183,12 +195,28 @@ export function normalizeSurveyValueToAnswer(
 		return JSON.stringify(Array.isArray(value) ? value.map(String) : [String(value)]);
 	}
 
+	if (usesObjectAnswer(question)) {
+		return JSON.stringify(normalizeMatrixAnswer(question, value));
+	}
+
 	return String(value);
 }
 
 function toSurveyInitialValue(question: RespondentQuestionResponse, value: string | undefined) {
 	if (value === undefined || value === '') {
+		if (usesObjectAnswer(question)) {
+			return {};
+		}
+
 		return usesArrayAnswer(question) ? [] : '';
+	}
+
+	if (usesObjectAnswer(question)) {
+		try {
+			return normalizeMatrixAnswer(question, JSON.parse(value));
+		} catch {
+			return {};
+		}
 	}
 
 	if (!usesArrayAnswer(question)) {
@@ -210,6 +238,10 @@ function toSurveyInitialValue(question: RespondentQuestionResponse, value: strin
 
 function usesArrayAnswer(question: RespondentQuestionResponse): boolean {
 	return question.type === 'multi' || question.type === 'ranking';
+}
+
+function usesObjectAnswer(question: RespondentQuestionResponse): boolean {
+	return question.type === 'matrix';
 }
 
 function scaleDefinition(question: RespondentQuestionResponse) {
@@ -242,6 +274,47 @@ function questionChoices(question: RespondentQuestionResponse): RespondentSurvey
 			};
 		})
 		.filter((choice) => choice.value.trim() && choice.text.trim());
+}
+
+function matrixChoices(source: Record<string, unknown>, key: 'rows' | 'columns'): RespondentSurveyChoice[] {
+	const entries = Array.isArray(source[key]) ? source[key] : [];
+	return entries
+		.map((entry, index) => {
+			const candidate = entry && typeof entry === 'object' ? entry : {};
+			const fallbackPrefix = key === 'rows' ? 'r' : 'c';
+			const code =
+				readString(candidate, 'code') || `${fallbackPrefix}${String(index + 1).padStart(2, '0')}`;
+			const label = readString(candidate, 'label') || code;
+			return {
+				value: code,
+				text: label
+			};
+		})
+		.filter((choice) => choice.value.trim() && choice.text.trim());
+}
+
+function normalizeMatrixAnswer(
+	question: RespondentQuestionResponse,
+	value: unknown
+): Record<string, string> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		return {};
+	}
+
+	const matrix = readObject(parseObject(question.payload), 'matrix');
+	const rows = matrixChoices(matrix, 'rows');
+	const columnCodes = new Set(matrixChoices(matrix, 'columns').map((column) => column.value));
+	const source = value as Record<string, unknown>;
+	const answer: Record<string, string> = {};
+
+	for (const row of rows) {
+		const candidate = source[row.value];
+		if (typeof candidate === 'string' && columnCodes.has(candidate)) {
+			answer[row.value] = candidate;
+		}
+	}
+
+	return answer;
 }
 
 function surveyOtherChoiceOptions(choice: Record<string, unknown>): Partial<RespondentSurveyElement> {

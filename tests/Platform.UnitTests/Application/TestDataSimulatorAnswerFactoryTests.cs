@@ -37,6 +37,16 @@ public sealed class TestDataSimulatorAnswerFactoryTests
                     """),
             new TestDataSimulatorQuestion(
                 Guid.Parse("018f9d3d-7415-7000-9000-000000000004"),
+                "body_discomfort",
+                "matrix",
+                Required: true,
+                ScaleMinValue: null,
+                ScaleMaxValue: null,
+                Payload: """
+                    {"matrix":{"mode":"single","rows":[{"code":"r01","label":"Neck / shoulders"},{"code":"r02","label":"Lower back"}],"columns":[{"code":"c01","label":"None"},{"code":"c02","label":"Mild"},{"code":"c03","label":"Severe"}]}}
+                    """),
+            new TestDataSimulatorQuestion(
+                Guid.Parse("018f9d3d-7415-7000-9000-000000000005"),
                 "comment",
                 "text",
                 Required: false,
@@ -73,8 +83,13 @@ public sealed class TestDataSimulatorAnswerFactoryTests
             },
             fourth =>
             {
-                Assert.Equal("comment", fourth.QuestionCode);
-                Assert.Contains("simulated", fourth.Value, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal("body_discomfort", fourth.QuestionCode);
+                Assert.Equal("""{"r01":"c03","r02":"c03"}""", fourth.Value);
+            },
+            fifth =>
+            {
+                Assert.Equal("comment", fifth.QuestionCode);
+                Assert.Contains("simulated", fifth.Value, StringComparison.OrdinalIgnoreCase);
             });
     }
 }

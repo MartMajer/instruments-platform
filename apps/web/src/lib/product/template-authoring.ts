@@ -8,7 +8,8 @@ export type TemplateQuestionAnswerType =
 	| 'text'
 	| 'date'
 	| 'nps'
-	| 'ranking';
+	| 'ranking'
+	| 'matrix';
 
 export type QuestionScalePreset =
 	| 'agreement_5'
@@ -63,6 +64,8 @@ export type TemplateQuestionAuthoringRow = {
 	choiceExclusiveOptionLabel: string;
 	rankingMode: QuestionRankingMode;
 	rankingTopN: number | null;
+	matrixRows: string[];
+	matrixColumns: string[];
 };
 
 export type TemplateQuestionMoveDirection = 'up' | 'down';
@@ -206,6 +209,7 @@ export type QuestionScaleIntentKind =
 	| 'recommendation'
 	| 'number'
 	| 'choice'
+	| 'matrix'
 	| 'written'
 	| 'date'
 	| 'ranking'
@@ -232,6 +236,8 @@ const defaultQuestionText = [
 const defaultQuestionDimensions = ['Topic 1', 'Topic 2', 'Topic 3'];
 
 const defaultChoiceOptions = ['Option 1', 'Option 2'];
+const defaultMatrixRows = ['Row 1', 'Row 2', 'Row 3'];
+const defaultMatrixColumns = ['Option 1', 'Option 2', 'Option 3'];
 
 export const questionScalePresetOptions: QuestionScalePresetOption[] = [
 	{
@@ -432,7 +438,9 @@ export function duplicateTemplateQuestionRow(
 		textDefault: source.textDefault.trim()
 			? `${source.textDefault.trim()} (copy)`
 			: `${source.code} copy`,
-		choiceOptions: [...source.choiceOptions]
+		choiceOptions: [...source.choiceOptions],
+		matrixRows: [...source.matrixRows],
+		matrixColumns: [...source.matrixColumns]
 	};
 
 	return renumberRows([...rows.slice(0, index + 1), duplicate, ...rows.slice(index + 1)]);
@@ -544,6 +552,16 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 				errors.push(
 					`Question ${index + 1} top-N ranking must be between 1 and the number of available options.`
 				);
+			}
+		}
+
+		if (row.type === 'matrix') {
+			if (normalizedMatrixRows(row).length < 1) {
+				errors.push(`Question ${index + 1} matrix needs at least one row.`);
+			}
+
+			if (normalizedMatrixColumns(row).length < 2) {
+				errors.push(`Question ${index + 1} matrix needs at least two column options.`);
 			}
 		}
 	});
@@ -1041,6 +1059,15 @@ export function describeQuestionScaleIntent(
 			kind: 'ranking',
 			label: 'Ranking',
 			detail: 'Respondents order choices. Ranking can support descriptive review but is not included in current numeric result outputs.'
+		};
+	}
+
+	if (row.type === 'matrix') {
+		return {
+			kind: 'matrix',
+			label: 'Matrix / grid',
+			detail:
+				'Respondents answer the same column choices for each row. Matrix answers are collected for context and export, not current numeric result outputs.'
 		};
 	}
 
@@ -1618,7 +1645,9 @@ function createQuestionRow(
 		choiceOtherLabel: row.choiceOtherLabel ?? 'Other',
 		choiceExclusiveOptionLabel: row.choiceExclusiveOptionLabel ?? '',
 		rankingMode: row.rankingMode ?? 'rank_all',
-		rankingTopN: row.rankingTopN ?? null
+		rankingTopN: row.rankingTopN ?? null,
+		matrixRows: row.matrixRows ?? defaultMatrixRows,
+		matrixColumns: row.matrixColumns ?? defaultMatrixColumns
 	};
 }
 
@@ -1659,7 +1688,7 @@ function measurementLevelFor(row: TemplateQuestionAuthoringRow): string | null {
 		return 'ordinal';
 	}
 
-	if (row.type === 'single' || row.type === 'multi') {
+	if (row.type === 'single' || row.type === 'multi' || row.type === 'matrix') {
 		return 'nominal';
 	}
 
@@ -1671,6 +1700,11 @@ type ChoiceOptionPayload = {
 	label: string;
 	isOther?: true;
 	exclusive?: true;
+};
+
+type MatrixOptionPayload = {
+	code: string;
+	label: string;
 };
 
 function questionPayload(row: TemplateQuestionAuthoringRow): string {
@@ -1704,6 +1738,16 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 			ranking: {
 				mode: row.rankingMode,
 				topN: row.rankingMode === 'top_n' ? nullableNumber(row.rankingTopN) : null
+			}
+		});
+	}
+
+	if (row.type === 'matrix') {
+		return JSON.stringify({
+			matrix: {
+				mode: 'single',
+				rows: matrixOptionPayloads(normalizedMatrixRows(row), 'r'),
+				columns: matrixOptionPayloads(normalizedMatrixColumns(row), 'c')
 			}
 		});
 	}
@@ -1744,6 +1788,21 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 
 function normalizedChoiceOptions(row: TemplateQuestionAuthoringRow): string[] {
 	return row.choiceOptions.map((option) => option.trim()).filter(Boolean);
+}
+
+function normalizedMatrixRows(row: TemplateQuestionAuthoringRow): string[] {
+	return row.matrixRows.map((rowLabel) => rowLabel.trim()).filter(Boolean);
+}
+
+function normalizedMatrixColumns(row: TemplateQuestionAuthoringRow): string[] {
+	return row.matrixColumns.map((columnLabel) => columnLabel.trim()).filter(Boolean);
+}
+
+function matrixOptionPayloads(labels: string[], prefix: 'r' | 'c'): MatrixOptionPayload[] {
+	return labels.map((label, index) => ({
+		code: `${prefix}${String(index + 1).padStart(2, '0')}`,
+		label
+	}));
 }
 
 function choiceOptionPayloads(row: TemplateQuestionAuthoringRow): ChoiceOptionPayload[] {
@@ -1870,6 +1929,12 @@ function answerFormatDetail(row: TemplateQuestionAuthoringRow): string {
 		return `Rank all options: ${labels}`;
 	}
 
+	if (row.type === 'matrix') {
+		const rows = normalizedMatrixRows(row);
+		const columns = normalizedMatrixColumns(row);
+		return `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}; columns: ${columns.join(', ') || 'none'}`;
+	}
+
 	if (row.type === 'number') {
 		const range = numberRangeLabel(row);
 		const unit = trimmedOrNull(row.numberUnit);
@@ -1933,6 +1998,14 @@ function respondentResponsePreview(row: TemplateQuestionAuthoringRow): string {
 			: 'Ranking choices appear here after options are added.';
 	}
 
+	if (row.type === 'matrix') {
+		const rows = normalizedMatrixRows(row);
+		const columns = normalizedMatrixColumns(row);
+		return rows.length && columns.length
+			? `Grid rows: ${rows.join(', ')}; columns: ${columns.join(', ')}`
+			: 'Matrix rows and columns appear here after labels are added.';
+	}
+
 	if (row.type === 'number') {
 		return 'Numeric input field';
 	}
@@ -1974,6 +2047,7 @@ export type DraftRespondentRuntimeControl =
 	| 'radio'
 	| 'checkbox'
 	| 'ranking'
+	| 'matrix'
 	| 'number'
 	| 'date'
 	| 'text'
@@ -1999,6 +2073,8 @@ export type DraftRespondentPreviewQuestion = {
 	answerFormatDetail: string;
 	responsePreviewLabel: string;
 	choices: DraftRespondentPreviewChoice[];
+	matrixRows: DraftRespondentPreviewChoice[];
+	matrixColumns: DraftRespondentPreviewChoice[];
 	scaleMin: number | null;
 	scaleMax: number | null;
 	scaleLowLabel: string | null;
@@ -2088,6 +2164,8 @@ function toDraftRespondentPreviewQuestion(
 		answerFormatDetail: runtime.answerFormatDetail,
 		responsePreviewLabel: runtime.responsePreviewLabel,
 		choices: draftRuntimeChoices(question),
+		matrixRows: draftRuntimeMatrixRows(question),
+		matrixColumns: draftRuntimeMatrixColumns(question),
 		scaleMin: runtime.scaleMin,
 		scaleMax: runtime.scaleMax,
 		scaleLowLabel: runtime.scaleLowLabel,
@@ -2156,6 +2234,21 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			answerFormatLabel: 'Ranking',
 			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS ranking control',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'matrix') {
+		return {
+			controlType: 'matrix' as const,
+			runtimeElementType: 'matrix',
+			inputType: null,
+			answerFormatLabel: 'Matrix / grid',
+			answerFormatDetail: answerFormatDetail(question),
+			responsePreviewLabel: 'SurveyJS single-select matrix',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2237,6 +2330,28 @@ function draftRuntimeChoices(question: TemplateQuestionAuthoringRow): DraftRespo
 	}));
 }
 
+function draftRuntimeMatrixRows(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+	if (question.type !== 'matrix') {
+		return [];
+	}
+
+	return matrixOptionPayloads(normalizedMatrixRows(question), 'r').map((row) => ({
+		value: row.code,
+		text: row.label
+	}));
+}
+
+function draftRuntimeMatrixColumns(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+	if (question.type !== 'matrix') {
+		return [];
+	}
+
+	return matrixOptionPayloads(normalizedMatrixColumns(question), 'c').map((column) => ({
+		value: column.code,
+		text: column.label
+	}));
+}
+
 function draftRuntimeWarnings(
 	question: TemplateQuestionAuthoringRow,
 	controlType: DraftRespondentRuntimeControl
@@ -2261,6 +2376,14 @@ function draftRuntimeWarnings(
 
 	if ((question.type === 'single' || question.type === 'multi' || question.type === 'ranking') && question.choiceOptions.length < 2) {
 		warnings.push('Choice and ranking questions need at least two options.');
+	}
+
+	if (question.type === 'matrix' && normalizedMatrixRows(question).length < 1) {
+		warnings.push('Matrix questions need at least one row.');
+	}
+
+	if (question.type === 'matrix' && normalizedMatrixColumns(question).length < 2) {
+		warnings.push('Matrix questions need at least two column options.');
 	}
 
 	if (question.type === 'number' && !hasNumberMetadata(question)) {
@@ -2540,7 +2663,9 @@ function paletteQuestion(
 		choiceOtherLabel: overrides.choiceOtherLabel ?? 'Other',
 		choiceExclusiveOptionLabel: overrides.choiceExclusiveOptionLabel ?? '',
 		rankingMode: overrides.rankingMode ?? 'rank_all',
-		rankingTopN: overrides.rankingTopN ?? null
+		rankingTopN: overrides.rankingTopN ?? null,
+		matrixRows: overrides.matrixRows ?? defaultMatrixRows,
+		matrixColumns: overrides.matrixColumns ?? defaultMatrixColumns
 	};
 }
 

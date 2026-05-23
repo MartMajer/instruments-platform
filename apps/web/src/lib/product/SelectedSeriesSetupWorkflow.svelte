@@ -934,6 +934,24 @@
 		});
 	}
 
+	function updateMatrixRows(rowIndex: number, value: string) {
+		updateTemplateQuestionRow(rowIndex, {
+			matrixRows: value
+				.split('\n')
+				.map((row) => row.trim())
+				.filter(Boolean)
+		});
+	}
+
+	function updateMatrixColumns(rowIndex: number, value: string) {
+		updateTemplateQuestionRow(rowIndex, {
+			matrixColumns: value
+				.split('\n')
+				.map((column) => column.trim())
+				.filter(Boolean)
+		});
+	}
+
 	function updateScaleNumber(
 		rowIndex: number,
 		field: 'scaleMin' | 'scaleMax',
@@ -976,7 +994,8 @@
 			number: 'Number',
 			text: 'Text',
 			date: 'Date',
-			ranking: 'Ranking'
+			ranking: 'Ranking',
+			matrix: 'Matrix / grid'
 		};
 		return setupUi(labels[type] ?? 'Question');
 	}
@@ -1004,6 +1023,12 @@
 
 		if (question.type === 'ranking') {
 			return setupUi(`Rank options: ${question.choiceOptions.join(', ')}`);
+		}
+
+		if (question.type === 'matrix') {
+			return setupUi(
+				`Matrix rows: ${question.matrixRows.join(', ')}; columns: ${question.matrixColumns.join(', ')}`
+			);
 		}
 
 		return setupUi('Text response');
@@ -1733,6 +1758,15 @@
 		Text: 'Tekst',
 		Date: 'Datum',
 		Ranking: 'Rangiranje',
+		'Matrix / grid': 'Matrica / mreza',
+		'Matrix rows and columns': 'Redci i stupci matrice',
+		Rows: 'Redci',
+		Columns: 'Stupci',
+		Row: 'Redak',
+		'Enter one row per line. Each row becomes a separate prompt in the grid.':
+			'Unesite jedan redak po liniji. Svaki redak postaje zaseban upit u matrici.',
+		'Enter one answer column per line. Respondents choose one column for each row.':
+			'Unesite jedan odgovor po liniji. Ispitanici biraju jedan stupac za svaki redak.',
 		'Scale values and labels': 'Vrijednosti i oznake ljestvice',
 		'Scale preset': 'Predložak ljestvice',
 		'Keep the current scale values and labels.': 'Zadrži trenutačne vrijednosti i oznake ljestvice.',
@@ -2300,6 +2334,7 @@
 												<option value="text">{setupUi('Text')}</option>
 												<option value="date">{setupUi('Date')}</option>
 												<option value="ranking">{setupUi('Ranking')}</option>
+												<option value="matrix">{setupUi('Matrix / grid')}</option>
 											</select>
 											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 												{questionScaleIntent(question).label}. {questionScaleIntent(question).detail}
@@ -2553,6 +2588,35 @@
 											{/if}
 										</details>
 									{/if}
+									{#if question.type === 'matrix'}
+										<details class="record-row" open>
+											<summary class="record-row__title">{setupUi('Matrix rows and columns')}</summary>
+											<div class="mt-3 grid gap-3 lg:grid-cols-2">
+												<label class="field">
+													<span>{setupUi('Rows')}</span>
+													<textarea
+														rows="4"
+														value={question.matrixRows.join('\n')}
+														oninput={(event) => updateMatrixRows(index, event.currentTarget.value)}
+													></textarea>
+													<span class="text-sm text-[var(--color-text-muted)]">
+														{setupUi('Enter one row per line. Each row becomes a separate prompt in the grid.')}
+													</span>
+												</label>
+												<label class="field">
+													<span>{setupUi('Columns')}</span>
+													<textarea
+														rows="4"
+														value={question.matrixColumns.join('\n')}
+														oninput={(event) => updateMatrixColumns(index, event.currentTarget.value)}
+													></textarea>
+													<span class="text-sm text-[var(--color-text-muted)]">
+														{setupUi('Enter one answer column per line. Respondents choose one column for each row.')}
+													</span>
+												</label>
+											</div>
+										</details>
+									{/if}
 									<div class="action-row">
 										<p class="basis-full text-sm text-[var(--color-text-muted)]">
 											{setupUi('Question order below is the order respondents will see. Scoring stays attached to question meaning, not the visual position.')}
@@ -2691,7 +2755,7 @@
 							</div>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{setupUi(
-									'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, number, date, and text.'
+									'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, matrix, number, date, and text.'
 								)}
 							</p>
 							<div class="grid gap-3">
@@ -2759,6 +2823,31 @@
 														</li>
 													{/each}
 												</ol>
+											{:else if question.controlType === 'matrix'}
+												<div class="overflow-x-auto" aria-label={`${question.positionLabel} matrix preview`}>
+													<table class="min-w-full text-left text-sm">
+														<thead>
+															<tr>
+																<th class="py-2 pr-3">{setupUi('Row')}</th>
+																{#each question.matrixColumns as column (column.value)}
+																	<th class="py-2 pr-3">{column.text}</th>
+																{/each}
+															</tr>
+														</thead>
+														<tbody>
+															{#each question.matrixRows as row (row.value)}
+																<tr>
+																	<th class="py-2 pr-3 font-medium text-[var(--color-text)]">{row.text}</th>
+																	{#each question.matrixColumns as column (column.value)}
+																		<td class="py-2 pr-3">
+																			<input type="radio" disabled aria-label={`${row.text} ${column.text}`} />
+																		</td>
+																	{/each}
+																</tr>
+															{/each}
+														</tbody>
+													</table>
+												</div>
 											{:else if question.controlType === 'number'}
 												<input type="number" disabled placeholder={setupUi('Number response')} />
 											{:else if question.controlType === 'date'}

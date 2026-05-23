@@ -25,6 +25,21 @@ const choicePayload = JSON.stringify({
 	]
 });
 
+const matrixPayload = JSON.stringify({
+	matrix: {
+		mode: 'single',
+		rows: [
+			{ code: 'r01', label: 'Neck / shoulders' },
+			{ code: 'r02', label: 'Lower back' }
+		],
+		columns: [
+			{ code: 'c01', label: 'None' },
+			{ code: 'c02', label: 'Mild' },
+			{ code: 'c03', label: 'Severe' }
+		]
+	}
+});
+
 function question(
 	overrides: Partial<RespondentQuestionResponse> & Pick<RespondentQuestionResponse, 'type'>
 ): RespondentQuestionResponse {
@@ -68,6 +83,7 @@ describe('respondent SurveyJS adapter', () => {
 			question({ type: 'single', payload: choicePayload }),
 			question({ type: 'multi', payload: choicePayload }),
 			question({ type: 'ranking', payload: choicePayload }),
+			question({ type: 'matrix', payload: matrixPayload }),
 			question({ type: 'nps', scaleMinValue: 0, scaleMaxValue: 10 })
 		]);
 
@@ -100,6 +116,19 @@ describe('respondent SurveyJS adapter', () => {
 					{ value: 'o01', text: 'Morning' },
 					{ value: 'o02', text: 'Afternoon' },
 					{ value: 'o03', text: 'Evening' }
+				]
+			},
+			{
+				type: 'matrix',
+				name: 'question-matrix',
+				rows: [
+					{ value: 'r01', text: 'Neck / shoulders' },
+					{ value: 'r02', text: 'Lower back' }
+				],
+				columns: [
+					{ value: 'c01', text: 'None' },
+					{ value: 'c02', text: 'Mild' },
+					{ value: 'c03', text: 'Severe' }
 				]
 			},
 			{ type: 'rating', name: 'question-nps', rateMin: 0, rateMax: 10 }
@@ -173,29 +202,35 @@ describe('respondent SurveyJS adapter', () => {
 
 	it('maps route answers into SurveyJS initial data', () => {
 		const multiQuestion = question({ type: 'multi', payload: choicePayload });
+		const matrixQuestion = question({ type: 'matrix', payload: matrixPayload });
 
 		expect(
-			toSurveyInitialData([scaleQuestion, multiQuestion], {
+			toSurveyInitialData([scaleQuestion, multiQuestion, matrixQuestion], {
 				[scaleQuestion.id]: '4',
-				[multiQuestion.id]: '["o01","o03"]'
+				[multiQuestion.id]: '["o01","o03"]',
+				[matrixQuestion.id]: '{"r01":"c02","r02":"c03","unknown":"c01"}'
 			})
 		).toEqual({
 			[scaleQuestion.id]: 4,
-			[multiQuestion.id]: ['o01', 'o03']
+			[multiQuestion.id]: ['o01', 'o03'],
+			[matrixQuestion.id]: { r01: 'c02', r02: 'c03' }
 		});
 	});
 
 	it('normalizes SurveyJS data back to route answer strings', () => {
 		const multiQuestion = question({ type: 'multi', payload: choicePayload });
+		const matrixQuestion = question({ type: 'matrix', payload: matrixPayload });
 
 		expect(
-			normalizeSurveyDataToAnswers([scaleQuestion, multiQuestion], {
+			normalizeSurveyDataToAnswers([scaleQuestion, multiQuestion, matrixQuestion], {
 				[scaleQuestion.id]: 5,
-				[multiQuestion.id]: ['o01', 'o03']
+				[multiQuestion.id]: ['o01', 'o03'],
+				[matrixQuestion.id]: { r01: 'c02', r02: 'c03', unknown: 'c01' }
 			})
 		).toEqual({
 			[scaleQuestion.id]: '5',
-			[multiQuestion.id]: '["o01","o03"]'
+			[multiQuestion.id]: '["o01","o03"]',
+			[matrixQuestion.id]: '{"r01":"c02","r02":"c03"}'
 		});
 		expect(normalizeSurveyDataToAnswers([scaleQuestion], {})).toEqual({
 			[scaleQuestion.id]: ''

@@ -55,6 +55,12 @@ describe('advanced question metadata', () => {
 				choiceOptions: ['Staffing', 'Tools', 'Training', 'Schedule'],
 				rankingMode: 'top_n',
 				rankingTopN: 2
+			}),
+			row({
+				code: 'body_discomfort',
+				type: 'matrix',
+				matrixRows: ['Neck / shoulders', 'Lower back'],
+				matrixColumns: ['None', 'Mild', 'Severe']
 			})
 		];
 
@@ -94,6 +100,20 @@ describe('advanced question metadata', () => {
 			],
 			ranking: { mode: 'top_n', topN: 2 }
 		});
+		expect(payloads.body_discomfort).toEqual({
+			matrix: {
+				mode: 'single',
+				rows: [
+					{ code: 'r01', label: 'Neck / shoulders' },
+					{ code: 'r02', label: 'Lower back' }
+				],
+				columns: [
+					{ code: 'c01', label: 'None' },
+					{ code: 'c02', label: 'Mild' },
+					{ code: 'c03', label: 'Severe' }
+				]
+			}
+		});
 	});
 
 	test('validates metadata that would make respondent answers ambiguous', () => {
@@ -122,6 +142,12 @@ describe('advanced question metadata', () => {
 				choiceOptions: ['A', 'B'],
 				rankingMode: 'top_n',
 				rankingTopN: 3
+			}),
+			row({
+				code: 'bad_matrix',
+				type: 'matrix',
+				matrixRows: [],
+				matrixColumns: ['Only one']
 			})
 		]);
 
@@ -131,7 +157,9 @@ describe('advanced question metadata', () => {
 				'Question 2 text max length must be greater than zero.',
 				'Question 3 earliest date must be on or before latest date.',
 				'Question 4 exclusive option must match an answer option.',
-				'Question 5 top-N ranking must be between 1 and the number of available options.'
+				'Question 5 top-N ranking must be between 1 and the number of available options.',
+				'Question 6 matrix needs at least one row.',
+				'Question 6 matrix needs at least two column options.'
 			])
 		);
 	});
@@ -173,6 +201,12 @@ describe('advanced question metadata', () => {
 					choiceOptions: ['Staffing', 'Tools', 'Training', 'Schedule'],
 					rankingMode: 'top_n',
 					rankingTopN: 2
+				}),
+				row({
+					code: 'body_discomfort',
+					type: 'matrix',
+					matrixRows: ['Neck / shoulders', 'Lower back'],
+					matrixColumns: ['None', 'Mild', 'Severe']
 				})
 			],
 			[]
@@ -183,6 +217,7 @@ describe('advanced question metadata', () => {
 		const dateQuestion = preview.questions.find((question) => question.code === 'followup_date');
 		const choiceQuestion = preview.questions.find((question) => question.code === 'barriers');
 		const rankingQuestion = preview.questions.find((question) => question.code === 'priorities');
+		const matrixQuestion = preview.questions.find((question) => question.code === 'body_discomfort');
 
 		expect(numberQuestion?.answerFormatDetail).toContain('0 to 80');
 		expect(numberQuestion?.answerFormatDetail).toContain('hours/week');
@@ -197,5 +232,16 @@ describe('advanced question metadata', () => {
 		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain('Other barrier (write-in)');
 		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain('None of these (exclusive)');
 		expect(rankingQuestion?.answerFormatDetail).toContain('top 2');
+		expect(matrixQuestion?.answerFormatLabel).toBe('Matrix / grid');
+		expect(matrixQuestion?.answerFormatDetail).toContain('2 rows');
+		expect(matrixQuestion?.matrixRows.map((row) => row.text)).toEqual([
+			'Neck / shoulders',
+			'Lower back'
+		]);
+		expect(matrixQuestion?.matrixColumns.map((column) => column.text)).toEqual([
+			'None',
+			'Mild',
+			'Severe'
+		]);
 	});
 });

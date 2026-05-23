@@ -66,7 +66,10 @@ public static class TestDataSimulatorAnswerFactory
                 question.Id,
                 question.Code,
                 JsonSerializer.Serialize(DateOnly.FromDateTime(DateTime.UtcNow.Date).ToString("yyyy-MM-dd"))),
-            QuestionTypes.Matrix => new TestDataSimulatorAnswer(question.Id, question.Code, "{}"),
+            QuestionTypes.Matrix => new TestDataSimulatorAnswer(
+                question.Id,
+                question.Code,
+                JsonSerializer.Serialize(ChooseMatrix(question.Payload, adjustedOutcome))),
             QuestionTypes.File => new TestDataSimulatorAnswer(
                 question.Id,
                 question.Code,
@@ -118,11 +121,7 @@ public static class TestDataSimulatorAnswerFactory
             return "selected";
         }
 
-        var ratio = adjustedOutcome / OutcomeMaximum;
-        var index = (int)Math.Ceiling((double)(ratio * options.Count)) - 1;
-        index = Math.Clamp(index, 0, options.Count - 1);
-
-        return options[index];
+        return ChooseOptionByOutcome(options, adjustedOutcome);
     }
 
     private static IReadOnlyList<string> ChooseMultipleOptions(string payload, decimal adjustedOutcome)
@@ -152,12 +151,79 @@ public static class TestDataSimulatorAnswerFactory
             : options.Reverse().ToArray();
     }
 
+    private static IReadOnlyDictionary<string, string> ChooseMatrix(string payload, decimal adjustedOutcome)
+    {
+        var rows = ReadMatrixCodes(payload, "rows");
+        var columns = ReadMatrixCodes(payload, "columns");
+        if (rows.Count == 0 || columns.Count == 0)
+        {
+            return new Dictionary<string, string>();
+        }
+
+        var selectedColumn = ChooseOptionByOutcome(columns, adjustedOutcome);
+        return rows.ToDictionary(row => row, _ => selectedColumn);
+    }
+
+    private static string ChooseOptionByOutcome(IReadOnlyList<string> options, decimal adjustedOutcome)
+    {
+        var ratio = adjustedOutcome / OutcomeMaximum;
+        var index = (int)Math.Ceiling((double)(ratio * options.Count)) - 1;
+        index = Math.Clamp(index, 0, options.Count - 1);
+
+        return options[index];
+    }
+
     private static IReadOnlyList<string> ReadOptionCodes(string payload)
     {
         try
         {
             using var document = JsonDocument.Parse(payload);
             if (!document.RootElement.TryGetProperty("options", out var optionsElement) ||
+                optionsElement.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            var options = new List<string>();
+            foreach (var option in optionsElement.EnumerateArray())
+            {
+                if (option.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                if (option.TryGetProperty("code", out var codeElement) &&
+                    codeElement.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(codeElement.GetString()))
+                {
+                    options.Add(codeElement.GetString()!.Trim());
+                    continue;
+                }
+
+                if (option.TryGetProperty("value", out var valueElement) &&
+                    valueElement.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(valueElement.GetString()))
+                {
+                    options.Add(valueElement.GetString()!.Trim());
+                }
+            }
+
+            return options;
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> ReadMatrixCodes(string payload, string propertyName)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (!document.RootElement.TryGetProperty("matrix", out var matrixElement) ||
+                matrixElement.ValueKind != JsonValueKind.Object ||
+                !matrixElement.TryGetProperty(propertyName, out var optionsElement) ||
                 optionsElement.ValueKind != JsonValueKind.Array)
             {
                 return [];
