@@ -66,6 +66,9 @@ export type TemplateQuestionAuthoringRow = {
 	rankingTopN: number | null;
 	matrixRows: string[];
 	matrixColumns: string[];
+	displayLogicEnabled: boolean;
+	displayLogicSourceQuestionCode: string;
+	displayLogicSourceOptionCode: string;
 };
 
 export type TemplateQuestionMoveDirection = 'up' | 'down';
@@ -562,6 +565,25 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 
 			if (normalizedMatrixColumns(row).length < 2) {
 				errors.push(`Question ${index + 1} matrix needs at least two column options.`);
+			}
+		}
+
+		if (row.displayLogicEnabled) {
+			const sourceCode = row.displayLogicSourceQuestionCode.trim();
+			const source = rows.find(
+				(candidate, candidateIndex) =>
+					candidateIndex < index && candidate.code.trim().toLowerCase() === sourceCode.toLowerCase()
+			);
+
+			if (!source) {
+				errors.push(`Question ${index + 1} display rule needs an earlier source question.`);
+			} else if (source.type !== 'single') {
+				errors.push(`Question ${index + 1} display rule source must be a single-choice question.`);
+			} else {
+				const sourceOptions = choiceOptionPayloads(source);
+				if (!sourceOptions.some((option) => option.code === row.displayLogicSourceOptionCode.trim())) {
+					errors.push(`Question ${index + 1} display rule needs one source answer.`);
+				}
 			}
 		}
 	});
@@ -1647,7 +1669,10 @@ function createQuestionRow(
 		rankingMode: row.rankingMode ?? 'rank_all',
 		rankingTopN: row.rankingTopN ?? null,
 		matrixRows: row.matrixRows ?? defaultMatrixRows,
-		matrixColumns: row.matrixColumns ?? defaultMatrixColumns
+		matrixColumns: row.matrixColumns ?? defaultMatrixColumns,
+		displayLogicEnabled: row.displayLogicEnabled ?? false,
+		displayLogicSourceQuestionCode: row.displayLogicSourceQuestionCode ?? '',
+		displayLogicSourceOptionCode: row.displayLogicSourceOptionCode ?? ''
 	};
 }
 
@@ -1709,7 +1734,7 @@ type MatrixOptionPayload = {
 
 function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	if (isScaleBackedType(row.type)) {
-		return JSON.stringify({
+		return payloadString(row, {
 			scale: {
 				min: row.scaleMin,
 				max: row.scaleMax,
@@ -1722,7 +1747,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	if (row.type === 'single' || row.type === 'multi') {
 		const options = choiceOptionPayloads(row);
 		const exclusiveOptionCode = options.find((option) => option.exclusive)?.code ?? null;
-		return JSON.stringify({
+		return payloadString(row, {
 			options,
 			choice: {
 				allowOther: row.choiceAllowOther,
@@ -1733,7 +1758,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'ranking') {
-		return JSON.stringify({
+		return payloadString(row, {
 			options: choiceOptionPayloads(row),
 			ranking: {
 				mode: row.rankingMode,
@@ -1743,7 +1768,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'matrix') {
-		return JSON.stringify({
+		return payloadString(row, {
 			matrix: {
 				mode: 'single',
 				rows: matrixOptionPayloads(normalizedMatrixRows(row), 'r'),
@@ -1753,7 +1778,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'text') {
-		return JSON.stringify({
+		return payloadString(row, {
 			text: {
 				multiline: row.textMultiline,
 				maxLength: nullableNumber(row.textMaxLength)
@@ -1762,7 +1787,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'number') {
-		return JSON.stringify({
+		return payloadString(row, {
 			validation: {
 				min: nullableNumber(row.numberMin),
 				max: nullableNumber(row.numberMax),
@@ -1775,7 +1800,7 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'date') {
-		return JSON.stringify({
+		return payloadString(row, {
 			validation: {
 				minDate: trimmedOrNull(row.dateEarliest),
 				maxDate: trimmedOrNull(row.dateLatest)
@@ -1783,7 +1808,32 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 		});
 	}
 
-	return '{}';
+	return payloadString(row, {});
+}
+
+function payloadString(row: TemplateQuestionAuthoringRow, payload: Record<string, unknown>): string {
+	const displayLogic = displayLogicPayload(row);
+	return JSON.stringify(displayLogic ? { ...payload, displayLogic } : payload);
+}
+
+function displayLogicPayload(row: TemplateQuestionAuthoringRow) {
+	if (!row.displayLogicEnabled) {
+		return null;
+	}
+
+	const sourceQuestionCode = row.displayLogicSourceQuestionCode.trim().toLowerCase();
+	const value = row.displayLogicSourceOptionCode.trim();
+	if (!sourceQuestionCode || !value) {
+		return null;
+	}
+
+	return {
+		mode: 'show_when',
+		sourceQuestionCode,
+		operator: 'equals',
+		value,
+		requiredWhenVisible: row.required
+	};
 }
 
 function normalizedChoiceOptions(row: TemplateQuestionAuthoringRow): string[] {
@@ -2665,7 +2715,10 @@ function paletteQuestion(
 		rankingMode: overrides.rankingMode ?? 'rank_all',
 		rankingTopN: overrides.rankingTopN ?? null,
 		matrixRows: overrides.matrixRows ?? defaultMatrixRows,
-		matrixColumns: overrides.matrixColumns ?? defaultMatrixColumns
+		matrixColumns: overrides.matrixColumns ?? defaultMatrixColumns,
+		displayLogicEnabled: overrides.displayLogicEnabled ?? false,
+		displayLogicSourceQuestionCode: overrides.displayLogicSourceQuestionCode ?? '',
+		displayLogicSourceOptionCode: overrides.displayLogicSourceOptionCode ?? ''
 	};
 }
 

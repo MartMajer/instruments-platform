@@ -164,6 +164,47 @@ describe('advanced question metadata', () => {
 		);
 	});
 
+	test('serializes and validates constrained follow-up display rules', () => {
+		const source = row({
+			code: 'has_barrier',
+			type: 'single',
+			choiceOptions: ['Yes', 'No']
+		});
+		const followUp = row({
+			code: 'barrier_detail',
+			type: 'text',
+			displayLogicEnabled: true,
+			displayLogicSourceQuestionCode: 'has_barrier',
+			displayLogicSourceOptionCode: 'o01'
+		});
+
+		const payload = JSON.parse(
+			toCreateTemplateQuestions([source, followUp]).find((question) => question.code === 'barrier_detail')
+				?.payload ?? '{}'
+		);
+
+		expect(payload.displayLogic).toEqual({
+			mode: 'show_when',
+			sourceQuestionCode: 'has_barrier',
+			operator: 'equals',
+			value: 'o01',
+			requiredWhenVisible: true
+		});
+		expect(validateTemplateQuestionRows([source, followUp])).toEqual([]);
+		expect(validateTemplateQuestionRows([followUp])).toEqual(
+			expect.arrayContaining(['Question 1 display rule needs an earlier source question.'])
+		);
+		expect(
+			validateTemplateQuestionRows([
+				source,
+				{
+					...followUp,
+					displayLogicSourceOptionCode: 'o99'
+				}
+			])
+		).toEqual(expect.arrayContaining(['Question 2 display rule needs one source answer.']));
+	});
+
 	test('shows metadata in respondent preview instead of generic missing-metadata warnings', () => {
 		const preview = toDraftRespondentPreviewContract(
 			[

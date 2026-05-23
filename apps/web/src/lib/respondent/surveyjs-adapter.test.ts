@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RespondentQuestionResponse } from '../api/setup';
 import {
 	buildRespondentSurveyJson,
+	isRespondentQuestionVisible,
 	normalizeSurveyDataToAnswers,
 	toSurveyInitialData
 } from './surveyjs-adapter';
@@ -37,6 +38,16 @@ const matrixPayload = JSON.stringify({
 			{ code: 'c02', label: 'Mild' },
 			{ code: 'c03', label: 'Severe' }
 		]
+	}
+});
+
+const displayLogicPayload = JSON.stringify({
+	displayLogic: {
+		mode: 'show_when',
+		sourceQuestionCode: 'q_single',
+		operator: 'equals',
+		value: 'o02',
+		requiredWhenVisible: true
 	}
 });
 
@@ -135,6 +146,37 @@ describe('respondent SurveyJS adapter', () => {
 		]);
 	});
 
+	it('maps constrained display logic to SurveyJS visibility expressions', () => {
+		const source = question({
+			type: 'single',
+			payload: choicePayload,
+			code: 'q_single',
+			id: 'source-id',
+			ordinal: 1
+		});
+		const followUp = question({
+			type: 'text',
+			payload: displayLogicPayload,
+			code: 'q_followup',
+			id: 'follow-up-id',
+			ordinal: 2,
+			required: true
+		});
+
+		const surveyJson = buildRespondentSurveyJson([followUp, source]);
+
+		expect(surveyJson.elements).toMatchObject([
+			{ name: 'source-id', type: 'radiogroup' },
+			{ name: 'follow-up-id', type: 'text', visibleIf: "{source-id} = 'o02'", isRequired: true }
+		]);
+		expect(isRespondentQuestionVisible(followUp, [source, followUp], { 'source-id': '"o02"' })).toBe(
+			true
+		);
+		expect(isRespondentQuestionVisible(followUp, [source, followUp], { 'source-id': '"o01"' })).toBe(
+			false
+		);
+	});
+
 	it('carries question metadata into SurveyJS controls where the runtime supports it', () => {
 		const surveyJson = buildRespondentSurveyJson([
 			question({
@@ -203,34 +245,46 @@ describe('respondent SurveyJS adapter', () => {
 	it('maps route answers into SurveyJS initial data', () => {
 		const multiQuestion = question({ type: 'multi', payload: choicePayload });
 		const matrixQuestion = question({ type: 'matrix', payload: matrixPayload });
+		const singleQuestion = question({ type: 'single', payload: choicePayload });
+		const textQuestion = question({ type: 'text' });
 
 		expect(
-			toSurveyInitialData([scaleQuestion, multiQuestion, matrixQuestion], {
+			toSurveyInitialData([scaleQuestion, multiQuestion, matrixQuestion, singleQuestion, textQuestion], {
 				[scaleQuestion.id]: '4',
 				[multiQuestion.id]: '["o01","o03"]',
-				[matrixQuestion.id]: '{"r01":"c02","r02":"c03","unknown":"c01"}'
+				[matrixQuestion.id]: '{"r01":"c02","r02":"c03","unknown":"c01"}',
+				[singleQuestion.id]: '"o02"',
+				[textQuestion.id]: '"Needs follow-up"'
 			})
 		).toEqual({
 			[scaleQuestion.id]: 4,
 			[multiQuestion.id]: ['o01', 'o03'],
-			[matrixQuestion.id]: { r01: 'c02', r02: 'c03' }
+			[matrixQuestion.id]: { r01: 'c02', r02: 'c03' },
+			[singleQuestion.id]: 'o02',
+			[textQuestion.id]: 'Needs follow-up'
 		});
 	});
 
 	it('normalizes SurveyJS data back to route answer strings', () => {
 		const multiQuestion = question({ type: 'multi', payload: choicePayload });
 		const matrixQuestion = question({ type: 'matrix', payload: matrixPayload });
+		const singleQuestion = question({ type: 'single', payload: choicePayload });
+		const textQuestion = question({ type: 'text' });
 
 		expect(
-			normalizeSurveyDataToAnswers([scaleQuestion, multiQuestion, matrixQuestion], {
+			normalizeSurveyDataToAnswers([scaleQuestion, multiQuestion, matrixQuestion, singleQuestion, textQuestion], {
 				[scaleQuestion.id]: 5,
 				[multiQuestion.id]: ['o01', 'o03'],
-				[matrixQuestion.id]: { r01: 'c02', r02: 'c03', unknown: 'c01' }
+				[matrixQuestion.id]: { r01: 'c02', r02: 'c03', unknown: 'c01' },
+				[singleQuestion.id]: 'o02',
+				[textQuestion.id]: 'Needs follow-up'
 			})
 		).toEqual({
 			[scaleQuestion.id]: '5',
 			[multiQuestion.id]: '["o01","o03"]',
-			[matrixQuestion.id]: '{"r01":"c02","r02":"c03"}'
+			[matrixQuestion.id]: '{"r01":"c02","r02":"c03"}',
+			[singleQuestion.id]: '"o02"',
+			[textQuestion.id]: '"Needs follow-up"'
 		});
 		expect(normalizeSurveyDataToAnswers([scaleQuestion], {})).toEqual({
 			[scaleQuestion.id]: ''

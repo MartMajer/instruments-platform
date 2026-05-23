@@ -358,22 +358,37 @@ public sealed class ResponseCaptureStore(
         }
 
         var templateVersionId = await GetSessionTemplateVersionIdAsync(session, cancellationToken);
-        var requiredQuestionIds = await db.TemplateQuestions
+        var templateQuestions = await db.TemplateQuestions
             .AsNoTracking()
             .Where(question =>
-                question.TemplateVersionId == templateVersionId &&
-                question.Required)
-            .Select(question => question.Id)
+                question.TemplateVersionId == templateVersionId)
+            .Select(question => new ResponseDisplayLogicQuestion(
+                question.Id,
+                question.Ordinal,
+                question.Code,
+                question.Required,
+                question.Payload))
             .ToArrayAsync(cancellationToken);
-        var answeredQuestionIds = await db.Answers
-            .AsNoTracking()
+        var savedAnswers = await db.Answers
+            .Where(answer => answer.SessionId == session.Id)
+            .ToArrayAsync(cancellationToken);
+        var displayLogic = ResponseDisplayLogicEvaluator.Evaluate(
+            templateQuestions,
+            savedAnswers.Select(answer => new ResponseDisplayLogicAnswer(
+                answer.QuestionId,
+                answer.Value,
+                answer.IsSkipped,
+                answer.IsNa)));
+        ApplyHiddenDisplayLogicAnswers(session, tenantId, savedAnswers, displayLogic.HiddenQuestionIds);
+
+        var requiredQuestionIds = displayLogic.RequiredVisibleQuestionIds;
+        var answeredQuestionIds = savedAnswers
             .Where(answer =>
-                answer.SessionId == session.Id &&
                 answer.Value != null &&
                 !answer.IsSkipped &&
                 !answer.IsNa)
             .Select(answer => answer.QuestionId)
-            .ToArrayAsync(cancellationToken);
+            .ToArray();
 
         if (requiredQuestionIds.Except(answeredQuestionIds).Any())
         {
@@ -395,6 +410,8 @@ public sealed class ResponseCaptureStore(
                 Error.Validation("response_session.invalid", exception.Message));
         }
 
+        await db.SaveChangesAsync(cancellationToken);
+
         var scoreMaterialized = await submittedScoreMaterializer.MaterializeAsync(
             tenantId,
             session.Id,
@@ -412,6 +429,38 @@ public sealed class ResponseCaptureStore(
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new SubmitResponseSessionResponse(session.Id, submittedAt));
+    }
+
+    private void ApplyHiddenDisplayLogicAnswers(
+        ResponseSession session,
+        Guid tenantId,
+        IReadOnlyCollection<Answer> savedAnswers,
+        IReadOnlySet<Guid> hiddenQuestionIds)
+    {
+        if (hiddenQuestionIds.Count == 0)
+        {
+            return;
+        }
+
+        var answersByQuestionId = savedAnswers.ToDictionary(answer => answer.QuestionId);
+        foreach (var questionId in hiddenQuestionIds)
+        {
+            if (answersByQuestionId.TryGetValue(questionId, out var existing))
+            {
+                existing.UpdateValue(session, value: null, comment: null, isSkipped: true, isNa: false);
+                continue;
+            }
+
+            db.Answers.Add(new Answer(
+                PlatformIds.NewId(),
+                tenantId,
+                session.Id,
+                questionId,
+                value: null,
+                comment: null,
+                isSkipped: true,
+                isNa: false));
+        }
     }
 
     public async Task<Result<OpenLinkEntryResponse>> GetOpenLinkEntryAsync(

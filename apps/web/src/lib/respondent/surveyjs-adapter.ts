@@ -22,6 +22,7 @@ export type RespondentSurveyElement = {
 	selectToRankEnabled?: boolean;
 	showOtherItem?: boolean;
 	otherText?: string;
+	visibleIf?: string;
 	rateMin?: number;
 	rateMax?: number;
 	minRateDescription?: string;
@@ -48,8 +49,32 @@ export function buildRespondentSurveyJson(
 		elements: questions
 			.slice()
 			.sort((left, right) => left.ordinal - right.ordinal)
-			.map(toSurveyElement)
+			.map((question, _index, sortedQuestions) => toSurveyElement(question, sortedQuestions))
 	};
+}
+
+export function isRespondentQuestionVisible(
+	question: RespondentQuestionResponse,
+	questions: RespondentQuestionResponse[],
+	answers: Record<string, string>
+): boolean {
+	const rule = displayLogicRule(question);
+	if (!rule) {
+		return true;
+	}
+
+	const source = questions.find(
+		(candidate) => candidate.code.trim().toLowerCase() === rule.sourceQuestionCode.toLowerCase()
+	);
+	if (!source) {
+		return true;
+	}
+
+	if (!isRespondentQuestionVisible(source, questions, answers)) {
+		return false;
+	}
+
+	return scalarAnswerValue(answers[source.id]) === rule.value;
 }
 
 export function toSurveyInitialData(
@@ -74,13 +99,20 @@ export function normalizeSurveyDataToAnswers(
 	);
 }
 
-function toSurveyElement(question: RespondentQuestionResponse): RespondentSurveyElement {
+function toSurveyElement(
+	question: RespondentQuestionResponse,
+	questions: RespondentQuestionResponse[]
+): RespondentSurveyElement {
 	const element: RespondentSurveyElement = {
 		type: 'text',
 		name: question.id,
 		title: question.textDefault,
 		isRequired: question.required
 	};
+	const visibleIf = surveyVisibleIf(question, questions);
+	if (visibleIf) {
+		element.visibleIf = visibleIf;
+	}
 
 	if (question.type === 'likert' || question.type === 'nps') {
 		const scale = scaleDefinition(question);
@@ -199,7 +231,11 @@ export function normalizeSurveyValueToAnswer(
 		return JSON.stringify(normalizeMatrixAnswer(question, value));
 	}
 
-	return String(value);
+	if (question.type === 'likert' || question.type === 'nps' || question.type === 'number') {
+		return String(value);
+	}
+
+	return JSON.stringify(String(value));
 }
 
 function toSurveyInitialValue(question: RespondentQuestionResponse, value: string | undefined) {
@@ -220,12 +256,13 @@ function toSurveyInitialValue(question: RespondentQuestionResponse, value: strin
 	}
 
 	if (!usesArrayAnswer(question)) {
+		const parsed = parseStoredAnswerValue(value);
 		if (question.type === 'likert' || question.type === 'nps' || question.type === 'number') {
-			const numericValue = Number(value);
+			const numericValue = Number(parsed);
 			return Number.isFinite(numericValue) ? numericValue : '';
 		}
 
-		return value;
+		return typeof parsed === 'string' ? parsed : value;
 	}
 
 	try {
@@ -242,6 +279,78 @@ function usesArrayAnswer(question: RespondentQuestionResponse): boolean {
 
 function usesObjectAnswer(question: RespondentQuestionResponse): boolean {
 	return question.type === 'matrix';
+}
+
+type DisplayLogicRule = {
+	sourceQuestionCode: string;
+	value: string;
+};
+
+function surveyVisibleIf(
+	question: RespondentQuestionResponse,
+	questions: RespondentQuestionResponse[]
+): string | null {
+	const rule = displayLogicRule(question);
+	if (!rule) {
+		return null;
+	}
+
+	const source = questions.find(
+		(candidate) => candidate.code.trim().toLowerCase() === rule.sourceQuestionCode.toLowerCase()
+	);
+	if (!source) {
+		return null;
+	}
+
+	return `{${source.id}} = '${rule.value.replace(/'/g, "\\'")}'`;
+}
+
+function displayLogicRule(question: RespondentQuestionResponse): DisplayLogicRule | null {
+	const displayLogic = readObject(parseObject(question.payload), 'displayLogic');
+	if (readString(displayLogic, 'mode') !== 'show_when') {
+		return null;
+	}
+
+	if (readString(displayLogic, 'operator') !== 'equals') {
+		return null;
+	}
+
+	const sourceQuestionCode = readString(displayLogic, 'sourceQuestionCode');
+	const value = readString(displayLogic, 'value');
+	if (!sourceQuestionCode || !value) {
+		return null;
+	}
+
+	return { sourceQuestionCode, value };
+}
+
+function scalarAnswerValue(value: string | undefined): string | null {
+	if (value === undefined || value.trim() === '') {
+		return null;
+	}
+
+	const parsed = parseStoredAnswerValue(value);
+	if (typeof parsed === 'string') {
+		return parsed;
+	}
+
+	if (typeof parsed === 'number' || typeof parsed === 'boolean') {
+		return String(parsed);
+	}
+
+	return null;
+}
+
+function parseStoredAnswerValue(value: string | undefined): unknown {
+	if (value === undefined || value.trim() === '') {
+		return value ?? '';
+	}
+
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
 }
 
 function scaleDefinition(question: RespondentQuestionResponse) {

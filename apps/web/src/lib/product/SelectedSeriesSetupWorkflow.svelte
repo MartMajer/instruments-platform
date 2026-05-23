@@ -952,6 +952,53 @@
 		});
 	}
 
+	function displayLogicSourceQuestions(rowIndex: number) {
+		return templateQuestionRows
+			.slice(0, rowIndex)
+			.filter((question) => question.type === 'single' && question.choiceOptions.length > 0);
+	}
+
+	function displayLogicSourceOptions(sourceQuestionCode: string) {
+		const source = templateQuestionRows.find(
+			(question) =>
+				question.code.trim().toLowerCase() === sourceQuestionCode.trim().toLowerCase() &&
+				question.type === 'single'
+		);
+
+		return (source?.choiceOptions ?? [])
+			.map((label, optionIndex) => ({
+				code: `o${String(optionIndex + 1).padStart(2, '0')}`,
+				label
+			}))
+			.filter((option) => option.label.trim());
+	}
+
+	function updateDisplayLogicEnabled(rowIndex: number, enabled: boolean) {
+		if (!enabled) {
+			updateTemplateQuestionRow(rowIndex, {
+				displayLogicEnabled: false,
+				displayLogicSourceQuestionCode: '',
+				displayLogicSourceOptionCode: ''
+			});
+			return;
+		}
+
+		const source = displayLogicSourceQuestions(rowIndex)[0];
+		const optionCode = source ? displayLogicSourceOptions(source.code)[0]?.code ?? '' : '';
+		updateTemplateQuestionRow(rowIndex, {
+			displayLogicEnabled: true,
+			displayLogicSourceQuestionCode: source?.code ?? '',
+			displayLogicSourceOptionCode: optionCode
+		});
+	}
+
+	function updateDisplayLogicSource(rowIndex: number, sourceQuestionCode: string) {
+		updateTemplateQuestionRow(rowIndex, {
+			displayLogicSourceQuestionCode: sourceQuestionCode,
+			displayLogicSourceOptionCode: displayLogicSourceOptions(sourceQuestionCode)[0]?.code ?? ''
+		});
+	}
+
 	function updateScaleNumber(
 		rowIndex: number,
 		field: 'scaleMin' | 'scaleMax',
@@ -1767,6 +1814,15 @@
 			'Unesite jedan redak po liniji. Svaki redak postaje zaseban upit u matrici.',
 		'Enter one answer column per line. Respondents choose one column for each row.':
 			'Unesite jedan odgovor po liniji. Ispitanici biraju jedan stupac za svaki redak.',
+		'Display rule': 'Pravilo prikaza',
+		'Show this question only after a specific answer':
+			'Prikaži ovo pitanje samo nakon određenog odgovora',
+		'Add an earlier single-choice question before creating a follow-up rule.':
+			'Dodajte ranije pitanje s jednim odabirom prije izrade pravila za dodatno pitanje.',
+		'Source question': 'Izvorno pitanje',
+		'Source answer': 'Izvorni odgovor',
+		'Hidden follow-up questions are saved as skipped answers and are required only when visible.':
+			'Skrivena dodatna pitanja spremaju se kao preskočena i obavezna su samo kada su vidljiva.',
 		'Scale values and labels': 'Vrijednosti i oznake ljestvice',
 		'Scale preset': 'Predložak ljestvice',
 		'Keep the current scale values and labels.': 'Zadrži trenutačne vrijednosti i oznake ljestvice.',
@@ -2614,6 +2670,70 @@
 														{setupUi('Enter one answer column per line. Respondents choose one column for each row.')}
 													</span>
 												</label>
+											</div>
+										</details>
+									{/if}
+									{#if true}
+										{@const displaySources = displayLogicSourceQuestions(index)}
+										{@const displayOptions = displayLogicSourceOptions(
+											question.displayLogicSourceQuestionCode
+										)}
+										<details class="record-row">
+											<summary class="record-row__title">{setupUi('Display rule')}</summary>
+											<div class="mt-3 grid gap-3">
+												<label class="checkbox-field">
+													<input
+														type="checkbox"
+														checked={question.displayLogicEnabled}
+														disabled={displaySources.length === 0}
+														onchange={(event) =>
+															updateDisplayLogicEnabled(index, event.currentTarget.checked)}
+													/>
+													<span>{setupUi('Show this question only after a specific answer')}</span>
+												</label>
+												{#if displaySources.length === 0}
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Add an earlier single-choice question before creating a follow-up rule.'
+														)}
+													</p>
+												{:else if question.displayLogicEnabled}
+													<div class="grid gap-3 lg:grid-cols-2">
+														<label class="field">
+															<span>{setupUi('Source question')}</span>
+															<select
+																value={question.displayLogicSourceQuestionCode}
+																onchange={(event) =>
+																	updateDisplayLogicSource(index, event.currentTarget.value)}
+															>
+																{#each displaySources as source (source.code)}
+																	<option value={source.code}>
+																		{source.textDefault.trim() || source.code}
+																	</option>
+																{/each}
+															</select>
+														</label>
+														<label class="field">
+															<span>{setupUi('Source answer')}</span>
+															<select
+																value={question.displayLogicSourceOptionCode}
+																onchange={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		displayLogicSourceOptionCode: event.currentTarget.value
+																	})}
+															>
+																{#each displayOptions as option (option.code)}
+																	<option value={option.code}>{option.label}</option>
+																{/each}
+															</select>
+														</label>
+													</div>
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Hidden follow-up questions are saved as skipped answers and are required only when visible.'
+														)}
+													</p>
+												{/if}
 											</div>
 										</details>
 									{/if}

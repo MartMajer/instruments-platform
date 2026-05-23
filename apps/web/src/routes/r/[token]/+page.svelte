@@ -16,6 +16,7 @@
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { toRespondentReceiptView } from '$lib/respondent/receipt';
+	import { isRespondentQuestionVisible } from '$lib/respondent/surveyjs-adapter';
 
 	const routeCredential = page.params.token ?? '';
 	const api = createSetupApi(createApiClient());
@@ -252,7 +253,10 @@
 			const request = {
 				answers: currentEntry.questions.map((question) => ({
 					questionId: question.id,
-					value: normalizeAnswerValue(answers[question.id])
+					value: isQuestionVisible(currentEntry, question.id)
+						? normalizeAnswerValue(answers[question.id])
+						: null,
+					isSkipped: !isQuestionVisible(currentEntry, question.id)
 				}))
 			};
 			savedAnswers = publicSessionHandle
@@ -342,6 +346,10 @@
 
 	function validateAnswers(currentEntry: OpenLinkEntryResponse) {
 		for (const question of currentEntry.questions) {
+			if (!isQuestionVisible(currentEntry, question.id)) {
+				continue;
+			}
+
 			const value = normalizeAnswerValue(answers[question.id]);
 
 			if (question.required && value === null) {
@@ -366,6 +374,15 @@
 		}
 
 		return null;
+	}
+
+	function isQuestionVisible(currentEntry: OpenLinkEntryResponse, questionId: string) {
+		const question = currentEntry.questions.find((candidate) => candidate.id === questionId);
+		if (!question) {
+			return true;
+		}
+
+		return isRespondentQuestionVisible(question, currentEntry.questions, answers);
 	}
 
 	async function loadPublicSessionDraft(handle: string) {
