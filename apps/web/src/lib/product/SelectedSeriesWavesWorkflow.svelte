@@ -233,7 +233,7 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Wave comparison plan">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Wave comparison plan">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
 				<p class="product-kicker">Comparison plan</p>
@@ -260,7 +260,7 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Wave score method review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Wave score method review">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
 				<p class="product-kicker">Score method</p>

@@ -372,7 +372,7 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Results use review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Results use review">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
 				<p class="product-kicker">Use decision</p>
@@ -403,7 +403,7 @@
 		</p>
 	</article>
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Score method review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Score method review">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
 				<p class="product-kicker">Score method</p>
@@ -430,7 +430,7 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review" role="region" aria-label="Export preview">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Export preview">
 		<div class="questionnaire-blueprint-review__header">
 			<div>
 				<p class="product-kicker">Export preview</p>
