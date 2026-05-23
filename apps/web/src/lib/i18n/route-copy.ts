@@ -361,7 +361,113 @@ const en = {
 				ariaLabel: 'Waves and linked trajectories'
 			}
 		},
-		setupWorkflow: {
+		setupBody: {
+			progressAriaLabel: 'Study setup progress',
+			progressKicker: 'Study setup',
+			progressTitle: 'Study setup progress',
+			progressBody:
+				'Build the study in order: source, questionnaire, results, wave, recipients, then launch readiness.',
+			readOnlyTitle: 'Read-only access',
+			readOnlyBody: 'Setup workflow actions require setup management access.',
+			requiredStepsComplete: (completed: number, total: number) =>
+				`${completed} of ${total} required steps complete`,
+			currentSetupStep: 'Current setup step',
+			selectedSetupStep: 'Selected setup step',
+			status: {
+				blocked: 'Blocked',
+				current: 'Current',
+				done: 'Done',
+				failed: 'Failed',
+				pending: 'Pending',
+				ready: 'Ready',
+				saved: 'Saved',
+				working: 'Working'
+			},
+			questionnaire: {
+				paletteTitle: 'Choose an editable question set',
+				paletteBody:
+					'Start from a structured questionnaire set, then edit questions, response formats, and result outputs for this study.',
+				addQuestion: 'Add question',
+				saveQuestionnaire: 'Save questionnaire',
+				authoringSummary: 'Questionnaire summary',
+				blueprintTitle: 'Questionnaire blueprint',
+				studyDimensions: 'Study dimensions',
+				questionText: 'Question text',
+				answerFormat: 'Answer format',
+				respondentPreview: 'Respondent preview',
+				errorsLabel: 'Questionnaire errors',
+				paletteOptions: {
+					blank: {
+						label: 'Blank questionnaire',
+						category: 'Custom',
+						summary: 'Start with empty editable questions and build the instrument yourself.',
+						detail: 'Use this when the study does not match a prepared workplace-health template.'
+					},
+					workload_recovery: {
+						label: 'Workload and recovery pulse',
+						category: 'Workplace health',
+						summary: 'A short editable set for workload pressure, recovery need, and recovery capacity.',
+						detail: 'Useful for first occupational-health or ergonomics studies.'
+					},
+					burnout_risk: {
+						label: 'Burnout risk screen',
+						category: 'Workplace health',
+						summary: 'A compact editable screen for exhaustion, disengagement, and recovery signals.',
+						detail: 'Keeps wording generic and avoids marketing a named proprietary scale.'
+					},
+					ergonomics_baseline: {
+						label: 'Ergonomics baseline',
+						category: 'Ergonomics',
+						summary: 'A starting point for posture, discomfort, tools, and workstation context.',
+						detail: 'Use it when the study starts from workplace setup and physical strain.'
+					},
+					psychosocial_safety: {
+						label: 'Psychosocial safety pulse',
+						category: 'Organizational climate',
+						summary: 'Editable questions for support, clarity, workload fairness, and psychological safety.',
+						detail: 'Designed for internal improvement, not external diagnosis.'
+					}
+				}
+			},
+			scoring: {
+				resultsTitle: 'Result outputs',
+				resultsBody: 'Define the scores and export columns this questionnaire should produce.',
+				saveResults: 'Save results setup',
+				errorsLabel: 'Results setup errors'
+			},
+			wave: {
+				responseMode: {
+					anonymousLabel: 'Anonymous',
+					anonymousLongitudinalLabel: 'Anonymous with repeated participation',
+					identifiedLabel: 'Identified',
+					anonymousHelp: 'Responses are not linked back to a known person in reporting.',
+					anonymousLongitudinalHelp:
+						'Respondents remain anonymous in reporting, but repeated waves can be linked for change over time.',
+					identifiedHelp: 'Responses can be connected to known respondents for operational follow-up.'
+				}
+			},
+			recipients: {
+				audienceRules: {
+					selfLabel: 'Each recipient answers for themselves',
+					managerLabel: 'Managers answer for their team',
+					externalEmailsLabel: 'One-time email import',
+					selfHelp: 'One saved recipient creates one invitation.',
+					managerHelp: 'Managers receive invitations for the people in their reporting scope.',
+					externalEmailsHelp: 'Paste external email addresses for this wave without adding them to the directory.'
+				},
+				roles: {
+					respondent: 'Respondent',
+					manager: 'Manager',
+					external: 'External recipient'
+				},
+				warnings: {
+					audienceMissing:
+						'Campaign audience has no active members; preview uses all active tenant subjects.',
+					empty: 'Preview did not resolve any respondents.',
+					truncated: 'Preview is truncated.'
+				}
+			}
+		},		setupWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Wave ${number}`,
 			steps: {
@@ -1294,7 +1400,113 @@ const hr: typeof en = {
 				ariaLabel: 'Valovi i povezane putanje'
 			}
 		},
-		setupWorkflow: {
+		setupBody: {
+			progressAriaLabel: 'Napredak postavljanja studije',
+			progressKicker: 'Postavljanje studije',
+			progressTitle: 'Napredak postavljanja studije',
+			progressBody:
+				'Izgradite studiju redom: izvor, upitnik, rezultati, val, primatelji, zatim provjera prije pokretanja.',
+			readOnlyTitle: 'Pristup samo za čitanje',
+			readOnlyBody: 'Radnje postavljanja zahtijevaju pravo za upravljanje postavljanjem.',
+			requiredStepsComplete: (completed: number, total: number) =>
+				`${completed} od ${total} obaveznih koraka dovršeno`,
+			currentSetupStep: 'Trenutni korak postavljanja',
+			selectedSetupStep: 'Odabrani korak postavljanja',
+			status: {
+				blocked: 'Blokirano',
+				current: 'Trenutno',
+				done: 'Dovršeno',
+				failed: 'Neuspjelo',
+				pending: 'Na čekanju',
+				ready: 'Spremno',
+				saved: 'Spremljeno',
+				working: 'U tijeku'
+			},
+			questionnaire: {
+				paletteTitle: 'Odaberite uređivi skup pitanja',
+				paletteBody:
+					'Krenite od strukturiranog skupa pitanja, zatim uredite pitanja, formate odgovora i izlaze rezultata za ovu studiju.',
+				addQuestion: 'Dodaj pitanje',
+				saveQuestionnaire: 'Spremi upitnik',
+				authoringSummary: 'Sažetak upitnika',
+				blueprintTitle: 'Nacrt upitnika',
+				studyDimensions: 'Dimenzije studije',
+				questionText: 'Tekst pitanja',
+				answerFormat: 'Format odgovora',
+				respondentPreview: 'Pregled za ispitanika',
+				errorsLabel: 'Pogreške upitnika',
+				paletteOptions: {
+					blank: {
+						label: 'Prazan upitnik',
+						category: 'Prilagođeno',
+						summary: 'Počnite s praznim uređivim pitanjima i sami izgradite instrument.',
+						detail: 'Koristite kada studija ne odgovara pripremljenom predlošku zdravlja na radu.'
+					},
+					workload_recovery: {
+						label: 'Opterećenje i oporavak',
+						category: 'Zdravlje na radu',
+						summary: 'Kratak uređivi skup za radni pritisak, potrebu za oporavkom i kapacitet oporavka.',
+						detail: 'Korisno za prve studije medicine rada ili ergonomije.'
+					},
+					burnout_risk: {
+						label: 'Rizik iscrpljenosti',
+						category: 'Zdravlje na radu',
+						summary: 'Kompaktan uređivi pregled iscrpljenosti, distanciranja i signala oporavka.',
+						detail: 'Zadržava generičan tekst i ne promovira imenovanu vlasničku skalu.'
+					},
+					ergonomics_baseline: {
+						label: 'Ergonomska početna procjena',
+						category: 'Ergonomija',
+						summary: 'Polazište za držanje, nelagodu, alate i kontekst radnog mjesta.',
+						detail: 'Koristite kada studija kreće od radnog okruženja i fizičkog opterećenja.'
+					},
+					psychosocial_safety: {
+						label: 'Psihosocijalna sigurnost',
+						category: 'Organizacijska klima',
+						summary: 'Uređiva pitanja o podršci, jasnoći, pravednosti opterećenja i psihološkoj sigurnosti.',
+						detail: 'Namijenjeno za interno poboljšanje, ne za vanjsku dijagnostiku.'
+					}
+				}
+			},
+			scoring: {
+				resultsTitle: 'Izlazi rezultata',
+				resultsBody: 'Definirajte bodove i izvozne stupce koje ovaj upitnik treba proizvesti.',
+				saveResults: 'Spremi postavljanje rezultata',
+				errorsLabel: 'Pogreške postavljanja rezultata'
+			},
+			wave: {
+				responseMode: {
+					anonymousLabel: 'Anonimno',
+					anonymousLongitudinalLabel: 'Anonimno s ponovljenim sudjelovanjem',
+					identifiedLabel: 'Identificirano',
+					anonymousHelp: 'Odgovori se u izvještaju ne povezuju s poznatom osobom.',
+					anonymousLongitudinalHelp:
+						'Ispitanici ostaju anonimni u izvještaju, ali se ponovljeni valovi mogu povezati za promjenu kroz vrijeme.',
+					identifiedHelp: 'Odgovori se mogu povezati s poznatim ispitanicima za operativno praćenje.'
+				}
+			},
+			recipients: {
+				audienceRules: {
+					selfLabel: 'Svaki primatelj odgovara za sebe',
+					managerLabel: 'Voditelji odgovaraju za svoj tim',
+					externalEmailsLabel: 'Jednokratni uvoz e-pošte',
+					selfHelp: 'Jedan spremljeni primatelj stvara jednu pozivnicu.',
+					managerHelp: 'Voditelji dobivaju pozivnice za osobe u svom opsegu odgovornosti.',
+					externalEmailsHelp: 'Zalijepite vanjske adrese e-pošte za ovaj val bez dodavanja u imenik.'
+				},
+				roles: {
+					respondent: 'Ispitanik',
+					manager: 'Voditelj',
+					external: 'Vanjski primatelj'
+				},
+				warnings: {
+					audienceMissing:
+						'Publika kampanje nema aktivnih članova; pregled koristi sve aktivne osobe tenant prostora.',
+					empty: 'Pregled nije pronašao ispitanike.',
+					truncated: 'Pregled je skraćen.'
+				}
+			}
+		},		setupWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Val ${number}`,
 			steps: {

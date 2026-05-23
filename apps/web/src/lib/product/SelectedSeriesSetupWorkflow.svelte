@@ -116,11 +116,20 @@
 	const setupApi = createSetupApiFromEnv(env);
 	const appLocale = $derived(appLocaleFromPageData(page.data));
 	const setupWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.setupWorkflow);
+	const setupBodyCopy = $derived(routePageCopy(appLocale).selectedStudy.setupBody);
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
 	const initialScoreOutputs = createScoreOutputRowsForQuestionnairePalette('blank', initialTemplateQuestionRows);
-	const questionnairePaletteOptions = listQuestionnairePaletteOptions();
+	const questionnairePaletteOptionBase = listQuestionnairePaletteOptions();
+	const questionnairePaletteOptions = $derived(
+	questionnairePaletteOptionBase.map((option) => ({
+		...option,
+		...(setupBodyCopy.questionnaire.paletteOptions[
+			option.id as keyof typeof setupBodyCopy.questionnaire.paletteOptions
+		] ?? {})
+	}))
+);
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
@@ -1156,20 +1165,20 @@
 		};
 	}
 
-	function stepLabel(state: StepState) {
+	function stepLabel(state: StepState): string {
 		if (state === 'submitting') {
-			return 'Working';
+			return setupBodyCopy.status.working;
 		}
 
 		if (state === 'succeeded') {
-			return 'Saved';
+			return setupBodyCopy.status.saved;
 		}
 
 		if (state === 'failed') {
-			return 'Failed';
+			return setupBodyCopy.status.failed;
 		}
 
-		return 'Ready';
+		return setupBodyCopy.status.ready;
 	}
 
 	function setupPathStepDisplay(step: SelectedSeriesSetupPathStep) {
@@ -1181,8 +1190,10 @@
 		);
 	}
 
-	function activeSetupStepEyebrow() {
-		return activeStep.pathState === 'current' ? 'Current setup step' : 'Selected setup step';
+	function activeSetupStepEyebrow(): string {
+		return activeStep.id === currentActionId
+			? setupBodyCopy.currentSetupStep
+			: setupBodyCopy.selectedSetupStep;
 	}
 
 	function activeSetupStepLabel() {
@@ -1371,8 +1382,8 @@
 		return `${count} ${count === 1 ? 'invitation' : 'invitations'}`;
 	}
 
-	function formatCount(count: number) {
-		return new Intl.NumberFormat('en').format(count);
+	function formatCount(count: number): string {
+		return new Intl.NumberFormat(appLocale).format(count);
 	}
 
 	function clampNumber(value: number, min: number, max: number) {
@@ -1425,97 +1436,77 @@
 		return 'Every selected question must be answered.';
 	}
 
-	function responseModeLabel(value: string) {
-		if (value === 'anonymous_longitudinal') {
-			return 'Anonymous with repeat participation';
+	function responseModeLabel(mode: string): string {
+		if (mode === 'anonymous_longitudinal') {
+			return setupBodyCopy.wave.responseMode.anonymousLongitudinalLabel;
 		}
 
-		if (value === 'identified') {
-			return 'Identified invite-only';
+		if (mode === 'identified') {
+			return setupBodyCopy.wave.responseMode.identifiedLabel;
 		}
 
-		return 'Anonymous';
+		return setupBodyCopy.wave.responseMode.anonymousLabel;
 	}
 
-	function responseModeHelp(value: string) {
-		if (value === 'identified') {
-			return 'Use this when answers must remain connected to named respondents.';
+	function responseModeHelp(mode: string): string {
+		if (mode === 'anonymous_longitudinal') {
+			return setupBodyCopy.wave.responseMode.anonymousLongitudinalHelp;
 		}
 
-		if (value === 'anonymous_longitudinal') {
-			return 'Use this when respondents enter their own repeat-participation code. You can still save recipients for invite-only access; reports link waves by code, not by email.';
+		if (mode === 'identified') {
+			return setupBodyCopy.wave.responseMode.identifiedHelp;
 		}
 
-		return 'Use a public link, or save recipients below to send invite-only access while keeping answers anonymous in reports.';
+		return setupBodyCopy.wave.responseMode.anonymousHelp;
 	}
 
-	function audienceRuleLabel(value: PreviewRuleKind) {
-		if (value === 'external_emails') {
-			return 'One-off email import';
+	function audienceRuleLabel(rule: PreviewRuleKind): string {
+		if (rule === 'manager_of_target' || rule === 'reports_of_target') {
+			return setupBodyCopy.recipients.audienceRules.managerLabel;
 		}
 
-		if (value === 'all_in_group') {
-			return 'Directory group';
+		if (rule === 'external_emails') {
+			return setupBodyCopy.recipients.audienceRules.externalEmailsLabel;
 		}
 
-		if (value === 'manager_of_target') {
-			return "One person's manager";
-		}
-
-		if (value === 'reports_of_target') {
-			return "One person's direct reports";
-		}
-
-		return 'All active Directory people';
+		return setupBodyCopy.recipients.audienceRules.selfLabel;
 	}
 
-	function audienceRuleHelp(value: PreviewRuleKind) {
-		if (value === 'external_emails') {
-			return 'Use this only for an ad hoc wave list you do not want to reuse in Directory.';
+	function audienceRuleHelp(rule: PreviewRuleKind): string {
+		if (rule === 'manager_of_target' || rule === 'reports_of_target') {
+			return setupBodyCopy.recipients.audienceRules.managerHelp;
 		}
 
-		if (value === 'all_in_group') {
-			return 'Use this for departments, cohorts, classes, locations, or any recurring study population.';
+		if (rule === 'external_emails') {
+			return setupBodyCopy.recipients.audienceRules.externalEmailsHelp;
 		}
 
-		if (value === 'manager_of_target') {
-			return 'Use this for manager feedback about one selected person.';
-		}
-
-		if (value === 'reports_of_target') {
-			return 'Use this when direct reports should answer about one selected person.';
-		}
-
-		return 'Use this only when the wave is meant for every active person in the workspace Directory.';
+		return setupBodyCopy.recipients.audienceRules.selfHelp;
 	}
 
-	function recipientRoleLabel(value: string) {
-		if (value === 'email_recipient') {
-			return 'Email recipient';
+	function recipientRoleLabel(role: string): string {
+		if (role === 'manager') {
+			return setupBodyCopy.recipients.roles.manager;
 		}
 
-		if (value === 'group_member') {
-			return 'Group invitation';
+		if (role === 'external' || role === 'email_recipient') {
+			return setupBodyCopy.recipients.roles.external;
 		}
 
-		if (value === 'manager') {
-			return 'Manager invitation';
-		}
-
-		if (value === 'direct_report') {
-			return 'Direct-report invitation';
-		}
-
-		return 'Recipient invitation';
+		return setupBodyCopy.recipients.roles.respondent;
 	}
 
-	function audienceWarningLabel(warning: { code: string; message: string }) {
-		if (warning.code === 'respondent_rule_preview.audience_missing') {
-			return 'No narrower Directory group is selected; this selection uses all active Directory people. Use a Directory group when the wave is not for everyone.';
+	function audienceWarningLabel(warning: { code: string; message: string }): string {
+		if (warning.code.includes('audience_missing')) {
+			return setupBodyCopy.recipients.warnings.audienceMissing;
 		}
 
-		if (warning.code === 'respondent_rule_preview.empty') {
-			return 'No matching recipients were found for this selection.';
+		if (warning.code.includes('empty')) {
+			return setupBodyCopy.recipients.warnings.empty;
+		}
+
+		if (warning.code.includes('truncated')) {
+			return setupBodyCopy.recipients.warnings.truncated;
 		}
 
 		return warning.message;
@@ -1562,11 +1553,11 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Study setup progress">
+<section class="product-panel" role="group" aria-label={setupBodyCopy.progressAriaLabel}>
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Study setup</p>
-			<h3 class="product-title">Study setup progress</h3>
+			<p class="product-kicker">{setupBodyCopy.progressKicker}</p>
+			<h3 class="product-title">{setupBodyCopy.progressTitle}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
 				Build the study in order: confirm the instrument, write the questionnaire, decide how
 				results are calculated, then prepare the campaign for launch.
@@ -2170,7 +2161,7 @@
 						<div class="action-row">
 							<button type="button" class="secondary-button" onclick={addTemplateQuestionRow}>
 								<Plus size={16} aria-hidden="true" />
-								<span>Add question</span>
+								<span>{setupBodyCopy.questionnaire.addQuestion}</span>
 							</button>
 						</div>
 						<div class="record-row">
@@ -2300,7 +2291,7 @@
 							</div>
 						</div>
 						{#if templateQuestionErrors.length > 0}
-							<ul class="grid gap-1" aria-label="Questionnaire errors">
+							<ul class="grid gap-1" aria-label={setupBodyCopy.questionnaire.errorsLabel}>
 								{#each templateQuestionErrors as error}
 									<li class="error-line">{error}</li>
 								{/each}
@@ -2548,7 +2539,7 @@
 						{/if}
 
 						{#if scoreOutputErrors.length > 0}
-							<ul class="grid gap-1" aria-label="Results setup errors">
+							<ul class="grid gap-1" aria-label={setupBodyCopy.scoring.errorsLabel}>
 								{#each scoreOutputErrors as error}
 									<li class="error-line">{error}</li>
 								{/each}
@@ -3281,3 +3272,4 @@
 		<p class="error-line">{actionErrors[id]}</p>
 	{/if}
 {/snippet}
+

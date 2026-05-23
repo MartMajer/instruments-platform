@@ -32,4 +32,17 @@ describe('localized route body copy', () => {
 		expect(copy.selectedStudy.surfaces.waves.title).toBe('Valovi');
 		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
 	});
+
+	it('provides Croatian selected-study setup body copy', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.setupBody;
+
+		expect(copy.progressTitle).toBe('Napredak postavljanja studije');
+		expect(copy.questionnaire.paletteTitle).toBe('Odaberite uređivi skup pitanja');
+		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');
+		expect(copy.scoring.resultsTitle).toBe('Izlazi rezultata');
+		expect(copy.wave.responseMode.anonymousLongitudinalLabel).toBe(
+			'Anonimno s ponovljenim sudjelovanjem'
+		);
+		expect(copy.recipients.audienceRules.externalEmailsLabel).toBe('Jednokratni uvoz e-pošte');
+	});
 });
