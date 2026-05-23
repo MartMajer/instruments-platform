@@ -2046,18 +2046,18 @@
 										? operationsBodyCopy.shareAccess.openLinkDisabled
 										: openLinkAccessActive
 											? operationsBodyCopy.shareAccess.openLinkActive
-											: undefined
+											: operationsBodyCopy.shareAccess.openLinkNotCreated
 								}
 							/>
 						</div>
 						<p class="text-sm text-[var(--color-text-muted)]">
 							{selectedCampaignIsIdentified
-								? '{operationsBodyCopy.shareAccess.identifiedHelp}'
+								? operationsBodyCopy.shareAccess.identifiedHelp
 								: emailInviteAccessActive
-									? '{operationsBodyCopy.shareAccess.inviteOnlyHelp}'
+									? operationsBodyCopy.shareAccess.inviteOnlyHelp
 									: openLinkAccessActive
-										? '{operationsBodyCopy.shareAccess.openLinkReadyHelp}'
-								: '{operationsBodyCopy.shareAccess.openLinkHelp}'}
+										? operationsBodyCopy.shareAccess.openLinkReadyHelp
+								: operationsBodyCopy.shareAccess.openLinkHelp}
 						</p>
 						{#if emailInviteAccessActive && !selectedCampaignIsIdentified}
 							<div class="action-row">
