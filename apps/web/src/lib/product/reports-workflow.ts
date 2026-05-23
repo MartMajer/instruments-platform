@@ -145,6 +145,8 @@ type ExportCodebookColumn = {
 	metadataKind: string | null;
 	hasMissingCodes: boolean;
 	hasScale: boolean;
+	hasValueLabels: boolean;
+	hasAnswerMetadata: boolean;
 };
 
 type ExportCodebookSummary = {
@@ -1540,6 +1542,13 @@ function toExportVariablesValuesItem(
 	const scoreMetadataCount = codebook.columns.filter(
 		(column) => column.source === 'score_output_metadata'
 	).length;
+	const answerMetadataCount = codebook.columns.filter(
+		(column) => column.hasValueLabels || column.hasAnswerMetadata
+	).length;
+	const answerMetadataSummary =
+		answerMetadataCount > 0
+			? `, ${answerMetadataCount} answer metadata ${pluralize(answerMetadataCount, 'field', 'fields')}`
+			: '';
 
 	if (responseDataset) {
 		return {
@@ -1554,9 +1563,9 @@ function toExportVariablesValuesItem(
 				scoreMetadataCount,
 				'field',
 				'fields'
-			)}, ${columns.length} columns total`,
+			)}${answerMetadataSummary}, ${columns.length} columns total`,
 			detail:
-				'Question columns include codebook metadata such as question type, missing codes, and scale anchors when available.'
+				'Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available.'
 		};
 	}
 
@@ -1729,7 +1738,9 @@ function toExportCodebookColumn(value: Record<string, unknown>): ExportCodebookC
 		dimensionCode: stringValue(value.dimensionCode),
 		metadataKind: stringValue(value.metadataKind),
 		hasMissingCodes: isRecord(value.missingCodes),
-		hasScale: isRecord(value.scale)
+		hasScale: isRecord(value.scale),
+		hasValueLabels: isRecord(value.valueLabels),
+		hasAnswerMetadata: isRecord(value.answerMetadata)
 	};
 }
 

@@ -1294,6 +1294,7 @@ public sealed class ReportProofExportStore(
                 row.question.VariableLabel,
                 row.question.MeasurementLevel,
                 row.question.MissingCodes,
+                row.question.Payload,
                 row.scale == null ? null : row.scale.Code,
                 row.scale == null ? null : row.scale.Type,
                 row.scale == null ? null : row.scale.MinValue,
@@ -1748,6 +1749,8 @@ public sealed class ReportProofExportStore(
                 reverseCoded = question.ReverseCoded,
                 measurementLevel = question.MeasurementLevel ?? "nominal",
                 missingCodes = JsonSerializer.Deserialize<JsonElement>(question.MissingCodes),
+                valueLabels = CreateQuestionValueLabels(question.Payload),
+                answerMetadata = CreateQuestionAnswerMetadata(question),
                 scale = question.ScaleCode is null
                     ? null
                     : new
@@ -1789,6 +1792,129 @@ public sealed class ReportProofExportStore(
             measurementLevel = ResponseExportColumnMeasurementLevel(column),
             disclosureTreatment = ResponseExportColumnDisclosureTreatment(column)
         };
+    }
+
+    private static object? CreateQuestionValueLabels(string payload)
+    {
+        using var payloadDocument = TryParseQuestionPayload(payload);
+        if (payloadDocument is null ||
+            !payloadDocument.RootElement.TryGetProperty("options", out var options) ||
+            options.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var valueLabels = new Dictionary<string, string>(StringComparer.Ordinal);
+        var index = 0;
+        foreach (var option in options.EnumerateArray())
+        {
+            index++;
+            if (option.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var code = ReadStringProperty(option, "code") ?? $"o{index:00}";
+            var label = ReadStringProperty(option, "label") ?? code;
+            if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(label))
+            {
+                valueLabels[code] = label;
+            }
+        }
+
+        return valueLabels.Count == 0 ? null : valueLabels;
+    }
+
+    private static object? CreateQuestionAnswerMetadata(ResponseExportQuestionRow question)
+    {
+        using var payloadDocument = TryParseQuestionPayload(question.Payload);
+        if (payloadDocument is null)
+        {
+            return null;
+        }
+
+        var root = payloadDocument.RootElement;
+        var metadata = new Dictionary<string, object?>(StringComparer.Ordinal);
+
+        if (question.Type is "number")
+        {
+            AddJsonObjectProperty(metadata, root, "validation");
+            AddJsonObjectProperty(metadata, root, "display");
+        }
+        else if (question.Type is "date")
+        {
+            AddJsonObjectProperty(metadata, root, "validation");
+        }
+        else if (question.Type is "text")
+        {
+            AddJsonObjectProperty(metadata, root, "text");
+        }
+        else if (question.Type is "single" or "multi")
+        {
+            AddJsonObjectProperty(metadata, root, "choice");
+        }
+        else if (question.Type is "ranking")
+        {
+            AddJsonObjectProperty(metadata, root, "ranking");
+        }
+
+        return metadata.Count == 0 ? null : metadata;
+    }
+
+    private static void AddJsonObjectProperty(
+        Dictionary<string, object?> target,
+        JsonElement root,
+        string propertyName)
+    {
+        if (root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Object)
+        {
+            target[propertyName] = ToSerializableJsonValue(property);
+        }
+    }
+
+    private static object? ToSerializableJsonValue(JsonElement element)
+    {
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject().ToDictionary(
+                property => property.Name,
+                property => ToSerializableJsonValue(property.Value),
+                StringComparer.Ordinal),
+            JsonValueKind.Array => element.EnumerateArray().Select(ToSerializableJsonValue).ToArray(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number when element.TryGetInt64(out var longValue) => longValue,
+            JsonValueKind.Number when element.TryGetDecimal(out var decimalValue) => decimalValue,
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null,
+            _ => null
+        };
+    }
+
+    private static JsonDocument? TryParseQuestionPayload(string payload)
+    {
+        try
+        {
+            var document = JsonDocument.Parse(payload);
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                return document;
+            }
+
+            document.Dispose();
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadStringProperty(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
     }
 
     private static string ResponseExportColumnSource(string column)
@@ -2455,6 +2581,7 @@ public sealed class ReportProofExportStore(
         string? VariableLabel,
         string? MeasurementLevel,
         string MissingCodes,
+        string Payload,
         string? ScaleCode,
         string? ScaleType,
         int? ScaleMinValue,

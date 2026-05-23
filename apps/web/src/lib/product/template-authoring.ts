@@ -18,6 +18,8 @@ export type QuestionScalePreset =
 	| 'discomfort_0_10'
 	| 'custom';
 
+export type QuestionRankingMode = 'rank_all' | 'top_n';
+
 export type StudyAuthoringPresetId = 'blank' | 'osh_ergonomics';
 
 export type StudyAuthoringPresetOption = {
@@ -48,6 +50,19 @@ export type TemplateQuestionAuthoringRow = {
 	scaleHighLabel: string;
 	scalePreset: QuestionScalePreset;
 	choiceOptions: string[];
+	numberMin: number | null;
+	numberMax: number | null;
+	numberUnit: string;
+	numberIntegerOnly: boolean;
+	textMultiline: boolean;
+	textMaxLength: number | null;
+	dateEarliest: string;
+	dateLatest: string;
+	choiceAllowOther: boolean;
+	choiceOtherLabel: string;
+	choiceExclusiveOptionLabel: string;
+	rankingMode: QuestionRankingMode;
+	rankingTopN: number | null;
 };
 
 export type TemplateQuestionMoveDirection = 'up' | 'down';
@@ -486,6 +501,50 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 			normalizedChoiceOptions(row).length < 2
 		) {
 			errors.push(`Question ${index + 1} needs at least two answer options.`);
+		}
+
+		if (row.type === 'number') {
+			const numberMin = nullableNumber(row.numberMin);
+			const numberMax = nullableNumber(row.numberMax);
+			if (numberMin !== null && numberMax !== null && numberMin > numberMax) {
+				errors.push(`Question ${index + 1} number minimum must be less than or equal to the maximum.`);
+			}
+		}
+
+		if (row.type === 'text' && row.textMaxLength !== null) {
+			const maxLength = nullableNumber(row.textMaxLength);
+			if (maxLength === null || maxLength <= 0) {
+				errors.push(`Question ${index + 1} text max length must be greater than zero.`);
+			}
+		}
+
+		if (row.type === 'date') {
+			const earliest = trimmedOrNull(row.dateEarliest);
+			const latest = trimmedOrNull(row.dateLatest);
+			if (earliest && latest && earliest > latest) {
+				errors.push(`Question ${index + 1} earliest date must be on or before latest date.`);
+			}
+		}
+
+		if (row.type === 'single' || row.type === 'multi') {
+			const exclusiveLabel = trimmedOrNull(row.choiceExclusiveOptionLabel);
+			if (exclusiveLabel && !hasChoiceOptionLabel(row, exclusiveLabel)) {
+				errors.push(`Question ${index + 1} exclusive option must match an answer option.`);
+			}
+
+			if (row.choiceAllowOther && !trimmedOrNull(row.choiceOtherLabel)) {
+				errors.push(`Question ${index + 1} other-specify option needs a label.`);
+			}
+		}
+
+		if (row.type === 'ranking' && row.rankingMode === 'top_n') {
+			const topN = nullableNumber(row.rankingTopN);
+			const optionCount = normalizedChoiceOptions(row).length;
+			if (topN === null || !Number.isInteger(topN) || topN < 1 || topN > optionCount) {
+				errors.push(
+					`Question ${index + 1} top-N ranking must be between 1 and the number of available options.`
+				);
+			}
 		}
 	});
 
@@ -1546,7 +1605,20 @@ function createQuestionRow(
 		scaleLowLabel: row.scaleLowLabel ?? 'Strongly disagree',
 		scaleHighLabel: row.scaleHighLabel ?? 'Strongly agree',
 		scalePreset: row.scalePreset ?? 'agreement_5',
-		choiceOptions: row.choiceOptions ?? defaultChoiceOptions
+		choiceOptions: row.choiceOptions ?? defaultChoiceOptions,
+		numberMin: row.numberMin ?? null,
+		numberMax: row.numberMax ?? null,
+		numberUnit: row.numberUnit ?? '',
+		numberIntegerOnly: row.numberIntegerOnly ?? false,
+		textMultiline: row.textMultiline ?? false,
+		textMaxLength: row.textMaxLength ?? null,
+		dateEarliest: row.dateEarliest ?? '',
+		dateLatest: row.dateLatest ?? '',
+		choiceAllowOther: row.choiceAllowOther ?? false,
+		choiceOtherLabel: row.choiceOtherLabel ?? 'Other',
+		choiceExclusiveOptionLabel: row.choiceExclusiveOptionLabel ?? '',
+		rankingMode: row.rankingMode ?? 'rank_all',
+		rankingTopN: row.rankingTopN ?? null
 	};
 }
 
@@ -1594,6 +1666,13 @@ function measurementLevelFor(row: TemplateQuestionAuthoringRow): string | null {
 	return null;
 }
 
+type ChoiceOptionPayload = {
+	code: string;
+	label: string;
+	isOther?: true;
+	exclusive?: true;
+};
+
 function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	if (isScaleBackedType(row.type)) {
 		return JSON.stringify({
@@ -1606,17 +1685,58 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 		});
 	}
 
-	if (row.type === 'single' || row.type === 'multi' || row.type === 'ranking') {
+	if (row.type === 'single' || row.type === 'multi') {
+		const options = choiceOptionPayloads(row);
+		const exclusiveOptionCode = options.find((option) => option.exclusive)?.code ?? null;
 		return JSON.stringify({
-			options: normalizedChoiceOptions(row).map((label, index) => ({
-				code: `o${String(index + 1).padStart(2, '0')}`,
-				label
-			}))
+			options,
+			choice: {
+				allowOther: row.choiceAllowOther,
+				otherLabel: row.choiceAllowOther ? trimmedOrNull(row.choiceOtherLabel) : null,
+				exclusiveOptionCode
+			}
+		});
+	}
+
+	if (row.type === 'ranking') {
+		return JSON.stringify({
+			options: choiceOptionPayloads(row),
+			ranking: {
+				mode: row.rankingMode,
+				topN: row.rankingMode === 'top_n' ? nullableNumber(row.rankingTopN) : null
+			}
 		});
 	}
 
 	if (row.type === 'text') {
-		return JSON.stringify({ multiline: false });
+		return JSON.stringify({
+			text: {
+				multiline: row.textMultiline,
+				maxLength: nullableNumber(row.textMaxLength)
+			}
+		});
+	}
+
+	if (row.type === 'number') {
+		return JSON.stringify({
+			validation: {
+				min: nullableNumber(row.numberMin),
+				max: nullableNumber(row.numberMax),
+				integerOnly: row.numberIntegerOnly
+			},
+			display: {
+				unit: trimmedOrNull(row.numberUnit)
+			}
+		});
+	}
+
+	if (row.type === 'date') {
+		return JSON.stringify({
+			validation: {
+				minDate: trimmedOrNull(row.dateEarliest),
+				maxDate: trimmedOrNull(row.dateLatest)
+			}
+		});
 	}
 
 	return '{}';
@@ -1624,6 +1744,101 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 
 function normalizedChoiceOptions(row: TemplateQuestionAuthoringRow): string[] {
 	return row.choiceOptions.map((option) => option.trim()).filter(Boolean);
+}
+
+function choiceOptionPayloads(row: TemplateQuestionAuthoringRow): ChoiceOptionPayload[] {
+	const exclusiveLabel = trimmedOrNull(row.choiceExclusiveOptionLabel);
+	const options = normalizedChoiceOptions(row).map((label, index) => {
+		const option: ChoiceOptionPayload = {
+			code: `o${String(index + 1).padStart(2, '0')}`,
+			label
+		};
+
+		if (exclusiveLabel && labelsMatch(label, exclusiveLabel)) {
+			option.exclusive = true;
+		}
+
+		return option;
+	});
+
+	if (row.choiceAllowOther && row.type !== 'ranking') {
+		const otherLabel = trimmedOrNull(row.choiceOtherLabel) ?? 'Other';
+		if (!options.some((option) => labelsMatch(option.label, otherLabel))) {
+			options.push({
+				code: `o${String(options.length + 1).padStart(2, '0')}`,
+				label: otherLabel,
+				isOther: true
+			});
+		}
+	}
+
+	return options;
+}
+
+function hasChoiceOptionLabel(row: TemplateQuestionAuthoringRow, label: string): boolean {
+	return normalizedChoiceOptions(row).some((option) => labelsMatch(option, label));
+}
+
+function labelsMatch(left: string, right: string): boolean {
+	return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+function nullableNumber(value: number | null | undefined): number | null {
+	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function trimmedOrNull(value: string | null | undefined): string | null {
+	const trimmed = value?.trim() ?? '';
+	return trimmed ? trimmed : null;
+}
+
+function choicePreviewLabels(row: TemplateQuestionAuthoringRow): string[] {
+	return choiceOptionPayloads(row).map((option) => {
+		if (option.isOther) {
+			return `${option.label} (write-in)`;
+		}
+
+		if (option.exclusive) {
+			return `${option.label} (exclusive)`;
+		}
+
+		return option.label;
+	});
+}
+
+function numberRangeLabel(row: TemplateQuestionAuthoringRow): string | null {
+	const min = nullableNumber(row.numberMin);
+	const max = nullableNumber(row.numberMax);
+	if (min !== null && max !== null) {
+		return `${min} to ${max}`;
+	}
+
+	if (min !== null) {
+		return `${min} or higher`;
+	}
+
+	if (max !== null) {
+		return `${max} or lower`;
+	}
+
+	return null;
+}
+
+function hasNumberMetadata(row: TemplateQuestionAuthoringRow): boolean {
+	return (
+		nullableNumber(row.numberMin) !== null ||
+		nullableNumber(row.numberMax) !== null ||
+		Boolean(trimmedOrNull(row.numberUnit)) ||
+		row.numberIntegerOnly
+	);
+}
+
+function hasDateMetadata(row: TemplateQuestionAuthoringRow): boolean {
+	return Boolean(trimmedOrNull(row.dateEarliest) || trimmedOrNull(row.dateLatest));
+}
+
+function hasTextMetadata(row: TemplateQuestionAuthoringRow): boolean {
+	return row.textMultiline || nullableNumber(row.textMaxLength) !== null;
 }
 
 function normalizeDimensionLabel(label: string): string {
@@ -1640,23 +1855,54 @@ function answerFormatDetail(row: TemplateQuestionAuthoringRow): string {
 	}
 
 	if (row.type === 'single') {
-		return `Choose one: ${normalizedChoiceOptions(row).join(', ')}`;
+		return `Choose one: ${choicePreviewLabels(row).join(', ')}`;
 	}
 
 	if (row.type === 'multi') {
-		return `Choose any: ${normalizedChoiceOptions(row).join(', ')}`;
+		return `Choose any: ${choicePreviewLabels(row).join(', ')}`;
 	}
 
 	if (row.type === 'ranking') {
-		return `Rank: ${normalizedChoiceOptions(row).join(', ')}`;
+		const labels = normalizedChoiceOptions(row).join(', ');
+		if (row.rankingMode === 'top_n' && nullableNumber(row.rankingTopN) !== null) {
+			return `Rank the top ${row.rankingTopN}: ${labels}`;
+		}
+		return `Rank all options: ${labels}`;
 	}
 
 	if (row.type === 'number') {
-		return 'Number entry';
+		const range = numberRangeLabel(row);
+		const unit = trimmedOrNull(row.numberUnit);
+		const parts = ['Number entry'];
+		if (range) {
+			parts.push(`allowed range ${range}`);
+		}
+		if (unit) {
+			parts.push(`unit ${unit}`);
+		}
+		parts.push(row.numberIntegerOnly ? 'whole numbers only' : 'decimals allowed');
+		return parts.join('; ');
 	}
 
 	if (row.type === 'date') {
+		const earliest = trimmedOrNull(row.dateEarliest);
+		const latest = trimmedOrNull(row.dateLatest);
+		if (earliest && latest) {
+			return `Date entry; allowed range ${earliest} to ${latest}`;
+		}
+		if (earliest) {
+			return `Date entry; earliest date ${earliest}`;
+		}
+		if (latest) {
+			return `Date entry; latest date ${latest}`;
+		}
 		return 'Date entry';
+	}
+
+	if (row.type === 'text') {
+		const maxLength = nullableNumber(row.textMaxLength);
+		const lengthDetail = maxLength === null ? 'no max length set' : `up to ${maxLength} characters`;
+		return `${row.textMultiline ? 'Long text' : 'Short text'} response; ${lengthDetail}`;
 	}
 
 	return 'Text response';
@@ -1878,7 +2124,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			runtimeElementType: 'radiogroup',
 			inputType: null,
 			answerFormatLabel: 'Single choice',
-			answerFormatDetail: 'Respondents choose one option. The stored answer is the selected option code.',
+			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS radio group',
 			scaleMin: null,
 			scaleMax: null,
@@ -1893,7 +2139,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			runtimeElementType: 'checkbox',
 			inputType: null,
 			answerFormatLabel: 'Multiple choice',
-			answerFormatDetail: 'Respondents can choose multiple options. The stored answer is an array of option codes.',
+			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS checkbox group',
 			scaleMin: null,
 			scaleMax: null,
@@ -1908,7 +2154,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			runtimeElementType: 'ranking',
 			inputType: null,
 			answerFormatLabel: 'Ranking',
-			answerFormatDetail: 'Respondents order the options. The stored answer is an ordered array of option codes.',
+			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS ranking control',
 			scaleMin: null,
 			scaleMax: null,
@@ -1923,7 +2169,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			runtimeElementType: 'text',
 			inputType: 'number',
 			answerFormatLabel: 'Number input',
-			answerFormatDetail: 'Respondents enter a number. Min, max, unit, and decimal constraints are not modeled yet.',
+			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS text control with number input',
 			scaleMin: null,
 			scaleMax: null,
@@ -1938,7 +2184,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			runtimeElementType: 'text',
 			inputType: 'date',
 			answerFormatLabel: 'Date input',
-			answerFormatDetail: 'Respondents enter a date. Earliest/latest date constraints are not modeled yet.',
+			answerFormatDetail: answerFormatDetail(question),
 			responsePreviewLabel: 'SurveyJS text control with date input',
 			scaleMin: null,
 			scaleMax: null,
@@ -1950,11 +2196,11 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 	if (question.type === 'text') {
 		return {
 			controlType: 'text' as const,
-			runtimeElementType: 'text',
+			runtimeElementType: question.textMultiline ? 'comment' : 'text',
 			inputType: null,
 			answerFormatLabel: 'Text input',
-			answerFormatDetail: 'Respondents enter free text. Long text and max length are not modeled yet.',
-			responsePreviewLabel: 'SurveyJS text control',
+			answerFormatDetail: answerFormatDetail(question),
+			responsePreviewLabel: question.textMultiline ? 'SurveyJS long text control' : 'SurveyJS text control',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -1981,9 +2227,13 @@ function draftRuntimeChoices(question: TemplateQuestionAuthoringRow): DraftRespo
 		return [];
 	}
 
-	return question.choiceOptions.map((option, index) => ({
-		value: `o${String(index + 1).padStart(2, '0')}`,
-		text: option.trim() || `Option ${index + 1}`
+	return choiceOptionPayloads(question).map((option) => ({
+		value: option.code,
+		text: option.isOther
+			? `${option.label} (write-in)`
+			: option.exclusive
+				? `${option.label} (exclusive)`
+				: option.label
 	}));
 }
 
@@ -2013,15 +2263,15 @@ function draftRuntimeWarnings(
 		warnings.push('Choice and ranking questions need at least two options.');
 	}
 
-	if (question.type === 'number') {
+	if (question.type === 'number' && !hasNumberMetadata(question)) {
 		warnings.push('Number input has no min, max, unit, or decimal constraint yet.');
 	}
 
-	if (question.type === 'date') {
+	if (question.type === 'date' && !hasDateMetadata(question)) {
 		warnings.push('Date input has no earliest/latest date constraint yet.');
 	}
 
-	if (question.type === 'text') {
+	if (question.type === 'text' && !hasTextMetadata(question)) {
 		warnings.push('Text input has no long-text or max-length setting yet.');
 	}
 
@@ -2277,7 +2527,20 @@ function paletteQuestion(
 		scaleLowLabel: overrides.scaleLowLabel ?? 'Strongly disagree',
 		scaleHighLabel: overrides.scaleHighLabel ?? 'Strongly agree',
 		scalePreset: overrides.scalePreset ?? (type === 'likert' ? 'agreement_5' : 'custom'),
-		choiceOptions: overrides.choiceOptions ?? []
+		choiceOptions: overrides.choiceOptions ?? [],
+		numberMin: overrides.numberMin ?? null,
+		numberMax: overrides.numberMax ?? null,
+		numberUnit: overrides.numberUnit ?? '',
+		numberIntegerOnly: overrides.numberIntegerOnly ?? false,
+		textMultiline: overrides.textMultiline ?? false,
+		textMaxLength: overrides.textMaxLength ?? null,
+		dateEarliest: overrides.dateEarliest ?? '',
+		dateLatest: overrides.dateLatest ?? '',
+		choiceAllowOther: overrides.choiceAllowOther ?? false,
+		choiceOtherLabel: overrides.choiceOtherLabel ?? 'Other',
+		choiceExclusiveOptionLabel: overrides.choiceExclusiveOptionLabel ?? '',
+		rankingMode: overrides.rankingMode ?? 'rank_all',
+		rankingTopN: overrides.rankingTopN ?? null
 	};
 }
 

@@ -9,13 +9,19 @@ export type RespondentSurveyJson = {
 };
 
 export type RespondentSurveyElement = {
-	type: 'text' | 'rating' | 'radiogroup' | 'checkbox' | 'ranking';
+	type: 'text' | 'comment' | 'rating' | 'radiogroup' | 'checkbox' | 'ranking';
 	name: string;
 	title: string;
 	isRequired: boolean;
 	inputType?: 'number' | 'date';
-	min?: number;
-	max?: number;
+	min?: number | string;
+	max?: number | string;
+	step?: number;
+	maxLength?: number;
+	maxSelectedChoices?: number;
+	selectToRankEnabled?: boolean;
+	showOtherItem?: boolean;
+	otherText?: string;
 	rateMin?: number;
 	rateMax?: number;
 	minRateDescription?: string;
@@ -26,6 +32,7 @@ export type RespondentSurveyElement = {
 export type RespondentSurveyChoice = {
 	value: string;
 	text: string;
+	isExclusive?: boolean;
 };
 
 export function buildRespondentSurveyJson(
@@ -86,35 +93,79 @@ function toSurveyElement(question: RespondentQuestionResponse): RespondentSurvey
 	}
 
 	if (question.type === 'single') {
+		const choice = readObject(parseObject(question.payload), 'choice');
 		return {
 			...element,
 			type: 'radiogroup',
-			choices: questionChoices(question)
+			choices: questionChoices(question),
+			...surveyOtherChoiceOptions(choice)
 		};
 	}
 
 	if (question.type === 'multi') {
+		const choice = readObject(parseObject(question.payload), 'choice');
 		return {
 			...element,
 			type: 'checkbox',
-			choices: questionChoices(question)
+			choices: questionChoices(question),
+			...surveyOtherChoiceOptions(choice)
 		};
 	}
 
 	if (question.type === 'ranking') {
+		const ranking = readObject(parseObject(question.payload), 'ranking');
+		const topN = readNumber(ranking, 'topN');
 		return {
 			...element,
 			type: 'ranking',
-			choices: questionChoices(question)
+			choices: questionChoices(question),
+			...(readString(ranking, 'mode') === 'top_n' && topN !== null
+				? {
+						selectToRankEnabled: true,
+						maxSelectedChoices: topN
+					}
+				: {})
 		};
 	}
 
 	if (question.type === 'number') {
+		const validation = readObject(parseObject(question.payload), 'validation');
 		element.inputType = 'number';
+		const min = readNumber(validation, 'min');
+		const max = readNumber(validation, 'max');
+		if (min !== null) {
+			element.min = min;
+		}
+		if (max !== null) {
+			element.max = max;
+		}
+		if (readBoolean(validation, 'integerOnly')) {
+			element.step = 1;
+		}
 	}
 
 	if (question.type === 'date') {
+		const validation = readObject(parseObject(question.payload), 'validation');
 		element.inputType = 'date';
+		const minDate = readString(validation, 'minDate');
+		const maxDate = readString(validation, 'maxDate');
+		if (minDate) {
+			element.min = minDate;
+		}
+		if (maxDate) {
+			element.max = maxDate;
+		}
+	}
+
+	if (question.type === 'text') {
+		const text = readObject(parseObject(question.payload), 'text');
+		if (readBoolean(text, 'multiline')) {
+			element.type = 'comment';
+		}
+		const maxLength = readNumber(text, 'maxLength');
+		if (maxLength !== null) {
+			element.maxLength = maxLength;
+		}
 	}
 
 	return element;
@@ -184,9 +235,25 @@ function questionChoices(question: RespondentQuestionResponse): RespondentSurvey
 			const candidate = option && typeof option === 'object' ? option : {};
 			const code = readString(candidate, 'code') || `o${String(index + 1).padStart(2, '0')}`;
 			const label = readString(candidate, 'label') || code;
-			return { value: code, text: label };
+			return {
+				value: code,
+				text: label,
+				isExclusive: readBoolean(candidate, 'exclusive') || undefined
+			};
 		})
 		.filter((choice) => choice.value.trim() && choice.text.trim());
+}
+
+function surveyOtherChoiceOptions(choice: Record<string, unknown>): Partial<RespondentSurveyElement> {
+	if (!readBoolean(choice, 'allowOther')) {
+		return {};
+	}
+
+	const otherText = readString(choice, 'otherLabel');
+	return {
+		showOtherItem: true,
+		...(otherText ? { otherText } : {})
+	};
 }
 
 function parseScaleAnchors(value: string | null | undefined) {
@@ -228,4 +295,16 @@ function readString(source: object, key: string): string | null {
 function readNumber(source: object, key: string): number | null {
 	const value = (source as Record<string, unknown>)[key];
 	return typeof value === 'number' ? value : null;
+}
+
+function readBoolean(source: object, key: string): boolean {
+	const value = (source as Record<string, unknown>)[key];
+	return value === true;
+}
+
+function readObject(source: object, key: string): Record<string, unknown> {
+	const value = (source as Record<string, unknown>)[key];
+	return value && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
 }

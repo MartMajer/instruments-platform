@@ -106,6 +106,71 @@ describe('respondent SurveyJS adapter', () => {
 		]);
 	});
 
+	it('carries question metadata into SurveyJS controls where the runtime supports it', () => {
+		const surveyJson = buildRespondentSurveyJson([
+			question({
+				type: 'number',
+				payload: JSON.stringify({
+					validation: { min: 0, max: 80, integerOnly: true },
+					display: { unit: 'hours/week' }
+				})
+			}),
+			question({
+				type: 'date',
+				payload: JSON.stringify({
+					validation: { minDate: '2026-01-01', maxDate: '2026-12-31' }
+				})
+			}),
+			question({
+				type: 'text',
+				payload: JSON.stringify({
+					text: { multiline: true, maxLength: 500 }
+				})
+			}),
+			question({
+				type: 'multi',
+				payload: JSON.stringify({
+					options: [
+						{ code: 'o01', label: 'Workload' },
+						{ code: 'o02', label: 'None of these', exclusive: true }
+					],
+					choice: { allowOther: true, otherLabel: 'Other barrier' }
+				})
+			}),
+			question({
+				type: 'ranking',
+				payload: JSON.stringify({
+					options: [
+						{ code: 'o01', label: 'Staffing' },
+						{ code: 'o02', label: 'Tools' },
+						{ code: 'o03', label: 'Training' }
+					],
+					ranking: { mode: 'top_n', topN: 2 }
+				})
+			})
+		]);
+
+		expect(surveyJson.elements).toMatchObject([
+			{ type: 'text', inputType: 'number', min: 0, max: 80, step: 1 },
+			{ type: 'text', inputType: 'date', min: '2026-01-01', max: '2026-12-31' },
+			{ type: 'comment', maxLength: 500 },
+			{
+				type: 'checkbox',
+				showOtherItem: true,
+				otherText: 'Other barrier',
+				choices: [
+					{ value: 'o01', text: 'Workload' },
+					{ value: 'o02', text: 'None of these', isExclusive: true }
+				]
+			},
+			{
+				type: 'ranking',
+				selectToRankEnabled: true,
+				maxSelectedChoices: 2
+			}
+		]);
+	});
+
 	it('maps route answers into SurveyJS initial data', () => {
 		const multiQuestion = question({ type: 'multi', payload: choicePayload });
 

@@ -632,8 +632,11 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'variables_values',
 				status: 'ready',
-				summary: '2 answer variables, 2 score metadata fields, 7 columns total'
+				summary: '2 answer variables, 2 score metadata fields, 1 answer metadata field, 7 columns total'
 			})
+		);
+		expect(preview.items.find((item) => item.id === 'variables_values')?.detail).toContain(
+			'value labels and answer constraints'
 		);
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
@@ -996,7 +999,14 @@ const responseExportArtifact: ReportProofExportArtifactResponse = {
 				name: 'answer_recovery',
 				source: 'answer',
 				questionCode: 'recovery',
-				missingCodes: { skipped: '__skipped' }
+				missingCodes: { skipped: '__skipped' },
+				valueLabels: { o01: 'Low recovery', o02: 'High recovery' },
+				answerMetadata: {
+					choice: {
+						allowOther: true,
+						otherLabel: 'Other recovery factor'
+					}
+				}
 			},
 			{
 				name: 'posture_strain_n_valid',

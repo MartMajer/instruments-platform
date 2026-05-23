@@ -79,6 +79,7 @@
 		validateScoreOutputRows,
 		type DraftRespondentPreviewQuestion,
 		type QuestionnairePaletteId,
+		type QuestionRankingMode,
 		type QuestionScalePreset,
 		type ScoreCalculation,
 		type ScoreMissingStrategy,
@@ -925,6 +926,18 @@
 		updateTemplateQuestionRow(rowIndex, {
 			[field]: Number.isFinite(parsed) ? parsed : fallback,
 			scalePreset: 'custom'
+		});
+	}
+
+	function updateMetadataNumber(
+		rowIndex: number,
+		field: 'numberMin' | 'numberMax' | 'textMaxLength' | 'rankingTopN',
+		value: string
+	) {
+		const trimmed = value.trim();
+		const parsed = Number.parseFloat(trimmed);
+		updateTemplateQuestionRow(rowIndex, {
+			[field]: trimmed && Number.isFinite(parsed) ? parsed : null
 		});
 	}
 
@@ -1864,6 +1877,106 @@
 											</div>
 										</details>
 									{/if}
+									{#if question.type === 'number'}
+										<details class="record-row">
+											<summary class="record-row__title">Number rules</summary>
+											<div class="mt-3 grid gap-3 lg:grid-cols-4">
+												<label class="field">
+													<span>Minimum</span>
+													<input
+														type="number"
+														value={question.numberMin ?? ''}
+														oninput={(event) =>
+															updateMetadataNumber(index, 'numberMin', event.currentTarget.value)}
+													/>
+												</label>
+												<label class="field">
+													<span>Maximum</span>
+													<input
+														type="number"
+														value={question.numberMax ?? ''}
+														oninput={(event) =>
+															updateMetadataNumber(index, 'numberMax', event.currentTarget.value)}
+													/>
+												</label>
+												<label class="field">
+													<span>Unit label</span>
+													<input
+														placeholder="hours/week, kg, minutes..."
+														value={question.numberUnit}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, { numberUnit: event.currentTarget.value })}
+													/>
+												</label>
+												<label class="checkbox-field self-end">
+													<input
+														type="checkbox"
+														checked={question.numberIntegerOnly}
+														onchange={(event) =>
+															updateTemplateQuestionRow(index, {
+																numberIntegerOnly: event.currentTarget.checked
+															})}
+													/>
+													<span>Whole numbers only</span>
+												</label>
+											</div>
+										</details>
+									{/if}
+									{#if question.type === 'text'}
+										<details class="record-row">
+											<summary class="record-row__title">Text response rules</summary>
+											<div class="mt-3 grid gap-3 lg:grid-cols-3">
+												<label class="checkbox-field self-end">
+													<input
+														type="checkbox"
+														checked={question.textMultiline}
+														onchange={(event) =>
+															updateTemplateQuestionRow(index, {
+																textMultiline: event.currentTarget.checked
+															})}
+													/>
+													<span>Long text answer</span>
+												</label>
+												<label class="field">
+													<span>Max characters</span>
+													<input
+														type="number"
+														min="1"
+														value={question.textMaxLength ?? ''}
+														oninput={(event) =>
+															updateMetadataNumber(index, 'textMaxLength', event.currentTarget.value)}
+													/>
+												</label>
+											</div>
+										</details>
+									{/if}
+									{#if question.type === 'date'}
+										<details class="record-row">
+											<summary class="record-row__title">Date rules</summary>
+											<div class="mt-3 grid gap-3 lg:grid-cols-2">
+												<label class="field">
+													<span>Earliest date</span>
+													<input
+														type="date"
+														value={question.dateEarliest}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, {
+																dateEarliest: event.currentTarget.value
+															})}
+													/>
+												</label>
+												<label class="field">
+													<span>Latest date</span>
+													<input
+														type="date"
+														value={question.dateLatest}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, { dateLatest: event.currentTarget.value })}
+													/>
+												</label>
+											</div>
+										</details>
+									{/if}
 									{#if isChoiceQuestion(question) || question.type === 'ranking'}
 										<details class="record-row">
 											<summary class="record-row__title">Answer options</summary>
@@ -1878,6 +1991,71 @@
 													Enter one option per line.
 												</span>
 											</label>
+											{#if isChoiceQuestion(question)}
+												<div class="mt-3 grid gap-3 lg:grid-cols-3">
+													<label class="checkbox-field self-end">
+														<input
+															type="checkbox"
+															checked={question.choiceAllowOther}
+															onchange={(event) =>
+																updateTemplateQuestionRow(index, {
+																	choiceAllowOther: event.currentTarget.checked
+																})}
+														/>
+														<span>Add an Other write-in option</span>
+													</label>
+													<label class="field">
+														<span>Other label</span>
+														<input
+															disabled={!question.choiceAllowOther}
+															value={question.choiceOtherLabel}
+															oninput={(event) =>
+																updateTemplateQuestionRow(index, {
+																	choiceOtherLabel: event.currentTarget.value
+																})}
+														/>
+													</label>
+													<label class="field">
+														<span>Exclusive option</span>
+														<input
+															placeholder="Example: None of these"
+															value={question.choiceExclusiveOptionLabel}
+															oninput={(event) =>
+																updateTemplateQuestionRow(index, {
+																	choiceExclusiveOptionLabel: event.currentTarget.value
+																})}
+														/>
+													</label>
+												</div>
+											{/if}
+											{#if question.type === 'ranking'}
+												<div class="mt-3 grid gap-3 lg:grid-cols-3">
+													<label class="field">
+														<span>Ranking rule</span>
+														<select
+															value={question.rankingMode}
+															onchange={(event) =>
+																updateTemplateQuestionRow(index, {
+																	rankingMode: event.currentTarget.value as QuestionRankingMode
+																})}
+														>
+															<option value="rank_all">Rank all options</option>
+															<option value="top_n">Rank only top N</option>
+														</select>
+													</label>
+													<label class="field">
+														<span>Top N</span>
+														<input
+															type="number"
+															min="1"
+															disabled={question.rankingMode !== 'top_n'}
+															value={question.rankingTopN ?? ''}
+															oninput={(event) =>
+																updateMetadataNumber(index, 'rankingTopN', event.currentTarget.value)}
+														/>
+													</label>
+												</div>
+											{/if}
 										</details>
 									{/if}
 									<div class="action-row">
@@ -2091,7 +2269,11 @@
 											{:else if question.controlType === 'date'}
 												<input type="date" disabled />
 											{:else if question.controlType === 'text'}
-												<input type="text" disabled placeholder="Text response" />
+												{#if question.runtimeElementType === 'comment'}
+													<textarea rows="3" disabled placeholder="Long text response"></textarea>
+												{:else}
+													<input type="text" disabled placeholder="Text response" />
+												{/if}
 											{:else}
 												<p class="error-line">This question cannot be rendered by the current respondent runtime.</p>
 											{/if}
