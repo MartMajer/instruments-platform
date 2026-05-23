@@ -9,6 +9,7 @@ import {
 	toSelectedSeriesWavesPath,
 	toSelectedSeriesWavesWorkflowActions
 } from './waves-workflow';
+import { routePageCopy } from '../i18n/route-copy';
 
 describe('selected-series waves workflow model', () => {
 	it('maps an empty study into first-wave setup guidance', () => {
@@ -401,6 +402,30 @@ describe('selected-series waves workflow model', () => {
 			})
 		);
 	});
+	it('localizes the waves workflow model for Croatian route copy', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.wavesWorkflow;
+		const plan = toSelectedSeriesWavePlan(oneWaveWorkspace, copy);
+		const groupTrend = toSelectedSeriesGroupTrendPlan(twoAnonymousClosedWorkspace, copy);
+		const path = toSelectedSeriesWavesPath(comparisonReadyWorkspace, {}, copy);
+		const review = toSelectedSeriesWaveComparisonReview(twoAnonymousClosedWorkspace, copy);
+
+		expect(plan).toMatchObject({
+			title: 'Pregledajte Val 1 prije planiranja Vala 2',
+			primaryLabel: 'Pregledaj rezultate Vala 1',
+			secondaryLabel: 'Planiraj Val 2 kasnije'
+		});
+		expect(groupTrend).toMatchObject({
+			title: 'Samo grupni trend: Wave 1 prema Wave 2',
+			primaryLabel: 'Otvori Rezultate'
+		});
+		expect(path.steps[0]).toMatchObject({
+			step: '1',
+			title: 'Provjera povezane promjene'
+		});
+		expect(review).toMatchObject({
+			title: 'Plan usporedbe'
+		});
+	});
 });
 
 const emptyWorkspace: CampaignSeriesWavesWorkspaceResponse = {
@@ -610,3 +635,4 @@ const waveComparisonProof: CampaignSeriesWaveComparisonProofResponse = {
 		}
 	]
 };
+

@@ -111,8 +111,205 @@ export type SelectedSeriesWavesPath = {
 	inactiveReason: string | null;
 };
 
+type WavesWorkflowActionCopy = {
+	title: string;
+	description: string;
+};
+
+export type SelectedSeriesWavesWorkflowCopy = {
+	stepNumber: (number: number) => string;
+	plan: {
+		createFirstTitle: string;
+		createFirstDescription: string;
+		openSetupLabel: string;
+		createFirstGuidance: string[];
+		reviewWavePairTitle: (wavePairTitle: string) => string;
+		groupTrendReviewDescription: string;
+		reviewGroupTrendLabel: string;
+		groupTrendReviewGuidance: (nextWaveNumber: number) => string[];
+		oneWaveTitle: (nextWaveNumber: number) => string;
+		oneWaveDescription: string;
+		reviewWaveResultsLabel: (waveNumber: number) => string;
+		planWaveLaterLabel: (waveNumber: number) => string;
+		oneWaveGuidance: (nextWaveNumber: number) => string[];
+		checkReadinessTitle: string;
+		checkReadinessDescription: string;
+		runChecksBelowLabel: string;
+		reviewResultsLabel: string;
+		checkReadinessGuidance: string[];
+		sameRespondentTitle: string;
+		sameRespondentDescription: string;
+		runLinkedChecksBelowLabel: string;
+		sameRespondentGuidance: string[];
+	};
+	groupTrend: {
+		notReadyTitle: string;
+		notReadyDescription: string;
+		sameRespondentComparisonLabel: string;
+		notReadySameRespondentValue: string;
+		disclosureStatusLabel: string;
+		notReadyDisclosureValue: string;
+		notReadyGuidance: string[];
+		title: (baselineName: string, comparisonName: string) => string;
+		readyDescription: string;
+		pendingDescription: string;
+		firstWaveScoresLabel: string;
+		secondWaveScoresLabel: string;
+		runComparisonChecksValue: string;
+		notConfiguredValue: string;
+		disclosureNotAvailableValue: string;
+		suppressedLinkedComparisonsLabel: string;
+		openResultsLabel: string;
+		readyGuidance: string[];
+	};
+	comparisonReview: {
+		title: string;
+		description: string;
+	};
+	scoreMethodReview: {
+		title: string;
+		description: string;
+	};
+	actions: {
+		twoWaveProof: WavesWorkflowActionCopy;
+		waveComparisonProof: WavesWorkflowActionCopy;
+	};
+	disabled: {
+		unlinkedWavesUseGroupTrend: string;
+		addRepeatedWaves: string;
+		chooseBaselineAndComparison: string;
+		checkReadinessBeforeReview: string;
+	};
+	inactiveReason: {
+		groupTrend: string;
+		noWaves: string;
+		oneWave: string;
+		needScoredResponses: string;
+	};
+};
+
+export const defaultSelectedSeriesWavesWorkflowCopy: SelectedSeriesWavesWorkflowCopy = {
+	stepNumber: (number) => `Step ${number}`,
+	plan: {
+		createFirstTitle: 'Create the first wave',
+		createFirstDescription: 'Start by creating Wave 1 as the first collection round for this study.',
+		openSetupLabel: 'Open setup',
+		createFirstGuidance: [
+			'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
+			'After responses arrive, review the wave in Results before adding a follow-up wave.',
+			'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
+		],
+		reviewWavePairTitle: (wavePairTitle) => `Review ${wavePairTitle}`,
+		groupTrendReviewDescription:
+			'These waves can be reviewed as group-level results. Linked same-respondent change needs repeat participation from the first wave.',
+		reviewGroupTrendLabel: 'Review group trend',
+		groupTrendReviewGuidance: (nextWaveNumber) => [
+			'Review these waves as a group-level trend. Do not describe the change as same-respondent movement because the waves are anonymous.',
+			'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.',
+			`Review or export Wave 1 and Wave 2 before using Setup to create Wave ${nextWaveNumber}.`
+		],
+		oneWaveTitle: (nextWaveNumber) => `Review Wave 1 before planning Wave ${nextWaveNumber}`,
+		oneWaveDescription:
+			'Wave 1 exists. Review the current results first; plan a follow-up only when the next collection round is intentional.',
+		reviewWaveResultsLabel: (waveNumber) => `Review Wave ${waveNumber} results`,
+		planWaveLaterLabel: (waveNumber) => `Plan Wave ${waveNumber} later`,
+		oneWaveGuidance: (nextWaveNumber) => [
+			`Review or export Wave 1 before using Setup to create Wave ${nextWaveNumber}.`,
+			'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
+			'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
+		],
+		checkReadinessTitle: 'Check comparison readiness',
+		checkReadinessDescription:
+			'Two longitudinal waves exist. Now confirm linked trajectories and scoring compatibility.',
+		runChecksBelowLabel: 'Run checks below',
+		reviewResultsLabel: 'Review results',
+		checkReadinessGuidance: [
+			'Use the checks below to confirm both waves can be linked safely.',
+			'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
+			'If the comparison is blocked, use the details section to see which prerequisite is missing.'
+		],
+		sameRespondentTitle: 'Check same-respondent change',
+		sameRespondentDescription:
+			'Two repeat-participation waves exist. Run the comparison checks before treating this as same-respondent change.',
+		runLinkedChecksBelowLabel: 'Run linked checks below',
+		sameRespondentGuidance: [
+			'Use the comparison checks below to confirm linked responses, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
+			'Use Results for wave-level exports; use Waves only when you need reviewed change-over-time context.',
+			'Create another follow-up wave from Setup when the next collection round starts.'
+		]
+	},
+	groupTrend: {
+		notReadyTitle: 'Group trend not ready',
+		notReadyDescription: 'Collect responses in at least two waves before reviewing wave-level trend.',
+		sameRespondentComparisonLabel: 'Same-respondent comparison',
+		notReadySameRespondentValue: 'Not available until two repeated waves exist',
+		disclosureStatusLabel: 'Disclosure status',
+		notReadyDisclosureValue: 'Review after follow-up wave results exist',
+		notReadyGuidance: [
+			'A group trend compares wave-level results. It does not require respondent linking.',
+			'Launch and collect a follow-up wave before reading a trend.',
+			'Use repeat participation if you need same-respondent change instead of wave-level movement.'
+		],
+		title: (baselineName, comparisonName) =>
+			`Aggregate group trend only: ${baselineName} to ${comparisonName}`,
+		readyDescription:
+			'Aggregate group-level results are ready to review as a trend. This is not same-respondent change.',
+		pendingDescription:
+			'Both waves have responses. Finish score output before treating the trend as ready.',
+		firstWaveScoresLabel: 'First wave scores',
+		secondWaveScoresLabel: 'Second wave scores',
+		runComparisonChecksValue: 'Run comparison checks before making same-respondent claims',
+		notConfiguredValue: 'Not configured for same-respondent linked change',
+		disclosureNotAvailableValue: 'Review wave-level disclosure in Results before making claims',
+		suppressedLinkedComparisonsLabel: 'Suppressed linked comparisons',
+		openResultsLabel: 'Open Results',
+		readyGuidance: [
+			'Use this for anonymous or unlinked waves where the question is whether the group moved between rounds.',
+			'Do not describe this as individual improvement or decline unless linked change is ready.',
+			'Review scoring and disclosure in Results before making claims from the trend.'
+		]
+	},
+	comparisonReview: {
+		title: 'Comparison plan',
+		description:
+			'See whether this study is ready for a follow-up wave, aggregate group trend, or same-respondent linked change.'
+	},
+	scoreMethodReview: {
+		title: 'What is being compared?',
+		description:
+			'Review scoring rules, linked-pair method, compared outputs, missingness, and interpretation limits before using wave change.'
+	},
+	actions: {
+		twoWaveProof: {
+			title: 'Check linked change readiness',
+			description:
+				'Confirm this study has repeat-participation waves and linked responses for same-respondent comparison.'
+		},
+		waveComparisonProof: {
+			title: 'Review linked change',
+			description: 'Review disclosure-safe same-respondent change between the selected waves.'
+		}
+	},
+	disabled: {
+		unlinkedWavesUseGroupTrend:
+			'Linked same-respondent comparison is unavailable because these waves were not created with repeat participation. Review group trend instead.',
+		addRepeatedWaves: 'Add at least two repeated waves before comparing change over time.',
+		chooseBaselineAndComparison: 'Choose baseline and comparison waves before reviewing change over time.',
+		checkReadinessBeforeReview: 'Check comparison readiness before reviewing change over time.'
+	},
+	inactiveReason: {
+		groupTrend:
+			'This study supports aggregate group trend only. Linked-change checks are not required and would be misleading here.',
+		noWaves: 'Create and collect the first waves before linked-change checks apply.',
+		oneWave:
+			'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.',
+		needScoredResponses: 'Collect scored responses in at least two waves before comparison tasks apply.'
+	}
+};
+
 export function toSelectedSeriesWavePlan(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWavePlan {
 	const setupHref = `/app/campaign-series/${workspace.series.id}/setup`;
 	const reportsHref = `/app/campaign-series/${workspace.series.id}/reports`;
@@ -123,23 +320,18 @@ export function toSelectedSeriesWavePlan(
 	);
 	const comparisonReady =
 		hasSelectedComparison && workspace.comparison.status !== 'not_available';
-	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace);
+	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace, copy);
 
 	if (!hasAnyWave) {
 		return {
-			title: 'Create the first wave',
-			description:
-				'Start by creating Wave 1 as the first collection round for this study.',
+			title: copy.plan.createFirstTitle,
+			description: copy.plan.createFirstDescription,
 			status: 'pending',
-			primaryLabel: 'Open setup',
+			primaryLabel: copy.plan.openSetupLabel,
 			primaryHref: setupHref,
 			secondaryLabel: null,
 			secondaryHref: null,
-			guidance: [
-				'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
-				'After responses arrive, review the wave in Results before adding a follow-up wave.',
-				'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
-			]
+			guidance: copy.plan.createFirstGuidance
 		};
 	}
 
@@ -150,107 +342,89 @@ export function toSelectedSeriesWavePlan(
 				: 'the selected waves';
 
 		return {
-			title: `Review ${wavePairTitle}`,
-			description:
-				'These waves can be reviewed as group-level results. Linked same-respondent change needs repeat participation from the first wave.',
+			title: copy.plan.reviewWavePairTitle(wavePairTitle),
+			description: copy.plan.groupTrendReviewDescription,
 			status: groupTrendPlan.status,
-			primaryLabel: 'Review group trend',
+			primaryLabel: copy.plan.reviewGroupTrendLabel,
 			primaryHref: reportsHref,
-			secondaryLabel: `Plan Wave ${workspace.summary.campaignCount + 1} later`,
+			secondaryLabel: copy.plan.planWaveLaterLabel(workspace.summary.campaignCount + 1),
 			secondaryHref: setupHref,
-			guidance: [
-				'Review these waves as a group-level trend. Do not describe the change as same-respondent movement because the waves are anonymous.',
-				'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.',
-				`Review or export Wave 1 and Wave 2 before using Setup to create Wave ${workspace.summary.campaignCount + 1}.`
-			]
+			guidance: copy.plan.groupTrendReviewGuidance(workspace.summary.campaignCount + 1)
 		};
 	}
 
 	if (!hasTwoLongitudinalWaves) {
 		const nextWaveNumber = workspace.summary.campaignCount + 1;
 		return {
-			title: `Review Wave 1 before planning Wave ${nextWaveNumber}`,
-			description:
-				'Wave 1 exists. Review the current results first; plan a follow-up only when the next collection round is intentional.',
+			title: copy.plan.oneWaveTitle(nextWaveNumber),
+			description: copy.plan.oneWaveDescription,
 			status: 'pending',
-			primaryLabel: 'Review Wave 1 results',
+			primaryLabel: copy.plan.reviewWaveResultsLabel(1),
 			primaryHref: reportsHref,
-			secondaryLabel: `Plan Wave ${nextWaveNumber} later`,
+			secondaryLabel: copy.plan.planWaveLaterLabel(nextWaveNumber),
 			secondaryHref: setupHref,
-			guidance: [
-				`Review or export Wave 1 before using Setup to create Wave ${nextWaveNumber}.`,
-				'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
-				'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
-			]
+			guidance: copy.plan.oneWaveGuidance(nextWaveNumber)
 		};
 	}
 
 	if (!comparisonReady) {
 		return {
-			title: 'Check comparison readiness',
-			description:
-				'Two longitudinal waves exist. Now confirm linked trajectories and scoring compatibility.',
+			title: copy.plan.checkReadinessTitle,
+			description: copy.plan.checkReadinessDescription,
 			status: 'pending',
-			primaryLabel: 'Run checks below',
+			primaryLabel: copy.plan.runChecksBelowLabel,
 			primaryHref: null,
-			secondaryLabel: 'Review results',
+			secondaryLabel: copy.plan.reviewResultsLabel,
 			secondaryHref: reportsHref,
-			guidance: [
-				'Use the checks below to confirm both waves can be linked safely.',
-				'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
-				'If the comparison is blocked, use the details section to see which prerequisite is missing.'
-			]
+			guidance: copy.plan.checkReadinessGuidance
 		};
 	}
 
 	return {
-		title: 'Check same-respondent change',
-		description:
-			'Two repeat-participation waves exist. Run the comparison checks before treating this as same-respondent change.',
+		title: copy.plan.sameRespondentTitle,
+		description: copy.plan.sameRespondentDescription,
 		status: 'pending',
-		primaryLabel: 'Run linked checks below',
+		primaryLabel: copy.plan.runLinkedChecksBelowLabel,
 		primaryHref: null,
-		secondaryLabel: 'Review results',
+		secondaryLabel: copy.plan.reviewResultsLabel,
 		secondaryHref: reportsHref,
-		guidance: [
-			'Use the comparison checks below to confirm linked responses, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
-			'Use Results for wave-level exports; use Waves only when you need reviewed change-over-time context.',
-			'Create another follow-up wave from Setup when the next collection round starts.'
-		]
+		guidance: copy.plan.sameRespondentGuidance
 	};
 }
 
 export function toSelectedSeriesGroupTrendPlan(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesGroupTrendPlan {
 	const setupHref = `/app/campaign-series/${workspace.series.id}/setup`;
 	const reportsHref = `/app/campaign-series/${workspace.series.id}/reports`;
-	const nextWaveLabel = `Plan Wave ${workspace.summary.campaignCount + 1} later`;
+	const nextWaveLabel = copy.plan.planWaveLaterLabel(workspace.summary.campaignCount + 1);
 	const waves = toGroupTrendWaves(workspace);
 
 	if (waves.length < 2) {
 		return {
-			title: 'Group trend not ready',
-			description:
-				'Collect responses in at least two waves before reviewing wave-level trend.',
+			title: copy.groupTrend.notReadyTitle,
+			description: copy.groupTrend.notReadyDescription,
 			status: 'blocked',
 			baselineName: waves[0]?.name ?? null,
 			comparisonName: null,
 			baselineResponseCount: waves[0]?.submittedResponseCount ?? null,
 			comparisonResponseCount: null,
 			safetyRows: [
-				{ label: 'Same-respondent comparison', value: 'Not available until two repeated waves exist' },
-				{ label: 'Disclosure status', value: 'Review after follow-up wave results exist' }
+				{
+					label: copy.groupTrend.sameRespondentComparisonLabel,
+					value: copy.groupTrend.notReadySameRespondentValue
+				},
+				{
+					label: copy.groupTrend.disclosureStatusLabel,
+					value: copy.groupTrend.notReadyDisclosureValue
+				}
 			],
 			primaryLabel: nextWaveLabel,
 			primaryHref: setupHref,
-			secondaryLabel: workspace.summary.campaignCount > 0 ? 'Review results' : null,
+			secondaryLabel: workspace.summary.campaignCount > 0 ? copy.plan.reviewResultsLabel : null,
 			secondaryHref: workspace.summary.campaignCount > 0 ? reportsHref : null,
-			guidance: [
-				'A group trend compares wave-level results. It does not require respondent linking.',
-				'Launch and collect a follow-up wave before reading a trend.',
-				'Use repeat participation if you need same-respondent change instead of wave-level movement.'
-			]
+			guidance: copy.groupTrend.notReadyGuidance
 		};
 	}
 
@@ -258,53 +432,48 @@ export function toSelectedSeriesGroupTrendPlan(
 	const scoresReady = baselineWave.scoreCount > 0 && comparisonWave.scoreCount > 0;
 
 	return {
-		title: `Aggregate group trend only: ${baselineWave.name} to ${comparisonWave.name}`,
-		description: scoresReady
-			? 'Aggregate group-level results are ready to review as a trend. This is not same-respondent change.'
-			: 'Both waves have responses. Finish score output before treating the trend as ready.',
+		title: copy.groupTrend.title(baselineWave.name, comparisonWave.name),
+		description: scoresReady ? copy.groupTrend.readyDescription : copy.groupTrend.pendingDescription,
 		status: scoresReady ? 'ready' : 'pending',
 		baselineName: baselineWave.name,
 		comparisonName: comparisonWave.name,
 		baselineResponseCount: baselineWave.submittedResponseCount,
 		comparisonResponseCount: comparisonWave.submittedResponseCount,
 		safetyRows: [
-			{ label: 'First wave scores', value: String(baselineWave.scoreCount) },
-			{ label: 'Second wave scores', value: String(comparisonWave.scoreCount) },
+			{ label: copy.groupTrend.firstWaveScoresLabel, value: String(baselineWave.scoreCount) },
+			{ label: copy.groupTrend.secondWaveScoresLabel, value: String(comparisonWave.scoreCount) },
 			{
-				label: 'Same-respondent comparison',
+				label: copy.groupTrend.sameRespondentComparisonLabel,
 				value:
 					workspace.summary.longitudinalWaveCount >= 2
-						? 'Run comparison checks before making same-respondent claims'
-						: 'Not configured for same-respondent linked change'
+						? copy.groupTrend.runComparisonChecksValue
+						: copy.groupTrend.notConfiguredValue
 			},
 			{
-				label: 'Disclosure status',
+				label: copy.groupTrend.disclosureStatusLabel,
 				value:
 					workspace.comparison.disclosureState === 'not_available'
-						? 'Review wave-level disclosure in Results before making claims'
+						? copy.groupTrend.disclosureNotAvailableValue
 						: workspace.comparison.disclosureState.replaceAll('_', ' ')
 			},
 			{
-				label: 'Suppressed linked comparisons',
+				label: copy.groupTrend.suppressedLinkedComparisonsLabel,
 				value: String(workspace.summary.suppressedComparisonCount)
 			}
 		],
-		primaryLabel: 'Open Results',
+		primaryLabel: copy.groupTrend.openResultsLabel,
 		primaryHref: reportsHref,
 		secondaryLabel: nextWaveLabel,
 		secondaryHref: setupHref,
-		guidance: [
-			'Use this for anonymous or unlinked waves where the question is whether the group moved between rounds.',
-			'Do not describe this as individual improvement or decline unless linked change is ready.',
-			'Review scoring and disclosure in Results before making claims from the trend.'
-		]
+		guidance: copy.groupTrend.readyGuidance
 	};
 }
 
 export function toSelectedSeriesWaveComparisonReview(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveComparisonReview {
-	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace);
+	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace, copy);
 	const sameRespondentReady = isSameRespondentComparisonReady(workspace);
 	const groupTrendReady = groupTrendPlan.status === 'ready';
 	const items: SelectedSeriesWaveComparisonReviewItem[] = [
@@ -315,9 +484,8 @@ export function toSelectedSeriesWaveComparisonReview(
 	];
 
 	return {
-		title: 'Comparison plan',
-		description:
-			'See whether this study is ready for a follow-up wave, aggregate group trend, or same-respondent linked change.',
+		title: copy.comparisonReview.title,
+		description: copy.comparisonReview.description,
 		status:
 			workspace.summary.campaignCount === 0
 				? 'blocked'
@@ -330,7 +498,8 @@ export function toSelectedSeriesWaveComparisonReview(
 
 export function toSelectedSeriesWaveScoreMethodReview(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	comparisonProof: CampaignSeriesWaveComparisonProofResponse | null = null
+	comparisonProof: CampaignSeriesWaveComparisonProofResponse | null = null,
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReview {
 	const proofScores = comparisonProof?.scores ?? [];
 	const interpretationReviewed = isInterpretationValidated(
@@ -348,9 +517,8 @@ export function toSelectedSeriesWaveScoreMethodReview(
 	];
 
 	return {
-		title: 'What is being compared?',
-		description:
-			'Review scoring rules, linked-pair method, compared outputs, missingness, and interpretation limits before using wave change.',
+		title: copy.scoreMethodReview.title,
+		description: copy.scoreMethodReview.description,
 		status: !hasAnyWave
 			? 'not_available'
 			: !hasRepeatedWaves
@@ -364,7 +532,8 @@ export function toSelectedSeriesWaveScoreMethodReview(
 
 export function toSelectedSeriesWavesWorkflowActions(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	localState: SelectedSeriesWavesWorkflowLocalState = {}
+	localState: SelectedSeriesWavesWorkflowLocalState = {},
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWavesWorkflowAction[] {
 	const hasTwoLongitudinalWaves = workspace.summary.longitudinalWaveCount >= 2;
 	const hasSelectedComparison = Boolean(
@@ -379,38 +548,38 @@ export function toSelectedSeriesWavesWorkflowActions(
 	return [
 		{
 			id: 'twoWaveProof',
-			step: 'Step 1',
-			title: 'Check linked change readiness',
-			description:
-				'Confirm this study has repeat-participation waves and linked responses for same-respondent comparison.',
+			step: copy.stepNumber(1),
+			title: copy.actions.twoWaveProof.title,
+			description: copy.actions.twoWaveProof.description,
 			status: toTwoWaveProofStatus(hasTwoLongitudinalWaves, twoWaveProofViewed),
 			available: hasTwoLongitudinalWaves,
 			disabledReason: hasTwoLongitudinalWaves
 				? null
-				: toTwoWaveProofDisabledReason(workspace)
+				: toTwoWaveProofDisabledReason(workspace, copy)
 		},
 		{
 			id: 'waveComparisonProof',
-			step: 'Step 2',
-			title: 'Review linked change',
-			description: 'Review disclosure-safe same-respondent change between the selected waves.',
+			step: copy.stepNumber(2),
+			title: copy.actions.waveComparisonProof.title,
+			description: copy.actions.waveComparisonProof.description,
 			status: toWaveComparisonStatus(
 				hasSelectedComparison,
 				comparisonProofReady,
 				waveComparisonProofViewed
 			),
 			available: comparisonProofReady,
-			disabledReason: toWaveComparisonDisabledReason(hasSelectedComparison, comparisonProofReady)
+			disabledReason: toWaveComparisonDisabledReason(hasSelectedComparison, comparisonProofReady, copy)
 		}
 	];
 }
 
 export function toSelectedSeriesWavesPath(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	localState: SelectedSeriesWavesWorkflowLocalState = {}
+	localState: SelectedSeriesWavesWorkflowLocalState = {},
+	copy: SelectedSeriesWavesWorkflowCopy = defaultSelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWavesPath {
-	const actions = toSelectedSeriesWavesWorkflowActions(workspace, localState);
-	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace);
+	const actions = toSelectedSeriesWavesWorkflowActions(workspace, localState, copy);
+	const groupTrendPlan = toSelectedSeriesGroupTrendPlan(workspace, copy);
 	const mode = toWavesPathMode(workspace, groupTrendPlan);
 	const doneByActionId: Record<SelectedSeriesWavesWorkflowActionId, boolean> = {
 		twoWaveProof: Boolean(localState.twoWaveProofViewed),
@@ -434,7 +603,7 @@ export function toSelectedSeriesWavesPath(
 		totalCount: steps.length,
 		mode,
 		showWorkflow: mode === 'linked_change',
-		inactiveReason: toWavesPathInactiveReason(workspace, mode)
+		inactiveReason: toWavesPathInactiveReason(workspace, mode, copy)
 	};
 }
 
@@ -455,25 +624,26 @@ function toWavesPathMode(
 
 function toWavesPathInactiveReason(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
-	mode: SelectedSeriesWavesPathMode
+	mode: SelectedSeriesWavesPathMode,
+	copy: SelectedSeriesWavesWorkflowCopy
 ) {
 	if (mode === 'linked_change') {
 		return null;
 	}
 
 	if (mode === 'group_trend') {
-		return 'This study supports aggregate group trend only. Linked-change checks are not required and would be misleading here.';
+		return copy.inactiveReason.groupTrend;
 	}
 
 	if (workspace.summary.campaignCount === 0) {
-		return 'Create and collect the first waves before linked-change checks apply.';
+		return copy.inactiveReason.noWaves;
 	}
 
 	if (workspace.summary.campaignCount === 1) {
-		return 'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.';
+		return copy.inactiveReason.oneWave;
 	}
 
-	return 'Collect scored responses in at least two waves before comparison tasks apply.';
+	return copy.inactiveReason.needScoredResponses;
 }
 
 function toTwoWaveProofStatus(
@@ -487,12 +657,15 @@ function toTwoWaveProofStatus(
 	return twoWaveProofViewed ? 'ready' : 'pending';
 }
 
-function toTwoWaveProofDisabledReason(workspace: CampaignSeriesWavesWorkspaceResponse) {
+function toTwoWaveProofDisabledReason(
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy
+) {
 	if (workspace.summary.campaignCount >= 2) {
-		return 'Linked same-respondent comparison is unavailable because these waves were not created with repeat participation. Review group trend instead.';
+		return copy.disabled.unlinkedWavesUseGroupTrend;
 	}
 
-	return 'Add at least two repeated waves before comparing change over time.';
+	return copy.disabled.addRepeatedWaves;
 }
 
 function toWaveComparisonStatus(
@@ -509,15 +682,16 @@ function toWaveComparisonStatus(
 
 function toWaveComparisonDisabledReason(
 	hasSelectedComparison: boolean,
-	comparisonProofReady: boolean
+	comparisonProofReady: boolean,
+	copy: SelectedSeriesWavesWorkflowCopy
 ) {
 	if (!hasSelectedComparison) {
-		return 'Choose baseline and comparison waves before reviewing change over time.';
+		return copy.disabled.chooseBaselineAndComparison;
 	}
 
 	return comparisonProofReady
 		? null
-		: 'Check comparison readiness before reviewing change over time.';
+		: copy.disabled.checkReadinessBeforeReview;
 }
 
 function toPathStepState(

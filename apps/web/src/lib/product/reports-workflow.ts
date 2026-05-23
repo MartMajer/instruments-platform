@@ -159,11 +159,168 @@ type ExportCodebookSummary = {
 	columns: ExportCodebookColumn[];
 };
 
+type ReportsWorkflowActionCopy = {
+	title: string;
+	description: string;
+};
+
+export type SelectedSeriesReportsWorkflowCopy = {
+	stepNumber: (number: number) => string;
+	actions: {
+		reportProof: ReportsWorkflowActionCopy;
+		exportArtifact: ReportsWorkflowActionCopy & {
+			optionalTitle: string;
+			optionalDescription: string;
+		};
+		responseExport: ReportsWorkflowActionCopy;
+		fetchArtifact: ReportsWorkflowActionCopy;
+		downloadCsv: {
+			responseDatasetTitle: string;
+			responseDatasetDescription: string;
+			reportSummaryTitle: string;
+			reportSummaryDescription: string;
+		};
+	};
+	disabled: {
+		createOrSelectWaveBeforeReviewingResults: string;
+		resolveReportPrerequisitesBeforeReviewingResults: string;
+		reviewResultsBeforeCreatingReportExport: string;
+		resolveReportPrerequisitesBeforeCreatingReportExport: string;
+		reportExportCreatedThisSession: string;
+		responseDatasetAlreadyExistsReportOptional: string;
+		reportSummaryExportAlreadyExists: string;
+		reviewResultsBeforeCreatingResponseExport: string;
+		resolveReportPrerequisitesBeforeCreatingResponseExport: string;
+		responseExportCreatedThisSession: string;
+		responseExportAlreadyExists: string;
+		createOrSelectExportBeforeReview: string;
+		createOrSelectExportBeforeDownload: string;
+		selectDownloadableExportBeforeDownload: string;
+	};
+	packetReview: {
+		title: string;
+		description: string;
+		primaryAction: {
+			noCampaign: string;
+			noResponses: string;
+			noVisibleScores: string;
+			createExport: string;
+			downloadDataset: string;
+			documentInterpretation: string;
+			preliminary: string;
+		};
+	};
+	scoreMethodReview: {
+		title: string;
+		description: string;
+	};
+	exportPreview: {
+		title: string;
+		description: string;
+		createOrSelectWaveFirst: string;
+		reviewExportFileFirst: string;
+		selectWavePendingDetail: string;
+		reviewFilePendingDetail: string;
+		downloadResponseDatasetCsv: string;
+		downloadReportSummaryCsv: string;
+	};
+};
+
+export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWorkflowCopy = {
+	stepNumber: (number) => `Step ${number}`,
+	actions: {
+		reportProof: {
+			title: 'Review results',
+			description: 'Preview disclosure-safe result summaries for the selected wave.'
+		},
+		exportArtifact: {
+			title: 'Create report-summary export',
+			optionalTitle: 'Report-summary export optional',
+			description:
+				'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+			optionalDescription:
+				'A response dataset already exists. A report-summary export is optional and not required before download.'
+		},
+		responseExport: {
+			title: 'Create response export',
+			description: 'Create analysis-ready response rows and a codebook for this study.'
+		},
+		fetchArtifact: {
+			title: 'Review export file',
+			description: 'Review the latest export file details before downloading.'
+		},
+		downloadCsv: {
+			responseDatasetTitle: 'Download response dataset CSV',
+			responseDatasetDescription:
+				'Download the analysis-ready response dataset CSV and codebook when it is ready.',
+			reportSummaryTitle: 'Download report-summary CSV',
+			reportSummaryDescription:
+				'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+		}
+	},
+	disabled: {
+		createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
+		resolveReportPrerequisitesBeforeReviewingResults:
+			'Resolve report prerequisites before reviewing results.',
+		reviewResultsBeforeCreatingReportExport: 'Review results before creating a report export.',
+		resolveReportPrerequisitesBeforeCreatingReportExport:
+			'Resolve report prerequisites before creating a report export.',
+		reportExportCreatedThisSession: 'Report export was created in this session.',
+		responseDatasetAlreadyExistsReportOptional:
+			'Response dataset already exists; report-summary export is optional.',
+		reportSummaryExportAlreadyExists: 'Report-summary export already exists for this study.',
+		reviewResultsBeforeCreatingResponseExport: 'Review results before creating a response export.',
+		resolveReportPrerequisitesBeforeCreatingResponseExport:
+			'Resolve report prerequisites before creating a response export.',
+		responseExportCreatedThisSession: 'Response export was created in this session.',
+		responseExportAlreadyExists: 'Response export already exists for this study.',
+		createOrSelectExportBeforeReview: 'Create or select an export file before reviewing it.',
+		createOrSelectExportBeforeDownload: 'Create or select an export file before downloading CSV.',
+		selectDownloadableExportBeforeDownload:
+			'Select a downloadable export file before downloading CSV.'
+	},
+	packetReview: {
+		title: 'Can these results be used?',
+		description:
+			'Check whether you have responses, visible scores, an export file, and a clear use limit.',
+		primaryAction: {
+			noCampaign: 'Create or select a wave before reviewing results.',
+			noResponses: 'Collect responses before reviewing results.',
+			noVisibleScores:
+				'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.',
+			createExport:
+				'Create a response export for analysis, or create a report-summary file for internal review.',
+			downloadDataset: 'Download the response dataset for analysis.',
+			documentInterpretation:
+				'Use the response dataset internally; document score meaning before sharing conclusions.',
+			preliminary: 'Use as preliminary internal data until collection is closed.'
+		}
+	},
+	scoreMethodReview: {
+		title: 'How were these scores produced?',
+		description:
+			'Review score outputs, coverage, missing-answer handling, and interpretation limits before using results.'
+	},
+	exportPreview: {
+		title: 'What is in this export?',
+		description:
+			'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+		createOrSelectWaveFirst: 'Create or select a wave first',
+		reviewExportFileFirst: 'Review export file first',
+		selectWavePendingDetail: 'Select a wave before preparing export files.',
+		reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
+		downloadResponseDatasetCsv: 'Download response dataset CSV',
+		downloadReportSummaryCsv: 'Download report-summary CSV'
+	}
+};
+
 export function toSelectedSeriesReportsWorkflowActions(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
-	localState: SelectedSeriesReportsWorkflowLocalState = {}
+	localState: SelectedSeriesReportsWorkflowLocalState = {},
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesReportsWorkflowAction[] {
 	const selectedCampaign = workspace.selectedCampaign;
+	const actionCopy = copy.actions;
 	const hasCampaign = Boolean(selectedCampaign);
 	const reportable = selectedCampaign?.reportStatus === 'proof_only';
 	const reportProofViewed = Boolean(localState.reportProofViewed);
@@ -205,20 +362,22 @@ export function toSelectedSeriesReportsWorkflowActions(
 	return [
 		{
 			id: 'reportProof',
-			step: 'Step 1',
-			title: 'Review results',
-			description: 'Preview disclosure-safe result summaries for the selected wave.',
+			step: copy.stepNumber(1),
+			title: actionCopy.reportProof.title,
+			description: actionCopy.reportProof.description,
 			status: toReportProofStatus(hasCampaign, reportable, resultsReviewed),
 			available: reportable,
-			disabledReason: toReportProofDisabledReason(hasCampaign, reportable)
+			disabledReason: toReportProofDisabledReason(hasCampaign, reportable, copy)
 		},
 		{
 			id: 'exportArtifact',
-			step: 'Step 2',
-			title: hasResponseExport ? 'Report-summary export optional' : 'Create report-summary export',
+			step: copy.stepNumber(2),
+			title: hasResponseExport
+				? actionCopy.exportArtifact.optionalTitle
+				: actionCopy.exportArtifact.title,
 			description: hasResponseExport
-				? 'A response dataset already exists. A report-summary export is optional and not required before download.'
-				: 'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+				? actionCopy.exportArtifact.optionalDescription
+				: actionCopy.exportArtifact.description,
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
@@ -233,14 +392,15 @@ export function toSelectedSeriesReportsWorkflowActions(
 				resultsReviewed,
 				exportCreated,
 				hasExistingReportExport,
-				hasResponseExport
+				hasResponseExport,
+				copy
 			)
 		},
 		{
 			id: 'responseExport',
-			step: 'Step 3',
-			title: 'Create response export',
-			description: 'Create analysis-ready response rows and a codebook for this study.',
+			step: copy.stepNumber(3),
+			title: actionCopy.responseExport.title,
+			description: actionCopy.responseExport.description,
 			status: toResponseExportStatus(hasCampaign, reportable, resultsReviewed, hasResponseExport),
 			available:
 				reportable && resultsReviewed && !responseExportCreated && !hasExistingResponseExport,
@@ -249,35 +409,38 @@ export function toSelectedSeriesReportsWorkflowActions(
 				reportable,
 				resultsReviewed,
 				responseExportCreated,
-				hasExistingResponseExport
+				hasExistingResponseExport,
+				copy
 			)
 		},
 		{
 			id: 'fetchArtifact',
-			step: 'Step 4',
-			title: 'Review export file',
-			description: 'Review the latest export file details before downloading.',
+			step: copy.stepNumber(4),
+			title: actionCopy.fetchArtifact.title,
+			description: actionCopy.fetchArtifact.description,
 			status: toArtifactStatus(hasCampaign, hasExport, artifactFetched),
 			available: hasCampaign && hasExport,
 			disabledReason:
-				hasCampaign && hasExport ? null : 'Create or select an export file before reviewing it.'
+				hasCampaign && hasExport ? null : copy.disabled.createOrSelectExportBeforeReview
 		},
 		{
 			id: 'downloadCsv',
-			step: 'Step 5',
-			title: downloadIsResponseDataset ? 'Download response dataset CSV' : 'Download report-summary CSV',
+			step: copy.stepNumber(5),
+			title: downloadIsResponseDataset
+				? actionCopy.downloadCsv.responseDatasetTitle
+				: actionCopy.downloadCsv.reportSummaryTitle,
 			description: downloadIsResponseDataset
-				? 'Download the analysis-ready response dataset CSV and codebook when it is ready.'
-				: 'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.',
+				? actionCopy.downloadCsv.responseDatasetDescription
+				: actionCopy.downloadCsv.reportSummaryDescription,
 			status: toDownloadStatus(hasCampaign, hasDownloadableExport, csvDownloaded),
 			available: hasCampaign && hasDownloadableExport,
 			disabledReason: hasDownloadableExport
 				? hasCampaign
 					? null
-					: 'Create or select an export file before downloading CSV.'
+					: copy.disabled.createOrSelectExportBeforeDownload
 				: hasExport
-					? 'Select a downloadable export file before downloading CSV.'
-					: 'Create or select an export file before downloading CSV.'
+					? copy.disabled.selectDownloadableExportBeforeDownload
+					: copy.disabled.createOrSelectExportBeforeDownload
 		}
 	];
 }
@@ -494,7 +657,8 @@ export function toSelectedSeriesResultsHandoffStatus(
 
 export function toSelectedSeriesResultsPacketReview(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
-	localState: SelectedSeriesReportsWorkflowLocalState = {}
+	localState: SelectedSeriesReportsWorkflowLocalState = {},
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesResultsPacketReview {
 	const campaign = workspace.selectedCampaign;
 	const hasCampaign = Boolean(campaign);
@@ -524,8 +688,8 @@ export function toSelectedSeriesResultsPacketReview(
 	];
 
 	return {
-		title: 'Can these results be used?',
-		description: 'Check whether you have responses, visible scores, an export file, and a clear use limit.',
+		title: copy.packetReview.title,
+		description: copy.packetReview.description,
 		status: !hasCampaign
 			? 'not_available'
 			: controlledSharingReady
@@ -541,14 +705,15 @@ export function toSelectedSeriesResultsPacketReview(
 			controlledSharingReady,
 			interpretationReviewed,
 			collectionClosed
-		}),
+		}, copy),
 		items
 	};
 }
 
 export function toSelectedSeriesScoreMethodReview(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
-	reportProof: CampaignReportProofResponse | null = null
+	reportProof: CampaignReportProofResponse | null = null,
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesScoreMethodReview {
 	const campaign = workspace.selectedCampaign;
 	const hasCampaign = Boolean(campaign);
@@ -567,9 +732,8 @@ export function toSelectedSeriesScoreMethodReview(
 	];
 
 	return {
-		title: 'How were these scores produced?',
-		description:
-			'Review score outputs, coverage, missing-answer handling, and interpretation limits before using results.',
+		title: copy.scoreMethodReview.title,
+		description: copy.scoreMethodReview.description,
 		status: !hasCampaign
 			? 'not_available'
 			: !hasScoringRule
@@ -583,27 +747,26 @@ export function toSelectedSeriesScoreMethodReview(
 
 export function toSelectedSeriesExportPreview(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
-	artifact: ReportProofExportArtifactResponse | null = null
+	artifact: ReportProofExportArtifactResponse | null = null,
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesExportPreview {
 	if (!workspace.selectedCampaign) {
 		return {
-			title: 'What is in this export?',
-			description:
-				'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+			title: copy.exportPreview.title,
+			description: copy.exportPreview.description,
 			status: 'not_available',
-			downloadLabel: 'Create or select a wave first',
-			items: toPendingExportPreviewItems('Select a wave before preparing export files.')
+			downloadLabel: copy.exportPreview.createOrSelectWaveFirst,
+			items: toPendingExportPreviewItems(copy.exportPreview.selectWavePendingDetail)
 		};
 	}
 
 	if (!artifact) {
 		return {
-			title: 'What is in this export?',
-			description:
-				'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+			title: copy.exportPreview.title,
+			description: copy.exportPreview.description,
 			status: 'pending',
-			downloadLabel: 'Review export file first',
-			items: toPendingExportPreviewItems('Review the export file to inspect its CSV and codebook contents.')
+			downloadLabel: copy.exportPreview.reviewExportFileFirst,
+			items: toPendingExportPreviewItems(copy.exportPreview.reviewFilePendingDetail)
 		};
 	}
 
@@ -622,20 +785,22 @@ export function toSelectedSeriesExportPreview(
 	];
 
 	return {
-		title: 'What is in this export?',
-		description:
-			'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+		title: copy.exportPreview.title,
+		description: copy.exportPreview.description,
 		status: responseDataset && artifact.canDownload ? 'ready' : artifact.canDownload ? 'pending' : 'blocked',
-		downloadLabel: responseDataset ? 'Download response dataset CSV' : 'Download report-summary CSV',
+		downloadLabel: responseDataset
+			? copy.exportPreview.downloadResponseDatasetCsv
+			: copy.exportPreview.downloadReportSummaryCsv,
 		items
 	};
 }
 
 export function toSelectedSeriesReportsPath(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
-	localState: SelectedSeriesReportsWorkflowLocalState = {}
+	localState: SelectedSeriesReportsWorkflowLocalState = {},
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesReportsPath {
-	const actions = toSelectedSeriesReportsWorkflowActions(workspace, localState);
+	const actions = toSelectedSeriesReportsWorkflowActions(workspace, localState, copy);
 	const hasRegistryReportExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'report_proof_csv_codebook'
 	);
@@ -716,25 +881,26 @@ function toResponseExportDisabledReason(
 	reportable: boolean,
 	reportProofViewed: boolean,
 	responseExportCreated: boolean,
-	hasExistingResponseExport: boolean
+	hasExistingResponseExport: boolean,
+	copy: SelectedSeriesReportsWorkflowCopy
 ) {
 	if (!hasCampaign) {
-		return 'Review results before creating a response export.';
+		return copy.disabled.reviewResultsBeforeCreatingResponseExport;
 	}
 
 	if (!reportable) {
-		return 'Resolve report prerequisites before creating a response export.';
+		return copy.disabled.resolveReportPrerequisitesBeforeCreatingResponseExport;
 	}
 
 	if (responseExportCreated) {
-		return 'Response export was created in this session.';
+		return copy.disabled.responseExportCreatedThisSession;
 	}
 
 	if (hasExistingResponseExport) {
-		return 'Response export already exists for this study.';
+		return copy.disabled.responseExportAlreadyExists;
 	}
 
-	return reportProofViewed ? null : 'Review results before creating a response export.';
+	return reportProofViewed ? null : copy.disabled.reviewResultsBeforeCreatingResponseExport;
 }
 
 function toReportProofStatus(
@@ -753,12 +919,16 @@ function toReportProofStatus(
 	return reportable ? 'pending' : 'blocked';
 }
 
-function toReportProofDisabledReason(hasCampaign: boolean, reportable: boolean) {
+function toReportProofDisabledReason(
+	hasCampaign: boolean,
+	reportable: boolean,
+	copy: SelectedSeriesReportsWorkflowCopy
+) {
 	if (!hasCampaign) {
-		return 'Create or select a wave before reviewing results.';
+		return copy.disabled.createOrSelectWaveBeforeReviewingResults;
 	}
 
-	return reportable ? null : 'Resolve report prerequisites before reviewing results.';
+	return reportable ? null : copy.disabled.resolveReportPrerequisitesBeforeReviewingResults;
 }
 
 function toExportStatus(
@@ -788,29 +958,30 @@ function toExportDisabledReason(
 	reportProofViewed: boolean,
 	exportCreated: boolean,
 	hasExistingReportExport: boolean,
-	hasResponseExport: boolean
+	hasResponseExport: boolean,
+	copy: SelectedSeriesReportsWorkflowCopy
 ) {
 	if (!hasCampaign) {
-		return 'Review results before creating a report export.';
+		return copy.disabled.reviewResultsBeforeCreatingReportExport;
 	}
 
 	if (!reportable) {
-		return 'Resolve report prerequisites before creating a report export.';
+		return copy.disabled.resolveReportPrerequisitesBeforeCreatingReportExport;
 	}
 
 	if (exportCreated) {
-		return 'Report export was created in this session.';
+		return copy.disabled.reportExportCreatedThisSession;
 	}
 
 	if (hasResponseExport) {
-		return 'Response dataset already exists; report-summary export is optional.';
+		return copy.disabled.responseDatasetAlreadyExistsReportOptional;
 	}
 
 	if (hasExistingReportExport) {
-		return 'Report-summary export already exists for this study.';
+		return copy.disabled.reportSummaryExportAlreadyExists;
 	}
 
-	return reportProofViewed ? null : 'Review results before creating a report export.';
+	return reportProofViewed ? null : copy.disabled.reviewResultsBeforeCreatingReportExport;
 }
 
 function toArtifactStatus(
@@ -1820,36 +1991,36 @@ function toResultsPacketPrimaryAction(options: {
 	controlledSharingReady: boolean;
 	interpretationReviewed: boolean;
 	collectionClosed: boolean;
-}) {
+}, copy: SelectedSeriesReportsWorkflowCopy) {
 	if (!options.hasCampaign) {
-		return 'Create or select a wave before reviewing results.';
+		return copy.packetReview.primaryAction.noCampaign;
 	}
 
 	if (!options.hasResponses) {
-		return 'Collect responses before reviewing results.';
+		return copy.packetReview.primaryAction.noResponses;
 	}
 
 	if (!options.hasVisibleScores) {
-		return 'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.';
+		return copy.packetReview.primaryAction.noVisibleScores;
 	}
 
 	if (!options.responseDatasetReady) {
-		return 'Create a response export for analysis, or create a report-summary file for internal review.';
+		return copy.packetReview.primaryAction.createExport;
 	}
 
 	if (options.controlledSharingReady) {
-		return 'Download the response dataset for analysis.';
+		return copy.packetReview.primaryAction.downloadDataset;
 	}
 
 	if (!options.interpretationReviewed) {
-		return 'Use the response dataset internally; document score meaning before sharing conclusions.';
+		return copy.packetReview.primaryAction.documentInterpretation;
 	}
 
 	if (!options.collectionClosed) {
-		return 'Use as preliminary internal data until collection is closed.';
+		return copy.packetReview.primaryAction.preliminary;
 	}
 
-	return 'Download the response dataset for analysis.';
+	return copy.packetReview.primaryAction.downloadDataset;
 }
 
 function toHandoffNextAction(

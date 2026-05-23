@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { Download, FileSearch, LoaderCircle, Send } from 'lucide-svelte';
 	import type {
@@ -11,6 +12,8 @@
 		ReportProofExportArtifactResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
 		toSelectedSeriesExportPreview,
@@ -62,6 +65,8 @@
 		downloadCsv: null
 	});
 
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const reportsWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.reportsWorkflow);
 	const selectedCampaign = $derived(workspace.selectedCampaign);
 	const latestResponseExportArtifact = $derived(
 		workspace.exportArtifacts.find(
@@ -118,11 +123,17 @@
 		artifactFetched: Boolean(storedExportResult),
 		csvDownloaded: Boolean(downloadResult)
 	});
-	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
-	const packetReview = $derived(toSelectedSeriesResultsPacketReview(workspace, localState));
-	const methodReview = $derived(toSelectedSeriesScoreMethodReview(workspace, reportProofResult));
+	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState, reportsWorkflowCopy));
+	const packetReview = $derived(
+		toSelectedSeriesResultsPacketReview(workspace, localState, reportsWorkflowCopy)
+	);
+	const methodReview = $derived(
+		toSelectedSeriesScoreMethodReview(workspace, reportProofResult, reportsWorkflowCopy)
+	);
 	const exportPreviewArtifact = $derived(storedExportResult ?? responseExportResult ?? exportResult ?? null);
-	const exportPreview = $derived(toSelectedSeriesExportPreview(workspace, exportPreviewArtifact));
+	const exportPreview = $derived(
+		toSelectedSeriesExportPreview(workspace, exportPreviewArtifact, reportsWorkflowCopy)
+	);
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
 	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);

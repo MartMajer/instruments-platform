@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { GitCompareArrows, LoaderCircle, RefreshCw } from 'lucide-svelte';
 	import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
@@ -7,6 +8,8 @@
 		CampaignSeriesWaveComparisonProofResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
 		toSelectedSeriesGroupTrendPlan,
@@ -48,13 +51,15 @@
 		twoWaveProofViewed: Boolean(twoWaveProofResult),
 		waveComparisonProofViewed: Boolean(waveComparisonProofResult)
 	});
-	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace));
-	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace));
-	const comparisonReview = $derived(toSelectedSeriesWaveComparisonReview(workspace));
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const wavesWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.wavesWorkflow);
+	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace, wavesWorkflowCopy));
+	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace, wavesWorkflowCopy));
+	const comparisonReview = $derived(toSelectedSeriesWaveComparisonReview(workspace, wavesWorkflowCopy));
 	const methodReview = $derived(
-		toSelectedSeriesWaveScoreMethodReview(workspace, waveComparisonProofResult)
+		toSelectedSeriesWaveScoreMethodReview(workspace, waveComparisonProofResult, wavesWorkflowCopy)
 	);
-	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
+	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState, wavesWorkflowCopy));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
 	const resultsHref = $derived(`/app/campaign-series/${workspace.series.id}/reports`);

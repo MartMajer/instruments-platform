@@ -9,6 +9,7 @@ import {
 	toSelectedSeriesReportsPath,
 	toSelectedSeriesReportsWorkflowActions
 } from './reports-workflow';
+import { routePageCopy } from '../i18n/route-copy';
 
 describe('selected-series reports workflow model', () => {
 	it('blocks reports actions when no campaign is selected', () => {
@@ -710,6 +711,33 @@ describe('selected-series reports workflow model', () => {
 			})
 		);
 	});
+	it('localizes the results workflow model for Croatian route copy', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.reportsWorkflow;
+		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseExport, {}, copy);
+		const packet = toSelectedSeriesResultsPacketReview(reportableWorkspace, {}, copy);
+		const preview = toSelectedSeriesExportPreview(
+			reportableWorkspaceWithResponseExport,
+			responseExportArtifact,
+			copy
+		);
+
+		expect(path.steps[0]).toMatchObject({
+			step: '1',
+			title: 'Pregled rezultata',
+			description: 'Pregledajte sažetke rezultata za odabrani val bez narušavanja pravila prikaza.'
+		});
+		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
+			title: 'Preuzmi CSV skupa odgovora'
+		});
+		expect(packet).toMatchObject({
+			title: 'Mogu li se ovi rezultati koristiti?',
+			primaryAction: 'Izradite izvoz odgovora za analizu ili datoteku sažetka izvještaja za interni pregled.'
+		});
+		expect(preview).toMatchObject({
+			title: 'Što je u ovom izvozu?',
+			downloadLabel: 'Preuzmi CSV skupa odgovora'
+		});
+	});
 });
 
 const emptyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
@@ -1053,3 +1081,4 @@ const reportSummaryExportArtifact: ReportProofExportArtifactResponse = {
 		]
 	})
 };
+

@@ -621,7 +621,210 @@ const en = {
 				notAvailable: 'Not available'
 			}
 		},
-		surfaceChrome: {
+		reportsWorkflow: {
+			stepNumber: (number: number) => `Step ${number}`,
+			actions: {
+				reportProof: {
+					title: 'Review results',
+					description: 'Preview disclosure-safe result summaries for the selected wave.'
+				},
+				exportArtifact: {
+					title: 'Create report-summary export',
+					optionalTitle: 'Report-summary export optional',
+					description:
+						'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+					optionalDescription:
+						'A response dataset already exists. A report-summary export is optional and not required before download.'
+				},
+				responseExport: {
+					title: 'Create response export',
+					description: 'Create analysis-ready response rows and a codebook for this study.'
+				},
+				fetchArtifact: {
+					title: 'Review export file',
+					description: 'Review the latest export file details before downloading.'
+				},
+				downloadCsv: {
+					responseDatasetTitle: 'Download response dataset CSV',
+					responseDatasetDescription:
+						'Download the analysis-ready response dataset CSV and codebook when it is ready.',
+					reportSummaryTitle: 'Download report-summary CSV',
+					reportSummaryDescription:
+						'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+				}
+			},
+			disabled: {
+				createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
+				resolveReportPrerequisitesBeforeReviewingResults:
+					'Resolve report prerequisites before reviewing results.',
+				reviewResultsBeforeCreatingReportExport: 'Review results before creating a report export.',
+				resolveReportPrerequisitesBeforeCreatingReportExport:
+					'Resolve report prerequisites before creating a report export.',
+				reportExportCreatedThisSession: 'Report export was created in this session.',
+				responseDatasetAlreadyExistsReportOptional:
+					'Response dataset already exists; report-summary export is optional.',
+				reportSummaryExportAlreadyExists: 'Report-summary export already exists for this study.',
+				reviewResultsBeforeCreatingResponseExport: 'Review results before creating a response export.',
+				resolveReportPrerequisitesBeforeCreatingResponseExport:
+					'Resolve report prerequisites before creating a response export.',
+				responseExportCreatedThisSession: 'Response export was created in this session.',
+				responseExportAlreadyExists: 'Response export already exists for this study.',
+				createOrSelectExportBeforeReview: 'Create or select an export file before reviewing it.',
+				createOrSelectExportBeforeDownload: 'Create or select an export file before downloading CSV.',
+				selectDownloadableExportBeforeDownload:
+					'Select a downloadable export file before downloading CSV.'
+			},
+			packetReview: {
+				title: 'Can these results be used?',
+				description:
+					'Check whether you have responses, visible scores, an export file, and a clear use limit.',
+				primaryAction: {
+					noCampaign: 'Create or select a wave before reviewing results.',
+					noResponses: 'Collect responses before reviewing results.',
+					noVisibleScores:
+						'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.',
+					createExport:
+						'Create a response export for analysis, or create a report-summary file for internal review.',
+					downloadDataset: 'Download the response dataset for analysis.',
+					documentInterpretation:
+						'Use the response dataset internally; document score meaning before sharing conclusions.',
+					preliminary: 'Use as preliminary internal data until collection is closed.'
+				}
+			},
+			scoreMethodReview: {
+				title: 'How were these scores produced?',
+				description:
+					'Review score outputs, coverage, missing-answer handling, and interpretation limits before using results.'
+			},
+			exportPreview: {
+				title: 'What is in this export?',
+				description:
+					'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+				createOrSelectWaveFirst: 'Create or select a wave first',
+				reviewExportFileFirst: 'Review export file first',
+				selectWavePendingDetail: 'Select a wave before preparing export files.',
+				reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
+				downloadResponseDatasetCsv: 'Download response dataset CSV',
+				downloadReportSummaryCsv: 'Download report-summary CSV'
+			}
+		},		wavesWorkflow: {
+			stepNumber: (number: number) => `Step ${number}`,
+			plan: {
+				createFirstTitle: 'Create the first wave',
+				createFirstDescription: 'Start by creating Wave 1 as the first collection round for this study.',
+				openSetupLabel: 'Open setup',
+				createFirstGuidance: [
+					'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
+					'After responses arrive, review the wave in Results before adding a follow-up wave.',
+					'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
+				],
+				reviewWavePairTitle: (wavePairTitle: string) => `Review ${wavePairTitle}`,
+				groupTrendReviewDescription:
+					'These waves can be reviewed as group-level results. Linked same-respondent change needs repeat participation from the first wave.',
+				reviewGroupTrendLabel: 'Review group trend',
+				groupTrendReviewGuidance: (nextWaveNumber: number) => [
+					'Review these waves as a group-level trend. Do not describe the change as same-respondent movement because the waves are anonymous.',
+					'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.',
+					`Review or export Wave 1 and Wave 2 before using Setup to create Wave ${nextWaveNumber}.`
+				],
+				oneWaveTitle: (nextWaveNumber: number) => `Review Wave 1 before planning Wave ${nextWaveNumber}`,
+				oneWaveDescription:
+					'Wave 1 exists. Review the current results first; plan a follow-up only when the next collection round is intentional.',
+				reviewWaveResultsLabel: (waveNumber: number) => `Review Wave ${waveNumber} results`,
+				planWaveLaterLabel: (waveNumber: number) => `Plan Wave ${waveNumber} later`,
+				oneWaveGuidance: (nextWaveNumber: number) => [
+					`Review or export Wave 1 before using Setup to create Wave ${nextWaveNumber}.`,
+					'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
+					'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
+				],
+				checkReadinessTitle: 'Check comparison readiness',
+				checkReadinessDescription:
+					'Two longitudinal waves exist. Now confirm linked trajectories and scoring compatibility.',
+				runChecksBelowLabel: 'Run checks below',
+				reviewResultsLabel: 'Review results',
+				checkReadinessGuidance: [
+					'Use the checks below to confirm both waves can be linked safely.',
+					'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
+					'If the comparison is blocked, use the details section to see which prerequisite is missing.'
+				],
+				sameRespondentTitle: 'Check same-respondent change',
+				sameRespondentDescription:
+					'Two repeat-participation waves exist. Run the comparison checks before treating this as same-respondent change.',
+				runLinkedChecksBelowLabel: 'Run linked checks below',
+				sameRespondentGuidance: [
+					'Use the comparison checks below to confirm linked responses, disclosure, scoring compatibility, and visible deltas before making change-over-time claims.',
+					'Use Results for wave-level exports; use Waves only when you need reviewed change-over-time context.',
+					'Create another follow-up wave from Setup when the next collection round starts.'
+				]
+			},
+			groupTrend: {
+				notReadyTitle: 'Group trend not ready',
+				notReadyDescription: 'Collect responses in at least two waves before reviewing wave-level trend.',
+				sameRespondentComparisonLabel: 'Same-respondent comparison',
+				notReadySameRespondentValue: 'Not available until two repeated waves exist',
+				disclosureStatusLabel: 'Disclosure status',
+				notReadyDisclosureValue: 'Review after follow-up wave results exist',
+				notReadyGuidance: [
+					'A group trend compares wave-level results. It does not require respondent linking.',
+					'Launch and collect a follow-up wave before reading a trend.',
+					'Use repeat participation if you need same-respondent change instead of wave-level movement.'
+				],
+				title: (baselineName: string, comparisonName: string) =>
+					`Aggregate group trend only: ${baselineName} to ${comparisonName}`,
+				readyDescription:
+					'Aggregate group-level results are ready to review as a trend. This is not same-respondent change.',
+				pendingDescription:
+					'Both waves have responses. Finish score output before treating the trend as ready.',
+				firstWaveScoresLabel: 'First wave scores',
+				secondWaveScoresLabel: 'Second wave scores',
+				runComparisonChecksValue: 'Run comparison checks before making same-respondent claims',
+				notConfiguredValue: 'Not configured for same-respondent linked change',
+				disclosureNotAvailableValue: 'Review wave-level disclosure in Results before making claims',
+				suppressedLinkedComparisonsLabel: 'Suppressed linked comparisons',
+				openResultsLabel: 'Open Results',
+				readyGuidance: [
+					'Use this for anonymous or unlinked waves where the question is whether the group moved between rounds.',
+					'Do not describe this as individual improvement or decline unless linked change is ready.',
+					'Review scoring and disclosure in Results before making claims from the trend.'
+				]
+			},
+			comparisonReview: {
+				title: 'Comparison plan',
+				description:
+					'See whether this study is ready for a follow-up wave, aggregate group trend, or same-respondent linked change.'
+			},
+			scoreMethodReview: {
+				title: 'What is being compared?',
+				description:
+					'Review scoring rules, linked-pair method, compared outputs, missingness, and interpretation limits before using wave change.'
+			},
+			actions: {
+				twoWaveProof: {
+					title: 'Check linked change readiness',
+					description:
+						'Confirm this study has repeat-participation waves and linked responses for same-respondent comparison.'
+				},
+				waveComparisonProof: {
+					title: 'Review linked change',
+					description: 'Review disclosure-safe same-respondent change between the selected waves.'
+				}
+			},
+			disabled: {
+				unlinkedWavesUseGroupTrend:
+					'Linked same-respondent comparison is unavailable because these waves were not created with repeat participation. Review group trend instead.',
+				addRepeatedWaves: 'Add at least two repeated waves before comparing change over time.',
+				chooseBaselineAndComparison: 'Choose baseline and comparison waves before reviewing change over time.',
+				checkReadinessBeforeReview: 'Check comparison readiness before reviewing change over time.'
+			},
+			inactiveReason: {
+				groupTrend:
+					'This study supports aggregate group trend only. Linked-change checks are not required and would be misleading here.',
+				noWaves: 'Create and collect the first waves before linked-change checks apply.',
+				oneWave:
+					'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.',
+				needScoredResponses: 'Collect scored responses in at least two waves before comparison tasks apply.'
+			}
+		},		surfaceChrome: {
 			loadingContext: (surface: string) => `Loading ${surface} context`,
 			missingStudy: 'Select a study before opening this surface.',
 			surfaceUnavailableFallback: 'Campaign series surface could not be loaded.',
@@ -1350,7 +1553,210 @@ const hr: typeof en = {
 				notAvailable: 'Nije dostupno'
 			}
 		},
-		surfaceChrome: {
+		reportsWorkflow: {
+			stepNumber: (number: number) => `${number}`,
+			actions: {
+				reportProof: {
+					title: 'Pregled rezultata',
+					description: 'Pregledajte sažetke rezultata za odabrani val bez narušavanja pravila prikaza.'
+				},
+				exportArtifact: {
+					title: 'Izradi sažetak izvještaja',
+					optionalTitle: 'Sažetak izvještaja nije obavezan',
+					description:
+						'Izradite agregirani CSV rezultata i knjigu kodova. Izvan tima ga koristite tek nakon pregleda značenja i konačnosti.',
+					optionalDescription:
+						'Skup odgovora već postoji. Sažetak izvještaja je neobavezan i nije potreban prije preuzimanja.'
+				},
+				responseExport: {
+					title: 'Izradi izvoz odgovora',
+					description: 'Izradite redove odgovora i knjigu kodova spremne za analizu ove studije.'
+				},
+				fetchArtifact: {
+					title: 'Pregled datoteke izvoza',
+					description: 'Pregledajte najnoviju datoteku izvoza prije preuzimanja.'
+				},
+				downloadCsv: {
+					responseDatasetTitle: 'Preuzmi CSV skupa odgovora',
+					responseDatasetDescription:
+						'Preuzmite CSV skupa odgovora i knjigu kodova kada su spremni za analizu.',
+					reportSummaryTitle: 'Preuzmi CSV sažetka izvještaja',
+					reportSummaryDescription:
+						'Preuzmite CSV sažetka izvještaja samo za interni pregled. To nije skup odgovora spreman za analizu.'
+				}
+			},
+			disabled: {
+				createOrSelectWaveBeforeReviewingResults: 'Izradite ili odaberite val prije pregleda rezultata.',
+				resolveReportPrerequisitesBeforeReviewingResults:
+					'Riješite preduvjete izvještavanja prije pregleda rezultata.',
+				reviewResultsBeforeCreatingReportExport: 'Pregledajte rezultate prije izrade sažetka izvještaja.',
+				resolveReportPrerequisitesBeforeCreatingReportExport:
+					'Riješite preduvjete izvještavanja prije izrade sažetka izvještaja.',
+				reportExportCreatedThisSession: 'Sažetak izvještaja izrađen je u ovoj sesiji.',
+				responseDatasetAlreadyExistsReportOptional:
+					'Skup odgovora već postoji; sažetak izvještaja nije obavezan.',
+				reportSummaryExportAlreadyExists: 'Sažetak izvještaja već postoji za ovu studiju.',
+				reviewResultsBeforeCreatingResponseExport: 'Pregledajte rezultate prije izrade izvoza odgovora.',
+				resolveReportPrerequisitesBeforeCreatingResponseExport:
+					'Riješite preduvjete izvještavanja prije izrade izvoza odgovora.',
+				responseExportCreatedThisSession: 'Izvoz odgovora izrađen je u ovoj sesiji.',
+				responseExportAlreadyExists: 'Izvoz odgovora već postoji za ovu studiju.',
+				createOrSelectExportBeforeReview: 'Izradite ili odaberite datoteku izvoza prije pregleda.',
+				createOrSelectExportBeforeDownload: 'Izradite ili odaberite datoteku izvoza prije preuzimanja CSV-a.',
+				selectDownloadableExportBeforeDownload:
+					'Odaberite datoteku izvoza koja se može preuzeti prije preuzimanja CSV-a.'
+			},
+			packetReview: {
+				title: 'Mogu li se ovi rezultati koristiti?',
+				description:
+					'Provjerite imate li odgovore, vidljive rezultate, datoteku izvoza i jasnu granicu korištenja.',
+				primaryAction: {
+					noCampaign: 'Izradite ili odaberite val prije pregleda rezultata.',
+					noResponses: 'Prikupite odgovore prije pregleda rezultata.',
+					noVisibleScores:
+						'Koristite sirovi izvoz odgovora za internu analizu ili pregledajte bodovanje, pravila nedostajućih odgovora i pravila prikaza.',
+					createExport:
+						'Izradite izvoz odgovora za analizu ili datoteku sažetka izvještaja za interni pregled.',
+					downloadDataset: 'Preuzmite skup odgovora za analizu.',
+					documentInterpretation:
+						'Skup odgovora koristite interno; dokumentirajte značenje rezultata prije dijeljenja zaključaka.',
+					preliminary: 'Koristite kao preliminarne interne podatke dok se prikupljanje ne zatvori.'
+				}
+			},
+			scoreMethodReview: {
+				title: 'Kako su ovi rezultati izračunati?',
+				description:
+					'Pregledajte izlaze bodovanja, pokrivenost, postupanje s nedostajućim odgovorima i granice tumačenja prije korištenja rezultata.'
+			},
+			exportPreview: {
+				title: 'Što je u ovom izvozu?',
+				description:
+					'Pregledajte namjenu datoteke, oblik redaka, polja vala, ključeve praćenja, varijable, nedostajuće vrijednosti i rezultate prije preuzimanja.',
+				createOrSelectWaveFirst: 'Prvo izradite ili odaberite val',
+				reviewExportFileFirst: 'Prvo pregledajte datoteku izvoza',
+				selectWavePendingDetail: 'Odaberite val prije pripreme datoteka izvoza.',
+				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i knjigu kodova.',
+				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
+				downloadReportSummaryCsv: 'Preuzmi CSV sažetka izvještaja'
+			}
+		},		wavesWorkflow: {
+			stepNumber: (number: number) => `${number}`,
+			plan: {
+				createFirstTitle: 'Izradite prvi val',
+				createFirstDescription: 'Počnite izradom Vala 1 kao prvog kruga prikupljanja za ovu studiju.',
+				openSetupLabel: 'Otvori Postavljanje',
+				createFirstGuidance: [
+					'Svaki val je krug prikupljanja unutar studije. Izradite Val 1 u Postavljanju, zatim ga pokrenite iz Prikupljanja.',
+					'Nakon što odgovori stignu, pregledajte val u Rezultatima prije dodavanja sljedećeg vala.',
+					'Koristite anonimno longitudinalno sudjelovanje od prvog vala ako kasnije trebate povezanu promjenu kroz vrijeme.'
+				],
+				reviewWavePairTitle: (wavePairTitle: string) => `Pregledajte ${wavePairTitle}`,
+				groupTrendReviewDescription:
+					'Ovi valovi mogu se pregledati kao rezultati na razini grupe. Povezana promjena istih sudionika traži ponovljeno sudjelovanje od prvog vala.',
+				reviewGroupTrendLabel: 'Pregledaj grupni trend',
+				groupTrendReviewGuidance: (nextWaveNumber: number) => [
+					'Pregledajte ove valove kao trend na razini grupe. Nemojte ga opisivati kao promjenu istih sudionika jer su valovi anonimni.',
+					'Koristite ponovljeno sudjelovanje od Vala 1 kada studija kasnije treba povezanu promjenu kroz vrijeme.',
+					`Pregledajte ili izvezite Val 1 i Val 2 prije izrade Vala ${nextWaveNumber} u Postavljanju.`
+				],
+				oneWaveTitle: (nextWaveNumber: number) => `Pregledajte Val 1 prije planiranja Vala ${nextWaveNumber}`,
+				oneWaveDescription:
+					'Val 1 postoji. Prvo pregledajte trenutne rezultate; sljedeći val planirajte samo kada je novi krug prikupljanja namjeran.',
+				reviewWaveResultsLabel: (waveNumber: number) => `Pregledaj rezultate Vala ${waveNumber}`,
+				planWaveLaterLabel: (waveNumber: number) => `Planiraj Val ${waveNumber} kasnije`,
+				oneWaveGuidance: (nextWaveNumber: number) => [
+					`Pregledajte ili izvezite Val 1 prije izrade Vala ${nextWaveNumber} u Postavljanju.`,
+					'Koristite anonimno longitudinalno sudjelovanje kada isti sudionik treba biti povezan kroz valove.',
+					'Pregledajte primatelje prije pokretanja novog vala; nemojte pretpostaviti da je publika ista osim ako to Prikupljanje jasno pokazuje.'
+				],
+				checkReadinessTitle: 'Provjera povezane promjene',
+				checkReadinessDescription:
+					'Postoje dva longitudinalna vala. Sada potvrdite povezane putanje i kompatibilnost bodovanja.',
+				runChecksBelowLabel: 'Pokreni provjere u nastavku',
+				reviewResultsLabel: 'Pregledaj rezultate',
+				checkReadinessGuidance: [
+					'Koristite provjere u nastavku kako biste potvrdili da se oba vala mogu sigurno povezati.',
+					'Rezultati ostaju po valovima dok putanje, prikaz i bodovanje nisu spremni za povezanu usporedbu.',
+					'Ako je usporedba blokirana, u detaljima pogledajte koji preduvjet nedostaje.'
+				],
+				sameRespondentTitle: 'Provjeri promjenu istih sudionika',
+				sameRespondentDescription:
+					'Postoje dva vala s ponovljenim sudjelovanjem. Pokrenite provjere prije nego što ovo tretirate kao promjenu istih sudionika.',
+				runLinkedChecksBelowLabel: 'Pokreni povezane provjere',
+				sameRespondentGuidance: [
+					'Provjerite povezane odgovore, pravila prikaza, kompatibilnost bodovanja i vidljive promjene prije tvrdnji o promjeni kroz vrijeme.',
+					'Koristite Rezultate za izvoz po valovima; koristite Valove samo kada trebate pregledan kontekst promjene kroz vrijeme.',
+					'Novi sljedeći val izradite u Postavljanju kada počinje novi krug prikupljanja.'
+				]
+			},
+			groupTrend: {
+				notReadyTitle: 'Grupni trend nije spreman',
+				notReadyDescription: 'Prikupite odgovore u barem dva vala prije pregleda trenda po valovima.',
+				sameRespondentComparisonLabel: 'Usporedba istih sudionika',
+				notReadySameRespondentValue: 'Nije dostupno dok ne postoje dva ponovljena vala',
+				disclosureStatusLabel: 'Status prikaza',
+				notReadyDisclosureValue: 'Pregledajte nakon što postoje rezultati sljedećeg vala',
+				notReadyGuidance: [
+					'Grupni trend uspoređuje rezultate na razini vala. Ne traži povezivanje sudionika.',
+					'Pokrenite i prikupite sljedeći val prije čitanja trenda.',
+					'Koristite ponovljeno sudjelovanje ako trebate promjenu istih sudionika, a ne samo pomak na razini vala.'
+				],
+				title: (baselineName: string, comparisonName: string) =>
+					`Samo grupni trend: ${baselineName} prema ${comparisonName}`,
+				readyDescription:
+					'Agregirani rezultati na razini grupe spremni su za pregled kao trend. To nije promjena istih sudionika.',
+				pendingDescription:
+					'Oba vala imaju odgovore. Dovršite rezultate bodovanja prije nego trend tretirate kao spreman.',
+				firstWaveScoresLabel: 'Rezultati prvog vala',
+				secondWaveScoresLabel: 'Rezultati drugog vala',
+				runComparisonChecksValue: 'Pokrenite provjere prije tvrdnji o promjeni istih sudionika',
+				notConfiguredValue: 'Nije konfigurirano za povezanu promjenu istih sudionika',
+				disclosureNotAvailableValue: 'Pregledajte prikaz po valovima u Rezultatima prije tvrdnji',
+				suppressedLinkedComparisonsLabel: 'Skrivene povezane usporedbe',
+				openResultsLabel: 'Otvori Rezultate',
+				readyGuidance: [
+					'Koristite ovo za anonimne ili nepovezane valove kada je pitanje je li se grupa pomaknula između krugova.',
+					'Nemojte ovo opisivati kao individualno poboljšanje ili pogoršanje osim ako je povezana promjena spremna.',
+					'Pregledajte bodovanje i pravila prikaza u Rezultatima prije tvrdnji iz trenda.'
+				]
+			},
+			comparisonReview: {
+				title: 'Plan usporedbe',
+				description:
+					'Provjerite je li studija spremna za sljedeći val, agregirani grupni trend ili povezanu promjenu istih sudionika.'
+			},
+			scoreMethodReview: {
+				title: 'Što se uspoređuje?',
+				description:
+					'Pregledajte pravila bodovanja, metodu povezanih parova, uspoređene izlaze, nedostajuće vrijednosti i granice tumačenja prije korištenja promjene kroz valove.'
+			},
+			actions: {
+				twoWaveProof: {
+					title: 'Provjera povezane promjene',
+					description:
+						'Potvrdite da studija ima valove s ponovljenim sudjelovanjem i povezane odgovore za usporedbu istih sudionika.'
+				},
+				waveComparisonProof: {
+					title: 'Pregled povezane promjene',
+					description: 'Pregledajte promjenu istih sudionika između odabranih valova bez narušavanja pravila prikaza.'
+				}
+			},
+			disabled: {
+				unlinkedWavesUseGroupTrend:
+					'Povezana usporedba istih sudionika nije dostupna jer ovi valovi nisu izrađeni s ponovljenim sudjelovanjem. Pregledajte grupni trend.',
+				addRepeatedWaves: 'Dodajte barem dva ponovljena vala prije usporedbe promjene kroz vrijeme.',
+				chooseBaselineAndComparison: 'Odaberite početni i usporedni val prije pregleda promjene kroz vrijeme.',
+				checkReadinessBeforeReview: 'Provjerite spremnost usporedbe prije pregleda promjene kroz vrijeme.'
+			},
+			inactiveReason: {
+				groupTrend:
+					'Ova studija podržava samo agregirani grupni trend. Provjere povezane promjene nisu potrebne i bile bi zavaravajuće.',
+				noWaves: 'Izradite i prikupite prve valove prije provjera povezane promjene.',
+				oneWave:
+					'Pregledajte Val 1 u Rezultatima. Planirajte Val 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
+				needScoredResponses: 'Prikupite bodovane odgovore u barem dva vala prije zadataka usporedbe.'
+			}
+		},		surfaceChrome: {
 			loadingContext: (surface: string) => `Učitavanje konteksta: ${surface}`,
 			missingStudy: 'Odaberite studiju prije otvaranja ove površine.',
 			surfaceUnavailableFallback: 'Površina odabrane studije nije se mogla učitati.',
