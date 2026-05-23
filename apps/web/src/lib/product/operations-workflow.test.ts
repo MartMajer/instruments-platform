@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesOperationsWorkspaceResponse } from '$lib/api/product';
+import { routePageCopy } from '$lib/i18n/route-copy';
 import {
 	emailSuppressionReasonLabel,
 	emailSuppressionSourceLabel,
@@ -426,6 +427,35 @@ describe('selected-series operations workflow model', () => {
 			'Provider delivery event'
 		);
 		expect(emailSuppressionSourceLabel('tenant_operator')).toBe('Workspace admin');
+	});
+
+	it('localizes operations workflow and collection status copy for Croatian route context', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.operationsWorkflow;
+		const path = toSelectedSeriesOperationsPath(draftWorkspace, {}, copy);
+		const summary = toSelectedSeriesCollectionStatusSummary(liveWithResponsesWorkspace, {}, copy);
+
+		expect(path.steps[0]).toMatchObject({
+			step: 'Korak 1',
+			title: 'Provjera prije pokretanja',
+			description: 'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
+		});
+		expect(path.steps[1]?.disabledReason).toBe(
+			'Pokrenite provjeru prije pokretanja. Ako kaže Blokirano, otvorite Postavljanje i dovršite navedene stavke.'
+		);
+		expect(summary).toMatchObject({
+			overallLabel: 'Aktivno',
+			headline: 'Aktivno: prihvaća odgovore s 21 predanim odgovorom',
+			nextAction:
+				'Nastavite prikupljati, pregledajte preliminarne Rezultate ili zatvorite prikupljanje kad ste spremni.'
+		});
+		expect(summary.lanes[0]).toMatchObject({
+			label: 'Životni ciklus prikupljanja',
+			title: 'Aktivno: prihvaća odgovore'
+		});
+		expect(summary.lanes[2]).toMatchObject({
+			label: 'Pristup',
+			title: 'Pristup primatelja pripremljen'
+		});
 	});
 });
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { CircleStop, LoaderCircle, Plus, RefreshCw, SearchCheck, Send } from 'lucide-svelte';
 	import type {
 		CampaignCloseStateResponse,
@@ -22,6 +23,8 @@
 		RequeueFailedCampaignEmailDeliveriesResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import {
 		emailSuppressionReasonLabel,
 		emailSuppressionSourceLabel,
@@ -61,6 +64,8 @@
 
 	const productApi = createProductApiFromEnv(env);
 	const setupApi = createSetupApiFromEnv(env);
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const operationsWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.operationsWorkflow);
 	const countFormatter = new Intl.NumberFormat('hr-HR');
 	const dateTimeFormatter = new Intl.DateTimeFormat('hr-HR', {
 		day: '2-digit',
@@ -137,8 +142,12 @@
 		),
 		closed: Boolean(closeResult)
 	});
-	const operationsPath = $derived(toSelectedSeriesOperationsPath(workspace, localState));
-	const collectionStatus = $derived(toSelectedSeriesCollectionStatusSummary(workspace, localState));
+	const operationsPath = $derived(
+		toSelectedSeriesOperationsPath(workspace, localState, operationsWorkflowCopy)
+	);
+	const collectionStatus = $derived(
+		toSelectedSeriesCollectionStatusSummary(workspace, localState, operationsWorkflowCopy)
+	);
 	const workflowActions = $derived(operationsPath.steps);
 	const recommendedAction = $derived(operationsPath.currentAction);
 	const activeAction = $derived(

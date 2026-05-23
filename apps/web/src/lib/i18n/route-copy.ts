@@ -502,6 +502,125 @@ const en = {
 				and: 'and'
 			}
 		},
+		operationsWorkflow: {
+			stepNumber: (number: number) => `Step ${number}`,
+			actions: {
+				readiness: {
+					title: 'Pre-launch check',
+					description: 'Confirm the questionnaire, results setup, recipients, and policies are ready.'
+				},
+				launch: {
+					title: 'Start collection',
+					description: 'Open this wave for responses and record the setup used for reporting.'
+				},
+				openLink: {
+					title: 'Share access',
+					description: 'Send saved invitations or create an open respondent link for this wave.'
+				},
+				monitor: {
+					title: 'Monitor responses',
+					description: 'Track starts, drafts, submissions, and report readiness while collection runs.'
+				},
+				close: {
+					title: 'Close collection',
+					description: 'Stop accepting new responses while keeping submitted data reportable.'
+				}
+			},
+			disabled: {
+				createWaveBeforeReadiness: 'Create a collection wave in setup before checking readiness.',
+				createWaveBeforeStart: 'Create a collection wave before starting collection.',
+				startBeforeAccess: 'Start collection before preparing respondent access.',
+				startBeforeMonitor: 'Start collection before monitoring responses.',
+				createWaveBeforeClose: 'Create a collection wave before closing collection.',
+				waveClosed: 'This collection wave is closed.',
+				alreadyLive: 'Collection is already live.',
+				startedThisSession: 'Collection was started in this session.',
+				runPrelaunchAndSetup:
+					'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.',
+				onlyLiveClosable: 'Only a live collection wave can be closed.'
+			},
+			status: {
+				lifecycleLabel: 'Collection lifecycle',
+				responseProgressLabel: 'Response progress',
+				accessLabel: 'Access',
+				reportingReadinessLabel: 'Reporting readiness',
+				noWaveSelectedTitle: 'No wave selected',
+				noWaveSelectedDetail: 'Create or select a collection wave before collecting responses.',
+				noResponsesYetTitle: 'No responses yet',
+				noResponsesYetDetail: 'Response counts appear after a wave is started.',
+				noRecipientAccessTitle: 'No recipient access prepared',
+				noRecipientAccessDetail: 'Choose recipients or create respondent access after setup is ready.',
+				reportingNotAvailableTitle: 'Not available',
+				reportingNotAvailableDetail: 'Reporting readiness appears after collection has a selected wave.',
+				createWaveFirstHeadline: 'Create a collection wave first',
+				createWaveFirstGuidance: 'Collection starts after setup has a campaign wave.',
+				createWaveFirstNextAction: 'Open Setup and create a collection wave.',
+				closedTitle: 'Closed',
+				closedDetail: 'This wave no longer accepts new responses.',
+				liveTitle: 'Live: accepting responses',
+				liveDetail: 'Respondents can still submit. Results remain preliminary until collection closes.',
+				draftTitle: 'Draft: not collecting yet',
+				draftDetail: 'Run the pre-launch check, then start collection.',
+				submittedTitle: (submitted: string) => `${submitted} submitted`,
+				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
+					`${started} started, ${drafts} in progress, ${submitted} submitted.`,
+				waitingForResponsesTitle: 'Waiting for responses',
+				waitingForResponsesDetail: 'Collection is open, but no response activity has been recorded yet.',
+				notCollectingTitle: 'Not collecting yet',
+				notCollectingDetail: 'Start collection before monitoring responses.',
+				accessNotPreparedTitle: 'Access not prepared',
+				accessNotPreparedDetail: 'Create a respondent link or prepare invitations before expecting responses.',
+				accessWaitsForLaunchTitle: 'Access waits for launch',
+				accessWaitsForLaunchDetail:
+					'Save recipients in Setup before launch, or start collection before creating an open respondent link.',
+				resultsPreliminaryDetail:
+					'Results can be reviewed, but live collection data should be treated as preliminary until closed.',
+				reportingUsefulAfterSubmitted: 'Reporting becomes useful after submitted responses are available.',
+				closedOverallLabel: 'Closed',
+				closedHeadline: (submitted: string, submittedCount: number) =>
+					`Closed: ${submitted} submitted response${submittedCount === 1 ? '' : 's'}`,
+				closedGuidance: 'Collection is closed. Submitted responses are stable for Results review.',
+				closedNextAction: 'Open Results to review findings and exports.',
+				liveOverallLabel: 'Live',
+				liveHeadline: (submitted: string) => `Live: accepting responses with ${submitted} submitted`,
+				liveGuidance:
+					'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
+				liveNextWithResponses:
+					'Keep collecting, review preliminary Results, or close collection when ready.',
+				liveNextNoResponses: 'Share respondent access and wait for submitted responses.',
+				draftOverallLabel: 'Draft',
+				draftHeadline: 'Draft: collection has not started',
+				draftGuidance: 'Run the pre-launch check before sharing respondent access.',
+				draftNextAction: 'Run the pre-launch check.',
+				identifiedAccessTitle: 'Identified access prepared',
+				inviteOnlyAccessTitle: 'Invite-only access prepared',
+				openLinkAccessTitle: 'Open-link access prepared',
+				recipientAccessTitle: 'Recipient access prepared',
+				identifiedAccessDetail: (openLinkCount: string, pluralSuffix: string) =>
+					`${openLinkCount} identified access link${pluralSuffix} prepared. Respondents are connected to known subject records for this wave.`,
+				inviteOnlyDetail: (invitationCount: string, verb: string, boundary: string) =>
+					`${invitationCount} saved email invitation${verb} ready for this wave. Only saved recipients receive private access, and ${boundary}`,
+				mixedAccessDetail: (
+					openLinkCount: string,
+					openPluralSuffix: string,
+					invitationCount: string,
+					invitationPluralSuffix: string,
+					boundary: string
+				) =>
+					`${openLinkCount} open respondent link${openPluralSuffix} and ${invitationCount} saved email invitation${invitationPluralSuffix}. Open-link access is broad; invite-only email access limits entry to saved recipients. ${boundary}`,
+				openLinkDetail: (openLinkCount: string, verb: string) =>
+					`${openLinkCount} open respondent link${verb} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`,
+				createAccessBeforeResponses:
+					'Create a respondent link or saved email invitations before expecting responses.',
+				anonymousBoundary: 'anonymous reports still do not show who answered.',
+				anonymousBoundarySentence: 'Anonymous reports still keep respondent identity out of results.',
+				longitudinalBoundary:
+					'repeat-participation results use participant codes instead of showing who answered.',
+				longitudinalBoundarySentence:
+					'Repeat-participation comparison uses participant codes; email recipient lists are not shown in results.',
+				notAvailable: 'Not available'
+			}
+		},
 		surfaceChrome: {
 			loadingContext: (surface: string) => `Loading ${surface} context`,
 			missingStudy: 'Select a study before opening this surface.',
@@ -1111,6 +1230,124 @@ const hr: typeof en = {
 			misc: {
 				notEditable: 'nije moguće uređivati',
 				and: 'i'
+			}
+		},
+		operationsWorkflow: {
+			stepNumber: (number: number) => `Korak ${number}`,
+			actions: {
+				readiness: {
+					title: 'Provjera prije pokretanja',
+					description: 'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
+				},
+				launch: {
+					title: 'Pokretanje prikupljanja',
+					description: 'Otvorite ovaj val za odgovore i zabilježite postavke korištene za izvještavanje.'
+				},
+				openLink: {
+					title: 'Dijeljenje pristupa',
+					description: 'Pošaljite spremljene pozive ili izradite otvorenu poveznicu za ovaj val.'
+				},
+				monitor: {
+					title: 'Praćenje odgovora',
+					description: 'Pratite početke, nacrte, predaje i spremnost izvještaja dok prikupljanje traje.'
+				},
+				close: {
+					title: 'Zatvaranje prikupljanja',
+					description: 'Zaustavite nove odgovore, a predane podatke zadržite dostupnima za izvještaje.'
+				}
+			},
+			disabled: {
+				createWaveBeforeReadiness: 'Izradite val prikupljanja u Postavljanju prije provjere spremnosti.',
+				createWaveBeforeStart: 'Izradite val prikupljanja prije pokretanja prikupljanja.',
+				startBeforeAccess: 'Pokrenite prikupljanje prije pripreme pristupa sudionicima.',
+				startBeforeMonitor: 'Pokrenite prikupljanje prije praćenja odgovora.',
+				createWaveBeforeClose: 'Izradite val prikupljanja prije zatvaranja prikupljanja.',
+				waveClosed: 'Ovaj val prikupljanja je zatvoren.',
+				alreadyLive: 'Prikupljanje je već aktivno.',
+				startedThisSession: 'Prikupljanje je pokrenuto u ovoj sesiji.',
+				runPrelaunchAndSetup:
+					'Pokrenite provjeru prije pokretanja. Ako kaže Blokirano, otvorite Postavljanje i dovršite navedene stavke.',
+				onlyLiveClosable: 'Zatvoriti se može samo aktivan val prikupljanja.'
+			},
+			status: {
+				lifecycleLabel: 'Životni ciklus prikupljanja',
+				responseProgressLabel: 'Napredak odgovora',
+				accessLabel: 'Pristup',
+				reportingReadinessLabel: 'Spremnost izvještaja',
+				noWaveSelectedTitle: 'Nijedan val nije odabran',
+				noWaveSelectedDetail: 'Izradite ili odaberite val prikupljanja prije prikupljanja odgovora.',
+				noResponsesYetTitle: 'Još nema odgovora',
+				noResponsesYetDetail: 'Brojevi odgovora pojavit će se nakon pokretanja vala.',
+				noRecipientAccessTitle: 'Pristup sudionicima nije pripremljen',
+				noRecipientAccessDetail: 'Odaberite primatelje ili izradite pristup sudionicima nakon što je postavljanje spremno.',
+				reportingNotAvailableTitle: 'Nije dostupno',
+				reportingNotAvailableDetail: 'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrani val.',
+				createWaveFirstHeadline: 'Prvo izradite val prikupljanja',
+				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima val kampanje.',
+				createWaveFirstNextAction: 'Otvorite Postavljanje i izradite val prikupljanja.',
+				closedTitle: 'Zatvoreno',
+				closedDetail: 'Ovaj val više ne prihvaća nove odgovore.',
+				liveTitle: 'Aktivno: prihvaća odgovore',
+				liveDetail: 'Sudionici još mogu predati odgovore. Rezultati ostaju preliminarni dok se prikupljanje ne zatvori.',
+				draftTitle: 'Nacrt: još ne prikuplja',
+				draftDetail: 'Pokrenite provjeru prije pokretanja, zatim pokrenite prikupljanje.',
+				submittedTitle: (submitted: string) => `${submitted} predano`,
+				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
+					`${started} započeto, ${drafts} u tijeku, ${submitted} predano.`,
+				waitingForResponsesTitle: 'Čekanje odgovora',
+				waitingForResponsesDetail: 'Prikupljanje je otvoreno, ali još nema zabilježene aktivnosti odgovora.',
+				notCollectingTitle: 'Još ne prikuplja',
+				notCollectingDetail: 'Pokrenite prikupljanje prije praćenja odgovora.',
+				accessNotPreparedTitle: 'Pristup nije pripremljen',
+				accessNotPreparedDetail: 'Izradite poveznicu za sudionike ili pripremite pozive prije očekivanja odgovora.',
+				accessWaitsForLaunchTitle: 'Pristup čeka pokretanje',
+				accessWaitsForLaunchDetail:
+					'Spremite primatelje u Postavljanju prije pokretanja ili pokrenite prikupljanje prije izrade otvorene poveznice.',
+				resultsPreliminaryDetail:
+					'Rezultati se mogu pregledati, ali podatke aktivnog prikupljanja tretirajte kao preliminarne dok se prikupljanje ne zatvori.',
+				reportingUsefulAfterSubmitted: 'Izvještavanje postaje korisno nakon što postoje predani odgovori.',
+				closedOverallLabel: 'Zatvoreno',
+				closedHeadline: (submitted: string) => `Zatvoreno: ${submitted} predanih odgovora`,
+				closedGuidance: 'Prikupljanje je zatvoreno. Predani odgovori stabilni su za pregled Rezultata.',
+				closedNextAction: 'Otvorite Rezultate za pregled nalaza i izvoza.',
+				liveOverallLabel: 'Aktivno',
+				liveHeadline: (submitted: string) => `Aktivno: prihvaća odgovore s ${submitted} predanim odgovorom`,
+				liveGuidance:
+					'Koristite ovu stranicu za praćenje napretka odgovora i pristupa sudionicima. Zatvorite prikupljanje kad prozor odgovaranja završi.',
+				liveNextWithResponses:
+					'Nastavite prikupljati, pregledajte preliminarne Rezultate ili zatvorite prikupljanje kad ste spremni.',
+				liveNextNoResponses: 'Podijelite pristup sudionicima i pričekajte predane odgovore.',
+				draftOverallLabel: 'Nacrt',
+				draftHeadline: 'Nacrt: prikupljanje nije pokrenuto',
+				draftGuidance: 'Pokrenite provjeru prije pokretanja prije dijeljenja pristupa sudionicima.',
+				draftNextAction: 'Pokrenite provjeru prije pokretanja.',
+				identifiedAccessTitle: 'Identificirani pristup pripremljen',
+				inviteOnlyAccessTitle: 'Invite-only pristup pripremljen',
+				openLinkAccessTitle: 'Otvorena poveznica pripremljena',
+				recipientAccessTitle: 'Pristup primatelja pripremljen',
+				identifiedAccessDetail: (openLinkCount: string, pluralSuffix: string) =>
+					`${openLinkCount} identificirana pristupna poveznica${pluralSuffix} pripremljena. Sudionici su povezani s poznatim zapisima osoba za ovaj val.`,
+				inviteOnlyDetail: (invitationCount: string, verb: string, boundary: string) =>
+					`${invitationCount} spremljenih poziva e-poštom ${verb} za ovaj val. Samo spremljeni primatelji dobivaju privatni pristup, a ${boundary}`,
+				mixedAccessDetail: (
+					openLinkCount: string,
+					openPluralSuffix: string,
+					invitationCount: string,
+					invitationPluralSuffix: string,
+					boundary: string
+				) =>
+					`${openLinkCount} otvorenih poveznica${openPluralSuffix} i ${invitationCount} spremljenih poziva${invitationPluralSuffix}. Otvorena poveznica je širok pristup; invite-only e-pošta ograničava ulaz na spremljene primatelje. ${boundary}`,
+				openLinkDetail: (openLinkCount: string, verb: string) =>
+					`${openLinkCount} otvorenih poveznica ${verb}. Svatko s poveznicom može ući u ovaj val; koristite spremljene pozive kad pristup treba biti ograničen.`,
+				createAccessBeforeResponses:
+					'Izradite poveznicu za sudionike ili spremljene pozive e-poštom prije očekivanja odgovora.',
+				anonymousBoundary: 'anonimni izvještaji i dalje ne prikazuju tko je odgovorio.',
+				anonymousBoundarySentence: 'Anonimni izvještaji i dalje odvajaju identitet sudionika od rezultata.',
+				longitudinalBoundary:
+					'rezultati ponovnog sudjelovanja koriste kodove sudionika umjesto prikaza tko je odgovorio.',
+				longitudinalBoundarySentence:
+					'Usporedba ponovnog sudjelovanja koristi kodove sudionika; popisi e-pošte primatelja ne prikazuju se u rezultatima.',
+				notAvailable: 'Nije dostupno'
 			}
 		},
 		surfaceChrome: {

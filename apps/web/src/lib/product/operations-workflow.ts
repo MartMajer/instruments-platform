@@ -86,6 +86,217 @@ export type RecipientSuppressionReview = {
 	items: RecipientSuppressionReviewItem[];
 };
 
+export type SelectedSeriesOperationsWorkflowCopy = {
+	stepNumber: (number: number) => string;
+	actions: Record<
+		SelectedSeriesOperationsWorkflowActionId,
+		{
+			title: string;
+			description: string;
+		}
+	>;
+	disabled: {
+		createWaveBeforeReadiness: string;
+		createWaveBeforeStart: string;
+		startBeforeAccess: string;
+		startBeforeMonitor: string;
+		createWaveBeforeClose: string;
+		waveClosed: string;
+		alreadyLive: string;
+		startedThisSession: string;
+		runPrelaunchAndSetup: string;
+		onlyLiveClosable: string;
+	};
+	status: {
+		lifecycleLabel: string;
+		responseProgressLabel: string;
+		accessLabel: string;
+		reportingReadinessLabel: string;
+		noWaveSelectedTitle: string;
+		noWaveSelectedDetail: string;
+		noResponsesYetTitle: string;
+		noResponsesYetDetail: string;
+		noRecipientAccessTitle: string;
+		noRecipientAccessDetail: string;
+		reportingNotAvailableTitle: string;
+		reportingNotAvailableDetail: string;
+		createWaveFirstHeadline: string;
+		createWaveFirstGuidance: string;
+		createWaveFirstNextAction: string;
+		closedTitle: string;
+		closedDetail: string;
+		liveTitle: string;
+		liveDetail: string;
+		draftTitle: string;
+		draftDetail: string;
+		submittedTitle: (submitted: string) => string;
+		responseActivityDetail: (started: string, drafts: string, submitted: string) => string;
+		waitingForResponsesTitle: string;
+		waitingForResponsesDetail: string;
+		notCollectingTitle: string;
+		notCollectingDetail: string;
+		accessNotPreparedTitle: string;
+		accessNotPreparedDetail: string;
+		accessWaitsForLaunchTitle: string;
+		accessWaitsForLaunchDetail: string;
+		resultsPreliminaryDetail: string;
+		reportingUsefulAfterSubmitted: string;
+		closedOverallLabel: string;
+		closedHeadline: (submitted: string, submittedCount: number) => string;
+		closedGuidance: string;
+		closedNextAction: string;
+		liveOverallLabel: string;
+		liveHeadline: (submitted: string) => string;
+		liveGuidance: string;
+		liveNextWithResponses: string;
+		liveNextNoResponses: string;
+		draftOverallLabel: string;
+		draftHeadline: string;
+		draftGuidance: string;
+		draftNextAction: string;
+		identifiedAccessTitle: string;
+		inviteOnlyAccessTitle: string;
+		openLinkAccessTitle: string;
+		recipientAccessTitle: string;
+		identifiedAccessDetail: (openLinkCount: string, pluralSuffix: string) => string;
+		inviteOnlyDetail: (invitationCount: string, verb: string, boundary: string) => string;
+		mixedAccessDetail: (
+			openLinkCount: string,
+			openPluralSuffix: string,
+			invitationCount: string,
+			invitationPluralSuffix: string,
+			boundary: string
+		) => string;
+		openLinkDetail: (openLinkCount: string, verb: string) => string;
+		createAccessBeforeResponses: string;
+		anonymousBoundary: string;
+		anonymousBoundarySentence: string;
+		longitudinalBoundary: string;
+		longitudinalBoundarySentence: string;
+		notAvailable: string;
+	};
+};
+
+export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperationsWorkflowCopy = {
+	stepNumber: (number) => `Step ${number}`,
+	actions: {
+		readiness: {
+			title: 'Pre-launch check',
+			description: 'Confirm the questionnaire, results setup, recipients, and policies are ready.'
+		},
+		launch: {
+			title: 'Start collection',
+			description: 'Open this wave for responses and record the setup used for reporting.'
+		},
+		openLink: {
+			title: 'Share access',
+			description: 'Send saved invitations or create an open respondent link for this wave.'
+		},
+		monitor: {
+			title: 'Monitor responses',
+			description: 'Track starts, drafts, submissions, and report readiness while collection runs.'
+		},
+		close: {
+			title: 'Close collection',
+			description: 'Stop accepting new responses while keeping submitted data reportable.'
+		}
+	},
+	disabled: {
+		createWaveBeforeReadiness: 'Create a collection wave in setup before checking readiness.',
+		createWaveBeforeStart: 'Create a collection wave before starting collection.',
+		startBeforeAccess: 'Start collection before preparing respondent access.',
+		startBeforeMonitor: 'Start collection before monitoring responses.',
+		createWaveBeforeClose: 'Create a collection wave before closing collection.',
+		waveClosed: 'This collection wave is closed.',
+		alreadyLive: 'Collection is already live.',
+		startedThisSession: 'Collection was started in this session.',
+		runPrelaunchAndSetup:
+			'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.',
+		onlyLiveClosable: 'Only a live collection wave can be closed.'
+	},
+	status: {
+		lifecycleLabel: 'Collection lifecycle',
+		responseProgressLabel: 'Response progress',
+		accessLabel: 'Access',
+		reportingReadinessLabel: 'Reporting readiness',
+		noWaveSelectedTitle: 'No wave selected',
+		noWaveSelectedDetail: 'Create or select a collection wave before collecting responses.',
+		noResponsesYetTitle: 'No responses yet',
+		noResponsesYetDetail: 'Response counts appear after a wave is started.',
+		noRecipientAccessTitle: 'No recipient access prepared',
+		noRecipientAccessDetail: 'Choose recipients or create respondent access after setup is ready.',
+		reportingNotAvailableTitle: 'Not available',
+		reportingNotAvailableDetail: 'Reporting readiness appears after collection has a selected wave.',
+		createWaveFirstHeadline: 'Create a collection wave first',
+		createWaveFirstGuidance: 'Collection starts after setup has a campaign wave.',
+		createWaveFirstNextAction: 'Open Setup and create a collection wave.',
+		closedTitle: 'Closed',
+		closedDetail: 'This wave no longer accepts new responses.',
+		liveTitle: 'Live: accepting responses',
+		liveDetail: 'Respondents can still submit. Results remain preliminary until collection closes.',
+		draftTitle: 'Draft: not collecting yet',
+		draftDetail: 'Run the pre-launch check, then start collection.',
+		submittedTitle: (submitted) => `${submitted} submitted`,
+		responseActivityDetail: (started, drafts, submitted) =>
+			`${started} started, ${drafts} in progress, ${submitted} submitted.`,
+		waitingForResponsesTitle: 'Waiting for responses',
+		waitingForResponsesDetail: 'Collection is open, but no response activity has been recorded yet.',
+		notCollectingTitle: 'Not collecting yet',
+		notCollectingDetail: 'Start collection before monitoring responses.',
+		accessNotPreparedTitle: 'Access not prepared',
+		accessNotPreparedDetail: 'Create a respondent link or prepare invitations before expecting responses.',
+		accessWaitsForLaunchTitle: 'Access waits for launch',
+		accessWaitsForLaunchDetail:
+			'Save recipients in Setup before launch, or start collection before creating an open respondent link.',
+		resultsPreliminaryDetail:
+			'Results can be reviewed, but live collection data should be treated as preliminary until closed.',
+		reportingUsefulAfterSubmitted: 'Reporting becomes useful after submitted responses are available.',
+		closedOverallLabel: 'Closed',
+		closedHeadline: (submitted, submittedCount) =>
+			`Closed: ${submitted} submitted response${submittedCount === 1 ? '' : 's'}`,
+		closedGuidance: 'Collection is closed. Submitted responses are stable for Results review.',
+		closedNextAction: 'Open Results to review findings and exports.',
+		liveOverallLabel: 'Live',
+		liveHeadline: (submitted) => `Live: accepting responses with ${submitted} submitted`,
+		liveGuidance:
+			'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
+		liveNextWithResponses:
+			'Keep collecting, review preliminary Results, or close collection when ready.',
+		liveNextNoResponses: 'Share respondent access and wait for submitted responses.',
+		draftOverallLabel: 'Draft',
+		draftHeadline: 'Draft: collection has not started',
+		draftGuidance: 'Run the pre-launch check before sharing respondent access.',
+		draftNextAction: 'Run the pre-launch check.',
+		identifiedAccessTitle: 'Identified access prepared',
+		inviteOnlyAccessTitle: 'Invite-only access prepared',
+		openLinkAccessTitle: 'Open-link access prepared',
+		recipientAccessTitle: 'Recipient access prepared',
+		identifiedAccessDetail: (openLinkCount, pluralSuffix) =>
+			`${openLinkCount} identified access link${pluralSuffix} prepared. Respondents are connected to known subject records for this wave.`,
+		inviteOnlyDetail: (invitationCount, verb, boundary) =>
+			`${invitationCount} saved email invitation${verb} ready for this wave. Only saved recipients receive private access, and ${boundary}`,
+		mixedAccessDetail: (
+			openLinkCount,
+			openPluralSuffix,
+			invitationCount,
+			invitationPluralSuffix,
+			boundary
+		) =>
+			`${openLinkCount} open respondent link${openPluralSuffix} and ${invitationCount} saved email invitation${invitationPluralSuffix}. Open-link access is broad; invite-only email access limits entry to saved recipients. ${boundary}`,
+		openLinkDetail: (openLinkCount, verb) =>
+			`${openLinkCount} open respondent link${verb} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`,
+		createAccessBeforeResponses:
+			'Create a respondent link or saved email invitations before expecting responses.',
+		anonymousBoundary: 'anonymous reports still do not show who answered.',
+		anonymousBoundarySentence: 'Anonymous reports still keep respondent identity out of results.',
+		longitudinalBoundary:
+			'repeat-participation results use participant codes instead of showing who answered.',
+		longitudinalBoundarySentence:
+			'Repeat-participation comparison uses participant codes; email recipient lists are not shown in results.',
+		notAvailable: 'Not available'
+	}
+};
+
 export function toRecipientSuppressionReview(
 	recipients: readonly RecipientSuppressionReviewRecipient[],
 	suppressions: readonly EmailSuppressionResponse[]
@@ -165,7 +376,8 @@ export function emailSuppressionSourceLabel(source: string | null | undefined) {
 
 export function toSelectedSeriesOperationsWorkflowActions(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
-	localState: SelectedSeriesOperationsWorkflowLocalState = {}
+	localState: SelectedSeriesOperationsWorkflowLocalState = {},
+	copy: SelectedSeriesOperationsWorkflowCopy = defaultSelectedSeriesOperationsWorkflowCopy
 ): SelectedSeriesOperationsWorkflowAction[] {
 	const selectedCampaign = workspace.selectedCampaign;
 	const hasCampaign = Boolean(selectedCampaign);
@@ -193,29 +405,29 @@ export function toSelectedSeriesOperationsWorkflowActions(
 	return [
 		{
 			id: 'readiness',
-			step: 'Step 1',
-			title: 'Pre-launch check',
-			description: 'Confirm the questionnaire, results setup, recipients, and policies are ready.',
+			step: copy.stepNumber(1),
+			title: copy.actions.readiness.title,
+			description: copy.actions.readiness.description,
 			status: !hasCampaign ? 'not_available' : readinessReady ? 'ready' : 'pending',
 			available: hasCampaign,
 			disabledReason: hasCampaign
 				? null
-				: 'Create a collection wave in setup before checking readiness.'
+				: copy.disabled.createWaveBeforeReadiness
 		},
 		{
 			id: 'launch',
-			step: 'Step 2',
-			title: 'Start collection',
-			description: 'Open this wave for responses and record the setup used for reporting.',
+			step: copy.stepNumber(2),
+			title: copy.actions.launch.title,
+			description: copy.actions.launch.description,
 			status: toLaunchStatus(hasCampaign, isLive, closed, launched, localState),
 			available: hasCampaign && readinessReady && !launched && !closed,
-			disabledReason: toLaunchDisabledReason(hasCampaign, isLive, closed, launched, localState)
+			disabledReason: toLaunchDisabledReason(hasCampaign, isLive, closed, launched, localState, copy)
 		},
 		{
 			id: 'openLink',
-			step: 'Step 3',
-			title: 'Share access',
-			description: 'Send saved invitations or create an open respondent link for this wave.',
+			step: copy.stepNumber(3),
+			title: copy.actions.openLink.title,
+			description: copy.actions.openLink.description,
 			status: !hasCampaign
 				? 'not_available'
 				: launched && hasRespondentAccess
@@ -225,16 +437,16 @@ export function toSelectedSeriesOperationsWorkflowActions(
 						: 'blocked',
 			available: launched && !closed,
 			disabledReason: !launched
-				? 'Start collection before preparing respondent access.'
+				? copy.disabled.startBeforeAccess
 				: closed
-					? 'This collection wave is closed.'
+					? copy.disabled.waveClosed
 					: null
 		},
 		{
 			id: 'monitor',
-			step: 'Step 4',
-			title: 'Monitor responses',
-			description: 'Track starts, drafts, submissions, and report readiness while collection runs.',
+			step: copy.stepNumber(4),
+			title: copy.actions.monitor.title,
+			description: copy.actions.monitor.description,
 			status: !hasCampaign
 				? 'not_available'
 				: closed
@@ -242,34 +454,35 @@ export function toSelectedSeriesOperationsWorkflowActions(
 					: launched && hasResponseActivity
 						? 'ready'
 						: launched
-							? 'pending'
-							: 'blocked',
+					? 'pending'
+					: 'blocked',
 			available: launched,
-			disabledReason: !launched ? 'Start collection before monitoring responses.' : null
+			disabledReason: !launched ? copy.disabled.startBeforeMonitor : null
 		},
 		{
 			id: 'close',
-			step: 'Step 5',
-			title: 'Close collection',
-			description: 'Stop accepting new responses while keeping submitted data reportable.',
+			step: copy.stepNumber(5),
+			title: copy.actions.close.title,
+			description: copy.actions.close.description,
 			status: !hasCampaign ? 'not_available' : closed ? 'closed' : closeable ? 'pending' : 'blocked',
 			available: closeable && !closed,
 			disabledReason: !hasCampaign
-				? 'Create a collection wave before closing collection.'
+				? copy.disabled.createWaveBeforeClose
 				: closed
 					? null
 					: closeable
 						? null
-						: 'Only a live collection wave can be closed.'
+						: copy.disabled.onlyLiveClosable
 		}
 	];
 }
 
 export function toSelectedSeriesOperationsPath(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
-	localState: SelectedSeriesOperationsWorkflowLocalState = {}
+	localState: SelectedSeriesOperationsWorkflowLocalState = {},
+	copy: SelectedSeriesOperationsWorkflowCopy = defaultSelectedSeriesOperationsWorkflowCopy
 ): SelectedSeriesOperationsPath {
-	const actions = toSelectedSeriesOperationsWorkflowActions(workspace, localState);
+	const actions = toSelectedSeriesOperationsWorkflowActions(workspace, localState, copy);
 	const selectedCampaign = workspace.selectedCampaign;
 	const isLive = selectedCampaign?.status === 'live';
 	const isClosed = selectedCampaign?.status === 'closed' || Boolean(selectedCampaign?.closedAt);
@@ -318,7 +531,8 @@ export function toSelectedSeriesOperationsPath(
 
 export function toSelectedSeriesCollectionStatusSummary(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
-	localState: SelectedSeriesOperationsWorkflowLocalState = {}
+	localState: SelectedSeriesOperationsWorkflowLocalState = {},
+	copy: SelectedSeriesOperationsWorkflowCopy = defaultSelectedSeriesOperationsWorkflowCopy
 ): SelectedSeriesCollectionStatusSummary {
 	const selectedCampaign = workspace.selectedCampaign;
 
@@ -326,40 +540,40 @@ export function toSelectedSeriesCollectionStatusSummary(
 		const lanes: SelectedSeriesCollectionStatusLane[] = [
 			{
 				id: 'lifecycle',
-				label: 'Collection lifecycle',
-				title: 'No wave selected',
+				label: copy.status.lifecycleLabel,
+				title: copy.status.noWaveSelectedTitle,
 				status: 'not_available',
-				detail: 'Create or select a collection wave before collecting responses.'
+				detail: copy.status.noWaveSelectedDetail
 			},
 			{
 				id: 'responses',
-				label: 'Response progress',
-				title: 'No responses yet',
+				label: copy.status.responseProgressLabel,
+				title: copy.status.noResponsesYetTitle,
 				status: 'not_available',
-				detail: 'Response counts appear after a wave is started.'
+				detail: copy.status.noResponsesYetDetail
 			},
 			{
 				id: 'audience',
-				label: 'Access',
-				title: 'No recipient access prepared',
+				label: copy.status.accessLabel,
+				title: copy.status.noRecipientAccessTitle,
 				status: 'not_available',
-				detail: 'Choose recipients or create respondent access after setup is ready.'
+				detail: copy.status.noRecipientAccessDetail
 			},
 			{
 				id: 'reporting',
-				label: 'Reporting readiness',
-				title: 'Not available',
+				label: copy.status.reportingReadinessLabel,
+				title: copy.status.reportingNotAvailableTitle,
 				status: 'not_available',
-				detail: 'Reporting readiness appears after collection has a selected wave.'
+				detail: copy.status.reportingNotAvailableDetail
 			}
 		];
 
 		return {
 			overallStatus: 'not_available',
-			overallLabel: 'No wave selected',
-			headline: 'Create a collection wave first',
-			guidance: 'Collection starts after setup has a campaign wave.',
-			nextAction: 'Open Setup and create a collection wave.',
+			overallLabel: copy.status.noWaveSelectedTitle,
+			headline: copy.status.createWaveFirstHeadline,
+			guidance: copy.status.createWaveFirstGuidance,
+			nextAction: copy.status.createWaveFirstNextAction,
 			lanes
 		};
 	}
@@ -386,93 +600,99 @@ export function toSelectedSeriesCollectionStatusSummary(
 	const lifecycleLane: SelectedSeriesCollectionStatusLane = closed
 		? {
 				id: 'lifecycle',
-				label: 'Collection lifecycle',
-				title: 'Closed',
+				label: copy.status.lifecycleLabel,
+				title: copy.status.closedTitle,
 				status: 'closed',
-				detail: 'This wave no longer accepts new responses.'
+				detail: copy.status.closedDetail
 			}
 		: isLive || localState.launched
 			? {
 					id: 'lifecycle',
-					label: 'Collection lifecycle',
-					title: 'Live: accepting responses',
+					label: copy.status.lifecycleLabel,
+					title: copy.status.liveTitle,
 					status: 'live',
-					detail: 'Respondents can still submit. Results remain preliminary until collection closes.'
+					detail: copy.status.liveDetail
 				}
 			: {
 					id: 'lifecycle',
-					label: 'Collection lifecycle',
-					title: 'Draft: not collecting yet',
+					label: copy.status.lifecycleLabel,
+					title: copy.status.draftTitle,
 					status: 'pending',
-					detail: 'Run the pre-launch check, then start collection.'
+					detail: copy.status.draftDetail
 				};
 
 	const responsesLane: SelectedSeriesCollectionStatusLane = hasResponseActivity
 		? {
 				id: 'responses',
-				label: 'Response progress',
-				title: `${formatCount(submitted)} submitted`,
+				label: copy.status.responseProgressLabel,
+				title: copy.status.submittedTitle(formatCount(submitted)),
 				status: submitted > 0 ? 'ready' : 'pending',
-				detail: `${formatCount(started)} started, ${formatCount(drafts)} in progress, ${formatCount(submitted)} submitted.`
+				detail: copy.status.responseActivityDetail(
+					formatCount(started),
+					formatCount(drafts),
+					formatCount(submitted)
+				)
 			}
 		: launched
 			? {
 					id: 'responses',
-					label: 'Response progress',
-					title: 'Waiting for responses',
+					label: copy.status.responseProgressLabel,
+					title: copy.status.waitingForResponsesTitle,
 					status: 'pending',
-					detail: 'Collection is open, but no response activity has been recorded yet.'
+					detail: copy.status.waitingForResponsesDetail
 				}
 			: {
 					id: 'responses',
-					label: 'Response progress',
-					title: 'Not collecting yet',
+					label: copy.status.responseProgressLabel,
+					title: copy.status.notCollectingTitle,
 					status: 'blocked',
-					detail: 'Start collection before monitoring responses.'
+					detail: copy.status.notCollectingDetail
 				};
 
 	const audienceLane: SelectedSeriesCollectionStatusLane = hasRespondentAccess
 		? {
 				id: 'audience',
-				label: 'Access',
+				label: copy.status.accessLabel,
 				title: audienceAccessTitle(
 					selectedCampaign.responseIdentityMode,
 					openLinks,
-					preparedInvitations
+					preparedInvitations,
+					copy
 				),
 				status: 'ready',
 				detail: audienceAccessDetail(
 					selectedCampaign.responseIdentityMode,
 					openLinks,
 					preparedInvitations,
-					localState.openLinkCreated
+					localState.openLinkCreated,
+					copy
 				)
 			}
 		: launched
 			? {
 					id: 'audience',
-					label: 'Access',
-					title: 'Access not prepared',
+					label: copy.status.accessLabel,
+					title: copy.status.accessNotPreparedTitle,
 					status: 'pending',
-					detail: 'Create a respondent link or prepare invitations before expecting responses.'
+					detail: copy.status.accessNotPreparedDetail
 				}
 			: {
 					id: 'audience',
-					label: 'Access',
-					title: 'Access waits for launch',
+					label: copy.status.accessLabel,
+					title: copy.status.accessWaitsForLaunchTitle,
 					status: 'blocked',
-					detail: 'Save recipients in Setup before launch, or start collection before creating an open respondent link.'
+					detail: copy.status.accessWaitsForLaunchDetail
 				};
 
 	const reportingLane: SelectedSeriesCollectionStatusLane = {
 		id: 'reporting',
-		label: 'Reporting readiness',
+		label: copy.status.reportingReadinessLabel,
 		title: humanize(workspace.summary.reportVisibilityStatus),
 		status: toReportingStatus(workspace.summary.reportVisibilityStatus, submitted),
 		detail:
 			submitted > 0
-				? 'Results can be reviewed, but live collection data should be treated as preliminary until closed.'
-				: 'Reporting becomes useful after submitted responses are available.'
+				? copy.status.resultsPreliminaryDetail
+				: copy.status.reportingUsefulAfterSubmitted
 	};
 
 	const lanes = [lifecycleLane, responsesLane, audienceLane, reportingLane];
@@ -480,10 +700,10 @@ export function toSelectedSeriesCollectionStatusSummary(
 	if (closed) {
 		return {
 			overallStatus: 'closed',
-			overallLabel: 'Closed',
-			headline: `Closed: ${formatCount(submitted)} submitted response${submitted === 1 ? '' : 's'}`,
-			guidance: 'Collection is closed. Submitted responses are stable for Results review.',
-			nextAction: 'Open Results to review findings and exports.',
+			overallLabel: copy.status.closedOverallLabel,
+			headline: copy.status.closedHeadline(formatCount(submitted), submitted),
+			guidance: copy.status.closedGuidance,
+			nextAction: copy.status.closedNextAction,
 			lanes
 		};
 	}
@@ -491,24 +711,23 @@ export function toSelectedSeriesCollectionStatusSummary(
 	if (isLive || localState.launched) {
 		return {
 			overallStatus: 'live',
-			overallLabel: 'Live',
-			headline: `Live: accepting responses with ${formatCount(submitted)} submitted`,
-			guidance:
-				'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
+			overallLabel: copy.status.liveOverallLabel,
+			headline: copy.status.liveHeadline(formatCount(submitted)),
+			guidance: copy.status.liveGuidance,
 			nextAction:
 				submitted > 0
-					? 'Keep collecting, review preliminary Results, or close collection when ready.'
-					: 'Share respondent access and wait for submitted responses.',
+					? copy.status.liveNextWithResponses
+					: copy.status.liveNextNoResponses,
 			lanes
 		};
 	}
 
 	return {
 		overallStatus: 'pending',
-		overallLabel: 'Draft',
-		headline: 'Draft: collection has not started',
-		guidance: 'Run the pre-launch check before sharing respondent access.',
-		nextAction: 'Run the pre-launch check.',
+		overallLabel: copy.status.draftOverallLabel,
+		headline: copy.status.draftHeadline,
+		guidance: copy.status.draftGuidance,
+		nextAction: copy.status.draftNextAction,
 		lanes
 	};
 }
@@ -544,27 +763,26 @@ function toLaunchDisabledReason(
 	isLive: boolean,
 	closed: boolean,
 	launched: boolean,
-	localState: SelectedSeriesOperationsWorkflowLocalState
+	localState: SelectedSeriesOperationsWorkflowLocalState,
+	copy: SelectedSeriesOperationsWorkflowCopy
 ) {
 	if (!hasCampaign) {
-		return 'Create a collection wave before starting collection.';
+		return copy.disabled.createWaveBeforeStart;
 	}
 
 	if (closed) {
-		return 'This collection wave is closed.';
+		return copy.disabled.waveClosed;
 	}
 
 	if (isLive) {
-		return 'Collection is already live.';
+		return copy.disabled.alreadyLive;
 	}
 
 	if (launched || localState.launched) {
-		return 'Collection was started in this session.';
+		return copy.disabled.startedThisSession;
 	}
 
-	return localState.readinessReady
-		? null
-		: 'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.';
+	return localState.readinessReady ? null : copy.disabled.runPrelaunchAndSetup;
 }
 
 function toPathStepState(
@@ -626,76 +844,76 @@ function toReportingStatus(
 function audienceAccessTitle(
 	responseIdentityMode: string | null | undefined,
 	openLinkCount: number,
-	invitationCount: number
+	invitationCount: number,
+	copy: SelectedSeriesOperationsWorkflowCopy
 ) {
 	if (responseIdentityMode === 'identified') {
-		return 'Identified access prepared';
+		return copy.status.identifiedAccessTitle;
 	}
 
 	if (invitationCount > 0 && openLinkCount === 0) {
-		return 'Invite-only access prepared';
+		return copy.status.inviteOnlyAccessTitle;
 	}
 
 	if (openLinkCount > 0 && invitationCount === 0) {
-		return 'Open-link access prepared';
+		return copy.status.openLinkAccessTitle;
 	}
 
-	return 'Recipient access prepared';
+	return copy.status.recipientAccessTitle;
 }
 
 function audienceAccessDetail(
 	responseIdentityMode: string | null | undefined,
 	openLinkCount: number,
 	invitationCount: number,
-	openLinkCreated: boolean | undefined
+	openLinkCreated: boolean | undefined,
+	copy: SelectedSeriesOperationsWorkflowCopy
 ) {
 	const effectiveOpenLinkCount = openLinkCount || (openLinkCreated ? 1 : 0);
 
 	if (responseIdentityMode === 'identified') {
-		return `${formatCount(effectiveOpenLinkCount)} identified access link${
+		return copy.status.identifiedAccessDetail(
+			formatCount(effectiveOpenLinkCount),
 			effectiveOpenLinkCount === 1 ? '' : 's'
-		} prepared. Respondents are connected to known subject records for this wave.`;
+		);
 	}
 
 	if (invitationCount > 0 && effectiveOpenLinkCount === 0) {
-		return `${formatCount(invitationCount)} saved email invitation${
-			invitationCount === 1 ? ' is' : 's are'
-		} ready for this wave. Only saved recipients receive private access, and ${anonymousResultBoundary(
-			responseIdentityMode
-		)}`;
+		return copy.status.inviteOnlyDetail(
+			formatCount(invitationCount),
+			invitationCount === 1 ? ' is' : 's are',
+			anonymousResultBoundary(responseIdentityMode, false, copy)
+		);
 	}
 
 	if (effectiveOpenLinkCount > 0 && invitationCount > 0) {
-		return `${formatCount(effectiveOpenLinkCount)} open respondent link${
-			effectiveOpenLinkCount === 1 ? '' : 's'
-		} and ${formatCount(invitationCount)} saved email invitation${
-			invitationCount === 1 ? '' : 's'
-		}. Open-link access is broad; invite-only email access limits entry to saved recipients. ${anonymousResultBoundary(
-			responseIdentityMode,
-			true
-		)}`;
+		return copy.status.mixedAccessDetail(
+			formatCount(effectiveOpenLinkCount),
+			effectiveOpenLinkCount === 1 ? '' : 's',
+			formatCount(invitationCount),
+			invitationCount === 1 ? '' : 's',
+			anonymousResultBoundary(responseIdentityMode, true, copy)
+		);
 	}
 
 	if (effectiveOpenLinkCount > 0) {
-		return `${formatCount(effectiveOpenLinkCount)} open respondent link${
+		return copy.status.openLinkDetail(
+			formatCount(effectiveOpenLinkCount),
 			effectiveOpenLinkCount === 1 ? ' is' : 's are'
-		} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`;
+		);
 	}
 
-	return 'Create a respondent link or saved email invitations before expecting responses.';
+	return copy.status.createAccessBeforeResponses;
 }
 
 function anonymousResultBoundary(
 	responseIdentityMode: string | null | undefined,
-	startSentence = false
+	startSentence = false,
+	copy: SelectedSeriesOperationsWorkflowCopy
 ) {
 	if (responseIdentityMode === 'anonymous_longitudinal') {
-		return startSentence
-			? 'Repeat-participation comparison uses participant codes; email recipient lists are not shown in results.'
-			: 'repeat-participation results use participant codes instead of showing who answered.';
+		return startSentence ? copy.status.longitudinalBoundarySentence : copy.status.longitudinalBoundary;
 	}
 
-	return startSentence
-		? 'Anonymous reports still keep respondent identity out of results.'
-		: 'anonymous reports still do not show who answered.';
+	return startSentence ? copy.status.anonymousBoundarySentence : copy.status.anonymousBoundary;
 }
