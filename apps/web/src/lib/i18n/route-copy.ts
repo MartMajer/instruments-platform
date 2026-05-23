@@ -534,6 +534,41 @@ const en = {
 						summary: 'A short editable set for workload pressure, recovery need, and recovery capacity.',
 						detail: 'Useful for first occupational-health or ergonomics studies.'
 					},
+					osh_ergonomics: {
+						label: 'OSH / ergonomics',
+						category: 'Original editable starter',
+						summary: 'Original editable workplace-risk items for posture, repetition, discomfort, and recovery.',
+						detail: 'Useful for occupational-safety discovery work. Not a validated named instrument by itself.'
+					},
+					office_ergonomics: {
+						label: 'Office ergonomics',
+						category: 'Persona starter',
+						summary:
+							'Original editable office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
+						detail: 'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.'
+					},
+					academic_workload: {
+						label: 'Academic workload',
+						category: 'Persona starter',
+						summary:
+							'Original editable items for teaching/research load, admin pressure, supervision clarity, and recovery.',
+						detail: 'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.'
+					},
+					team_climate: {
+						label: 'Team climate pulse',
+						category: 'Original editable starter',
+						summary:
+							'Original editable items for role clarity, support, communication, fairness, and psychological safety.',
+						detail: 'A compact team-health pulse for repeated waves or a one-off internal review.'
+					},
+					healthcare_staff_strain: {
+						label: 'Healthcare staff strain',
+						category: 'Persona starter',
+						summary:
+							'Original editable items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
+						detail:
+							'Useful for owner-controlled rehearsal and future hospital discovery without clinical or diagnostic claims.'
+					},
 					burnout_risk: {
 						label: 'Burnout risk screen',
 						category: 'Workplace health',
@@ -1989,6 +2024,41 @@ const hr: typeof en = {
 						category: 'Zdravlje na radu',
 						summary: 'Kratak uređivi skup za radni pritisak, potrebu za oporavkom i kapacitet oporavka.',
 						detail: 'Korisno za prve studije medicine rada ili ergonomije.'
+					},
+					osh_ergonomics: {
+						label: 'Zaštita na radu i ergonomija',
+						category: 'Izvorni uređivi početni skup',
+						summary: 'Izvorne uređive stavke za držanje, ponavljanje, nelagodu i oporavak.',
+						detail: 'Korisno za početno istraživanje zaštite na radu. Nije validirani imenovani instrument.'
+					},
+					office_ergonomics: {
+						label: 'Uredska ergonomija',
+						category: 'Početni skup za personu',
+						summary:
+							'Izvorne uređive stavke za prilagodbu radnog mjesta, naprezanje zbog ekrana, ulazne uređaje i prekide.',
+						detail: 'Za hibridne ili uredske timove gdje su ergonomija i uvjeti fokusa važni.'
+					},
+					academic_workload: {
+						label: 'Akademsko opterećenje',
+						category: 'Početni skup za personu',
+						summary:
+							'Izvorne uređive stavke za nastavno/istraživačko opterećenje, administraciju, jasnoću očekivanja i oporavak.',
+						detail: 'Korisno za profesorske studije i provjere opterećenja odjela. Tumačenje zadržite specifično za studiju.'
+					},
+					team_climate: {
+						label: 'Puls timske klime',
+						category: 'Izvorni uređivi početni skup',
+						summary:
+							'Izvorne uređive stavke za jasnoću uloga, podršku, komunikaciju, pravednost i psihološku sigurnost.',
+						detail: 'Kompaktan puls zdravlja tima za ponovljene valove ili jednokratni interni pregled.'
+					},
+					healthcare_staff_strain: {
+						label: 'Opterećenje zdravstvenog osoblja',
+						category: 'Početni skup za personu',
+						summary:
+							'Izvorne uređive stavke za umor nakon smjene, emocionalno opterećenje, manjak osoblja, primopredaju i oporavak.',
+						detail:
+							'Korisno za vlasničku probu i buduće bolničko istraživanje bez kliničkih ili dijagnostičkih tvrdnji.'
 					},
 					burnout_risk: {
 						label: 'Rizik iscrpljenosti',

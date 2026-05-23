@@ -278,8 +278,12 @@
 			: workspace.selectedCampaign?.id === selectedCampaignId
 				? workspace.selectedCampaign.name
 				: selectedCampaignId
-					? 'Collection wave selected'
-					: 'No editable collection wave selected'
+					? appLocale === 'hr-HR'
+						? 'Odabran val prikupljanja'
+						: 'Collection wave selected'
+					: appLocale === 'hr-HR'
+						? 'Nije odabran uređivi val prikupljanja'
+						: 'No editable collection wave selected'
 	);
 	const lockedSelectedCampaign = $derived(
 		workspace.selectedCampaign && workspace.selectedCampaign.id !== selectedCampaignId
@@ -432,7 +436,7 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				scoring: 'Save the questionnaire first.'
+				scoring: setupUi('Save the questionnaire first.')
 			};
 			return;
 		}
@@ -472,7 +476,7 @@
 		if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
-				campaign: 'Save the questionnaire first.'
+				campaign: setupUi('Save the questionnaire first.')
 			};
 			return;
 		}
@@ -500,7 +504,7 @@
 		if (!campaignId) {
 			actionErrors = {
 				...actionErrors,
-				readiness: 'Create the collection wave first.'
+				readiness: setupUi('Create the collection wave first.')
 			};
 			return;
 		}
@@ -530,7 +534,7 @@
 			previewGroups = groupList.groups;
 			syncPreviewSelections();
 		} catch (error) {
-			previewOptionsError = toProductApiErrorMessage(error, 'Recipient preview options failed to load.');
+			previewOptionsError = toProductApiErrorMessage(error, setupUi('Recipient preview options failed to load.'));
 		} finally {
 			previewOptionsLoading = false;
 		}
@@ -543,17 +547,17 @@
 		}
 
 		if (!campaignId) {
-			previewError = 'Create the collection wave first.';
+			previewError = setupUi('Create the collection wave first.');
 			return;
 		}
 
 		if (previewRequiresGroup && !previewGroupId) {
-			previewError = 'Select a subject group.';
+			previewError = setupUi('Select a subject group.');
 			return;
 		}
 
 		if (previewRequiresTarget && !previewTargetSubjectId) {
-			previewError = 'Select a target subject.';
+			previewError = setupUi('Select a target subject.');
 			return;
 		}
 
@@ -562,7 +566,7 @@
 			(previewExternalEmailReview.validRecipientCount === 0 ||
 				previewExternalEmailReview.hasBlockingIssues)
 		) {
-			previewError = 'Add at least one valid email and remove invalid or duplicate rows.';
+			previewError = setupUi('Add at least one valid email and remove invalid or duplicate rows.');
 			return;
 		}
 
@@ -580,7 +584,7 @@
 			previewState = 'succeeded';
 		} catch (error) {
 			previewState = 'failed';
-			previewError = toProductApiErrorMessage(error, 'Recipient preview failed.');
+			previewError = toProductApiErrorMessage(error, setupUi('Recipient preview failed.'));
 		}
 	}
 
@@ -601,7 +605,7 @@
 		} catch (error) {
 			if (campaignId === selectedCampaignId) {
 				savedRuleState = 'failed';
-				savedRuleError = toProductApiErrorMessage(error, 'Saved recipient selections failed to load.');
+				savedRuleError = toProductApiErrorMessage(error, setupUi('Saved recipient selections failed to load.'));
 			}
 		}
 	}
@@ -619,7 +623,7 @@
 		} catch (error) {
 			if (campaignId === selectedCampaignId) {
 				assignmentState = 'failed';
-				assignmentError = toProductApiErrorMessage(error, 'Campaign assignments failed to load.');
+				assignmentError = toProductApiErrorMessage(error, setupUi('Campaign assignments failed to load.'));
 			}
 		}
 	}
@@ -627,17 +631,17 @@
 	async function saveCurrentRespondentRule() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
-			savedRuleError = 'Create the collection wave first.';
+			savedRuleError = setupUi('Create the collection wave first.');
 			return;
 		}
 
 		if (previewRequiresGroup && !previewGroupId) {
-			savedRuleError = 'Select a subject group.';
+			savedRuleError = setupUi('Select a subject group.');
 			return;
 		}
 
 		if (previewRequiresTarget && !previewTargetSubjectId) {
-			savedRuleError = 'Select a target subject.';
+			savedRuleError = setupUi('Select a target subject.');
 			return;
 		}
 
@@ -646,7 +650,7 @@
 			(previewExternalEmailReview.validRecipientCount === 0 ||
 				previewExternalEmailReview.hasBlockingIssues)
 		) {
-			savedRuleError = 'Add at least one valid email and remove invalid or duplicate rows.';
+			savedRuleError = setupUi('Add at least one valid email and remove invalid or duplicate rows.');
 			return;
 		}
 
@@ -661,14 +665,14 @@
 			await loadCampaignAssignments(campaignId);
 		} catch (error) {
 			savedRuleState = 'failed';
-			savedRuleError = toProductApiErrorMessage(error, 'Respondent rule save failed.');
+			savedRuleError = toProductApiErrorMessage(error, setupUi('Respondent rule save failed.'));
 		}
 	}
 
 	async function createTestRecipients() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
-			testRecipientError = 'Create the collection wave first.';
+			testRecipientError = setupUi('Create the collection wave first.');
 			return;
 		}
 
@@ -703,11 +707,11 @@
 			testRecipientState = 'succeeded';
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				refreshWarning = 'Test recipients were saved, but this setup view could not refresh.';
+				refreshWarning = setupUi('Test recipients were saved, but this setup view could not refresh.');
 			}
 		} catch (error) {
 			testRecipientState = 'failed';
-			testRecipientError = toProductApiErrorMessage(error, 'Test recipients could not be created.');
+			testRecipientError = toProductApiErrorMessage(error, setupUi('Test recipients could not be created.'));
 		}
 	}
 
@@ -721,7 +725,7 @@
 			previewExternalEmailText = await readRecipientImportFile(file);
 		} catch (error) {
 			previewExternalEmailFileError =
-				error instanceof Error ? error.message : 'Recipient file could not be read.';
+				error instanceof Error ? error.message : setupUi('Recipient file could not be read.');
 		}
 	}
 
@@ -736,12 +740,12 @@
 		const recipient = candidateReview.recipients[0];
 
 		if (!recipient || candidateReview.hasBlockingIssues) {
-			previewManualRecipientError = 'Enter one valid email address.';
+			previewManualRecipientError = setupUi('Enter one valid email address.');
 			return;
 		}
 
 		if (previewExternalEmailReview.recipients.some((item) => item.email === recipient.email)) {
-			previewManualRecipientError = 'This recipient is already in the wave list.';
+			previewManualRecipientError = setupUi('This recipient is already in the wave list.');
 			return;
 		}
 
@@ -778,14 +782,14 @@
 			actionStates = { ...actionStates, [actionId]: 'succeeded' };
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				refreshWarning = 'Setup action saved, but the setup workspace refresh failed.';
+				refreshWarning = setupUi('Setup action saved, but the setup workspace refresh failed.');
 			}
 			return result;
 		} catch (error) {
 			actionStates = { ...actionStates, [actionId]: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				[actionId]: toProductApiErrorMessage(error, 'Setup action failed.')
+				[actionId]: toProductApiErrorMessage(error, setupUi('Setup action failed.'))
 			};
 			return null;
 		}
@@ -906,8 +910,8 @@
 			reverseCoded: isScaleBacked ? current.reverseCoded : false,
 			scaleMin: type === 'nps' ? 0 : current.scaleMin,
 			scaleMax: type === 'nps' ? 10 : current.scaleMax,
-			scaleLowLabel: type === 'nps' ? 'Not at all likely' : current.scaleLowLabel,
-			scaleHighLabel: type === 'nps' ? 'Extremely likely' : current.scaleHighLabel,
+			scaleLowLabel: type === 'nps' ? setupUi('Not at all likely') : current.scaleLowLabel,
+			scaleHighLabel: type === 'nps' ? setupUi('Extremely likely') : current.scaleHighLabel,
 			scalePreset: type === 'nps' ? 'custom' : current.scalePreset
 		});
 	}
@@ -974,47 +978,57 @@
 			date: 'Date',
 			ranking: 'Ranking'
 		};
-		return labels[type] ?? 'Question';
+		return setupUi(labels[type] ?? 'Question');
 	}
 
 	function questionPreviewDetail(question: TemplateQuestionAuthoringRow) {
 		if (isScaleQuestion(question)) {
-			return `${question.scaleMin} to ${question.scaleMax}: ${question.scaleLowLabel} -> ${question.scaleHighLabel}`;
+			return setupUi(`${question.scaleMin} to ${question.scaleMax}: ${question.scaleLowLabel} -> ${question.scaleHighLabel}`);
 		}
 
 		if (question.type === 'single') {
-			return `Choose one: ${question.choiceOptions.join(', ')}`;
+			return setupUi(`Choose one: ${question.choiceOptions.join(', ')}`);
 		}
 
 		if (question.type === 'multi') {
-			return `Choose any: ${question.choiceOptions.join(', ')}`;
+			return setupUi(`Choose any: ${question.choiceOptions.join(', ')}`);
 		}
 
 		if (question.type === 'number') {
-			return 'Number response';
+			return setupUi('Number response');
 		}
 
 		if (question.type === 'date') {
-			return 'Date response';
+			return setupUi('Date response');
 		}
 
 		if (question.type === 'ranking') {
-			return `Rank options: ${question.choiceOptions.join(', ')}`;
+			return setupUi(`Rank options: ${question.choiceOptions.join(', ')}`);
 		}
 
-		return 'Text response';
+		return setupUi('Text response');
 	}
 
 	function questionScoringDetail(question: TemplateQuestionAuthoringRow) {
-		return describeQuestionScoringDirection(question);
+		const detail = describeQuestionScoringDirection(question);
+		return {
+			...detail,
+			label: setupUi(detail.label),
+			detail: setupUi(detail.detail)
+		};
 	}
 
 	function questionScaleIntent(question: TemplateQuestionAuthoringRow) {
-		return describeQuestionScaleIntent(question);
+		const detail = describeQuestionScaleIntent(question);
+		return {
+			...detail,
+			label: setupUi(detail.label),
+			detail: setupUi(detail.detail)
+		};
 	}
 
 	function questionResultUsage(question: TemplateQuestionAuthoringRow) {
-		return describeQuestionResultUsage(question, scoreOutputs);
+		return setupUi(describeQuestionResultUsage(question, scoreOutputs));
 	}
 
 	function runtimeRatingValues(question: DraftRespondentPreviewQuestion) {
@@ -1029,24 +1043,28 @@
 	}
 
 	function questionAuthoringSummary(code: string) {
-		return questionAuthoringSummaries.find((summary) => summary.code === code);
+		return localizeQuestionAuthoringSummary(code);
 	}
 
 	function dimensionCoverageLabel(labels: string[]) {
-		return labels.length ? labels.join(', ') : 'No questionnaire dimensions selected';
+		return labels.length ? labels.join(', ') : setupUi('No questionnaire dimensions selected');
 	}
 
 	function reverseScoredCountLabel(count: number) {
 		if (count === 0) {
-			return 'No reverse-scored questions';
+			return setupUi('No reverse-scored questions');
 		}
 
-		return `${count} reverse-scored ${count === 1 ? 'question' : 'questions'}`;
+		return appLocale === 'hr-HR'
+			? `${formatCount(count)} ${count === 1 ? 'obrnuto bodovano pitanje' : 'obrnuto bodovana pitanja'}`
+			: `${formatCount(count)} reverse-scored ${count === 1 ? 'question' : 'questions'}`;
 	}
 
 	function scoreOutputMissingDataDetail(localId: string) {
 		const output = scoreOutputs.find((candidate) => candidate.localId === localId);
-		return output ? describeScoreMissingDataStrategy(output).detail : 'Missing-data rule not configured.';
+		return output
+			? setupUi(describeScoreMissingDataStrategy(output).detail)
+			: setupUi('Missing-data rule not configured.');
 	}
 
 	function addTemplateQuestionRow() {
@@ -1254,7 +1272,7 @@
 
 	function previewSubjectLabel(subject: SubjectDirectoryItemResponse | null | undefined) {
 		if (!subject) {
-			return 'No subject selected';
+			return setupUi('No subject selected');
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
@@ -1284,11 +1302,11 @@
 
 	function deliveryRosterSummary() {
 		if (assignmentState === 'submitting') {
-			return 'Loading invitation roster...';
+			return setupUi('Loading invitation roster...');
 		}
 
 		if (!assignmentResult || assignmentResult.assignmentCount === 0) {
-			return 'No invitations prepared yet.';
+			return setupUi('No invitations prepared yet.');
 		}
 
 		return assignmentCountLabel(assignmentResult.assignmentCount);
@@ -1296,20 +1314,20 @@
 
 	function assignmentPairLabel(assignment: CampaignAssignmentResponse) {
 		if (assignment.role === 'email_recipient') {
-			return assignment.respondent?.label ?? 'Email recipient';
+			return assignment.respondent?.label ?? setupUi('Email recipient');
 		}
 
-		return `${assignment.target?.label ?? 'Study recipients'} to ${
-			assignment.respondent?.label ?? 'No respondent'
+		return `${assignment.target?.label ?? setupUi('Study recipients')} ${setupUi('to')} ${
+			assignment.respondent?.label ?? setupUi('No respondent')
 		}`;
 	}
 
 	function previewPairLabel(row: PreviewRuleRow) {
 		if (row.role === 'email_recipient') {
-			return row.respondent?.label ?? 'Email recipient';
+			return row.respondent?.label ?? setupUi('Email recipient');
 		}
 
-		return `${row.target?.label ?? 'Study recipients'} to ${row.respondent?.label ?? 'No respondent'}`;
+		return `${row.target?.label ?? setupUi('Study recipients')} ${setupUi('to')} ${row.respondent?.label ?? setupUi('No respondent')}`;
 	}
 
 	function savedRecipientSelectionLabel(rule: CampaignRespondentRuleResponse) {
@@ -1325,7 +1343,7 @@
 			? previewGroupLabelById(rule.groupId)
 			: rule.targetSubjectId
 				? previewSubjectLabelById(rule.targetSubjectId)
-				: 'Study recipients';
+				: setupUi('Study recipients');
 
 		return selector;
 	}
@@ -1334,15 +1352,15 @@
 		try {
 			const parsed = JSON.parse(rule) as { emails?: string[] };
 			const count = Array.isArray(parsed.emails) ? parsed.emails.length : 0;
-			return `${count} ${count === 1 ? 'email recipient' : 'email recipients'}`;
+			return `${formatCount(count)} ${count === 1 ? setupUi('email recipient') : setupUi('email recipients')}`;
 		} catch {
-			return 'Email recipient list';
+			return setupUi('Email recipient list');
 		}
 	}
 
 	function previewSubjectLabelById(subjectId: string | null | undefined) {
 		if (!subjectId) {
-			return 'Study recipients';
+			return setupUi('Study recipients');
 		}
 
 		return previewSubjectLabel(previewSubjects.find((subject) => subject.id === subjectId));
@@ -1350,10 +1368,10 @@
 
 	function previewGroupLabelById(groupId: string | null | undefined) {
 		if (!groupId) {
-			return 'Study recipients';
+			return setupUi('Study recipients');
 		}
 
-		return previewGroups.find((group) => group.id === groupId)?.name ?? 'Selected group';
+		return previewGroups.find((group) => group.id === groupId)?.name ?? setupUi('Selected group');
 	}
 
 	function normalizePreviewRuleKind(value: string): PreviewRuleKind {
@@ -1371,15 +1389,15 @@
 	}
 
 	function pairCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'invitation pair' : 'invitation pairs'}`;
+		return `${formatCount(count)} ${count === 1 ? setupUi('invitation pair') : setupUi('invitation pairs')}`;
 	}
 
 	function ruleCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'selection' : 'selections'}`;
+		return `${formatCount(count)} ${count === 1 ? setupUi('selection') : setupUi('selections')}`;
 	}
 
 	function assignmentCountLabel(count: number) {
-		return `${count} ${count === 1 ? 'invitation' : 'invitations'}`;
+		return `${formatCount(count)} ${count === 1 ? setupUi('invitation') : setupUi('invitations')}`;
 	}
 
 	function formatCount(count: number): string {
@@ -1423,17 +1441,124 @@
 	}
 
 	function scoreCalculationLabel(value: ScoreCalculation) {
-		return value === 'sum' ? 'sum' : 'average';
+		return setupUi(value === 'sum' ? 'sum' : 'average');
 	}
 
 	function missingPolicyLabel(output: ScoreOutputAuthoringRow) {
 		if (output.missingStrategy === 'min_valid_count') {
-			return `A score is allowed when at least ${output.minValidCount} selected ${
+			return setupUi(`A score is allowed when at least ${output.minValidCount} selected ${
 				output.minValidCount === 1 ? 'question is' : 'questions are'
-			} answered.`;
+			} answered.`);
 		}
 
-		return 'Every selected question must be answered.';
+		return setupUi('Every selected question must be answered.');
+	}
+
+	function setupUi(value: string): string {
+		if (appLocale !== 'hr-HR') {
+			return value;
+		}
+
+		const exact = hrSetupUiStrings[value];
+		if (exact) {
+			return exact;
+		}
+
+		return value
+			.replace(/^Question (\d+) of (\d+)$/u, 'Pitanje $1 od $2')
+			.replace(/^Question (\d+)$/u, 'Pitanje $1')
+			.replace(/^Result (\d+)$/u, 'Rezultat $1')
+			.replace(/^(\d+) questions$/u, (_, count: string) => setupQuestionCount(Number(count)))
+			.replace(/^(\d+) dimensions$/u, (_, count: string) => setupDimensionCount(Number(count)))
+			.replace(/^(\d+) selected questions$/u, (_, count: string) =>
+				setupSelectedQuestionCount(Number(count))
+			)
+			.replace(/^(\d+) result (output|outputs), (\d+) scored (question|questions), (\d+) reversed$/u, (_, outputs: string, _outputWord: string, scored: string, _questionWord: string, reversed: string) =>
+				`${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}, ${scored} ${
+					Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
+				}, ${reversed} obrnuto`
+			)
+			.replace(/^(\d+) dimensions?, (\d+) scored questions?, (\d+) result outputs?$/u, (_, dimensions: string, scored: string, outputs: string) =>
+				`${dimensions} ${Number(dimensions) === 1 ? 'dimenzija' : 'dimenzije'}, ${scored} ${
+					Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
+				}, ${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}`
+			)
+			.replace(/^(\d+) constructs?, (\d+) questions?, (\d+) required$/u, (_, constructs: string, questions: string, required: string) =>
+				`${constructs} ${Number(constructs) === 1 ? 'konstrukt' : 'konstrukta'}, ${questions} ${
+					Number(questions) === 1 ? 'pitanje' : 'pitanja'
+				}, ${required} obavezno`
+			)
+			.replace(/^(\d+) result outputs? will be saved: (.+)\.$/u, (_, count: string, names: string) =>
+				`${count} ${Number(count) === 1 ? 'izlaz rezultata bit će spremljen' : 'izlaza rezultata bit će spremljeno'}: ${names}.`
+			)
+			.replace(/^(\d+) of (\d+) scoreable questions? (is|are) included in at least one result output\.$/u, '$1 od $2 bodovanih pitanja uključeno je u barem jedan izlaz rezultata.')
+			.replace(/^(\d+) scored question feeds (\d+) result output\.$/u, '$1 bodovano pitanje puni $2 izlaz rezultata.')
+			.replace(/^(\d+) scored questions feed (\d+) result outputs\.$/u, '$1 bodovana pitanja pune $2 izlaza rezultata.')
+			.replace(/^(\d+) required, (\d+) optional\.$/u, '$1 obavezno, $2 neobavezno.')
+			.replace(/^Questions are grouped into (.+)\.$/u, 'Pitanja su grupirana u $1.')
+			.replace(/^Respondents answer (\d+) questions? in order, from "(.+)" to "(.+)"$/u, 'Ispitanici odgovaraju na $1 pitanja redom, od "$2" do "$3"')
+			.replace(/^Used in: (.+)\.$/u, 'Koristi se u: $1.')
+			.replace(/^(\d+) \((.+)\) to (\d+) \((.+)\) is used as entered in every result output that includes this question\.$/u, '$1 ($2) do $3 ($4) koristi se kako je uneseno u svakom izlazu rezultata koji uključuje ovo pitanje.')
+			.replace(/^(\d+) \((.+)\) is converted toward (\d+); (\d+) \((.+)\) is converted toward (\d+)\. Use this for protective wording when the result score should still point in one direction\.$/u, '$1 ($2) pretvara se prema $3; $4 ($5) pretvara se prema $6. Koristite za zaštitno formulirana pitanja kada rezultat i dalje treba pokazivati u jednom smjeru.')
+			.replace(/^A respondent needs at least (\d+) selected questions answered for this result score\.$/u, 'Ispitanik treba barem $1 odabranih odgovorenih pitanja za ovaj rezultat.')
+			.replace(/^Requires at least (\d+) selected questions$/u, 'Zahtijeva barem $1 odabranih pitanja')
+			.replace(/^A score is allowed when at least (\d+) selected questions are answered\.$/u, 'Rezultat je dopušten kada je odgovoreno na barem $1 odabranih pitanja.')
+			.replace(/^A score is allowed when at least (\d+) selected question is answered\.$/u, 'Rezultat je dopušten kada je odgovoreno na barem $1 odabrano pitanje.')
+			.replace(/^Uses (.+) from$/u, 'Koristi $1 iz')
+			.replace(/^Choose one: (.+)$/u, 'Odaberite jedno: $1')
+			.replace(/^Choose any: (.+)$/u, 'Odaberite više: $1')
+			.replace(/^Rank options: (.+)$/u, 'Poredajte opcije: $1')
+			.replace(/^(\d+) to (\d+): (.+)$/u, '$1 do $2: $3');
+	}
+
+	function setupQuestionCount(count: number): string {
+		return appLocale === 'hr-HR'
+			? `${formatCount(count)} ${count === 1 ? 'pitanje' : 'pitanja'}`
+			: `${formatCount(count)} ${count === 1 ? 'question' : 'questions'}`;
+	}
+
+	function setupDimensionCount(count: number): string {
+		return appLocale === 'hr-HR'
+			? `${formatCount(count)} ${count === 1 ? 'dimenzija' : 'dimenzije'}`
+			: `${formatCount(count)} ${count === 1 ? 'dimension' : 'dimensions'}`;
+	}
+
+	function setupSelectedQuestionCount(count: number): string {
+		return appLocale === 'hr-HR'
+			? `${formatCount(count)} ${count === 1 ? 'odabrano pitanje' : 'odabrana pitanja'}`
+			: `${formatCount(count)} selected ${count === 1 ? 'question' : 'questions'}`;
+	}
+
+	function setupContextQuestionSummary(count: number): string {
+		if (appLocale !== 'hr-HR') {
+			return `${formatCount(count)} ${count === 1 ? 'context question is' : 'context questions are'} collected but not scored.`;
+		}
+
+		return `${formatCount(count)} ${count === 1 ? 'kontekstualno pitanje prikuplja se' : 'kontekstualna pitanja prikupljaju se'} bez bodovanja.`;
+	}
+
+	function setupQuestionnaireSavedSummary(count: number): string {
+		if (appLocale !== 'hr-HR') {
+			return `${formatCount(count)} ${count === 1 ? 'question is' : 'questions are'} saved. Continue to scoring.`;
+		}
+
+		return `${formatCount(count)} ${count === 1 ? 'pitanje je spremljeno' : 'pitanja su spremljena'}. Nastavite na postavljanje rezultata.`;
+	}
+
+	function setupResultOutputsList(outputs: string[]) {
+		return outputs.map(setupUi).join(', ');
+	}
+
+	function localizeQuestionAuthoringSummary(code: string) {
+		const summary = questionAuthoringSummaries.find((candidate) => candidate.code === code);
+		return summary
+			? {
+					...summary,
+					scaleLabel: setupUi(summary.scaleLabel),
+					requiredLabel: setupUi(summary.requiredLabel),
+					resultUsageLabel: setupUi(summary.resultUsageLabel)
+				}
+			: null;
 	}
 
 	function responseModeLabel(mode: string): string {
@@ -1514,30 +1639,30 @@
 
 	function launchIssueLabel(issue: { code: string; message: string }) {
 		if (issue.code.includes('campaign')) {
-			return issue.message.replace('campaign', 'collection wave');
+			return setupUi(issue.message.replace('campaign', 'collection wave'));
 		}
 
 		if (issue.code.includes('template')) {
-			return issue.message.replace('Template', 'Questionnaire').replace('template', 'questionnaire');
+			return setupUi(issue.message.replace('Template', 'Questionnaire').replace('template', 'questionnaire'));
 		}
 
 		if (issue.code.includes('scoring')) {
-			return issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup');
+			return setupUi(issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup'));
 		}
 
 		if (issue.code === 'respondent_rule.email_required') {
-			return 'Every saved Directory recipient needs an email address before invite-only collection can start.';
+			return setupUi('Every saved Directory recipient needs an email address before invite-only collection can start.');
 		}
 
 		if (issue.code === 'respondent_rule.no_recipients') {
-			return 'Save at least one recipient selection before launch, and make sure it resolves to active people.';
+			return setupUi('Save at least one recipient selection before launch, and make sure it resolves to active people.');
 		}
 
 		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
-			return 'Specific email lists are available for anonymous invite-only or repeat-participation waves only.';
+			return setupUi('Specific email lists are available for anonymous invite-only or repeat-participation waves only.');
 		}
 
-		return issue.message;
+		return setupUi(issue.message);
 	}
 
 	function readinessLabel() {
@@ -1551,6 +1676,382 @@
 	function launchSurfaceButtonLabel() {
 		return currentLaunchState().collectionButtonLabel;
 	}
+
+	const hrSetupUiStrings: Record<string, string> = {
+		'Read-only access': 'Pristup samo za čitanje',
+		'Setup workflow actions require setup management access.':
+			'Radnje postavljanja zahtijevaju pristup za upravljanje postavljanjem.',
+		Done: 'Dovršeno',
+		Editable: 'Uredivo',
+		'Study source ready': 'Izvor studije spreman',
+		'The study source is saved. Continue to the questionnaire.':
+			'Izvor studije je spremljen. Nastavite na upitnik.',
+		'Study source name': 'Naziv izvora studije',
+		'Save study source': 'Spremi izvor studije',
+		'Questionnaire ready': 'Upitnik spreman',
+		'Questionnaire name': 'Naziv upitnika',
+		Language: 'Jezik',
+		English: 'Engleski',
+		Croatian: 'Hrvatski',
+		'Questionnaire palette': 'Paleta upitnika',
+		'Choose an editable question set': 'Odaberite uređivi skup pitanja',
+		'Start blank, or load original editable starter items that match the study you are building. These are not marketed as validated named instruments; review and edit before launch.':
+			'Krenite od praznog upitnika ili učitajte izvorne uređive početne stavke koje odgovaraju studiji koju gradite. Ne predstavljaju se kao validirani imenovani instrumenti; pregledajte ih i uredite prije pokretanja.',
+		'Suggested results': 'Predloženi rezultati',
+		'Custom result': 'Prilagođeni rezultat',
+		'Workload strain': 'Radno opterećenje',
+		'Recovery capacity': 'Kapacitet oporavka',
+		'Work climate context': 'Kontekst radne klime',
+		'Posture and repetition': 'Držanje i ponavljanje',
+		'Discomfort severity': 'Jačina nelagode',
+		'Recovery and control': 'Oporavak i kontrola',
+		'Workstation strain': 'Opterećenje radnog mjesta',
+		'Focus conditions': 'Uvjeti fokusa',
+		'Academic workload strain': 'Akademsko opterećenje',
+		'Support and clarity': 'Podrška i jasnoća',
+		'Team climate': 'Timska klima',
+		'Workload fairness': 'Pravednost opterećenja',
+		'Shift strain': 'Opterećenje smjene',
+		'Operational support': 'Operativna podrška',
+		'Authoring summary': 'Sažetak izrade',
+		'Questionnaire blueprint': 'Nacrt upitnika',
+		'Design review': 'Pregled dizajna',
+		'Study dimensions': 'Dimenzije studije',
+		'What this questionnaire measures': 'Što ovaj upitnik mjeri',
+		Question: 'Pitanje',
+		'Untitled question': 'Pitanje bez naslova',
+		'Question text': 'Tekst pitanja',
+		'Dimension / construct': 'Dimenzija / konstrukt',
+		'Group questions by what they measure, for example workload, recovery, or autonomy.':
+			'Grupirajte pitanja prema onome što mjere, primjerice opterećenje, oporavak ili autonomiju.',
+		'Answer format': 'Format odgovora',
+		'Rating scale': 'Ljestvica procjene',
+		'0-10 recommendation scale': 'Ljestvica preporuke 0-10',
+		'Single choice': 'Jedan odabir',
+		'Multiple choice': 'Višestruki odabir',
+		Number: 'Broj',
+		Text: 'Tekst',
+		Date: 'Datum',
+		Ranking: 'Rangiranje',
+		'Scale values and labels': 'Vrijednosti i oznake ljestvice',
+		'Scale preset': 'Predložak ljestvice',
+		'Keep the current scale values and labels.': 'Zadrži trenutačne vrijednosti i oznake ljestvice.',
+		'Lowest value': 'Najniža vrijednost',
+		'Highest value': 'Najviša vrijednost',
+		'Low label': 'Oznaka niskog kraja',
+		'High label': 'Oznaka visokog kraja',
+		'Not at all likely': 'Nimalo vjerojatno',
+		'Extremely likely': 'Izrazito vjerojatno',
+		'hours/week, kg, minutes...': 'sati/tjedan, kg, minute...',
+		'Number rules': 'Pravila broja',
+		Minimum: 'Minimum',
+		Maximum: 'Maksimum',
+		'Unit label': 'Oznaka jedinice',
+		'Whole numbers only': 'Samo cijeli brojevi',
+		'Text response rules': 'Pravila tekstualnog odgovora',
+		'Long text answer': 'Dugi tekstualni odgovor',
+		'Max characters': 'Najviše znakova',
+		'Date rules': 'Pravila datuma',
+		'Earliest date': 'Najraniji datum',
+		'Latest date': 'Najkasniji datum',
+		'Answer options': 'Opcije odgovora',
+		Options: 'Opcije',
+		'Enter one option per line.': 'Unesite jednu opciju po retku.',
+		'Add an Other write-in option': 'Dodaj opciju Ostalo s upisom',
+		'Other label': 'Oznaka opcije Ostalo',
+		'Exclusive option': 'Isključiva opcija',
+		'Example: None of these': 'Primjer: Ništa od navedenog',
+		'Ranking rule': 'Pravilo rangiranja',
+		Rank: 'Rang',
+		'Rank all options': 'Rangiraj sve opcije',
+		'Rank only top N': 'Rangiraj samo prvih N',
+		'Top N': 'Prvih N',
+		'Question order below is the order respondents will see. Scoring stays attached to question meaning, not the visual position.':
+			'Redoslijed pitanja ispod je redoslijed koji će ispitanici vidjeti. Bodovanje ostaje vezano uz značenje pitanja, ne uz vizualnu poziciju.',
+		Required: 'Obavezno',
+		Optional: 'Neobavezno',
+		'Reverse score this question': 'Obrnuto boduj ovo pitanje',
+		'Move question earlier': 'Pomakni pitanje ranije',
+		'Move earlier': 'Pomakni ranije',
+		'Move question later': 'Pomakni pitanje kasnije',
+		'Move later': 'Pomakni kasnije',
+		'Duplicate question': 'Dupliciraj pitanje',
+		Duplicate: 'Dupliciraj',
+		'Remove question': 'Ukloni pitanje',
+		Remove: 'Ukloni',
+		'Answer scale': 'Ljestvica odgovora',
+		'Scoring meaning': 'Značenje bodovanja',
+		'Respondent preview': 'Pregled za ispitanika',
+		'Runtime control': 'Kontrola za ispitanika',
+		'Runtime notes': 'Napomene prikaza',
+		'Limitations to review before launch.': 'Ograničenja koja treba pregledati prije pokretanja.',
+		'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, number, date, and text.':
+			'Ovaj pregled koristi iste vrste kontrola kao ispitanikov SurveyJS prikaz: procjena, radio grupa, checkbox grupa, rangiranje, broj, datum i tekst.',
+		'Number response': 'Brojčani odgovor',
+		'Date response': 'Datumski odgovor',
+		'Text response': 'Tekstualni odgovor',
+		'Long text response': 'Dugi tekstualni odgovor',
+		'This question cannot be rendered by the current respondent runtime.':
+			'Ovo pitanje trenutačni prikaz za ispitanike ne može prikazati.',
+		'Result outputs': 'Izlazi rezultata',
+		Result: 'Rezultat',
+		'Results setup ready': 'Postavljanje rezultata spremno',
+		Outputs: 'Izlazi',
+		'Unique scored questions': 'Jedinstvena bodovana pitanja',
+		'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.':
+			'Izradite jedan ukupni rezultat ili više dimenzija/podljestvica. Svaki izlaz bira vlastita pitanja, izračun i pravilo za nedostajuće odgovore.',
+		'Results blueprint': 'Nacrt rezultata',
+		'Results plan': 'Plan rezultata',
+		'Remove result': 'Ukloni rezultat',
+		'Result name': 'Naziv rezultata',
+		'Result code': 'Kod rezultata',
+		'Used as the report/export dimension code.': 'Koristi se kao kod dimenzije u izvještaju/izvozu.',
+		Calculation: 'Izračun',
+		'Average selected answers': 'Prosjek odabranih odgovora',
+		'Sum selected answers': 'Zbroj odabranih odgovora',
+		'Missing answers': 'Nedostajući odgovori',
+		'Require every selected answer': 'Zahtijevaj svaki odabrani odgovor',
+		'Allow a score after enough answers': 'Dopusti rezultat nakon dovoljno odgovora',
+		'Minimum answered': 'Najmanje odgovoreno',
+		'Questions in this result': 'Pitanja u ovom rezultatu',
+		'Add a rating scale, recommendation scale, or number question before saving results.':
+			'Dodajte ljestvicu procjene, ljestvicu preporuke ili brojčano pitanje prije spremanja rezultata.',
+		'Add result output': 'Dodaj izlaz rezultata',
+		'Collected but not scored': 'Prikupljeno bez bodovanja',
+		'Scoring plan preview': 'Pregled plana bodovanja',
+		'Reverse-scoring review': 'Pregled obrnutog bodovanja',
+		'question is': 'pitanje je',
+		'questions are': 'pitanja su',
+		'reversed before scoring': 'obrnuto bodovana prije izračuna',
+		Uses: 'Koristi',
+		from: 'iz',
+		Affects: 'Utječe na',
+		'no result outputs yet': 'još nema izlaza rezultata',
+		'Save questionnaire': 'Spremi upitnik',
+		'Save results setup': 'Spremi postavljanje rezultata',
+		'Save collection wave': 'Spremi val prikupljanja',
+		'Run launch check': 'Pokreni provjeru za pokretanje',
+		Ready: 'Spremno',
+		Yes: 'Da',
+		No: 'Ne',
+		'Save questionnaire first': 'Najprije spremite upitnik',
+		'Save results setup first': 'Najprije spremite postavljanje rezultata',
+		'Collection wave ready': 'Val prikupljanja spreman',
+		'Wave context': 'Kontekst vala',
+		'Wave setup guidance': 'Upute za postavljanje vala',
+		Wave: 'Val',
+		'Response mode': 'Način odgovaranja',
+		'Launch plan': 'Plan pokretanja',
+		'Wave name': 'Naziv vala',
+		'Respondent language': 'Jezik ispitanika',
+		'Launch checklist': 'Kontrolna lista pokretanja',
+		Questionnaire: 'Upitnik',
+		'Results setup': 'Postavljanje rezultata',
+		'Collection wave': 'Val prikupljanja',
+		'Create collection wave first': 'Najprije izradite val prikupljanja',
+		'Create the collection wave first.': 'Najprije izradite val prikupljanja.',
+		'Save the questionnaire first.': 'Najprije spremite upitnik.',
+		'Select a subject group.': 'Odaberite grupu osoba.',
+		'Select a target subject.': 'Odaberite ciljnu osobu.',
+		'Add at least one valid email and remove invalid or duplicate rows.':
+			'Dodajte barem jednu valjanu email adresu i uklonite nevaljane ili duplicirane retke.',
+		'Saved recipient selections failed to load.': 'Spremljeni odabiri primatelja nisu se mogli učitati.',
+		'Recipient preview options failed to load.': 'Opcije pregleda primatelja nisu se mogle učitati.',
+		'Recipient preview failed.': 'Pregled primatelja nije uspio.',
+		'Campaign assignments failed to load.': 'Dodjele pozivnica nisu se mogle učitati.',
+		'Respondent rule save failed.': 'Spremanje pravila primatelja nije uspjelo.',
+		'Test recipients could not be created.': 'Testni primatelji nisu se mogli izraditi.',
+		'Setup action failed.': 'Radnja postavljanja nije uspjela.',
+		'Test recipients were saved, but this setup view could not refresh.':
+			'Testni primatelji su spremljeni, ali se ovaj prikaz postavljanja nije mogao osvježiti.',
+		'Recipient file could not be read.': 'Datoteka primatelja nije se mogla pročitati.',
+		'Enter one valid email address.': 'Unesite jednu valjanu email adresu.',
+		'This recipient is already in the wave list.': 'Ovaj primatelj već je na popisu vala.',
+		'Setup action saved, but the setup workspace refresh failed.':
+			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
+		Status: 'Status',
+		'Recipient selection': 'Odabir primatelja',
+		'Launch checklist issues': 'Problemi kontrolne liste pokretanja',
+		'Every saved Directory recipient needs an email address before invite-only collection can start.':
+			'Svaki spremljeni primatelj iz Imenika mora imati email adresu prije nego što može početi prikupljanje samo preko pozivnica.',
+		'Save at least one recipient selection before launch, and make sure it resolves to active people.':
+			'Spremite barem jedan odabir primatelja prije pokretanja i provjerite da odabir pronalazi aktivne osobe.',
+		'Specific email lists are available for anonymous invite-only or repeat-participation waves only.':
+			'Posebni popisi email adresa dostupni su samo za anonimne valove s pozivnicom ili ponovljenim sudjelovanjem.',
+		'Next action': 'Sljedeći korak',
+		'Next step': 'Sljedeći korak',
+		'Previous wave': 'Prethodni val',
+		'Recipient selection is locked': 'Odabir primatelja je zaključan',
+		'Preview recipients, then save the selection': 'Pregledajte primatelje, zatim spremite odabir',
+		'Use Directory groups for recurring populations. Use all active Directory people only when the wave is truly for everyone. Use one-off email list for ad hoc recipients you do not want to manage in Directory. Save recipients before launch so Collection can create private respondent links and send email.':
+			'Koristite grupe iz imenika za ponavljajuće populacije. Sve aktivne osobe koristite samo kada je val stvarno za sve. Jednokratni popis email adresa koristite za ad hoc primatelje koje ne želite voditi u imeniku. Spremite primatelje prije pokretanja kako bi Prikupljanje moglo izraditi privatne poveznice i poslati email.',
+		'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.':
+			'Odabir primatelja još nije spremljen. Najprije pregledajte primatelje, zatim spremite pregledani odabir prije pokretanja.',
+		'Saved for launch': 'Spremljeno za pokretanje',
+		'Reusable population': 'Ponovno upotrebljiva populacija',
+		'Directory groups': 'Grupe iz imenika',
+		'One-off population': 'Jednokratna populacija',
+		'Email import': 'Uvoz email adresa',
+		'Open participation': 'Otvoreno sudjelovanje',
+		'Open link in Collection': 'Otvorena poveznica u Prikupljanju',
+		'Demo/test data': 'Demo/testni podaci',
+		'Create test recipients for this wave': 'Izradi testne primatelje za ovaj val',
+		"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this wave's recipient selection.":
+			'Koristite ovo u stagingu ili demo prikazima kada trebate realistične primatelje bez uvoza stvarnog imenika. Izrađuje označenu testnu skupinu i sprema je kao odabir primatelja za ovaj val.',
+		'Group name': 'Naziv grupe',
+		People: 'Osobe',
+		'Create test recipients': 'Izradi testne primatelje',
+		'Test cohort saved': 'Testna skupina spremljena',
+		'Send invitations to': 'Pošalji pozivnice za',
+		'Campaign-local recipients': 'Primatelji samo za ovaj val',
+		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
+		ready: 'spremno',
+		invalid: 'nevaljano',
+		duplicate: 'duplikat',
+		recipients: 'primatelja',
+		'Name for review': 'Ime za pregled',
+		Email: 'Email',
+		'Add person': 'Dodaj osobu',
+		'Import recipients': 'Uvezi primatelje',
+		'Review or paste source list': 'Pregledajte ili zalijepite izvorni popis',
+		'Recipient source': 'Izvor primatelja',
+		'Use this when this wave has a one-time recipient list. For repeated waves or reusable cohorts, import people and groups in Directory instead. Limit:':
+			'Koristite ovo kada ovaj val ima jednokratni popis primatelja. Za ponavljajuće valove ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Imenik. Ograničenje:',
+		'recipients per wave update.': 'primatelja po ažuriranju vala.',
+		'Keep valid only': 'Zadrži samo valjane',
+		'Clear list': 'Očisti popis',
+		'Directory group': 'Grupa iz imenika',
+		'No groups available': 'Nema dostupnih grupa',
+		'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this wave only.':
+			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Imeniku ili prijeđite na jednokratni uvoz email adresa samo za ovaj val.',
+		'Focus person': 'Fokus osoba',
+		'Directory people': 'Osobe iz imenika',
+		'active people loaded': 'aktivnih osoba učitano',
+		'No active people loaded yet': 'Još nema učitanih aktivnih osoba',
+		'This selection is broad. Use a Directory group when the wave should only reach a department, cohort, class, or location.':
+			'Ovaj odabir je širok. Koristite grupu iz imenika kada val treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
+		'Preview rows': 'Redci pregleda',
+		'Preview recipients': 'Pregledaj primatelje',
+		'Save previewed recipients': 'Spremi pregledane primatelje',
+		'Refresh directory': 'Osvježi imenik',
+		'Previewed selection': 'Pregledani odabir',
+		'recipient found': 'primatelj pronađen',
+		'recipients found': 'primatelja pronađeno',
+		'Recipients found': 'Pronađeni primatelji',
+		'Invitation rows': 'Redci pozivnica',
+		'Preview capped': 'Pregled ograničen',
+		'Recipient preview warnings': 'Upozorenja pregleda primatelja',
+		'No people to show yet.': 'Još nema osoba za prikaz.',
+		'Saved recipients': 'Spremljeni primatelji',
+		'Saved recipient selection': 'Spremljeni odabir primatelja',
+		'Save a recipient selection after the preview looks right.':
+			'Spremite odabir primatelja nakon što pregled izgleda ispravno.',
+		Selection: 'Odabir',
+		'Saved recipient selection issues': 'Problemi spremljenog odabira primatelja',
+		'Invitation roster': 'Popis pozivnica',
+		'Prepared invitation roster': 'Pripremljeni popis pozivnica',
+		'Loading invitation roster...': 'Učitavanje popisa pozivnica...',
+		'No invitations prepared yet.': 'Pozivnice još nisu pripremljene.',
+		'Email recipient': 'Email primatelj',
+		'Study recipients': 'Primatelji studije',
+		'No respondent': 'Nema ispitanika',
+		'No subject selected': 'Nije odabrana osoba',
+		'No contact': 'Nema kontakta',
+		to: 'prema',
+		'email recipient': 'email primatelj',
+		'email recipients': 'email primatelja',
+		'Email recipient list': 'Popis email primatelja',
+		'Selected group': 'Odabrana grupa',
+		'invitation pair': 'par pozivnice',
+		'invitation pairs': 'parova pozivnica',
+		selection: 'odabir',
+		selections: 'odabira',
+		invitation: 'pozivnica',
+		invitations: 'pozivnica',
+		Locked: 'Zaključano',
+		'This wave is already locked. Recipient selection can only be changed before launch. Save the next collection wave first, then choose recipients for that draft.':
+			'Ovaj val je već zaključan. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeći val prikupljanja, zatim odaberite primatelje za taj nacrt.',
+		'Open Directory': 'Otvori imenik',
+		'Setup path': 'Put postavljanja',
+		'Number entry': 'Brojčani unos',
+		'Written response': 'Tekstualni odgovor',
+		'Recommendation scale': 'Ljestvica preporuke',
+		'Frequency scale': 'Ljestvica učestalosti',
+		'Agreement scale': 'Ljestvica slaganja',
+		'Intensity scale': 'Ljestvica intenziteta',
+		'Higher numbers increase included result scores': 'Viši brojevi povećavaju uključene rezultate',
+		'Number answers are used as entered in every result output that includes this question.':
+			'Brojčani odgovori koriste se kako su uneseni u svakom izlazu rezultata koji uključuje ovo pitanje.',
+		'This answer format is collected for context, but it is not used in numeric result scores.':
+			'Ovaj format odgovora prikuplja se za kontekst, ali se ne koristi u brojčanim rezultatima.',
+		'Higher answers are reversed before scoring': 'Viši odgovori se obrću prije bodovanja',
+		'Higher answers increase included result scores': 'Viši odgovori povećavaju uključene rezultate',
+		'Not available for numeric result outputs.': 'Nije dostupno za brojčane izlaze rezultata.',
+		'Not included in any result output yet.': 'Još nije uključeno ni u jedan izlaz rezultata.',
+		'Respondents enter a numeric value. Use this for counts, minutes, ratings with known units, or direct measurements.':
+			'Ispitanici unose brojčanu vrijednost. Koristite za brojeve, minute, procjene s poznatim jedinicama ili izravna mjerenja.',
+		'Respondents write free text. This is collected for review but is not included in numeric scoring.':
+			'Ispitanici pišu slobodan tekst. Prikuplja se za pregled, ali nije uključen u brojčano bodovanje.',
+		'Respondents provide a date. This is collected for context and is not included in numeric scoring.':
+			'Ispitanici unose datum. Prikuplja se za kontekst i nije uključen u brojčano bodovanje.',
+		'Respondents order choices. Ranking can support descriptive review but is not included in current numeric result outputs.':
+			'Ispitanici poredaju opcije. Rangiranje može pomoći opisnom pregledu, ali nije uključeno u trenutačne brojčane rezultate.',
+		'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.':
+			'Ispitanici biraju iz definiranih opcija. Prikuplja se za grupiranje ili kontekst, ne za trenutačne brojčane rezultate.',
+		'Respondents answer on a recommendation-style numeric scale. Higher values increase included result scores unless reversed.':
+			'Ispitanici odgovaraju na brojčanoj ljestvici preporuke. Više vrijednosti povećavaju uključene rezultate osim ako su obrnuto bodovane.',
+		'Respondents report how often something happens. Higher answers increase included result scores unless reversed.':
+			'Ispitanici navode koliko se često nešto događa. Viši odgovori povećavaju uključene rezultate osim ako su obrnuto bodovani.',
+		'Respondents report how much they agree with a statement. Higher answers increase included result scores unless reversed.':
+			'Ispitanici navode koliko se slažu s tvrdnjom. Viši odgovori povećavaju uključene rezultate osim ako su obrnuto bodovani.',
+		'Respondents report strength or intensity. Higher answers increase included result scores unless reversed.':
+			'Ispitanici navode jačinu ili intenzitet. Viši odgovori povećavaju uključene rezultate osim ako su obrnuto bodovani.',
+		'Respondents answer on a numeric rating scale. Higher answers increase included result scores unless reversed.':
+			'Ispitanici odgovaraju na brojčanoj ljestvici procjene. Viši odgovori povećavaju uključene rezultate osim ako su obrnuto bodovani.',
+		'Minimum answered rule': 'Pravilo minimalnog broja odgovora',
+		'Strict missing-data rule': 'Strogo pravilo nedostajućih odgovora',
+		'A respondent needs every selected question answered for this result score.':
+			'Ispitanik mora odgovoriti na svako odabrano pitanje za ovaj rezultat.',
+		'Missing-data rule not configured.': 'Pravilo nedostajućih odgovora nije postavljeno.',
+		'Mean score': 'Prosječni rezultat',
+		'Sum score': 'Zbrojni rezultat',
+		'Requires every selected question': 'Zahtijeva svako odabrano pitanje',
+		'Construct plan': 'Plan konstrukata',
+		'Answer formats': 'Formati odgovora',
+		'Respondent order': 'Redoslijed za ispitanika',
+		'Required answers': 'Obavezni odgovori',
+		'Results coverage': 'Pokrivenost rezultata',
+		'Add at least one construct or dimension label before saving.':
+			'Dodajte barem jednu oznaku konstrukta ili dimenzije prije spremanja.',
+		'Review whether each format matches the evidence you need.':
+			'Provjerite odgovara li svaki format dokazima koji vam trebaju.',
+		'Add questions before reviewing respondent order.': 'Dodajte pitanja prije pregleda redoslijeda za ispitanika.',
+		'Add at least one rating, recommendation, or number question for numeric results.':
+			'Dodajte barem jedno pitanje s procjenom, preporukom ili brojem za brojčane rezultate.',
+		'Question coverage': 'Pokrivenost pitanja',
+		'Scale compatibility': 'Kompatibilnost ljestvice',
+		'Score direction': 'Smjer rezultata',
+		'Interpretation boundary': 'Granica tumačenja',
+		'Export schema': 'Shema izvoza',
+		'Add at least one result output.': 'Dodajte barem jedan izlaz rezultata.',
+		'Add rating, recommendation, or number questions before saving numeric results.':
+			'Dodajte pitanja s procjenom, preporukom ili brojem prije spremanja brojčanih rezultata.',
+		'All outputs require every selected question.': 'Svi izlazi zahtijevaju svako odabrano pitanje.',
+		'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.':
+			'Barem jedan izlaz koristi pravilo minimalnog broja odgovora; provjerite trebaju li djelomični odgovori ipak proizvesti rezultat.',
+		'Each result output uses one compatible answer-scale family.':
+			'Svaki izlaz rezultata koristi jednu kompatibilnu skupinu ljestvica odgovora.',
+		'Add result outputs before reviewing scale compatibility.':
+			'Dodajte izlaze rezultata prije pregleda kompatibilnosti ljestvice.',
+		'No questions are reversed before scoring.': 'Nijedno pitanje se ne obrće prije bodovanja.',
+		'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.':
+			'Ovo su prilagođeni izlazi rezultata studije. Opisuju izračun, ne službene norme, referentne vrijednosti ili validirane pragove.',
+		'CSV/report exports should preserve question codes, answer formats, score outputs, missing-answer rules, and visibility guardrails.':
+			'CSV/izvještaj izvozi trebaju zadržati kodove pitanja, formate odgovora, izlaze rezultata, pravila nedostajućih odgovora i pravila vidljivosti.',
+		'No questionnaire dimensions selected': 'Nema odabranih dimenzija upitnika',
+		sum: 'zbroj',
+		average: 'prosjek'
+	};
 </script>
 
 <section class="product-panel" role="group" aria-label={setupBodyCopy.progressAriaLabel}>
@@ -1559,22 +2060,21 @@
 			<p class="product-kicker">{setupBodyCopy.progressKicker}</p>
 			<h3 class="product-title">{setupBodyCopy.progressTitle}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Build the study in order: confirm the instrument, write the questionnaire, decide how
-				results are calculated, then prepare the campaign for launch.
+				{setupBodyCopy.progressBody}
 			</p>
 		</div>
 	</div>
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
-			<strong class="record-row__title">Read-only access</strong>
-			<span>Setup workflow actions require setup management access.</span>
+			<strong class="record-row__title">{setupBodyCopy.readOnlyTitle}</strong>
+			<span>{setupBodyCopy.readOnlyBody}</span>
 		</p>
 			{@render SetupPath()}
 	{:else}
 		<div class="grid gap-3">
 					<p class="record-field__label">
-				{setupPath.completedCount} of {setupPath.totalCount} required steps complete
+				{setupBodyCopy.requiredStepsComplete(setupPath.completedCount, setupPath.totalCount)}
 			</p>
 			{@render SetupPath()}
 		</div>
@@ -1589,7 +2089,7 @@
 				</div>
 				<StatusBadge
 					status={activeStep.status}
-					label={activeStep.pathState === 'done' ? 'Done' : undefined}
+					label={activeStep.pathState === 'done' ? setupBodyCopy.status.done : undefined}
 				/>
 			</div>
 			{#if activeStep.disabledReason}
@@ -1602,24 +2102,24 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">Study source ready</h5>
+									<h5 class="record-row__title">{setupUi('Study source ready')}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										The study source is saved. Continue to the questionnaire.
+										{setupUi('The study source is saved. Continue to the questionnaire.')}
 									</p>
 								</div>
-								<StatusBadge status="ready" label="Done" />
+								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
 							</div>
 						</div>
 					{:else}
 						<div class="grid gap-4">
 							<label class="field lg:col-span-2">
-								<span>Study source name</span>
+								<span>{setupUi('Study source name')}</span>
 								<input bind:value={instrumentForm.fullName} />
 							</label>
 						</div>
 						{@render ActionFooter({
 							id: 'instrument',
-							label: 'Save study source',
+							label: setupUi('Save study source'),
 							icon: 'plus',
 							onclick: createInstrumentImport
 						})}
@@ -1629,41 +2129,38 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">Questionnaire ready</h5>
+									<h5 class="record-row__title">{setupUi('Questionnaire ready')}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										{questionnaireQuestionCount}
-										{questionnaireQuestionCount === 1 ? 'question is' : 'questions are'} saved.
-										Continue to scoring.
+										{setupQuestionnaireSavedSummary(questionnaireQuestionCount)}
 									</p>
 								</div>
-								<StatusBadge status="ready" label="Done" />
+								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
 							</div>
 						</div>
 					{:else}
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
-								<span>Questionnaire name</span>
+								<span>{setupUi('Questionnaire name')}</span>
 								<input bind:value={templateName} />
 							</label>
 							<label class="field">
-								<span>Language</span>
+								<span>{setupUi('Language')}</span>
 								<select bind:value={questionnaireLocale}>
-									<option value="en">English</option>
-									<option value="hr">Croatian</option>
+									<option value="en">{setupUi('English')}</option>
+									<option value="hr">{setupUi('Croatian')}</option>
 								</select>
 							</label>
 						</div>
 						<div class="mt-4 record-row">
 							<div class="record-row__header">
 								<div>
-									<p class="record-field__label">Questionnaire palette</p>
-									<h5 class="record-row__title">Choose an editable question set</h5>
+									<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
+									<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										Start blank, or load original editable starter items that match the study you are building.
-										These are not marketed as validated named instruments; review and edit before launch.
+										{setupUi('Start blank, or load original editable starter items that match the study you are building. These are not marketed as validated named instruments; review and edit before launch.')}
 									</p>
 								</div>
-								<StatusBadge status="neutral" label="Editable" />
+								<StatusBadge status="neutral" label={setupUi('Editable')} />
 							</div>
 							<div class="record-grid">
 								{#each questionnairePaletteOptions as preset (preset.id)}
@@ -1674,13 +2171,13 @@
 										onclick={() => applyQuestionnairePalette(preset.id)}
 									>
 										<p class="record-field__label">
-											{preset.category} - {preset.questionCount} questions
+											{preset.category} - {setupQuestionCount(preset.questionCount)}
 										</p>
 										<p class="record-field__value">{preset.label}</p>
 										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
 										<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
 										<p class="mt-2 text-xs text-[var(--color-text-muted)]">
-											Suggested results: {preset.resultOutputs.join(', ')}
+											{setupUi('Suggested results')}: {setupResultOutputsList(preset.resultOutputs)}
 										</p>
 									</button>
 								{/each}
@@ -1690,31 +2187,29 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">Authoring summary</p>
-										<h5 class="record-row__title">{authoringReadiness.label}</h5>
+										<p class="record-field__label">{setupUi('Authoring summary')}</p>
+										<h5 class="record-row__title">{setupUi(authoringReadiness.label)}</h5>
 									</div>
-									<StatusBadge status="neutral" label={`${authoringReadiness.questionCount} questions`} />
+									<StatusBadge status="neutral" label={setupQuestionCount(authoringReadiness.questionCount)} />
 								</div>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									{authoringReadiness.contextQuestionCount}
-									{authoringReadiness.contextQuestionCount === 1 ? 'context question is' : 'context questions are'}
-									collected but not scored.
+									{setupContextQuestionSummary(authoringReadiness.contextQuestionCount)}
 									{reverseScoredCountLabel(authoringReadiness.reverseScoredQuestionCount)}.
 								</p>
 							</div>
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">Questionnaire blueprint</p>
-										<h5 class="record-row__title">{questionnaireBlueprintReview.label}</h5>
+										<p class="record-field__label">{setupBodyCopy.questionnaire.blueprintTitle}</p>
+										<h5 class="record-row__title">{setupUi(questionnaireBlueprintReview.label)}</h5>
 									</div>
-									<StatusBadge status="neutral" label="Design review" />
+									<StatusBadge status="neutral" label={setupUi('Design review')} />
 								</div>
 								<div class="questionnaire-blueprint-review">
 									{#each questionnaireBlueprintReview.items as item (item.id)}
 										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-											<p class="record-field__label">{item.label}</p>
-											<p class="record-field__value">{item.detail}</p>
+											<p class="record-field__label">{setupUi(item.label)}</p>
+											<p class="record-field__value">{setupUi(item.detail)}</p>
 										</div>
 									{/each}
 								</div>
@@ -1722,10 +2217,10 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">Study dimensions</p>
-										<h5 class="record-row__title">What this questionnaire measures</h5>
+										<p class="record-field__label">{setupBodyCopy.questionnaire.studyDimensions}</p>
+										<h5 class="record-row__title">{setupUi('What this questionnaire measures')}</h5>
 									</div>
-									<StatusBadge status="neutral" label={`${questionDimensionSummaries.length} dimensions`} />
+									<StatusBadge status="neutral" label={setupDimensionCount(questionDimensionSummaries.length)} />
 								</div>
 								<div class="record-grid">
 									{#each questionDimensionSummaries as dimension (dimension.code)}
@@ -1733,8 +2228,7 @@
 											<p class="record-field__label">{dimension.code}</p>
 											<p class="record-field__value">{dimension.label}</p>
 											<p class="text-sm text-[var(--color-text-muted)]">
-												{dimension.questionCount}
-												{dimension.questionCount === 1 ? 'question' : 'questions'}
+												{setupQuestionCount(dimension.questionCount)}
 											</p>
 										</div>
 									{/each}
@@ -1744,9 +2238,9 @@
 								<div class="question-row">
 									<div class="record-row__header">
 										<div>
-											<p class="record-field__label">Question {index + 1}</p>
+											<p class="record-field__label">{setupUi(`Question ${index + 1}`)}</p>
 											<h5 class="record-row__title">
-												{question.textDefault.trim() || 'Untitled question'}
+												{question.textDefault.trim() || setupUi('Untitled question')}
 											</h5>
 											<p class="text-sm text-[var(--color-text-muted)]">
 												{questionAuthoringSummary(question.code)?.dimensionLabel ?? question.dimensionLabel}
@@ -1759,13 +2253,13 @@
 										<StatusBadge
 											status="neutral"
 											label={isScaleQuestion(question)
-												? `${question.scaleMin}-${question.scaleMax} rating`
+												? `${question.scaleMin}-${question.scaleMax} ${setupUi('Rating scale').toLowerCase()}`
 												: questionTypeLabel(question.type)}
 										/>
 									</div>
 									<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
 										<label class="field">
-											<span>Question text</span>
+											<span>{setupBodyCopy.questionnaire.questionText}</span>
 											<textarea
 												rows="2"
 												value={question.textDefault}
@@ -1776,7 +2270,7 @@
 											></textarea>
 										</label>
 										<label class="field">
-											<span>Dimension / construct</span>
+											<span>{setupUi('Dimension / construct')}</span>
 											<input
 												value={question.dimensionLabel}
 												oninput={(event) =>
@@ -1785,11 +2279,11 @@
 													})}
 											/>
 											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-												Group questions by what they measure, for example workload, recovery, or autonomy.
+												{setupUi('Group questions by what they measure, for example workload, recovery, or autonomy.')}
 											</span>
 										</label>
 										<label class="field">
-											<span>Answer format</span>
+											<span>{setupBodyCopy.questionnaire.answerFormat}</span>
 											<select
 												value={question.type}
 												onchange={(event) =>
@@ -1798,14 +2292,14 @@
 														event.currentTarget.value as TemplateQuestionAnswerType
 													)}
 											>
-												<option value="likert">Rating scale</option>
-												<option value="nps">0-10 recommendation scale</option>
-												<option value="single">Single choice</option>
-												<option value="multi">Multiple choice</option>
-												<option value="number">Number</option>
-												<option value="text">Text</option>
-												<option value="date">Date</option>
-												<option value="ranking">Ranking</option>
+												<option value="likert">{setupUi('Rating scale')}</option>
+												<option value="nps">{setupUi('0-10 recommendation scale')}</option>
+												<option value="single">{setupUi('Single choice')}</option>
+												<option value="multi">{setupUi('Multiple choice')}</option>
+												<option value="number">{setupUi('Number')}</option>
+												<option value="text">{setupUi('Text')}</option>
+												<option value="date">{setupUi('Date')}</option>
+												<option value="ranking">{setupUi('Ranking')}</option>
 											</select>
 											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 												{questionScaleIntent(question).label}. {questionScaleIntent(question).detail}
@@ -1814,10 +2308,10 @@
 									</div>
 									{#if isScaleQuestion(question)}
 										<details class="record-row">
-											<summary class="record-row__title">Scale values and labels</summary>
+											<summary class="record-row__title">{setupUi('Scale values and labels')}</summary>
 											<div class="mt-3 grid gap-3 lg:grid-cols-5">
 												<label class="field">
-													<span>Scale preset</span>
+													<span>{setupUi('Scale preset')}</span>
 													<select
 														value={question.scalePreset}
 														onchange={(event) =>
@@ -1832,11 +2326,11 @@
 													</select>
 													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 														{questionScalePresetOptions.find((option) => option.value === question.scalePreset)
-															?.detail ?? 'Keep the current scale values and labels.'}
+															?.detail ?? setupUi('Keep the current scale values and labels.')}
 													</span>
 												</label>
 												<label class="field">
-													<span>Lowest value</span>
+													<span>{setupUi('Lowest value')}</span>
 													<input
 														type="number"
 														value={question.scaleMin}
@@ -1845,7 +2339,7 @@
 													/>
 												</label>
 												<label class="field">
-													<span>Highest value</span>
+													<span>{setupUi('Highest value')}</span>
 													<input
 														type="number"
 														value={question.scaleMax}
@@ -1854,7 +2348,7 @@
 													/>
 												</label>
 												<label class="field">
-													<span>Low label</span>
+													<span>{setupUi('Low label')}</span>
 													<input
 														value={question.scaleLowLabel}
 														oninput={(event) =>
@@ -1865,7 +2359,7 @@
 													/>
 												</label>
 												<label class="field">
-													<span>High label</span>
+													<span>{setupUi('High label')}</span>
 													<input
 														value={question.scaleHighLabel}
 														oninput={(event) =>
@@ -1880,10 +2374,10 @@
 									{/if}
 									{#if question.type === 'number'}
 										<details class="record-row">
-											<summary class="record-row__title">Number rules</summary>
+											<summary class="record-row__title">{setupUi('Number rules')}</summary>
 											<div class="mt-3 grid gap-3 lg:grid-cols-4">
 												<label class="field">
-													<span>Minimum</span>
+													<span>{setupUi('Minimum')}</span>
 													<input
 														type="number"
 														value={question.numberMin ?? ''}
@@ -1892,7 +2386,7 @@
 													/>
 												</label>
 												<label class="field">
-													<span>Maximum</span>
+													<span>{setupUi('Maximum')}</span>
 													<input
 														type="number"
 														value={question.numberMax ?? ''}
@@ -1901,9 +2395,9 @@
 													/>
 												</label>
 												<label class="field">
-													<span>Unit label</span>
+													<span>{setupUi('Unit label')}</span>
 													<input
-														placeholder="hours/week, kg, minutes..."
+														placeholder={setupUi('hours/week, kg, minutes...')}
 														value={question.numberUnit}
 														oninput={(event) =>
 															updateTemplateQuestionRow(index, { numberUnit: event.currentTarget.value })}
@@ -1916,16 +2410,16 @@
 														onchange={(event) =>
 															updateTemplateQuestionRow(index, {
 																numberIntegerOnly: event.currentTarget.checked
-															})}
+														})}
 													/>
-													<span>Whole numbers only</span>
+													<span>{setupUi('Whole numbers only')}</span>
 												</label>
 											</div>
 										</details>
 									{/if}
 									{#if question.type === 'text'}
 										<details class="record-row">
-											<summary class="record-row__title">Text response rules</summary>
+											<summary class="record-row__title">{setupUi('Text response rules')}</summary>
 											<div class="mt-3 grid gap-3 lg:grid-cols-3">
 												<label class="checkbox-field self-end">
 													<input
@@ -1936,10 +2430,10 @@
 																textMultiline: event.currentTarget.checked
 															})}
 													/>
-													<span>Long text answer</span>
+													<span>{setupUi('Long text answer')}</span>
 												</label>
 												<label class="field">
-													<span>Max characters</span>
+													<span>{setupUi('Max characters')}</span>
 													<input
 														type="number"
 														min="1"
@@ -1953,10 +2447,10 @@
 									{/if}
 									{#if question.type === 'date'}
 										<details class="record-row">
-											<summary class="record-row__title">Date rules</summary>
+											<summary class="record-row__title">{setupUi('Date rules')}</summary>
 											<div class="mt-3 grid gap-3 lg:grid-cols-2">
 												<label class="field">
-													<span>Earliest date</span>
+													<span>{setupUi('Earliest date')}</span>
 													<input
 														type="date"
 														value={question.dateEarliest}
@@ -1967,7 +2461,7 @@
 													/>
 												</label>
 												<label class="field">
-													<span>Latest date</span>
+													<span>{setupUi('Latest date')}</span>
 													<input
 														type="date"
 														value={question.dateLatest}
@@ -1980,16 +2474,16 @@
 									{/if}
 									{#if isChoiceQuestion(question) || question.type === 'ranking'}
 										<details class="record-row">
-											<summary class="record-row__title">Answer options</summary>
+											<summary class="record-row__title">{setupUi('Answer options')}</summary>
 											<label class="field mt-3">
-												<span>Options</span>
+												<span>{setupUi('Options')}</span>
 												<textarea
 													rows="3"
 													value={question.choiceOptions.join('\n')}
 													oninput={(event) => updateChoiceOptions(index, event.currentTarget.value)}
 												></textarea>
 												<span class="text-sm text-[var(--color-text-muted)]">
-													Enter one option per line.
+													{setupUi('Enter one option per line.')}
 												</span>
 											</label>
 											{#if isChoiceQuestion(question)}
@@ -2003,10 +2497,10 @@
 																	choiceAllowOther: event.currentTarget.checked
 																})}
 														/>
-														<span>Add an Other write-in option</span>
+														<span>{setupUi('Add an Other write-in option')}</span>
 													</label>
 													<label class="field">
-														<span>Other label</span>
+														<span>{setupUi('Other label')}</span>
 														<input
 															disabled={!question.choiceAllowOther}
 															value={question.choiceOtherLabel}
@@ -2017,9 +2511,9 @@
 														/>
 													</label>
 													<label class="field">
-														<span>Exclusive option</span>
+														<span>{setupUi('Exclusive option')}</span>
 														<input
-															placeholder="Example: None of these"
+															placeholder={setupUi('Example: None of these')}
 															value={question.choiceExclusiveOptionLabel}
 															oninput={(event) =>
 																updateTemplateQuestionRow(index, {
@@ -2032,20 +2526,20 @@
 											{#if question.type === 'ranking'}
 												<div class="mt-3 grid gap-3 lg:grid-cols-3">
 													<label class="field">
-														<span>Ranking rule</span>
+														<span>{setupUi('Ranking rule')}</span>
 														<select
 															value={question.rankingMode}
 															onchange={(event) =>
 																updateTemplateQuestionRow(index, {
 																	rankingMode: event.currentTarget.value as QuestionRankingMode
-																})}
+															})}
 														>
-															<option value="rank_all">Rank all options</option>
-															<option value="top_n">Rank only top N</option>
+															<option value="rank_all">{setupUi('Rank all options')}</option>
+															<option value="top_n">{setupUi('Rank only top N')}</option>
 														</select>
 													</label>
 													<label class="field">
-														<span>Top N</span>
+														<span>{setupUi('Top N')}</span>
 														<input
 															type="number"
 															min="1"
@@ -2061,8 +2555,7 @@
 									{/if}
 									<div class="action-row">
 										<p class="basis-full text-sm text-[var(--color-text-muted)]">
-											Question order below is the order respondents will see. Scoring stays attached to
-											question meaning, not the visual position.
+											{setupUi('Question order below is the order respondents will see. Scoring stays attached to question meaning, not the visual position.')}
 										</p>
 										<label class="checkbox-field">
 											<input
@@ -2073,7 +2566,7 @@
 														required: event.currentTarget.checked
 													})}
 											/>
-											<span>Required</span>
+											<span>{setupUi('Required')}</span>
 										</label>
 										{#if isScaleQuestion(question)}
 											<label class="checkbox-field">
@@ -2085,53 +2578,53 @@
 															reverseCoded: event.currentTarget.checked
 														})}
 												/>
-												<span>Reverse score this question</span>
+												<span>{setupUi('Reverse score this question')}</span>
 											</label>
 										{/if}
 										<button
 											type="button"
 											class="secondary-button"
 											disabled={index === 0}
-											title="Move question earlier"
+											title={setupUi('Move question earlier')}
 											onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
 										>
 											<ArrowUp size={16} aria-hidden="true" />
-											<span>Move earlier</span>
+											<span>{setupUi('Move earlier')}</span>
 										</button>
 										<button
 											type="button"
 											class="secondary-button"
 											disabled={index === templateQuestionRows.length - 1}
-											title="Move question later"
+											title={setupUi('Move question later')}
 											onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
 										>
 											<ArrowDown size={16} aria-hidden="true" />
-											<span>Move later</span>
+											<span>{setupUi('Move later')}</span>
 										</button>
 										<button
 											type="button"
 											class="secondary-button"
-											title="Duplicate question"
+											title={setupUi('Duplicate question')}
 											onclick={() => copyTemplateQuestionRow(question.code)}
 										>
 											<Copy size={16} aria-hidden="true" />
-											<span>Duplicate</span>
+											<span>{setupUi('Duplicate')}</span>
 										</button>
 										<button
 											type="button"
 											class="secondary-button"
 											disabled={templateQuestionRows.length <= 1}
-											title="Remove question"
+											title={setupUi('Remove question')}
 											onclick={() => deleteTemplateQuestionRow(question.code)}
 										>
 											<Trash2 size={16} aria-hidden="true" />
-											<span>Remove</span>
+											<span>{setupUi('Remove')}</span>
 										</button>
 									</div>
 									<div class="record-row">
 										<div class="record-row__header">
 											<div>
-												<p class="record-field__label">Answer scale</p>
+												<p class="record-field__label">{setupUi('Answer scale')}</p>
 												<h6 class="record-row__title">{questionScaleIntent(question).label}</h6>
 											</div>
 											<StatusBadge status="neutral" label={questionTypeLabel(question.type)} />
@@ -2143,7 +2636,7 @@
 									<div class="record-row">
 										<div class="record-row__header">
 											<div>
-												<p class="record-field__label">Scoring meaning</p>
+												<p class="record-field__label">{setupUi('Scoring meaning')}</p>
 												<h6 class="record-row__title">{questionScoringDetail(question).label}</h6>
 											</div>
 											<StatusBadge status={isMeanScoreEligible(question) ? 'ready' : 'neutral'} />
@@ -2167,12 +2660,12 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<p class="record-field__label">Respondent preview</p>
-									<h5 class="record-row__title">{respondentPreviewContract.label}</h5>
+									<p class="record-field__label">{setupUi('Respondent preview')}</p>
+									<h5 class="record-row__title">{setupUi(respondentPreviewContract.label)}</h5>
 								</div>
 								<StatusBadge
 									status={respondentPreviewContract.unsupportedCount > 0 ? 'blocked' : 'neutral'}
-									label={`${respondentPreviewContract.questionCount} questions`}
+									label={setupQuestionCount(respondentPreviewContract.questionCount)}
 								/>
 							</div>
 							<p class="text-sm text-[var(--color-text-muted)]">
@@ -2181,15 +2674,15 @@
 							<div class="record-grid">
 								{#each respondentPreviewContract.controls as control (control.label)}
 									<div class="record-field">
-										<p class="record-field__label">Runtime control</p>
-										<p class="record-field__value">{control.label}</p>
+										<p class="record-field__label">{setupUi('Runtime control')}</p>
+										<p class="record-field__value">{setupUi(control.label)}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{control.count} {control.count === 1 ? 'question' : 'questions'}
+											{setupQuestionCount(control.count)}
 										</p>
 									</div>
 								{/each}
 								<div class="record-field">
-									<p class="record-field__label">Runtime notes</p>
+									<p class="record-field__label">{setupUi('Runtime notes')}</p>
 									<p class="record-field__value">{respondentPreviewContract.warningCount}</p>
 									<p class="text-sm text-[var(--color-text-muted)]">
 										Limitations to review before launch.
@@ -2197,8 +2690,9 @@
 								</div>
 							</div>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								This preview uses the same control families as the respondent SurveyJS runtime: rating,
-								radio group, checkbox group, ranking, number, date, and text.
+								{setupUi(
+									'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, number, date, and text.'
+								)}
 							</p>
 							<div class="grid gap-3">
 								{#each respondentPreviewContract.questions as question (question.code)}
@@ -2212,7 +2706,7 @@
 											</div>
 											<StatusBadge
 												status={question.requiredLabel === 'Required' ? 'ready' : 'neutral'}
-												label={question.requiredLabel}
+												label={setupUi(question.requiredLabel)}
 											/>
 										</div>
 										<div class="record-field">
@@ -2260,23 +2754,25 @@
 												<ol class="grid gap-2" aria-label={`${question.positionLabel} ranking preview`}>
 													{#each question.choices as choice, choiceIndex (choice.value)}
 														<li class="record-field">
-															<p class="record-field__label">Rank {choiceIndex + 1}</p>
+															<p class="record-field__label">{setupUi('Rank')} {choiceIndex + 1}</p>
 															<p class="record-field__value">{choice.text}</p>
 														</li>
 													{/each}
 												</ol>
 											{:else if question.controlType === 'number'}
-												<input type="number" disabled placeholder="Number response" />
+												<input type="number" disabled placeholder={setupUi('Number response')} />
 											{:else if question.controlType === 'date'}
 												<input type="date" disabled />
 											{:else if question.controlType === 'text'}
 												{#if question.runtimeElementType === 'comment'}
-													<textarea rows="3" disabled placeholder="Long text response"></textarea>
+													<textarea rows="3" disabled placeholder={setupUi('Long text response')}></textarea>
 												{:else}
-													<input type="text" disabled placeholder="Text response" />
+													<input type="text" disabled placeholder={setupUi('Text response')} />
 												{/if}
 											{:else}
-												<p class="error-line">This question cannot be rendered by the current respondent runtime.</p>
+												<p class="error-line">
+													{setupUi('This question cannot be rendered by the current respondent runtime.')}
+												</p>
 											{/if}
 										</div>
 										{#if question.warnings.length > 0}
@@ -2299,7 +2795,7 @@
 						{/if}
 						{@render ActionFooter({
 							id: 'template',
-							label: 'Save questionnaire',
+							label: setupUi('Save questionnaire'),
 							icon: 'send',
 							onclick: createTemplateVersion
 						})}
@@ -2307,30 +2803,31 @@
 				{:else if activeActionIdForView === 'scoring'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
-							<h5 class="record-row__title">Results setup ready</h5>
+							<h5 class="record-row__title">{setupUi('Results setup ready')}</h5>
 							<div class="record-grid">
 								<div class="record-field">
-									<p class="record-field__label">Result outputs</p>
+									<p class="record-field__label">{setupUi('Result outputs')}</p>
 									<p class="record-field__value">{scoreOutputs.length}</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Outputs</p>
+									<p class="record-field__label">{setupUi('Outputs')}</p>
 									<p class="record-field__value">
 										{scoreOutputs.map((output) => output.name.trim() || output.code).join(', ')}
 									</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Unique scored questions</p>
+									<p class="record-field__label">{setupUi('Unique scored questions')}</p>
 									<p class="record-field__value">{selectedScoreQuestionRows.length}</p>
 								</div>
 							</div>
 						</div>
 					{:else}
 						<div class="record-row">
-							<h5 class="record-row__title">Result outputs</h5>
+							<h5 class="record-row__title">{setupUi('Result outputs')}</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								Create one total score or several dimensions/subscales. Each output chooses its own
-								questions, calculation, and missing-answer rule.
+								{setupUi(
+									'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.'
+								)}
 							</p>
 						</div>
 
@@ -2338,16 +2835,16 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">Results blueprint</p>
-										<h5 class="record-row__title">{resultsBlueprintReview.label}</h5>
+										<p class="record-field__label">{setupUi('Results blueprint')}</p>
+										<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
 									</div>
 									<StatusBadge status="neutral" label="Results plan" />
 								</div>
 								<div class="questionnaire-blueprint-review">
 									{#each resultsBlueprintReview.items as item (item.id)}
 										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-											<p class="record-field__label">{item.label}</p>
-											<p class="record-field__value">{item.detail}</p>
+											<p class="record-field__label">{setupUi(item.label)}</p>
+											<p class="record-field__value">{setupUi(item.detail)}</p>
 										</div>
 									{/each}
 								</div>
@@ -2356,11 +2853,13 @@
 								<div class="record-row">
 									<div class="setup-current-task__header">
 										<div>
-											<p class="record-field__label">Result {outputIndex + 1}</p>
-											<h5 class="record-row__title">{output.name.trim() || `Result ${outputIndex + 1}`}</h5>
+											<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
+											<h5 class="record-row__title">
+												{output.name.trim() || `${setupUi('Result')} ${outputIndex + 1}`}
+											</h5>
 											<p class="setup-current-task__title">
 												{output.includedQuestionCodes.length}
-												selected {output.includedQuestionCodes.length === 1 ? 'question' : 'questions'}
+												{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
 											</p>
 										</div>
 										{#if scoreOutputs.length > 1}
@@ -2370,14 +2869,14 @@
 												onclick={() => deleteScoreOutput(output.localId)}
 											>
 												<Trash2 size={16} aria-hidden="true" />
-												<span>Remove result</span>
+												<span>{setupUi('Remove result')}</span>
 											</button>
 										{/if}
 									</div>
 
 									<div class="grid gap-4 lg:grid-cols-2">
 										<label class="field">
-											<span>Result name</span>
+											<span>{setupUi('Result name')}</span>
 											<input
 												value={output.name}
 												oninput={(event) =>
@@ -2385,18 +2884,18 @@
 											/>
 										</label>
 										<label class="field">
-											<span>Result code</span>
+											<span>{setupUi('Result code')}</span>
 											<input
 												value={output.code}
 												oninput={(event) =>
 													updateScoreOutput(output.localId, { code: event.currentTarget.value })}
 											/>
 											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-												Used as the report/export dimension code.
+												{setupUi('Used as the report/export dimension code.')}
 											</span>
 										</label>
 										<label class="field">
-											<span>Calculation</span>
+											<span>{setupUi('Calculation')}</span>
 											<select
 												value={output.calculation}
 												onchange={(event) =>
@@ -2404,12 +2903,12 @@
 														calculation: event.currentTarget.value as ScoreCalculation
 													})}
 											>
-												<option value="mean">Average selected answers</option>
-												<option value="sum">Sum selected answers</option>
+												<option value="mean">{setupUi('Average selected answers')}</option>
+												<option value="sum">{setupUi('Sum selected answers')}</option>
 											</select>
 										</label>
 										<label class="field">
-											<span>Missing answers</span>
+											<span>{setupUi('Missing answers')}</span>
 											<select
 												value={output.missingStrategy}
 												onchange={(event) =>
@@ -2417,13 +2916,13 @@
 														missingStrategy: event.currentTarget.value as ScoreMissingStrategy
 													})}
 											>
-												<option value="require_all">Require every selected answer</option>
-												<option value="min_valid_count">Allow a score after enough answers</option>
+												<option value="require_all">{setupUi('Require every selected answer')}</option>
+												<option value="min_valid_count">{setupUi('Allow a score after enough answers')}</option>
 											</select>
 										</label>
 										{#if output.missingStrategy === 'min_valid_count'}
 											<label class="field">
-												<span>Minimum answered</span>
+												<span>{setupUi('Minimum answered')}</span>
 												<input
 													type="number"
 													min="1"
@@ -2439,7 +2938,7 @@
 									</div>
 
 									<div class="record-row">
-										<h6 class="record-row__title">Questions in this result</h6>
+										<h6 class="record-row__title">{setupUi('Questions in this result')}</h6>
 										{#if scoreableQuestionRows.length}
 											<div class="grid gap-2">
 												{#each scoreableQuestionRows as question (question.code)}
@@ -2461,7 +2960,8 @@
 															{questionPreviewDetail(question)}
 														</p>
 														<p class="text-sm text-[var(--color-text-muted)]">
-															{questionScoringDetail(question).label}. {questionScoringDetail(question).detail}
+															{setupUi(questionScoringDetail(question).label)}.
+															{setupUi(questionScoringDetail(question).detail)}
 														</p>
 													</div>
 												{/each}
@@ -2479,13 +2979,13 @@
 						<div class="action-row">
 							<button type="button" class="secondary-button" onclick={addScoreOutput}>
 								<Plus size={16} aria-hidden="true" />
-								<span>Add result output</span>
+								<span>{setupUi('Add result output')}</span>
 							</button>
 						</div>
 
 						{#if collectedContextSummaries.length}
 							<div class="record-row">
-								<h5 class="record-row__title">Collected but not scored</h5>
+								<h5 class="record-row__title">{setupUi('Collected but not scored')}</h5>
 								<div class="grid gap-2">
 									{#each collectedContextSummaries as question (question.code)}
 										<div class="record-field">
@@ -2500,19 +3000,18 @@
 						{/if}
 
 						<div class="record-row">
-							<h5 class="record-row__title">Scoring plan preview</h5>
+							<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
 							<div class="grid gap-2">
 								{#each scorePlanSummaries as summary (summary.localId)}
 									<div class="record-field">
 										<p class="record-field__label">{summary.code}</p>
 										<p class="record-field__value">{summary.name}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											Uses {dimensionCoverageLabel(summary.dimensionLabels)} from
-											{summary.includedQuestionCount}
-											selected {summary.includedQuestionCount === 1 ? 'question' : 'questions'}.
+											{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
+											{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
 										</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{summary.calculationLabel}. {summary.missingPolicyLabel}.
+											{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
 											{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
 										</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
@@ -2525,15 +3024,18 @@
 
 						{#if reverseScoringReview.reverseScoredQuestionCount > 0}
 							<div class="record-row">
-								<h5 class="record-row__title">Reverse-scoring review</h5>
+								<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
 								<p class="text-sm text-[var(--color-text-muted)]">
 									{reverseScoringReview.reverseScoredQuestionCount}
-									{reverseScoringReview.reverseScoredQuestionCount === 1 ? 'question is' : 'questions are'}
-									reversed before scoring:
+									{reverseScoringReview.reverseScoredQuestionCount === 1
+										? setupUi('question is')
+										: setupUi('questions are')}
+									{setupUi('reversed before scoring')}:
 									{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
 								</p>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									Affects: {reverseScoringReview.affectedResultLabels.join(', ') || 'no result outputs yet'}.
+									{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels.join(', ') ||
+										setupUi('no result outputs yet')}.
 								</p>
 							</div>
 						{/if}
@@ -2548,7 +3050,7 @@
 
 						{@render ActionFooter({
 							id: 'scoring',
-							label: 'Save results setup',
+							label: setupUi('Save results setup'),
 							icon: 'send',
 							onclick: createScoringRule
 						})}
@@ -2557,13 +3059,13 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Wave context</p>
-								<h5 class="record-row__title">{waveContext.title}</h5>
+								<p class="record-field__label">{setupUi('Wave context')}</p>
+								<h5 class="record-row__title">{setupUi(waveContext.title)}</h5>
 								<p class="text-sm text-[var(--color-text-muted)]">{waveContext.summary}</p>
 							</div>
 							<StatusBadge status={waveContext.status} label={waveContext.label} />
 						</div>
-						<ul class="grid gap-2" aria-label="Wave setup guidance">
+						<ul class="grid gap-2" aria-label={setupUi('Wave setup guidance')}>
 							{#each waveContext.guidance as guidance}
 								<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
 							{/each}
@@ -2571,20 +3073,20 @@
 					</div>
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
-							<h5 class="record-row__title">Collection wave ready</h5>
+							<h5 class="record-row__title">{setupUi('Collection wave ready')}</h5>
 							<div class="record-grid">
 								<div class="record-field">
-									<p class="record-field__label">Wave</p>
+									<p class="record-field__label">{setupUi('Wave')}</p>
 									<p class="record-field__value">{selectedCampaignLabel}</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Response mode</p>
+									<p class="record-field__label">{setupUi('Response mode')}</p>
 									<p class="record-field__value">
 										{responseModeLabel(campaignForm.responseIdentityMode)}
 									</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Language</p>
+									<p class="record-field__label">{setupUi('Language')}</p>
 									<p class="record-field__value">{campaignForm.defaultLocale}</p>
 								</div>
 							</div>
@@ -2593,8 +3095,8 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<p class="record-field__label">Launch plan</p>
-									<h5 class="record-row__title">{launchPlan.label}</h5>
+									<p class="record-field__label">{setupUi('Launch plan')}</p>
+									<h5 class="record-row__title">{setupUi(launchPlan.label)}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">{launchPlan.summary}</p>
 								</div>
 								<StatusBadge status="neutral" label="Wave plan" />
@@ -2610,68 +3112,70 @@
 						</div>
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
-								<span>Wave name</span>
+								<span>{setupUi('Wave name')}</span>
 								<input bind:value={campaignForm.name} />
 							</label>
 							<label class="field">
-								<span>Response mode</span>
+								<span>{setupUi('Response mode')}</span>
 								<select bind:value={campaignForm.responseIdentityMode}>
-									<option value="anonymous">Anonymous</option>
-									<option value="anonymous_longitudinal">Anonymous with repeat participation</option>
-									<option value="identified">Identified invite-only</option>
+									<option value="anonymous">{responseModeLabel('anonymous')}</option>
+									<option value="anonymous_longitudinal">{responseModeLabel('anonymous_longitudinal')}</option>
+									<option value="identified">{responseModeLabel('identified')}</option>
 								</select>
 								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 									{responseModeHelp(campaignForm.responseIdentityMode)}
 								</span>
 							</label>
 							<label class="field">
-								<span>Respondent language</span>
+								<span>{setupUi('Respondent language')}</span>
 								<input bind:value={campaignForm.defaultLocale} />
 							</label>
 						</div>
 						{@render ActionFooter({
 							id: 'campaign',
-							label: 'Save collection wave',
+							label: setupUi('Save collection wave'),
 							icon: 'send',
 							onclick: createCampaignDraft
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'readiness'}
 					<div class="record-row">
-						<h5 class="record-row__title">Launch checklist</h5>
+						<h5 class="record-row__title">{setupUi('Launch checklist')}</h5>
 						<div class="record-grid">
 							<div class="record-field">
-								<p class="record-field__label">Questionnaire</p>
+								<p class="record-field__label">{setupUi('Questionnaire')}</p>
 								<p class="record-field__value">
-									{selectedTemplateVersionId ? 'Ready' : 'Save questionnaire first'}
+									{selectedTemplateVersionId
+										? setupUi('Ready')
+										: setupUi('Save questionnaire first')}
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">Results setup</p>
+								<p class="record-field__label">{setupUi('Results setup')}</p>
 								<p class="record-field__value">
 									{localState.scoringRuleId ?? workspace.scoring?.id
-										? 'Ready'
-										: 'Save results setup first'}
+										? setupUi('Ready')
+										: setupUi('Save results setup first')}
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">Collection wave</p>
+								<p class="record-field__label">{setupUi('Collection wave')}</p>
 								<p class="record-field__value">
-									{selectedCampaignId ? selectedCampaignLabel : 'Create collection wave first'}
+									{selectedCampaignId ? selectedCampaignLabel : setupUi('Create collection wave first')}
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">Status</p>
+								<p class="record-field__label">{setupUi('Status')}</p>
 								<p class="record-field__value">{readinessLabel()}</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">Recipient selection</p>
+								<p class="record-field__label">{setupUi('Recipient selection')}</p>
 								<p class="record-field__value">{currentLaunchState().recipientSummary}</p>
 							</div>
 						</div>
 					</div>
 					{#if readinessResult?.issues.length}
-						<ul class="grid gap-2" aria-label="Launch checklist issues">
+						<ul class="grid gap-2" aria-label={setupUi('Launch checklist issues')}>
 							{#each readinessResult.issues as issue}
 								<li class="text-sm text-[var(--color-text-muted)]">
 									{launchIssueLabel(issue)}
@@ -2680,12 +3184,12 @@
 						</ul>
 					{/if}
 					<p class="result-line">
-						<span>Next action</span>
+						<span>{setupUi('Next action')}</span>
 						<span>{currentLaunchState().nextActionLabel}</span>
 					</p>
 					{@render ActionFooter({
 						id: 'readiness',
-						label: 'Run launch check',
+						label: setupUi('Run launch check'),
 						icon: 'search',
 						onclick: checkLaunchReadiness
 					})}
@@ -2706,7 +3210,7 @@
 					disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
 					onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
 				>
-					{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : 'Next step'}
+					{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : setupUi('Next step')}
 				</button>
 			</div>
 		</section>
@@ -2719,16 +3223,16 @@
 		<section class="record-row setup-current-task" aria-labelledby="locked-wave-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Previous wave</p>
-					<h4 id="locked-wave-heading" class="record-row__title">Recipient selection is locked</h4>
+					<p class="record-field__label">{setupUi('Previous wave')}</p>
+					<h4 id="locked-wave-heading" class="record-row__title">{setupUi('Recipient selection is locked')}</h4>
 					<p class="setup-current-task__title">{lockedSelectedCampaign.name}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						This wave is already {lockedSelectedCampaign.status}. Recipient selection can only be
-						changed before launch. Save the next collection wave first, then choose recipients for
-						that draft.
+						{setupUi(
+							'This wave is already locked. Recipient selection can only be changed before launch. Save the next collection wave first, then choose recipients for that draft.'
+						)}
 					</p>
 				</div>
-				<p class="step-pill" data-state="idle">Locked</p>
+				<p class="step-pill" data-state="idle">{setupUi('Locked')}</p>
 			</div>
 		</section>
 		{/if}
@@ -2737,14 +3241,15 @@
 		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Recipient selection</p>
-					<h4 id="audience-preview-heading" class="record-row__title">Preview recipients, then save the selection</h4>
+					<p class="record-field__label">{setupUi('Recipient selection')}</p>
+					<h4 id="audience-preview-heading" class="record-row__title">
+						{setupUi('Preview recipients, then save the selection')}
+					</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Use Directory groups for recurring populations. Use all active Directory people only
-						when the wave is truly for everyone. Use one-off email list for ad hoc recipients you
-						do not want to manage in Directory. Save recipients before launch so Collection can
-						create private respondent links and send email.
+						{setupUi(
+							'Use Directory groups for recurring populations. Use all active Directory people only when the wave is truly for everyone. Use one-off email list for ad hoc recipients you do not want to manage in Directory. Save recipients before launch so Collection can create private respondent links and send email.'
+						)}
 					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
@@ -2752,34 +3257,35 @@
 
 			{#if savedRuleResult?.rules.length}
 				<p class="result-line">
-					<span>Saved for launch</span>
+					<span>{setupUi('Saved for launch')}</span>
 					<span>{savedAudienceSummary()}</span>
 				</p>
 			{:else}
 				<p class="error-line" role="status">
-					No recipient selection is saved yet. Preview recipients first, then save the previewed
-					selection before launch.
+					{setupUi(
+						'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.'
+					)}
 				</p>
 			{/if}
 
 			<div class="record-grid">
 				<div class="record-field">
-					<p class="record-field__label">Reusable population</p>
-					<p class="record-field__value">Directory groups</p>
+					<p class="record-field__label">{setupUi('Reusable population')}</p>
+					<p class="record-field__value">{setupUi('Directory groups')}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						Best for departments, cohorts, classes, and repeated waves.
 					</p>
 				</div>
 				<div class="record-field">
-					<p class="record-field__label">One-off population</p>
-					<p class="record-field__value">Email import</p>
+					<p class="record-field__label">{setupUi('One-off population')}</p>
+					<p class="record-field__value">{setupUi('Email import')}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						Best for a temporary list copied from a collaborator or spreadsheet export.
 					</p>
 				</div>
 				<div class="record-field">
-					<p class="record-field__label">Open participation</p>
-					<p class="record-field__value">Open link in Collection</p>
+					<p class="record-field__label">{setupUi('Open participation')}</p>
+					<p class="record-field__value">{setupUi('Open link in Collection')}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						Best when anyone with the link may answer and no invite-only list is needed.
 					</p>
@@ -2789,19 +3295,19 @@
 			<div class="record-row">
 				<div class="record-row__header">
 					<div>
-						<p class="record-field__label">Demo/test data</p>
-						<h5 class="record-row__title">Create test recipients for this wave</h5>
+						<p class="record-field__label">{setupUi('Demo/test data')}</p>
+						<h5 class="record-row__title">{setupUi('Create test recipients for this wave')}</h5>
 						<p class="text-sm text-[var(--color-text-muted)]">
-							Use this in staging or demos when you need realistic recipients without importing a
-							real directory. It creates a marked test cohort and saves it as this wave's recipient
-							selection.
+							{setupUi(
+								"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this wave's recipient selection."
+							)}
 						</p>
 					</div>
 					<p class="step-pill" data-state={testRecipientState}>{stepLabel(testRecipientState)}</p>
 				</div>
 				<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto]">
 					<label class="field">
-						<span>Group name</span>
+						<span>{setupUi('Group name')}</span>
 						<input
 							value={testRecipientGroupName}
 							disabled={testRecipientState === 'submitting'}
@@ -2809,7 +3315,7 @@
 						/>
 					</label>
 					<label class="field">
-						<span>People</span>
+						<span>{setupUi('People')}</span>
 						<input
 							type="number"
 							min="1"
@@ -2829,7 +3335,7 @@
 						{:else}
 							<Plus size={16} aria-hidden="true" />
 						{/if}
-						<span>Create test recipients</span>
+						<span>{setupUi('Create test recipients')}</span>
 					</button>
 				</div>
 				{#if testRecipientError}
@@ -2837,10 +3343,10 @@
 				{/if}
 				{#if testRecipientResult}
 					<p class="result-line">
-						<span>Test cohort saved</span>
+						<span>{setupUi('Test cohort saved')}</span>
 						<span>
 							{testRecipientResult.groupName} -
-							{formatCount(testRecipientResult.createdSubjectCount)} recipients
+							{formatCount(testRecipientResult.createdSubjectCount)} {setupUi('recipients')}
 						</span>
 					</p>
 				{/if}
@@ -2848,7 +3354,7 @@
 
 			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
 				<label class="field">
-					<span>Send invitations to</span>
+					<span>{setupUi('Send invitations to')}</span>
 					<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
 						<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
 						<option value="self">{audienceRuleLabel('self')}</option>
@@ -2865,19 +3371,19 @@
 					<div class="record-row lg:col-span-2">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Campaign-local recipients</p>
-								<h5 class="record-row__title">Build a one-off recipient list</h5>
+								<p class="record-field__label">{setupUi('Campaign-local recipients')}</p>
+								<h5 class="record-row__title">{setupUi('Build a one-off recipient list')}</h5>
 							</div>
 							<span
 								class="step-pill"
 								data-state={previewExternalEmailReview.hasBlockingIssues ? 'failed' : 'idle'}
 							>
-								{formatCount(previewExternalEmailReview.validRecipientCount)} ready
+								{formatCount(previewExternalEmailReview.validRecipientCount)} {setupUi('ready')}
 							</span>
 						</div>
 						<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
 							<label class="field">
-								<span>Name for review</span>
+								<span>{setupUi('Name for review')}</span>
 								<input
 									value={previewManualRecipientName}
 									placeholder="Bo Horvat"
@@ -2886,7 +3392,7 @@
 								/>
 							</label>
 							<label class="field">
-								<span>Email</span>
+								<span>{setupUi('Email')}</span>
 								<input
 									type="email"
 									value={previewManualRecipientEmail}
@@ -2902,14 +3408,14 @@
 								onclick={addPreviewManualRecipient}
 							>
 								<Plus size={16} aria-hidden="true" />
-								<span>Add person</span>
+								<span>{setupUi('Add person')}</span>
 							</button>
 						</div>
 						{#if previewManualRecipientError}
 							<p class="error-line" role="alert">{previewManualRecipientError}</p>
 						{/if}
 						<label class="field">
-							<span>Import recipients</span>
+							<span>{setupUi('Import recipients')}</span>
 							<input
 								type="file"
 								accept=".csv,.txt,text/csv,text/plain"
@@ -2918,15 +3424,16 @@
 							/>
 							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 								Use a class list, cohort list, HR export, or spreadsheet with an email column
-								when this wave has a one-time recipient list. For repeated waves or reusable cohorts,
-								import people and groups in Directory instead. Limit:
-								{formatCount(maxRecipientImportRecipients)} recipients per wave update.
+								{setupUi(
+									'Use this when this wave has a one-time recipient list. For repeated waves or reusable cohorts, import people and groups in Directory instead. Limit:'
+								)}
+								{formatCount(maxRecipientImportRecipients)} {setupUi('recipients per wave update.')}
 							</span>
 						</label>
 						<details>
-							<summary class="record-row__title">Review or paste source list</summary>
+							<summary class="record-row__title">{setupUi('Review or paste source list')}</summary>
 							<label class="field mt-3">
-								<span>Recipient source</span>
+								<span>{setupUi('Recipient source')}</span>
 								<textarea
 									rows="5"
 									value={previewExternalEmailText}
@@ -2935,9 +3442,9 @@
 									oninput={(event) => (previewExternalEmailText = event.currentTarget.value)}
 								></textarea>
 								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-									{formatCount(previewExternalEmailReview.validRecipientCount)} ready,
-									{formatCount(previewExternalEmailReview.invalidCount)} invalid,
-									{formatCount(previewExternalEmailReview.duplicateCount)} duplicate.
+									{formatCount(previewExternalEmailReview.validRecipientCount)} {setupUi('ready')},
+									{formatCount(previewExternalEmailReview.invalidCount)} {setupUi('invalid')},
+									{formatCount(previewExternalEmailReview.duplicateCount)} {setupUi('duplicate')}.
 								</span>
 							</label>
 						</details>
@@ -2949,7 +3456,7 @@
 								onclick={keepOnlyValidPreviewRecipients}
 							>
 								<RefreshCw size={16} aria-hidden="true" />
-								<span>Keep valid only</span>
+								<span>{setupUi('Keep valid only')}</span>
 							</button>
 							<button
 								type="button"
@@ -2958,7 +3465,7 @@
 								onclick={clearPreviewRecipients}
 							>
 								<Trash2 size={16} aria-hidden="true" />
-								<span>Clear list</span>
+								<span>{setupUi('Clear list')}</span>
 							</button>
 						</div>
 						{#if previewExternalEmailFileError}
@@ -2968,17 +3475,18 @@
 				{:else if previewRequiresGroup}
 					{#if previewGroups.length === 0}
 						<div class="record-field">
-							<p class="record-field__label">Directory group</p>
-							<p class="record-field__value">No groups available</p>
+							<p class="record-field__label">{setupUi('Directory group')}</p>
+							<p class="record-field__value">{setupUi('No groups available')}</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								Create a reusable cohort, department, class, or location in Directory, or switch to
-								one-off email import for this wave only.
+								{setupUi(
+									'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this wave only.'
+								)}
 							</p>
-							<a class="secondary-button mt-3" href="/app/directory">Open Directory</a>
+							<a class="secondary-button mt-3" href="/app/directory">{setupUi('Open Directory')}</a>
 						</div>
 					{:else}
 						<label class="field">
-							<span>Directory group</span>
+							<span>{setupUi('Directory group')}</span>
 							<select
 								bind:value={previewGroupId}
 								disabled={previewGroups.length === 0 || previewState === 'submitting'}
@@ -2991,7 +3499,7 @@
 					{/if}
 				{:else if previewRequiresTarget}
 					<label class="field">
-						<span>Focus person</span>
+						<span>{setupUi('Focus person')}</span>
 						<select
 							bind:value={previewTargetSubjectId}
 							disabled={previewSubjects.length === 0 || previewState === 'submitting'}
@@ -3003,21 +3511,22 @@
 					</label>
 				{:else}
 					<div class="record-field">
-						<p class="record-field__label">Directory people</p>
+						<p class="record-field__label">{setupUi('Directory people')}</p>
 						<p class="record-field__value">
 							{previewSubjects.length
-								? `${previewSubjects.length} active people loaded`
-								: 'No active people loaded yet'}
+								? `${formatCount(previewSubjects.length)} ${setupUi('active people loaded')}`
+								: setupUi('No active people loaded yet')}
 						</p>
 						<p class="text-sm text-[var(--color-text-muted)]">
-							This selection is broad. Use a Directory group when the wave should only reach a
-							department, cohort, class, or location.
+							{setupUi(
+								'This selection is broad. Use a Directory group when the wave should only reach a department, cohort, class, or location.'
+							)}
 						</p>
 					</div>
 				{/if}
 
 				<label class="field">
-					<span>Preview rows</span>
+					<span>{setupUi('Preview rows')}</span>
 					<input
 						type="number"
 						min="1"
@@ -3035,7 +3544,7 @@
 					{:else}
 						<SearchCheck size={17} aria-hidden="true" />
 					{/if}
-					<span>Preview recipients</span>
+					<span>{setupUi('Preview recipients')}</span>
 				</button>
 				<button
 					type="button"
@@ -3048,7 +3557,7 @@
 					{:else}
 						<Send size={16} aria-hidden="true" />
 					{/if}
-					<span>Save previewed recipients</span>
+					<span>{setupUi('Save previewed recipients')}</span>
 				</button>
 				<button
 					type="button"
@@ -3064,7 +3573,7 @@
 					{:else}
 						<RefreshCw size={16} aria-hidden="true" />
 					{/if}
-					<span>Refresh directory</span>
+					<span>{setupUi('Refresh directory')}</span>
 				</button>
 			</div>
 
@@ -3077,29 +3586,31 @@
 
 			{#if previewResult}
 				<p class="result-line">
-					<span>Previewed selection</span>
+					<span>{setupUi('Previewed selection')}</span>
 					<span>
 						{audienceRuleLabel(previewRuleKind)} - {previewResult.summary.respondentCount}
-						{previewResult.summary.respondentCount === 1 ? 'recipient' : 'recipients'} found
+						{setupUi(previewResult.summary.respondentCount === 1 ? 'recipient found' : 'recipients found')}
 					</span>
 				</p>
 				<div class="record-grid">
 					<div class="record-field">
-						<p class="record-field__label">Recipients found</p>
+						<p class="record-field__label">{setupUi('Recipients found')}</p>
 						<p class="record-field__value">{previewResult.summary.respondentCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Invitation rows</p>
+						<p class="record-field__label">{setupUi('Invitation rows')}</p>
 						<p class="record-field__value">{previewResult.summary.assignmentPairCount}</p>
 					</div>
 					<div class="record-field">
-						<p class="record-field__label">Preview capped</p>
-						<p class="record-field__value">{previewResult.summary.truncated ? 'Yes' : 'No'}</p>
+						<p class="record-field__label">{setupUi('Preview capped')}</p>
+						<p class="record-field__value">
+							{previewResult.summary.truncated ? setupUi('Yes') : setupUi('No')}
+						</p>
 					</div>
 				</div>
 
 				{#if previewResult.warnings.length}
-					<ul class="grid gap-2" aria-label="Recipient preview warnings">
+					<ul class="grid gap-2" aria-label={setupUi('Recipient preview warnings')}>
 						{#each previewResult.warnings as warning}
 							<li class="text-sm text-[var(--color-text-muted)]">
 								{audienceWarningLabel(warning)}
@@ -3110,7 +3621,7 @@
 
 				<div class="grid gap-2">
 					{#if previewResult.rows.length === 0}
-						<p class="text-sm text-[var(--color-text-muted)]">No people to show yet.</p>
+					<p class="text-sm text-[var(--color-text-muted)]">{setupUi('No people to show yet.')}</p>
 					{:else}
 						{#each previewResult.rows as row (row.ordinal)}
 							<div class="record-field">
@@ -3134,8 +3645,10 @@
 		<section class="record-row setup-current-task" aria-labelledby="saved-recipient-selection-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Saved recipients</p>
-					<h4 id="saved-recipient-selection-heading" class="record-row__title">Saved recipient selection</h4>
+					<p class="record-field__label">{setupUi('Saved recipients')}</p>
+					<h4 id="saved-recipient-selection-heading" class="record-row__title">
+						{setupUi('Saved recipient selection')}
+					</h4>
 					<p class="setup-current-task__title">{savedAudienceSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={savedRuleState}>{stepLabel(savedRuleState)}</p>
@@ -3147,7 +3660,7 @@
 				<div class="grid gap-2">
 					{#each savedRuleResult.rules as rule (rule.id)}
 						<div class="record-field">
-							<p class="record-field__label">Selection #{rule.ordinal}</p>
+							<p class="record-field__label">{setupUi('Selection')} #{rule.ordinal}</p>
 							<p class="record-field__value">{savedRecipientSelectionLabel(rule)}</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{savedRecipientSelectionDetail(rule)}
@@ -3156,7 +3669,7 @@
 								{pairCountLabel(rule.assignmentPairCount)}
 							</p>
 							{#if rule.issues.length}
-								<ul class="grid gap-1" aria-label="Saved recipient selection issues">
+								<ul class="grid gap-1" aria-label={setupUi('Saved recipient selection issues')}>
 									{#each rule.issues as issue}
 										<li class="error-line">{launchIssueLabel(issue)}</li>
 									{/each}
@@ -3167,7 +3680,7 @@
 				</div>
 			{:else}
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Save a recipient selection after the preview looks right.
+					{setupUi('Save a recipient selection after the preview looks right.')}
 				</p>
 			{/if}
 		</section>
@@ -3177,8 +3690,10 @@
 		<section class="record-row setup-current-task" aria-labelledby="prepared-invitation-roster-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Invitation roster</p>
-					<h4 id="prepared-invitation-roster-heading" class="record-row__title">Prepared invitation roster</h4>
+					<p class="record-field__label">{setupUi('Invitation roster')}</p>
+					<h4 id="prepared-invitation-roster-heading" class="record-row__title">
+						{setupUi('Prepared invitation roster')}
+					</h4>
 					<p class="setup-current-task__title">{deliveryRosterSummary()}</p>
 				</div>
 				<p class="step-pill" data-state={assignmentState}>{stepLabel(assignmentState)}</p>
@@ -3193,7 +3708,7 @@
 							<p class="record-field__label">{recipientRoleLabel(assignment.role)}</p>
 							<p class="record-field__value">{assignmentPairLabel(assignment)}</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								{assignment.respondent?.email ?? assignment.respondent?.externalId ?? 'No contact'}
+								{assignment.respondent?.email ?? assignment.respondent?.externalId ?? setupUi('No contact')}
 							</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{assignment.status}
@@ -3213,7 +3728,7 @@
 </section>
 
 {#snippet SetupPath()}
-	<div class="setup-path" aria-label="Setup path">
+	<div class="setup-path" aria-label={setupUi('Setup path')}>
 		{#each setupPath.steps as step}
 			{@const display = setupPathStepDisplay(step)}
 			<button
