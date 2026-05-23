@@ -11,6 +11,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { Archive, Check, Copy, LoaderCircle, Pencil, Plus, RotateCcw, X } from 'lucide-svelte';
 	import {
 		createProductApiFromEnv,
@@ -43,7 +45,9 @@
 	const setupApi = createSetupApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
-	const blueprintOptions = listStudyBlueprintOptions();
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
+	const blueprintOptions = $derived(listStudyBlueprintOptions(locale));
 
 	let loadState = $state<LoadState>('loading');
 	let authSession = $state<AuthSessionResponse | null>(null);
@@ -72,8 +76,8 @@
 	const listView = $derived(
 		campaignSeriesList ? toCampaignSeriesListView(campaignSeriesList, portfolioQuery) : null
 	);
-	const selectedBlueprint = $derived(getStudyBlueprintOption(selectedBlueprintId));
-	const studyNamePlaceholder = $derived(buildStudyNamePlaceholder(selectedBlueprintId));
+	const selectedBlueprint = $derived(getStudyBlueprintOption(selectedBlueprintId, locale));
+	const studyNamePlaceholder = $derived(buildStudyNamePlaceholder(selectedBlueprintId, locale));
 
 	$effect(() => {
 		void loadCampaignSeries(portfolioQuery);
@@ -276,31 +280,31 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Study workspace"
-	title="Studies"
-	description="Create a study or open an existing one. Samples stay separated from real workspace studies."
+	eyebrow={text.portfolio.eyebrow}
+	title={text.portfolio.title}
+	description={text.portfolio.description}
 />
 
-<section class="product-panel" data-priority="primary" aria-label="Study portfolio">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading studies">
+<section class="product-panel" data-priority="primary" aria-label={text.portfolio.title}>
+	<LoadingBoundary loading={loadState === 'loading'} label={text.portfolio.loading}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Studies unavailable"
+				title={text.portfolio.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry studies"
+				retryLabel={text.portfolio.retry}
 				onRetry={loadCampaignSeries}
 			/>
 		{:else if listView}
 			{#if canManageSetup}
-				<section class="portfolio-create" aria-label="Create your study">
+				<section class="portfolio-create" aria-label={text.portfolio.title}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Guided study design</p>
-							<h2 class="product-title">Start a study blueprint</h2>
+							<p class="product-kicker">{text.portfolio.guidedDesign}</p>
+							<h2 class="product-title">{text.portfolio.startBlueprint}</h2>
 						</div>
 					</div>
 
-					<div class="study-blueprint-picker" aria-label="Choose a study starting point">
+					<div class="study-blueprint-picker" aria-label={text.portfolio.startBlueprint}>
 						{#each blueprintOptions as option}
 							<button
 								type="button"
@@ -324,9 +328,9 @@
 						{/each}
 					</div>
 
-					<section class="study-blueprint-plan" aria-label="Selected study blueprint plan">
+					<section class="study-blueprint-plan" aria-label={text.portfolio.selectedStartingPoint}>
 						<div>
-							<p class="product-kicker">Selected starting point</p>
+							<p class="product-kicker">{text.portfolio.selectedStartingPoint}</p>
 							<h3>{selectedBlueprint.nextStepsTitle}</h3>
 							<p>{selectedBlueprint.summary}</p>
 						</div>
@@ -348,7 +352,7 @@
 						}}
 					>
 						<label class="field">
-							<span>Study name</span>
+							<span>{text.portfolio.studyName}</span>
 							<input
 								bind:value={newSeriesName}
 								disabled={creatingSeries}
@@ -361,7 +365,7 @@
 							{:else}
 								<Plus size={17} aria-hidden="true" />
 							{/if}
-							<span>{creatingSeries ? 'Creating...' : 'Continue to guided setup'}</span>
+							<span>{creatingSeries ? text.portfolio.creating : text.portfolio.continueSetup}</span>
 						</button>
 					</form>
 
@@ -370,38 +374,38 @@
 					{/if}
 				</section>
 			{:else}
-				<section class="portfolio-create" aria-label="Read-only study access">
+				<section class="portfolio-create" aria-label={text.portfolio.readOnlyAccess}>
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Your studies</p>
-							<h2 class="product-title">Read-only access</h2>
+							<p class="product-kicker">{text.portfolio.title}</p>
+							<h2 class="product-title">{text.portfolio.readOnlyAccess}</h2>
 						</div>
 					</div>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Creating and changing studies requires setup management access.
+						{text.portfolio.readOnlyBody}
 					</p>
 				</section>
 			{/if}
 
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Study list</p>
-					<h2 class="product-title">Open a study</h2>
+					<p class="product-kicker">{text.portfolio.studyList}</p>
+					<h2 class="product-title">{text.portfolio.openStudy}</h2>
 				</div>
 			</div>
 
-			<div class="portfolio-toolbar" role="group" aria-label="Study list filters">
+			<div class="portfolio-toolbar" role="group" aria-label={text.portfolio.studyList}>
 				<label class="field">
-					<span>Search studies</span>
+					<span>{text.portfolio.searchStudies}</span>
 					<input
 						value={portfolioQuery.search}
-						placeholder="Search by study name"
+						placeholder={text.portfolio.searchPlaceholder}
 						oninput={(event) => updatePortfolioQuery({ search: event.currentTarget.value })}
 					/>
 				</label>
 
 				<label class="field">
-					<span>Readiness</span>
+					<span>{text.portfolio.readiness}</span>
 					<select
 						value={portfolioQuery.status}
 						onchange={(event) => updatePortfolioQuery({ status: event.currentTarget.value })}
@@ -413,7 +417,7 @@
 				</label>
 
 				<label class="field">
-					<span>Sort</span>
+					<span>{text.portfolio.sort}</span>
 					<select
 						value={portfolioQuery.sort}
 						onchange={(event) => updatePortfolioQuery({ sort: event.currentTarget.value })}
@@ -425,7 +429,7 @@
 				</label>
 
 				<label class="field">
-					<span>Visibility</span>
+					<span>{text.portfolio.visibility}</span>
 					<select
 						value={portfolioQuery.visibility}
 						onchange={(event) => updatePortfolioQuery({ visibility: event.currentTarget.value })}

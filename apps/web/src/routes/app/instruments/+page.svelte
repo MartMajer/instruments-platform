@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { InstrumentSummaryResponse } from '$lib/api/setup';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -7,6 +8,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { createProductRequestGate, createSetupApiFromEnv } from '$lib/product/route-state';
 	import { toInstrumentLibraryView, toProductApiErrorMessage } from '$lib/product/view-models';
 
@@ -19,6 +22,8 @@
 	let instruments = $state<InstrumentSummaryResponse[]>([]);
 	let errorMessage = $state<string | null>(null);
 
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 	const libraryView = $derived(toInstrumentLibraryView(instruments));
 
 	onMount(() => {
@@ -45,33 +50,33 @@
 			}
 
 			instruments = [];
-			errorMessage = toProductApiErrorMessage(error, 'Instrument library could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, text.instruments.errorTitle);
 			loadState = 'error';
 		}
 	}
 </script>
 
 <SurfaceHeader
-	eyebrow="Instrument library"
-	title="Instruments"
-	description="Review reusable question sets that can seed a study. Custom study building happens inside Setup."
+	eyebrow={text.instruments.eyebrow}
+	title={text.instruments.title}
+	description={text.instruments.description}
 />
 
-<section class="product-panel" data-priority="primary" aria-label="Instrument library">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading instrument library">
+<section class="product-panel" data-priority="primary" aria-label={text.instruments.title}>
+	<LoadingBoundary loading={loadState === 'loading'} label={text.instruments.loading}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Instrument library unavailable"
+				title={text.instruments.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry instruments"
+				retryLabel={text.instruments.retry}
 				onRetry={loadInstruments}
 			/>
 		{:else if loadState === 'ready'}
 			<div class="grid gap-5">
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Library summary</p>
-						<h2 class="product-title">Visible instruments</h2>
+						<p class="product-kicker">{text.instruments.summary}</p>
+						<h2 class="product-title">{text.instruments.visibleInstruments}</h2>
 					</div>
 				</div>
 
@@ -86,8 +91,8 @@
 
 				{#if libraryView.cards.length === 0}
 					<EmptyState
-						title="No instruments"
-						description="No tenant-visible instruments are available yet."
+						title={text.instruments.noInstruments}
+						description={text.instruments.noInstrumentsBody}
 					/>
 				{:else}
 					<div class="record-list" aria-label="Visible instruments">
@@ -117,19 +122,19 @@
 
 				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
 					<div>
-						<p class="product-kicker">Next step</p>
+						<p class="product-kicker">{text.instruments.nextStep}</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							Create or open a study
+							{text.instruments.createOrOpen}
 						</h3>
 					</div>
 					<div class="record-list" aria-label="Instrument management links">
 						<a class="record-row" href="/app/campaign-series">
 							<span class="record-row__header">
-								<span class="record-row__title">Studies</span>
-								<span class="secondary-button">Open</span>
+								<span class="record-row__title">{text.portfolio.title}</span>
+								<span class="secondary-button">{text.common.open}</span>
 							</span>
 							<span class="text-sm leading-6 text-[var(--color-text-muted)]">
-								Select a study to build questionnaires, scoring, audiences, and launch state.
+								{text.instruments.studiesBody}
 							</span>
 						</a>
 					</div>

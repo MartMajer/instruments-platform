@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { onDestroy } from 'svelte';
 	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, Upload, UserRound } from 'lucide-svelte';
 	import type {
@@ -15,6 +16,8 @@
 	import InlineAlert from '$lib/components/InlineAlert.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { createProductApiFromEnv, createProductRequestGate } from '$lib/product/route-state';
 	import {
 		getProductAuthContext,
@@ -28,6 +31,8 @@
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let loadState = $state<LoadState>('idle');
@@ -410,46 +415,45 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Audience directory"
-	title="People and groups"
-	description="Create respondents, reusable audiences, and manager links for study targeting."
+	eyebrow={text.directory.eyebrow}
+	title={text.directory.title}
+	description={text.directory.description}
 />
 
 {#if !canManageSetup}
 	<InlineAlert
 		variant="warning"
-		title="Directory access requires setup management"
-		message="Subject directory data is only available to setup managers."
+		title={text.directory.accessTitle}
+		message={text.directory.accessMessage}
 	/>
 {:else}
 	<section class="product-panel" aria-label="Audience directory overview">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Directory setup</p>
-				<h2 class="product-title">Build the audience list first</h2>
+				<p class="product-kicker">{text.directory.setup}</p>
+				<h2 class="product-title">{text.directory.buildAudience}</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-					Add people, organize them into groups, then use those groups when choosing a study
-					audience.
+					{text.directory.buildAudienceBody}
 				</p>
 			</div>
-			<a class="primary-button" href="#directory-create">Add people or groups</a>
+			<a class="primary-button" href="#directory-create">{text.directory.addPeopleOrGroups}</a>
 		</div>
 
 		<dl class="directory-count-list" role="group" aria-label="People and targeting counts">
 			<div class="directory-count-row">
-				<dt class="directory-count-row__label">People</dt>
+				<dt class="directory-count-row__label">{text.directory.people}</dt>
 				<dd class="directory-count-row__value">{directory?.summary.subjectCount ?? 0}</dd>
 			</div>
 			<div class="directory-count-row">
-				<dt class="directory-count-row__label">Groups</dt>
+				<dt class="directory-count-row__label">{text.directory.groups}</dt>
 				<dd class="directory-count-row__value">{directory?.summary.groupCount ?? 0}</dd>
 			</div>
 			<div class="directory-count-row">
-				<dt class="directory-count-row__label">Memberships</dt>
+				<dt class="directory-count-row__label">{text.directory.memberships}</dt>
 				<dd class="directory-count-row__value">{membershipCount}</dd>
 			</div>
 			<div class="directory-count-row">
-				<dt class="directory-count-row__label">Manager links</dt>
+				<dt class="directory-count-row__label">{text.directory.managerLinks}</dt>
 				<dd class="directory-count-row__value">
 					{directory?.summary.managerRelationshipCount ?? 0}
 				</dd>
@@ -458,12 +462,10 @@
 
 		<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 			<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-				How directory data is used
+				{text.directory.howUsed}
 			</summary>
 			<p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-				Groups define reusable audiences such as departments, cohorts, locations, or roles.
-				Manager links are optional and only needed for hierarchy-aware review or reporting.
-				Team roles are separate; they control who can use the app.
+				{text.directory.buildAudienceBody}
 			</p>
 		</details>
 	</section>
@@ -471,8 +473,8 @@
 	<section class="product-panel" aria-label="Import audience CSV">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">CSV import</p>
-				<h2 class="product-title">Preview, then import people and groups</h2>
+				<p class="product-kicker">{text.directory.csvImport}</p>
+				<h2 class="product-title">{text.directory.csvTitle}</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 					Use this when a study audience is already prepared in a spreadsheet. First preview
 					the rows so you can confirm who will be created, updated, grouped, or rejected. Apply
@@ -645,8 +647,8 @@
 			{:else if directory && groupList}
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">People</p>
-						<h2 class="product-title">People in this workspace</h2>
+						<p class="product-kicker">{text.directory.people}</p>
+						<h2 class="product-title">{text.directory.peopleInWorkspace}</h2>
 					</div>
 				</div>
 
@@ -738,8 +740,8 @@
 		{#if groupList}
 			<div class="product-panel__header">
 				<div>
-					<p class="product-kicker">Groups</p>
-					<h2 class="product-title">Audience groups</h2>
+					<p class="product-kicker">{text.directory.groups}</p>
+					<h2 class="product-title">{text.directory.audienceGroups}</h2>
 				</div>
 			</div>
 
@@ -773,8 +775,8 @@
 	<section id="directory-create" class="product-panel" aria-label="Create directory records">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Add records</p>
-				<h2 class="product-title">People and groups</h2>
+				<p class="product-kicker">{text.directory.addRecords}</p>
+				<h2 class="product-title">{text.directory.title}</h2>
 			</div>
 			<button type="button" class="secondary-button" onclick={loadDirectory}>
 				<RefreshCcw size={16} aria-hidden="true" />
@@ -893,7 +895,7 @@
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">Hierarchy setup</p>
-				<h2 class="product-title">Membership and manager</h2>
+				<h2 class="product-title">{text.directory.membershipManager}</h2>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 					Use memberships for audience targeting. Use manager links only when a study needs
 					hierarchy-aware review or reports-of-target context.

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { ApiError } from '$lib/api/client';
 	import {
@@ -12,6 +13,8 @@
 		rememberLastWorkspaceEmail
 	} from '$lib/api/session-headers';
 	import { createRegistrationApi } from '$lib/api/registration';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const registrationApi = createRegistrationApi();
 
@@ -21,6 +24,8 @@
 	let errorMessage = $state('');
 	let statusMessage = $state('');
 	let isSubmitting = $state(false);
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	onMount(() => {
 		const tenantId = readLastTenantId(window.localStorage);
@@ -47,7 +52,7 @@
 			});
 			const loginUrl = resolveAuthRedirectUrl(response.loginUrl);
 			rememberTenantFromLoginUrl(loginUrl, email);
-			statusMessage = 'Opening workspace sign-in.';
+			statusMessage = text.signIn.openingWorkspace;
 			window.location.assign(loginUrl);
 		} catch (error) {
 			errorMessage = toWorkspaceSignInError(error);
@@ -111,11 +116,11 @@
 			const detail = typeof problem?.detail === 'string' ? problem.detail : '';
 
 			if (code === 'registration.workspace_not_found') {
-				return 'No workspace exists for this email yet. Create a workspace first.';
+				return text.signIn.workspaceNotFound;
 			}
 
 			if (code === 'registration.email_invalid') {
-				return 'Enter the email used for the workspace.';
+				return text.signIn.emailInvalid;
 			}
 
 			if (detail) {
@@ -123,15 +128,15 @@
 			}
 		}
 
-		return 'We could not find a workspace for this email.';
+		return text.signIn.fallbackError;
 	}
 </script>
 
 <svelte:head>
-	<title>Sign in | Instruments Platform</title>
+	<title>{text.signIn.metaTitle}</title>
 	<meta
 		name="description"
-		content="Find your Instruments Platform workspace before signing in with your sign-in provider."
+		content={text.signIn.metaDescription}
 	/>
 </svelte:head>
 
@@ -144,66 +149,67 @@
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
 				<strong>Instruments Platform</strong>
-				<small>Workspace sign-in</small>
+				<small>{text.signIn.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="registration-nav__links" aria-label="Sign-in actions">
-			<a href={resolve('/')}>Product</a>
-			<a href={resolve('/register')}>Create workspace</a>
+		<nav class="registration-nav__links" aria-label={text.signIn.navAria}>
+			<a href={resolve('/')}>{text.common.product}</a>
+			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
 		</nav>
 	</header>
 
 	<div class="registration-grid">
 		<section class="registration-copy">
-			<p class="launchpad-kicker">Workspace access</p>
-			<h1 id="signin-title">Sign in to your workspace.</h1>
+			<p class="launchpad-kicker">{text.signIn.eyebrow}</p>
+			<h1 id="signin-title">{text.signIn.title}</h1>
 			<p>
-				Enter the email used for the workspace. We find the workspace first, then send you
-				to your sign-in provider for password and MFA.
+				{text.signIn.body}
 			</p>
-			<div class="registration-steps" aria-label="Sign-in steps">
+			<div class="registration-steps" aria-label={text.signIn.stepsAria}>
 				<div>
 					<span>01</span>
-					<strong>Find workspace</strong>
-					<p>Use the same email that owns or belongs to the workspace.</p>
+					<strong>{text.signIn.stepFind}</strong>
+					<p>{text.signIn.stepFindBody}</p>
 				</div>
 				<div>
 					<span>02</span>
-					<strong>Sign in</strong>
-					<p>Your sign-in provider handles password, account selection, and MFA.</p>
+					<strong>{text.signIn.stepSignIn}</strong>
+					<p>{text.signIn.stepSignInBody}</p>
 				</div>
 				<div>
 					<span>03</span>
-					<strong>Open app</strong>
-					<p>The platform opens only after matching the selected account to workspace membership.</p>
+					<strong>{text.signIn.stepOpenApp}</strong>
+					<p>{text.signIn.stepOpenAppBody}</p>
 				</div>
 			</div>
 		</section>
 
-		<section class="registration-panel" aria-label="Workspace sign-in form">
+		<section class="registration-panel" aria-label={text.signIn.formAria}>
 			<div class="registration-panel__header">
-				<span>Existing workspace</span>
-				<strong>Continue with your workspace email</strong>
-				<p>Need a new workspace? <a href={resolve('/register')}>Create one instead</a>.</p>
+				<span>{text.signIn.panelEyebrow}</span>
+				<strong>{text.signIn.panelTitle}</strong>
+				<p>
+					{text.signIn.createInsteadPrefix} <a href={resolve('/register')}>{text.signIn.createInsteadLink}</a>.
+				</p>
 			</div>
 
 			{#if rememberedSignInUrl}
 				<div class="registration-alert" role="status">
-					<strong>Recent workspace found</strong>
+					<strong>{text.signIn.recentWorkspace}</strong>
 					<span>
 						{#if rememberedEmail}
-							Continue as {rememberedEmail}, or enter another workspace email below.
+							{text.signIn.continueAs(rememberedEmail)}
 						{:else}
-							Continue to your recent workspace, or enter another workspace email below.
+							{text.signIn.continueRecentBody}
 						{/if}
 					</span>
 				</div>
-				<a class="registration-submit" href={rememberedSignInUrl}>Continue to recent workspace</a>
+				<a class="registration-submit" href={rememberedSignInUrl}>{text.signIn.continueRecent}</a>
 			{/if}
 
 			<form class="registration-form" onsubmit={submitExistingWorkspaceSignIn}>
 				<label>
-					<span>Email</span>
+					<span>{text.common.email}</span>
 					<input
 						type="email"
 						bind:value={email}
@@ -222,13 +228,13 @@
 				{/if}
 
 				<button class="registration-submit" type="submit" disabled={isSubmitting}>
-					{isSubmitting ? 'Finding workspace...' : 'Continue to sign in'}
+					{isSubmitting ? text.signIn.findingWorkspace : text.signIn.continueToSignIn}
 				</button>
 			</form>
 
 			<div class="registration-boundary">
-				<strong>Private beta</strong>
-				<p>Use demo or owner-controlled data only until production review is closed.</p>
+				<strong>{text.common.privateBeta}</strong>
+				<p>{text.signIn.betaBoundaryBody}</p>
 			</div>
 		</section>
 	</div>

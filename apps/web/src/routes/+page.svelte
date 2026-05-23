@@ -10,6 +10,8 @@
 		rememberLastTenantId,
 		normalizeTenantId
 	} from '$lib/api/session-headers';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
 	const tenantIdFromUrl = $derived(normalizeTenantId(page.url.searchParams.get('tenantId')));
@@ -18,6 +20,8 @@
 	let loginUrl = $state(
 		initialTenantIdFromUrl ? createLoginUrlFromEnv(env, initialTenantIdFromUrl) : workspaceSignInUrl
 	);
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	onMount(() => {
 		const storedTenantId = readLastTenantId(window.localStorage);
@@ -77,10 +81,10 @@
 </script>
 
 <svelte:head>
-	<title>Instruments Platform | Research study operations</title>
+	<title>{text.publicEntry.metaTitle}</title>
 	<meta
 		name="description"
-		content="EU-hosted private-beta workspace for study setup, response collection, results review, and exports."
+		content={text.publicEntry.metaDescription}
 	/>
 </svelte:head>
 
@@ -93,54 +97,53 @@
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
 				<strong>Instruments Platform</strong>
-				<small>Research studies and wellbeing programs</small>
+				<small>{text.publicEntry.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="launchpad-nav__links" aria-label="Product entry actions">
-			<a href="#workflow">Workflow</a>
-			<a href="#trust">Trust model</a>
-			<a href={resolve('/register')}>Create workspace</a>
-			<a href={loginUrl}>Sign in</a>
+		<nav class="launchpad-nav__links" aria-label={text.publicEntry.navAria}>
+			<a href="#workflow">{text.publicEntry.workflow}</a>
+			<a href="#trust">{text.publicEntry.trustModel}</a>
+			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
+			<a href={loginUrl}>{text.common.signIn}</a>
 		</nav>
 		<button
 			type="button"
 			class="launchpad-nav__menu"
-			aria-label={mobileEntryMenuOpen ? 'Close menu' : 'Open menu'}
+			aria-label={mobileEntryMenuOpen ? text.publicEntry.closeMenu : text.publicEntry.openMenu}
 			aria-expanded={mobileEntryMenuOpen}
 			onclick={() => (mobileEntryMenuOpen = !mobileEntryMenuOpen)}
 		>
-			Menu
+			{text.publicEntry.menu}
 		</button>
 	</header>
 	{#if mobileEntryMenuOpen}
-		<nav class="launchpad-mobile-menu" aria-label="Mobile product entry actions">
-			<a href="#workflow">Workflow</a>
-			<a href="#trust">Trust model</a>
-			<a href={resolve('/register')}>Create workspace</a>
-			<a href={loginUrl}>Sign in</a>
+		<nav class="launchpad-mobile-menu" aria-label={text.publicEntry.mobileNavAria}>
+			<a href="#workflow">{text.publicEntry.workflow}</a>
+			<a href="#trust">{text.publicEntry.trustModel}</a>
+			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
+			<a href={loginUrl}>{text.common.signIn}</a>
 		</nav>
 	{/if}
 
 	<section class="launchpad-hero">
 		<div class="launchpad-hero__copy">
-			<p class="launchpad-kicker">EU-hosted workspace for research and wellbeing studies</p>
-			<h1 id="product-entry-title">Run research studies from setup to defensible results.</h1>
+			<p class="launchpad-kicker">{text.publicEntry.heroKicker}</p>
+			<h1 id="product-entry-title">{text.publicEntry.heroTitle}</h1>
 			<p>
-				Build questionnaires, collect anonymous or identified responses, review scoring context, and
-				export datasets without stitching together forms, spreadsheets, scripts, and screenshots.
+				{text.publicEntry.heroBody}
 			</p>
 			<div class="launchpad-actions">
 				<a class="launchpad-button launchpad-button--primary" href={resolve('/register')}
-					>Create workspace</a
+					>{text.common.createWorkspace}</a
 				>
-				<a class="launchpad-button launchpad-button--secondary" href={loginUrl}>Sign in</a>
+				<a class="launchpad-button launchpad-button--secondary" href={loginUrl}>{text.common.signIn}</a>
 			</div>
 		</div>
 
-		<div class="showcase" aria-label="Product preview">
+		<div class="showcase" aria-label={text.publicEntry.previewAria}>
 			<div class="showcase__chrome" aria-hidden="true">
 				<span></span><span></span><span></span>
-				<strong>workspace / study operations</strong>
+				<strong>{text.publicEntry.previewChrome}</strong>
 			</div>
 			<div class="showcase__body">
 				<aside class="showcase-rail" aria-hidden="true">
@@ -154,16 +157,16 @@
 				<main class="showcase-main">
 					<div class="showcase-main__topline">
 						<div>
-							<span>Selected study</span>
-							<h2>Workplace wellbeing pulse</h2>
+							<span>{text.publicEntry.selectedStudy}</span>
+							<h2>{text.publicEntry.previewStudyName}</h2>
 						</div>
-						<strong>Live collection</strong>
+						<strong>{text.publicEntry.liveCollection}</strong>
 					</div>
 
-					<section class="showcase-panel showcase-panel--chart" aria-label="Response trend preview">
+					<section class="showcase-panel showcase-panel--chart" aria-label={text.publicEntry.responseSignal}>
 						<div class="showcase-panel__heading">
-							<span>Response signal</span>
-							<strong>412 responses · 33% complete</strong>
+							<span>{text.publicEntry.responseSignal}</span>
+							<strong>{text.publicEntry.responseProgress}</strong>
 						</div>
 						<svg viewBox="0 0 520 220" role="img" aria-label="Response trend chart">
 							<defs>
@@ -187,17 +190,16 @@
 
 					<div class="showcase-grid">
 						<section class="showcase-panel" aria-label="Preparation state">
-							<span>Prepare</span>
-							<strong>Launch checklist</strong>
+							<span>{text.publicEntry.prepare}</span>
+							<strong>{text.publicEntry.launchChecklist}</strong>
 							<p>
-								Questionnaire, scoring, audience, and collection settings stay visible before
-								launch.
+								{text.publicEntry.prepareBody}
 							</p>
 						</section>
 						<section class="showcase-panel showcase-panel--dark" aria-label="Export state">
-							<span>Export</span>
-							<strong>Dataset + codebook</strong>
-							<p>Exports keep source, finality, and suppression context attached to the file.</p>
+							<span>{text.publicEntry.export}</span>
+							<strong>{text.publicEntry.datasetCodebook}</strong>
+							<p>{text.publicEntry.exportBody}</p>
 						</section>
 					</div>
 				</main>
@@ -215,31 +217,30 @@
 		</div>
 	</section>
 
-	<section class="proof-ribbon" id="trust" aria-label="Trust model">
+	<section class="proof-ribbon" id="trust" aria-label={text.publicEntry.trustAria}>
 		<div>
-			<span>Workflow</span><strong>Setup, collection, scoring, reports, and exports</strong>
+			<span>{text.publicEntry.workflow}</span><strong>{text.publicEntry.workflowRibbon}</strong>
 		</div>
-		<div><span>Access</span><strong>Tenant-scoped authenticated workspaces</strong></div>
+		<div><span>{text.publicEntry.access}</span><strong>{text.publicEntry.accessRibbon}</strong></div>
 		<div>
-			<span>Data controls</span><strong>Consent, retention, finality, and export provenance</strong>
+			<span>{text.publicEntry.dataControls}</span><strong>{text.publicEntry.dataControlsRibbon}</strong>
 		</div>
-		<div><span>Product stage</span><strong>Private beta with staged onboarding</strong></div>
+		<div><span>{text.publicEntry.productStage}</span><strong>{text.publicEntry.productStageRibbon}</strong></div>
 	</section>
 
 	<section class="suite-map" aria-labelledby="suite-map-title">
 		<div class="suite-map__intro">
-			<p class="launchpad-kicker">Workspace overview</p>
-			<h2 id="suite-map-title">See what is ready, blocked, live, or ready to export.</h2>
+			<p class="launchpad-kicker">{text.publicEntry.workspaceOverview}</p>
+			<h2 id="suite-map-title">{text.publicEntry.suiteTitle}</h2>
 			<p>
-				Keep every study's next action visible: preparation gaps, live collection, result review,
-				and export readiness.
+				{text.publicEntry.suiteBody}
 			</p>
 		</div>
 
-		<div class="suite-console" aria-label="App preview">
+		<div class="suite-console" aria-label={text.publicEntry.previewAria}>
 			<section class="command-card">
-				<span>Next action</span>
-				<strong>What should the team do next?</strong>
+				<span>{text.publicEntry.nextAction}</span>
+				<strong>{text.publicEntry.nextActionQuestion}</strong>
 				<div class="command-card__input">Launch readiness: review retention setting</div>
 				<ul>
 					<li><b>Review setting</b><small>Retention date needs confirmation</small></li>
@@ -251,7 +252,7 @@
 			</section>
 
 			<section class="module-stack">
-				<span>App areas</span>
+				<span>{text.publicEntry.appAreas}</span>
 				<div class="module-grid">
 					<a href={resolve('/app/campaign-series')}
 						><b>Studies</b><small>portfolio + lifecycle</small></a
@@ -269,8 +270,8 @@
 
 			<section class="board-preview">
 				<div class="board-preview__heading">
-					<span>Study status</span>
-					<strong>Study status</strong>
+					<span>{text.publicEntry.studyStatus}</span>
+					<strong>{text.publicEntry.studyStatus}</strong>
 				</div>
 				<div class="board-columns">
 					<div>
@@ -297,29 +298,29 @@
 	</section>
 	<section class="workflow" id="workflow" aria-labelledby="workflow-title">
 		<div class="workflow__intro">
-			<p class="launchpad-kicker">Study workflow</p>
-			<h2 id="workflow-title">A clear path from study design to reusable evidence.</h2>
+			<p class="launchpad-kicker">{text.publicEntry.workflow}</p>
+			<h2 id="workflow-title">{text.publicEntry.workflowTitle}</h2>
 		</div>
 		<div class="workflow-lane">
 			<a href={resolve('/app/campaign-series')}>
 				<span>01</span>
-				<strong>Portfolio</strong>
-				<p>Create, compare, and return to active study programs from one workspace.</p>
+				<strong>{text.publicEntry.portfolio}</strong>
+				<p>{text.publicEntry.portfolioBody}</p>
 			</a>
 			<a href={resolve('/app/campaign-series')}>
 				<span>02</span>
-				<strong>Prepare</strong>
-				<p>Define questionnaire, scoring, policies, audience, and launch checks.</p>
+				<strong>{text.publicEntry.prepare}</strong>
+				<p>{text.publicEntry.prepareStepBody}</p>
 			</a>
 			<a href={resolve('/app')}>
 				<span>03</span>
-				<strong>Collect</strong>
-				<p>Open links or invite lists, track response progress, and monitor delivery.</p>
+				<strong>{text.publicEntry.previewCollect}</strong>
+				<p>{text.publicEntry.collectStepBody}</p>
 			</a>
 			<a href={resolve('/app/exports')}>
 				<span>04</span>
-				<strong>Review</strong>
-				<p>Inspect reports, compare waves, and export datasets with provenance.</p>
+				<strong>{text.publicEntry.previewResults}</strong>
+				<p>{text.publicEntry.reviewStepBody}</p>
 			</a>
 		</div>
 	</section>

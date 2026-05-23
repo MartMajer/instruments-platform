@@ -1,3 +1,5 @@
+import type { AppLocale } from '$lib/i18n/localization';
+
 export type StudyBlueprintId =
 	| 'custom_research_study'
 	| 'team_pulse'
@@ -123,20 +125,20 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	}
 ];
 
-export function listStudyBlueprintOptions() {
-	return studyBlueprintOptions.map(copyStudyBlueprintOption);
+export function listStudyBlueprintOptions(locale: AppLocale = 'en') {
+	return studyBlueprintOptions.map((option) => copyStudyBlueprintOption(localizeStudyBlueprintOption(option, locale)));
 }
 
-export function getStudyBlueprintOption(id: string | null | undefined) {
-	return (
+export function getStudyBlueprintOption(id: string | null | undefined, locale: AppLocale = 'en') {
+	const option =
 		studyBlueprintOptions.find((option) => option.id === id) ??
 		studyBlueprintOptions.find((option) => option.id === defaultStudyBlueprintId) ??
-		studyBlueprintOptions[0]
-	);
+		studyBlueprintOptions[0];
+	return copyStudyBlueprintOption(localizeStudyBlueprintOption(option, locale));
 }
 
-export function buildStudyNamePlaceholder(id: string | null | undefined) {
-	return getStudyBlueprintOption(id).namePlaceholder;
+export function buildStudyNamePlaceholder(id: string | null | undefined, locale: AppLocale = 'en') {
+	return getStudyBlueprintOption(id, locale).namePlaceholder;
 }
 
 function copyStudyBlueprintOption(option: StudyBlueprintOption): StudyBlueprintOption {
@@ -144,5 +146,85 @@ function copyStudyBlueprintOption(option: StudyBlueprintOption): StudyBlueprintO
 		...option,
 		highlights: [...option.highlights],
 		nextSteps: option.nextSteps.map((step) => ({ ...step }))
+	};
+}
+
+const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption, 'id'>> = {
+	custom_research_study: {
+		eyebrow: 'Počnite od prazne strukture',
+		title: 'Prilagođena istraživačka studija',
+		summary: 'Koristite ovo kada želite definirati vlastite konstrukte, pitanja i izlazne rezultate.',
+		bestFor: 'Akademski projekti, interna istraživanja i prilagođene workplace studije.',
+		namePlaceholder: 'npr. Studija opterećenja i oporavka',
+		highlights: ['Definirajte konstrukte', 'Napišite prilagođena pitanja', 'Odaberite rezultate'],
+		nextStepsTitle: 'Izgradit ćete studiju iz svoje istraživačke ideje',
+		nextSteps: [
+			{
+				label: 'Svrha',
+				description: 'Imenujte čime se studija bavi i koju odluku rezultati trebaju podržati.'
+			},
+			{
+				label: 'Upitnik',
+				description: 'Napišite pitanja, odaberite formate odgovora i grupirajte ih u dimenzije.'
+			},
+			{
+				label: 'Rezultati',
+				description: 'Odaberite koji odgovori postaju skorovi ili sažeci prije početka prikupljanja.'
+			}
+		]
+	},
+	team_pulse: {
+		eyebrow: 'Brza provjera tima',
+		title: 'Timski puls',
+		summary: 'Koristite ovo za kratku ponavljajuću provjeru tima, odjela ili kohorte.',
+		bestFor: 'Kratki workplace pulsevi, provjere razreda i lagane ponavljajuće povratne informacije.',
+		namePlaceholder: 'npr. Timski puls Q3',
+		highlights: ['Kratki upitnik', 'Pogodno za anonimno prikupljanje', 'Brz pregled rezultata'],
+		nextStepsTitle: 'Zadržat ćete studiju kratkom i lako ponovljivom',
+		nextSteps: [
+			{ label: 'Opseg', description: 'Definirajte grupu i mali skup tema koje puls treba pokriti.' },
+			{ label: 'Pitanja', description: 'Izradite kompaktan upitnik koji se može brzo ispuniti.' },
+			{ label: 'Primatelji', description: 'Odaberite ljude ili grupe za ovaj val prije pokretanja.' }
+		]
+	},
+	repeated_wave: {
+		eyebrow: 'Mjerite promjenu kroz vrijeme',
+		title: 'Studija s ponovljenim valovima',
+		summary: 'Koristite ovo kada se ista studija treba ponoviti kasnije i usporedba je važna.',
+		bestFor: 'Bazne i follow-up studije, provjere intervencija i ponavljajuća mjerenja kohorte.',
+		namePlaceholder: 'npr. Follow-up studija dobrobiti',
+		highlights: ['Planiranje valova', 'Ponavljano sudjelovanje', 'Postavljanje spremno za usporedbu'],
+		nextStepsTitle: 'Pripremit ćete prvi val s follow-upom na umu',
+		nextSteps: [
+			{ label: 'Plan vala', description: 'Počnite s Valom 1 i zadržite postavke spremne za kasniju usporedbu.' },
+			{ label: 'Način povezivanja', description: 'Koristite postavku ponavljanog sudjelovanja kada se isti sudionik uspoređuje kroz vrijeme.' },
+			{ label: 'Rezultati', description: 'Pregledajte trendove grupa i promjenu istih sudionika kada ima dovoljno podataka.' }
+		]
+	},
+	osh_ergonomics_study: {
+		eyebrow: 'Rizici rada i ergonomija',
+		title: 'Studija zaštite na radu / ergonomije',
+		summary:
+			'Koristite ovo za praktičnu workplace studiju s izloženošću zadacima, nelagodom, oporavkom i follow-upom intervencija.',
+		bestFor: 'OSH konzultanti, ergonomske procjene i provjere dobrobiti na radnom mjestu.',
+		namePlaceholder: 'npr. Puls opterećenja i oporavka u skladištu',
+		highlights: ['Mješoviti formati odgovora', 'Rezultati po dimenzijama', 'Grupe primatelja'],
+		nextStepsTitle: 'Prilagodit ćete praktični početni model workplace rizika',
+		nextSteps: [
+			{ label: 'Izloženost zadacima', description: 'Mapirajte izloženost zadacima i grupe primatelja.' },
+			{ label: 'Upitnik', description: 'Pregledajte početni upitnik i prilagodite formulacije radnom mjestu.' },
+			{ label: 'Rezultati', description: 'Planirajte izlazne rezultate prije pokretanja prvog vala.' }
+		]
+	}
+};
+
+function localizeStudyBlueprintOption(option: StudyBlueprintOption, locale: AppLocale): StudyBlueprintOption {
+	if (locale !== 'hr-HR') {
+		return option;
+	}
+
+	return {
+		id: option.id,
+		...croatianBlueprintCopy[option.id]
 	};
 }

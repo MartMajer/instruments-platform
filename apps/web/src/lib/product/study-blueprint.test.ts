@@ -57,4 +57,13 @@ describe('study blueprint model', () => {
 			'e.g. Warehouse strain and recovery pulse'
 		);
 	});
+
+	it('localizes blueprint copy for Croatian app UI without changing ids', () => {
+		const option = getStudyBlueprintOption('custom_research_study', 'hr-HR');
+
+		expect(option.id).toBe('custom_research_study');
+		expect(option.title).toBe('Prilagođena istraživačka studija');
+		expect(buildStudyNamePlaceholder('team_pulse', 'hr-HR')).toBe('npr. Timski puls Q3');
+		expect(listStudyBlueprintOptions('hr-HR')[0].nextSteps[0].label).toBe('Svrha');
+	});
 });

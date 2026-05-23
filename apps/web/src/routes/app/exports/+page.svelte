@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import type { ExportArtifactLibraryResponse } from '$lib/api/product';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -7,6 +8,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { createProductApiFromEnv, createProductRequestGate } from '$lib/product/route-state';
 	import { toExportArtifactLibraryView, toProductApiErrorMessage } from '$lib/product/view-models';
 
@@ -19,6 +22,8 @@
 	let library = $state<ExportArtifactLibraryResponse | null>(null);
 	let errorMessage = $state<string | null>(null);
 
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 	const libraryView = $derived(library ? toExportArtifactLibraryView(library) : null);
 
 	onMount(() => {
@@ -45,33 +50,33 @@
 			}
 
 			library = null;
-			errorMessage = toProductApiErrorMessage(error, 'Export files could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, text.exports.errorTitle);
 			loadState = 'error';
 		}
 	}
 </script>
 
 <SurfaceHeader
-	eyebrow="Exports"
-	title="Download files"
-	description="Find CSV and codebook files created from study Results pages."
+	eyebrow={text.exports.eyebrow}
+	title={text.exports.title}
+	description={text.exports.description}
 />
 
-<section class="product-panel" data-priority="primary" aria-label="Export workspace">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading export files">
+<section class="product-panel" data-priority="primary" aria-label={text.exports.title}>
+	<LoadingBoundary loading={loadState === 'loading'} label={text.exports.loading}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Export files unavailable"
+				title={text.exports.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry exports"
+				retryLabel={text.exports.retry}
 				onRetry={loadExportArtifacts}
 			/>
 		{:else if loadState === 'ready' && libraryView}
 			<div class="grid gap-5">
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Files</p>
-						<h2 class="product-title">Downloadable files and next use</h2>
+						<p class="product-kicker">{text.exports.files}</p>
+						<h2 class="product-title">{text.exports.downloadable}</h2>
 					</div>
 				</div>
 
@@ -104,8 +109,8 @@
 
 				{#if libraryView.cards.length === 0}
 					<EmptyState
-						title="No export files"
-						description="Create an export from a study results page after results are available."
+						title={text.exports.noFiles}
+						description={text.exports.noFilesBody}
 					/>
 				{:else}
 					<div class="record-list" aria-label="Export files">
@@ -128,7 +133,7 @@
 									<span class="flex items-center gap-2">
 										<StatusBadge status={card.status} label={card.statusLabel} />
 										{#if card.href}
-											<a class="secondary-button" href={card.href}>Reports</a>
+											<a class="secondary-button" href={card.href}>{text.exports.reports}</a>
 										{/if}
 									</span>
 								</span>
@@ -149,10 +154,10 @@
 					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
 				>
 					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-						Export counts
+						{text.exports.counts}
 					</summary>
 					<p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-						Use these counts when checking whether files are ready, pending, or failed.
+						{text.exports.countsBody}
 					</p>
 					<dl class="export-count-list mt-4" role="group" aria-label="Export file counts">
 						{#each libraryView.metricRows as row}

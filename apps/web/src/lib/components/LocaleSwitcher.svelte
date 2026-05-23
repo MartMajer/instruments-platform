@@ -28,8 +28,8 @@
 	{#each supportedAppLocales as option (option.id)}
 		<a
 			class={option.id === locale
-				? 'rounded-full border border-[var(--color-border-strong)] bg-[var(--color-text)] px-2.5 py-1 font-semibold text-[var(--color-surface)]'
-				: 'rounded-full border border-[var(--color-border)] px-2.5 py-1 font-semibold text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]'}
+				? 'rounded-full border border-[var(--color-accent)] bg-[var(--color-accent-soft)] px-2.5 py-1 font-semibold text-[var(--color-accent-strong)]'
+				: 'rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 font-semibold text-[var(--color-text-muted)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]'}
 			href={hrefFor(option.id)}
 			aria-current={option.id === locale ? 'true' : undefined}
 			aria-label={`${copy.language.switchTo} ${option.nativeLabel}`}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { createApiClient } from '$lib/api/client';
 	import { createSessionHeadersFromEnv } from '$lib/api/session-headers';
@@ -10,6 +11,8 @@
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { toProductApiErrorMessage, toWorkspaceOverviewView } from '$lib/product/view-models';
 
 	type LoadState = 'loading' | 'ready' | 'error';
@@ -25,33 +28,35 @@
 	let overview = $state<WorkspaceOverviewResponse | null>(null);
 	let errorMessage = $state<string | null>(null);
 
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 	const overviewView = $derived(overview ? toWorkspaceOverviewView(overview) : null);
-	const firstRunActions = [
+	const firstRunActions = $derived([
 		{
-			title: 'Create first study',
+			title: text.workspaceHome.firstRunActions[0],
 			status: 'Start here',
 			description: 'Start a real study and continue through setup, collection, and results.',
 			href: resolve('/app/campaign-series')
 		},
 		{
-			title: 'Invite team',
+			title: text.workspaceHome.firstRunActions[1],
 			status: 'Access',
 			description: 'Prepare tenant member access before sharing the first sign-in link.',
 			href: resolve('/app/team')
 		},
 		{
-			title: 'Set up directory',
+			title: text.workspaceHome.firstRunActions[2],
 			status: 'People',
 			description: 'Create people, groups, memberships, and manager links for targeting.',
 			href: resolve('/app/directory')
 		},
 		{
-			title: 'Review instruments',
+			title: text.workspaceHome.firstRunActions[3],
 			status: 'Library',
 			description: 'Confirm which instruments are available before starting production study work.',
 			href: resolve('/app/instruments')
 		}
-	];
+	]);
 
 	onMount(() => {
 		void loadWorkspaceOverview();
@@ -66,25 +71,25 @@
 			loadState = 'ready';
 		} catch (error) {
 			overview = null;
-			errorMessage = toProductApiErrorMessage(error, 'Workspace overview could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, text.workspaceHome.errorTitle);
 			loadState = 'error';
 		}
 	}
 </script>
 
 <SurfaceHeader
-	eyebrow="Workspace"
-	title="Home"
-	description="Pick the next useful task: create a study, continue work, invite people, manage audiences, or download results."
+	eyebrow={text.workspaceHome.eyebrow}
+	title={text.workspaceHome.title}
+	description={text.workspaceHome.description}
 />
 
 <section class="product-panel" data-priority="primary" aria-label="Self-serve study cockpit">
-	<LoadingBoundary loading={loadState === 'loading'} label="Loading workspace overview">
+	<LoadingBoundary loading={loadState === 'loading'} label={text.workspaceHome.loading}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
-				title="Workspace overview unavailable"
+				title={text.workspaceHome.errorTitle}
 				message={errorMessage}
-				retryLabel="Retry overview"
+				retryLabel={text.workspaceHome.retry}
 				onRetry={loadWorkspaceOverview}
 			/>
 		{:else if overviewView}
@@ -92,11 +97,11 @@
 				<section class="grid gap-3" aria-label="First-run workspace runway">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Start</p>
+							<p class="product-kicker">{text.workspaceHome.start}</p>
 							<h2 class="product-title">
 								{overviewView.sampleStudies.length === 0 && overviewView.ownStudies.length === 0
-									? 'Set up your workspace'
-									: 'Choose what to do next'}
+									? text.workspaceHome.setupWorkspace
+									: text.workspaceHome.chooseNext}
 							</h2>
 						</div>
 					</div>
@@ -119,10 +124,10 @@
 				<section class="grid gap-3" aria-label="Suggested next actions">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Next actions</p>
-							<h2 class="product-title">Suggested next actions</h2>
+							<p class="product-kicker">{text.workspaceHome.nextActions}</p>
+							<h2 class="product-title">{text.workspaceHome.nextActions}</h2>
 						</div>
-						<a class="secondary-button" href={resolve('/app/campaign-series')}>Open Studies</a>
+						<a class="secondary-button" href={resolve('/app/campaign-series')}>{text.workspaceHome.openStudies}</a>
 					</div>
 
 					{#if overviewView.commandItems.length === 0}
@@ -130,7 +135,7 @@
 							title="No workspace actions"
 							description="Open Studies to create or continue study work."
 							actionHref={resolve('/app/campaign-series')}
-							actionLabel="Open Studies"
+							actionLabel={text.workspaceHome.openStudies}
 						/>
 					{:else}
 						<div class="record-list">
@@ -151,7 +156,7 @@
 											</span>
 										{/each}
 										<span class="record-field">
-											<span class="record-field__label">Action</span>
+											<span class="record-field__label">{text.workspaceHome.nextActions}</span>
 											<span class="record-field__value">{command.actionLabel}</span>
 										</span>
 									</span>
@@ -164,8 +169,8 @@
 				<section class="grid gap-3" aria-label="Sample studies">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Examples</p>
-							<h2 class="product-title">Sample studies</h2>
+							<p class="product-kicker">{text.workspaceHome.examples}</p>
+							<h2 class="product-title">{text.workspaceHome.sampleStudies}</h2>
 						</div>
 						<a class="secondary-button" href={resolve('/app/campaign-series')}>View all studies</a>
 					</div>
@@ -175,7 +180,7 @@
 							title="No sample studies"
 							description="Sample studies appear here when starter content is available."
 							actionHref={resolve('/app/campaign-series')}
-							actionLabel="Open Studies"
+							actionLabel={text.workspaceHome.openStudies}
 						/>
 					{:else}
 						<div class="record-list">
@@ -217,8 +222,8 @@
 				<section class="grid gap-3" aria-label="Your studies">
 					<div class="product-panel__header">
 						<div>
-							<p class="product-kicker">Your work</p>
-							<h2 class="product-title">Your studies</h2>
+							<p class="product-kicker">{text.workspaceHome.yourWork}</p>
+							<h2 class="product-title">{text.workspaceHome.yourStudies}</h2>
 						</div>
 						<a class="secondary-button" href={resolve('/app/campaign-series')}>Open portfolio</a>
 					</div>
@@ -228,7 +233,7 @@
 							title="No studies yet"
 							description="Your editable studies appear here after you create one."
 							actionHref={resolve('/app/campaign-series')}
-							actionLabel="Open Studies"
+							actionLabel={text.workspaceHome.openStudies}
 						/>
 					{:else}
 						<div class="record-list">
@@ -266,7 +271,7 @@
 					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
 				>
 					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-						Workspace overview
+						{text.workspaceHome.workspaceOverview}
 					</summary>
 					<section class="home-lifecycle-list mt-4" role="group" aria-label="Study lifecycle">
 						{#each overviewView.lifecycleSteps as step}

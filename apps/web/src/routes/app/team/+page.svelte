@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { browser } from '$app/environment';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
 	import { Check, LoaderCircle, Plus } from 'lucide-svelte';
@@ -8,6 +9,8 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
 	import SurfaceHeader from '$lib/components/SurfaceHeader.svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import type {
 		TenantMemberResponse,
 		TenantMemberRosterResponse,
@@ -37,6 +40,8 @@
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let loadState = $state<LoadState>('loading');
@@ -426,21 +431,21 @@
 </script>
 
 <SurfaceHeader
-	eyebrow="Workspace access"
-	title="Team"
-	description="Invite teammates, assign roles, and confirm who can manage studies or access results."
+	eyebrow={text.team.eyebrow}
+	title={text.team.title}
+	description={text.team.description}
 />
 
 {#if loadState === 'loading' || roster}
 	<section class="product-panel" data-priority="primary" aria-label="Team access overview">
-		<LoadingBoundary loading={loadState === 'loading'} label="Loading team access overview">
+		<LoadingBoundary loading={loadState === 'loading'} label={text.team.loadingOverview}>
 			{#if roster}
 				<div class="product-panel__header">
 					<div>
-						<p class="product-kicker">Tenant team</p>
-						<h2 class="product-title">Team access overview</h2>
+						<p class="product-kicker">{text.team.tenantTeam}</p>
+						<h2 class="product-title">{text.team.overviewTitle}</h2>
 						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							Who can enter the tenant, prepare studies, and manage access.
+							{text.team.overviewBody}
 						</p>
 					</div>
 				</div>
@@ -481,11 +486,10 @@
 	<section class="product-panel" aria-label="Prepare tenant member">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Tenant team</p>
-				<h2 class="product-title">Prepare member access, then share sign-in</h2>
+				<p class="product-kicker">{text.team.tenantTeam}</p>
+				<h2 class="product-title">{text.team.prepareTitle}</h2>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-					Add the email, choose a role, then share the generated sign-in link from the roster.
-					Passwords and MFA stay in Auth0.
+					{text.team.prepareBody}
 				</p>
 			</div>
 		</div>
@@ -567,12 +571,12 @@
 	<section class="product-panel" aria-label="Read-only team access">
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Tenant team</p>
-				<h2 class="product-title">Read-only access</h2>
+				<p class="product-kicker">{text.team.tenantTeam}</p>
+				<h2 class="product-title">{text.team.readOnlyTitle}</h2>
 			</div>
 		</div>
 		<p class="text-sm text-[var(--color-text-muted)]">
-			Member preparation and role changes require team management access.
+			{text.team.readOnlyBody}
 		</p>
 	</section>
 {/if}
@@ -590,7 +594,7 @@
 			<div class="product-panel__header">
 				<div>
 					<p class="product-kicker">Team roster</p>
-					<h2 class="product-title">Members and roles</h2>
+					<h2 class="product-title">{text.team.rosterTitle}</h2>
 				</div>
 			</div>
 

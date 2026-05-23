@@ -12,6 +12,8 @@
 		rememberLastTenantId
 	} from '$lib/api/session-headers';
 	import { createRegistrationApi } from '$lib/api/registration';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const registrationApi = createRegistrationApi();
 	let signInUrl = $state<string>(resolve('/signin'));
@@ -35,6 +37,8 @@
 		page.url.searchParams.get('auth') === 'email_unverified'
 	);
 	const emailMismatchRequired = $derived(page.url.searchParams.get('auth') === 'email_mismatch');
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	onMount(() => {
 		const tenantId = readLastTenantId(window.localStorage);
@@ -62,7 +66,7 @@
 
 			sessionState = 'signed-out';
 			sessionErrorMessage =
-				'We could not confirm the account step. Continue with account setup again before creating the workspace.';
+				text.register.sessionError;
 		}
 	}
 
@@ -83,7 +87,7 @@
 			const loginUrl = resolveAuthRedirectUrl(response.loginUrl);
 
 			storePendingRegistrationLoginUrl(toRegistrationContinuationUrl(loginUrl));
-			statusMessage = 'Opening account setup.';
+			statusMessage = text.register.openingAccount;
 			window.location.assign(loginUrl);
 		} catch (error) {
 			const signInUrl = getExistingWorkspaceSignInUrl(error);
@@ -110,7 +114,7 @@
 
 			rememberLastTenantId(window.localStorage, response.tenantId);
 			rememberLastWorkspaceEmail(window.localStorage, response.email);
-			statusMessage = 'Workspace created. Opening your app.';
+			statusMessage = text.register.workspaceCreated;
 			window.location.assign(withTenantId(response.appUrl, response.tenantId));
 		} catch (error) {
 			errorMessage = toRegistrationError(error);
@@ -285,31 +289,31 @@
 			const detail = typeof problem?.detail === 'string' ? problem.detail : '';
 
 			if (code === 'registration.disabled') {
-				return 'Private beta sign-up is not open on this environment. Sign in if you already have a workspace.';
+				return text.register.disabled;
 			}
 
 			if (error.status === 401) {
-				return 'Your account step expired. Continue with account setup again, then create the workspace.';
+				return text.register.expired;
 			}
 
 			if (error.status === 403) {
-				return 'This account cannot create a workspace. Sign out and use an approved beta account, or ask for beta access.';
+				return text.register.forbidden;
 			}
 
 			if (error.status === 409) {
-				return 'This account or workspace is already set up. Sign in instead.';
+				return text.register.conflict;
 			}
 
 			if (code === 'registration.invalid_access_code') {
-				return 'That access code does not match the private beta list.';
+				return text.register.invalidCode;
 			}
 
 			if (code === 'registration.email_exists') {
-				return 'A workspace already exists for this email. Sign in instead.';
+				return text.register.emailExists;
 			}
 
 			if (code === 'registration.organization_invalid') {
-				return 'Enter the workspace or organization name you want to use.';
+				return text.register.organizationInvalid;
 			}
 
 			if (detail) {
@@ -317,15 +321,15 @@
 			}
 		}
 
-		return 'We could not create the workspace. Check the beta access code and try again.';
+		return text.register.fallbackError;
 	}
 </script>
 
 <svelte:head>
-	<title>Create workspace | Instruments Platform</title>
+	<title>{text.register.metaTitle}</title>
 	<meta
 		name="description"
-		content="Create a private beta workspace for Instruments Platform and finish sign-in with your sign-in provider."
+		content={text.register.metaDescription}
 	/>
 </svelte:head>
 
@@ -338,55 +342,54 @@
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
 				<strong>Instruments Platform</strong>
-				<small>Private beta workspace</small>
+				<small>{text.register.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="registration-nav__links" aria-label="Registration actions">
-			<a href={resolve('/')}>Product</a>
-			<a href={signInUrl}>Sign in</a>
+		<nav class="registration-nav__links" aria-label={text.register.navAria}>
+			<a href={resolve('/')}>{text.common.product}</a>
+			<a href={signInUrl}>{text.common.signIn}</a>
 		</nav>
 	</header>
 
 	<div class="registration-grid">
 		<section class="registration-copy">
-			<p class="launchpad-kicker">Private beta access</p>
-			<h1 id="registration-title">Create your workspace.</h1>
+			<p class="launchpad-kicker">{text.register.eyebrow}</p>
+			<h1 id="registration-title">{text.register.title}</h1>
 			<p>
-				Use the email that should own the workspace. Password and MFA stay with your sign-in
-				provider; this page only names the workspace and checks beta access.
+				{text.register.body}
 			</p>
-			<div class="registration-steps" aria-label="Registration steps">
+			<div class="registration-steps" aria-label={text.register.stepsAria}>
 				<div>
 					<span>01</span>
-					<strong>Create account</strong>
-					<p>Enter the email, workspace name, and beta code before opening account setup.</p>
+					<strong>{text.register.stepCreate}</strong>
+					<p>{text.register.stepCreateBody}</p>
 				</div>
 				<div>
 					<span>02</span>
-					<strong>Verify email</strong>
+					<strong>{text.register.stepVerify}</strong>
 					<p>
-						If your sign-in provider asks for verification, confirm the email and continue here.
+						{text.register.stepVerifyBody}
 					</p>
 				</div>
 				<div>
 					<span>03</span>
-					<strong>Open the app</strong>
+					<strong>{text.register.stepOpen}</strong>
 					<p>
-						The workspace is created from the approved registration and opens with your session.
+						{text.register.stepOpenBody}
 					</p>
 				</div>
 			</div>
 		</section>
 
-		<section class="registration-panel" aria-label="Create workspace form">
+		<section class="registration-panel" aria-label={text.register.formAria}>
 			<div class="registration-panel__header">
-				<span>Workspace signup</span>
-				<strong>Create account and workspace</strong>
-				<p>Already have a workspace? <a href={signInUrl}>Sign in instead</a>.</p>
+				<span>{text.register.panelEyebrow}</span>
+				<strong>{text.register.panelTitle}</strong>
+				<p>{text.register.alreadyHave} <a href={signInUrl}>{text.register.signInInstead}</a>.</p>
 			</div>
 
 			{#if sessionState === 'checking'}
-				<p class="registration-alert" role="status">Checking account status...</p>
+				<p class="registration-alert" role="status">{text.register.checkingAccount}</p>
 			{:else if sessionState === 'signed-out'}
 				<form class="registration-form" onsubmit={submitRegistrationIntent}>
 					{#if sessionErrorMessage}
@@ -399,24 +402,24 @@
 						<div class="registration-alert" role="status">
 							<strong>
 								{emailMismatchRequired
-									? 'Choose the account you started with'
-									: 'Verify email, then sign in'}
+									? text.register.chooseStartedAccount
+									: text.register.verifyThenSignIn}
 							</strong>
 							<span>
 								{emailMismatchRequired
-									? 'The selected sign-in account did not match the workspace email you entered. Sign out completely if the browser keeps choosing the wrong account.'
-									: 'Open the verification email from your sign-in provider, then retry registration sign-in with the same email.'}
+									? text.register.mismatchBody
+									: text.register.verifyBody}
 							</span>
 						</div>
 						<a class="registration-submit" href={pendingRegistrationLoginUrl}
-							>Retry registration sign-in</a
+							>{text.register.retryRegistration}</a
 						>
 						<button class="secondary-button" type="button" onclick={restartRegistration}>
-							Start over
+							{text.register.startOver}
 						</button>
 					{:else}
 						<label>
-							<span>Email</span>
+							<span>{text.common.email}</span>
 							<input
 								type="email"
 								bind:value={email}
@@ -427,23 +430,23 @@
 						</label>
 
 						<label>
-							<span>Workspace name</span>
+							<span>{text.register.workspaceName}</span>
 							<input
 								type="text"
 								bind:value={organizationName}
 								autocomplete="organization"
-								placeholder="Your lab, team, or company"
+								placeholder={text.register.workspacePlaceholder}
 								required
 							/>
 						</label>
 
 						<label>
-							<span>Beta access code</span>
+							<span>{text.register.betaAccessCode}</span>
 							<input
 								type="password"
 								bind:value={accessCode}
 								autocomplete="one-time-code"
-								placeholder="Access code"
+								placeholder={text.register.accessCodePlaceholder}
 								required
 							/>
 						</label>
@@ -461,13 +464,13 @@
 						{/if}
 
 						{#if existingWorkspaceSignInUrl}
-							<a class="registration-submit" href={existingWorkspaceSignInUrl}>Sign in instead</a>
+							<a class="registration-submit" href={existingWorkspaceSignInUrl}>{text.register.signInInstead}</a>
 							<button class="secondary-button" type="button" onclick={clearExistingWorkspaceSignIn}>
-								Use a different email
+								{text.register.useDifferentEmail}
 							</button>
 						{:else}
 							<button class="registration-submit" type="submit" disabled={isSubmitting}>
-								{isSubmitting ? 'Opening account setup...' : 'Create account'}
+								{isSubmitting ? text.register.openingAccountButton : text.register.createAccount}
 							</button>
 						{/if}
 					{/if}
@@ -475,27 +478,27 @@
 			{:else}
 				<form class="registration-form" onsubmit={submitWorkspace}>
 					<div class="registration-alert" role="status">
-						Account ready: <strong>{pendingEmail}</strong>. This email will manage the workspace.
+						{text.register.accountReady(pendingEmail)}
 					</div>
 
 					<label>
-						<span>Workspace name</span>
+						<span>{text.register.workspaceName}</span>
 						<input
 							type="text"
 							bind:value={organizationName}
 							autocomplete="organization"
-							placeholder="Your lab, team, or company"
+							placeholder={text.register.workspacePlaceholder}
 							required
 						/>
 					</label>
 
 					<label>
-						<span>Beta access code</span>
+						<span>{text.register.betaAccessCode}</span>
 						<input
 							type="password"
 							bind:value={accessCode}
 							autocomplete="one-time-code"
-							placeholder="Access code"
+							placeholder={text.register.accessCodePlaceholder}
 							required
 						/>
 					</label>
@@ -511,16 +514,15 @@
 					{/if}
 
 					<button class="registration-submit" type="submit" disabled={isSubmitting}>
-						{isSubmitting ? 'Creating workspace...' : 'Create workspace'}
+						{isSubmitting ? text.register.creatingWorkspace : text.common.createWorkspace}
 					</button>
 				</form>
 			{/if}
 
 			<div class="registration-boundary">
-				<strong>Private beta</strong>
+				<strong>{text.register.boundaryTitle}</strong>
 				<p>
-					Real participant use starts only after the required legal and deployment review for the
-					workspace.
+					{text.register.boundaryBody}
 				</p>
 			</div>
 		</section>
