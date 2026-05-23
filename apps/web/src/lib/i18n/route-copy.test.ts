@@ -67,4 +67,13 @@ describe('localized route body copy', () => {
 		expect(copy.settings.exportsShortcut).toBe('Izvozi');
 	});
 
+
+	it('provides Croatian respondent runtime copy', () => {
+		const copy = routePageCopy('hr-HR');
+
+		expect(copy.respondent.loadingSurvey).toBe('Učitavanje upitnika');
+		expect(copy.respondent.saveAndReview).toBe('Spremi i pregledaj');
+		expect(copy.unsubscribe.button).toBe('Odjavi ovu adresu e-pošte');
+	});
+
 });

@@ -2,6 +2,8 @@
 	import { env } from '$env/dynamic/public';
 	import { page } from '$app/state';
 	import { LoaderCircle } from 'lucide-svelte';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { createSetupApiFromEnv } from '$lib/product/route-state';
 	import { toProductApiErrorMessage } from '$lib/product/view-models';
 
@@ -9,6 +11,8 @@
 
 	const setupApi = createSetupApiFromEnv(env);
 	const token = $derived(page.params.token ?? '');
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	let unsubscribeState = $state<UnsubscribeState>('idle');
 	let errorMessage = $state<string | null>(null);
@@ -24,41 +28,39 @@
 			unsubscribeState = 'failed';
 			errorMessage = toProductApiErrorMessage(
 				error,
-				'This invitation could not be unsubscribed. The link may be invalid or already removed.'
+				text.unsubscribe.fallbackError
 			);
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Unsubscribe from study invitations - Instruments Platform</title>
+	<title>{text.unsubscribe.metaTitle}</title>
 </svelte:head>
 
 <main class="respondent-shell">
 	<section class="respondent-card">
-		<p class="product-kicker">Study invitation email</p>
-		<h1 class="product-title">Unsubscribe from future invitations</h1>
+		<p class="product-kicker">{text.unsubscribe.kicker}</p>
+		<h1 class="product-title">{text.unsubscribe.title}</h1>
 		{#if unsubscribeState === 'idle'}
 			<p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-				Use this page only if you want this email address added to the workspace
-				do-not-contact list for study invitation emails.
+				{text.unsubscribe.body}
 			</p>
 			<button type="button" class="primary-button mt-4" onclick={unsubscribe}>
-				Unsubscribe this email address
+				{text.unsubscribe.button}
 			</button>
 		{:else if unsubscribeState === 'submitting'}
 			<p class="mt-3 flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
 				<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
-				Applying your do-not-contact request...
+				{text.unsubscribe.submitting}
 			</p>
 		{:else if unsubscribeState === 'done'}
 			<p class="mt-3 text-sm leading-6 text-[var(--color-text-muted)]">
-				This email address has been added to the workspace do-not-contact list for future
-				study invitation emails. You can close this page.
+				{text.unsubscribe.done}
 			</p>
 		{:else if unsubscribeState === 'failed'}
 			<p class="error-line mt-3" role="alert">{errorMessage}</p>
-			<button type="button" class="secondary-button mt-4" onclick={unsubscribe}>Try again</button>
+			<button type="button" class="secondary-button mt-4" onclick={unsubscribe}>{text.unsubscribe.retry}</button>
 		{/if}
 	</section>
 </main>

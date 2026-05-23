@@ -374,6 +374,47 @@ const en = {
 		profileDetailsAria: 'Workspace profile details',
 		countsAria: 'Workspace counts'
 	},
+	respondent: {
+		metaFallback: 'Respondent survey',
+		loadingSurvey: 'Loading survey',
+		surveyUnavailable: 'Survey unavailable',
+		tryAgain: 'Try again',
+		responseReceipt: 'Response receipt',
+		participantCode: 'Participant code',
+		continue: 'Continue',
+		reviewKicker: 'Review',
+		reviewTitle: 'Review response',
+		savedAnswers: (count: number) => count + ' ' + (count === 1 ? 'answer' : 'answers') + ' saved.',
+		session: 'Session',
+		backToEdit: 'Back to edit',
+		submitReviewed: 'Submit reviewed response',
+		saveAndReview: 'Save and review',
+		linkUnavailable: 'This link is no longer available.',
+		requiredConsent: 'Required consent grants must be accepted before continuing.',
+		participantCodeRequired: 'Participant code is required before continuing.',
+		sessionNotReady: 'Response session is not ready.',
+		saveBeforeSubmit: 'Save answers before submitting.',
+		responseSessionUnavailable: 'This response session is no longer available.',
+		requestFailed: 'Request failed.',
+		questionRequiresAnswer: (code: string) => code + ' requires an answer.',
+		questionMustBeNumber: (code: string) => code + ' must be a number.',
+		questionBetween: (code: string, min: number, max: number) =>
+			code + ' must be between ' + min + ' and ' + max + '.'
+	},
+	unsubscribe: {
+		metaTitle: 'Unsubscribe from study invitations - Instruments Platform',
+		kicker: 'Study invitation email',
+		title: 'Unsubscribe from future invitations',
+		body:
+			'Use this page only if you want this email address added to the workspace do-not-contact list for study invitation emails.',
+		button: 'Unsubscribe this email address',
+		submitting: 'Applying your do-not-contact request...',
+		done:
+			'This email address has been added to the workspace do-not-contact list for future study invitation emails. You can close this page.',
+		retry: 'Try again',
+		fallbackError:
+			'This invitation could not be unsubscribed. The link may be invalid or already removed.'
+	},
 	selectedStudy: {
 		overview: {
 			eyebrow: 'Selected study',
@@ -1663,6 +1704,47 @@ const hr: typeof en = {
 		workspaceDetailsAria: 'Detalji radnog prostora',
 		profileDetailsAria: 'Detalji profila radnog prostora',
 		countsAria: 'Brojevi radnog prostora'
+	},
+	respondent: {
+		metaFallback: 'Upitnik za sudionika',
+		loadingSurvey: 'Učitavanje upitnika',
+		surveyUnavailable: 'Upitnik nije dostupan',
+		tryAgain: 'Pokušaj ponovno',
+		responseReceipt: 'Potvrda odgovora',
+		participantCode: 'Kod sudionika',
+		continue: 'Nastavi',
+		reviewKicker: 'Pregled',
+		reviewTitle: 'Pregled odgovora',
+		savedAnswers: (count: number) => count + ' ' + (count === 1 ? 'odgovor spremljen' : 'odgovora spremljeno'),
+		session: 'Sesija',
+		backToEdit: 'Natrag na uređivanje',
+		submitReviewed: 'Predaj pregledani odgovor',
+		saveAndReview: 'Spremi i pregledaj',
+		linkUnavailable: 'Ova poveznica više nije dostupna.',
+		requiredConsent: 'Obavezne privole moraju biti prihvaćene prije nastavka.',
+		participantCodeRequired: 'Kod sudionika je obavezan prije nastavka.',
+		sessionNotReady: 'Sesija odgovaranja nije spremna.',
+		saveBeforeSubmit: 'Spremite odgovore prije predaje.',
+		responseSessionUnavailable: 'Ova sesija odgovaranja više nije dostupna.',
+		requestFailed: 'Zahtjev nije uspio.',
+		questionRequiresAnswer: (code: string) => code + ' zahtijeva odgovor.',
+		questionMustBeNumber: (code: string) => code + ' mora biti broj.',
+		questionBetween: (code: string, min: number, max: number) =>
+			code + ' mora biti između ' + min + ' i ' + max + '.'
+	},
+	unsubscribe: {
+		metaTitle: 'Odjava od pozivnica za studije - Instruments Platform',
+		kicker: 'E-pošta pozivnice za studiju',
+		title: 'Odjava od budućih pozivnica',
+		body:
+			'Koristite ovu stranicu samo ako želite da se ova adresa e-pošte doda na popis radnog prostora za ne kontaktirati za pozivnice na studije.',
+		button: 'Odjavi ovu adresu e-pošte',
+		submitting: 'Primjenjujem zahtjev za ne kontaktirati...',
+		done:
+			'Ova adresa e-pošte dodana je na popis radnog prostora za ne kontaktirati za buduće pozivnice na studije. Možete zatvoriti ovu stranicu.',
+		retry: 'Pokušaj ponovno',
+		fallbackError:
+			'Ova pozivnica se nije mogla odjaviti. Poveznica može biti neispravna ili već uklonjena.'
 	},
 	selectedStudy: {
 		overview: {

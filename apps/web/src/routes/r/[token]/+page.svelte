@@ -13,10 +13,14 @@
 		type SaveAnswersResponse,
 		type SubmitResponseSessionResponse
 	} from '$lib/api/setup';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { toRespondentReceiptView } from '$lib/respondent/receipt';
 
 	const routeCredential = page.params.token ?? '';
 	const api = createSetupApi(createApiClient());
+	const locale = $derived(appLocaleFromPageData(page.data));
+	const text = $derived(routePageCopy(locale));
 
 	type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'failed' | 'local-restored';
 
@@ -90,7 +94,7 @@
 		actionError = null;
 
 		if (routeCredential.length === 0) {
-			loadError = 'This link is no longer available.';
+			loadError = text.respondent.linkUnavailable;
 			loading = false;
 			return;
 		}
@@ -134,17 +138,17 @@
 	async function acceptConsent() {
 		const currentEntry = entry;
 		if (!currentEntry) {
-			loadError = 'This link is no longer available.';
+			loadError = text.respondent.linkUnavailable;
 			return;
 		}
 
 		if (!requiredConsentAccepted) {
-			actionError = 'Required consent grants must be accepted before continuing.';
+			actionError = text.respondent.requiredConsent;
 			return;
 		}
 
 		if (currentEntry.requiresParticipantCode && participantCode.trim().length === 0) {
-			actionError = 'Participant code is required before continuing.';
+			actionError = text.respondent.participantCodeRequired;
 			return;
 		}
 
@@ -186,7 +190,7 @@
 		const currentEntry = entry;
 		const currentSession = session;
 		if (!currentEntry || !currentSession) {
-			actionError = 'Response session is not ready.';
+			actionError = text.respondent.sessionNotReady;
 			return;
 		}
 
@@ -207,7 +211,7 @@
 	async function submitReviewedResponse() {
 		const currentSession = session;
 		if (!currentSession || !savedAnswers) {
-			actionError = 'Save answers before submitting.';
+			actionError = text.respondent.saveBeforeSubmit;
 			return;
 		}
 
@@ -234,7 +238,7 @@
 		const currentEntry = entry;
 		const currentSession = session;
 		if (!currentEntry || !currentSession) {
-			throw new Error('Response session is not ready.');
+			throw new Error(text.respondent.sessionNotReady);
 		}
 
 		clearAutosaveTimer();
@@ -341,7 +345,7 @@
 			const value = normalizeAnswerValue(answers[question.id]);
 
 			if (question.required && value === null) {
-				return `${question.code} requires an answer.`;
+				return text.respondent.questionRequiresAnswer(question.code);
 			}
 
 			if (
@@ -352,11 +356,11 @@
 				const numericValue = Number(value);
 
 				if (!Number.isFinite(numericValue)) {
-					return `${question.code} must be a number.`;
+					return text.respondent.questionMustBeNumber(question.code);
 				}
 
 				if (numericValue < question.scaleMinValue || numericValue > question.scaleMaxValue) {
-					return `${question.code} must be between ${question.scaleMinValue} and ${question.scaleMaxValue}.`;
+					return text.respondent.questionBetween(question.code, question.scaleMinValue, question.scaleMaxValue);
 				}
 			}
 		}
@@ -380,7 +384,7 @@
 		}
 
 		if (!draft.entry) {
-			throw new Error('This response session is no longer available.');
+			throw new Error(text.respondent.responseSessionUnavailable);
 		}
 
 		entry = draft.entry;
@@ -751,12 +755,12 @@
 			return detail;
 		}
 
-		return unknownError instanceof Error ? unknownError.message : 'Request failed.';
+		return unknownError instanceof Error ? unknownError.message : text.respondent.requestFailed;
 	}
 </script>
 
 <svelte:head>
-	<title>{entry?.name ?? 'Respondent survey'} - Instruments Platform</title>
+	<title>{entry?.name ?? text.respondent.metaFallback} - Instruments Platform</title>
 </svelte:head>
 
 <main class="min-h-screen bg-[var(--color-background)] px-4 py-6 text-[var(--color-text)] sm:px-6">
@@ -764,14 +768,14 @@
 		{#if loading}
 			<div class="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-muted)]">
 				<LoaderCircle size={18} aria-hidden="true" />
-				<span>Loading survey</span>
+				<span>{text.respondent.loadingSurvey}</span>
 			</div>
 		{:else if loadError}
-			<section class="setup-panel" aria-label="Survey unavailable">
+			<section class="setup-panel" aria-label={text.respondent.surveyUnavailable}>
 				<p class="error-line" role="alert">{loadError}</p>
 				<button type="button" class="secondary-button" onclick={loadEntry}>
 					<RefreshCw size={17} aria-hidden="true" />
-					<span>Try again</span>
+					<span>{text.respondent.tryAgain}</span>
 				</button>
 			</section>
 		{:else if entry}
@@ -783,7 +787,7 @@
 			</header>
 
 			{#if submitted && receiptView}
-				<section class="setup-panel" aria-label="Response receipt">
+				<section class="setup-panel" aria-label={text.respondent.responseReceipt}>
 					<div class="grid gap-2">
 						<div class="flex items-center gap-2">
 							<Check size={18} aria-hidden="true" />
@@ -832,9 +836,9 @@
 
 					{#if entry.requiresParticipantCode}
 						<label class="field">
-							<span>Participant code</span>
+							<span>{text.respondent.participantCode}</span>
 							<input
-								aria-label="Participant code"
+								aria-label={text.respondent.participantCode}
 								autocomplete="off"
 								spellcheck="false"
 								value={participantCode}
@@ -858,25 +862,24 @@
 						{:else}
 							<Check size={17} aria-hidden="true" />
 						{/if}
-						<span>Continue</span>
+						<span>{text.respondent.continue}</span>
 					</button>
 				</section>
 			{:else if reviewing && savedAnswers}
 				<section class="setup-panel" aria-labelledby="review-title">
 					<div class="grid gap-2">
 						<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
-							Review
+							{text.respondent.reviewKicker}
 						</p>
-						<h2 id="review-title" class="setup-panel__title">Review response</h2>
+						<h2 id="review-title" class="setup-panel__title">{text.respondent.reviewTitle}</h2>
 						<p class="text-sm text-[var(--color-text-muted)]">
-							{savedAnswers.savedAnswerCount}
-							{savedAnswers.savedAnswerCount === 1 ? 'answer' : 'answers'} saved.
+							{text.respondent.savedAnswers(savedAnswers.savedAnswerCount)}
 						</p>
 					</div>
 
 					<dl class="setup-definition-list">
 						<div>
-							<dt>Session</dt>
+							<dt>{text.respondent.session}</dt>
 							<dd>{savedAnswers.sessionId}</dd>
 						</div>
 					</dl>
@@ -893,7 +896,7 @@
 							onclick={() => (reviewing = false)}
 						>
 							<ArrowLeft size={17} aria-hidden="true" />
-							<span>Back to edit</span>
+							<span>{text.respondent.backToEdit}</span>
 						</button>
 						<button
 							type="button"
@@ -906,7 +909,7 @@
 							{:else}
 								<Send size={17} aria-hidden="true" />
 							{/if}
-							<span>Submit reviewed response</span>
+							<span>{text.respondent.submitReviewed}</span>
 						</button>
 					</div>
 				</section>
@@ -941,7 +944,7 @@
 						{:else}
 							<Save size={17} aria-hidden="true" />
 						{/if}
-						<span>Save and review</span>
+						<span>{text.respondent.saveAndReview}</span>
 					</button>
 				</form>
 			{/if}
