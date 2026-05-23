@@ -2027,3 +2027,272 @@ function draftRuntimeWarnings(
 
 	return warnings;
 }
+
+export type QuestionnairePaletteId =
+	| 'blank'
+	| 'workload_recovery'
+	| 'osh_ergonomics'
+	| 'office_ergonomics'
+	| 'academic_workload'
+	| 'team_climate'
+	| 'healthcare_staff_strain';
+
+export type QuestionnairePaletteOption = {
+	id: QuestionnairePaletteId;
+	label: string;
+	category: string;
+	summary: string;
+	detail: string;
+	questionCount: number;
+	resultOutputs: string[];
+};
+
+export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] {
+	return [
+		{
+			id: 'blank',
+			label: 'Blank questionnaire',
+			category: 'Build your own',
+			summary: 'Start with one editable rating question and define the study yourself.',
+			detail: 'Best when the researcher already knows the constructs, item wording, and scoring plan.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('blank').length,
+			resultOutputs: ['Custom result']
+		},
+		{
+			id: 'workload_recovery',
+			label: 'Workload and recovery',
+			category: 'Original editable starter',
+			summary: 'Original editable items for workload pressure, mental drain, recovery, control, and support.',
+			detail: 'Burnout-adjacent without naming or copying a named instrument. Edit wording before launch.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('workload_recovery').length,
+			resultOutputs: ['Workload strain', 'Recovery capacity', 'Work climate context']
+		},
+		{
+			id: 'osh_ergonomics',
+			label: 'OSH / ergonomics',
+			category: 'Original editable starter',
+			summary: 'Original editable workplace-risk items for posture, repetition, discomfort, and recovery.',
+			detail: 'Useful for occupational-safety discovery work. Not a validated named instrument by itself.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('osh_ergonomics').length,
+			resultOutputs: ['Posture and repetition', 'Discomfort severity', 'Recovery and control']
+		},
+		{
+			id: 'office_ergonomics',
+			label: 'Office ergonomics',
+			category: 'Persona starter',
+			summary: 'Original editable office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
+			detail: 'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('office_ergonomics').length,
+			resultOutputs: ['Workstation strain', 'Focus conditions']
+		},
+		{
+			id: 'academic_workload',
+			label: 'Academic workload',
+			category: 'Persona starter',
+			summary: 'Original editable items for teaching/research load, admin pressure, supervision clarity, and recovery.',
+			detail: 'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('academic_workload').length,
+			resultOutputs: ['Academic workload strain', 'Support and clarity']
+		},
+		{
+			id: 'team_climate',
+			label: 'Team climate pulse',
+			category: 'Original editable starter',
+			summary: 'Original editable items for role clarity, support, communication, fairness, and psychological safety.',
+			detail: 'A compact team-health pulse for repeated waves or a one-off internal review.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('team_climate').length,
+			resultOutputs: ['Team climate', 'Workload fairness']
+		},
+		{
+			id: 'healthcare_staff_strain',
+			label: 'Healthcare staff strain',
+			category: 'Persona starter',
+			summary: 'Original editable items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
+			detail: 'Useful for owner-controlled rehearsal and future hospital discovery without clinical or diagnostic claims.',
+			questionCount: createTemplateQuestionRowsForQuestionnairePalette('healthcare_staff_strain').length,
+			resultOutputs: ['Shift strain', 'Operational support']
+		}
+	];
+}
+
+export function createTemplateQuestionRowsForQuestionnairePalette(
+	paletteId: QuestionnairePaletteId
+): TemplateQuestionAuthoringRow[] {
+	if (paletteId === 'blank') {
+		return createDefaultTemplateQuestionRows();
+	}
+
+	if (paletteId === 'osh_ergonomics') {
+		return createTemplateQuestionRowsForStudyPreset('osh_ergonomics');
+	}
+
+	return paletteRows[paletteId]().map((row, index) => ({ ...row, ordinal: index + 1 }));
+}
+
+export function createScoreOutputRowsForQuestionnairePalette(
+	paletteId: QuestionnairePaletteId,
+	rows: TemplateQuestionAuthoringRow[]
+): ScoreOutputAuthoringRow[] {
+	if (paletteId === 'blank') {
+		return createScoreOutputRowsForStudyPreset('blank', rows);
+	}
+
+	if (paletteId === 'osh_ergonomics') {
+		return createScoreOutputRowsForStudyPreset('osh_ergonomics', rows);
+	}
+
+	return paletteOutputs[paletteId](rows);
+}
+
+const paletteRows: Record<Exclude<QuestionnairePaletteId, 'blank' | 'osh_ergonomics'>, () => TemplateQuestionAuthoringRow[]> = {
+	workload_recovery: () => [
+		paletteQuestion('wr_workload_pressure', 'Workload strain', 'likert', 'Over the past two weeks, my workload has felt difficult to keep under control.'),
+		paletteQuestion('wr_mental_drain', 'Workload strain', 'likert', 'At the end of a typical workday, I feel mentally drained.'),
+		paletteQuestion('wr_time_pressure', 'Workload strain', 'likert', 'I have enough time to complete important work without rushing.', {
+			reverseCoded: true
+		}),
+		paletteQuestion('wr_recovery_time', 'Recovery capacity', 'likert', 'I have enough recovery time between demanding work periods.'),
+		paletteQuestion('wr_detach_after_work', 'Recovery capacity', 'likert', 'After work, I can mentally switch off from work demands.'),
+		paletteQuestion('wr_control', 'Recovery capacity', 'likert', 'I can influence how I organize my work when pressure increases.'),
+		paletteQuestion('wr_support', 'Work climate context', 'likert', 'When work becomes intense, I can get practical support from colleagues or supervisors.'),
+		paletteQuestion('wr_pressure_source', 'Work climate context', 'single', 'What is the main source of pressure right now?', {
+			choiceOptions: ['Work volume', 'Deadlines', 'Interruptions', 'Role conflict', 'Staffing or coverage', 'Other']
+		}),
+		paletteQuestion('wr_open_context', 'Work climate context', 'text', 'What would most improve recovery or workload balance in the next month?', {
+			required: false
+		})
+	],
+	office_ergonomics: () => [
+		paletteQuestion('oe_workstation_fit', 'Workstation fit', 'likert', 'My workstation setup lets me work comfortably for most of the day.'),
+		paletteQuestion('oe_screen_strain', 'Workstation fit', 'likert', 'Screen placement, glare, or lighting creates noticeable strain.', {
+			scalePreset: 'intensity_5',
+			scaleLowLabel: 'No strain',
+			scaleHighLabel: 'High strain'
+		}),
+		paletteQuestion('oe_input_strain', 'Workstation fit', 'likert', 'Keyboard, mouse, or laptop use creates discomfort during focused work.', {
+			scalePreset: 'intensity_5',
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'High discomfort'
+		}),
+		paletteQuestion('oe_breaks', 'Recovery behavior', 'likert', 'I take short movement breaks often enough during long desk-work periods.'),
+		paletteQuestion('oe_focus_interruptions', 'Focus conditions', 'likert', 'Interruptions make it hard to complete focused work.', {
+			scalePreset: 'frequency_5',
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Very often'
+		}),
+		paletteQuestion('oe_hybrid_setup', 'Work context', 'single', 'Where do you usually complete focused desk work?', {
+			choiceOptions: ['Office workstation', 'Home workstation', 'Shared/hot desk', 'Multiple locations', 'Other']
+		}),
+		paletteQuestion('oe_priority_fix', 'Work context', 'text', 'What workstation or work-pattern change would help most?', {
+			required: false
+		})
+	],
+	academic_workload: () => [
+		paletteQuestion('aw_teaching_load', 'Academic workload', 'likert', 'Teaching and student-facing work leave enough time for focused academic work.', {
+			reverseCoded: true
+		}),
+		paletteQuestion('aw_admin_pressure', 'Academic workload', 'likert', 'Administrative work interrupts research or preparation time.'),
+		paletteQuestion('aw_deadline_pressure', 'Academic workload', 'likert', 'Grant, publication, or reporting deadlines create sustained pressure.'),
+		paletteQuestion('aw_supervision_clarity', 'Support and clarity', 'likert', 'Expectations for supervision, teaching, and service work are clear.'),
+		paletteQuestion('aw_recovery_after_peaks', 'Recovery capacity', 'likert', 'After peak workload periods, I have enough time to recover.'),
+		paletteQuestion('aw_primary_role_pressure', 'Academic workload', 'single', 'Which area creates the most pressure right now?', {
+			choiceOptions: ['Teaching', 'Research', 'Administration', 'Supervision', 'Clinical/service work', 'Other']
+		}),
+		paletteQuestion('aw_change_request', 'Support and clarity', 'text', 'What one change would make the workload more sustainable?', {
+			required: false
+		})
+	],
+	team_climate: () => [
+		paletteQuestion('tc_role_clarity', 'Team climate', 'likert', 'People on this team understand what is expected from them.'),
+		paletteQuestion('tc_support', 'Team climate', 'likert', 'Team members help each other when workload becomes uneven.'),
+		paletteQuestion('tc_safety', 'Team climate', 'likert', 'People can raise concerns without being punished or dismissed.'),
+		paletteQuestion('tc_communication', 'Team climate', 'likert', 'Important information reaches the right people in time.'),
+		paletteQuestion('tc_fairness', 'Workload fairness', 'likert', 'Workload is distributed fairly across the team.'),
+		paletteQuestion('tc_blockers', 'Team context', 'multi', 'Which blockers affect the team most right now?', {
+			choiceOptions: ['Unclear priorities', 'Too many meetings', 'Staffing gaps', 'Slow decisions', 'Tooling/process friction', 'Other']
+		}),
+		paletteQuestion('tc_improvement', 'Team context', 'text', 'What should the team improve first?', {
+			required: false
+		})
+	],
+	healthcare_staff_strain: () => [
+		paletteQuestion('hs_shift_fatigue', 'Shift strain', 'likert', 'After a typical shift, I feel too fatigued to recover quickly.'),
+		paletteQuestion('hs_emotional_load', 'Shift strain', 'likert', 'Emotional demands from the work are difficult to leave behind after the shift.'),
+		paletteQuestion('hs_staffing_pressure', 'Operational pressure', 'likert', 'Staffing or coverage levels make safe work harder than it should be.'),
+		paletteQuestion('hs_handoff_clarity', 'Operational support', 'likert', 'Handoffs and communication give me enough information to continue work safely.'),
+		paletteQuestion('hs_recovery_between_shifts', 'Recovery capacity', 'likert', 'There is enough recovery time between demanding shifts.'),
+		paletteQuestion('hs_pressure_area', 'Operational pressure', 'single', 'Which area creates the most strain right now?', {
+			choiceOptions: ['Staffing', 'Patient complexity', 'Documentation', 'Handoffs', 'Emotional load', 'Other']
+		}),
+		paletteQuestion('hs_support_needed', 'Operational support', 'text', 'What support would reduce strain most in the next month?', {
+			required: false
+		})
+	]
+};
+
+const paletteOutputs: Record<
+	Exclude<QuestionnairePaletteId, 'blank' | 'osh_ergonomics'>,
+	(rows: TemplateQuestionAuthoringRow[]) => ScoreOutputAuthoringRow[]
+> = {
+	workload_recovery: () => [
+		paletteOutput('workload_strain', 'Workload strain', ['wr_workload_pressure', 'wr_mental_drain', 'wr_time_pressure']),
+		paletteOutput('recovery_capacity', 'Recovery capacity', ['wr_recovery_time', 'wr_detach_after_work', 'wr_control']),
+		paletteOutput('work_climate_context', 'Work climate context', ['wr_support'])
+	],
+	office_ergonomics: () => [
+		paletteOutput('workstation_strain', 'Workstation strain', ['oe_screen_strain', 'oe_input_strain']),
+		paletteOutput('focus_conditions', 'Focus conditions', ['oe_focus_interruptions'])
+	],
+	academic_workload: () => [
+		paletteOutput('academic_workload_strain', 'Academic workload strain', ['aw_teaching_load', 'aw_admin_pressure', 'aw_deadline_pressure']),
+		paletteOutput('support_and_clarity', 'Support and clarity', ['aw_supervision_clarity', 'aw_recovery_after_peaks'])
+	],
+	team_climate: () => [
+		paletteOutput('team_climate', 'Team climate', ['tc_role_clarity', 'tc_support', 'tc_safety', 'tc_communication']),
+		paletteOutput('workload_fairness', 'Workload fairness', ['tc_fairness'])
+	],
+	healthcare_staff_strain: () => [
+		paletteOutput('shift_strain', 'Shift strain', ['hs_shift_fatigue', 'hs_emotional_load']),
+		paletteOutput('operational_support', 'Operational support', ['hs_handoff_clarity', 'hs_recovery_between_shifts'])
+	]
+};
+
+function paletteQuestion(
+	code: string,
+	dimensionLabel: string,
+	type: TemplateQuestionAnswerType,
+	textDefault: string,
+	overrides: Partial<Omit<TemplateQuestionAuthoringRow, 'ordinal' | 'code' | 'dimensionLabel' | 'type' | 'textDefault'>> = {}
+): TemplateQuestionAuthoringRow {
+	return {
+		ordinal: 1,
+		code,
+		dimensionLabel,
+		type,
+		textDefault,
+		required: overrides.required ?? true,
+		reverseCoded: overrides.reverseCoded ?? false,
+		scaleMin: overrides.scaleMin ?? (type === 'nps' ? 0 : 1),
+		scaleMax: overrides.scaleMax ?? (type === 'nps' ? 10 : 5),
+		scaleLowLabel: overrides.scaleLowLabel ?? 'Strongly disagree',
+		scaleHighLabel: overrides.scaleHighLabel ?? 'Strongly agree',
+		scalePreset: overrides.scalePreset ?? (type === 'likert' ? 'agreement_5' : 'custom'),
+		choiceOptions: overrides.choiceOptions ?? []
+	};
+}
+
+function paletteOutput(
+	code: string,
+	name: string,
+	includedQuestionCodes: string[]
+): ScoreOutputAuthoringRow {
+	return {
+		localId: `palette-${code}`,
+		code,
+		name,
+		includedQuestionCodes,
+		calculation: 'mean',
+		missingStrategy: 'min_valid_count',
+		minValidCount: Math.max(1, Math.ceil(includedQuestionCodes.length * 0.6))
+	};
+}

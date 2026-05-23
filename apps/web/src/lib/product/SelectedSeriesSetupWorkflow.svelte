@@ -50,16 +50,16 @@
 	appendTemplateQuestionRow,
 	buildScoreProduces,
 	buildScoringDocument,
-	createScoreOutputRowsForStudyPreset,
+	createScoreOutputRowsForQuestionnairePalette,
 	createDefaultTemplateQuestionRows,
-	createTemplateQuestionRowsForStudyPreset,
+	createTemplateQuestionRowsForQuestionnairePalette,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
 	describeScoreMissingDataStrategy,
 	duplicateTemplateQuestionRow,
 	isMeanScoreEligible,
-	listStudyAuthoringPresetOptions,
+	listQuestionnairePaletteOptions,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeScoreOutputRow,
@@ -78,11 +78,11 @@
 		toCreateTemplateQuestions,
 		validateScoreOutputRows,
 		type DraftRespondentPreviewQuestion,
+		type QuestionnairePaletteId,
 		type QuestionScalePreset,
 		type ScoreCalculation,
 		type ScoreMissingStrategy,
 		type ScoreOutputAuthoringRow,
-		type StudyAuthoringPresetId,
 		validateTemplateQuestionRows,
 		type TemplateQuestionAnswerType,
 		type TemplateQuestionAuthoringRow
@@ -113,15 +113,15 @@
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
 	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
-	const initialScoreOutputs = createScoreOutputRowsForStudyPreset('blank', initialTemplateQuestionRows);
-	const studyAuthoringPresetOptions = listStudyAuthoringPresetOptions();
+	const initialScoreOutputs = createScoreOutputRowsForQuestionnairePalette('blank', initialTemplateQuestionRows);
+	const questionnairePaletteOptions = listQuestionnairePaletteOptions();
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
 	let scoringResult = $state<SetupIdResponse | null>(null);
 	let campaignResult = $state<CampaignDraftResponse | null>(null);
 	let readinessResult = $state<LaunchReadinessResponse | null>(null);
-	let selectedStudyAuthoringPreset = $state<StudyAuthoringPresetId>('blank');
+	let selectedQuestionnairePalette = $state<QuestionnairePaletteId>('blank');
 	let refreshWarning = $state<string | null>(null);
 	let actionStates = $state<Record<SelectedSeriesSetupWorkflowActionId, StepState>>({
 		instrument: 'idle',
@@ -153,11 +153,11 @@
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
 	let scoreOutputs = $state<ScoreOutputAuthoringRow[]>(initialScoreOutputs);
 
-	function applyStudyAuthoringPreset(presetId: StudyAuthoringPresetId) {
-		const nextRows = createTemplateQuestionRowsForStudyPreset(presetId);
-		const nextOutputs = createScoreOutputRowsForStudyPreset(presetId, nextRows);
+	function applyQuestionnairePalette(paletteId: QuestionnairePaletteId) {
+		const nextRows = createTemplateQuestionRowsForQuestionnairePalette(paletteId);
+		const nextOutputs = createScoreOutputRowsForQuestionnairePalette(paletteId, nextRows);
 
-		selectedStudyAuthoringPreset = presetId;
+		selectedQuestionnairePalette = paletteId;
 		templateQuestionRows = nextRows;
 		scoreOutputs = nextOutputs;
 		scoringForm.document = buildScoringDocument(scoringForm.ruleKey, nextRows, nextOutputs);
@@ -1642,26 +1642,32 @@
 						<div class="mt-4 record-row">
 							<div class="record-row__header">
 								<div>
-									<p class="record-field__label">Study starter</p>
-									<h5 class="record-row__title">Choose a starting structure</h5>
+									<p class="record-field__label">Questionnaire palette</p>
+									<h5 class="record-row__title">Choose an editable question set</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										Start blank, or load a practical workplace-risk questionnaire you can edit before saving.
+										Start blank, or load original editable starter items that match the study you are building.
+										These are not marketed as validated named instruments; review and edit before launch.
 									</p>
 								</div>
 								<StatusBadge status="neutral" label="Editable" />
 							</div>
 							<div class="record-grid">
-								{#each studyAuthoringPresetOptions as preset (preset.id)}
+								{#each questionnairePaletteOptions as preset (preset.id)}
 									<button
 										type="button"
 										class="record-field text-left"
-										aria-pressed={selectedStudyAuthoringPreset === preset.id}
-										onclick={() => applyStudyAuthoringPreset(preset.id)}
+										aria-pressed={selectedQuestionnairePalette === preset.id}
+										onclick={() => applyQuestionnairePalette(preset.id)}
 									>
-										<p class="record-field__label">{preset.questionCount} questions</p>
+										<p class="record-field__label">
+											{preset.category} - {preset.questionCount} questions
+										</p>
 										<p class="record-field__value">{preset.label}</p>
 										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
 										<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
+										<p class="mt-2 text-xs text-[var(--color-text-muted)]">
+											Suggested results: {preset.resultOutputs.join(', ')}
+										</p>
 									</button>
 								{/each}
 							</div>
