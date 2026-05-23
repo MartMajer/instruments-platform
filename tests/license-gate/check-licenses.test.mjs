@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  buildDotnetListPackageArgs,
   classifyDependency,
   parseNpmLockDependencies,
   parseNugetLicenseFromNuspec,
@@ -116,5 +117,17 @@ describe('dependency discovery helpers', () => {
     assert.match(markdown, /npm/);
     assert.match(markdown, /svelte/);
     assert.match(markdown, /MIT/);
+  });
+
+  it('lists NuGet packages without running a second implicit restore', () => {
+    assert.deepEqual(buildDotnetListPackageArgs('/repo/Platform.slnx'), [
+      'list',
+      '/repo/Platform.slnx',
+      'package',
+      '--include-transitive',
+      '--format',
+      'json',
+      '--no-restore'
+    ]);
   });
 });

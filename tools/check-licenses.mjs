@@ -165,15 +165,11 @@ export function runLicenseCheck(options = {}) {
 }
 
 function collectDotnetDependencies(solutionPath) {
-  const rawOutput = execFileSync(
-    'dotnet',
-    ['list', solutionPath, 'package', '--include-transitive', '--format', 'json'],
-    {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
-  );
+  const rawOutput = execFileSync('dotnet', buildDotnetListPackageArgs(solutionPath), {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
   const jsonStart = rawOutput.indexOf('{');
   if (jsonStart < 0) {
     throw new Error('dotnet list package did not return JSON.');
@@ -205,6 +201,10 @@ function collectDotnetDependencies(solutionPath) {
   }
 
   return [...byKey.values()].sort(compareDependencies);
+}
+
+export function buildDotnetListPackageArgs(solutionPath) {
+  return ['list', solutionPath, 'package', '--include-transitive', '--format', 'json', '--no-restore'];
 }
 
 function readNugetLicense(packageId, version) {
