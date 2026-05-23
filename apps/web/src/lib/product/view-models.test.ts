@@ -450,6 +450,42 @@ describe('product view models', () => {
 		expectStatusBadgeStatus(view.items[0].status);
 	});
 
+	it('localizes major generated read-model labels for Croatian app mode', () => {
+		const listView = toCampaignSeriesListView(sampleCampaignSeriesList, {}, 'hr-HR');
+		const hubView = toCampaignSeriesHubView(sampleCampaignSeriesHub, 'hr-HR');
+		const setupView = toCampaignSeriesSetupWorkspaceView(sampleSetupWorkspace, 'hr-HR');
+
+		expect(listView.statusOptions).toEqual([
+			{ value: 'all', label: 'Sva spremnost' },
+			{ value: 'not_configured', label: 'Nije konfigurirano' },
+			{ value: 'pending', label: 'Na čekanju' },
+			{ value: 'proof_only', label: 'Pregled' }
+		]);
+		expect(listView.items[0].rows).toContainEqual({ label: 'Valovi', value: '2' });
+		expect(listView.items[0].ownership.label).toBe('Vaša studija');
+		expect(listView.items[0].archiveActionLabel).toBe('Arhiviraj');
+		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
+
+		expect(hubView.surfaceTitle).toBe('Pregled studije');
+		expect(hubView.rows[0].label).toBe('Izrađeno');
+		expect(hubView.governanceRows[0]).toEqual({
+			label: 'Pristanak',
+			value: 'pregled',
+			status: 'proof_only'
+		});
+		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
+		expect(hubView.campaignRows[0].rows).toContainEqual({
+			label: 'Način identiteta',
+			value: 'anonimno longitudinalno'
+		});
+
+		expect(setupView.surfaceLabel).toBe('Priprema studije');
+		expect(setupView.summaryRows).toContainEqual({
+			label: 'Nedostajući preduvjeti',
+			value: '1'
+		});
+	});
+
 	it('maps archived campaign-series list items to restore-ready cards', () => {
 		const view = toCampaignSeriesListView({
 			items: [

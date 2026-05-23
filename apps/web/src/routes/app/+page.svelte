@@ -30,7 +30,7 @@
 
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
-	const overviewView = $derived(overview ? toWorkspaceOverviewView(overview) : null);
+	const overviewView = $derived(overview ? toWorkspaceOverviewView(overview, locale) : null);
 	const firstRunActions = $derived([
 		{
 			title: text.workspaceHome.firstRunActions[0],

@@ -232,7 +232,7 @@
 	let testRecipientError = $state<string | null>(null);
 	let testRecipientResult = $state<CreateCampaignTestRecipientsResponse | null>(null);
 
-	const workspaceView = $derived(toCampaignSeriesSetupWorkspaceView(workspace));
+	const workspaceView = $derived(toCampaignSeriesSetupWorkspaceView(workspace, appLocale));
 	const localState = $derived({
 		instrumentId: instrumentResult?.id ?? null,
 		templateVersionId: templateResult?.templateVersionId ?? null,

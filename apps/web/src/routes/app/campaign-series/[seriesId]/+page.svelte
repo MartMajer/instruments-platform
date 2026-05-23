@@ -50,7 +50,7 @@
 	onDestroy(unsubscribeAuth);
 
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
-	const hubView = $derived(campaignSeriesHub ? toCampaignSeriesHubView(campaignSeriesHub) : null);
+	const hubView = $derived(campaignSeriesHub ? toCampaignSeriesHubView(campaignSeriesHub, appLocale) : null);
 
 	$effect(() => {
 		void loadCampaignSeriesHub(seriesId);

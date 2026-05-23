@@ -24,7 +24,7 @@
 
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
-	const libraryView = $derived(library ? toExportArtifactLibraryView(library) : null);
+	const libraryView = $derived(library ? toExportArtifactLibraryView(library, locale) : null);
 
 	onMount(() => {
 		void loadExportArtifacts();

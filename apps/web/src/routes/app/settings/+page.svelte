@@ -23,7 +23,7 @@
 
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
-	const settingsView = $derived(settings ? toTenantSettingsView(settings) : null);
+	const settingsView = $derived(settings ? toTenantSettingsView(settings, locale) : null);
 
 	onMount(() => {
 		void loadTenantSettings();

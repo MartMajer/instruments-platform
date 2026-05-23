@@ -24,7 +24,7 @@
 
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
-	const libraryView = $derived(toInstrumentLibraryView(instruments));
+	const libraryView = $derived(toInstrumentLibraryView(instruments, locale));
 
 	onMount(() => {
 		void loadInstruments();

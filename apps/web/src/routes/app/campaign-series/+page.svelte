@@ -74,7 +74,7 @@
 	const portfolioQuery = $derived(readPortfolioQuery(page.url.searchParams));
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const listView = $derived(
-		campaignSeriesList ? toCampaignSeriesListView(campaignSeriesList, portfolioQuery) : null
+		campaignSeriesList ? toCampaignSeriesListView(campaignSeriesList, portfolioQuery, locale) : null
 	);
 	const selectedBlueprint = $derived(getStudyBlueprintOption(selectedBlueprintId, locale));
 	const studyNamePlaceholder = $derived(buildStudyNamePlaceholder(selectedBlueprintId, locale));

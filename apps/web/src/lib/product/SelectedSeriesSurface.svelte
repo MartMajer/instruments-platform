@@ -86,19 +86,19 @@
 
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const surfaceView = $derived(
-		campaignSeriesHub ? toSelectedSeriesSurfaceView(campaignSeriesHub, surface) : null
+		campaignSeriesHub ? toSelectedSeriesSurfaceView(campaignSeriesHub, surface, appLocale) : null
 	);
 	const setupWorkspaceView = $derived(
-		setupWorkspace ? toCampaignSeriesSetupWorkspaceView(setupWorkspace) : null
+		setupWorkspace ? toCampaignSeriesSetupWorkspaceView(setupWorkspace, appLocale) : null
 	);
 	const operationsWorkspaceView = $derived(
-		operationsWorkspace ? toCampaignSeriesOperationsWorkspaceView(operationsWorkspace) : null
+		operationsWorkspace ? toCampaignSeriesOperationsWorkspaceView(operationsWorkspace, appLocale) : null
 	);
 	const reportsWorkspaceView = $derived(
-		reportsWorkspace ? toCampaignSeriesReportsWorkspaceView(reportsWorkspace) : null
+		reportsWorkspace ? toCampaignSeriesReportsWorkspaceView(reportsWorkspace, appLocale) : null
 	);
 	const wavesWorkspaceView = $derived(
-		wavesWorkspace ? toCampaignSeriesWavesWorkspaceView(wavesWorkspace) : null
+		wavesWorkspace ? toCampaignSeriesWavesWorkspaceView(wavesWorkspace, appLocale) : null
 	);
 	const setupRouteGuidance = $derived(
 		setupWorkspaceView
