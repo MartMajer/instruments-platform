@@ -33,6 +33,7 @@
 		toSelectedSeriesSetupLaunchState,
 		toSelectedSeriesSetupPath,
 		toSelectedSeriesSetupPathStepDisplay,
+		toSelectedSeriesSetupWaveContext,
 		type SelectedSeriesSetupPathStep,
 		type SelectedSeriesSetupWorkflowActionId
 	} from './setup-workflow';
@@ -68,14 +69,15 @@
 	summarizeQuestionDimensions,
 	summarizeQuestionAuthoringCards,
 	summarizeQuestionnaireBlueprintReview,
-	summarizeRespondentQuestionPreview,
 	summarizeReverseScoringReview,
 	summarizeResultsBlueprintReview,
 	summarizeScorePlan,
 	syncScoreOutputQuestionCodes,
+	toDraftRespondentPreviewContract,
 		toCreateQuestionScales,
 		toCreateTemplateQuestions,
 		validateScoreOutputRows,
+		type DraftRespondentPreviewQuestion,
 		type QuestionScalePreset,
 		type ScoreCalculation,
 		type ScoreMissingStrategy,
@@ -288,7 +290,9 @@
 		summarizeResultsBlueprintReview(templateQuestionRows, scoreOutputs)
 	);
 	const reverseScoringReview = $derived(summarizeReverseScoringReview(templateQuestionRows, scoreOutputs));
-	const respondentPreviewSummaries = $derived(summarizeRespondentQuestionPreview(templateQuestionRows));
+	const respondentPreviewContract = $derived(
+		toDraftRespondentPreviewContract(templateQuestionRows, scoreOutputs)
+	);
 	const authoringReadiness = $derived(summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs));
 	const selectedScoreQuestionRows = $derived(
 		scoreableQuestionRows.filter((row) =>
@@ -304,6 +308,7 @@
 			waveName: selectedCampaignId ? selectedCampaignLabel : campaignForm.name
 		})
 	);
+	const waveContext = $derived(toSelectedSeriesSetupWaveContext(workspace, localState));
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
 	);
@@ -983,6 +988,17 @@
 
 	function questionResultUsage(question: TemplateQuestionAuthoringRow) {
 		return describeQuestionResultUsage(question, scoreOutputs);
+	}
+
+	function runtimeRatingValues(question: DraftRespondentPreviewQuestion) {
+		if (question.scaleMin === null || question.scaleMax === null || question.scaleMin > question.scaleMax) {
+			return [];
+		}
+
+		return Array.from(
+			{ length: question.scaleMax - question.scaleMin + 1 },
+			(_, index) => (question.scaleMin ?? 0) + index
+		);
 	}
 
 	function questionAuthoringSummary(code: string) {
@@ -1967,16 +1983,40 @@
 							<div class="record-row__header">
 								<div>
 									<p class="record-field__label">Respondent preview</p>
-									<h5 class="record-row__title">What participants will read</h5>
+									<h5 class="record-row__title">{respondentPreviewContract.label}</h5>
 								</div>
-								<StatusBadge status="neutral" label={`${respondentPreviewSummaries.length} questions`} />
+								<StatusBadge
+									status={respondentPreviewContract.unsupportedCount > 0 ? 'blocked' : 'neutral'}
+									label={`${respondentPreviewContract.questionCount} questions`}
+								/>
 							</div>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								Use this preview to check wording, order, required questions, and answer shape before saving
-								the questionnaire.
+								{respondentPreviewContract.detail}
+							</p>
+							<div class="record-grid">
+								{#each respondentPreviewContract.controls as control (control.label)}
+									<div class="record-field">
+										<p class="record-field__label">Runtime control</p>
+										<p class="record-field__value">{control.label}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{control.count} {control.count === 1 ? 'question' : 'questions'}
+										</p>
+									</div>
+								{/each}
+								<div class="record-field">
+									<p class="record-field__label">Runtime notes</p>
+									<p class="record-field__value">{respondentPreviewContract.warningCount}</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										Limitations to review before launch.
+									</p>
+								</div>
+							</div>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								This preview uses the same control families as the respondent SurveyJS runtime: rating,
+								radio group, checkbox group, ranking, number, date, and text.
 							</p>
 							<div class="grid gap-3">
-								{#each respondentPreviewSummaries as question (question.ordinal)}
+								{#each respondentPreviewContract.questions as question (question.code)}
 									<div class="record-row">
 										<div class="record-row__header">
 											<div>
@@ -1991,12 +2031,72 @@
 											/>
 										</div>
 										<div class="record-field">
-											<p class="record-field__label">{question.answerFormatLabel}</p>
-											<p class="record-field__value">{question.responsePreviewLabel}</p>
+											<p class="record-field__label">
+												{question.answerFormatLabel} - {question.responsePreviewLabel}
+											</p>
+											<p class="record-field__value">{question.answerFormatDetail}</p>
 											<p class="text-sm text-[var(--color-text-muted)]">
-												{question.answerFormatDetail}
+												{question.scoreEligibilityLabel}. {question.scoreDirectionLabel}.
+												{question.resultUsageLabel}
 											</p>
 										</div>
+										<div class="record-field">
+											{#if question.controlType === 'rating'}
+												<div class="action-row" aria-label={`${question.positionLabel} rating preview`}>
+													{#each runtimeRatingValues(question) as value}
+														<label class="checkbox-field">
+															<input type="radio" disabled />
+															<span>{value}</span>
+														</label>
+													{/each}
+												</div>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{question.scaleLowLabel} -> {question.scaleHighLabel}
+												</p>
+											{:else if question.controlType === 'radio'}
+												<div class="grid gap-2" aria-label={`${question.positionLabel} single choice preview`}>
+													{#each question.choices as choice (choice.value)}
+														<label class="checkbox-field">
+															<input type="radio" disabled />
+															<span>{choice.text}</span>
+														</label>
+													{/each}
+												</div>
+											{:else if question.controlType === 'checkbox'}
+												<div class="grid gap-2" aria-label={`${question.positionLabel} multiple choice preview`}>
+													{#each question.choices as choice (choice.value)}
+														<label class="checkbox-field">
+															<input type="checkbox" disabled />
+															<span>{choice.text}</span>
+														</label>
+													{/each}
+												</div>
+											{:else if question.controlType === 'ranking'}
+												<ol class="grid gap-2" aria-label={`${question.positionLabel} ranking preview`}>
+													{#each question.choices as choice, choiceIndex (choice.value)}
+														<li class="record-field">
+															<p class="record-field__label">Rank {choiceIndex + 1}</p>
+															<p class="record-field__value">{choice.text}</p>
+														</li>
+													{/each}
+												</ol>
+											{:else if question.controlType === 'number'}
+												<input type="number" disabled placeholder="Number response" />
+											{:else if question.controlType === 'date'}
+												<input type="date" disabled />
+											{:else if question.controlType === 'text'}
+												<input type="text" disabled placeholder="Text response" />
+											{:else}
+												<p class="error-line">This question cannot be rendered by the current respondent runtime.</p>
+											{/if}
+										</div>
+										{#if question.warnings.length > 0}
+											<ul class="grid gap-1" aria-label={`${question.positionLabel} runtime notes`}>
+												{#each question.warnings as warning}
+													<li class="text-sm text-[var(--color-text-muted)]">{warning}</li>
+												{/each}
+											</ul>
+										{/if}
 									</div>
 								{/each}
 							</div>
@@ -2265,6 +2365,21 @@
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'campaign'}
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">Wave context</p>
+								<h5 class="record-row__title">{waveContext.title}</h5>
+								<p class="text-sm text-[var(--color-text-muted)]">{waveContext.summary}</p>
+							</div>
+							<StatusBadge status={waveContext.status} label={waveContext.label} />
+						</div>
+						<ul class="grid gap-2" aria-label="Wave setup guidance">
+							{#each waveContext.guidance as guidance}
+								<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
+							{/each}
+						</ul>
+					</div>
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<h5 class="record-row__title">Collection wave ready</h5>

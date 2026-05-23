@@ -69,18 +69,11 @@ describe('realistic fullstack case seeding', () => {
           });
         }
 
-        if (parsed.pathname.endsWith('/invitation-batches')) {
+        if (parsed.pathname.endsWith('/open-link')) {
           return jsonResponse({
             campaignId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-            requestedRecipientCount: 21,
-            createdInvitationCount: 21,
-            invitations: Array.from({ length: 21 }, (_, index) => ({
-              assignmentId: `20000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
-              token: `token-${String(index + 1).padStart(3, '0')}`,
-              respondentPath: `/r/token-${String(index + 1).padStart(3, '0')}`,
-              recipient: `sim-${String(index + 1).padStart(3, '0')}@example.test`,
-              status: 'queued',
-            })),
+            token: 'open-link-token',
+            respondentPath: '/r/open-link-token',
           });
         }
 
@@ -149,15 +142,11 @@ describe('realistic fullstack case seeding', () => {
         reportsPath: '/app/campaign-series/33333333-3333-4333-8333-333333333333/reports',
       })
     );
-    expect(calls.filter((call) => call.path.endsWith('/invitation-batches'))).toHaveLength(1);
-    expect(calls.filter((call) => /^\/respondent\/open-links\/[^/]+$/u.test(call.path))).toHaveLength(21);
+    expect(calls.filter((call) => call.path.endsWith('/open-link'))).toHaveLength(1);
+    expect(calls.filter((call) => call.path.endsWith('/invitation-batches'))).toHaveLength(0);
+    expect(calls.filter((call) => /^\/respondent\/open-links\/[^/]+$/u.test(call.path))).toHaveLength(1);
     expect(calls.filter((call) => call.path.endsWith('/submit'))).toHaveLength(21);
     expect(calls.filter((call) => call.path.endsWith('/scores'))).toHaveLength(21);
-    expect(calls.find((call) => call.path.endsWith('/invitation-batches'))?.body).toEqual({
-      recipients: Array.from({ length: 21 }, (_, index) => ({
-        email: `sim-${String(index + 1).padStart(3, '0')}@example.test`,
-      })),
-    });
     expect(calls.find((call) => call.path === '/campaigns')?.body).toEqual(
       expect.objectContaining({
         campaignSeriesId: '33333333-3333-4333-8333-333333333333',
@@ -176,6 +165,96 @@ describe('realistic fullstack case seeding', () => {
           }),
         ],
       })
+    );
+  });
+
+  it('can seed submitted responses through the test data simulator', async () => {
+    const auditCase = requiredCase();
+    const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+
+    const result = await seedRealisticFullstackCase({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: { enabled: true },
+      seriesId: '33333333-3333-4333-8333-333333333333',
+      realisticCase: auditCase,
+      responseMode: 'test-data-simulator',
+      fetchImpl: async (url, init) => {
+        const parsed = new URL(String(url));
+        const method = init?.method ?? 'GET';
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ method, path: parsed.pathname, body });
+
+        if (parsed.pathname === '/template-versions') {
+          return jsonResponse({
+            templateVersionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            questions: auditCase.questions.map((question, index) => ({
+              id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+              code: `q${String(index + 1).padStart(2, '0')}`,
+            })),
+          });
+        }
+
+        if (parsed.pathname === '/scoring-rules') {
+          return jsonResponse({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' });
+        }
+
+        if (parsed.pathname === '/campaigns') {
+          return jsonResponse({ id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' });
+        }
+
+        if (parsed.pathname.endsWith('/recipients')) {
+          return jsonResponse({
+            campaignId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            groupId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            groupName: 'Baseline warehouse pulse - May 2026 test respondents',
+            createdSubjectCount: 21,
+            savedRecipientRuleCount: 1,
+            previewRecipientCount: 21,
+          });
+        }
+
+        if (parsed.pathname.endsWith('/launch-readiness')) {
+          return jsonResponse({ campaignId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ready: true, issues: [] });
+        }
+
+        if (parsed.pathname.endsWith('/launch')) {
+          return jsonResponse({
+            campaignId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            status: 'live',
+            launchSnapshotId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          });
+        }
+
+        if (parsed.pathname.endsWith('/responses')) {
+          return jsonResponse({
+            campaignId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            requestedResponseCount: 21,
+            submittedResponseCount: 21,
+            answerCount: 210,
+            scoredResponseCount: 21,
+            markedEmailSentCount: 21,
+            targetOutcome: 7,
+            variation: 'normal',
+          });
+        }
+
+        throw new Error(`Unhandled ${method} ${parsed.pathname}`);
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        seedMode: 'local-fullstack-api',
+        invitationCount: 21,
+        submittedResponseCount: 21,
+        scoredResponseCount: 21,
+      })
+    );
+    expect(calls.filter((call) => call.path.includes('/test-data/'))).toHaveLength(2);
+    expect(calls.some((call) => call.path.includes('/respondent/'))).toBe(false);
+    expect(calls.some((call) => call.path.endsWith('/open-link'))).toBe(false);
+    expect(calls.findIndex((call) => call.path.endsWith('/recipients'))).toBeLessThan(
+      calls.findIndex((call) => call.path.endsWith('/launch-readiness'))
     );
   });
 
@@ -350,6 +429,7 @@ describe('realistic fullstack case seeding', () => {
     ]);
     expect(calls.filter((call) => call.path.endsWith('/open-link'))).toHaveLength(2);
     expect(calls.filter((call) => call.path.endsWith('/invitation-batches'))).toHaveLength(0);
+    expect(calls.filter((call) => /^\/respondent\/open-links\/[^/]+$/u.test(call.path))).toHaveLength(2);
     expect(calls.filter((call) => /^\/respondent\/open-links\/[^/]+\/sessions$/u.test(call.path))).toHaveLength(32);
     expect(calls.filter((call) => call.path.endsWith('/close'))).toHaveLength(2);
     const sessionBodies = calls

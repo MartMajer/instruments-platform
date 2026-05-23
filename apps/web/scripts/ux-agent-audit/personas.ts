@@ -37,6 +37,15 @@ export const personas = {
       'Emphasize client-ready wording, auditability, export confidence, and field-work handoff clarity.',
     ],
   },
+  'work-ergonomics-specialist': {
+    id: 'work-ergonomics-specialist',
+    displayName: 'Work ergonomics specialist',
+    defaultViewport: 'tablet',
+    severityFocus: 'high',
+    reviewGuidance: [
+      'Focus on task exposure, workstation fit, body discomfort, intervention follow-up, and practical recommendations.',
+    ],
+  },
   'mobile-respondent': {
     id: 'mobile-respondent',
     displayName: 'Mobile respondent',

@@ -9,6 +9,7 @@ import {
   parseFullstackBootstrapOptions,
   parseFullstackCleanupOptions,
   parseFullstackPreflightOptions,
+  parsePersonaDemoSeedOptions,
   parseRunnerOptions,
   runAudit,
   runAutonomousAudit,
@@ -510,6 +511,46 @@ describe('UX audit runner option parsing', () => {
         fullstackDevAuth: { enabled: true },
       })
     );
+  });
+
+  it('parses persona demo seed options for local dev-auth seeding', () => {
+    expect(
+      parsePersonaDemoSeedOptions([
+        '--api-base-url',
+        'http://127.0.0.1:5055',
+        '--fullstack-dev-auth',
+        '--fullstack-tenant-id',
+        '11111111-1111-4111-8111-111111111111',
+        '--fullstack-user-id',
+        '22222222-2222-4222-8222-222222222222',
+        '--fullstack-email',
+        'owner@example.test',
+        '--fullstack-permissions',
+        'setup.manage,team.manage,export.read',
+        '--output',
+        '../../artifacts/ux-agent-runs/persona-demo-test',
+      ])
+    ).toEqual({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      outputRoot: '../../artifacts/ux-agent-runs/persona-demo-test',
+      fullstackDevAuth: {
+        enabled: true,
+        tenantId: '11111111-1111-4111-8111-111111111111',
+        userId: '22222222-2222-4222-8222-222222222222',
+        email: 'owner@example.test',
+        permissions: ['setup.manage', 'team.manage', 'export.read'],
+      },
+    });
+  });
+
+  it('refuses remote persona demo seed API URLs', () => {
+    expect(() =>
+      parsePersonaDemoSeedOptions([
+        '--api-base-url',
+        'https://validatedscale-staging.croat.dev',
+        '--fullstack-dev-auth',
+      ])
+    ).toThrow('UX audit harness is local-only');
   });
 
   it('parses explicit full-stack bootstrap start mode', () => {

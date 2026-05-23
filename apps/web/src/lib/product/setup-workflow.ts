@@ -97,6 +97,14 @@ export type SelectedSeriesSetupLaunchPlan = {
 	items: SelectedSeriesSetupLaunchPlanItem[];
 };
 
+export type SelectedSeriesSetupWaveContext = {
+	title: string;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	summary: string;
+	guidance: string[];
+};
+
 export function defaultCampaignWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
 	const nextWaveNumber = Math.max(0, workspace.summary.campaignCount) + 1;
 	return `Wave ${nextWaveNumber}`;
@@ -269,6 +277,74 @@ export function toSelectedSeriesSetupLaunchPlan(
 	};
 }
 
+export function toSelectedSeriesSetupWaveContext(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	localState: SelectedSeriesSetupWorkflowLocalState = {}
+): SelectedSeriesSetupWaveContext {
+	const campaignId = selectSetupCampaignId(workspace, localState);
+	const nextWaveName = defaultCampaignWaveName(workspace);
+
+	if (workspace.summary.campaignCount === 0 && !campaignId) {
+		return {
+			title: 'Prepare Wave 1 for collection',
+			label: 'First wave setup',
+			status: 'pending',
+			summary: 'Use this step to create the first collection wave and decide who can answer.',
+			guidance: [
+				'Create Wave 1 only after the questionnaire and results setup are saved.',
+				'Recipient selection belongs to Wave 1 until this wave is launched.',
+				'After responses arrive, review Results before planning a follow-up wave.'
+			]
+		};
+	}
+
+	if (campaignId) {
+		const waveName = selectedSetupWaveName(workspace, campaignId) ?? nextWaveName;
+		const isFirstWave = workspace.summary.campaignCount <= 1;
+		return {
+			title: `Prepare ${waveName} for collection`,
+			label: isFirstWave ? 'Current draft wave' : 'Follow-up draft wave',
+			status: 'pending',
+			summary: isFirstWave
+				? 'Use this step to finish the current draft wave before opening Collection.'
+				: `${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+			guidance: [
+				`Recipient selection belongs to ${waveName} until this wave is launched.`,
+				'Review the previous wave in Results before treating this as a follow-up collection.',
+				'Do not assume recipients are unchanged; save the intended people or group for this wave.'
+			]
+		};
+	}
+
+	const existingWaveCount = Math.max(1, workspace.summary.campaignCount);
+	const previousWaveName = latestSetupWaveName(workspace) ?? `Wave ${existingWaveCount}`;
+	const previousWaveStatus = formatCampaignStatus(
+		workspace.selectedCampaign?.status ?? workspace.campaigns.at(-1)?.status
+	);
+	const reviewTarget =
+		existingWaveCount === 1 ? previousWaveName : `${firstSetupWaveName(workspace)} and ${previousWaveName}`;
+
+	return {
+		title:
+			existingWaveCount === 1
+				? `Review ${previousWaveName} before preparing ${nextWaveName}`
+				: `Review existing waves before preparing ${nextWaveName}`,
+		label: 'Future wave setup',
+		status: 'pending',
+		summary:
+			existingWaveCount === 1
+				? `${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`
+				: `${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
+		guidance: [
+			`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
+			`Create ${nextWaveName} only when the next collection round is intentional.`,
+			`Recipient selection in this step will belong to the new draft wave, not to ${
+				existingWaveCount === 1 ? previousWaveName : 'the previous waves'
+			}.`
+		]
+	};
+}
+
 export function toSelectedSeriesSetupPath(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {}
@@ -354,6 +430,31 @@ export function selectSetupCampaignId(
 
 function isEditableSetupCampaign(status: string | null | undefined) {
 	return status === 'draft' || status === 'scheduled';
+}
+
+function selectedSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse, campaignId: string) {
+	return (
+		workspace.campaigns.find((campaign) => campaign.id === campaignId)?.name.trim() ||
+		(workspace.selectedCampaign?.id === campaignId ? workspace.selectedCampaign.name.trim() : '') ||
+		null
+	);
+}
+
+function firstSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
+	return workspace.campaigns[0]?.name.trim() || 'Wave 1';
+}
+
+function latestSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse) {
+	return (
+		workspace.selectedCampaign?.name.trim() ||
+		workspace.campaigns.at(-1)?.name.trim() ||
+		workspace.campaigns[0]?.name.trim() ||
+		null
+	);
+}
+
+function formatCampaignStatus(status: string | null | undefined) {
+	return status?.replaceAll('_', ' ') || 'not editable';
 }
 
 function toActionReadinessStatus(

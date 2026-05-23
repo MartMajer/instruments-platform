@@ -13,6 +13,8 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
+		toSelectedSeriesExportPreview,
+		toSelectedSeriesScoreMethodReview,
 		toSelectedSeriesResultsPacketReview,
 		toSelectedSeriesReportsPath,
 		type SelectedSeriesReportsPathStepState,
@@ -118,6 +120,9 @@
 	});
 	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState));
 	const packetReview = $derived(toSelectedSeriesResultsPacketReview(workspace, localState));
+	const methodReview = $derived(toSelectedSeriesScoreMethodReview(workspace, reportProofResult));
+	const exportPreviewArtifact = $derived(storedExportResult ?? responseExportResult ?? exportResult ?? null);
+	const exportPreview = $derived(toSelectedSeriesExportPreview(workspace, exportPreviewArtifact));
 	const workflowActions = $derived(reportsPath.steps);
 	const currentAction = $derived(reportsPath.currentAction);
 	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);
@@ -395,6 +400,64 @@
 		<p class="result-line">
 			<span>Next action</span>
 			<span>{packetReview.primaryAction}</span>
+		</p>
+	</article>
+
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Score method review">
+		<div class="questionnaire-blueprint-review__header">
+			<div>
+				<p class="product-kicker">Score method</p>
+				<h4 class="setup-current-task__title">{methodReview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{methodReview.description}</p>
+			</div>
+			<StatusBadge status={methodReview.status} />
+		</div>
+		<div class="questionnaire-blueprint-review__grid">
+			{#each methodReview.items as item (item.id)}
+				<section
+					class="questionnaire-blueprint-review__item"
+					data-state={item.status}
+					aria-label={item.label}
+				>
+					<div class="questionnaire-blueprint-review__item-header">
+						<p class="record-field__label">{item.label}</p>
+						<StatusBadge status={item.status} />
+					</div>
+					<p class="record-row__title">{item.summary}</p>
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+				</section>
+			{/each}
+		</div>
+	</article>
+
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Export preview">
+		<div class="questionnaire-blueprint-review__header">
+			<div>
+				<p class="product-kicker">Export preview</p>
+				<h4 class="setup-current-task__title">{exportPreview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{exportPreview.description}</p>
+			</div>
+			<StatusBadge status={exportPreview.status} />
+		</div>
+		<div class="questionnaire-blueprint-review__grid">
+			{#each exportPreview.items as item (item.id)}
+				<section
+					class="questionnaire-blueprint-review__item"
+					data-state={item.status}
+					aria-label={item.label}
+				>
+					<div class="questionnaire-blueprint-review__item-header">
+						<p class="record-field__label">{item.label}</p>
+						<StatusBadge status={item.status} />
+					</div>
+					<p class="record-row__title">{item.summary}</p>
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+				</section>
+			{/each}
+		</div>
+		<p class="result-line">
+			<span>Download action</span>
+			<span>{exportPreview.downloadLabel}</span>
 		</p>
 	</article>
 

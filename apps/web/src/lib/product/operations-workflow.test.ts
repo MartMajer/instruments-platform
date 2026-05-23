@@ -298,7 +298,7 @@ describe('selected-series operations workflow model', () => {
 				title: 'Recipient access prepared',
 				status: 'ready',
 				detail:
-					'1 respondent link and 21 prepared invitations. Provider events appear after sent email invitations are reconciled. Anonymous reports keep respondent identity out of results.'
+					'1 open respondent link and 21 saved email invitations. Open-link access is broad; invite-only email access limits entry to saved recipients. Anonymous reports still keep respondent identity out of results.'
 			}),
 			expect.objectContaining({
 				id: 'reporting',
@@ -309,6 +309,40 @@ describe('selected-series operations workflow model', () => {
 					'Results can be reviewed, but live collection data should be treated as preliminary until closed.'
 			})
 		]);
+	});
+
+	it('keeps provider event reconciliation out of the primary audience status lane', () => {
+		const inviteOnlyWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
+			...liveWithResponsesWorkspace,
+			summary: {
+				...liveWithResponsesWorkspace.summary,
+				openLinkAssignmentCount: 0,
+				queuedInvitationCount: 21,
+				sentInvitationCount: 0,
+				providerAcceptedEventCount: 8,
+				providerDeliveredEventCount: 7
+			},
+			selectedCampaign: {
+				...liveWithResponsesWorkspace.selectedCampaign!,
+				openLinkAssignmentCount: 0,
+				queuedInvitationCount: 21,
+				sentInvitationCount: 0,
+				providerAcceptedEventCount: 8,
+				providerDeliveredEventCount: 7
+			}
+		};
+
+		const summary = toSelectedSeriesCollectionStatusSummary(inviteOnlyWorkspace);
+		const accessLane = summary.lanes.find((lane) => lane.id === 'audience');
+
+		expect(accessLane).toMatchObject({
+			title: 'Invite-only access prepared',
+			status: 'ready',
+			detail:
+				'21 saved email invitations are ready for this wave. Only saved recipients receive private access, and anonymous reports still do not show who answered.'
+		});
+		expect(accessLane?.detail).not.toContain('Provider');
+		expect(accessLane?.detail).not.toContain('delivery event');
 	});
 
 	it('explains which imported recipients are blocked by active email suppressions', () => {

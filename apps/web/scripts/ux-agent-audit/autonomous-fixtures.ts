@@ -31,12 +31,15 @@ export type AutonomousMutationPlan = {
   kind: 'create-study';
   fieldLabel: string;
   buttonText: string;
+  buttonTextAlternatives?: string[];
   studyNamePrefix?: string;
   studyName?: string;
   setupInstrument?: {
     fieldLabel: string;
+    fieldLabelAlternatives?: string[];
     value: string;
     buttonText: string;
+    buttonTextAlternatives?: string[];
     versionFieldLabel?: string;
     versionValue?: string;
   };

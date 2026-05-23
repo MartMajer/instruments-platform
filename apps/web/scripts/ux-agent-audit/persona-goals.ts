@@ -122,6 +122,42 @@ export const goalPersonaProfiles: Record<PersonaId, GoalPersonaProfile> = {
       'Do not complain only because interpretation is conservative; complain when limits are hidden or ambiguous.',
     ],
   },
+  'work-ergonomics-specialist': {
+    id: 'work-ergonomics-specialist',
+    name: 'Nina Peric',
+    role: 'Work ergonomics specialist preparing an office and hybrid-work intervention review.',
+    domainKnowledge:
+      'Understands workstation setup, task exposure, body discomfort, recovery breaks, and practical intervention follow-up. Wants evidence that can guide concrete workplace adjustments.',
+    patience: 'medium',
+    appGoal:
+      'Starting from /app, prepare an ergonomics study, review repeated-wave change after intervention, and confirm whether results are practical enough for a workplace recommendations meeting.',
+    successCriteria: [
+      'The questionnaire separates workstation fit, task exposure, discomfort, and intervention adoption.',
+      'Wave comparison explains whether changes are group trends or linked respondent changes.',
+      'Results highlight practical action areas without overclaiming medical meaning.',
+      'Export readiness is clear enough for an ergonomics report appendix.',
+      'The product avoids generic survey wording when the task is ergonomics-specific.',
+    ],
+    confusionTriggers: [
+      'The study hides task exposure or discomfort under generic satisfaction labels.',
+      'Wave wording does not explain whether the intervention changed anything meaningful.',
+      'Results do not make practical action areas visible.',
+      'The UI implies clinical diagnosis from ergonomic discomfort answers.',
+      'Export or report copy is too generic for a client ergonomics review.',
+    ],
+    hardFailureTriggers: [
+      'Setup, Waves, or Results route is unavailable.',
+      'Repeated-wave comparison fails to load.',
+      'Results route hides disclosure or interpretation limits.',
+      'The app loses selected study context after seed or navigation.',
+    ],
+    reviewerInstructions: [
+      'Act like an ergonomics practitioner preparing concrete client recommendations.',
+      'Complain when the study cannot support an intervention discussion.',
+      'Treat hidden limitation copy as serious because workplace recommendations can be misused.',
+      'Do not complain only because the product avoids clinical claims; complain when practical guidance is missing.',
+    ],
+  },
 };
 
 export function getGoalPersonaProfile(personaId: PersonaId): GoalPersonaProfile {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesWavesWorkspaceResponse } from '$lib/api/product';
+import type { CampaignSeriesWaveComparisonProofResponse } from '$lib/api/setup';
 import {
 	toSelectedSeriesGroupTrendPlan,
+	toSelectedSeriesWaveScoreMethodReview,
 	toSelectedSeriesWaveComparisonReview,
 	toSelectedSeriesWavePlan,
 	toSelectedSeriesWavesPath,
@@ -23,19 +25,19 @@ describe('selected-series waves workflow model', () => {
 		);
 	});
 
-	it('maps a one-wave study into next-wave setup guidance', () => {
+	it('maps a one-wave study into review-first next-wave guidance', () => {
 		const plan = toSelectedSeriesWavePlan(oneWaveWorkspace);
 
 		expect(plan).toMatchObject({
-			title: 'Create Wave 2',
-			primaryLabel: 'Set up Wave 2',
-			primaryHref: '/app/campaign-series/series-id/setup',
-			secondaryLabel: 'Review Wave 1 results',
-			secondaryHref: '/app/campaign-series/series-id/reports',
+			title: 'Review Wave 1 before planning Wave 2',
+			primaryLabel: 'Review Wave 1 results',
+			primaryHref: '/app/campaign-series/series-id/reports',
+			secondaryLabel: 'Plan Wave 2 later',
+			secondaryHref: '/app/campaign-series/series-id/setup',
 			status: 'pending'
 		});
 		expect(plan.guidance).toContain(
-			'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.'
+			'Review or export Wave 1 before using Setup to create Wave 2.'
 		);
 	});
 
@@ -62,7 +64,7 @@ describe('selected-series waves workflow model', () => {
 			title: 'Review Wave 1 and Wave 2',
 			primaryLabel: 'Review group trend',
 			primaryHref: '/app/campaign-series/series-id/reports',
-			secondaryLabel: 'Set up Wave 3',
+			secondaryLabel: 'Plan Wave 3 later',
 			secondaryHref: '/app/campaign-series/series-id/setup',
 			status: 'ready'
 		});
@@ -71,6 +73,9 @@ describe('selected-series waves workflow model', () => {
 		);
 		expect(plan.guidance).toContain(
 			'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.'
+		);
+		expect(plan.guidance).toContain(
+			'Review or export Wave 1 and Wave 2 before using Setup to create Wave 3.'
 		);
 	});
 
@@ -100,7 +105,7 @@ describe('selected-series waves workflow model', () => {
 			expect.objectContaining({
 				id: 'wave_sequence',
 				status: 'pending',
-				summary: 'Wave 2 is the next study round'
+				summary: 'Only Wave 1 exists'
 			})
 		);
 		expect(review.items).toContainEqual(
@@ -294,6 +299,11 @@ describe('selected-series waves workflow model', () => {
 	it('keeps the waves path current task on blocked linked trajectory check without enough waves', () => {
 		const path = toSelectedSeriesWavesPath(emptyWorkspace);
 
+		expect(path.showWorkflow).toBe(false);
+		expect(path.mode).toBe('setup');
+		expect(path.inactiveReason).toBe(
+			'Create and collect the first waves before linked-change checks apply.'
+		);
 		expect(path.currentActionId).toBe('twoWaveProof');
 		expect(path.completedCount).toBe(0);
 		expect(path.steps).toEqual([
@@ -302,6 +312,93 @@ describe('selected-series waves workflow model', () => {
 		]);
 		expect(path.currentAction.disabledReason).toBe(
 			'Add at least two repeated waves before comparing change over time.'
+		);
+	});
+
+	it('does not show linked-change workflow tasks for a one-wave setup state', () => {
+		const path = toSelectedSeriesWavesPath(oneWaveWorkspace);
+
+		expect(path.showWorkflow).toBe(false);
+		expect(path.mode).toBe('setup');
+		expect(path.inactiveReason).toBe(
+			'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.'
+		);
+	});
+
+	it('does not show blocked linked-change tasks when aggregate group trend is already the valid review path', () => {
+		const path = toSelectedSeriesWavesPath(twoAnonymousClosedWorkspace);
+
+		expect(path.showWorkflow).toBe(false);
+		expect(path.mode).toBe('group_trend');
+		expect(path.inactiveReason).toBe(
+			'This study supports aggregate group trend only. Linked-change checks are not required and would be misleading here.'
+		);
+	});
+
+	it('shows linked-change workflow tasks only for repeated-wave comparison studies', () => {
+		const path = toSelectedSeriesWavesPath(comparisonReadyWorkspace);
+
+		expect(path.showWorkflow).toBe(true);
+		expect(path.mode).toBe('linked_change');
+		expect(path.inactiveReason).toBeNull();
+	});
+
+	it('summarizes wave scoring method before comparison proof exposes output rows', () => {
+		const method = toSelectedSeriesWaveScoreMethodReview(comparisonReadyWorkspace);
+
+		expect(method).toMatchObject({
+			title: 'What is being compared?',
+			status: 'pending'
+		});
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'scoring_rules',
+				status: 'ready',
+				summary: 'Wave 1 and Wave 2 use burnout.total 1.0.0'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'comparison_method',
+				status: 'ready',
+				summary: '6 linked pairs, 1 visible comparison score'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'outputs',
+				status: 'pending',
+				summary: 'Compared output names available after reviewing linked change'
+			})
+		);
+	});
+
+	it('summarizes compared score outputs and missingness after comparison proof', () => {
+		const method = toSelectedSeriesWaveScoreMethodReview(
+			comparisonReadyWorkspace,
+			waveComparisonProof
+		);
+
+		expect(method).toMatchObject({
+			title: 'What is being compared?',
+			status: 'pending'
+		});
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'outputs',
+				status: 'ready',
+				summary: '1 compared output: burnout_total'
+			})
+		);
+		expect(method.items.find((item) => item.id === 'missingness')?.detail).toContain(
+			'burnout_total baseline used 5 of 6 expected answer contributions'
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'interpretation_boundary',
+				status: 'pending',
+				summary: 'Custom-study change, not a benchmark'
+			})
 		);
 	});
 });
@@ -452,4 +549,64 @@ const twoAnonymousClosedWorkspace: CampaignSeriesWavesWorkspaceResponse = {
 		missingPrerequisiteCount: 0
 	},
 	waves: [anonymousWave1, anonymousWave2]
+};
+
+const waveComparisonProof: CampaignSeriesWaveComparisonProofResponse = {
+	campaignSeriesId: 'series-id',
+	proofStatus: 'proof_only',
+	interpretationStatus: 'not_validated_interpretation',
+	baselineWave: {
+		campaignId: 'baseline-wave-id',
+		name: 'Wave 1',
+		status: 'closed',
+		responseIdentityMode: 'anonymous_longitudinal',
+		launchedAt: '2026-05-05T08:30:00Z',
+		scoringRuleId: 'scoring-rule-id',
+		scoringRuleKey: 'burnout.total',
+		scoringRuleVersion: '1.0.0',
+		scoringRuleDocumentHash: 'hash',
+		submittedResponseCount: 6
+	},
+	comparisonWave: {
+		campaignId: 'comparison-wave-id',
+		name: 'Wave 2',
+		status: 'closed',
+		responseIdentityMode: 'anonymous_longitudinal',
+		launchedAt: '2026-05-12T08:30:00Z',
+		scoringRuleId: 'scoring-rule-id',
+		scoringRuleKey: 'burnout.total',
+		scoringRuleVersion: '1.0.0',
+		scoringRuleDocumentHash: 'hash',
+		submittedResponseCount: 6
+	},
+	disclosurePolicy: {
+		id: 'disclosure-id',
+		version: '1.0.0',
+		kMin: 5,
+		suppressionStrategy: 'suppress_small_groups'
+	},
+	scores: [
+		{
+			dimensionCode: 'burnout_total',
+			compatibilityStatus: 'compatible',
+			disclosure: 'visible',
+			baselineSubmittedResponseCount: 6,
+			comparisonSubmittedResponseCount: 6,
+			linkedPairCount: 6,
+			baselineScoreCount: 5,
+			comparisonScoreCount: 6,
+			baselineNValidTotal: 5,
+			baselineNExpectedTotal: 6,
+			baselineMissingPolicyStatusSummary: 'partial',
+			comparisonNValidTotal: 6,
+			comparisonNExpectedTotal: 6,
+			comparisonMissingPolicyStatusSummary: 'complete',
+			baselineMean: 6.1,
+			comparisonMean: 5.2,
+			aggregateDelta: -0.9,
+			pairedDeltaMean: -0.8,
+			suppressionReason: null,
+			compatibilityReason: null
+		}
+	]
 };

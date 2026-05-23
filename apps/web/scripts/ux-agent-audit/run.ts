@@ -23,6 +23,10 @@ import {
 import { hasFixedMissionExecutor } from './mission-executor.ts';
 import { missions } from './missions.ts';
 import { validatePersonaActionHttpUrl } from './persona-action-http-provider.ts';
+import {
+  seedPersonaDemoWorkspace,
+  type PersonaDemoSeedOptions,
+} from './persona-demo-accounts.ts';
 import { personas } from './personas.ts';
 import { writeNormalizedReviewReport } from './report.ts';
 import {
@@ -91,6 +95,12 @@ export interface FullstackCleanupRunnerOptions {
   timeoutMs: number;
 }
 
+export interface PersonaDemoSeedRunnerOptions {
+  apiBaseUrl: string;
+  outputRoot: string;
+  fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+}
+
 const allowedFlags = new Set([
   '--base-url',
   '--capture-mode',
@@ -145,6 +155,15 @@ const fullstackCleanupAllowedFlags = new Set([
   '--fullstack-email',
   '--fullstack-permissions',
   '--timeout-ms',
+]);
+const personaDemoSeedAllowedFlags = new Set([
+  '--api-base-url',
+  '--fullstack-dev-auth',
+  '--fullstack-tenant-id',
+  '--fullstack-user-id',
+  '--fullstack-email',
+  '--fullstack-permissions',
+  '--output',
 ]);
 const allowedViewports = new Set<ViewportPreset>(['desktop', 'tablet', 'mobile']);
 const allowedCaptureModes = new Set<CaptureMode>(['safe', 'local-full']);
@@ -377,6 +396,20 @@ export function parseFullstackCleanupOptions(
   };
 }
 
+export function parsePersonaDemoSeedOptions(
+  args: string[]
+): PersonaDemoSeedRunnerOptions {
+  const values = parseFlagValues(args, personaDemoSeedAllowedFlags);
+  const apiBaseUrl = values.get('--api-base-url') ?? defaultApiBaseUrl;
+  validateUrl(apiBaseUrl);
+
+  return {
+    apiBaseUrl,
+    outputRoot: values.get('--output') ?? '../../artifacts/ux-agent-runs/persona-demo-workspaces',
+    fullstackDevAuth: parseFullstackDevAuthOptions(values),
+  };
+}
+
 export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
   const mission = resolveAutonomousMissionForDataMode(
     options.missionFilter,
@@ -494,8 +527,20 @@ export async function runFullstackCleanupCommand(options: FullstackCleanupRunner
   return await cleanupFullstackSyntheticStudies(options satisfies FullstackCleanupOptions);
 }
 
+export async function runPersonaDemoSeedCommand(options: PersonaDemoSeedRunnerOptions) {
+  return await seedPersonaDemoWorkspace(options satisfies PersonaDemoSeedOptions);
+}
+
 async function main() {
   const args = process.argv.slice(2);
+  if (args[0] === 'persona-demo-seed') {
+    const result = await runPersonaDemoSeedCommand(
+      parsePersonaDemoSeedOptions(args.slice(1))
+    );
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
   if (args[0] === 'fullstack-cleanup') {
     const result = await runFullstackCleanupCommand(
       parseFullstackCleanupOptions(args.slice(1))

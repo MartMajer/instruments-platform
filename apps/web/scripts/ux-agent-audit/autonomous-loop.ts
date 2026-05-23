@@ -294,7 +294,8 @@ export function buildScriptedFixturePersonaActor(
         const createStudyAction = decideCreateStudyMutation(
           mission.mutationPlan,
           currentPath,
-          context.steps
+          context.steps,
+          context.currentSnapshot
         );
         if (createStudyAction) {
           return createStudyAction;
@@ -332,11 +333,12 @@ export function buildScriptedFixturePersonaActor(
 function decideCreateStudyMutation(
   plan: NonNullable<AutonomousFixtureMission['mutationPlan']>,
   currentPath: string,
-  steps: MissionEvidenceStep[]
+  steps: MissionEvidenceStep[],
+  snapshot: MissionPageSnapshot
 ): UXAgentAction | undefined {
   if (isCreatedStudySetupPath(currentPath)) {
     if (plan.setupInstrument) {
-      return decideSetupInstrumentMutation(plan.setupInstrument, steps);
+      return decideSetupInstrumentMutation(plan.setupInstrument, steps, snapshot);
     }
 
     return {
@@ -368,13 +370,19 @@ function decideCreateStudyMutation(
     };
   }
 
-  const clickedCreateStudy = steps.some(
-    (step) => step.action === `Clicked visible button "${plan.buttonText}".`
+  const createStudyButtonCandidates = candidateCreateStudyButtons(plan);
+  const clickedCreateStudy = steps.some((step) =>
+    createStudyButtonCandidates.some(
+      (buttonText) => step.action === `Clicked visible button "${buttonText}".`
+    )
   );
   if (!clickedCreateStudy) {
+    const visibleButtonText =
+      resolveVisibleCreateStudyButtonText(snapshot, createStudyButtonCandidates) ?? plan.buttonText;
+
     return {
       kind: 'click-button',
-      text: plan.buttonText,
+      text: visibleButtonText,
       reason: 'create the synthetic local full-stack study',
     };
   }
@@ -392,19 +400,80 @@ function decideCreateStudyMutation(
   };
 }
 
+function candidateCreateStudyButtons(
+  plan: NonNullable<AutonomousFixtureMission['mutationPlan']>
+) {
+  return uniqueTextCandidates([
+    plan.buttonText,
+    ...(plan.buttonTextAlternatives ?? []),
+    'Continue to guided setup',
+  ]);
+}
+
+function resolveVisibleCreateStudyButtonText(
+  snapshot: MissionPageSnapshot,
+  candidates: string[]
+) {
+  const candidateSet = new Set(candidates.map((candidate) => normalizeForMatching(candidate)));
+  const richButtons = snapshot.richTranscript?.buttons ?? [];
+
+  for (const button of richButtons) {
+    if (button.disabled) {
+      continue;
+    }
+
+    if (candidateSet.has(normalizeForMatching(button.text))) {
+      return button.text;
+    }
+  }
+
+  for (const buttonText of snapshot.buttons) {
+    if (candidateSet.has(normalizeForMatching(buttonText))) {
+      return buttonText;
+    }
+  }
+
+  return undefined;
+}
+
+function uniqueTextCandidates(candidates: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const candidate of candidates) {
+    const trimmed = candidate.trim();
+    const key = normalizeForMatching(trimmed);
+    if (!trimmed || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(trimmed);
+  }
+
+  return result;
+}
+
 function decideSetupInstrumentMutation(
   setupInstrument: NonNullable<
     NonNullable<AutonomousFixtureMission['mutationPlan']>['setupInstrument']
   >,
-  steps: MissionEvidenceStep[]
+  steps: MissionEvidenceStep[],
+  snapshot: MissionPageSnapshot
 ): UXAgentAction {
-  const filledInstrumentName = steps.some(
-    (step) => step.action === `Filled visible field "${setupInstrument.fieldLabel}".`
+  const fieldLabelCandidates = candidateSetupInstrumentFieldLabels(setupInstrument);
+  const filledInstrumentName = steps.some((step) =>
+    fieldLabelCandidates.some(
+      (fieldLabel) => step.action === `Filled visible field "${fieldLabel}".`
+    )
   );
   if (!filledInstrumentName) {
+    const visibleFieldLabel =
+      resolveVisibleFieldLabel(snapshot, fieldLabelCandidates) ?? setupInstrument.fieldLabel;
+
     return {
       kind: 'fill',
-      label: setupInstrument.fieldLabel,
+      label: visibleFieldLabel,
       value: setupInstrument.value,
       reason: 'name the realistic local instrument',
     };
@@ -424,13 +493,19 @@ function decideSetupInstrumentMutation(
     }
   }
 
-  const clickedSaveInstrument = steps.some(
-    (step) => step.action === `Clicked visible button "${setupInstrument.buttonText}".`
+  const buttonCandidates = candidateSetupInstrumentButtons(setupInstrument);
+  const clickedSaveInstrument = steps.some((step) =>
+    buttonCandidates.some(
+      (buttonText) => step.action === `Clicked visible button "${buttonText}".`
+    )
   );
   if (!clickedSaveInstrument) {
+    const visibleButtonText =
+      resolveVisibleCreateStudyButtonText(snapshot, buttonCandidates) ?? setupInstrument.buttonText;
+
     return {
       kind: 'click-button',
-      text: setupInstrument.buttonText,
+      text: visibleButtonText,
       reason: 'save the realistic local instrument setup',
     };
   }
@@ -439,6 +514,42 @@ function decideSetupInstrumentMutation(
     kind: 'stop',
     reason: 'created realistic study and saved instrument setup.',
   };
+}
+
+function candidateSetupInstrumentFieldLabels(
+  setupInstrument: NonNullable<
+    NonNullable<AutonomousFixtureMission['mutationPlan']>['setupInstrument']
+  >
+) {
+  return uniqueTextCandidates([
+    setupInstrument.fieldLabel,
+    ...(setupInstrument.fieldLabelAlternatives ?? []),
+    'Study source name',
+  ]);
+}
+
+function candidateSetupInstrumentButtons(
+  setupInstrument: NonNullable<
+    NonNullable<AutonomousFixtureMission['mutationPlan']>['setupInstrument']
+  >
+) {
+  return uniqueTextCandidates([
+    setupInstrument.buttonText,
+    ...(setupInstrument.buttonTextAlternatives ?? []),
+    'Save study source',
+  ]);
+}
+
+function resolveVisibleFieldLabel(snapshot: MissionPageSnapshot, candidates: string[]) {
+  const candidateSet = new Set(candidates.map((candidate) => normalizeForMatching(candidate)));
+
+  for (const field of snapshot.richTranscript?.fields ?? []) {
+    if (candidateSet.has(normalizeForMatching(field.label))) {
+      return field.label;
+    }
+  }
+
+  return undefined;
 }
 
 function isCreatedStudySetupPath(path: string) {

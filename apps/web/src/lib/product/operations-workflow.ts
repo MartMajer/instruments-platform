@@ -379,11 +379,6 @@ export function toSelectedSeriesCollectionStatusSummary(
 		workspace.summary.sentInvitationCount +
 		workspace.summary.failedInvitationCount +
 		(workspace.summary.bouncedInvitationCount ?? 0);
-	const providerEventCount =
-		(workspace.summary.providerAcceptedEventCount ?? 0) +
-		(workspace.summary.providerDeliveredEventCount ?? 0) +
-		(workspace.summary.providerBouncedEventCount ?? 0) +
-		(workspace.summary.providerComplainedEventCount ?? 0);
 	const openLinks = workspace.summary.openLinkAssignmentCount;
 	const hasRespondentAccess = Boolean(localState.openLinkCreated || preparedInvitations || openLinks);
 	const hasResponseActivity = Boolean(started || drafts || submitted);
@@ -440,15 +435,18 @@ export function toSelectedSeriesCollectionStatusSummary(
 		? {
 				id: 'audience',
 				label: 'Access',
-				title: 'Recipient access prepared',
+				title: audienceAccessTitle(
+					selectedCampaign.responseIdentityMode,
+					openLinks,
+					preparedInvitations
+				),
 				status: 'ready',
-				detail: `${formatCount(openLinks)} respondent link${openLinks === 1 ? '' : 's'} and ${formatCount(preparedInvitations)} prepared invitation${preparedInvitations === 1 ? '' : 's'}. ${
-					providerEventCount > 0
-						? `Provider reported ${formatCount(providerEventCount)} delivery event${providerEventCount === 1 ? '' : 's'}.`
-						: workspace.summary.sentInvitationCount > 0
-							? 'Provider delivery events have not been reconciled yet.'
-							: 'Provider events appear after sent email invitations are reconciled.'
-				} Anonymous reports keep respondent identity out of results.`
+				detail: audienceAccessDetail(
+					selectedCampaign.responseIdentityMode,
+					openLinks,
+					preparedInvitations,
+					localState.openLinkCreated
+				)
 			}
 		: launched
 			? {
@@ -623,4 +621,81 @@ function toReportingStatus(
 	}
 
 	return 'pending';
+}
+
+function audienceAccessTitle(
+	responseIdentityMode: string | null | undefined,
+	openLinkCount: number,
+	invitationCount: number
+) {
+	if (responseIdentityMode === 'identified') {
+		return 'Identified access prepared';
+	}
+
+	if (invitationCount > 0 && openLinkCount === 0) {
+		return 'Invite-only access prepared';
+	}
+
+	if (openLinkCount > 0 && invitationCount === 0) {
+		return 'Open-link access prepared';
+	}
+
+	return 'Recipient access prepared';
+}
+
+function audienceAccessDetail(
+	responseIdentityMode: string | null | undefined,
+	openLinkCount: number,
+	invitationCount: number,
+	openLinkCreated: boolean | undefined
+) {
+	const effectiveOpenLinkCount = openLinkCount || (openLinkCreated ? 1 : 0);
+
+	if (responseIdentityMode === 'identified') {
+		return `${formatCount(effectiveOpenLinkCount)} identified access link${
+			effectiveOpenLinkCount === 1 ? '' : 's'
+		} prepared. Respondents are connected to known subject records for this wave.`;
+	}
+
+	if (invitationCount > 0 && effectiveOpenLinkCount === 0) {
+		return `${formatCount(invitationCount)} saved email invitation${
+			invitationCount === 1 ? ' is' : 's are'
+		} ready for this wave. Only saved recipients receive private access, and ${anonymousResultBoundary(
+			responseIdentityMode
+		)}`;
+	}
+
+	if (effectiveOpenLinkCount > 0 && invitationCount > 0) {
+		return `${formatCount(effectiveOpenLinkCount)} open respondent link${
+			effectiveOpenLinkCount === 1 ? '' : 's'
+		} and ${formatCount(invitationCount)} saved email invitation${
+			invitationCount === 1 ? '' : 's'
+		}. Open-link access is broad; invite-only email access limits entry to saved recipients. ${anonymousResultBoundary(
+			responseIdentityMode,
+			true
+		)}`;
+	}
+
+	if (effectiveOpenLinkCount > 0) {
+		return `${formatCount(effectiveOpenLinkCount)} open respondent link${
+			effectiveOpenLinkCount === 1 ? ' is' : 's are'
+		} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`;
+	}
+
+	return 'Create a respondent link or saved email invitations before expecting responses.';
+}
+
+function anonymousResultBoundary(
+	responseIdentityMode: string | null | undefined,
+	startSentence = false
+) {
+	if (responseIdentityMode === 'anonymous_longitudinal') {
+		return startSentence
+			? 'Repeat-participation comparison uses participant codes; email recipient lists are not shown in results.'
+			: 'repeat-participation results use participant codes instead of showing who answered.';
+	}
+
+	return startSentence
+		? 'Anonymous reports still keep respondent identity out of results.'
+		: 'anonymous reports still do not show who answered.';
 }

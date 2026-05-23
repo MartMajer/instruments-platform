@@ -1722,3 +1722,308 @@ function scoreCode(label: string): string {
 		.replace(/^_+|_+$/g, '');
 	return normalized || 'total';
 }
+
+export type DraftRespondentRuntimeControl =
+	| 'rating'
+	| 'radio'
+	| 'checkbox'
+	| 'ranking'
+	| 'number'
+	| 'date'
+	| 'text'
+	| 'unsupported';
+
+export type DraftRespondentPreviewChoice = {
+	value: string;
+	text: string;
+};
+
+export type DraftRespondentPreviewQuestion = {
+	ordinal: number;
+	code: string;
+	positionLabel: string;
+	dimensionLabel: string;
+	text: string;
+	required: boolean;
+	requiredLabel: string;
+	controlType: DraftRespondentRuntimeControl;
+	runtimeElementType: string;
+	inputType: string | null;
+	answerFormatLabel: string;
+	answerFormatDetail: string;
+	responsePreviewLabel: string;
+	choices: DraftRespondentPreviewChoice[];
+	scaleMin: number | null;
+	scaleMax: number | null;
+	scaleLowLabel: string | null;
+	scaleHighLabel: string | null;
+	scoreEligibilityLabel: string;
+	scoreDirectionLabel: string;
+	scoreDirectionDetail: string;
+	resultUsageLabel: string;
+	warnings: string[];
+};
+
+export type DraftRespondentPreviewControlSummary = {
+	label: string;
+	count: number;
+};
+
+export type DraftRespondentPreviewContract = {
+	label: string;
+	detail: string;
+	questionCount: number;
+	warningCount: number;
+	unsupportedCount: number;
+	controls: DraftRespondentPreviewControlSummary[];
+	questions: DraftRespondentPreviewQuestion[];
+};
+
+export function toDraftRespondentPreviewContract(
+	rows: TemplateQuestionAuthoringRow[],
+	scoreOutputs: ScoreOutputAuthoringRow[]
+): DraftRespondentPreviewContract {
+	const questions = rows
+		.slice()
+		.sort((left, right) => left.ordinal - right.ordinal)
+		.map((row, index) => toDraftRespondentPreviewQuestion(row, index, scoreOutputs));
+	const warningCount = questions.reduce((sum, question) => sum + question.warnings.length, 0);
+	const unsupportedCount = questions.filter((question) => question.controlType === 'unsupported').length;
+	const controls = Array.from(
+		questions.reduce((map, question) => {
+			const current = map.get(question.answerFormatLabel) ?? 0;
+			map.set(question.answerFormatLabel, current + 1);
+			return map;
+		}, new Map<string, number>())
+	).map(([label, count]) => ({ label, count }));
+
+	return {
+		label:
+			unsupportedCount > 0
+				? 'Some questions cannot be previewed'
+				: warningCount > 0
+					? 'Runtime preview needs review'
+					: 'Runtime preview ready',
+		detail:
+			unsupportedCount > 0
+				? 'At least one draft question uses a format the respondent runtime cannot render safely.'
+				: warningCount > 0
+					? 'The respondent controls can be rendered, but some answer-format limitations should be reviewed before launch.'
+					: 'Every draft question maps to a respondent control supported by the current runtime.',
+		questionCount: questions.length,
+		warningCount,
+		unsupportedCount,
+		controls,
+		questions
+	};
+}
+
+function toDraftRespondentPreviewQuestion(
+	question: TemplateQuestionAuthoringRow,
+	index: number,
+	scoreOutputs: ScoreOutputAuthoringRow[]
+): DraftRespondentPreviewQuestion {
+	const runtime = draftRuntimeControl(question);
+	const scoringDirection = describeQuestionScoringDirection(question);
+	const warnings = draftRuntimeWarnings(question, runtime.controlType);
+
+	return {
+		ordinal: question.ordinal,
+		code: question.code,
+		positionLabel: `Question ${index + 1}`,
+		dimensionLabel: question.dimensionLabel.trim() || 'No dimension',
+		text: question.textDefault.trim() || 'Untitled question',
+		required: question.required,
+		requiredLabel: question.required ? 'Required' : 'Optional',
+		controlType: runtime.controlType,
+		runtimeElementType: runtime.runtimeElementType,
+		inputType: runtime.inputType,
+		answerFormatLabel: runtime.answerFormatLabel,
+		answerFormatDetail: runtime.answerFormatDetail,
+		responsePreviewLabel: runtime.responsePreviewLabel,
+		choices: draftRuntimeChoices(question),
+		scaleMin: runtime.scaleMin,
+		scaleMax: runtime.scaleMax,
+		scaleLowLabel: runtime.scaleLowLabel,
+		scaleHighLabel: runtime.scaleHighLabel,
+		scoreEligibilityLabel: isMeanScoreEligible(question)
+			? 'Available for result scores'
+			: 'Collected for context/export only',
+		scoreDirectionLabel: scoringDirection.label,
+		scoreDirectionDetail: scoringDirection.detail,
+		resultUsageLabel: describeQuestionResultUsage(question, scoreOutputs),
+		warnings
+	};
+}
+
+function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
+	if (question.type === 'likert' || question.type === 'nps') {
+		return {
+			controlType: 'rating' as const,
+			runtimeElementType: 'rating',
+			inputType: null,
+			answerFormatLabel: question.type === 'nps' ? '0-10 rating' : 'Rating scale',
+			answerFormatDetail: `Respondents choose one value from ${question.scaleMin} to ${question.scaleMax}.`,
+			responsePreviewLabel: 'SurveyJS rating control',
+			scaleMin: question.scaleMin,
+			scaleMax: question.scaleMax,
+			scaleLowLabel: question.scaleLowLabel,
+			scaleHighLabel: question.scaleHighLabel
+		};
+	}
+
+	if (question.type === 'single') {
+		return {
+			controlType: 'radio' as const,
+			runtimeElementType: 'radiogroup',
+			inputType: null,
+			answerFormatLabel: 'Single choice',
+			answerFormatDetail: 'Respondents choose one option. The stored answer is the selected option code.',
+			responsePreviewLabel: 'SurveyJS radio group',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'multi') {
+		return {
+			controlType: 'checkbox' as const,
+			runtimeElementType: 'checkbox',
+			inputType: null,
+			answerFormatLabel: 'Multiple choice',
+			answerFormatDetail: 'Respondents can choose multiple options. The stored answer is an array of option codes.',
+			responsePreviewLabel: 'SurveyJS checkbox group',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'ranking') {
+		return {
+			controlType: 'ranking' as const,
+			runtimeElementType: 'ranking',
+			inputType: null,
+			answerFormatLabel: 'Ranking',
+			answerFormatDetail: 'Respondents order the options. The stored answer is an ordered array of option codes.',
+			responsePreviewLabel: 'SurveyJS ranking control',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'number') {
+		return {
+			controlType: 'number' as const,
+			runtimeElementType: 'text',
+			inputType: 'number',
+			answerFormatLabel: 'Number input',
+			answerFormatDetail: 'Respondents enter a number. Min, max, unit, and decimal constraints are not modeled yet.',
+			responsePreviewLabel: 'SurveyJS text control with number input',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'date') {
+		return {
+			controlType: 'date' as const,
+			runtimeElementType: 'text',
+			inputType: 'date',
+			answerFormatLabel: 'Date input',
+			answerFormatDetail: 'Respondents enter a date. Earliest/latest date constraints are not modeled yet.',
+			responsePreviewLabel: 'SurveyJS text control with date input',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	if (question.type === 'text') {
+		return {
+			controlType: 'text' as const,
+			runtimeElementType: 'text',
+			inputType: null,
+			answerFormatLabel: 'Text input',
+			answerFormatDetail: 'Respondents enter free text. Long text and max length are not modeled yet.',
+			responsePreviewLabel: 'SurveyJS text control',
+			scaleMin: null,
+			scaleMax: null,
+			scaleLowLabel: null,
+			scaleHighLabel: null
+		};
+	}
+
+	return {
+		controlType: 'unsupported' as const,
+		runtimeElementType: 'unsupported',
+		inputType: null,
+		answerFormatLabel: 'Unsupported format',
+		answerFormatDetail: 'This draft question does not map to a supported respondent control.',
+		responsePreviewLabel: 'Unsupported by current respondent runtime',
+		scaleMin: null,
+		scaleMax: null,
+		scaleLowLabel: null,
+		scaleHighLabel: null
+	};
+}
+
+function draftRuntimeChoices(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+	if (question.type !== 'single' && question.type !== 'multi' && question.type !== 'ranking') {
+		return [];
+	}
+
+	return question.choiceOptions.map((option, index) => ({
+		value: `o${String(index + 1).padStart(2, '0')}`,
+		text: option.trim() || `Option ${index + 1}`
+	}));
+}
+
+function draftRuntimeWarnings(
+	question: TemplateQuestionAuthoringRow,
+	controlType: DraftRespondentRuntimeControl
+): string[] {
+	const warnings: string[] = [];
+
+	if (!question.textDefault.trim()) {
+		warnings.push('Question text is empty; respondents will see an untitled question.');
+	}
+
+	if (controlType === 'unsupported') {
+		warnings.push('This answer format cannot be rendered by the current respondent runtime.');
+	}
+
+	if ((question.type === 'likert' || question.type === 'nps') && question.scaleMin >= question.scaleMax) {
+		warnings.push('Rating scale minimum must be lower than the maximum.');
+	}
+
+	if ((question.type === 'likert' || question.type === 'nps') && (!question.scaleLowLabel.trim() || !question.scaleHighLabel.trim())) {
+		warnings.push('Rating endpoint labels should be visible before respondents answer.');
+	}
+
+	if ((question.type === 'single' || question.type === 'multi' || question.type === 'ranking') && question.choiceOptions.length < 2) {
+		warnings.push('Choice and ranking questions need at least two options.');
+	}
+
+	if (question.type === 'number') {
+		warnings.push('Number input has no min, max, unit, or decimal constraint yet.');
+	}
+
+	if (question.type === 'date') {
+		warnings.push('Date input has no earliest/latest date constraint yet.');
+	}
+
+	if (question.type === 'text') {
+		warnings.push('Text input has no long-text or max-length setting yet.');
+	}
+
+	return warnings;
+}

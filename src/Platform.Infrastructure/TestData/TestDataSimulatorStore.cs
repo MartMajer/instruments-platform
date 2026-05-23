@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.Scoring;
@@ -67,7 +68,7 @@ public sealed class TestDataSimulatorStore(
         var normalizedDomain = NormalizeTestEmailDomain(request.EmailDomain);
         var groupName = NormalizeGroupName(request.GroupName);
         var groupId = PlatformIds.NewId();
-        var batchCode = campaign.Id.ToString("N")[..8];
+        var batchCode = campaign.Id.ToString("N");
         var attributes = JsonSerializer.Serialize(new
         {
             simulated_test_data = true,
@@ -177,14 +178,6 @@ public sealed class TestDataSimulatorStore(
                     "Start collection before simulating submitted responses."));
         }
 
-        if (campaign.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal)
-        {
-            return Result.Failure<CreateCampaignTestResponsesResponse>(
-                Error.Conflict(
-                    "test_data.linked_anonymous_not_supported",
-                    "Synthetic linked anonymous longitudinal responses need participant-code simulation before they can be generated safely."));
-        }
-
         var snapshot = await db.CampaignLaunchSnapshots
             .AsNoTracking()
             .Where(entity => entity.CampaignId == campaign.Id)
@@ -257,6 +250,16 @@ public sealed class TestDataSimulatorStore(
         }
 
         var now = DateTimeOffset.UtcNow;
+        var campaignSeriesId = campaign.CampaignSeriesId ?? campaign.WorkspaceId;
+        if (campaign.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal &&
+            !campaignSeriesId.HasValue)
+        {
+            return Result.Failure<CreateCampaignTestResponsesResponse>(
+                Error.Conflict(
+                    "test_data.campaign_series_required",
+                    "Linked anonymous test responses require a campaign series."));
+        }
+
         var submittedResponseCount = 0;
         var answerCount = 0;
         var scoredResponseCount = 0;
@@ -265,11 +268,20 @@ public sealed class TestDataSimulatorStore(
         for (var index = 0; index < candidates.Length; index++)
         {
             var assignment = candidates[index];
+            var participantCodeId = campaign.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal
+                ? await ResolveOrCreateSimulatedParticipantCodeAsync(
+                    tenantId,
+                    campaignSeriesId!.Value,
+                    index,
+                    now,
+                    cancellationToken)
+                : (Guid?)null;
             var session = new ResponseSession(
                 PlatformIds.NewId(),
                 tenantId,
                 assignment.Id,
                 campaign.DefaultLocale,
+                participantCodeId,
                 startedAt: now.AddMinutes(-10).AddSeconds(index * 9),
                 publicHandleHash: reusableOpenLinkAssignment ? $"simulated-{campaign.Id:N}-{index + 1:0000}" : null,
                 publicHandleIssuedAt: reusableOpenLinkAssignment ? now : null);
@@ -334,6 +346,45 @@ public sealed class TestDataSimulatorStore(
             markedEmailSentCount,
             request.TargetOutcome,
             request.Variation));
+    }
+
+    private async Task<Guid> ResolveOrCreateSimulatedParticipantCodeAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        int respondentIndex,
+        DateTimeOffset seenAt,
+        CancellationToken cancellationToken)
+    {
+        var hash = SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(
+                $"test-data-tool:{tenantId:N}:{campaignSeriesId:N}:{respondentIndex + 1:0000}"));
+        var existingCodes = await db.ParticipantCodes
+            .Where(code =>
+                code.TenantId == tenantId &&
+                code.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken);
+        var existing = existingCodes.SingleOrDefault(code => code.Hash.SequenceEqual(hash));
+        if (existing is not null)
+        {
+            existing.SeenAgain(seenAt);
+            await db.SaveChangesAsync(cancellationToken);
+            return existing.Id;
+        }
+
+        var participantCode = new ParticipantCode(
+            PlatformIds.NewId(),
+            tenantId,
+            campaignSeriesId,
+            hash,
+            ParticipantCode.MinimumArgon2MemoryKiB,
+            ParticipantCode.MinimumArgon2Iterations,
+            ParticipantCode.MinimumArgon2Parallelism,
+            ParticipantCode.MinimumArgon2OutputBytes,
+            seenAt);
+        db.ParticipantCodes.Add(participantCode);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return participantCode.Id;
     }
 
     private async Task<IReadOnlyList<TestDataSimulatorQuestion>> LoadQuestionsAsync(

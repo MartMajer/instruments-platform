@@ -376,6 +376,42 @@ describe('autonomous UX persona loop', () => {
     ]);
   });
 
+  it('uses the current guided setup button for create-study intent when UI wording changed', async () => {
+    const mission = missionFixture({
+      id: 'fullstack-create-study',
+      supportedDataModes: ['fullstack'],
+      targetProductPaths: ['/app/campaign-series'],
+      maxSteps: 6,
+      mutationPlan: {
+        kind: 'create-study',
+        fieldLabel: 'Study name',
+        buttonText: 'Create study',
+        studyNamePrefix: 'UXA full-stack mutation',
+      },
+    });
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Studies Plan studies', '/app/campaign-series'),
+      createStudySnapshot('Continue to guided setup'),
+      pageSnapshot(
+        '/app/campaign-series/33333333-3333-4333-8333-333333333333/setup',
+        'Study setup',
+        'Study setup Current setup step Instrument'
+      ),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.steps.map((step) => step.action)).toContain(
+      'Clicked visible button "Continue to guided setup".'
+    );
+    expect(result.personaFindings).toEqual([]);
+  });
+
   it('creates a realistic OSH study and saves the instrument setup through visible controls', async () => {
     const realisticCase = getRealisticAuditCase('osh-warehouse-workload-recovery-pulse');
     if (!realisticCase) {
@@ -445,6 +481,57 @@ describe('autonomous UX persona loop', () => {
     expect(result.reviewerOutput).toContain('"realisticCase"');
     expect(result.reviewerOutput).toContain('"realisticResponseSimulation"');
     expect(result.reviewerOutput).toContain('Warehouse workload and recovery pulse');
+  });
+
+  it('uses current study-source labels for the first setup action when instrument wording changed', async () => {
+    const realisticCase = getRealisticAuditCase('osh-warehouse-workload-recovery-pulse');
+    if (!realisticCase) {
+      throw new Error('missing OSH warehouse case');
+    }
+
+    const mission = missionFixture({
+      id: 'fullstack-osh-warehouse-pulse',
+      personaId: 'osh-consultant',
+      personaProfile: getGoalPersonaProfile('osh-consultant'),
+      supportedDataModes: ['fullstack'],
+      targetProductPaths: ['/app/campaign-series'],
+      maxSteps: 8,
+      realisticCase,
+      mutationPlan: {
+        kind: 'create-study',
+        fieldLabel: 'Study name',
+        buttonText: 'Create study',
+        studyName: 'Warehouse workload and recovery pulse',
+        setupInstrument: {
+          fieldLabel: 'Instrument name',
+          value: 'Warehouse workload and recovery instrument',
+          buttonText: 'Save instrument',
+        },
+      },
+      fullstackSeedPlan: {
+        kind: 'seed-realistic-campaign-results',
+      },
+    } as Partial<AutonomousFixtureMission>);
+    const adapter = fakeAdapter([
+      cockpitSnapshot('Studies Plan studies', '/app/campaign-series'),
+      createStudySnapshot('Continue to guided setup'),
+      setupInstrumentSnapshot('Study source name', 'Save study source'),
+    ]);
+
+    const result = await runAutonomousFixtureMission(
+      adapter,
+      mission,
+      buildScriptedFixturePersonaActor(mission)
+    );
+
+    expect(result.status).toBe('completed');
+    expect(result.steps.map((step) => step.action)).toContain(
+      'Filled visible field "Study source name".'
+    );
+    expect(result.steps.map((step) => step.action)).toContain(
+      'Clicked visible button "Save study source".'
+    );
+    expect(result.personaFindings).toEqual([]);
   });
 
   it('treats rich transcript setup URL as successful create-study navigation when snapshot URL lags', async () => {
@@ -708,23 +795,23 @@ function cockpitSnapshot(linkText: string, path: string, extraVisibleText = ''):
   };
 }
 
-function createStudySnapshot(): MissionPageSnapshot {
+function createStudySnapshot(buttonText = 'Create study'): MissionPageSnapshot {
   const path = '/app/campaign-series';
 
   return {
     label: 'studies',
     title: 'Studies',
     url: `http://127.0.0.1:5174${path}`,
-    visibleTextExcerpt: 'Studies Create your study Study name Create study',
-    buttons: ['Create study'],
+    visibleTextExcerpt: `Studies Create your study Study name ${buttonText}`,
+    buttons: [buttonText],
     links: [],
     richTranscript: {
       label: 'studies',
       title: 'Studies',
       url: `http://127.0.0.1:5174${path}`,
-      visibleText: 'Studies Create your study Study name Create study',
+      visibleText: `Studies Create your study Study name ${buttonText}`,
       headings: ['Studies', 'Create your study'],
-      buttons: [{ text: 'Create study', disabled: false }],
+      buttons: [{ text: buttonText, disabled: false }],
       links: [],
       fields: [
         {
@@ -766,7 +853,10 @@ function createStudyRedirectRaceSnapshot(): MissionPageSnapshot {
   };
 }
 
-function setupInstrumentSnapshot(): MissionPageSnapshot {
+function setupInstrumentSnapshot(
+  fieldLabel = 'Instrument name',
+  buttonText = 'Save instrument'
+): MissionPageSnapshot {
   const path = '/app/campaign-series/33333333-3333-4333-8333-333333333333/setup';
 
   return {
@@ -775,7 +865,7 @@ function setupInstrumentSnapshot(): MissionPageSnapshot {
     url: `http://127.0.0.1:5174${path}`,
     visibleTextExcerpt:
       'Study setup Current setup step Instrument Instrument name Version Save instrument',
-    buttons: ['Save instrument', 'Next step'],
+    buttons: [buttonText, 'Next step'],
     links: [],
     richTranscript: {
       label: 'study-setup',
@@ -785,13 +875,13 @@ function setupInstrumentSnapshot(): MissionPageSnapshot {
         'Study setup Current setup step Instrument Instrument name Version Save instrument',
       headings: ['Study setup', 'Instrument'],
       buttons: [
-        { text: 'Save instrument', disabled: false },
+        { text: buttonText, disabled: false },
         { text: 'Next step', disabled: false },
       ],
       links: [],
       fields: [
         {
-          label: 'Instrument name',
+          label: fieldLabel,
           placeholder: 'e.g. Employee pulse',
           value: '',
           required: false,

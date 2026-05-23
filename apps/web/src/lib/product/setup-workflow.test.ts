@@ -8,6 +8,7 @@ import {
 	toSelectedSeriesSetupLaunchState,
 	toSelectedSeriesSetupPath,
 	toSelectedSeriesSetupPathStepDisplay,
+	toSelectedSeriesSetupWaveContext,
 	toSelectedSeriesSetupWorkflowActions
 } from './setup-workflow';
 
@@ -254,6 +255,57 @@ describe('selected-series setup workflow model', () => {
 				}
 			]
 		});
+	});
+
+	it('labels an editable campaign as current-wave setup instead of future-wave setup', () => {
+		const context = toSelectedSeriesSetupWaveContext(configuredWorkspace);
+
+		expect(context).toMatchObject({
+			title: 'Prepare Wave 1 for collection',
+			label: 'Current draft wave',
+			status: 'pending',
+			summary: 'Use this step to finish the current draft wave before opening Collection.'
+		});
+		expect(context.guidance).toContain(
+			'Recipient selection belongs to Wave 1 until this wave is launched.'
+		);
+	});
+
+	it('separates next-wave setup from review of a locked previous wave', () => {
+		const closedWorkspace: CampaignSeriesSetupWorkspaceResponse = {
+			...configuredWorkspace,
+			summary: {
+				campaignCount: 1,
+				liveCampaignCount: 0,
+				missingPrerequisiteCount: 0
+			},
+			selectedCampaign: {
+				...configuredWorkspace.selectedCampaign!,
+				status: 'closed',
+				latestLaunchAt: '2026-05-20T10:00:00Z'
+			},
+			campaigns: [
+				{
+					...configuredWorkspace.campaigns[0],
+					status: 'closed',
+					latestLaunchAt: '2026-05-20T10:00:00Z'
+				}
+			]
+		};
+
+		const context = toSelectedSeriesSetupWaveContext(closedWorkspace);
+
+		expect(context).toMatchObject({
+			title: 'Review Wave 1 before preparing Wave 2',
+			label: 'Future wave setup',
+			status: 'pending',
+			summary:
+				'Wave 1 is already closed. Create Wave 2 only when the next collection round is intentional.'
+		});
+		expect(context.guidance).toContain('Open Results to review or export Wave 1 before creating Wave 2.');
+		expect(context.guidance).toContain(
+			'Recipient selection in this step will belong to the new draft wave, not to Wave 1.'
+		);
 	});
 
 	it('blocks identified launch plans until recipients are saved', () => {

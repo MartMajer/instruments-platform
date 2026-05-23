@@ -227,6 +227,103 @@ const realisticAuditCases = [
         'Teaching load and research continuity risk are strongest for early-career lecturers, while administrative friction concentrates among clinical supervisors.',
     },
   },
+  {
+    id: 'office-ergonomics-hybrid-work-followup',
+    studyName: 'Office ergonomics and hybrid-work intervention follow-up',
+    instrumentName: 'Office ergonomics and hybrid-work instrument',
+    campaignName: 'Baseline office ergonomics review - May 2026',
+    waveCampaignNames: [
+      'Baseline office ergonomics review - May 2026',
+      'Follow-up office ergonomics review - June 2026',
+    ],
+    summary:
+      'Local synthetic work-ergonomics case for an office and hybrid team. The case checks whether an ergonomics practitioner can review workstation fit, task exposure, discomfort, breaks, and intervention adoption across two waves.',
+    questions: [
+      riskQuestion(
+        'workstation-chair-fit',
+        'Workstation fit',
+        'My chair setup makes it difficult to keep a comfortable working posture.'
+      ),
+      riskQuestion(
+        'workstation-screen-height',
+        'Workstation fit',
+        'My screen height or laptop position causes neck or shoulder strain.'
+      ),
+      riskQuestion(
+        'input-device-reach',
+        'Workstation fit',
+        'My keyboard, mouse, or input device position makes me reach or twist repeatedly.'
+      ),
+      riskQuestion(
+        'static-sitting',
+        'Task exposure',
+        'I sit in one position for long periods without changing posture.'
+      ),
+      riskQuestion(
+        'meeting-density',
+        'Task exposure',
+        'Back-to-back meetings make it hard to move, stretch, or reset my workstation.'
+      ),
+      protectiveQuestion(
+        'break-control',
+        'Movement and breaks',
+        'I can take short movement breaks without disrupting my work.'
+      ),
+      protectiveQuestion(
+        'workspace-adjustment-confidence',
+        'Movement and breaks',
+        'I know how to adjust my workstation when discomfort starts.'
+      ),
+      riskQuestion(
+        'neck-shoulder-discomfort',
+        'Body discomfort',
+        'I notice neck or shoulder discomfort after a normal workday.'
+      ),
+      riskQuestion(
+        'wrist-hand-discomfort',
+        'Body discomfort',
+        'I notice wrist or hand discomfort after keyboard or mouse work.'
+      ),
+      riskQuestion(
+        'lower-back-discomfort',
+        'Body discomfort',
+        'I notice lower-back discomfort after sitting work.'
+      ),
+      protectiveQuestion(
+        'intervention-equipment-use',
+        'Intervention adoption',
+        'I use the equipment or setup changes recommended after the ergonomics review.'
+      ),
+      protectiveQuestion(
+        'manager-support-adjustments',
+        'Intervention adoption',
+        'My manager supports schedule or workstation adjustments that reduce discomfort.'
+      ),
+    ],
+    syntheticResponses: {
+      respondentCount: 30,
+      completionCount: 24,
+      segments: [
+        {
+          label: 'Remote-first analysts',
+          count: 10,
+          signal: 'highest workstation-fit and static-sitting risk',
+        },
+        {
+          label: 'Office customer-support team',
+          count: 8,
+          signal: 'highest meeting-density and break-control risk',
+        },
+        {
+          label: 'Hybrid managers',
+          count: 6,
+          signal: 'stronger intervention adoption with moderate discomfort',
+        },
+      ],
+      signalSummary:
+        'Workstation fit and static sitting are strongest for remote-first analysts, while break constraints concentrate in the office support team.',
+    },
+  },
 ] satisfies RealisticAuditCase[];
 
 export function getRealisticAuditCase(id: string) {

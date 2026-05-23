@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
+import type { CampaignReportProofResponse, ReportProofExportArtifactResponse } from '$lib/api/setup';
 import {
+	toSelectedSeriesExportPreview,
+	toSelectedSeriesScoreMethodReview,
 	toSelectedSeriesResultsPacketReview,
 	toSelectedSeriesResultsHandoffStatus,
 	toSelectedSeriesReportsPath,
@@ -96,13 +99,13 @@ describe('selected-series reports workflow model', () => {
 		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithExport);
 
 		expect(actions.find((action) => action.id === 'reportProof')).toMatchObject({
-			status: 'pending',
+			status: 'ready',
 			available: true
 		});
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Review results before creating a report export.'
+			disabledReason: 'Report-summary export already exists for this study.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'pending',
@@ -110,9 +113,9 @@ describe('selected-series reports workflow model', () => {
 			disabledReason: null
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
-			status: 'blocked',
-			available: false,
-			disabledReason: 'Review results before creating a response export.'
+			status: 'pending',
+			available: true,
+			disabledReason: null
 		});
 		expect(actions.find((action) => action.id === 'downloadCsv')).toMatchObject({
 			status: 'pending',
@@ -183,6 +186,11 @@ describe('selected-series reports workflow model', () => {
 	it('uses existing response export registry state to advance stored artifact actions', () => {
 		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithResponseExport);
 
+		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
+			status: 'ready',
+			available: false,
+			disabledReason: 'Response dataset already exists; report-summary export is optional.'
+		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'ready',
 			available: false,
@@ -197,6 +205,41 @@ describe('selected-series reports workflow model', () => {
 			status: 'pending',
 			available: true,
 			disabledReason: null
+		});
+	});
+
+	it('selects response export before download when only a report-summary export exists', () => {
+		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithExport);
+
+		expect(path.currentActionId).toBe('responseExport');
+		expect(path.steps.find((step) => step.id === 'exportArtifact')).toMatchObject({
+			pathState: 'done'
+		});
+		expect(path.steps.find((step) => step.id === 'responseExport')).toMatchObject({
+			pathState: 'current'
+		});
+		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
+			pathState: 'blocked'
+		});
+	});
+
+	it('skips report-summary export as optional when a response dataset already exists', () => {
+		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseExport);
+
+		expect(path.currentActionId).toBe('downloadCsv');
+		expect(path.steps.find((step) => step.id === 'reportProof')).toMatchObject({
+			pathState: 'done'
+		});
+		expect(path.steps.find((step) => step.id === 'exportArtifact')).toMatchObject({
+			pathState: 'done'
+		});
+		expect(path.steps.find((step) => step.id === 'responseExport')).toMatchObject({
+			pathState: 'done'
+		});
+		expect(path.currentAction).toMatchObject({
+			id: 'downloadCsv',
+			title: 'Download response dataset CSV',
+			available: true
 		});
 	});
 
@@ -480,6 +523,190 @@ describe('selected-series reports workflow model', () => {
 			})
 		);
 	});
+
+	it('explains score method limits before result preview exposes output rows', () => {
+		const method = toSelectedSeriesScoreMethodReview(reportableWorkspace);
+
+		expect(method).toMatchObject({
+			title: 'How were these scores produced?',
+			status: 'pending',
+			description:
+				'Review score outputs, coverage, missing-answer handling, and interpretation limits before using results.'
+		});
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'outputs',
+				status: 'pending',
+				summary: 'Output names available after reviewing results'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'coverage',
+				status: 'ready',
+				summary: '12 submitted responses, 12 visible score rows'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'direction_scale',
+				status: 'pending',
+				summary: 'Direction and scale family need setup context'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'interpretation_boundary',
+				status: 'pending',
+				summary: 'Custom-study interpretation, not externally validated'
+			})
+		);
+	});
+
+	it('summarizes proof score outputs and missing-answer metadata after result preview', () => {
+		const method = toSelectedSeriesScoreMethodReview(reportableWorkspace, reportProof);
+
+		expect(method).toMatchObject({
+			title: 'How were these scores produced?',
+			status: 'pending'
+		});
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'outputs',
+				status: 'ready',
+				summary: '2 score outputs: posture_strain, recovery_control'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'missingness',
+				status: 'pending',
+				summary: 'Some score inputs were incomplete'
+			})
+		);
+		expect(method.items.find((item) => item.id === 'missingness')?.detail).toContain(
+			'posture_strain used 10 of 12 expected answer contributions'
+		);
+	});
+
+	it('previews a response dataset export before download', () => {
+		const preview = toSelectedSeriesExportPreview(
+			reportableWorkspaceWithResponseExport,
+			responseExportArtifact
+		);
+
+		expect(preview).toMatchObject({
+			title: 'What is in this export?',
+			status: 'ready',
+			downloadLabel: 'Download response dataset CSV'
+		});
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'file_purpose',
+				status: 'ready',
+				summary: 'Response dataset CSV and codebook'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'row_shape',
+				status: 'ready',
+				summary: '12 rows; one row per submitted response'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'wave_fields',
+				status: 'ready',
+				summary: 'Wave fields included for 2 waves'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'trajectory_keys',
+				status: 'ready',
+				summary: 'Artifact-local trajectory keys included'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'variables_values',
+				status: 'ready',
+				summary: '2 answer variables, 2 score metadata fields, 7 columns total'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'missingness',
+				status: 'ready',
+				summary: 'Missing-answer codes documented'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'score_outputs',
+				status: 'ready',
+				summary: 'Score metadata for posture_strain'
+			})
+		);
+	});
+
+	it('previews a report-summary export as aggregate-only and not analysis-ready', () => {
+		const preview = toSelectedSeriesExportPreview(
+			reportableWorkspaceWithExport,
+			reportSummaryExportArtifact
+		);
+
+		expect(preview).toMatchObject({
+			title: 'What is in this export?',
+			status: 'pending',
+			downloadLabel: 'Download report-summary CSV'
+		});
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'file_purpose',
+				status: 'pending',
+				summary: 'Report-summary CSV, not row-level response data'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'row_shape',
+				status: 'ready',
+				summary: '2 rows; one row per visible or suppressed score output'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'trajectory_keys',
+				status: 'not_available',
+				summary: 'No trajectory keys in report-summary export'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'score_outputs',
+				status: 'ready',
+				summary: 'Score outputs listed in dimension_code'
+			})
+		);
+	});
+
+	it('explains export preview is pending before artifact content is reviewed', () => {
+		const preview = toSelectedSeriesExportPreview(reportableWorkspaceWithResponseExport);
+
+		expect(preview).toMatchObject({
+			status: 'pending',
+			downloadLabel: 'Review export file first'
+		});
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'file_purpose',
+				status: 'pending',
+				summary: 'Review export file to inspect contents'
+			})
+		);
+	});
 });
 
 const emptyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
@@ -661,4 +888,158 @@ const shareReadyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
 		status: 'closed',
 		interpretationStatus: 'validated_interpretation'
 	}
+};
+
+const reportProof: CampaignReportProofResponse = {
+	campaignId: 'campaign-id',
+	campaignSeriesId: 'series-id',
+	campaignName: 'Wave 1',
+	campaignStatus: 'live',
+	proofStatus: 'proof_only',
+	interpretationStatus: 'not_validated_interpretation',
+	launchSnapshot: {
+		id: 'launch-snapshot-id',
+		templateVersionId: 'template-version-id',
+		scoringRuleId: 'scoring-rule-id',
+		scoringRuleDocumentHash: 'hash',
+		consentDocumentId: 'consent-id',
+		retentionPolicyId: 'retention-id',
+		disclosurePolicyId: 'disclosure-id',
+		responseIdentityMode: 'anonymous',
+		launchedAt: '2026-05-05T08:30:00Z'
+	},
+	disclosurePolicy: {
+		id: 'disclosure-id',
+		version: '1.0.0',
+		kMin: 5,
+		suppressionStrategy: 'suppress_small_groups'
+	},
+	scores: [
+		{
+			dimensionCode: 'posture_strain',
+			disclosure: 'visible',
+			submittedResponseCount: 12,
+			scoreCount: 10,
+			nValidTotal: 10,
+			nExpectedTotal: 12,
+			missingPolicyStatusSummary: 'partial',
+			mean: 6.7,
+			min: 4,
+			max: 9,
+			suppressionReason: null
+		},
+		{
+			dimensionCode: 'recovery_control',
+			disclosure: 'visible',
+			submittedResponseCount: 12,
+			scoreCount: 12,
+			nValidTotal: 12,
+			nExpectedTotal: 12,
+			missingPolicyStatusSummary: 'complete',
+			mean: 3.2,
+			min: 1,
+			max: 5,
+			suppressionReason: null
+		}
+	]
+};
+
+const responseExportArtifact: ReportProofExportArtifactResponse = {
+	id: 'response-export-artifact-id',
+	targetKind: 'campaign_series',
+	targetId: 'series-id',
+	targetLabel: 'Quarterly burnout pulse',
+	campaignId: null,
+	campaignSeriesId: 'series-id',
+	artifactType: 'campaign_series_response_csv_codebook',
+	status: 'succeeded',
+	format: 'csv_codebook',
+	fileName: 'campaign-series-responses.csv',
+	contentType: 'text/csv',
+	rowCount: 12,
+	byteSize: 2048,
+	checksumSha256: 'checksum',
+	createdAt: '2026-05-05T09:10:00Z',
+	completedAt: '2026-05-05T09:10:03Z',
+	startedAt: null,
+	failedAt: null,
+	expiresAt: null,
+	deletedAt: null,
+	failureReasonCode: null,
+	canDownload: true,
+	csvContent:
+		'response_row_id,trajectory_id,wave_label,answer_posture,answer_recovery,posture_strain_n_valid,posture_strain_missing_policy_status\n1,t1,Wave 1,4,2,2,complete',
+	codebookJson: JSON.stringify({
+		artifactType: 'campaign_series_response_csv_codebook',
+		format: 'csv_codebook',
+		rowCount: 12,
+		campaignCount: 2,
+		trajectoryCount: 6,
+		trajectoryIdPolicy: 'per_artifact',
+		missingTreatment: {
+			blank: 'question_not_answered_or_not_present_in_session_template',
+			skipped: '__skipped',
+			notApplicable: '__not_applicable'
+		},
+		columns: [
+			{ name: 'response_row_id', source: 'artifact_local_row_id' },
+			{ name: 'trajectory_id', source: 'artifact_local_identity' },
+			{ name: 'wave_label', source: 'response_export_projection' },
+			{
+				name: 'answer_posture',
+				source: 'answer',
+				questionCode: 'posture',
+				missingCodes: { skipped: '__skipped' },
+				scale: { code: 'agreement_1_5', minValue: 1, maxValue: 5 }
+			},
+			{
+				name: 'answer_recovery',
+				source: 'answer',
+				questionCode: 'recovery',
+				missingCodes: { skipped: '__skipped' }
+			},
+			{
+				name: 'posture_strain_n_valid',
+				source: 'score_output_metadata',
+				dimensionCode: 'posture_strain',
+				metadataKind: 'n_valid'
+			},
+			{
+				name: 'posture_strain_missing_policy_status',
+				source: 'score_output_metadata',
+				dimensionCode: 'posture_strain',
+				metadataKind: 'missing_policy_status'
+			}
+		]
+	})
+};
+
+const reportSummaryExportArtifact: ReportProofExportArtifactResponse = {
+	...responseExportArtifact,
+	id: 'report-export-artifact-id',
+	targetKind: 'campaign',
+	targetId: 'campaign-id',
+	targetLabel: 'Wave 1',
+	campaignId: 'campaign-id',
+	campaignSeriesId: 'series-id',
+	artifactType: 'report_proof_csv_codebook',
+	fileName: 'report-proof.csv',
+	rowCount: 2,
+	csvContent:
+		'dimension_code,score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean\nposture_strain,10,10,12,partial,6.7\nrecovery_control,12,12,12,complete,3.2',
+	codebookJson: JSON.stringify({
+		artifactType: 'report_proof_csv_codebook',
+		format: 'csv_codebook',
+		rowCount: 2,
+		dataFinality: 'preliminary_live',
+		excludedIdentifiers: ['tenant_id'],
+		columns: [
+			{ name: 'dimension_code', source: 'report_proof_score_summary' },
+			{ name: 'score_count', source: 'report_proof_score_summary' },
+			{ name: 'n_valid_total', source: 'score_output_metadata' },
+			{ name: 'n_expected_total', source: 'score_output_metadata' },
+			{ name: 'missing_policy_status_summary', source: 'score_output_metadata' },
+			{ name: 'mean', source: 'report_proof_score_summary' }
+		]
+	})
 };

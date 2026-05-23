@@ -11,6 +11,7 @@ export interface RealisticFullstackSeedOptions {
   seriesId: string;
   realisticCase: RealisticAuditCase;
   mode?: 'single-wave' | 'repeated-wave';
+  responseMode?: 'public-open-link' | 'test-data-simulator';
   fetchImpl?: typeof fetch;
 }
 
@@ -70,6 +71,7 @@ export async function seedRealisticFullstackCase(
     }),
   });
   const repeatedWaveMode = options.mode === 'repeated-wave';
+  const responseMode = options.responseMode ?? 'public-open-link';
   const responseIdentityMode = repeatedWaveMode ? 'anonymous_longitudinal' : 'anonymous';
   const campaignNames = repeatedWaveMode
     ? resolveRepeatedWaveCampaignNames(options.realisticCase)
@@ -84,6 +86,21 @@ export async function seedRealisticFullstackCase(
       responseIdentityMode,
       defaultLocale: 'en',
     });
+    const waveResponses = simulation.responses.map((response) =>
+      waveIndex === 0
+        ? response
+        : shiftFollowUpResponse(options.realisticCase, response)
+    );
+
+    if (responseMode === 'test-data-simulator') {
+      await client.post(`/test-data/campaigns/${campaign.id}/recipients`, {
+        count: waveResponses.length,
+        groupName: `${campaignName} test respondents`,
+        emailDomain: `${campaign.id}.test.validatedscale.local`,
+        locale: 'en',
+      });
+    }
+
     const readiness = await client.get<{ ready: boolean; issues?: unknown[] }>(
       `/campaigns/${campaign.id}/launch-readiness`
     );
@@ -98,40 +115,54 @@ export async function seedRealisticFullstackCase(
       `/campaigns/${campaign.id}/launch`,
       {}
     );
-    const waveResponses = simulation.responses.map((response) =>
-      waveIndex === 0
-        ? response
-        : shiftFollowUpResponse(options.realisticCase, response)
-    );
-    const openLink = repeatedWaveMode
-      ? await client.post<{ token: string; respondentPath: string }>(
-          `/campaigns/${campaign.id}/open-link`,
-          {}
-        )
-      : undefined;
-    const invitationBatch = repeatedWaveMode
-      ? undefined
-      : await client.post<{
-          createdInvitationCount: number;
-          invitations: Array<{ token: string; respondentPath: string }>;
-        }>(`/campaigns/${campaign.id}/invitation-batches`, {
-          recipients: waveResponses.map((response) => ({
-            email: `${response.respondentKey}@example.test`,
-          })),
+    if (responseMode === 'test-data-simulator') {
+      const testResponses = await client.post<{
+        submittedResponseCount: number;
+        scoredResponseCount: number;
+      }>(`/test-data/campaigns/${campaign.id}/responses`, {
+        responseCount: waveResponses.length,
+        targetOutcome: waveIndex === 0 ? 7 : 5,
+        variation: 'normal',
+        includeComments: true,
+      });
+      let closed = false;
+      if (repeatedWaveMode) {
+        await client.post(`/campaign-series/${options.seriesId}/campaigns/${campaign.id}/close`, {
+          reason: `UX audit repeated-wave seed completed ${campaignName}`,
         });
+        closed = true;
+      }
+
+      campaignResults.push({
+        campaignId: campaign.id,
+        campaignName,
+        launchSnapshotId: launch.launchSnapshotId,
+        responseIdentityMode,
+        invitationCount: waveResponses.length,
+        submittedResponseCount: testResponses.submittedResponseCount,
+        scoredResponseCount: testResponses.scoredResponseCount,
+        closed,
+      });
+      continue;
+    }
+
+    const openLink = await client.post<{ token: string; respondentPath: string }>(
+      `/campaigns/${campaign.id}/open-link`,
+      {}
+    );
+    const token = openLink.token;
+    if (!token) {
+      throw new Error('Realistic fullstack seed did not receive an open-link token.');
+    }
+
+    const entry = await client.get<{
+      consentDocument: { id: string; requiredGrants: string[] };
+      questions: Array<{ id: string; code: string }>;
+    }>(`/respondent/open-links/${token}`, { publicEndpoint: true });
     let submittedResponseCount = 0;
     let scoredResponseCount = 0;
 
-    for (const [index, response] of waveResponses.entries()) {
-      const token = openLink?.token ?? invitationBatch?.invitations[index]?.token;
-      if (!token) {
-        throw new Error('Realistic fullstack seed did not receive enough invitation tokens.');
-      }
-
-      const entry = await client.get<{
-        consentDocument: { id: string; requiredGrants: string[] };
-        questions: Array<{ id: string; code: string }>;
-      }>(`/respondent/open-links/${token}`, { publicEndpoint: true });
+    for (const response of waveResponses) {
       const session = await client.post<{ id: string }>(
         `/respondent/open-links/${token}/sessions`,
         {
@@ -176,7 +207,7 @@ export async function seedRealisticFullstackCase(
       campaignName,
       launchSnapshotId: launch.launchSnapshotId,
       responseIdentityMode,
-      invitationCount: invitationBatch?.createdInvitationCount ?? waveResponses.length,
+      invitationCount: waveResponses.length,
       submittedResponseCount,
       scoredResponseCount,
       closed,

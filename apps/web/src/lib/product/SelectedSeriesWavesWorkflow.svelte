@@ -10,6 +10,7 @@
 	import SelectedSeriesWaveComparisonSnapshot from '$lib/product/SelectedSeriesWaveComparisonSnapshot.svelte';
 	import {
 		toSelectedSeriesGroupTrendPlan,
+		toSelectedSeriesWaveScoreMethodReview,
 		toSelectedSeriesWaveComparisonReview,
 		toSelectedSeriesWavePlan,
 		toSelectedSeriesWavesPath,
@@ -50,6 +51,9 @@
 	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace));
 	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace));
 	const comparisonReview = $derived(toSelectedSeriesWaveComparisonReview(workspace));
+	const methodReview = $derived(
+		toSelectedSeriesWaveScoreMethodReview(workspace, waveComparisonProofResult)
+	);
 	const wavesPath = $derived(toSelectedSeriesWavesPath(workspace, localState));
 	const workflowActions = $derived(wavesPath.steps);
 	const currentAction = $derived(wavesPath.currentAction);
@@ -170,6 +174,14 @@
 		return 'Blocked';
 	}
 
+	function inactivePathTitle() {
+		if (wavesPath.mode === 'group_trend') {
+			return 'Linked-change checks not needed';
+		}
+
+		return 'Linked-change checks not active yet';
+	}
+
 	function formatNullableScoreValue(value: number | null) {
 		return value === null ? 'suppressed' : value.toFixed(2);
 	}
@@ -248,6 +260,33 @@
 		</div>
 	</article>
 
+	<article class="questionnaire-blueprint-review" role="region" aria-label="Wave score method review">
+		<div class="questionnaire-blueprint-review__header">
+			<div>
+				<p class="product-kicker">Score method</p>
+				<h4 class="setup-current-task__title">{methodReview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{methodReview.description}</p>
+			</div>
+			<StatusBadge status={methodReview.status} />
+		</div>
+		<div class="questionnaire-blueprint-review__grid">
+			{#each methodReview.items as item (item.id)}
+				<section
+					class="questionnaire-blueprint-review__item"
+					data-state={item.status}
+					aria-label={item.label}
+				>
+					<div class="questionnaire-blueprint-review__item-header">
+						<p class="record-field__label">{item.label}</p>
+						<StatusBadge status={item.status} />
+					</div>
+					<p class="record-row__title">{item.summary}</p>
+					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+				</section>
+			{/each}
+		</div>
+	</article>
+
 	<article class="record-row setup-current-task" role="region" aria-label="Group trend review">
 		<div class="setup-current-task__header">
 			<div>
@@ -300,111 +339,124 @@
 		</div>
 	</article>
 
-	<div class="setup-path" role="list" aria-label="Waves path">
-		{#each wavesPath.steps as action, index (action.id)}
-			<div
-				class="setup-path__item"
-				data-state={action.pathState}
-				role="listitem"
-				aria-current={action.pathState === 'current' ? 'step' : undefined}
-			>
-				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
-				<div class="setup-path__content">
-					<p class="setup-path__title">{action.title}</p>
-					<p class="setup-path__description">{action.description}</p>
+	{#if wavesPath.showWorkflow}
+		<div class="setup-path" role="list" aria-label="Waves path">
+			{#each wavesPath.steps as action, index (action.id)}
+				<div
+					class="setup-path__item"
+					data-state={action.pathState}
+					role="listitem"
+					aria-current={action.pathState === 'current' ? 'step' : undefined}
+				>
+					<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
+					<div class="setup-path__content">
+						<p class="setup-path__title">{action.title}</p>
+						<p class="setup-path__description">{action.description}</p>
+					</div>
+					<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
 				</div>
-				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
-			</div>
-		{/each}
-	</div>
-
-	<article class="record-row setup-current-task" role="region" aria-label="Current waves task">
-		<div class="setup-current-task__header">
-			<div>
-				<p class="record-field__label">
-					{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
-				</p>
-				<h4 class="setup-current-task__title">Current comparison task</h4>
-				<p class="record-row__title">{currentAction.title}</p>
-				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
-			</div>
-			<StatusBadge status={currentAction.status} />
+			{/each}
 		</div>
-		{#if currentAction.disabledReason}
-			<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
-		{/if}
 
-		<div class="setup-current-task__body">
-			{#if currentAction.id === 'twoWaveProof'}
-				<dl class="record-grid">
-					<div class="record-field">
-						<dt class="record-field__label">Selected series</dt>
-						<dd class="record-field__value">{workspace.series.name}</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Repeated waves</dt>
-						<dd class="record-field__value">{workspace.summary.longitudinalWaveCount}</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Potential complete trajectories</dt>
-						<dd class="record-field__value">{workspace.summary.completeTrajectoryCount}</dd>
-					</div>
-				</dl>
-				{#if twoWaveProofResult}
-					{@render TwoWaveProofResult()}
-				{/if}
-				{@render ActionFooter({
-					id: 'twoWaveProof',
-					label: 'Run linked trajectory check',
-					resultLabel: 'Study',
-					resultValue: twoWaveProofResult ? workspace.series.name : null,
-					onclick: refreshTwoWaveProof
-				})}
-			{:else}
-				<dl class="record-grid">
-					<div class="record-field">
-						<dt class="record-field__label">Baseline</dt>
-						<dd class="record-field__value">{workspace.selectedBaselineWave?.name ?? 'Missing'}</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Comparison</dt>
-						<dd class="record-field__value">
-							{workspace.selectedComparisonWave?.name ?? 'Missing'}
-						</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Compatibility</dt>
-						<dd class="record-field__value">{humanize(workspace.comparison.compatibilityState)}</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Disclosure</dt>
-						<dd class="record-field__value">{humanize(workspace.comparison.disclosureState)}</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Minimum group size</dt>
-						<dd class="record-field__value">
-							{workspace.comparison.disclosureKMin ?? 'Not configured'}
-						</dd>
-					</div>
-					<div class="record-field">
-						<dt class="record-field__label">Suppressed comparisons</dt>
-						<dd class="record-field__value">{workspace.summary.suppressedComparisonCount}</dd>
-					</div>
-				</dl>
-				<SelectedSeriesWaveComparisonSnapshot {workspace} embedded={true} />
-				{#if waveComparisonProofResult}
-					{@render WaveComparisonProofResult()}
-				{/if}
-				{@render ActionFooter({
-					id: 'waveComparisonProof',
-					label: 'Review comparison',
-					resultLabel: 'Comparison',
-					resultValue: waveComparisonProofResult ? 'Reviewed' : null,
-					onclick: viewWaveComparisonProof
-				})}
+		<article class="record-row setup-current-task" role="region" aria-label="Current waves task">
+			<div class="setup-current-task__header">
+				<div>
+					<p class="record-field__label">
+						{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
+					</p>
+					<h4 class="setup-current-task__title">Current comparison task</h4>
+					<p class="record-row__title">{currentAction.title}</p>
+					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
+				</div>
+				<StatusBadge status={currentAction.status} />
+			</div>
+			{#if currentAction.disabledReason}
+				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
 			{/if}
-		</div>
-	</article>
+
+			<div class="setup-current-task__body">
+				{#if currentAction.id === 'twoWaveProof'}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Selected series</dt>
+							<dd class="record-field__value">{workspace.series.name}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Repeated waves</dt>
+							<dd class="record-field__value">{workspace.summary.longitudinalWaveCount}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Potential complete trajectories</dt>
+							<dd class="record-field__value">{workspace.summary.completeTrajectoryCount}</dd>
+						</div>
+					</dl>
+					{#if twoWaveProofResult}
+						{@render TwoWaveProofResult()}
+					{/if}
+					{@render ActionFooter({
+						id: 'twoWaveProof',
+						label: 'Run linked trajectory check',
+						resultLabel: 'Study',
+						resultValue: twoWaveProofResult ? workspace.series.name : null,
+						onclick: refreshTwoWaveProof
+					})}
+				{:else}
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">Baseline</dt>
+							<dd class="record-field__value">{workspace.selectedBaselineWave?.name ?? 'Missing'}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Comparison</dt>
+							<dd class="record-field__value">
+								{workspace.selectedComparisonWave?.name ?? 'Missing'}
+							</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Compatibility</dt>
+							<dd class="record-field__value">{humanize(workspace.comparison.compatibilityState)}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Disclosure</dt>
+							<dd class="record-field__value">{humanize(workspace.comparison.disclosureState)}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Minimum group size</dt>
+							<dd class="record-field__value">
+								{workspace.comparison.disclosureKMin ?? 'Not configured'}
+							</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">Suppressed comparisons</dt>
+							<dd class="record-field__value">{workspace.summary.suppressedComparisonCount}</dd>
+						</div>
+					</dl>
+					<SelectedSeriesWaveComparisonSnapshot {workspace} embedded={true} />
+					{#if waveComparisonProofResult}
+						{@render WaveComparisonProofResult()}
+					{/if}
+					{@render ActionFooter({
+						id: 'waveComparisonProof',
+						label: 'Review comparison',
+						resultLabel: 'Comparison',
+						resultValue: waveComparisonProofResult ? 'Reviewed' : null,
+						onclick: viewWaveComparisonProof
+					})}
+				{/if}
+			</div>
+		</article>
+	{:else}
+		<article class="record-row setup-current-task" role="region" aria-label="Linked change task status">
+			<div class="setup-current-task__header">
+				<div>
+					<p class="record-field__label">Linked-change workflow</p>
+					<h4 class="setup-current-task__title">{inactivePathTitle()}</h4>
+					<p class="text-sm text-[var(--color-text-muted)]">{wavesPath.inactiveReason}</p>
+				</div>
+				<StatusBadge status={comparisonReview.status} />
+			</div>
+		</article>
+	{/if}
 </section>
 
 {#snippet TwoWaveProofResult()}

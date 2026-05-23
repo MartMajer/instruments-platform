@@ -1,4 +1,9 @@
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
+import type {
+	CampaignReportProofResponse,
+	ReportProofExportArtifactResponse,
+	ReportScoreSummaryResponse
+} from '$lib/api/setup';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesReportsWorkflowActionId =
@@ -85,6 +90,73 @@ export type SelectedSeriesResultsPacketReview = {
 	items: SelectedSeriesResultsPacketReviewItem[];
 };
 
+export type SelectedSeriesScoreMethodReviewItemId =
+	| 'outputs'
+	| 'coverage'
+	| 'direction_scale'
+	| 'missingness'
+	| 'interpretation_boundary';
+
+export type SelectedSeriesScoreMethodReviewItem = {
+	id: SelectedSeriesScoreMethodReviewItemId;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	summary: string;
+	detail: string;
+};
+
+export type SelectedSeriesScoreMethodReview = {
+	title: string;
+	description: string;
+	status: ProductReadModelBadgeStatus;
+	items: SelectedSeriesScoreMethodReviewItem[];
+};
+
+export type SelectedSeriesExportPreviewItemId =
+	| 'file_purpose'
+	| 'row_shape'
+	| 'wave_fields'
+	| 'trajectory_keys'
+	| 'variables_values'
+	| 'missingness'
+	| 'score_outputs';
+
+export type SelectedSeriesExportPreviewItem = {
+	id: SelectedSeriesExportPreviewItemId;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	summary: string;
+	detail: string;
+};
+
+export type SelectedSeriesExportPreview = {
+	title: string;
+	description: string;
+	status: ProductReadModelBadgeStatus;
+	downloadLabel: string;
+	items: SelectedSeriesExportPreviewItem[];
+};
+
+type ExportCodebookColumn = {
+	name: string;
+	source: string | null;
+	questionCode: string | null;
+	dimensionCode: string | null;
+	metadataKind: string | null;
+	hasMissingCodes: boolean;
+	hasScale: boolean;
+};
+
+type ExportCodebookSummary = {
+	artifactType: string | null;
+	rowCount: number | null;
+	campaignCount: number | null;
+	trajectoryCount: number | null;
+	trajectoryIdPolicy: string | null;
+	hasMissingTreatment: boolean;
+	columns: ExportCodebookColumn[];
+};
+
 export function toSelectedSeriesReportsWorkflowActions(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
@@ -102,6 +174,10 @@ export function toSelectedSeriesReportsWorkflowActions(
 	const hasDownloadableRegistryExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.canDownload
 	);
+	const hasDownloadableResponseExport = workspace.exportArtifacts.some(
+		(artifact) =>
+			artifact.artifactType === 'campaign_series_response_csv_codebook' && artifact.canDownload
+	);
 	const latestExportDownloadable = Boolean(
 		selectedCampaign?.latestExportArtifactId && selectedCampaign.latestExportArtifactCanDownload
 	);
@@ -112,6 +188,8 @@ export function toSelectedSeriesReportsWorkflowActions(
 	const responseExportCreated = Boolean(localState.responseExportCreated);
 	const hasResponseExport = hasExistingResponseExport || responseExportCreated;
 	const downloadIsResponseDataset = hasResponseExport;
+	const resultsReviewed =
+		reportProofViewed || hasExistingReportExport || exportCreated || hasResponseExport;
 	const hasExport =
 		Boolean(selectedCampaign?.latestExportArtifactId) || exportCreated || hasResponseExport;
 	const hasDownloadableExport =
@@ -128,28 +206,32 @@ export function toSelectedSeriesReportsWorkflowActions(
 			step: 'Step 1',
 			title: 'Review results',
 			description: 'Preview disclosure-safe result summaries for the selected wave.',
-			status: toReportProofStatus(hasCampaign, reportable, reportProofViewed),
+			status: toReportProofStatus(hasCampaign, reportable, resultsReviewed),
 			available: reportable,
 			disabledReason: toReportProofDisabledReason(hasCampaign, reportable)
 		},
 		{
 			id: 'exportArtifact',
 			step: 'Step 2',
-			title: 'Create report-summary export',
-			description:
-				'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+			title: hasResponseExport ? 'Report-summary export optional' : 'Create report-summary export',
+			description: hasResponseExport
+				? 'A response dataset already exists. A report-summary export is optional and not required before download.'
+				: 'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
-				reportProofViewed,
-				hasExistingReportExport || exportCreated
+				resultsReviewed,
+				hasExistingReportExport || exportCreated || hasResponseExport
 			),
-			available: reportable && reportProofViewed && !exportCreated,
+			available:
+				reportable && resultsReviewed && !exportCreated && !hasExistingReportExport && !hasResponseExport,
 			disabledReason: toExportDisabledReason(
 				hasCampaign,
 				reportable,
-				reportProofViewed,
-				exportCreated
+				resultsReviewed,
+				exportCreated,
+				hasExistingReportExport,
+				hasResponseExport
 			)
 		},
 		{
@@ -157,13 +239,13 @@ export function toSelectedSeriesReportsWorkflowActions(
 			step: 'Step 3',
 			title: 'Create response export',
 			description: 'Create analysis-ready response rows and a codebook for this study.',
-			status: toResponseExportStatus(hasCampaign, reportable, reportProofViewed, hasResponseExport),
+			status: toResponseExportStatus(hasCampaign, reportable, resultsReviewed, hasResponseExport),
 			available:
-				reportable && reportProofViewed && !responseExportCreated && !hasExistingResponseExport,
+				reportable && resultsReviewed && !responseExportCreated && !hasExistingResponseExport,
 			disabledReason: toResponseExportDisabledReason(
 				hasCampaign,
 				reportable,
-				reportProofViewed,
+				resultsReviewed,
 				responseExportCreated,
 				hasExistingResponseExport
 			)
@@ -462,12 +544,97 @@ export function toSelectedSeriesResultsPacketReview(
 	};
 }
 
+export function toSelectedSeriesScoreMethodReview(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	reportProof: CampaignReportProofResponse | null = null
+): SelectedSeriesScoreMethodReview {
+	const campaign = workspace.selectedCampaign;
+	const hasCampaign = Boolean(campaign);
+	const hasScoringRule = Boolean(campaign?.scoringRuleId);
+	const proofScores = reportProof?.scores ?? [];
+	const interpretationReviewed = isInterpretationValidated(
+		reportProof?.interpretationStatus ?? campaign?.interpretationStatus
+	);
+	const hasIncompleteInputs = proofScores.some(hasIncompleteScoreInputs);
+	const items: SelectedSeriesScoreMethodReviewItem[] = [
+		toScoreMethodOutputsItem(hasCampaign, campaign?.visibleScoreCount ?? 0, proofScores),
+		toScoreMethodCoverageItem(workspace),
+		toScoreMethodDirectionScaleItem(hasCampaign, hasScoringRule),
+		toScoreMethodMissingnessItem(hasCampaign, hasScoringRule, proofScores),
+		toScoreMethodInterpretationBoundaryItem(hasCampaign, hasScoringRule, interpretationReviewed)
+	];
+
+	return {
+		title: 'How were these scores produced?',
+		description:
+			'Review score outputs, coverage, missing-answer handling, and interpretation limits before using results.',
+		status: !hasCampaign
+			? 'not_available'
+			: !hasScoringRule
+				? 'blocked'
+				: interpretationReviewed && proofScores.length > 0 && !hasIncompleteInputs
+					? 'ready'
+					: 'pending',
+		items
+	};
+}
+
+export function toSelectedSeriesExportPreview(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	artifact: ReportProofExportArtifactResponse | null = null
+): SelectedSeriesExportPreview {
+	if (!workspace.selectedCampaign) {
+		return {
+			title: 'What is in this export?',
+			description:
+				'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+			status: 'not_available',
+			downloadLabel: 'Create or select a wave first',
+			items: toPendingExportPreviewItems('Select a wave before preparing export files.')
+		};
+	}
+
+	if (!artifact) {
+		return {
+			title: 'What is in this export?',
+			description:
+				'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+			status: 'pending',
+			downloadLabel: 'Review export file first',
+			items: toPendingExportPreviewItems('Review the export file to inspect its CSV and codebook contents.')
+		};
+	}
+
+	const codebook = parseExportCodebook(artifact.codebookJson);
+	const artifactType = codebook.artifactType ?? artifact.artifactType;
+	const responseDataset = artifactType === 'campaign_series_response_csv_codebook';
+	const reportSummary = artifactType === 'report_proof_csv_codebook';
+	const items: SelectedSeriesExportPreviewItem[] = [
+		toExportFilePurposeItem(artifact, responseDataset, reportSummary),
+		toExportRowShapeItem(artifact, codebook, responseDataset, reportSummary),
+		toExportWaveFieldsItem(codebook, responseDataset, reportSummary),
+		toExportTrajectoryKeysItem(codebook, responseDataset, reportSummary),
+		toExportVariablesValuesItem(artifact, codebook, responseDataset, reportSummary),
+		toExportMissingnessItem(codebook, responseDataset, reportSummary),
+		toExportScoreOutputsItem(artifact, codebook, responseDataset, reportSummary)
+	];
+
+	return {
+		title: 'What is in this export?',
+		description:
+			'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+		status: responseDataset && artifact.canDownload ? 'ready' : artifact.canDownload ? 'pending' : 'blocked',
+		downloadLabel: responseDataset ? 'Download response dataset CSV' : 'Download report-summary CSV',
+		items
+	};
+}
+
 export function toSelectedSeriesReportsPath(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	localState: SelectedSeriesReportsWorkflowLocalState = {}
 ): SelectedSeriesReportsPath {
 	const actions = toSelectedSeriesReportsWorkflowActions(workspace, localState);
-	const hasExistingReportExport = workspace.exportArtifacts.some(
+	const hasRegistryReportExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'report_proof_csv_codebook'
 	);
 	const hasExistingResponseExport = workspace.exportArtifacts.some(
@@ -476,17 +643,30 @@ export function toSelectedSeriesReportsPath(
 	const hasDownloadableRegistryExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.canDownload
 	);
+	const hasDownloadableResponseExport = workspace.exportArtifacts.some(
+		(artifact) =>
+			artifact.artifactType === 'campaign_series_response_csv_codebook' && artifact.canDownload
+	);
 	const latestExportDownloadable = Boolean(
 		workspace.selectedCampaign?.latestExportArtifactId &&
 			workspace.selectedCampaign.latestExportArtifactCanDownload
 	);
+	const hasExistingReportExport =
+		hasRegistryReportExport ||
+		(Boolean(workspace.selectedCampaign?.latestExportArtifactId) && !hasExistingResponseExport);
 	const hasPersistedExport = hasExistingReportExport || hasExistingResponseExport;
 	const hasPersistedDownloadableExport = latestExportDownloadable || hasDownloadableRegistryExport;
+	const hasPersistedDownloadableResponseExport =
+		hasDownloadableResponseExport ||
+		(hasExistingResponseExport && latestExportDownloadable);
+	const resultsReviewed = Boolean(localState.reportProofViewed || hasPersistedExport);
 	const doneByActionId: Record<SelectedSeriesReportsWorkflowActionId, boolean> = {
-		reportProof: Boolean(localState.reportProofViewed || hasPersistedExport),
-		exportArtifact: Boolean(localState.exportCreated || hasExistingReportExport),
+		reportProof: resultsReviewed,
+		exportArtifact: Boolean(
+			localState.exportCreated || hasExistingReportExport || hasExistingResponseExport
+		),
 		responseExport: Boolean(localState.responseExportCreated || hasExistingResponseExport),
-		fetchArtifact: Boolean(localState.artifactFetched || hasPersistedDownloadableExport),
+		fetchArtifact: Boolean(localState.artifactFetched || hasPersistedDownloadableResponseExport),
 		downloadCsv: Boolean(localState.csvDownloaded)
 	};
 	const currentAction =
@@ -604,7 +784,9 @@ function toExportDisabledReason(
 	hasCampaign: boolean,
 	reportable: boolean,
 	reportProofViewed: boolean,
-	exportCreated: boolean
+	exportCreated: boolean,
+	hasExistingReportExport: boolean,
+	hasResponseExport: boolean
 ) {
 	if (!hasCampaign) {
 		return 'Review results before creating a report export.';
@@ -616,6 +798,14 @@ function toExportDisabledReason(
 
 	if (exportCreated) {
 		return 'Report export was created in this session.';
+	}
+
+	if (hasResponseExport) {
+		return 'Response dataset already exists; report-summary export is optional.';
+	}
+
+	if (hasExistingReportExport) {
+		return 'Report-summary export already exists for this study.';
 	}
 
 	return reportProofViewed ? null : 'Review results before creating a report export.';
@@ -887,6 +1077,709 @@ function toUseStatusPacketItem(options: {
 		detail:
 			'Use these results inside the workspace while export, interpretation, or collection status still needs review.'
 	};
+}
+
+function toScoreMethodOutputsItem(
+	hasCampaign: boolean,
+	visibleScoreCount: number,
+	proofScores: ReportScoreSummaryResponse[]
+): SelectedSeriesScoreMethodReviewItem {
+	if (!hasCampaign) {
+		return {
+			id: 'outputs',
+			label: 'Score outputs',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before reviewing score outputs.'
+		};
+	}
+
+	if (proofScores.length > 0) {
+		return {
+			id: 'outputs',
+			label: 'Score outputs',
+			status: 'ready',
+			summary: `${proofScores.length} ${pluralize(proofScores.length, 'score output', 'score outputs')}: ${proofScores.map((score) => score.dimensionCode).join(', ')}`,
+			detail:
+				'These are the score output codes returned by the selected wave result preview. Treat them as tenant-defined custom outputs unless a separate canonical approval exists.'
+		};
+	}
+
+	return {
+		id: 'outputs',
+		label: 'Score outputs',
+		status: visibleScoreCount > 0 ? 'pending' : 'blocked',
+		summary:
+			visibleScoreCount > 0
+				? 'Output names available after reviewing results'
+				: 'No visible score outputs yet',
+		detail:
+			'Use Review results to load the score output rows. Results does not infer score meaning from hidden setup data.'
+	};
+}
+
+function toScoreMethodCoverageItem(
+	workspace: CampaignSeriesReportsWorkspaceResponse
+): SelectedSeriesScoreMethodReviewItem {
+	const campaign = workspace.selectedCampaign;
+
+	if (!campaign) {
+		return {
+			id: 'coverage',
+			label: 'Response coverage',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before reviewing response coverage.'
+		};
+	}
+
+	const coverage = workspace.scoreCoverage;
+
+	if (coverage) {
+		const status: ProductReadModelBadgeStatus =
+			coverage.unscoredSubmittedResponseCount > 0 ||
+			coverage.notConfiguredSubmittedResponseCount > 0
+				? 'pending'
+				: coverage.scoredSubmittedResponseCount > 0
+					? 'ready'
+					: 'blocked';
+
+		return {
+			id: 'coverage',
+			label: 'Response coverage',
+			status,
+			summary: `${coverage.scoredSubmittedResponseCount} of ${coverage.submittedResponseCount} submitted responses scored`,
+			detail: coverage.guidance
+		};
+	}
+
+	return {
+		id: 'coverage',
+		label: 'Response coverage',
+		status: campaign.visibleScoreCount > 0 ? 'ready' : 'blocked',
+		summary: `${campaign.submittedResponseCount} submitted ${pluralize(
+			campaign.submittedResponseCount,
+			'response',
+			'responses'
+		)}, ${campaign.visibleScoreCount} visible score ${pluralize(
+			campaign.visibleScoreCount,
+			'row',
+			'rows'
+		)}`,
+		detail:
+			campaign.suppressedScoreCount > 0
+				? `${campaign.suppressedScoreCount} score ${pluralize(
+						campaign.suppressedScoreCount,
+						'row is',
+						'rows are'
+					)} suppressed by disclosure or scoring rules.`
+				: 'Visible score rows are available for internal review.'
+	};
+}
+
+function toScoreMethodDirectionScaleItem(
+	hasCampaign: boolean,
+	hasScoringRule: boolean
+): SelectedSeriesScoreMethodReviewItem {
+	if (!hasCampaign) {
+		return {
+			id: 'direction_scale',
+			label: 'Direction and scale',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before reviewing score direction and scale family.'
+		};
+	}
+
+	if (!hasScoringRule) {
+		return {
+			id: 'direction_scale',
+			label: 'Direction and scale',
+			status: 'blocked',
+			summary: 'No scoring rule selected',
+			detail: 'Create or attach a scoring rule before score direction can be reviewed.'
+		};
+	}
+
+	return {
+		id: 'direction_scale',
+		label: 'Direction and scale',
+		status: 'pending',
+		summary: 'Direction and scale family need setup context',
+		detail:
+			'Results can show output rows and missingness, but question-to-output coverage, reverse scoring, and answer scale family still need the Setup scoring plan. Do not infer better/worse meaning from output codes alone.'
+	};
+}
+
+function toScoreMethodMissingnessItem(
+	hasCampaign: boolean,
+	hasScoringRule: boolean,
+	proofScores: ReportScoreSummaryResponse[]
+): SelectedSeriesScoreMethodReviewItem {
+	if (!hasCampaign) {
+		return {
+			id: 'missingness',
+			label: 'Missing answers',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before reviewing missing-answer handling.'
+		};
+	}
+
+	if (!hasScoringRule) {
+		return {
+			id: 'missingness',
+			label: 'Missing answers',
+			status: 'blocked',
+			summary: 'No scoring rule selected',
+			detail: 'Missing-answer handling applies after a scoring rule exists.'
+		};
+	}
+
+	if (proofScores.length === 0) {
+		return {
+			id: 'missingness',
+			label: 'Missing answers',
+			status: 'pending',
+			summary: 'Missing-answer metadata available after reviewing results',
+			detail: 'Use Review results to load valid/expected answer contribution counts where available.'
+		};
+	}
+
+	const incomplete = proofScores.filter(hasIncompleteScoreInputs);
+
+	if (incomplete.length === 0) {
+		return {
+			id: 'missingness',
+			label: 'Missing answers',
+			status: 'ready',
+			summary: 'No missing-score input gap in preview',
+			detail:
+				'The visible score outputs reported complete valid/expected answer contribution counts.'
+		};
+	}
+
+	return {
+		id: 'missingness',
+		label: 'Missing answers',
+		status: 'pending',
+		summary: 'Some score inputs were incomplete',
+		detail: incomplete.map(toIncompleteScoreInputSummary).join('; ')
+	};
+}
+
+function toScoreMethodInterpretationBoundaryItem(
+	hasCampaign: boolean,
+	hasScoringRule: boolean,
+	interpretationReviewed: boolean
+): SelectedSeriesScoreMethodReviewItem {
+	if (!hasCampaign) {
+		return {
+			id: 'interpretation_boundary',
+			label: 'Interpretation boundary',
+			status: 'not_available',
+			summary: 'No wave selected',
+			detail: 'Select a wave before reviewing interpretation boundaries.'
+		};
+	}
+
+	if (!hasScoringRule) {
+		return {
+			id: 'interpretation_boundary',
+			label: 'Interpretation boundary',
+			status: 'blocked',
+			summary: 'No score interpretation yet',
+			detail: 'Add scoring before writing result interpretation.'
+		};
+	}
+
+	if (interpretationReviewed) {
+		return {
+			id: 'interpretation_boundary',
+			label: 'Interpretation boundary',
+			status: 'ready',
+			summary: 'Interpretation reviewed for this workspace',
+			detail:
+				'Keep the study method notes and disclosure limits with any export or shared result packet.'
+		};
+	}
+
+	return {
+		id: 'interpretation_boundary',
+		label: 'Interpretation boundary',
+		status: 'pending',
+		summary: 'Custom-study interpretation, not externally validated',
+		detail:
+			'Use these scores as tenant-defined custom-study calculations. Do not present them as official norms, benchmarks, clinical thresholds, or externally validated claims.'
+	};
+}
+
+function toPendingExportPreviewItems(detail: string): SelectedSeriesExportPreviewItem[] {
+	return [
+		{
+			id: 'file_purpose',
+			label: 'File purpose',
+			status: 'pending',
+			summary: 'Review export file to inspect contents',
+			detail
+		},
+		{
+			id: 'row_shape',
+			label: 'Row shape',
+			status: 'pending',
+			summary: 'Row shape available after file review',
+			detail
+		},
+		{
+			id: 'wave_fields',
+			label: 'Wave fields',
+			status: 'pending',
+			summary: 'Wave fields available after file review',
+			detail
+		},
+		{
+			id: 'trajectory_keys',
+			label: 'Trajectory keys',
+			status: 'pending',
+			summary: 'Trajectory key policy available after file review',
+			detail
+		},
+		{
+			id: 'variables_values',
+			label: 'Variables and values',
+			status: 'pending',
+			summary: 'Variables and values available after file review',
+			detail
+		},
+		{
+			id: 'missingness',
+			label: 'Missingness',
+			status: 'pending',
+			summary: 'Missingness policy available after file review',
+			detail
+		},
+		{
+			id: 'score_outputs',
+			label: 'Score outputs',
+			status: 'pending',
+			summary: 'Score outputs available after file review',
+			detail
+		}
+	];
+}
+
+function toExportFilePurposeItem(
+	artifact: ReportProofExportArtifactResponse,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	if (responseDataset) {
+		return {
+			id: 'file_purpose',
+			label: 'File purpose',
+			status: 'ready',
+			summary: 'Response dataset CSV and codebook',
+			detail:
+				'Use this for row-level analysis. Keep method, disclosure, and interpretation notes with the file.'
+		};
+	}
+
+	if (reportSummary) {
+		return {
+			id: 'file_purpose',
+			label: 'File purpose',
+			status: 'pending',
+			summary: 'Report-summary CSV, not row-level response data',
+			detail:
+				'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.'
+		};
+	}
+
+	return {
+		id: 'file_purpose',
+		label: 'File purpose',
+		status: 'pending',
+		summary: artifact.artifactType.replaceAll('_', ' '),
+		detail: 'Review this file type before using it outside the workspace.'
+	};
+}
+
+function toExportRowShapeItem(
+	artifact: ReportProofExportArtifactResponse,
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	const rowCount = codebook.rowCount ?? artifact.rowCount;
+
+	if (responseDataset) {
+		return {
+			id: 'row_shape',
+			label: 'Row shape',
+			status: 'ready',
+			summary: `${rowCount} ${pluralize(rowCount, 'row', 'rows')}; one row per submitted response`,
+			detail:
+				'Each row represents one submitted response session in this study export.'
+		};
+	}
+
+	if (reportSummary) {
+		return {
+			id: 'row_shape',
+			label: 'Row shape',
+			status: 'ready',
+			summary: `${rowCount} ${pluralize(
+				rowCount,
+				'row',
+				'rows'
+			)}; one row per visible or suppressed score output`,
+			detail:
+				'Each row summarizes one score output for the selected wave, not one respondent.'
+		};
+	}
+
+	return {
+		id: 'row_shape',
+		label: 'Row shape',
+		status: 'pending',
+		summary: `${rowCount} ${pluralize(rowCount, 'row', 'rows')}`,
+		detail: 'Review the codebook before interpreting row meaning.'
+	};
+}
+
+function toExportWaveFieldsItem(
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	const hasWaveFields = codebook.columns.some((column) =>
+		['wave_label', 'campaign_id', 'campaign_status', 'campaign_data_finality'].includes(column.name)
+	);
+
+	if (responseDataset) {
+		const campaignCount = codebook.campaignCount ?? 0;
+		return {
+			id: 'wave_fields',
+			label: 'Wave fields',
+			status: hasWaveFields ? 'ready' : 'pending',
+			summary:
+				campaignCount > 0
+					? `Wave fields included for ${campaignCount} ${pluralize(campaignCount, 'wave', 'waves')}`
+					: 'Wave fields included',
+			detail:
+				'Use wave and campaign fields to separate baseline, follow-up, live, and closed-wave rows.'
+		};
+	}
+
+	if (reportSummary) {
+		return {
+			id: 'wave_fields',
+			label: 'Wave fields',
+			status: 'ready',
+			summary: 'Selected-wave lifecycle fields included',
+			detail:
+				'The report-summary file describes the selected wave and its finality, not every wave in the study.'
+		};
+	}
+
+	return {
+		id: 'wave_fields',
+		label: 'Wave fields',
+		status: hasWaveFields ? 'ready' : 'pending',
+		summary: hasWaveFields ? 'Wave fields included' : 'Wave fields not detected',
+		detail: 'Review the codebook column list before using wave-level grouping.'
+	};
+}
+
+function toExportTrajectoryKeysItem(
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	if (reportSummary) {
+		return {
+			id: 'trajectory_keys',
+			label: 'Trajectory keys',
+			status: 'not_available',
+			summary: 'No trajectory keys in report-summary export',
+			detail:
+				'Report-summary exports are aggregate files and do not include respondent trajectory rows.'
+		};
+	}
+
+	const hasTrajectory = codebook.columns.some((column) => column.name === 'trajectory_id');
+
+	if (responseDataset && hasTrajectory) {
+		return {
+			id: 'trajectory_keys',
+			label: 'Trajectory keys',
+			status: 'ready',
+			summary: 'Artifact-local trajectory keys included',
+			detail: `Trajectory ids are ${codebook.trajectoryIdPolicy ?? 'artifact-local'} and should not be treated as raw participant codes or reusable identifiers.`
+		};
+	}
+
+	return {
+		id: 'trajectory_keys',
+		label: 'Trajectory keys',
+		status: responseDataset ? 'pending' : 'not_available',
+		summary: responseDataset ? 'No trajectory key column detected' : 'No trajectory keys',
+		detail:
+			'Use trajectory fields only when anonymous longitudinal linking is present and disclosure allows it.'
+	};
+}
+
+function toExportVariablesValuesItem(
+	artifact: ReportProofExportArtifactResponse,
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	const columns = columnsOrCsvHeaders(codebook, artifact);
+	const answerCount = codebook.columns.filter((column) => column.source === 'answer').length;
+	const scoreMetadataCount = codebook.columns.filter(
+		(column) => column.source === 'score_output_metadata'
+	).length;
+
+	if (responseDataset) {
+		return {
+			id: 'variables_values',
+			label: 'Variables and values',
+			status: 'ready',
+			summary: `${answerCount} answer ${pluralize(
+				answerCount,
+				'variable',
+				'variables'
+			)}, ${scoreMetadataCount} score metadata ${pluralize(
+				scoreMetadataCount,
+				'field',
+				'fields'
+			)}, ${columns.length} columns total`,
+			detail:
+				'Question columns include codebook metadata such as question type, missing codes, and scale anchors when available.'
+		};
+	}
+
+	if (reportSummary) {
+		return {
+			id: 'variables_values',
+			label: 'Variables and values',
+			status: 'ready',
+			summary: `${columns.length} report-summary columns`,
+			detail:
+				'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.'
+		};
+	}
+
+	return {
+		id: 'variables_values',
+		label: 'Variables and values',
+		status: columns.length > 0 ? 'ready' : 'pending',
+		summary: `${columns.length} columns detected`,
+		detail: 'Review the codebook before using column values.'
+	};
+}
+
+function toExportMissingnessItem(
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	const hasMissingColumns = codebook.columns.some((column) =>
+		column.name.includes('missing') || column.metadataKind?.includes('missing')
+	);
+	const hasQuestionMissingCodes = codebook.columns.some((column) => column.hasMissingCodes);
+
+	if (responseDataset) {
+		return {
+			id: 'missingness',
+			label: 'Missingness',
+			status: codebook.hasMissingTreatment || hasQuestionMissingCodes ? 'ready' : 'pending',
+			summary:
+				codebook.hasMissingTreatment || hasQuestionMissingCodes
+					? 'Missing-answer codes documented'
+					: 'Missing-answer codes not detected',
+			detail:
+				'Use the codebook missing-treatment fields and question missing codes before treating blanks as real answers.'
+		};
+	}
+
+	if (reportSummary) {
+		return {
+			id: 'missingness',
+			label: 'Missingness',
+			status: hasMissingColumns ? 'ready' : 'pending',
+			summary: hasMissingColumns
+				? 'Score missingness fields included'
+				: 'Score missingness fields not detected',
+			detail:
+				'Report-summary missingness describes valid/expected score contributions, not respondent-level skipped answers.'
+		};
+	}
+
+	return {
+		id: 'missingness',
+		label: 'Missingness',
+		status: hasMissingColumns ? 'ready' : 'pending',
+		summary: hasMissingColumns ? 'Missingness fields included' : 'Missingness fields not detected',
+		detail: 'Review missingness fields before analysis.'
+	};
+}
+
+function toExportScoreOutputsItem(
+	artifact: ReportProofExportArtifactResponse,
+	codebook: ExportCodebookSummary,
+	responseDataset: boolean,
+	reportSummary: boolean
+): SelectedSeriesExportPreviewItem {
+	const dimensionCodes = uniqueStrings(
+		codebook.columns
+			.map((column) => column.dimensionCode)
+			.filter((value): value is string => Boolean(value))
+	);
+
+	if (responseDataset) {
+		return {
+			id: 'score_outputs',
+			label: 'Score outputs',
+			status: dimensionCodes.length > 0 ? 'ready' : 'pending',
+			summary:
+				dimensionCodes.length > 0
+					? `Score metadata for ${dimensionCodes.join(', ')}`
+					: 'No score metadata columns detected',
+			detail:
+				'Response datasets include score metadata fields when scores exist; keep score method notes with analysis.'
+		};
+	}
+
+	if (reportSummary) {
+		const csvHeaders = csvHeadersFromContent(artifact.csvContent);
+		const hasDimensionCode = codebook.columns.some((column) => column.name === 'dimension_code') || csvHeaders.includes('dimension_code');
+		return {
+			id: 'score_outputs',
+			label: 'Score outputs',
+			status: hasDimensionCode ? 'ready' : 'pending',
+			summary: hasDimensionCode
+				? 'Score outputs listed in dimension_code'
+				: 'Score output column not detected',
+			detail:
+				'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.'
+		};
+	}
+
+	return {
+		id: 'score_outputs',
+		label: 'Score outputs',
+		status: dimensionCodes.length > 0 ? 'ready' : 'pending',
+		summary:
+			dimensionCodes.length > 0
+				? `Score metadata for ${dimensionCodes.join(', ')}`
+				: 'Score outputs not detected',
+		detail: 'Review score output fields before interpretation.'
+	};
+}
+
+function parseExportCodebook(value: string | null | undefined): ExportCodebookSummary {
+	if (!value) {
+		return emptyExportCodebookSummary();
+	}
+
+	try {
+		const parsed = JSON.parse(value) as unknown;
+		if (!isRecord(parsed)) {
+			return emptyExportCodebookSummary();
+		}
+
+		const columnsValue = parsed.columns;
+		const columns = Array.isArray(columnsValue)
+			? columnsValue.filter(isRecord).map(toExportCodebookColumn)
+			: [];
+
+		return {
+			artifactType: stringValue(parsed.artifactType),
+			rowCount: numberValue(parsed.rowCount),
+			campaignCount: numberValue(parsed.campaignCount),
+			trajectoryCount: numberValue(parsed.trajectoryCount),
+			trajectoryIdPolicy: stringValue(parsed.trajectoryIdPolicy),
+			hasMissingTreatment: isRecord(parsed.missingTreatment),
+			columns
+		};
+	} catch {
+		return emptyExportCodebookSummary();
+	}
+}
+
+function emptyExportCodebookSummary(): ExportCodebookSummary {
+	return {
+		artifactType: null,
+		rowCount: null,
+		campaignCount: null,
+		trajectoryCount: null,
+		trajectoryIdPolicy: null,
+		hasMissingTreatment: false,
+		columns: []
+	};
+}
+
+function toExportCodebookColumn(value: Record<string, unknown>): ExportCodebookColumn {
+	return {
+		name: stringValue(value.name) ?? '',
+		source: stringValue(value.source),
+		questionCode: stringValue(value.questionCode),
+		dimensionCode: stringValue(value.dimensionCode),
+		metadataKind: stringValue(value.metadataKind),
+		hasMissingCodes: isRecord(value.missingCodes),
+		hasScale: isRecord(value.scale)
+	};
+}
+
+function columnsOrCsvHeaders(
+	codebook: ExportCodebookSummary,
+	artifact: ReportProofExportArtifactResponse
+) {
+	if (codebook.columns.length > 0) {
+		return codebook.columns.map((column) => column.name).filter(Boolean);
+	}
+
+	return csvHeadersFromContent(artifact.csvContent);
+}
+
+function csvHeadersFromContent(content: string | null | undefined) {
+	return (content ?? '').trim().split(/\r?\n/)[0]?.split(',').map((header) => header.trim()).filter(Boolean) ?? [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown) {
+	return typeof value === 'string' ? value : null;
+}
+
+function numberValue(value: unknown) {
+	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function uniqueStrings(values: string[]) {
+	return [...new Set(values)];
+}
+
+function hasIncompleteScoreInputs(score: ReportScoreSummaryResponse) {
+	return (
+		typeof score.nValidTotal === 'number' &&
+		typeof score.nExpectedTotal === 'number' &&
+		score.nValidTotal < score.nExpectedTotal
+	);
+}
+
+function toIncompleteScoreInputSummary(score: ReportScoreSummaryResponse) {
+	return `${score.dimensionCode} used ${score.nValidTotal ?? 0} of ${
+		score.nExpectedTotal ?? 0
+	} expected answer contributions`;
+}
+
+function pluralize(value: number, singular: string, plural: string) {
+	return value === 1 ? singular : plural;
 }
 
 function findHandoffLane(

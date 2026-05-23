@@ -2145,8 +2145,8 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Provider delivery evidence</p>
-								<h5 class="record-row__title">Recent email provider events</h5>
+								<p class="record-field__label">Delivery diagnostics</p>
+								<h5 class="record-row__title">Recent email delivery events</h5>
 							</div>
 							<StatusBadge
 								status={providerDeliveryEventCount > 0 ? 'ready' : 'pending'}
@@ -2158,9 +2158,9 @@
 							/>
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-							Use this to confirm whether SES or another provider has reported accepted, delivered,
-							bounced, or complained events. The list intentionally hides recipients, internal ids,
-							provider ids, and provider reason text.
+							Use this only when troubleshooting email sending. It shows accepted, delivered,
+							bounced, and spam-complaint counts without exposing recipients, internal ids,
+							provider ids, or provider reason text.
 						</p>
 						<dl class="record-grid">
 							<div class="record-field">
@@ -2282,7 +2282,7 @@
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Provider evidence</dt>
+									<dt class="record-field__label">Delivery events</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.providerEventCount)}
 									</dd>
