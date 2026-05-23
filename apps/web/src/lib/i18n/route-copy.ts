@@ -467,7 +467,8 @@ const en = {
 					truncated: 'Preview is truncated.'
 				}
 			}
-		},		setupWorkflow: {
+		},
+		setupWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Wave ${number}`,
 			steps: {
@@ -608,7 +609,180 @@ const en = {
 				and: 'and'
 			}
 		},
-		operationsWorkflow: {
+		operationsBody: {
+			progressAriaLabel: 'Study collection flow',
+			progressKicker: 'Study collection',
+			progressTitle: 'Collection flow',
+			progressBody:
+				'Start the wave, share respondent access, monitor submissions, and close collection when the study is finished.',
+			stepsComplete: (completed: number, total: number) => `${completed}/${total} steps complete`,
+			statusKicker: 'Collection status',
+			nextAction: 'Next action',
+			pathAriaLabel: 'Collection path',
+			stepAriaLabel: 'Collection step',
+			readOnlyTitle: 'Read-only access',
+			readOnlyBody: 'Collection actions require workspace management access.',
+			stepStatus: {
+				working: 'Working',
+				saved: 'Saved',
+				failed: 'Failed',
+				ready: 'Ready'
+			},
+			pathStatus: {
+				done: 'Done',
+				current: 'Current',
+				blocked: 'Blocked'
+			},
+			common: {
+				available: 'Available',
+				blocked: 'Blocked',
+				closed: 'Closed',
+				created: 'Created',
+				missing: 'Missing',
+				notAvailable: 'Not available',
+				notChecked: 'Not checked',
+				ready: 'Ready',
+				status: 'Status',
+				collectionWave: 'Collection wave',
+				setupCheck: 'Setup check',
+				started: 'Started',
+				submitted: 'Submitted',
+				inProgress: 'In progress',
+				latestActivity: 'Latest activity',
+				reportReadiness: 'Report readiness',
+				loaded: (count: string) => `${count} loaded`,
+				reconciled: (count: string) => `${count} reconciled`
+			},
+			readiness: {
+				body:
+					'Use this before opening collection. The check confirms that the questionnaire, results, recipients, and policy setup can support responses and reporting.',
+				issuesAria: 'Readiness issues',
+				warningsTitle: 'Setup warnings',
+				blockersTitle: 'Before collection can start',
+				warningsBody:
+					'These items do not block collection, but review them before sharing access.',
+				blockersBody: 'Fix the blocking setup items, then run the pre-launch check again.',
+				blocking: 'Blocking',
+				warning: 'Warning',
+				openSetup: 'Open Setup',
+				returnAndCheck: 'Return here and run the check again after saving setup.',
+				blockedTitle: 'Setup is blocked',
+				blockedBody:
+					'The check did not return itemized blockers. Open Setup, review incomplete steps, save changes, then run this check again.',
+				runCheck: 'Run pre-launch check'
+			},
+			launch: {
+				body:
+					'Starting collection opens the selected wave for responses and records the setup version that reports will use later.',
+				start: 'Start collection',
+				resultLabel: 'Collection'
+			},
+			shareAccess: {
+				body:
+					'Choose how respondents enter this wave. Saved Directory and group selections become private invitations. Use the one-off importer only to add ad hoc recipients after launch, or create an open respondent link when broad access is acceptable.',
+				identifiedEntryLabel: 'Identified entry',
+				inviteOnlyLabel: 'Invite-only access',
+				openLinkLabel: 'Open respondent link',
+				identifiedEntryTitle: 'Create an identified respondent entry',
+				privateInvitationsTitle: 'Private invitations are active',
+				openLinkReadyTitle: 'Open link already created',
+				createShareableLinkTitle: 'Create a shareable link',
+				openLinkDisabled: 'Open link disabled',
+				openLinkActive: 'Open link active',
+				inviteOnly: 'Invite-only',
+				replaceLostLink: 'Replace lost link',
+				replaced: 'Replaced',
+				oneActiveLink: 'One active link',
+				createIdentifiedAccessLink: 'Create identified access link',
+				createRespondentLink: 'Create respondent link',
+				shareLink: 'Share link',
+				respondentLinkReady: 'Respondent link ready',
+				identifiedHelp: 'Use this only when respondents should be connected to known subject records.',
+				inviteOnlyHelp:
+					'This wave already has private email invitations. Open links are disabled so participation stays limited to invited recipients.',
+				openLinkReadyHelp:
+					'This wave already has one active open link. If the link was lost, replace it here. The old link will stop accepting new respondents; existing response sessions can still finish through their private session handles.',
+				openLinkHelp:
+					'Use this when broad anonymous participation is acceptable and you do not need an invite-only recipient list.'
+			},
+			emailSetup: {
+				label: 'Email sending setup',
+				title: 'Check delivery configuration before sending',
+				body:
+					'This check shows whether this environment can send real SMTP invitations or is still in test mode or missing settings. It never exposes provider secrets or SMTP credentials.',
+				mode: 'Mode',
+				realEmailSend: 'Real email send',
+				providerEvents: 'Provider events',
+				webhookConfigured: 'Webhook configured',
+				webhookDisabled: 'Webhook disabled',
+				checkEmailSetup: 'Check email setup'
+			},
+			simulation: {
+				label: 'Test responses',
+				title: 'Simulate response data',
+				body:
+					'Use this in non-production environments to create believable submitted responses without sending email.',
+				responses: 'Responses',
+				averageTarget: 'Average target',
+				variation: 'Variation',
+				tight: 'Tight',
+				normal: 'Normal',
+				noisy: 'Noisy',
+				simulateCollection: 'Simulate collection',
+				includeComments: 'Add short synthetic text answers when the questionnaire has comment fields.',
+				answersSaved: 'Answers saved',
+				scoredResponses: 'Scored responses'
+			},
+			monitor: {
+				body:
+					'Watch response movement while collection is open. These numbers refresh from the workspace state and do not change study setup.',
+				deliveryDiagnostics: 'Delivery diagnostics',
+				recentEmailEvents: 'Recent email delivery events',
+				noEventsYet: 'No events yet',
+				providerEventsBody:
+					'Use this only when troubleshooting email sending. It shows accepted, delivered, bounced, and spam-complaint counts without exposing recipients, internal ids, provider ids, or provider reason text.',
+				accepted: 'Accepted',
+				delivered: 'Delivered',
+				bounced: 'Bounced',
+				complained: 'Complained',
+				latestProviderEvent: 'Latest provider event',
+				loadProviderEvents: 'Load recent provider events',
+				noRecentProviderEvents: 'No recent provider events are recorded for this workspace yet.',
+				refreshStatus: 'Refresh status'
+			},
+			cleanup: {
+				label: 'Email delivery cleanup',
+				title: 'Repair readiness',
+				needsReview: 'Needs review',
+				noCleanup: 'No cleanup',
+				notChecked: 'Not checked',
+				body:
+					'Check this before retrying failed invitation emails. It separates stale handoffs, ambiguous failures, retryable failures, and suppressed recipients without changing delivery state.',
+				staleHandoffs: 'Stale handoffs',
+				ambiguousFailures: 'Ambiguous failures',
+				retryableFailures: 'Retryable failures',
+				suppressedFailures: 'Suppressed failures',
+				deliveryEvents: 'Delivery events',
+				checkCleanupReadiness: 'Check cleanup readiness',
+				retryPossible: 'Retry possible'
+			},
+			close: {
+				body:
+					'Close collection when the response window is finished. Submitted responses remain available for scoring and reports.',
+				closeCollection: 'Close collection'
+			},
+			navigation: {
+				ariaLabel: 'Collection step navigation',
+				previousStep: 'Previous step',
+				nextStep: 'Next step',
+				goToResults: 'Go to results'
+			},
+			email: {
+				subject: 'Study invitation',
+				body:
+					'You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]'
+			}
+		},		operationsWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
@@ -1506,7 +1680,8 @@ const hr: typeof en = {
 					truncated: 'Pregled je skraćen.'
 				}
 			}
-		},		setupWorkflow: {
+		},
+		setupWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Val ${number}`,
 			steps: {
@@ -1647,7 +1822,180 @@ const hr: typeof en = {
 				and: 'i'
 			}
 		},
-		operationsWorkflow: {
+		operationsBody: {
+			progressAriaLabel: 'Tijek prikupljanja studije',
+			progressKicker: 'Prikupljanje studije',
+			progressTitle: 'Tijek prikupljanja',
+			progressBody:
+				'Pokrenite val, podijelite pristup sudionicima, pratite predaje i zatvorite prikupljanje kada studija završi.',
+			stepsComplete: (completed: number, total: number) => `${completed}/${total} koraka dovršeno`,
+			statusKicker: 'Status prikupljanja',
+			nextAction: 'Sljedeća radnja',
+			pathAriaLabel: 'Put prikupljanja',
+			stepAriaLabel: 'Korak prikupljanja',
+			readOnlyTitle: 'Pristup samo za čitanje',
+			readOnlyBody: 'Radnje prikupljanja zahtijevaju pravo upravljanja radnim prostorom.',
+			stepStatus: {
+				working: 'U tijeku',
+				saved: 'Spremljeno',
+				failed: 'Neuspjelo',
+				ready: 'Spremno'
+			},
+			pathStatus: {
+				done: 'Gotovo',
+				current: 'Trenutno',
+				blocked: 'Blokirano'
+			},
+			common: {
+				available: 'Dostupno',
+				blocked: 'Blokirano',
+				closed: 'Zatvoreno',
+				created: 'Izrađeno',
+				missing: 'Nedostaje',
+				notAvailable: 'Nije dostupno',
+				notChecked: 'Nije provjereno',
+				ready: 'Spremno',
+				status: 'Status',
+				collectionWave: 'Val prikupljanja',
+				setupCheck: 'Provjera postavljanja',
+				started: 'Započeto',
+				submitted: 'Predano',
+				inProgress: 'U tijeku',
+				latestActivity: 'Zadnja aktivnost',
+				reportReadiness: 'Spremnost izvještaja',
+				loaded: (count: string) => `${count} učitano`,
+				reconciled: (count: string) => `${count} usklađeno`
+			},
+			readiness: {
+				body:
+					'Koristite ovo prije otvaranja prikupljanja. Provjera potvrđuje da upitnik, rezultati, primatelji i pravila mogu podržati odgovore i izvještavanje.',
+				issuesAria: 'Problemi spremnosti',
+				warningsTitle: 'Upozorenja postavljanja',
+				blockersTitle: 'Prije početka prikupljanja',
+				warningsBody:
+					'Ove stavke ne blokiraju prikupljanje, ali ih pregledajte prije dijeljenja pristupa.',
+				blockersBody: 'Popravite blokirajuće stavke postavljanja, zatim ponovno pokrenite provjeru.',
+				blocking: 'Blokira',
+				warning: 'Upozorenje',
+				openSetup: 'Otvori Postavljanje',
+				returnAndCheck: 'Vratite se ovdje i ponovno pokrenite provjeru nakon spremanja postavljanja.',
+				blockedTitle: 'Postavljanje je blokirano',
+				blockedBody:
+					'Provjera nije vratila pojedinačne blokade. Otvorite Postavljanje, pregledajte nedovršene korake, spremite promjene i ponovno pokrenite provjeru.',
+				runCheck: 'Pokreni provjeru prije pokretanja'
+			},
+			launch: {
+				body:
+					'Pokretanje prikupljanja otvara odabrani val za odgovore i bilježi verziju postavljanja koju će izvještaji kasnije koristiti.',
+				start: 'Pokreni prikupljanje',
+				resultLabel: 'Prikupljanje'
+			},
+			shareAccess: {
+				body:
+					'Odaberite kako sudionici ulaze u ovaj val. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
+				identifiedEntryLabel: 'Identificirani ulaz',
+				inviteOnlyLabel: 'Pristup samo pozivnicom',
+				openLinkLabel: 'Otvorena poveznica za sudionike',
+				identifiedEntryTitle: 'Izradi identificirani ulaz za sudionika',
+				privateInvitationsTitle: 'Privatne pozivnice su aktivne',
+				openLinkReadyTitle: 'Otvorena poveznica je izrađena',
+				createShareableLinkTitle: 'Izradi poveznicu za dijeljenje',
+				openLinkDisabled: 'Otvorena poveznica isključena',
+				openLinkActive: 'Otvorena poveznica aktivna',
+				inviteOnly: 'Samo pozivnice',
+				replaceLostLink: 'Zamijeni izgubljenu poveznicu',
+				replaced: 'Zamijenjeno',
+				oneActiveLink: 'Jedna aktivna poveznica',
+				createIdentifiedAccessLink: 'Izradi identificiranu pristupnu poveznicu',
+				createRespondentLink: 'Izradi poveznicu za sudionika',
+				shareLink: 'Poveznica za dijeljenje',
+				respondentLinkReady: 'Poveznica za sudionika spremna',
+				identifiedHelp: 'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
+				inviteOnlyHelp:
+					'Ovaj val već ima privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi sudjelovanje ostalo ograničeno na pozvane primatelje.',
+				openLinkReadyHelp:
+					'Ovaj val već ima jednu aktivnu otvorenu poveznicu. Ako je poveznica izgubljena, zamijenite je ovdje. Stara poveznica prestat će prihvaćati nove sudionike; postojeće sesije odgovaranja mogu završiti kroz svoje privatne sesijske oznake.',
+				openLinkHelp:
+					'Koristite kada je široko anonimno sudjelovanje prihvatljivo i ne treba vam popis primatelja samo pozivnicom.'
+			},
+			emailSetup: {
+				label: 'Postavljanje slanja e-pošte',
+				title: 'Provjera slanja e-pošte prije slanja',
+				body:
+					'Ova provjera pokazuje može li okruženje slati stvarne SMTP pozivnice ili je još u testnom načinu rada odnosno nema potrebne postavke. Ne prikazuje tajne davatelja ni SMTP vjerodajnice.',
+				mode: 'Način rada',
+				realEmailSend: 'Stvarno slanje e-pošte',
+				providerEvents: 'Događaji davatelja',
+				webhookConfigured: 'Webhook je podešen',
+				webhookDisabled: 'Webhook je isključen',
+				checkEmailSetup: 'Provjeri slanje e-pošte'
+			},
+			simulation: {
+				label: 'Testni odgovori',
+				title: 'Simuliraj podatke odgovora',
+				body:
+					'Koristite u neprodukcijskim okruženjima za stvaranje uvjerljivih predanih odgovora bez slanja e-pošte.',
+				responses: 'Odgovori',
+				averageTarget: 'Ciljani prosjek',
+				variation: 'Varijacija',
+				tight: 'Usko',
+				normal: 'Normalno',
+				noisy: 'Šumovito',
+				simulateCollection: 'Simuliraj prikupljanje',
+				includeComments: 'Dodaj kratke sintetičke tekstualne odgovore kada upitnik ima polja za komentar.',
+				answersSaved: 'Spremljeni odgovori',
+				scoredResponses: 'Bodovani odgovori'
+			},
+			monitor: {
+				body:
+					'Pratite kretanje odgovora dok je prikupljanje otvoreno. Brojevi se osvježavaju iz stanja radnog prostora i ne mijenjaju postavljanje studije.',
+				deliveryDiagnostics: 'Dijagnostika dostave',
+				recentEmailEvents: 'Nedavni događaji dostave e-pošte',
+				noEventsYet: 'Još nema događaja',
+				providerEventsBody:
+					'Koristite samo za rješavanje problema sa slanjem e-pošte. Prikazuje prihvaćeno, dostavljeno, odbijeno i spam-pritužbe bez prikaza primatelja, internih id-jeva, id-jeva davatelja ili razloga davatelja.',
+				accepted: 'Prihvaćeno',
+				delivered: 'Dostavljeno',
+				bounced: 'Odbijeno',
+				complained: 'Pritužbe',
+				latestProviderEvent: 'Zadnji događaj davatelja',
+				loadProviderEvents: 'Učitaj nedavne događaje davatelja',
+				noRecentProviderEvents: 'Još nema nedavnih događaja davatelja za ovaj radni prostor.',
+				refreshStatus: 'Osvježi status'
+			},
+			cleanup: {
+				label: 'Čišćenje dostave e-pošte',
+				title: 'Spremnost popravka',
+				needsReview: 'Treba pregled',
+				noCleanup: 'Nema čišćenja',
+				notChecked: 'Nije provjereno',
+				body:
+					'Provjerite ovo prije ponovnog slanja neuspjelih pozivnica. Odvaja zastarjele predaje, nejasne neuspjehe, neuspjehe koje se može ponoviti i potisnute primatelje bez promjene stanja dostave.',
+				staleHandoffs: 'Zastarjele predaje',
+				ambiguousFailures: 'Nejasni neuspjesi',
+				retryableFailures: 'Ponovljivi neuspjesi',
+				suppressedFailures: 'Potisnuti neuspjesi',
+				deliveryEvents: 'Događaji dostave',
+				checkCleanupReadiness: 'Provjeri spremnost popravka',
+				retryPossible: 'Ponovno slanje moguće'
+			},
+			close: {
+				body:
+					'Zatvorite prikupljanje kada prozor za odgovore završi. Predani odgovori ostaju dostupni za bodovanje i izvještaje.',
+				closeCollection: 'Zatvori prikupljanje'
+			},
+			navigation: {
+				ariaLabel: 'Navigacija koraka prikupljanja',
+				previousStep: 'Prethodni korak',
+				nextStep: 'Sljedeći korak',
+				goToResults: 'Idi na rezultate'
+			},
+			email: {
+				subject: 'Pozivnica za studiju',
+				body:
+					'Pozvani ste da ispunite studiju.\n\nRadi privatnosti, ova e-pošta ne uključuje naziv ni temu studije. Poveznica otvara stranicu studije prije nego odlučite hoćete li odgovoriti.\n\nOtvorite svoju poveznicu za studiju:\n[jedinstvena poveznica sudionika]\n\nAko ste već odgovorili, ovu poruku možete zanemariti.\n\nAko više ne biste trebali primati pozivnice za studije iz ovog radnog prostora, odjavite se ovdje:\n[poveznica za odjavu]\n\n[podnožje pozivnice radnog prostora]'
+			}
+		},		operationsWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {

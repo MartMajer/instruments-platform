@@ -66,15 +66,18 @@
 	const setupApi = createSetupApiFromEnv(env);
 	const appLocale = $derived(appLocaleFromPageData(page.data));
 	const operationsWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.operationsWorkflow);
-	const countFormatter = new Intl.NumberFormat('hr-HR');
-	const dateTimeFormatter = new Intl.DateTimeFormat('hr-HR', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		hour12: false
-	});
+	const operationsBodyCopy = $derived(routePageCopy(appLocale).selectedStudy.operationsBody);
+	const countFormatter = $derived(new Intl.NumberFormat(appLocale));
+	const dateTimeFormatter = $derived(
+		new Intl.DateTimeFormat(appLocale, {
+			day: '2-digit',
+			month: '2-digit',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false
+		})
+	);
 
 	let readinessResult = $state<LaunchReadinessResponse | null>(null);
 	let launchResult = $state<LaunchCampaignResponse | null>(null);
@@ -844,30 +847,30 @@
 
 	function stepLabel(state: StepState) {
 		if (state === 'submitting') {
-			return 'Working';
+			return operationsBodyCopy.stepStatus.working;
 		}
 
 		if (state === 'succeeded') {
-			return 'Saved';
+			return operationsBodyCopy.stepStatus.saved;
 		}
 
 		if (state === 'failed') {
-			return 'Failed';
+			return operationsBodyCopy.stepStatus.failed;
 		}
 
-		return 'Ready';
+		return operationsBodyCopy.stepStatus.ready;
 	}
 
 	function pathStateLabel(state: 'done' | 'current' | 'blocked') {
 		if (state === 'done') {
-			return 'Done';
+			return operationsBodyCopy.pathStatus.done;
 		}
 
 		if (state === 'current') {
-			return 'Current';
+			return operationsBodyCopy.pathStatus.current;
 		}
 
-		return 'Blocked';
+		return operationsBodyCopy.pathStatus.blocked;
 	}
 
 	function formatCount(value: number | null | undefined) {
@@ -884,7 +887,7 @@
 
 	function formatDateTime(value: string | null | undefined) {
 		if (!value) {
-			return 'Not available';
+			return operationsBodyCopy.common.notAvailable;
 		}
 
 		const date = new Date(normalizeTimestampForDate(value));
@@ -900,15 +903,15 @@
 	}
 
 	function humanize(value: string | null | undefined) {
-		return value ? value.replaceAll('_', ' ') : 'Not available';
+		return value ? value.replaceAll('_', ' ') : operationsBodyCopy.common.notAvailable;
 	}
 
 	function emailSubject() {
-		return 'Study invitation';
+		return operationsBodyCopy.email.subject;
 	}
 
 	function emailBody() {
-		return `You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]`;
+		return operationsBodyCopy.email.body;
 	}
 
 	function deliveryBatchSummary(result: ProcessCampaignEmailDeliveriesResponse) {
@@ -1176,20 +1179,19 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Study collection flow">
+<section class="product-panel" role="group" aria-label={operationsBodyCopy.progressAriaLabel}>
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Study collection</p>
-			<h3 class="product-title">Collect responses</h3>
+			<p class="product-kicker">{operationsBodyCopy.progressKicker}</p>
+			<h3 class="product-title">{operationsBodyCopy.progressTitle}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Start the wave, share respondent access, monitor submissions, and close collection when
-				the study is finished.
+				{operationsBodyCopy.progressBody}
 			</p>
 		</div>
 		<div class="grid justify-items-end gap-2">
 			<StatusBadge status={collectionStatus.overallStatus} label={collectionStatus.overallLabel} />
 			<p class="text-xs font-semibold text-[var(--color-text-muted)]">
-				{operationsPath.completedCount}/{operationsPath.totalCount} steps complete
+				{operationsBodyCopy.stepsComplete(operationsPath.completedCount, operationsPath.totalCount)}
 			</p>
 		</div>
 	</div>
@@ -1198,10 +1200,10 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="score-result-panel report-proof-panel" role="region" aria-label="Collection status">
+	<article class="score-result-panel report-proof-panel" role="region" aria-label={operationsBodyCopy.statusKicker}>
 		<div class="score-result-panel__header">
 			<div>
-				<p class="product-kicker">Collection status</p>
+				<p class="product-kicker">{operationsBodyCopy.statusKicker}</p>
 				<h4 class="record-row__title">{collectionStatus.headline}</h4>
 				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
 					{collectionStatus.guidance}
@@ -1219,12 +1221,12 @@
 			{/each}
 		</dl>
 		<p class="result-line">
-			<span>Next action</span>
+			<span>{operationsBodyCopy.nextAction}</span>
 			<span>{collectionStatus.nextAction}</span>
 		</p>
 	</article>
 
-	<div class="setup-path" role="list" aria-label="Collection path">
+	<div class="setup-path" role="list" aria-label={operationsBodyCopy.pathAriaLabel}>
 		{#each operationsPath.steps as action, index (action.id)}
 			<div role="listitem">
 				<button
@@ -1247,11 +1249,11 @@
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
-			<strong class="record-row__title">Read-only access</strong>
-			<span>Collection actions require workspace management access.</span>
+			<strong class="record-row__title">{operationsBodyCopy.readOnlyTitle}</strong>
+			<span>{operationsBodyCopy.readOnlyBody}</span>
 		</p>
 	{:else}
-		<article class="record-row setup-current-task" role="region" aria-label="Collection step">
+		<article class="record-row setup-current-task" role="region" aria-label={operationsBodyCopy.stepAriaLabel}>
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">{activeAction.step}</p>
@@ -1272,25 +1274,25 @@
 					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Collection wave</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+							<dt class="record-field__label">{operationsBodyCopy.common.collectionWave}</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? operationsBodyCopy.common.missing}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Setup check</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.setupCheck}</dt>
 							<dd class="record-field__value">
-								{readinessResult ? (readinessResult.ready ? 'Ready' : 'Blocked') : 'Not checked'}
+								{readinessResult ? (readinessResult.ready ? operationsBodyCopy.common.ready : operationsBodyCopy.common.blocked) : operationsBodyCopy.common.notChecked}
 							</dd>
 						</div>
 					</dl>
 					{#if readinessResult?.issues.length}
-						<div class="record-row" aria-label="Readiness issues">
+						<div class="record-row" aria-label={operationsBodyCopy.readiness.issuesAria}>
 							<h5 class="record-row__title">
-								{readinessResult.ready ? 'Setup warnings' : 'Before collection can start'}
+								{readinessResult.ready ? operationsBodyCopy.readiness.warningsTitle : operationsBodyCopy.readiness.blockersTitle}
 							</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{readinessResult.ready
-									? 'These items do not block collection, but they should be reviewed before sharing access.'
-									: 'Fix the blocking setup items, then run the pre-launch check again.'}
+									? operationsBodyCopy.readiness.warningsBody
+									: operationsBodyCopy.readiness.blockersBody}
 							</p>
 							<ul class="grid gap-2">
 								{#each readinessIssueGuidance as guidance}
@@ -1298,7 +1300,7 @@
 										<span class="font-semibold text-[var(--color-text)]">
 											{guidance.title}
 											<span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-												{guidance.severity === 'blocker' ? 'Blocking' : 'Warning'}
+												{guidance.severity === 'blocker' ? operationsBodyCopy.readiness.blocking : operationsBodyCopy.readiness.warning}
 											</span>
 										</span>
 										<span class="text-[var(--color-text-muted)]">{guidance.detail}</span>
@@ -1306,47 +1308,46 @@
 								{/each}
 							</ul>
 							<div class="flex flex-wrap items-center gap-3">
-								<a class="secondary-button" href={setupHref}>Open Setup</a>
+								<a class="secondary-button" href={setupHref}>{operationsBodyCopy.readiness.openSetup}</a>
 								<span class="text-xs font-semibold text-[var(--color-text-muted)]">
-									Return here and run the check again after saving setup.
+									{operationsBodyCopy.readiness.returnAndCheck}
 								</span>
 							</div>
 						</div>
 					{:else if readinessResult && !readinessResult.ready}
 						<div class="record-row" aria-label="Readiness blocked">
-							<h5 class="record-row__title">Setup is blocked</h5>
+							<h5 class="record-row__title">{operationsBodyCopy.readiness.blockedTitle}</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								The check did not return itemized blockers. Open Setup, review incomplete steps,
 								save changes, then run this check again.
 							</p>
-							<a class="secondary-button" href={setupHref}>Open Setup</a>
+							<a class="secondary-button" href={setupHref}>{operationsBodyCopy.readiness.openSetup}</a>
 						</div>
 					{/if}
 					{@render ActionFooter({
 						id: 'readiness',
-						label: 'Run pre-launch check',
-						resultLabel: 'Setup check',
+						label: operationsBodyCopy.readiness.runCheck,
+						resultLabel: operationsBodyCopy.common.setupCheck,
 						resultValue: readinessResult ? (readinessResult.ready ? 'Ready' : 'Blocked') : null,
 						onclick: checkLaunchReadiness
 					})}
 				{:else if activeAction.id === 'launch'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Starting collection opens the selected wave for responses and records the setup version
-						that reports will use later.
+						{operationsBodyCopy.launch.body}
 					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Collection wave</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+							<dt class="record-field__label">{operationsBodyCopy.common.collectionWave}</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? operationsBodyCopy.common.missing}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Status</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.status}</dt>
 							<dd class="record-field__value">
 								{humanize(launchResult?.status ?? selectedCampaign?.status)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Started</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.started}</dt>
 							<dd class="record-field__value">
 								{formatDateTime(selectedCampaign?.latestLaunchAt)}
 							</dd>
@@ -1354,23 +1355,20 @@
 					</dl>
 					{@render ActionFooter({
 						id: 'launch',
-						label: 'Start collection',
-						resultLabel: 'Collection',
+						label: operationsBodyCopy.launch.start,
+						resultLabel: operationsBodyCopy.launch.resultLabel,
 						resultValue: launchResult?.status ? humanize(launchResult.status) : null,
 						onclick: launchCampaign
 					})}
 				{:else if activeAction.id === 'openLink'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Choose how respondents enter this wave. Directory and group selections saved in Setup
-						become private invitations at launch. Use the one-off importer here only to add ad hoc
-						recipients after launch, or create an open respondent link when anyone with the link may
-						answer.
+						{operationsBodyCopy.shareAccess.body}
 					</p>
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Email sending setup</p>
-								<h5 class="record-row__title">Check delivery configuration before sending</h5>
+								<p class="record-field__label">{operationsBodyCopy.emailSetup.label}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.emailSetup.title}</h5>
 							</div>
 							<StatusBadge
 								status={emailReadinessBadgeStatus()}
@@ -1378,26 +1376,24 @@
 							/>
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-							This check shows whether the current environment can send real SMTP invitations, or
-							whether it is still in local test mode or missing required email settings. It never
-							exposes provider secrets or SMTP credentials.
+							{operationsBodyCopy.emailSetup.body}
 						</p>
 						{#if emailReadinessResult}
 							<dl class="record-grid">
 								<div class="record-field">
-									<dt class="record-field__label">Mode</dt>
+									<dt class="record-field__label">{operationsBodyCopy.emailSetup.mode}</dt>
 									<dd class="record-field__value">{humanize(emailReadinessResult.mode)}</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Real email send</dt>
+									<dt class="record-field__label">{operationsBodyCopy.emailSetup.realEmailSend}</dt>
 									<dd class="record-field__value">
-										{emailReadinessResult.canSendRealEmail ? 'Available' : 'Not available'}
+										{emailReadinessResult.canSendRealEmail ? operationsBodyCopy.common.available : operationsBodyCopy.common.notAvailable}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Provider events</dt>
+									<dt class="record-field__label">{operationsBodyCopy.emailSetup.providerEvents}</dt>
 									<dd class="record-field__value">
-										{emailReadinessResult.webhookConfigured ? 'Webhook configured' : 'Webhook disabled'}
+										{emailReadinessResult.webhookConfigured ? operationsBodyCopy.emailSetup.webhookConfigured : operationsBodyCopy.emailSetup.webhookDisabled}
 									</dd>
 								</div>
 							</dl>
@@ -1420,7 +1416,7 @@
 								onclick={loadEmailDeliveryReadiness}
 							>
 								<SearchCheck size={16} aria-hidden="true" />
-								<span>Check email setup</span>
+								<span>{operationsBodyCopy.emailSetup.checkEmailSetup}</span>
 							</button>
 						</div>
 					</div>
@@ -1551,7 +1547,7 @@
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Retryable failures</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.retryableFailures}</dt>
 									<dd class="record-field__value">
 										{formatCount(locallyFailedInvitationCount)}
 									</dd>
@@ -1593,7 +1589,7 @@
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Latest provider event</dt>
+									<dt class="record-field__label">{operationsBodyCopy.monitor.latestProviderEvent}</dt>
 									<dd class="record-field__value">{formatDateTime(latestProviderEventAt)}</dd>
 								</div>
 							</dl>
@@ -1617,7 +1613,7 @@
 									selectedCampaignSupportsEmailInvites && !openLinkAccessActive
 										? 'Anonymous invite-only'
 										: openLinkAccessActive
-											? 'Open link active'
+											? operationsBodyCopy.shareAccess.openLinkActive
 											: 'Unavailable'
 								}
 							/>
@@ -1863,7 +1859,7 @@
 									onclick={loadEmailDeliveryReadiness}
 								>
 									<SearchCheck size={17} aria-hidden="true" />
-									<span>Check email setup</span>
+									<span>{operationsBodyCopy.emailSetup.checkEmailSetup}</span>
 								</button>
 								<button
 									type="button"
@@ -1988,7 +1984,7 @@
 								{:else}
 									<Plus size={17} aria-hidden="true" />
 								{/if}
-								<span>Simulate collection</span>
+								<span>{operationsBodyCopy.simulation.simulateCollection}</span>
 							</button>
 						</div>
 						<label class="inline-flex items-start gap-2 text-sm text-[var(--color-text-muted)]">
@@ -1998,22 +1994,22 @@
 								disabled={actionStates.openLink === 'submitting'}
 								onchange={(event) => (testResponseIncludeComments = event.currentTarget.checked)}
 							/>
-							<span>Add short synthetic text answers when the questionnaire has comment fields.</span>
+							<span>{operationsBodyCopy.simulation.includeComments}</span>
 						</label>
 						{#if testResponseResult}
 							<div class="record-grid">
 								<div class="record-field">
-									<p class="record-field__label">Submitted</p>
+									<p class="record-field__label">{operationsBodyCopy.common.submitted}</p>
 									<p class="record-field__value">
 										{formatCount(testResponseResult.submittedResponseCount)}
 									</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Answers saved</p>
+									<p class="record-field__label">{operationsBodyCopy.simulation.answersSaved}</p>
 									<p class="record-field__value">{formatCount(testResponseResult.answerCount)}</p>
 								</div>
 								<div class="record-field">
-									<p class="record-field__label">Scored responses</p>
+									<p class="record-field__label">{operationsBodyCopy.simulation.scoredResponses}</p>
 									<p class="record-field__value">
 										{formatCount(testResponseResult.scoredResponseCount)}
 									</p>
@@ -2026,51 +2022,51 @@
 							<div>
 								<p class="record-field__label">
 									{selectedCampaignIsIdentified
-										? 'Identified entry'
+										? operationsBodyCopy.shareAccess.identifiedEntryLabel
 										: emailInviteAccessActive
-											? 'Invite-only access'
+											? operationsBodyCopy.shareAccess.inviteOnlyLabel
 											: openLinkAccessActive
-												? 'Open respondent link'
-											: 'Open respondent link'}
+												? operationsBodyCopy.shareAccess.openLinkLabel
+											: operationsBodyCopy.shareAccess.openLinkLabel}
 								</p>
 								<h5 class="record-row__title">
 									{selectedCampaignIsIdentified
-										? 'Create an identified respondent entry'
+										? operationsBodyCopy.shareAccess.identifiedEntryTitle
 										: emailInviteAccessActive
-											? 'Private invitations are active'
+											? operationsBodyCopy.shareAccess.privateInvitationsTitle
 											: openLinkAccessActive
-												? 'Open link already created'
-											: 'Create a shareable link'}
+												? operationsBodyCopy.shareAccess.openLinkReadyTitle
+											: operationsBodyCopy.shareAccess.createShareableLinkTitle}
 								</h5>
 							</div>
 							<StatusBadge
 								status={emailInviteAccessActive ? 'blocked' : openLinkAccessActive ? 'ready' : 'neutral'}
 								label={
 									emailInviteAccessActive
-										? 'Open link disabled'
+										? operationsBodyCopy.shareAccess.openLinkDisabled
 										: openLinkAccessActive
-											? 'Open link active'
+											? operationsBodyCopy.shareAccess.openLinkActive
 											: undefined
 								}
 							/>
 						</div>
 						<p class="text-sm text-[var(--color-text-muted)]">
 							{selectedCampaignIsIdentified
-								? 'Use this only when respondents should be connected to known subject records.'
+								? '{operationsBodyCopy.shareAccess.identifiedHelp}'
 								: emailInviteAccessActive
-									? 'This wave already has private email invitations. Open links are disabled so participation stays limited to invited recipients.'
+									? '{operationsBodyCopy.shareAccess.inviteOnlyHelp}'
 									: openLinkAccessActive
-										? 'This wave already has one active open link. If the link was lost, replace it here. The old link will stop accepting new respondents; existing response sessions can still finish through their private session handles.'
-								: 'Use this when broad anonymous participation is acceptable and you do not need an invite-only recipient list.'}
+										? '{operationsBodyCopy.shareAccess.openLinkReadyHelp}'
+								: '{operationsBodyCopy.shareAccess.openLinkHelp}'}
 						</p>
 						{#if emailInviteAccessActive && !selectedCampaignIsIdentified}
 							<div class="action-row">
 								<button type="button" class="secondary-button" disabled>
 									<Send size={17} aria-hidden="true" />
-									<span>Open link disabled</span>
+									<span>{operationsBodyCopy.shareAccess.openLinkDisabled}</span>
 								</button>
 								<p class="step-pill" data-state="idle">
-									Invite-only
+									{operationsBodyCopy.shareAccess.inviteOnly}
 								</p>
 							</div>
 							{#if actionErrors.openLink}
@@ -2089,10 +2085,10 @@
 									{:else}
 										<RefreshCw size={17} aria-hidden="true" />
 									{/if}
-									<span>Replace lost link</span>
+									<span>{operationsBodyCopy.shareAccess.replaceLostLink}</span>
 								</button>
 								<p class="step-pill" data-state={actionStates.openLink}>
-									{actionStates.openLink === 'succeeded' ? 'Replaced' : 'One active link'}
+									{actionStates.openLink === 'succeeded' ? operationsBodyCopy.shareAccess.replaced : operationsBodyCopy.shareAccess.oneActiveLink}
 								</p>
 							</div>
 							{#if actionErrors.openLink}
@@ -2102,9 +2098,9 @@
 							{@render ActionFooter({
 								id: 'openLink',
 								label: selectedCampaignIsIdentified
-									? 'Create identified access link'
-									: 'Create respondent link',
-								resultLabel: 'Share link',
+									? operationsBodyCopy.shareAccess.createIdentifiedAccessLink
+									: operationsBodyCopy.shareAccess.createRespondentLink,
+								resultLabel: operationsBodyCopy.shareAccess.shareLink,
 								resultValue: respondentEntry?.respondentPath ?? null,
 								onclick: createRespondentAccess
 							})}
@@ -2113,8 +2109,8 @@
 					{#if respondentEntry}
 						<div class="record-row">
 							<div class="record-row__header">
-								<h5 class="record-row__title">Respondent link ready</h5>
-								<span class="step-pill" data-state="succeeded">Created</span>
+								<h5 class="record-row__title">{operationsBodyCopy.shareAccess.respondentLinkReady}</h5>
+								<span class="step-pill" data-state="succeeded">{operationsBodyCopy.common.created}</span>
 							</div>
 							<p class="result-line">
 								<span>Share link</span>
@@ -2124,72 +2120,69 @@
 					{/if}
 				{:else if activeAction.id === 'monitor'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Watch response movement while collection is open. These numbers refresh from the
-						workspace state and do not change study setup.
+						{operationsBodyCopy.monitor.body}
 					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Started</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.started}</dt>
 							<dd class="record-field__value">{formatCount(workspace.summary.startedResponseCount)}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">In progress</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.inProgress}</dt>
 							<dd class="record-field__value">{formatCount(workspace.summary.draftResponseCount)}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Submitted</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.submitted}</dt>
 							<dd class="record-field__value">
 								{formatCount(workspace.summary.submittedResponseCount)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Latest activity</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.latestActivity}</dt>
 							<dd class="record-field__value">{formatDateTime(latestResponseActivity)}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Report readiness</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.reportReadiness}</dt>
 							<dd class="record-field__value">{humanize(workspace.summary.reportVisibilityStatus)}</dd>
 						</div>
 					</dl>
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Delivery diagnostics</p>
-								<h5 class="record-row__title">Recent email delivery events</h5>
+								<p class="record-field__label">{operationsBodyCopy.monitor.deliveryDiagnostics}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.monitor.recentEmailEvents}</h5>
 							</div>
 							<StatusBadge
 								status={providerDeliveryEventCount > 0 ? 'ready' : 'pending'}
 								label={
 									providerDeliveryEventCount > 0
 										? `${formatCount(providerDeliveryEventCount)} reconciled`
-										: 'No events yet'
+										: operationsBodyCopy.monitor.noEventsYet
 								}
 							/>
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-							Use this only when troubleshooting email sending. It shows accepted, delivered,
-							bounced, and spam-complaint counts without exposing recipients, internal ids,
-							provider ids, or provider reason text.
+							{operationsBodyCopy.monitor.providerEventsBody}
 						</p>
 						<dl class="record-grid">
 							<div class="record-field">
-								<dt class="record-field__label">Accepted</dt>
+								<dt class="record-field__label">{operationsBodyCopy.monitor.accepted}</dt>
 								<dd class="record-field__value">{formatCount(providerAcceptedEventCount)}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Delivered</dt>
+								<dt class="record-field__label">{operationsBodyCopy.monitor.delivered}</dt>
 								<dd class="record-field__value">{formatCount(providerDeliveredEventCount)}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Bounced</dt>
+								<dt class="record-field__label">{operationsBodyCopy.monitor.bounced}</dt>
 								<dd class="record-field__value">{formatCount(providerBouncedEventCount)}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Complained</dt>
+								<dt class="record-field__label">{operationsBodyCopy.monitor.complained}</dt>
 								<dd class="record-field__value">{formatCount(providerComplainedEventCount)}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Latest provider event</dt>
+								<dt class="record-field__label">{operationsBodyCopy.monitor.latestProviderEvent}</dt>
 								<dd class="record-field__value">{formatDateTime(latestProviderEventAt)}</dd>
 							</div>
 						</dl>
@@ -2205,7 +2198,7 @@
 								{:else}
 									<RefreshCw size={17} aria-hidden="true" />
 								{/if}
-								<span>Load recent provider events</span>
+								<span>{operationsBodyCopy.monitor.loadProviderEvents}</span>
 							</button>
 							{#if providerDeliveryEventsResult}
 								<p class="step-pill" data-state="succeeded">
@@ -2232,7 +2225,7 @@
 							</div>
 						{:else if providerDeliveryEventsResult}
 							<p class="text-sm text-[var(--color-text-muted)]">
-								No recent provider events are recorded for this workspace yet.
+								{operationsBodyCopy.monitor.noRecentProviderEvents}
 							</p>
 						{/if}
 						{#if actionErrors.monitor}
@@ -2242,24 +2235,22 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Email delivery cleanup</p>
-								<h5 class="record-row__title">Repair readiness</h5>
+								<p class="record-field__label">{operationsBodyCopy.cleanup.label}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.cleanup.title}</h5>
 							</div>
 							<StatusBadge
 								status={repairReadinessResult?.hasRepairWork ? 'pending' : repairReadinessResult ? 'ready' : 'neutral'}
 								label={
 									repairReadinessResult?.hasRepairWork
-										? 'Needs review'
+										? operationsBodyCopy.cleanup.needsReview
 										: repairReadinessResult
-											? 'No cleanup'
-											: 'Not checked'
+											? operationsBodyCopy.cleanup.noCleanup
+											: operationsBodyCopy.cleanup.notChecked
 								}
 							/>
 						</div>
 						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-							Check this before retrying failed invitation emails. It separates stale prepared
-							handoffs, ambiguous failures, retryable failures, and suppressed recipients without
-							changing delivery state.
+							{operationsBodyCopy.cleanup.body}
 						</p>
 						{#if repairReadinessResult}
 							<p class="text-sm leading-6 text-[var(--color-text-muted)]">
@@ -2267,37 +2258,37 @@
 							</p>
 							<dl class="record-grid">
 								<div class="record-field">
-									<dt class="record-field__label">Stale handoffs</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.staleHandoffs}</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.stalePreparedAttemptCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Ambiguous failures</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.ambiguousFailures}</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.ambiguousFailedNotificationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Retryable failures</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.retryableFailures}</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.retryableFailedNotificationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Suppressed failures</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.suppressedFailures}</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.suppressedFailedNotificationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Delivery events</dt>
+									<dt class="record-field__label">{operationsBodyCopy.cleanup.deliveryEvents}</dt>
 									<dd class="record-field__value">
 										{formatCount(repairReadinessResult.providerEventCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Latest provider event</dt>
+									<dt class="record-field__label">{operationsBodyCopy.monitor.latestProviderEvent}</dt>
 									<dd class="record-field__value">
 										{formatDateTime(repairReadinessResult.latestProviderEventAt)}
 									</dd>
@@ -2325,38 +2316,37 @@
 								{:else}
 									<SearchCheck size={17} aria-hidden="true" />
 								{/if}
-								<span>Check cleanup readiness</span>
+								<span>{operationsBodyCopy.cleanup.checkCleanupReadiness}</span>
 							</button>
 							{#if repairReadinessResult?.canRetryFailed}
-								<p class="step-pill" data-state="pending">Retry possible</p>
+								<p class="step-pill" data-state="pending">{operationsBodyCopy.cleanup.retryPossible}</p>
 							{/if}
 						</div>
 					</div>
 					{@render ActionFooter({
 						id: 'monitor',
-						label: 'Refresh status',
-						resultLabel: 'Latest activity',
+						label: operationsBodyCopy.monitor.refreshStatus,
+						resultLabel: operationsBodyCopy.common.latestActivity,
 						resultValue: formatDateTime(latestResponseActivity),
 						onclick: refreshCollectionStatus
 					})}
 				{:else}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Close collection when the response window is finished. Submitted responses remain
-						available for scoring and reports.
+						{operationsBodyCopy.close.body}
 					</p>
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Collection wave</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+							<dt class="record-field__label">{operationsBodyCopy.common.collectionWave}</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? operationsBodyCopy.common.missing}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Status</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.status}</dt>
 							<dd class="record-field__value">
 								{humanize(closeResult?.status ?? selectedCampaign?.status)}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Closed</dt>
+							<dt class="record-field__label">{operationsBodyCopy.common.closed}</dt>
 							<dd class="record-field__value">
 								{formatDateTime(closeResult?.closedAt ?? selectedCampaign?.closedAt)}
 							</dd>
@@ -2364,8 +2354,8 @@
 					</dl>
 					{@render ActionFooter({
 						id: 'close',
-						label: 'Close collection',
-						resultLabel: 'Closed',
+						label: operationsBodyCopy.close.closeCollection,
+						resultLabel: operationsBodyCopy.common.closed,
 						resultValue: closeResult?.closedAt
 							? formatDateTime(closeResult.closedAt)
 							: selectedCampaign?.closedAt
@@ -2375,7 +2365,7 @@
 					})}
 				{/if}
 
-				<div class="action-row" aria-label="Collection step navigation">
+				<div class="action-row" aria-label={operationsBodyCopy.navigation.ariaLabel}>
 					<button
 						type="button"
 						class="secondary-button"
@@ -2385,7 +2375,7 @@
 						Previous step
 					</button>
 					{#if activeAction.id === 'close'}
-						<a class="secondary-button" href={resultsHref}>Go to results</a>
+						<a class="secondary-button" href={resultsHref}>{operationsBodyCopy.navigation.goToResults}</a>
 					{:else}
 						<button
 							type="button"

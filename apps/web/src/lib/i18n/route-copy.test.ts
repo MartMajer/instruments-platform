@@ -45,4 +45,14 @@ describe('localized route body copy', () => {
 		);
 		expect(copy.recipients.audienceRules.externalEmailsLabel).toBe('Jednokratni uvoz e-pošte');
 	});
+	it('provides Croatian selected-study collection body copy', () => {
+		const copy = routePageCopy('hr-HR').selectedStudy.operationsBody;
+
+		expect(copy.progressTitle).toBe('Tijek prikupljanja');
+		expect(copy.statusKicker).toBe('Status prikupljanja');
+		expect(copy.emailSetup.title).toBe('Provjera slanja e-pošte prije slanja');
+		expect(copy.shareAccess.privateInvitationsTitle).toBe('Privatne pozivnice su aktivne');
+		expect(copy.simulation.simulateCollection).toBe('Simuliraj prikupljanje');
+		expect(copy.navigation.goToResults).toBe('Idi na rezultate');
+	});
 });
