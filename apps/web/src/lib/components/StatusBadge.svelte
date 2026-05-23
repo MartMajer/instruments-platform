@@ -1,54 +1,12 @@
 <script lang="ts">
-	import { setupStageStatusLabels, type SetupStageStatus } from '$lib/setup/stages';
-
-	type ProductStatus =
-		| SetupStageStatus
-		| 'archived'
-		| 'proof'
-		| 'demo'
-		| 'visible'
-		| 'suppressed'
-		| 'preliminary'
-		| 'preliminary_live'
-		| 'pending'
-		| 'empty'
-		| 'failed'
-		| 'unsupported'
-		| 'neutral'
-		| 'not_available'
-		| 'not_configured'
-		| 'proof_only'
-		| 'draft'
-		| 'scheduled'
-		| 'live'
-		| 'closed'
-		| 'cancelled';
-
-	const productStatusLabels: Record<ProductStatus, string> = {
-		...setupStageStatusLabels,
-		archived: 'Archived',
-		proof: 'Preview',
-		demo: 'Demo data',
-		visible: 'Visible',
-		suppressed: 'Suppressed',
-		preliminary: 'Preliminary',
-		preliminary_live: 'Preliminary live',
-		pending: 'Pending',
-		empty: 'Empty',
-		failed: 'Failed',
-		unsupported: 'Unsupported',
-		neutral: 'Neutral',
-		not_available: 'Not available',
-		not_configured: 'Not configured',
-		proof_only: 'Preview',
-		draft: 'Draft',
-		scheduled: 'Scheduled',
-		live: 'Live',
-		closed: 'Closed',
-		cancelled: 'Cancelled'
-	};
+	import { page } from '$app/state';
+	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { productStatusLabel, type ProductStatus } from './status-badge-labels';
 
 	let { status, label }: { status: ProductStatus; label?: string } = $props();
+
+	const appLocale = $derived(appLocaleFromPageData(page.data));
+	const displayLabel = $derived(label ?? productStatusLabel(status, appLocale));
 </script>
 
-<span class="status-badge" data-status={status}>{label ?? productStatusLabels[status]}</span>
+<span class="status-badge" data-status={status}>{displayLabel}</span>
