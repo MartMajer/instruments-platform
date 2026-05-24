@@ -1786,7 +1786,7 @@
 		'Shift strain': 'Opterećenje smjene',
 		'Operational support': 'Operativna podrška',
 		'Authoring summary': 'Sažetak izrade',
-		'Questionnaire blueprint': 'Nacrt upitnika',
+		'Questionnaire design review': 'Pregled dizajna upitnika',
 		'Design review': 'Pregled dizajna',
 		'Study dimensions': 'Dimenzije studije',
 		'What this questionnaire measures': 'Što ovaj upitnik mjeri',
@@ -1890,7 +1890,6 @@
 		'Unique scored questions': 'Jedinstvena bodovana pitanja',
 		'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.':
 			'Izradite jedan ukupni rezultat ili više dimenzija/podljestvica. Svaki izlaz bira vlastita pitanja, izračun i pravilo za nedostajuće odgovore.',
-		'Results blueprint': 'Nacrt rezultata',
 		'Results plan': 'Plan rezultata',
 		'Remove result': 'Ukloni rezultat',
 		'Result name': 'Naziv rezultata',
@@ -3044,7 +3043,7 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">{setupUi('Results blueprint')}</p>
+										<p class="record-field__label">{setupUi('Results plan')}</p>
 										<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
 									</div>
 									<StatusBadge status="neutral" label="Results plan" />

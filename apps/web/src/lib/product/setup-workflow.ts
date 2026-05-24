@@ -201,19 +201,23 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 	steps: {
 		instrument: {
 			title: 'Study source',
-			description: 'Confirm what this study is based on before building the questionnaire.'
+			description:
+				'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
 		},
 		template: {
 			title: 'Questionnaire',
-			description: 'Build the questions respondents will answer in this study.'
+			description:
+				"Build the saved question set respondents will answer for this study."
 		},
 		scoring: {
 			title: 'Results setup',
-			description: 'Choose which answers become study results and how missing answers are handled.'
+			description:
+				'Choose which questionnaire answers become study results and how missing answers are handled.'
 		},
 		campaign: {
 			title: 'Wave and recipients',
-			description: 'Name the collection wave, choose the response mode, and prepare recipients.'
+			description:
+				'Prepare the collection round, response mode, and recipients for this study.'
 		},
 		readiness: {
 			title: 'Launch check',
@@ -222,7 +226,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		}
 	},
 	disabled: {
-		confirmInstrument: 'Confirm the instrument first.',
+		confirmInstrument: 'Confirm the study source first.',
 		saveQuestionnaire: 'Save the questionnaire first.',
 		createCollectionWave: 'Create the collection wave first.'
 	},

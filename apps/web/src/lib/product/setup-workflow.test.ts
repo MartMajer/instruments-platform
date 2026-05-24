@@ -39,7 +39,7 @@ describe('selected-series setup workflow model', () => {
 				id: 'template',
 				status: 'blocked',
 				available: true,
-				disabledReason: 'Confirm the instrument first.'
+				disabledReason: 'Confirm the study source first.'
 			}),
 			expect.objectContaining({
 				id: 'scoring',
@@ -336,6 +336,20 @@ describe('selected-series setup workflow model', () => {
 
 		expect(path.currentActionId).toBe('instrument');
 		expect(path.completedCount).toBe(0);
+		expect(path.steps[0]).toMatchObject({
+			title: 'Study source',
+			description:
+				'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
+		});
+		expect(path.steps[1]).toMatchObject({
+			title: 'Questionnaire',
+			description: 'Build the saved question set respondents will answer for this study.'
+		});
+		expect(path.steps[2]).toMatchObject({
+			title: 'Results setup',
+			description:
+				'Choose which questionnaire answers become study results and how missing answers are handled.'
+		});
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'instrument', state: 'current' },
 			{ id: 'template', state: 'blocked' },

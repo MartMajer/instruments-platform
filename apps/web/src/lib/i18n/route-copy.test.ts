@@ -38,6 +38,7 @@ describe('localized route body copy', () => {
 
 		expect(copy.progressTitle).toBe('Napredak postavljanja studije');
 		expect(copy.questionnaire.paletteTitle).toBe('Odaberite uređivi skup pitanja');
+		expect(copy.questionnaire.blueprintTitle).toBe('Pregled dizajna upitnika');
 		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');
 		expect(copy.scoring.resultsTitle).toBe('Izlazi rezultata');
 		expect(copy.wave.responseMode.anonymousLongitudinalLabel).toBe(
@@ -45,6 +46,18 @@ describe('localized route body copy', () => {
 		);
 		expect(copy.recipients.audienceRules.externalEmailsLabel).toBe('Jednokratni uvoz e-pošte');
 	});
+	it('keeps English study setup language explicit about source, questionnaire, and starting points', () => {
+		const copy = routePageCopy('en');
+
+		expect(copy.portfolio.startBlueprint).toBe('Choose a study starting point');
+		expect(copy.instruments.description).toBe(
+			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.'
+		);
+		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe(
+			'Questionnaire design review'
+		);
+	});
+
 	it('provides Croatian selected-study collection body copy', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy.operationsBody;
 

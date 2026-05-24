@@ -199,7 +199,7 @@ const en = {
 		errorTitle: 'Studies unavailable',
 		retry: 'Retry studies',
 		guidedDesign: 'Guided study design',
-		startBlueprint: 'Start a study blueprint',
+		startBlueprint: 'Choose a study starting point',
 		selectedStartingPoint: 'Selected starting point',
 		studyName: 'Study name',
 		continueSetup: 'Continue to guided setup',
@@ -217,7 +217,8 @@ const en = {
 	instruments: {
 		eyebrow: 'Instrument library',
 		title: 'Instruments',
-		description: 'Review reusable question sets that can seed a study. Custom study building happens inside Setup.',
+		description:
+			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.',
 		loading: 'Loading instrument library',
 		errorTitle: 'Instrument library unavailable',
 		retry: 'Retry instruments',
@@ -515,7 +516,7 @@ const en = {
 				addQuestion: 'Add question',
 				saveQuestionnaire: 'Save questionnaire',
 				authoringSummary: 'Questionnaire summary',
-				blueprintTitle: 'Questionnaire blueprint',
+				blueprintTitle: 'Questionnaire design review',
 				studyDimensions: 'Study dimensions',
 				questionText: 'Question text',
 				answerFormat: 'Answer format',
@@ -656,7 +657,7 @@ const en = {
 				}
 			},
 			disabled: {
-				confirmInstrument: 'Confirm the instrument first.',
+				confirmInstrument: 'Confirm the study source first.',
 				saveQuestionnaire: 'Save the questionnaire first.',
 				createCollectionWave: 'Create the collection wave first.'
 			},
@@ -2071,7 +2072,7 @@ const hr: typeof en = {
 				addQuestion: 'Dodaj pitanje',
 				saveQuestionnaire: 'Spremi upitnik',
 				authoringSummary: 'Sažetak upitnika',
-				blueprintTitle: 'Nacrt upitnika',
+				blueprintTitle: 'Pregled dizajna upitnika',
 				studyDimensions: 'Dimenzije studije',
 				questionText: 'Tekst pitanja',
 				answerFormat: 'Format odgovora',
