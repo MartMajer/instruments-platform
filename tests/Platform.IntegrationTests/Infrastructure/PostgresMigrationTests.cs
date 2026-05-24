@@ -3921,7 +3921,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var closedAt = DateTimeOffset.Parse("2026-05-11T16:30:00+00:00");
         await using var scenario = await CreateTwoWaveProofScenarioAsync(
             tenantId,
-            "Response export proof");
+            "Response export proof",
+            includeMatrixQuestion: true);
         await SubmitFiveLinkedScoredWaveComparisonResponsesAsync(scenario);
         await CloseScenarioCampaignAsync(
             scenario.Db,
@@ -3954,6 +3955,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Contains("response_row_id,trajectory_id,campaign_series_id,campaign_id,wave_label,campaign_status,campaign_closed_at,campaign_data_finality,launch_packet_schema_version,launch_packet_sections,launch_packet_source", artifact.Value.CsvContent);
         Assert.Contains("template;instrument;scoring;policies;identity;respondent_rules;launch_readiness;provenance", artifact.Value.CsvContent);
         Assert.Contains("answer_q01", artifact.Value.CsvContent);
+        Assert.Contains("answer_body_discomfort_r01,answer_body_discomfort_r02", artifact.Value.CsvContent);
+        Assert.Contains(",c02,c03,", artifact.Value.CsvContent);
         Assert.Contains(
             "score_total_n_valid,score_total_n_expected,score_total_missing_policy_status",
             artifact.Value.CsvContent);
@@ -3998,6 +4001,19 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             column =>
                 column.GetProperty("name").GetString() == "score_total_n_valid" &&
                 column.GetProperty("source").GetString() == "score_output_metadata");
+        var matrixColumn = codebook.RootElement
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("name").GetString() == "answer_body_discomfort_r01");
+        Assert.Equal("answer", matrixColumn.GetProperty("source").GetString());
+        Assert.Equal("matrix", matrixColumn.GetProperty("questionType").GetString());
+        Assert.Equal("body_discomfort", matrixColumn.GetProperty("questionCode").GetString());
+        Assert.Equal("r01", matrixColumn.GetProperty("matrixRowCode").GetString());
+        Assert.Equal("Neck / shoulders", matrixColumn.GetProperty("matrixRowLabel").GetString());
+        Assert.Equal("Mild", matrixColumn.GetProperty("valueLabels").GetProperty("c02").GetString());
+        Assert.Equal(
+            "one_column_per_matrix_row",
+            matrixColumn.GetProperty("answerMetadata").GetProperty("exportShape").GetString());
 
         await using var transaction = await scenario.TenantDbScope.BeginTransactionAsync(tenantId);
         var persisted = await scenario.Db.ExportArtifacts.SingleAsync(entity => entity.Id == artifact.Value.Id);
@@ -9040,10 +9056,14 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     private async Task<TwoWaveProofScenario> CreateTwoWaveProofScenarioAsync(
         Guid tenantId,
         string name,
-        string produces = """{"scores":["total"]}""")
+        string produces = """{"scores":["total"]}""",
+        bool includeMatrixQuestion = false)
     {
         var migratorOptions = CreateMigratorOptions();
-        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+        var versionId = await SeedTenantTemplateVersionAsync(
+            migratorOptions,
+            tenantId,
+            includeMatrixQuestion);
 
         await CreateRuntimeRoleAsync(migratorOptions);
 
@@ -9227,7 +9247,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         string participantCode,
         string value)
     {
-        var questionId = wave.Entry.Questions.Single().Id;
+        var questionByCode = wave.Entry.Questions.ToDictionary(question => question.Code, StringComparer.Ordinal);
+        var questionId = questionByCode["q01"].Id;
         var session = await scenario.ResponseStore.CreateOpenLinkSessionAsync(
             wave.Token,
             CreateOpenLinkSessionRequestFor(wave.Entry, participantCode),
@@ -9237,7 +9258,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var saved = await scenario.ResponseStore.SaveOpenLinkAnswersAsync(
             wave.Token,
             session.Value.Id,
-            new SaveAnswersRequest([new SaveAnswerRequest(questionId, value)]),
+            new SaveAnswersRequest(CreateTwoWaveProofAnswerRequests(questionId, questionByCode, value)),
             CancellationToken.None);
         Assert.True(saved.IsSuccess, saved.Error.ToString());
 
@@ -9249,6 +9270,26 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(submitted.IsSuccess, submitted.Error.ToString());
 
         return session.Value.Id;
+    }
+
+    private static SaveAnswerRequest[] CreateTwoWaveProofAnswerRequests(
+        Guid scoreQuestionId,
+        IReadOnlyDictionary<string, RespondentQuestionResponse> questionByCode,
+        string value)
+    {
+        var requests = new List<SaveAnswerRequest>
+        {
+            new(scoreQuestionId, value)
+        };
+
+        if (questionByCode.TryGetValue("body_discomfort", out var matrixQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(
+                matrixQuestion.Id,
+                """{"r01":"c02","r02":"c03"}"""));
+        }
+
+        return requests.ToArray();
     }
 
     private static async Task SubmitAndScoreTwoWaveProofResponseAsync(
@@ -9602,7 +9643,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
 
     private static async Task<Guid> SeedTenantTemplateVersionAsync(
         DbContextOptions<ApplicationDbContext> options,
-        Guid tenantId)
+        Guid tenantId,
+        bool includeMatrixQuestion = false)
     {
         var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Seeded tenant pulse");
         var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
@@ -9628,6 +9670,25 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             "I feel depleted after work.",
             required: true,
             measurementLevel: MeasurementLevels.Ordinal);
+        var questions = new List<TemplateQuestion> { question };
+
+        if (includeMatrixQuestion)
+        {
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                2,
+                "body_discomfort",
+                QuestionTypes.Matrix,
+                scaleId: null,
+                "How much discomfort did you feel in each area?",
+                required: false,
+                variableLabel: "Body discomfort by area",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"matrix":{"mode":"single","rows":[{"code":"r01","label":"Neck / shoulders"},{"code":"r02","label":"Lower back"}],"columns":[{"code":"c01","label":"None"},{"code":"c02","label":"Mild"},{"code":"c03","label":"Severe"}]}}"""));
+        }
 
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
@@ -9636,7 +9697,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         db.TemplateVersions.Add(version);
         db.TemplateSections.Add(section);
         db.QuestionScales.Add(scale);
-        db.TemplateQuestions.Add(question);
+        db.TemplateQuestions.AddRange(questions);
         await db.SaveChangesAsync();
 
         return version.Id;

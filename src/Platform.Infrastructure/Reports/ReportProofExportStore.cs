@@ -1375,15 +1375,13 @@ public sealed class ReportProofExportStore(
                 answer => (answer.SessionId, questionCodeById[answer.QuestionId]),
                 answer => answer)
             .ToDictionary(group => group.Key, group => group.First());
-        var answerColumns = exportQuestions
-            .Select(question => $"answer_{question.Code}")
-            .ToArray();
+        var answerColumns = CreateAnswerColumns(exportQuestions);
         var scoreMetadataColumns = CreateScoreMetadataColumns(scoreMetadata);
         var scoreMetadataBySessionAndDimension = scoreMetadata
             .GroupBy(score => (score.SessionId, score.DimensionCode))
             .ToDictionary(group => group.Key, group => group.First());
         var csvColumns = ResponseExportBaseColumns
-            .Concat(answerColumns)
+            .Concat(answerColumns.Select(column => column.ColumnName))
             .Concat(scoreMetadataColumns.Select(column => column.ColumnName))
             .ToArray();
         var trajectoryIds = CreateTrajectoryIdMap(sessions, submittedCounts, disclosurePolicies);
@@ -1428,10 +1426,12 @@ public sealed class ReportProofExportStore(
                 ResolveTrajectoryDisclosure(session, submittedCounts, disclosurePolicies)
             };
 
-            foreach (var question in exportQuestions)
+            foreach (var answerColumn in answerColumns)
             {
-                rowValues.Add(answersBySessionAndCode.TryGetValue((session.SessionId, question.Code), out var answer)
-                    ? FormatAnswerValue(answer)
+                rowValues.Add(answersBySessionAndCode.TryGetValue(
+                        (session.SessionId, answerColumn.Question.Code),
+                        out var answer)
+                    ? FormatAnswerColumnValue(answer, answerColumn)
                     : string.Empty);
             }
 
@@ -1453,12 +1453,67 @@ public sealed class ReportProofExportStore(
             builder.ToString(),
             csvColumns,
             exportQuestions,
+            answerColumns,
             scoreMetadataColumns,
             sessions.Count,
             sessions.Select(session => session.CampaignId).Distinct().Count(),
             trajectoryIds.Count,
             sessions.Count(session => DetermineSessionDataFinality(session) == PreliminaryLiveDataFinality),
             sessions.Count(session => DetermineSessionDataFinality(session) == ClosedWaveDataFinality));
+    }
+
+    private static ResponseExportAnswerColumnRow[] CreateAnswerColumns(
+        IReadOnlyList<ResponseExportQuestionRow> questions)
+    {
+        var usedColumnNames = new HashSet<string>(StringComparer.Ordinal);
+        var columns = new List<ResponseExportAnswerColumnRow>();
+
+        foreach (var question in questions)
+        {
+            if (question.Type == "matrix")
+            {
+                var matrixRows = ReadMatrixOptions(question.Payload, "rows");
+                foreach (var matrixRow in matrixRows)
+                {
+                    var columnName = CreateUniqueAnswerColumnName(
+                        $"answer_{question.Code}_{ToCsvColumnToken(matrixRow.Code)}",
+                        usedColumnNames);
+                    columns.Add(new ResponseExportAnswerColumnRow(
+                        columnName,
+                        question,
+                        matrixRow.Code,
+                        matrixRow.Label));
+                }
+
+                if (matrixRows.Count > 0)
+                {
+                    continue;
+                }
+            }
+
+            columns.Add(new ResponseExportAnswerColumnRow(
+                CreateUniqueAnswerColumnName($"answer_{question.Code}", usedColumnNames),
+                question,
+                MatrixRowCode: null,
+                MatrixRowLabel: null));
+        }
+
+        return columns.ToArray();
+    }
+
+    private static string CreateUniqueAnswerColumnName(
+        string baseColumnName,
+        HashSet<string> usedColumnNames)
+    {
+        var columnName = baseColumnName;
+        var suffix = 2;
+        while (!usedColumnNames.Add(columnName))
+        {
+            columnName = $"{baseColumnName}_{suffix}";
+            suffix++;
+        }
+
+        return columnName;
     }
 
     private static ResponseExportScoreMetadataColumnRow[] CreateScoreMetadataColumns(
@@ -1617,6 +1672,35 @@ public sealed class ReportProofExportStore(
         return submittedCounts.GetValueOrDefault(session.CampaignId) >= policy.KMin;
     }
 
+    private static string FormatAnswerColumnValue(
+        ResponseExportAnswerRow answer,
+        ResponseExportAnswerColumnRow answerColumn)
+    {
+        if (answerColumn.MatrixRowCode is null)
+        {
+            return FormatAnswerValue(answer);
+        }
+
+        if (answer.IsSkipped || answer.IsNa)
+        {
+            return FormatAnswerValue(answer);
+        }
+
+        if (string.IsNullOrWhiteSpace(answer.Value))
+        {
+            return string.Empty;
+        }
+
+        using var document = JsonDocument.Parse(answer.Value);
+        if (document.RootElement.ValueKind != JsonValueKind.Object ||
+            !document.RootElement.TryGetProperty(answerColumn.MatrixRowCode, out var rowValue))
+        {
+            return string.Empty;
+        }
+
+        return FormatJsonElementValue(rowValue);
+    }
+
     private static string FormatAnswerValue(ResponseExportAnswerRow answer)
     {
         if (answer.IsSkipped)
@@ -1635,11 +1719,16 @@ public sealed class ReportProofExportStore(
         }
 
         using var document = JsonDocument.Parse(answer.Value);
-        return document.RootElement.ValueKind switch
+        return FormatJsonElementValue(document.RootElement);
+    }
+
+    private static string FormatJsonElementValue(JsonElement element)
+    {
+        return element.ValueKind switch
         {
-            JsonValueKind.String => document.RootElement.GetString() ?? string.Empty,
+            JsonValueKind.String => element.GetString() ?? string.Empty,
             JsonValueKind.Null => string.Empty,
-            _ => document.RootElement.GetRawText()
+            _ => element.GetRawText()
         };
     }
 
@@ -1723,6 +1812,7 @@ public sealed class ReportProofExportStore(
                 columns = export.Columns.Select(column => CreateResponseExportColumnDefinition(
                     column,
                     export.Questions,
+                    export.AnswerColumns,
                     export.ScoreMetadataColumns))
             },
             JsonOptions);
@@ -1731,25 +1821,32 @@ public sealed class ReportProofExportStore(
     private static object CreateResponseExportColumnDefinition(
         string column,
         IReadOnlyList<ResponseExportQuestionRow> questions,
+        IReadOnlyList<ResponseExportAnswerColumnRow> answerColumns,
         IReadOnlyList<ResponseExportScoreMetadataColumnRow> scoreMetadataColumns)
     {
-        if (column.StartsWith("answer_", StringComparison.Ordinal))
+        var answerColumn = answerColumns.SingleOrDefault(item => item.ColumnName == column);
+        if (answerColumn is not null)
         {
-            var code = column["answer_".Length..];
-            var question = questions.Single(item => item.Code == code);
+            var question = answerColumn.Question;
             return new
             {
                 name = column,
-                label = question.VariableLabel ?? question.TextDefault,
+                label = answerColumn.MatrixRowLabel is null
+                    ? question.VariableLabel ?? question.TextDefault
+                    : $"{question.VariableLabel ?? question.TextDefault} - {answerColumn.MatrixRowLabel}",
                 source = "answer",
                 questionCode = question.Code,
                 questionText = question.TextDefault,
                 questionType = question.Type,
+                matrixRowCode = answerColumn.MatrixRowCode,
+                matrixRowLabel = answerColumn.MatrixRowLabel,
                 required = question.Required,
                 reverseCoded = question.ReverseCoded,
                 measurementLevel = question.MeasurementLevel ?? "nominal",
                 missingCodes = JsonSerializer.Deserialize<JsonElement>(question.MissingCodes),
-                valueLabels = CreateQuestionValueLabels(question.Payload),
+                valueLabels = answerColumn.MatrixRowCode is null
+                    ? CreateQuestionValueLabels(question.Payload)
+                    : CreateMatrixColumnValueLabels(question.Payload),
                 answerMetadata = CreateQuestionAnswerMetadata(question),
                 scale = question.ScaleCode is null
                     ? null
@@ -1857,8 +1954,64 @@ public sealed class ReportProofExportStore(
         {
             AddJsonObjectProperty(metadata, root, "ranking");
         }
+        else if (question.Type is "matrix")
+        {
+            AddJsonObjectProperty(metadata, root, "matrix");
+            metadata["exportShape"] = "one_column_per_matrix_row";
+        }
 
         return metadata.Count == 0 ? null : metadata;
+    }
+
+    private static object? CreateMatrixColumnValueLabels(string payload)
+    {
+        var columns = ReadMatrixOptions(payload, "columns");
+        return columns.Count == 0
+            ? null
+            : columns.ToDictionary(column => column.Code, column => column.Label, StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyList<ResponseExportMatrixOptionRow> ReadMatrixOptions(
+        string payload,
+        string propertyName)
+    {
+        using var payloadDocument = TryParseQuestionPayload(payload);
+        if (payloadDocument is null ||
+            !payloadDocument.RootElement.TryGetProperty("matrix", out var matrix) ||
+            matrix.ValueKind != JsonValueKind.Object ||
+            !matrix.TryGetProperty(propertyName, out var options) ||
+            options.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var result = new List<ResponseExportMatrixOptionRow>();
+        var index = 0;
+        foreach (var option in options.EnumerateArray())
+        {
+            index++;
+            if (option.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var fallbackPrefix = propertyName == "rows" ? "r" : "c";
+            var code = ReadStringProperty(option, "code") ?? $"{fallbackPrefix}{index:00}";
+            var label = ReadStringProperty(option, "label") ?? code;
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                code = $"{fallbackPrefix}{index:00}";
+            }
+
+            if (string.IsNullOrWhiteSpace(label))
+            {
+                label = code;
+            }
+
+            result.Add(new ResponseExportMatrixOptionRow(code, label));
+        }
+
+        return result;
     }
 
     private static void AddJsonObjectProperty(
@@ -2597,6 +2750,16 @@ public sealed class ReportProofExportStore(
         bool IsSkipped,
         bool IsNa);
 
+    private sealed record ResponseExportAnswerColumnRow(
+        string ColumnName,
+        ResponseExportQuestionRow Question,
+        string? MatrixRowCode,
+        string? MatrixRowLabel);
+
+    private sealed record ResponseExportMatrixOptionRow(
+        string Code,
+        string Label);
+
     private sealed record ResponseExportScoreMetadataRow(
         Guid SessionId,
         string DimensionCode,
@@ -2614,6 +2777,7 @@ public sealed class ReportProofExportStore(
         string CsvContent,
         IReadOnlyList<string> Columns,
         IReadOnlyList<ResponseExportQuestionRow> Questions,
+        IReadOnlyList<ResponseExportAnswerColumnRow> AnswerColumns,
         IReadOnlyList<ResponseExportScoreMetadataColumnRow> ScoreMetadataColumns,
         int RowCount,
         int CampaignCount,
