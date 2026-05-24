@@ -6503,9 +6503,9 @@ table {
 .launchpad-brand img.launchpad-brand__mark {
 	box-sizing: border-box;
 	display: block;
-	width: 3rem;
-	height: 3rem;
-	padding: 0.38rem;
+	width: 3.35rem;
+	height: 3.35rem;
+	padding: 0.18rem;
 	object-fit: contain;
 	border: 1px solid rgba(47, 67, 53, 0.14);
 	border-radius: 1rem;
@@ -6523,9 +6523,9 @@ table {
 .showcase-rail img.showcase-rail__logo {
 	box-sizing: border-box;
 	display: block;
-	width: 3.75rem;
-	height: 3.75rem;
-	padding: 0.42rem;
+	width: 4.15rem;
+	height: 4.15rem;
+	padding: 0.18rem;
 	object-fit: contain;
 	border-radius: 1.25rem;
 	background: rgba(255, 250, 242, 0.96);
@@ -6534,15 +6534,15 @@ table {
 
 @media (max-width: 760px) {
 	.launchpad-brand img.launchpad-brand__mark {
-		width: 2.55rem;
-		height: 2.55rem;
-		padding: 0.3rem;
+		width: 2.9rem;
+		height: 2.9rem;
+		padding: 0.14rem;
 		border-radius: 0.85rem;
 	}
 
 	.showcase-rail img.showcase-rail__logo {
-		width: 3.1rem;
-		height: 3.1rem;
+		width: 3.45rem;
+		height: 3.45rem;
 		border-radius: 1rem;
 	}
 }
