@@ -6546,3 +6546,47 @@ table {
 		border-radius: 1rem;
 	}
 }
+
+/* Public landing mobile proof strip and browser rail contrast fixes. */
+.showcase-rail__link--active {
+	color: #fffaf2;
+}
+
+@media (max-width: 760px) {
+	.proof-ribbon {
+		grid-template-columns: 1fr;
+		gap: 0.85rem;
+		padding: 0.95rem;
+	}
+
+	.proof-ribbon div {
+		min-width: 0;
+		display: block;
+		padding: 0.95rem 1rem;
+		border-radius: 1rem;
+		background: rgba(255, 250, 242, 0.72);
+	}
+
+	.proof-ribbon div:last-child {
+		border-right: 0;
+	}
+
+	.proof-ribbon strong,
+	.proof-ribbon span {
+		display: block;
+		overflow-wrap: normal;
+		word-break: normal;
+		hyphens: none;
+	}
+
+	.proof-ribbon strong {
+		margin-bottom: 0.28rem;
+		font-size: 0.92rem;
+		line-height: 1.15;
+	}
+
+	.proof-ribbon span {
+		font-size: 0.86rem;
+		line-height: 1.45;
+	}
+}
