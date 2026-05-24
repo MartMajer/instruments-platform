@@ -274,18 +274,52 @@ public sealed class ResponseCaptureStore(
             .GroupBy(answer => answer.QuestionId)
             .ToDictionary(group => group.Key, group => group.Last());
         var requestedQuestionIds = answersByQuestion.Keys.ToArray();
-        var validQuestionIds = await db.TemplateQuestions
+        var validQuestions = await db.TemplateQuestions
             .AsNoTracking()
             .Where(question =>
                 question.TemplateVersionId == templateVersionId &&
                 requestedQuestionIds.Contains(question.Id))
-            .Select(question => question.Id)
             .ToArrayAsync(cancellationToken);
 
-        if (validQuestionIds.Length != requestedQuestionIds.Length)
+        if (validQuestions.Length != requestedQuestionIds.Length)
         {
             return Result.Failure<SaveAnswersResponse>(
                 Error.Validation("answer.question_not_found", "One or more answers reference questions outside this campaign template."));
+        }
+
+        var scaleIds = validQuestions
+            .Select(question => question.ScaleId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        var scales = await db.QuestionScales
+            .AsNoTracking()
+            .Where(scale => scaleIds.Contains(scale.Id))
+            .ToDictionaryAsync(scale => scale.Id, cancellationToken);
+        var valueValidation = ResponseAnswerValueValidator.Validate(
+            validQuestions.Select(question =>
+            {
+                QuestionScale? scale = null;
+                if (question.ScaleId.HasValue)
+                {
+                    scales.TryGetValue(question.ScaleId.Value, out scale);
+                }
+
+                return new ResponseAnswerQuestionContract(
+                    question.Id,
+                    question.Code,
+                    question.Type,
+                    question.Payload,
+                    scale?.MinValue,
+                    scale?.MaxValue,
+                    scale?.Step,
+                    scale?.NaAllowed ?? false);
+            }),
+            answersByQuestion.Values);
+
+        if (valueValidation.IsFailure)
+        {
+            return Result.Failure<SaveAnswersResponse>(valueValidation.Error);
         }
 
         var existingAnswers = await db.Answers
