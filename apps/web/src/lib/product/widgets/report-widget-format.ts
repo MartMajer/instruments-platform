@@ -2,6 +2,7 @@ export type ReportWidgetFormatCopy = {
 	notAvailable: string;
 	yes: string;
 	no: string;
+	labels?: Record<string, string>;
 	codeLabels: Record<string, string>;
 };
 
@@ -9,6 +10,71 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 	notAvailable: 'Not available',
 	yes: 'Yes',
 	no: 'No',
+	labels: {
+		available: 'Available',
+		campaign: 'Campaign',
+		campaignStatus: 'Campaign status',
+		closedAt: 'Closed at',
+		closedWave: 'Closed wave',
+		completed: 'Completed',
+		coverageStatus: 'Coverage status',
+		created: 'Created',
+		currentResultSummary: 'Current result summary',
+		dataFinality: 'Data finality',
+		disclosure: 'Disclosure',
+		disabled: 'Disabled',
+		download: 'Download',
+		enabled: 'Enabled',
+		exportActions: 'Export actions',
+		exportFiles: 'Export files',
+		exportFileDataUnavailable: 'Export file data is unavailable.',
+		exportState: 'Export state',
+		failureReason: 'Failure reason',
+		finalityDataUnavailable: 'Finality and provenance data is unavailable.',
+		interpretation: 'Interpretation',
+		latestExport: 'Latest export',
+		latestLaunch: 'Latest launch',
+		latestScoringActivity: 'Latest scoring activity',
+		listed: 'Listed',
+		noExportFiles: 'No export files recorded.',
+		notConfigured: 'Not configured',
+		notConfiguredState: 'Not configured',
+		notSelected: 'Not selected',
+		previewReady: 'Preview ready',
+		previewSource: 'Preview source',
+		preliminaryLive: 'Preliminary live',
+		readinessDataUnavailable: 'Readiness data is unavailable.',
+		reportable: 'Reportable',
+		reportableCampaigns: 'Reportable campaigns',
+		reportReadinessPrerequisites: 'Report readiness prerequisites',
+		reportPreview: 'report preview',
+		reportStatus: 'Report status',
+		ready: 'Ready',
+		readyToRun: 'Ready to run',
+		resultsPreview: 'Results preview',
+		resultsPreviewLoading: 'The results preview is loading.',
+		resultsPreviewUnavailable: 'Results preview unavailable',
+		resultsPreviewUnavailableExport:
+			'The export workflow can still be used while the preview is unavailable.',
+		resultsPreviewWidgets: 'Results preview widgets',
+		resultsSummary: 'Results summary',
+		rows: 'Rows',
+		scoreCoverageDataUnavailable: 'Score coverage data is unavailable.',
+		scored: 'Scored',
+		scores: 'Scores',
+		selectedCampaign: 'Selected campaign',
+		selectedCampaignReportStateUnavailable: 'Selected campaign report state is unavailable.',
+		size: 'Size',
+		submitted: 'Submitted',
+		submittedResponses: 'Submitted responses',
+		suppressed: 'Suppressed',
+		suppressedScores: 'Suppressed scores',
+		unavailable: 'Unavailable',
+		unscored: 'Unscored',
+		visible: 'Visible',
+		visibleScores: 'Visible scores',
+		visualAnalyticsDataUnavailable: 'Visual analytics entry data is unavailable.'
+	},
 	codeLabels: {
 		proof_only: 'preview'
 	}
@@ -65,6 +131,13 @@ export function formatBooleanLabel(
 	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
 ) {
 	return value ? copy.yes : copy.no;
+}
+
+export function formatWidgetLabel(
+	key: string,
+	copy: ReportWidgetFormatCopy = defaultReportWidgetFormatCopy
+) {
+	return copy.labels?.[key] ?? defaultReportWidgetFormatCopy.labels?.[key] ?? key;
 }
 
 export function formatBytes(value: number) {
