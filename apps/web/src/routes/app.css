@@ -3813,6 +3813,7 @@ pre,
 
 .launchpad-brand__mark {
 	display: grid;
+	flex: 0 0 auto;
 	place-items: center;
 	width: 2.6rem;
 	height: 2.6rem;
@@ -3857,6 +3858,17 @@ pre,
 	justify-content: flex-end;
 }
 
+.public-nav__actions {
+	display: inline-flex;
+	flex: 0 1 auto;
+	flex-wrap: nowrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.55rem;
+	margin-left: auto;
+	min-width: 0;
+}
+
 .public-nav--home .public-nav__links {
 	flex-wrap: nowrap;
 }
@@ -3871,6 +3883,66 @@ pre,
 .public-nav__links a:hover {
 	background: rgba(16, 38, 64, 0.07);
 	color: #102640;
+}
+
+.public-language-switcher {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	overflow: hidden;
+	border: 1px solid rgba(16, 38, 64, 0.12);
+	border-radius: 0.75rem;
+	background: rgba(255, 255, 255, 0.68);
+	padding: 0.18rem;
+	white-space: nowrap;
+}
+
+.public-language-switcher__option {
+	display: inline-grid;
+	place-items: center;
+	min-width: 2.15rem;
+	min-height: 2.15rem;
+	border-radius: 0.55rem;
+	padding: 0 0.45rem;
+	font-size: 0.72rem;
+	font-weight: 850;
+	color: rgba(26, 43, 58, 0.64);
+	transition: background 140ms ease, color 140ms ease;
+}
+
+.public-language-switcher__option:hover {
+	background: rgba(16, 38, 64, 0.07);
+	color: #102640;
+}
+
+.public-language-switcher__option--active {
+	background: #102640;
+	color: #f8fbff;
+}
+
+.public-nav__menu {
+	align-items: center;
+	justify-content: center;
+	width: 2.55rem;
+	height: 2.55rem;
+	border: 1px solid rgba(16, 38, 64, 0.14);
+	border-radius: 0.75rem;
+	background: rgba(255, 255, 255, 0.72);
+	padding: 0;
+	color: #102033;
+}
+
+.public-nav__menu-icon {
+	display: grid;
+	gap: 0.22rem;
+	width: 1rem;
+}
+
+.public-nav__menu-icon span {
+	display: block;
+	height: 2px;
+	border-radius: 999px;
+	background: currentColor;
 }
 
 .launchpad-hero {
@@ -5497,8 +5569,19 @@ table {
 @media (max-width: 840px) {
 	.public-nav--home {
 		display: flex;
+		flex-wrap: nowrap;
 		align-items: center;
 		justify-content: space-between;
+		gap: 0.65rem;
+	}
+
+	.public-nav--home .launchpad-brand {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.public-nav--home .public-nav__actions {
+		flex: 0 0 auto;
 	}
 
 	.public-nav--home .public-nav__links {
@@ -5506,17 +5589,7 @@ table {
 	}
 
 	.public-nav__menu {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 2.75rem;
-		border: 1px solid rgba(16, 38, 64, 0.14);
-		border-radius: 0.8rem;
-		background: rgba(255, 255, 255, 0.72);
-		padding: 0 1rem;
-		font-weight: 800;
-		color: #102033;
-		white-space: nowrap;
+		display: inline-grid;
 	}
 
 	.public-mobile-menu {
@@ -5699,8 +5772,23 @@ table {
 }
 
 @media (max-width: 460px) {
+	.public-nav--home .launchpad-brand small {
+		display: none;
+	}
+
+	.public-nav--home .public-language-switcher__option {
+		min-width: 2rem;
+		min-height: 2rem;
+		padding-inline: 0.35rem;
+	}
+
+	.public-nav--home .public-nav__menu {
+		width: 2.4rem;
+		height: 2.4rem;
+	}
+
 	.registration-page .public-nav {
-		align-items: stretch;
+		align-items: center;
 	}
 
 	.registration-page .public-nav .launchpad-brand {

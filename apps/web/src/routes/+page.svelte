@@ -10,7 +10,7 @@
 		rememberLastTenantId,
 		normalizeTenantId
 	} from '$lib/api/session-headers';
-	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { appLocaleFromPageData, localizedHref } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const initialTenantIdFromUrl = normalizeTenantId(page.url.searchParams.get('tenantId'));
@@ -22,6 +22,8 @@
 	);
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
+	const englishLocaleHref = $derived(localizedHref(page.url, 'en'));
+	const croatianLocaleHref = $derived(localizedHref(page.url, 'hr-HR'));
 
 	onMount(() => {
 		const storedTenantId = readLastTenantId(window.localStorage);
@@ -100,21 +102,41 @@
 				<small>{text.publicEntry.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="public-nav__links" aria-label={text.publicEntry.navAria}>
-			<a href="#workflow">{text.publicEntry.workflow}</a>
-			<a href="#trust">{text.publicEntry.trustModel}</a>
-			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
-			<a href={loginUrl}>{text.common.signIn}</a>
-		</nav>
-		<button
-			type="button"
-			class="public-nav__menu"
-			aria-label={mobileEntryMenuOpen ? text.publicEntry.closeMenu : text.publicEntry.openMenu}
-			aria-expanded={mobileEntryMenuOpen}
-			onclick={() => (mobileEntryMenuOpen = !mobileEntryMenuOpen)}
-		>
-			{text.publicEntry.menu}
-		</button>
+		<div class="public-nav__actions">
+			<nav class="public-nav__links" aria-label={text.publicEntry.navAria}>
+				<a href="#workflow">{text.publicEntry.workflow}</a>
+				<a href="#trust">{text.publicEntry.trustModel}</a>
+				<a href={resolve('/register')}>{text.common.createWorkspace}</a>
+				<a href={loginUrl}>{text.common.signIn}</a>
+			</nav>
+			<div class="public-language-switcher" aria-label={text.publicEntry.languageSwitchAria}>
+				<a
+					class={`public-language-switcher__option${locale === 'en' ? ' public-language-switcher__option--active' : ''}`}
+					href={englishLocaleHref}
+					hreflang="en"
+					aria-current={locale === 'en' ? 'true' : undefined}>EN</a
+				>
+				<a
+					class={`public-language-switcher__option${locale === 'hr-HR' ? ' public-language-switcher__option--active' : ''}`}
+					href={croatianLocaleHref}
+					hreflang="hr-HR"
+					aria-current={locale === 'hr-HR' ? 'true' : undefined}>HR</a
+				>
+			</div>
+			<button
+				type="button"
+				class="public-nav__menu"
+				aria-label={mobileEntryMenuOpen ? text.publicEntry.closeMenu : text.publicEntry.openMenu}
+				aria-expanded={mobileEntryMenuOpen}
+				onclick={() => (mobileEntryMenuOpen = !mobileEntryMenuOpen)}
+			>
+				<span class="public-nav__menu-icon" aria-hidden="true">
+					<span></span>
+					<span></span>
+					<span></span>
+				</span>
+			</button>
+		</div>
 	</header>
 	{#if mobileEntryMenuOpen}
 		<nav class="public-mobile-menu" aria-label={text.publicEntry.mobileNavAria}>
