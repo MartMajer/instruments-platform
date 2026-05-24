@@ -45,6 +45,7 @@ public sealed class CreateTemplateVersionValidator
             question.RuleFor(value => value.MissingCodes).NotEmpty();
         });
         RuleFor(command => command.Request).Custom(ValidateUniqueTemplateIdentities);
+        RuleFor(command => command.Request).Custom(ValidateQuestionReferences);
         RuleFor(command => command.Request).Custom(ValidateQuestionPayloadContracts);
         RuleFor(command => command.Request).Custom(ValidateDisplayLogicRules);
     }
@@ -78,6 +79,67 @@ public sealed class CreateTemplateVersionValidator
             "Request.Questions",
             "Template question codes must be unique.",
             context);
+    }
+
+    private static void ValidateQuestionReferences(
+        CreateTemplateVersionRequest request,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        var sectionCodes = request.Sections
+            .Where(section => !string.IsNullOrWhiteSpace(section.Code))
+            .Select(section => NormalizeCode(section.Code))
+            .ToHashSet(StringComparer.Ordinal);
+        var scaleCodes = request.Scales
+            .Where(scale => !string.IsNullOrWhiteSpace(scale.Code))
+            .Select(scale => NormalizeCode(scale.Code))
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var question in request.Questions.OrderBy(question => question.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(question.SectionCode))
+            {
+                if (request.Sections.Count != 1)
+                {
+                    context.AddFailure(
+                        "Request.Questions",
+                        $"Question '{question.Code}' needs a section code.");
+                }
+            }
+            else if (!sectionCodes.Contains(NormalizeCode(question.SectionCode)))
+            {
+                context.AddFailure(
+                    "Request.Questions",
+                    $"Question '{question.Code}' section was not found.");
+            }
+
+            if (QuestionTypes.RequiresScale(question.Type))
+            {
+                if (string.IsNullOrWhiteSpace(question.ScaleCode))
+                {
+                    if (request.Scales.Count != 1)
+                    {
+                        context.AddFailure(
+                            "Request.Questions",
+                            $"Question '{question.Code}' needs a scale code.");
+                    }
+                }
+                else if (!scaleCodes.Contains(NormalizeCode(question.ScaleCode)))
+                {
+                    context.AddFailure(
+                        "Request.Questions",
+                        $"Question '{question.Code}' scale was not found.");
+                }
+
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(question.ScaleCode))
+            {
+                context.AddFailure(
+                    "Request.Questions",
+                    $"Question '{question.Code}' scale code is only valid for scale-backed questions.");
+            }
+        }
     }
 
     private static void ValidateQuestionPayloadContracts(

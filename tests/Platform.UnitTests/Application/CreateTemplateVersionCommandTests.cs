@@ -255,8 +255,78 @@ public sealed class CreateTemplateVersionCommandTests
                 failure.ErrorMessage.Contains("section codes must be unique", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(
             result.Errors,
-            failure => failure.PropertyName == "Request.Scales" &&
+                failure => failure.PropertyName == "Request.Scales" &&
                 failure.ErrorMessage.Contains("scale codes must be unique", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_question_with_unknown_section_code()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = new CreateTemplateVersionRequest(
+            "Private pulse",
+            "1.0.0",
+            "en",
+            InstrumentId: null,
+            Sections:
+            [
+                new CreateTemplateSectionRequest(1, "core", "Core")
+            ],
+            Scales: [],
+            Questions:
+            [
+                new CreateTemplateQuestionRequest(
+                    1,
+                    "q01",
+                    QuestionTypes.Text,
+                    "Question 1",
+                    SectionCode: "missing",
+                    Payload: "{}")
+            ]);
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("section was not found", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_invalid_question_scale_references()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = new CreateTemplateVersionRequest(
+            "Private pulse",
+            "1.0.0",
+            "en",
+            InstrumentId: null,
+            Sections:
+            [
+                new CreateTemplateSectionRequest(1, "core", "Core")
+            ],
+            Scales:
+            [
+                new CreateQuestionScaleRequest("agreement", ScaleTypes.Likert, 1, 5, 1, false, "[]")
+            ],
+            Questions:
+            [
+                Question(1, "q01", QuestionTypes.Likert, ScaleCode: "missing"),
+                Question(2, "q02", QuestionTypes.Text, ScaleCode: "agreement")
+            ]);
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("scale was not found", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("scale code is only valid for scale-backed questions", StringComparison.OrdinalIgnoreCase));
     }
 
     private static CreateTemplateVersionRequest Request(params CreateTemplateQuestionRequest[] questions)
