@@ -1806,7 +1806,8 @@ public sealed class ReportProofExportStore(
                 {
                     blank = "question_not_answered_or_not_present_in_session_template",
                     skipped = "__skipped",
-                    notApplicable = "__not_applicable"
+                    notApplicable = "__not_applicable",
+                    hiddenByDisplayLogic = "__skipped"
                 },
                 excludedIdentifiers = ResponseExportExcludedIdentifiers,
                 columns = export.Columns.Select(column => CreateResponseExportColumnDefinition(
@@ -1848,6 +1849,7 @@ public sealed class ReportProofExportStore(
                     ? CreateQuestionValueLabels(question.Payload)
                     : CreateMatrixColumnValueLabels(question.Payload),
                 answerMetadata = CreateQuestionAnswerMetadata(question),
+                displayLogic = CreateQuestionDisplayLogicMetadata(question.Payload),
                 scale = question.ScaleCode is null
                     ? null
                     : new
@@ -1963,6 +1965,29 @@ public sealed class ReportProofExportStore(
         return metadata.Count == 0 ? null : metadata;
     }
 
+    private static object? CreateQuestionDisplayLogicMetadata(string payload)
+    {
+        using var payloadDocument = TryParseQuestionPayload(payload);
+        if (payloadDocument is null ||
+            !payloadDocument.RootElement.TryGetProperty("displayLogic", out var displayLogic) ||
+            displayLogic.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return new
+        {
+            mode = ReadStringProperty(displayLogic, "mode"),
+            sourceQuestionCode = ReadStringProperty(displayLogic, "sourceQuestionCode"),
+            operatorName = ReadStringProperty(displayLogic, "operator"),
+            value = TryReadSerializableJsonProperty(displayLogic, "value"),
+            requiredWhenVisible = ReadBooleanProperty(displayLogic, "requiredWhenVisible"),
+            hiddenAnswerTreatment = "__skipped",
+            hiddenAnswerMeaning =
+                "Question was not visible for this response because its display rule was not matched."
+        };
+    }
+
     private static object? CreateMatrixColumnValueLabels(string payload)
     {
         var columns = ReadMatrixOptions(payload, "columns");
@@ -2044,6 +2069,13 @@ public sealed class ReportProofExportStore(
         };
     }
 
+    private static object? TryReadSerializableJsonProperty(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property)
+            ? ToSerializableJsonValue(property)
+            : null;
+    }
+
     private static JsonDocument? TryParseQuestionPayload(string payload)
     {
         try
@@ -2068,6 +2100,21 @@ public sealed class ReportProofExportStore(
         return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+    }
+
+    private static bool? ReadBooleanProperty(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null
+        };
     }
 
     private static string ResponseExportColumnSource(string column)

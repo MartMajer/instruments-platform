@@ -3922,7 +3922,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         await using var scenario = await CreateTwoWaveProofScenarioAsync(
             tenantId,
             "Response export proof",
-            includeMatrixQuestion: true);
+            includeMatrixQuestion: true,
+            includeDisplayLogicQuestion: true);
         await SubmitFiveLinkedScoredWaveComparisonResponsesAsync(scenario);
         await CloseScenarioCampaignAsync(
             scenario.Db,
@@ -3956,6 +3957,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Contains("template;instrument;scoring;policies;identity;respondent_rules;launch_readiness;provenance", artifact.Value.CsvContent);
         Assert.Contains("answer_q01", artifact.Value.CsvContent);
         Assert.Contains("answer_body_discomfort_r01,answer_body_discomfort_r02", artifact.Value.CsvContent);
+        Assert.Contains("answer_recovery_followup", artifact.Value.CsvContent);
         Assert.Contains(",c02,c03,", artifact.Value.CsvContent);
         Assert.Contains(
             "score_total_n_valid,score_total_n_expected,score_total_missing_policy_status",
@@ -4014,6 +4016,23 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal(
             "one_column_per_matrix_row",
             matrixColumn.GetProperty("answerMetadata").GetProperty("exportShape").GetString());
+        var displayLogicColumn = codebook.RootElement
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column => column.GetProperty("name").GetString() == "answer_recovery_followup");
+        var displayLogic = displayLogicColumn.GetProperty("displayLogic");
+        Assert.Equal("show_when", displayLogic.GetProperty("mode").GetString());
+        Assert.Equal("q01", displayLogic.GetProperty("sourceQuestionCode").GetString());
+        Assert.Equal("equals", displayLogic.GetProperty("operatorName").GetString());
+        Assert.Equal(3, displayLogic.GetProperty("value").GetInt32());
+        Assert.True(displayLogic.GetProperty("requiredWhenVisible").GetBoolean());
+        Assert.Equal("__skipped", displayLogic.GetProperty("hiddenAnswerTreatment").GetString());
+        Assert.Equal(
+            "__skipped",
+            codebook.RootElement
+                .GetProperty("missingTreatment")
+                .GetProperty("hiddenByDisplayLogic")
+                .GetString());
 
         await using var transaction = await scenario.TenantDbScope.BeginTransactionAsync(tenantId);
         var persisted = await scenario.Db.ExportArtifacts.SingleAsync(entity => entity.Id == artifact.Value.Id);
@@ -9057,13 +9076,15 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Guid tenantId,
         string name,
         string produces = """{"scores":["total"]}""",
-        bool includeMatrixQuestion = false)
+        bool includeMatrixQuestion = false,
+        bool includeDisplayLogicQuestion = false)
     {
         var migratorOptions = CreateMigratorOptions();
         var versionId = await SeedTenantTemplateVersionAsync(
             migratorOptions,
             tenantId,
-            includeMatrixQuestion);
+            includeMatrixQuestion,
+            includeDisplayLogicQuestion);
 
         await CreateRuntimeRoleAsync(migratorOptions);
 
@@ -9644,7 +9665,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     private static async Task<Guid> SeedTenantTemplateVersionAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
-        bool includeMatrixQuestion = false)
+        bool includeMatrixQuestion = false,
+        bool includeDisplayLogicQuestion = false)
     {
         var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Seeded tenant pulse");
         var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
@@ -9688,6 +9710,24 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 measurementLevel: MeasurementLevels.Nominal,
                 payload:
                     """{"matrix":{"mode":"single","rows":[{"code":"r01","label":"Neck / shoulders"},{"code":"r02","label":"Lower back"}],"columns":[{"code":"c01","label":"None"},{"code":"c02","label":"Mild"},{"code":"c03","label":"Severe"}]}}"""));
+        }
+
+        if (includeDisplayLogicQuestion)
+        {
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "recovery_followup",
+                QuestionTypes.Text,
+                scaleId: null,
+                "What recovery support would help most?",
+                required: false,
+                variableLabel: "Recovery support follow-up",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"text":{"multiline":true},"displayLogic":{"mode":"show_when","sourceQuestionCode":"q01","operator":"equals","value":3,"requiredWhenVisible":true}}"""));
         }
 
         await using var db = new ApplicationDbContext(options);
