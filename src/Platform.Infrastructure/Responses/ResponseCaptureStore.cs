@@ -297,24 +297,7 @@ public sealed class ResponseCaptureStore(
             .Where(scale => scaleIds.Contains(scale.Id))
             .ToDictionaryAsync(scale => scale.Id, cancellationToken);
         var valueValidation = ResponseAnswerValueValidator.Validate(
-            validQuestions.Select(question =>
-            {
-                QuestionScale? scale = null;
-                if (question.ScaleId.HasValue)
-                {
-                    scales.TryGetValue(question.ScaleId.Value, out scale);
-                }
-
-                return new ResponseAnswerQuestionContract(
-                    question.Id,
-                    question.Code,
-                    question.Type,
-                    question.Payload,
-                    scale?.MinValue,
-                    scale?.MaxValue,
-                    scale?.Step,
-                    scale?.NaAllowed ?? false);
-            }),
+            ToAnswerQuestionContracts(validQuestions, scales),
             answersByQuestion.Values);
 
         if (valueValidation.IsFailure)
@@ -396,24 +379,44 @@ public sealed class ResponseCaptureStore(
             .AsNoTracking()
             .Where(question =>
                 question.TemplateVersionId == templateVersionId)
-            .Select(question => new ResponseDisplayLogicQuestion(
-                question.Id,
-                question.Ordinal,
-                question.Code,
-                question.Required,
-                question.Payload))
             .ToArrayAsync(cancellationToken);
+        var scaleIds = templateQuestions
+            .Select(question => question.ScaleId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        var scales = await db.QuestionScales
+            .AsNoTracking()
+            .Where(scale => scaleIds.Contains(scale.Id))
+            .ToDictionaryAsync(scale => scale.Id, cancellationToken);
         var savedAnswers = await db.Answers
             .Where(answer => answer.SessionId == session.Id)
             .ToArrayAsync(cancellationToken);
         var displayLogic = ResponseDisplayLogicEvaluator.Evaluate(
-            templateQuestions,
+            templateQuestions.Select(question => new ResponseDisplayLogicQuestion(
+                question.Id,
+                question.Ordinal,
+                question.Code,
+                question.Required,
+                question.Payload)),
             savedAnswers.Select(answer => new ResponseDisplayLogicAnswer(
                 answer.QuestionId,
                 answer.Value,
                 answer.IsSkipped,
                 answer.IsNa)));
         ApplyHiddenDisplayLogicAnswers(session, tenantId, savedAnswers, displayLogic.HiddenQuestionIds);
+
+        var savedAnswerValidation = ResponseAnswerValueValidator.ValidateSaved(
+            ToAnswerQuestionContracts(templateQuestions, scales),
+            savedAnswers.Select(answer => new ResponseAnswerValueContract(
+                answer.QuestionId,
+                answer.Value,
+                answer.IsSkipped,
+                answer.IsNa)));
+        if (savedAnswerValidation.IsFailure)
+        {
+            return Result.Failure<SubmitResponseSessionResponse>(savedAnswerValidation.Error);
+        }
 
         var requiredQuestionIds = displayLogic.RequiredVisibleQuestionIds;
         var answeredQuestionIds = savedAnswers
@@ -495,6 +498,32 @@ public sealed class ResponseCaptureStore(
                 isSkipped: true,
                 isNa: false));
         }
+    }
+
+    private static ResponseAnswerQuestionContract[] ToAnswerQuestionContracts(
+        IEnumerable<TemplateQuestion> questions,
+        IReadOnlyDictionary<Guid, QuestionScale> scales)
+    {
+        return questions
+            .Select(question =>
+            {
+                QuestionScale? scale = null;
+                if (question.ScaleId.HasValue)
+                {
+                    scales.TryGetValue(question.ScaleId.Value, out scale);
+                }
+
+                return new ResponseAnswerQuestionContract(
+                    question.Id,
+                    question.Code,
+                    question.Type,
+                    question.Payload,
+                    scale?.MinValue,
+                    scale?.MaxValue,
+                    scale?.Step,
+                    scale?.NaAllowed ?? false);
+            })
+            .ToArray();
     }
 
     public async Task<Result<OpenLinkEntryResponse>> GetOpenLinkEntryAsync(

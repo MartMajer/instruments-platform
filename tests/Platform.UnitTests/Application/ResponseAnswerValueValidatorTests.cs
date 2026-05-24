@@ -107,4 +107,25 @@ public sealed class ResponseAnswerValueValidatorTests
 
         Assert.True(result.IsSuccess, result.Error.ToString());
     }
+
+    [Fact]
+    public void Saved_answer_contract_rejects_stale_invalid_values_before_submit()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.ValidateSaved(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "q01",
+                    QuestionTypes.SingleChoice,
+                    """{"options":[{"code":"o01","label":"Yes"},{"code":"o02","label":"No"}]}""")
+            ],
+            [
+                new ResponseAnswerValueContract(questionId, "\"legacy_bad\"", IsSkipped: false, IsNa: false)
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+    }
 }

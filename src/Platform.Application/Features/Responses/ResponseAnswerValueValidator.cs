@@ -14,11 +14,37 @@ public sealed record ResponseAnswerQuestionContract(
     int? ScaleStep = null,
     bool ScaleNaAllowed = false);
 
+public sealed record ResponseAnswerValueContract(
+    Guid QuestionId,
+    string? Value,
+    bool IsSkipped,
+    bool IsNa);
+
 public static class ResponseAnswerValueValidator
 {
     public static Result<bool> Validate(
         IEnumerable<ResponseAnswerQuestionContract> questions,
         IEnumerable<SaveAnswerRequest> answers)
+    {
+        return ValidateValues(
+            questions,
+            answers.Select(answer => new ResponseAnswerValueContract(
+                answer.QuestionId,
+                answer.Value,
+                answer.IsSkipped,
+                answer.IsNa)));
+    }
+
+    public static Result<bool> ValidateSaved(
+        IEnumerable<ResponseAnswerQuestionContract> questions,
+        IEnumerable<ResponseAnswerValueContract> answers)
+    {
+        return ValidateValues(questions, answers);
+    }
+
+    private static Result<bool> ValidateValues(
+        IEnumerable<ResponseAnswerQuestionContract> questions,
+        IEnumerable<ResponseAnswerValueContract> answers)
     {
         var questionById = questions.ToDictionary(question => question.Id);
 
