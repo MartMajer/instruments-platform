@@ -92,4 +92,47 @@ public sealed class TestDataSimulatorAnswerFactoryTests
                 Assert.Contains("simulated", fifth.Value, StringComparison.OrdinalIgnoreCase);
             });
     }
+
+    [Fact]
+    public void Hidden_display_logic_follow_up_is_saved_as_skipped()
+    {
+        var sourceId = Guid.Parse("018f9d3d-7415-7000-9000-000000000101");
+        var followUpId = Guid.Parse("018f9d3d-7415-7000-9000-000000000102");
+        var questions = new[]
+        {
+            new TestDataSimulatorQuestion(
+                sourceId,
+                "has_barrier",
+                "single",
+                Required: true,
+                ScaleMinValue: null,
+                ScaleMaxValue: null,
+                Payload: """
+                    {"options":[{"code":"o01","label":"No"},{"code":"o02","label":"Yes"}]}
+                    """),
+            new TestDataSimulatorQuestion(
+                followUpId,
+                "barrier_detail",
+                "likert",
+                Required: true,
+                ScaleMinValue: 1,
+                ScaleMaxValue: 5,
+                Payload: """
+                    {"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"equals","value":"o02","requiredWhenVisible":true}}
+                    """)
+        };
+
+        var answers = TestDataSimulatorAnswerFactory.CreateAnswers(
+            questions,
+            new CreateCampaignTestResponsesRequest(
+                ResponseCount: 1,
+                TargetOutcome: 0,
+                Variation: "tight",
+                IncludeComments: true),
+            respondentIndex: 0);
+
+        var followUpAnswer = Assert.Single(answers, answer => answer.QuestionId == followUpId);
+        Assert.True(followUpAnswer.IsSkipped);
+        Assert.Null(followUpAnswer.Value);
+    }
 }

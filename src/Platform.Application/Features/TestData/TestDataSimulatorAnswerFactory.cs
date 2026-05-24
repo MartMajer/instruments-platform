@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Platform.Application.Features.Responses;
 using Platform.Domain.Templates;
 
 namespace Platform.Application.Features.TestData;
@@ -25,7 +26,36 @@ public static class TestDataSimulatorAnswerFactory
             answers.Add(CreateAnswer(question, request, adjustedOutcome, respondentIndex));
         }
 
-        return answers;
+        return ApplyDisplayLogic(questions, answers);
+    }
+
+    private static IReadOnlyList<TestDataSimulatorAnswer> ApplyDisplayLogic(
+        IReadOnlyList<TestDataSimulatorQuestion> questions,
+        IReadOnlyList<TestDataSimulatorAnswer> answers)
+    {
+        var evaluation = ResponseDisplayLogicEvaluator.Evaluate(
+            questions.Select((question, index) => new ResponseDisplayLogicQuestion(
+                question.Id,
+                index + 1,
+                question.Code,
+                question.Required,
+                question.Payload)),
+            answers.Select(answer => new ResponseDisplayLogicAnswer(
+                answer.QuestionId,
+                answer.Value,
+                answer.IsSkipped,
+                answer.IsNa)));
+
+        if (evaluation.HiddenQuestionIds.Count == 0)
+        {
+            return answers;
+        }
+
+        return answers
+            .Select(answer => evaluation.HiddenQuestionIds.Contains(answer.QuestionId)
+                ? answer with { Value = null, Comment = null, IsSkipped = true, IsNa = false }
+                : answer)
+            .ToArray();
     }
 
     private static TestDataSimulatorAnswer CreateAnswer(
