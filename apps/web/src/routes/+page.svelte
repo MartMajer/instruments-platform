@@ -250,78 +250,11 @@
 		<div><span>{text.publicEntry.productStage}</span><strong>{text.publicEntry.productStageRibbon}</strong></div>
 	</section>
 
-	<section class="suite-map" aria-labelledby="suite-map-title">
-		<div class="suite-map__intro">
-			<p class="launchpad-kicker">{text.publicEntry.workspaceOverview}</p>
-			<h2 id="suite-map-title">{text.publicEntry.suiteTitle}</h2>
-			<p>
-				{text.publicEntry.suiteBody}
-			</p>
-		</div>
-
-		<div class="suite-console" aria-label={text.publicEntry.previewAria}>
-			<section class="command-card">
-				<span>{text.publicEntry.nextAction}</span>
-				<strong>{text.publicEntry.nextActionQuestion}</strong>
-				<div class="command-card__input">Launch readiness: review retention setting</div>
-				<ul>
-					<li><b>Review setting</b><small>Retention date needs confirmation</small></li>
-					<li><b>Audience prepared</b><small>Directory group resolves 1,240 people</small></li>
-					<li>
-						<b>Export plan defined</b><small>Dataset and codebook outputs are selected</small>
-					</li>
-				</ul>
-			</section>
-
-			<section class="module-stack">
-				<span>{text.publicEntry.appAreas}</span>
-				<div class="module-grid">
-					<a href={resolve('/app/campaign-series')}
-						><b>Studies</b><small>portfolio + lifecycle</small></a
-					>
-					<a href={resolve('/app/instruments')}
-						><b>Instruments</b><small>available study content</small></a
-					>
-					<a href={resolve('/app/directory')}><b>Directory</b><small>people + groups</small></a
-					>
-					<a href={resolve('/app/team')}><b>Team</b><small>roles + capabilities</small></a>
-					<a href={resolve('/app/exports')}><b>Exports</b><small>files + provenance</small></a>
-					<a href={resolve('/app/settings')}><b>Settings</b><small>study defaults</small></a>
-				</div>
-			</section>
-
-			<section class="board-preview">
-				<div class="board-preview__heading">
-					<span>{text.publicEntry.studyStatus}</span>
-					<strong>{text.publicEntry.studyStatus}</strong>
-				</div>
-				<div class="board-columns">
-					<div>
-						<h3>Prepare</h3>
-						<p>Questionnaire ready</p>
-						<p>Scoring configured</p>
-						<p class="is-warning">Retention review</p>
-					</div>
-					<div>
-						<h3>Collect</h3>
-						<p>Wave 2 live</p>
-						<p>412 submitted</p>
-						<p>Delivery monitored</p>
-					</div>
-					<div>
-						<h3>Review</h3>
-						<p>Aggregate reports</p>
-						<p>Codebook export</p>
-						<p>Wave comparison</p>
-					</div>
-				</div>
-			</section>
-		</div>
-	</section>
 	<section class="workflow" id="workflow" aria-labelledby="workflow-title">
 		<div class="workflow__intro">
 			<p class="launchpad-kicker">{text.publicEntry.workflow}</p>
 			<h2 id="workflow-title">{text.publicEntry.workflowTitle}</h2>
+			<p>{text.publicEntry.suiteBody}</p>
 		</div>
 		<div class="workflow-lane">
 			<a href={resolve('/app/campaign-series')}>
@@ -343,6 +276,42 @@
 				<span>04</span>
 				<strong>{text.publicEntry.previewResults}</strong>
 				<p>{text.publicEntry.reviewStepBody}</p>
+			</a>
+			<a href={resolve('/app/exports')}>
+				<span>05</span>
+				<strong>{text.publicEntry.export}</strong>
+				<p>{text.publicEntry.exportBody}</p>
+			</a>
+			<a href="#trust">
+				<span>06</span>
+				<strong>{text.publicEntry.productStage}</strong>
+				<p>{text.publicEntry.productStageRibbon}</p>
+			</a>
+		</div>
+	</section>
+
+	<section class="landing-focus" aria-labelledby="suite-map-title">
+		<div class="landing-focus__intro">
+			<p class="launchpad-kicker">{text.publicEntry.workspaceOverview}</p>
+			<h2 id="suite-map-title">{text.publicEntry.suiteTitle}</h2>
+			<p>{text.publicEntry.suiteBody}</p>
+		</div>
+		<div class="landing-focus__cards" aria-label={text.publicEntry.appAreas}>
+			<a class="landing-card" href={resolve('/app/campaign-series')}>
+				<span>{text.publicEntry.workflow}</span>
+				<strong>{text.publicEntry.workflowRibbon}</strong>
+			</a>
+			<a class="landing-card" href={resolve('/app/campaign-series')}>
+				<span>{text.publicEntry.access}</span>
+				<strong>{text.publicEntry.accessRibbon}</strong>
+			</a>
+			<a class="landing-card" href={resolve('/app/exports')}>
+				<span>{text.publicEntry.dataControls}</span>
+				<strong>{text.publicEntry.dataControlsRibbon}</strong>
+			</a>
+			<a class="landing-card landing-card--accent" href="#trust">
+				<span>{text.publicEntry.productStage}</span>
+				<strong>{text.publicEntry.productStageRibbon}</strong>
 			</a>
 		</div>
 	</section>
