@@ -6147,3 +6147,354 @@ table {
 		min-height: auto;
 	}
 }
+/* Public entry contrast/mobile polish after Canva landing pass. */
+.launchpad,
+.registration-page {
+	--entry-ink: #17211f;
+	--entry-paper: #f7f1e7;
+	--entry-clay: #b9633b;
+	--entry-cypress: #214e47;
+	--entry-blue: #244e9a;
+	--entry-sage: #9aae8c;
+	--entry-mist: #e7e2d7;
+	--entry-border: #d8d0c3;
+	--entry-slate: #64706c;
+}
+
+.registration-page {
+	background:
+		radial-gradient(circle at 82% 12%, rgba(185, 99, 59, 0.14), transparent 26rem),
+		radial-gradient(circle at 13% 84%, rgba(154, 174, 140, 0.2), transparent 28rem),
+		linear-gradient(180deg, #fbf7ef 0%, var(--entry-paper) 62%, #f1e8dc 100%);
+	color: var(--entry-ink);
+}
+
+.registration-page::before {
+	background-image:
+		linear-gradient(rgba(33, 78, 71, 0.055) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(33, 78, 71, 0.045) 1px, transparent 1px);
+	background-size: 80px 80px;
+}
+
+.registration-page__glow--one {
+	background: rgba(185, 99, 59, 0.18);
+}
+
+.registration-page__glow--two {
+	background: rgba(33, 78, 71, 0.15);
+}
+
+.registration-grid {
+	max-width: 1180px;
+	align-items: stretch;
+}
+
+.registration-copy h1,
+.registration-panel__header strong,
+.registration-steps strong,
+.registration-boundary strong {
+	color: var(--entry-cypress);
+}
+
+.registration-copy > p:not(.launchpad-kicker),
+.registration-panel__header p,
+.registration-steps p,
+.registration-boundary p {
+	color: rgba(23, 33, 31, 0.68);
+}
+
+.registration-panel,
+.registration-steps > div,
+.registration-boundary,
+.registration-alert {
+	border-color: rgba(33, 78, 71, 0.14);
+	background: rgba(255, 255, 255, 0.76);
+	box-shadow: 0 16px 42px rgba(23, 33, 31, 0.08);
+}
+
+.registration-panel {
+	backdrop-filter: blur(18px) saturate(130%);
+}
+
+.registration-panel__header > span,
+.registration-steps span,
+.registration-form label > span,
+.registration-boundary strong {
+	color: var(--entry-clay);
+}
+
+.registration-form input {
+	border-color: rgba(33, 78, 71, 0.18);
+	background: rgba(255, 255, 255, 0.86);
+	color: var(--entry-ink);
+}
+
+.registration-form input:focus {
+	border-color: var(--entry-clay);
+	box-shadow: 0 0 0 4px rgba(185, 99, 59, 0.14);
+}
+
+.registration-submit {
+	background: var(--entry-clay);
+	color: #fffaf2;
+	box-shadow: 0 16px 38px rgba(185, 99, 59, 0.24);
+}
+
+.registration-submit:hover:not(:disabled) {
+	background: #a75331;
+}
+
+.secondary-button {
+	border-color: rgba(33, 78, 71, 0.18);
+	background: rgba(255, 255, 255, 0.72);
+	color: var(--entry-cypress);
+}
+
+.registration-alert {
+	color: var(--entry-cypress);
+}
+
+.registration-alert--success {
+	border-color: rgba(33, 78, 71, 0.2);
+	background: rgba(154, 174, 140, 0.2);
+	color: #214e47;
+}
+
+.registration-alert--error {
+	border-color: rgba(185, 99, 59, 0.28);
+	background: rgba(185, 99, 59, 0.12);
+	color: #7b311f;
+}
+
+.public-language-switcher {
+	border-color: rgba(33, 78, 71, 0.2);
+	background: rgba(255, 255, 255, 0.82);
+}
+
+.public-language-switcher__option {
+	color: var(--entry-cypress);
+}
+
+.public-language-switcher__option--active {
+	background: var(--entry-clay);
+	color: #fffaf2;
+}
+
+.public-language-switcher__option:hover {
+	background: rgba(185, 99, 59, 0.1);
+	color: var(--entry-cypress);
+}
+
+.public-language-switcher__option--active:hover {
+	background: var(--entry-clay);
+	color: #fffaf2;
+}
+
+.showcase-panel--dark {
+	background: linear-gradient(135deg, #214e47, #17352f);
+}
+
+.showcase-panel--dark span,
+.showcase-panel--dark strong,
+.showcase-panel--dark p {
+	color: #fffaf2;
+}
+
+.showcase-panel--dark p,
+.showcase-panel--dark small {
+	color: rgba(255, 250, 242, 0.78);
+}
+
+.landing-card--accent span,
+.landing-card--accent strong {
+	color: #fffaf2;
+}
+
+@media (max-width: 760px) {
+	.launchpad,
+	.registration-page {
+		padding: 0.75rem;
+		overflow-x: hidden;
+	}
+
+	.public-nav,
+	.registration-page .public-nav,
+	.public-nav--home {
+		display: grid;
+		grid-template-columns: 1fr;
+		align-items: stretch;
+		gap: 0.8rem;
+		border-radius: 1.25rem;
+		padding: 0.8rem;
+	}
+
+	.launchpad-brand {
+		max-width: 100%;
+	}
+
+	.public-nav__actions,
+	.registration-page .public-nav__actions {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.public-nav__links,
+	.public-nav--home .public-nav__links,
+	.registration-page .public-nav__links {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.45rem;
+		justify-content: stretch;
+		width: 100%;
+	}
+
+	.public-nav__links a,
+	.registration-page .public-nav__links a {
+		min-width: 0;
+		border: 1px solid rgba(33, 78, 71, 0.12);
+		background: rgba(255, 255, 255, 0.66);
+		padding: 0.7rem 0.55rem;
+		text-align: center;
+		white-space: normal;
+	}
+
+	.public-language-switcher {
+		justify-self: end;
+		align-self: stretch;
+	}
+
+	.public-language-switcher__option {
+		min-height: 2.55rem;
+	}
+
+	.public-nav__menu {
+		justify-self: end;
+	}
+
+	.public-mobile-menu {
+		margin-top: 0.7rem;
+	}
+
+	.launchpad-hero {
+		gap: 1.5rem;
+		padding: 2.2rem 0 2.8rem;
+	}
+
+	.launchpad-hero h1 {
+		max-width: 12ch;
+		font-size: clamp(3rem, 16vw, 4.8rem);
+		line-height: 0.9;
+		letter-spacing: -0.065em;
+	}
+
+	.launchpad-hero__copy > p:not(.launchpad-kicker) {
+		font-size: 1rem;
+		line-height: 1.55;
+	}
+
+	.launchpad-actions {
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+
+	.launchpad-button {
+		width: 100%;
+	}
+
+	.showcase {
+		border-radius: 1.35rem;
+		box-shadow: 0 22px 58px rgba(23, 33, 31, 0.13);
+	}
+
+	.showcase__chrome {
+		border-radius: 1.35rem 1.35rem 0 0;
+	}
+
+	.showcase__body {
+		min-height: auto;
+		border-radius: 0 0 1.35rem 1.35rem;
+	}
+
+	.showcase-main {
+		padding: 0.9rem;
+	}
+
+	.showcase-main__topline h2 {
+		font-size: clamp(1.8rem, 9vw, 2.35rem);
+	}
+
+	.showcase-panel > strong {
+		font-size: 1.45rem;
+	}
+
+	.proof-ribbon {
+		border-radius: 1.25rem;
+	}
+
+	.workflow {
+		padding: 2.8rem 0;
+	}
+
+	.workflow__intro h2,
+	.landing-focus__intro h2,
+	.registration-copy h1 {
+		font-size: clamp(2.45rem, 13vw, 4rem);
+		line-height: 0.96;
+	}
+
+	.workflow-lane,
+	.landing-focus__cards,
+	.registration-steps {
+		gap: 0.8rem;
+	}
+
+	.workflow-lane a,
+	.landing-card,
+	.registration-steps > div {
+		border-radius: 1.2rem;
+		padding: 1rem;
+	}
+
+	.landing-focus {
+		padding-bottom: 3rem;
+	}
+
+	.registration-grid {
+		grid-template-columns: 1fr;
+		gap: 1.25rem;
+		padding: 2.2rem 0 3rem;
+	}
+
+	.registration-panel {
+		border-radius: 1.35rem;
+		padding: 1rem;
+	}
+
+	.registration-form {
+		gap: 0.85rem;
+	}
+}
+
+@media (max-width: 420px) {
+	.public-nav__actions,
+	.registration-page .public-nav__actions {
+		grid-template-columns: 1fr;
+	}
+
+	.public-language-switcher {
+		justify-self: stretch;
+		width: 100%;
+	}
+
+	.public-language-switcher__option {
+		flex: 1;
+	}
+}
+@media (max-width: 760px) {
+	.public-nav__menu,
+	.public-mobile-menu {
+		display: none;
+	}
+}

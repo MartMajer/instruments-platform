@@ -13,7 +13,7 @@
 		rememberLastWorkspaceEmail
 	} from '$lib/api/session-headers';
 	import { createRegistrationApi } from '$lib/api/registration';
-	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { appLocaleFromPageData, localizedHref } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 
 	const registrationApi = createRegistrationApi();
@@ -26,6 +26,8 @@
 	let isSubmitting = $state(false);
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
+	const englishLocaleHref = $derived(localizedHref(page.url, 'en'));
+	const croatianLocaleHref = $derived(localizedHref(page.url, 'hr-HR'));
 
 	onMount(() => {
 		const tenantId = readLastTenantId(window.localStorage);
@@ -152,10 +154,26 @@
 				<small>{text.signIn.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="public-nav__links" aria-label={text.signIn.navAria}>
-			<a href={resolve('/')}>{text.common.product}</a>
-			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
-		</nav>
+		<div class="public-nav__actions">
+			<nav class="public-nav__links" aria-label={text.signIn.navAria}>
+				<a href={resolve('/')}>{text.common.product}</a>
+				<a href={resolve('/register')}>{text.common.createWorkspace}</a>
+			</nav>
+			<div class="public-language-switcher" aria-label={text.publicEntry.languageSwitchAria}>
+				<a
+					class={`public-language-switcher__option${locale === 'en' ? ' public-language-switcher__option--active' : ''}`}
+					href={englishLocaleHref}
+					hreflang="en"
+					aria-current={locale === 'en' ? 'true' : undefined}>EN</a
+				>
+				<a
+					class={`public-language-switcher__option${locale === 'hr-HR' ? ' public-language-switcher__option--active' : ''}`}
+					href={croatianLocaleHref}
+					hreflang="hr-HR"
+					aria-current={locale === 'hr-HR' ? 'true' : undefined}>HR</a
+				>
+			</div>
+		</div>
 	</header>
 
 	<div class="registration-grid">
