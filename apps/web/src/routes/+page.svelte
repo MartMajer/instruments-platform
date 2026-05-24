@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -170,10 +170,10 @@
 			<div class="showcase__body">
 				<aside class="showcase-rail" aria-hidden="true">
 					<div class="showcase-rail__logo">IP</div>
-					<span class="showcase-rail__link showcase-rail__link--active">Studies</span>
-					<span class="showcase-rail__link">Collect</span>
-					<span class="showcase-rail__link">Results</span>
-					<span class="showcase-rail__link">Exports</span>
+					<span class="showcase-rail__link showcase-rail__link--active">{text.publicEntry.showcaseStudies}</span>
+					<span class="showcase-rail__link">{text.publicEntry.showcaseCollect}</span>
+					<span class="showcase-rail__link">{text.publicEntry.showcaseResults}</span>
+					<span class="showcase-rail__link">{text.publicEntry.showcaseExports}</span>
 				</aside>
 
 				<main class="showcase-main">
@@ -190,7 +190,7 @@
 							<span>{text.publicEntry.responseSignal}</span>
 							<strong>{text.publicEntry.responseProgress}</strong>
 						</div>
-						<svg viewBox="0 0 520 220" role="img" aria-label="Response trend chart">
+						<svg viewBox="0 0 520 220" role="img" aria-label={text.publicEntry.responseTrendChart}>
 							<defs>
 								<linearGradient id="trend-fill" x1="0" x2="0" y1="0" y2="1">
 									<stop offset="0%" stop-color="currentColor" stop-opacity="0.22" />
@@ -211,14 +211,14 @@
 					</section>
 
 					<div class="showcase-grid">
-						<section class="showcase-panel" aria-label="Preparation state">
+						<section class="showcase-panel" aria-label={text.publicEntry.preparationState}>
 							<span>{text.publicEntry.prepare}</span>
 							<strong>{text.publicEntry.launchChecklist}</strong>
 							<p>
 								{text.publicEntry.prepareBody}
 							</p>
 						</section>
-						<section class="showcase-panel showcase-panel--dark" aria-label="Export state">
+						<section class="showcase-panel showcase-panel--dark" aria-label={text.publicEntry.exportState}>
 							<span>{text.publicEntry.export}</span>
 							<strong>{text.publicEntry.datasetCodebook}</strong>
 							<p>{text.publicEntry.exportBody}</p>
@@ -227,14 +227,14 @@
 				</main>
 			</div>
 			<div class="floating-card floating-card--receipt" aria-hidden="true">
-				<span>Respondent</span>
-				<strong>Response receipt</strong>
-				<small>Completion state without exposing identity</small>
+				<span>{text.publicEntry.respondentLabel}</span>
+				<strong>{text.publicEntry.responseReceipt}</strong>
+				<small>{text.publicEntry.responseReceiptBody}</small>
 			</div>
 			<div class="floating-card floating-card--proof" aria-hidden="true">
-				<span>Governance</span>
-				<strong>Study context preserved</strong>
-				<small>Consent, retention, finality, and provenance</small>
+				<span>{text.publicEntry.governanceLabel}</span>
+				<strong>{text.publicEntry.studyContextPreserved}</strong>
+				<small>{text.publicEntry.governanceBody}</small>
 			</div>
 		</div>
 	</section>

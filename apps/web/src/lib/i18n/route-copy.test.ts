@@ -9,11 +9,14 @@ describe('localized route body copy', () => {
 			.join(' ');
 
 		expect(copy.publicEntry.heroTitle).toBe(
-			'Run research and wellbeing studies without rebuilding the data stack.'
+			'Run studies, response collection, and results without rebuilding the data stack.'
 		);
 		expect(copy.publicEntry.languageSwitchAria).toBe('Language');
 		expect(copy.publicEntry.workflowRibbon).toBe(
-			'Questionnaire design, collection, scoring, reports, waves, and exports'
+			'Questionnaires, collection, results, waves, and exports'
+		);
+		expect(copy.publicEntry.productStageRibbon).toBe(
+			'Workspace onboarding and study data run in an EU-hosted environment.'
 		);
 		expect(publicEntryText).not.toMatch(/private beta|tenant|authenticated|provider|owner-controlled/i);
 	});
@@ -36,20 +39,22 @@ describe('localized route body copy', () => {
 			.join(' ');
 
 		expect(copy.publicEntry.metaDescription).toBe(
-			'Platforma za upitnike, prikupljanje, bodovanje, izvještaje, longitudinalne valove i izvozive skupove podataka.'
+			'Platforma za upitnike, prikupljanje odgovora, rezultate, valove i izvoz podataka sa šifrarnikom.'
 		);
-		expect(copy.publicEntry.heroKicker).toBe('Radni proces za studije');
+		expect(copy.publicEntry.heroKicker).toBe('Platforma za istraživanja i wellbeing programe');
 		expect(copy.publicEntry.heroTitle).toBe(
-			'Vodite istraživačke studije i studije dobrobiti bez ponovne izgradnje podatkovnog procesa.'
+			'Vodite studije, prikupljanje odgovora i rezultate bez improviziranih tablica.'
 		);
 		expect(copy.publicEntry.languageSwitchAria).toBe('Jezik');
 		expect(copy.publicEntry.productStage).toBe('Podaci u EU');
 		expect(copy.publicEntry.productStageRibbon).toBe(
-			'Aplikacijska okolina u Europskoj uniji uz postupno uključivanje radnih prostora'
+			'Radni prostori i podaci obrađuju se u EU okruženju.'
 		);
 		expect(copy.publicEntry.workflowRibbon).toBe(
-			'Dizajn upitnika, prikupljanje, bodovanje, izvještaji, valovi i izvozi'
+			'Upitnik, prikupljanje, rezultati, valovi i izvoz'
 		);
+		expect(copy.publicEntry.workspaceOverview).toBe('Pregled studije');
+		expect(copy.publicEntry.showcaseStudies).toBe('Studije');
 		expect(publicEntryText).not.toMatch(/hostan|hosting/i);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
