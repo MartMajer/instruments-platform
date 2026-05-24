@@ -40,7 +40,10 @@ public sealed class CreateTemplateVersionValidator
         {
             question.RuleFor(value => value.Ordinal).GreaterThan(0);
             question.RuleFor(value => value.Code).NotEmpty();
-            question.RuleFor(value => value.Type).NotEmpty();
+            question.RuleFor(value => value.Type)
+                .NotEmpty()
+                .Must(IsSupportedQuestionType)
+                .WithMessage("Question type '{PropertyValue}' is not supported by the current authoring/runtime contract.");
             question.RuleFor(value => value.TextDefault).NotEmpty();
             question.RuleFor(value => value.Payload).NotEmpty();
             question.RuleFor(value => value.MissingCodes).NotEmpty();
@@ -580,6 +583,19 @@ public sealed class CreateTemplateVersionValidator
     private static string NormalizeCode(string value)
     {
         return value.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsSupportedQuestionType(string value)
+    {
+        return value is QuestionTypes.Likert
+            or QuestionTypes.SingleChoice
+            or QuestionTypes.MultiChoice
+            or QuestionTypes.Text
+            or QuestionTypes.Number
+            or QuestionTypes.Date
+            or QuestionTypes.Matrix
+            or QuestionTypes.Nps
+            or QuestionTypes.Ranking;
     }
 
     private sealed record DisplayLogicRule(string SourceQuestionCode, string ExpectedValue);

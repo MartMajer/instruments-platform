@@ -222,6 +222,25 @@ public sealed class CreateTemplateVersionCommandTests
     }
 
     [Fact]
+    public void Validator_rejects_dormant_question_types_without_runtime_contract()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "upload_proof",
+                QuestionTypes.File,
+                payload: "{}"));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.ErrorMessage.Contains("not supported", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Validator_rejects_duplicate_question_codes_and_ordinals()
     {
         var validator = new CreateTemplateVersionValidator();
