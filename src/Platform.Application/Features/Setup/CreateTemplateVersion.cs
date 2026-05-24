@@ -70,6 +70,15 @@ public sealed class CreateTemplateVersionValidator
                 case QuestionTypes.Matrix:
                     ValidateMatrixQuestionPayload(question, document.RootElement, context);
                     break;
+                case QuestionTypes.Number:
+                    ValidateNumberQuestionPayload(question, document.RootElement, context);
+                    break;
+                case QuestionTypes.Text:
+                    ValidateTextQuestionPayload(question, document.RootElement, context);
+                    break;
+                case QuestionTypes.Date:
+                    ValidateDateQuestionPayload(question, document.RootElement, context);
+                    break;
             }
         }
     }
@@ -140,6 +149,71 @@ public sealed class CreateTemplateVersionValidator
             context.AddFailure(
                 "Request.Questions",
                 $"Question '{question.Code}' matrix needs at least two column options.");
+        }
+    }
+
+    private static void ValidateNumberQuestionPayload(
+        CreateTemplateQuestionRequest question,
+        JsonElement payload,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (!TryGetObject(payload, "validation", out var validation))
+        {
+            return;
+        }
+
+        var min = ReadNullableDecimal(validation, "min");
+        var max = ReadNullableDecimal(validation, "max");
+        if (min.HasValue && max.HasValue && min.Value > max.Value)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' number minimum must be less than or equal to the maximum.");
+        }
+    }
+
+    private static void ValidateTextQuestionPayload(
+        CreateTemplateQuestionRequest question,
+        JsonElement payload,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (!TryGetObject(payload, "text", out var text) ||
+            !text.TryGetProperty("maxLength", out var maxLength) ||
+            maxLength.ValueKind == JsonValueKind.Null)
+        {
+            return;
+        }
+
+        if (!maxLength.TryGetInt32(out var maxLengthValue) || maxLengthValue <= 0)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' text max length must be greater than zero.");
+        }
+    }
+
+    private static void ValidateDateQuestionPayload(
+        CreateTemplateQuestionRequest question,
+        JsonElement payload,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (!TryGetObject(payload, "validation", out var validation))
+        {
+            return;
+        }
+
+        var minDate = ReadString(validation, "minDate");
+        var maxDate = ReadString(validation, "maxDate");
+        if (string.IsNullOrWhiteSpace(minDate) || string.IsNullOrWhiteSpace(maxDate))
+        {
+            return;
+        }
+
+        if (string.CompareOrdinal(minDate.Trim(), maxDate.Trim()) > 0)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' earliest date must be on or before latest date.");
         }
     }
 
@@ -320,6 +394,31 @@ public sealed class CreateTemplateVersionValidator
             property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+    }
+
+    private static bool TryGetObject(JsonElement element, string propertyName, out JsonElement value)
+    {
+        if (element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out value) &&
+            value.ValueKind == JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static decimal? ReadNullableDecimal(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        return property.TryGetDecimal(out var value) ? value : null;
     }
 
     private static string NormalizeCode(string value)

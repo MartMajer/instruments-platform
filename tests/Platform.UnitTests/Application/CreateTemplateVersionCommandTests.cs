@@ -141,6 +141,66 @@ public sealed class CreateTemplateVersionCommandTests
                 failure.ErrorMessage.Contains("top-N ranking must be between 1", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Validator_rejects_number_question_with_min_above_max()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "weekly_hours",
+                QuestionTypes.Number,
+                payload: """{"validation":{"min":80,"max":40,"integerOnly":true},"display":{"unit":"hours"}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("number minimum must be less than or equal to the maximum", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_text_question_with_non_positive_max_length()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "context",
+                QuestionTypes.Text,
+                payload: """{"text":{"multiline":true,"maxLength":0}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("text max length must be greater than zero", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_date_question_with_earliest_after_latest()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "start_date",
+                QuestionTypes.Date,
+                payload: """{"validation":{"minDate":"2026-06-30","maxDate":"2026-06-01"}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("earliest date must be on or before latest date", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static CreateTemplateVersionRequest Request(params CreateTemplateQuestionRequest[] questions)
     {
         return new CreateTemplateVersionRequest(
