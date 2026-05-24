@@ -635,20 +635,21 @@ const en = {
 			steps: {
 				instrument: {
 					title: 'Study source',
-					description: 'Confirm what this study is based on before building the questionnaire.'
+					description:
+						'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
 				},
 				template: {
 					title: 'Questionnaire',
-					description: 'Build the questions respondents will answer in this study.'
+					description: 'Build the saved question set respondents will answer for this study.'
 				},
 				scoring: {
 					title: 'Results setup',
 					description:
-						'Choose which answers become study results and how missing answers are handled.'
+						'Choose which questionnaire answers become study results and how missing answers are handled.'
 				},
 				campaign: {
 					title: 'Wave and recipients',
-					description: 'Name the collection wave, choose the response mode, and prepare recipients.'
+					description: 'Prepare the collection round, response mode, and recipients for this study.'
 				},
 				readiness: {
 					title: 'Launch check',
@@ -726,6 +727,31 @@ const en = {
 					'Save recipients before opening Collection for identified launch.',
 				launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
 				runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
+			},
+			designMap: {
+				title: 'Study design map',
+				summary:
+					'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
+				source: 'Study source',
+				questionnaire: 'Questionnaire',
+				results: 'Results setup',
+				waves: 'Collection waves',
+				sourceReady: 'Source content is ready for this questionnaire.',
+				sourceMissing: 'Confirm reusable or imported source content before saving the questionnaire.',
+				questionnaireSaved: (name: string, questionCount: number) =>
+					`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
+				questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
+				resultsReady: (ruleKey: string) => `Results setup is saved as ${ruleKey}.`,
+				resultsMissing: 'Choose which questionnaire answers become study results.',
+				noWaves: 'No collection wave exists yet.',
+				draftWaveNeedsReadiness: (count: number) =>
+					`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,
+				waveReady: (count: number) =>
+					`${count} draft ${count === 1 ? 'wave is' : 'waves are'} ready for Collection.`,
+				liveWave: (count: number) =>
+					`${count} ${count === 1 ? 'wave is' : 'waves are'} collecting responses.`,
+				closedWave: (count: number) =>
+					`${count} ${count === 1 ? 'wave has' : 'waves have'} closed data for Results review.`
 			},
 			waveContext: {
 				prepareForCollection: (waveName: string) => `Prepare ${waveName} for collection`,
@@ -2191,20 +2217,21 @@ const hr: typeof en = {
 			steps: {
 				instrument: {
 					title: 'Izvor studije',
-					description: 'Potvrdite na čemu se studija temelji prije izrade upitnika.'
+					description:
+						'Potvrdite izvorni ili uvezeni sadržaj. On pokreće upitnik, ali nije sama studija.'
 				},
 				template: {
 					title: 'Upitnik',
-					description: 'Izradite pitanja na koja će sudionici odgovarati u ovoj studiji.'
+					description: 'Izradite spremljeni skup pitanja na koji sudionici odgovaraju u ovoj studiji.'
 				},
 				scoring: {
 					title: 'Postavljanje rezultata',
 					description:
-						'Odaberite koji odgovori postaju rezultati studije i kako se obrađuju nedostajući odgovori.'
+						'Odaberite koji odgovori iz upitnika postaju rezultati studije i kako se obrađuju nedostajući odgovori.'
 				},
 				campaign: {
 					title: 'Val i primatelji',
-					description: 'Imenujte val prikupljanja, odaberite način odgovaranja i pripremite primatelje.'
+					description: 'Pripremite krug prikupljanja, način odgovaranja i primatelje za ovu studiju.'
 				},
 				readiness: {
 					title: 'Provjera pokretanja',
@@ -2282,6 +2309,31 @@ const hr: typeof en = {
 					'Spremite primatelje prije otvaranja Prikupljanja za identificirano pokretanje.',
 				launchPassedOpenCollection: 'Provjera je prošla; otvorite Prikupljanje za pokretanje vala.',
 				runLaunchCheckBeforeCollection: 'Pokrenite provjeru prije otvaranja Prikupljanja.'
+			},
+			designMap: {
+				title: 'Mapa dizajna studije',
+				summary:
+					'Ova mapa prikazuje spremljene dijelove postavljanja, a ne početnu opciju odabranu pri izradi studije.',
+				source: 'Izvor studije',
+				questionnaire: 'Upitnik',
+				results: 'Postavljanje rezultata',
+				waves: 'Valovi prikupljanja',
+				sourceReady: 'Izvorni sadržaj spreman je za ovaj upitnik.',
+				sourceMissing: 'Potvrdite izvorni ili uvezeni sadržaj prije spremanja upitnika.',
+				questionnaireSaved: (name: string, questionCount: number) =>
+					`${name} spremljen je s ${questionCount} ${questionCount === 1 ? 'pitanjem' : 'pitanja'}.`,
+				questionnaireMissing: 'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
+				resultsReady: (ruleKey: string) => `Postavljanje rezultata spremljeno je kao ${ruleKey}.`,
+				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju rezultati studije.',
+				noWaves: 'Još nema vala prikupljanja.',
+				draftWaveNeedsReadiness: (count: number) =>
+					`${count} ${count === 1 ? 'nacrt vala pripremljen je' : 'nacrta valova pripremljena su'}; spremnost pokretanja još treba pažnju.`,
+				waveReady: (count: number) =>
+					`${count} ${count === 1 ? 'nacrt vala spreman je' : 'nacrta valova spremna su'} za Prikupljanje.`,
+				liveWave: (count: number) =>
+					`${count} ${count === 1 ? 'val prikuplja' : 'valova prikuplja'} odgovore.`,
+				closedWave: (count: number) =>
+					`${count} ${count === 1 ? 'val ima' : 'valova ima'} zatvorene podatke za pregled Rezultata.`
 			},
 			waveContext: {
 				prepareForCollection: (waveName: string) => `Pripremite ${waveName} za prikupljanje`,

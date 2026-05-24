@@ -34,6 +34,7 @@
 		selectSetupTemplateVersionId,
 		toSelectedSeriesSetupLaunchPlan,
 		toSelectedSeriesSetupLaunchState,
+		toSelectedSeriesSetupDesignMap,
 		toSelectedSeriesSetupPath,
 		toSelectedSeriesSetupPathStepDisplay,
 		toSelectedSeriesSetupWaveContext,
@@ -240,6 +241,9 @@
 		campaignId: campaignResult?.id ?? null
 	});
 	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState, setupWorkflowCopy));
+	const setupDesignMap = $derived(
+		toSelectedSeriesSetupDesignMap(workspace, localState, setupWorkflowCopy)
+	);
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
@@ -1280,6 +1284,22 @@
 		);
 	}
 
+	function designMapStatusLabel(status: string) {
+		if (status === 'ready') {
+			return setupBodyCopy.status.ready;
+		}
+
+		if (status === 'blocked') {
+			return setupUi('Blocked');
+		}
+
+		if (status === 'pending') {
+			return setupUi('Needs attention');
+		}
+
+		return setupUi(status);
+	}
+
 	function activeSetupStepEyebrow(): string {
 		return activeStep.id === currentActionId
 			? setupBodyCopy.currentSetupStep
@@ -1785,6 +1805,7 @@
 		'Workload fairness': 'Pravednost opterećenja',
 		'Shift strain': 'Opterećenje smjene',
 		'Operational support': 'Operativna podrška',
+		'Study model': 'Model studije',
 		'Authoring summary': 'Sažetak izrade',
 		'Questionnaire design review': 'Pregled dizajna upitnika',
 		'Design review': 'Pregled dizajna',
@@ -2167,6 +2188,27 @@
 			</p>
 			{@render SetupPath()}
 		</div>
+
+		<section class="record-row" aria-labelledby="study-design-map-heading">
+			<div class="record-row__header">
+				<div>
+					<p class="record-field__label">{setupUi('Study model')}</p>
+					<h4 id="study-design-map-heading" class="record-row__title">{setupDesignMap.title}</h4>
+					<p class="text-sm text-[var(--color-text-muted)]">{setupDesignMap.summary}</p>
+				</div>
+			</div>
+			<div class="record-grid">
+				{#each setupDesignMap.items as item (item.id)}
+					<div class="record-field">
+						<div class="record-row__header">
+							<p class="record-field__label">{item.label}</p>
+							<StatusBadge status={item.status} label={designMapStatusLabel(item.status)} />
+						</div>
+						<p class="text-sm text-[var(--color-text-muted)]">{item.detail}</p>
+					</div>
+				{/each}
+			</div>
+		</section>
 
 		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
 			<div class="setup-current-task__header">

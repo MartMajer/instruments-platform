@@ -97,6 +97,25 @@ export type SelectedSeriesSetupLaunchPlan = {
 	items: SelectedSeriesSetupLaunchPlanItem[];
 };
 
+export type SelectedSeriesSetupDesignMapItemId =
+	| 'source'
+	| 'questionnaire'
+	| 'results'
+	| 'waves';
+
+export type SelectedSeriesSetupDesignMapItem = {
+	id: SelectedSeriesSetupDesignMapItemId;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	detail: string;
+};
+
+export type SelectedSeriesSetupDesignMap = {
+	title: string;
+	summary: string;
+	items: SelectedSeriesSetupDesignMapItem[];
+};
+
 export type SelectedSeriesSetupWaveContext = {
 	title: string;
 	label: string;
@@ -162,6 +181,25 @@ export type SelectedSeriesSetupWorkflowCopy = {
 		saveRecipientsBeforeIdentifiedLaunch: string;
 		launchPassedOpenCollection: string;
 		runLaunchCheckBeforeCollection: string;
+	};
+	designMap: {
+		title: string;
+		summary: string;
+		source: string;
+		questionnaire: string;
+		results: string;
+		waves: string;
+		sourceReady: string;
+		sourceMissing: string;
+		questionnaireSaved: (name: string, questionCount: number) => string;
+		questionnaireMissing: string;
+		resultsReady: (ruleKey: string) => string;
+		resultsMissing: string;
+		noWaves: string;
+		draftWaveNeedsReadiness: (count: number) => string;
+		waveReady: (count: number) => string;
+		liveWave: (count: number) => string;
+		closedWave: (count: number) => string;
 	};
 	waveContext: {
 		prepareForCollection: (waveName: string) => string;
@@ -294,6 +332,31 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 			'Save recipients before opening Collection for identified launch.',
 		launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
 		runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
+	},
+	designMap: {
+		title: 'Study design map',
+		summary:
+			'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
+		source: 'Study source',
+		questionnaire: 'Questionnaire',
+		results: 'Results setup',
+		waves: 'Collection waves',
+		sourceReady: 'Source content is ready for this questionnaire.',
+		sourceMissing: 'Confirm reusable or imported source content before saving the questionnaire.',
+		questionnaireSaved: (name, questionCount) =>
+			`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
+		questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
+		resultsReady: (ruleKey) => `Results setup is saved as ${ruleKey}.`,
+		resultsMissing: 'Choose which questionnaire answers become study results.',
+		noWaves: 'No collection wave exists yet.',
+		draftWaveNeedsReadiness: (count) =>
+			`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,
+		waveReady: (count) =>
+			`${count} draft ${count === 1 ? 'wave is' : 'waves are'} ready for Collection.`,
+		liveWave: (count) =>
+			`${count} ${count === 1 ? 'wave is' : 'waves are'} collecting responses.`,
+		closedWave: (count) =>
+			`${count} ${count === 1 ? 'wave has' : 'waves have'} closed data for Results review.`
 	},
 	waveContext: {
 		prepareForCollection: (waveName) => `Prepare ${waveName} for collection`,
@@ -522,6 +585,56 @@ export function toSelectedSeriesSetupLaunchPlan(
 	};
 }
 
+export function toSelectedSeriesSetupDesignMap(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	localState: SelectedSeriesSetupWorkflowLocalState = {},
+	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
+): SelectedSeriesSetupDesignMap {
+	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
+	const sourceReady = Boolean(localState.instrumentId ?? workspace.template?.instrumentId ?? templateVersionId);
+	const questionnaireReady = Boolean(templateVersionId);
+	const resultsReady = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
+	const waveStatus = summarizeWaveDesignStatus(workspace, localState, copy);
+
+	return {
+		title: copy.designMap.title,
+		summary: copy.designMap.summary,
+		items: [
+			{
+				id: 'source',
+				label: copy.designMap.source,
+				status: sourceReady ? 'ready' : 'pending',
+				detail: sourceReady ? copy.designMap.sourceReady : copy.designMap.sourceMissing
+			},
+			{
+				id: 'questionnaire',
+				label: copy.designMap.questionnaire,
+				status: questionnaireReady ? 'ready' : 'blocked',
+				detail: questionnaireReady
+					? copy.designMap.questionnaireSaved(
+							workspace.template?.templateName?.trim() || copy.steps.template.title,
+							workspace.template?.questionCount ?? 0
+						)
+					: copy.designMap.questionnaireMissing
+			},
+			{
+				id: 'results',
+				label: copy.designMap.results,
+				status: resultsReady ? 'ready' : questionnaireReady ? 'pending' : 'blocked',
+				detail: resultsReady
+					? copy.designMap.resultsReady(workspace.scoring?.ruleKey?.trim() || copy.steps.scoring.title)
+					: copy.designMap.resultsMissing
+			},
+			{
+				id: 'waves',
+				label: copy.designMap.waves,
+				status: waveStatus.status,
+				detail: waveStatus.detail
+			}
+		]
+	};
+}
+
 export function toSelectedSeriesSetupWaveContext(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {},
@@ -591,6 +704,41 @@ export function toSelectedSeriesSetupWaveContext(
 				existingWaveCount === 1 ? previousWaveName : copy.waveContext.previousWaves
 			)
 		]
+	};
+}
+
+function summarizeWaveDesignStatus(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	localState: SelectedSeriesSetupWorkflowLocalState,
+	copy: SelectedSeriesSetupWorkflowCopy
+): Pick<SelectedSeriesSetupDesignMapItem, 'status' | 'detail'> {
+	const localCampaignId = localState.campaignId;
+	const campaignCount = Math.max(0, workspace.summary.campaignCount);
+
+	if (campaignCount === 0 && !localCampaignId) {
+		return { status: 'pending', detail: copy.designMap.noWaves };
+	}
+
+	if (workspace.summary.liveCampaignCount > 0) {
+		return {
+			status: 'ready',
+			detail: copy.designMap.liveWave(workspace.summary.liveCampaignCount)
+		};
+	}
+
+	const draftCount =
+		(localCampaignId ? 1 : 0) +
+		workspace.campaigns.filter((campaign) => isEditableSetupCampaign(campaign.status)).length;
+
+	if (draftCount > 0) {
+		return workspace.readiness.ready
+			? { status: 'ready', detail: copy.designMap.waveReady(draftCount) }
+			: { status: 'pending', detail: copy.designMap.draftWaveNeedsReadiness(draftCount) };
+	}
+
+	return {
+		status: 'ready',
+		detail: copy.designMap.closedWave(campaignCount)
 	};
 }
 

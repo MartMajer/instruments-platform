@@ -7,6 +7,7 @@ import {
 	selectSetupTemplateVersionId,
 	toSelectedSeriesSetupLaunchPlan,
 	toSelectedSeriesSetupLaunchState,
+	toSelectedSeriesSetupDesignMap,
 	toSelectedSeriesSetupPath,
 	toSelectedSeriesSetupPathStepDisplay,
 	toSelectedSeriesSetupWaveContext,
@@ -258,6 +259,42 @@ describe('selected-series setup workflow model', () => {
 		});
 	});
 
+	it('summarizes the saved study design from actual setup artifacts', () => {
+		const design = toSelectedSeriesSetupDesignMap(configuredWorkspace);
+
+		expect(design).toEqual({
+			title: 'Study design map',
+			summary:
+				'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
+			items: [
+				{
+					id: 'source',
+					label: 'Study source',
+					status: 'ready',
+					detail: 'Source content is ready for this questionnaire.'
+				},
+				{
+					id: 'questionnaire',
+					label: 'Questionnaire',
+					status: 'ready',
+					detail: 'Tenant burnout pulse template is saved with 5 questions.'
+				},
+				{
+					id: 'results',
+					label: 'Results setup',
+					status: 'ready',
+					detail: 'Results setup is saved as burnout.total.'
+				},
+				{
+					id: 'waves',
+					label: 'Collection waves',
+					status: 'pending',
+					detail: '1 draft wave is prepared; launch readiness still needs attention.'
+				}
+			]
+		});
+	});
+
 	it('labels an editable campaign as current-wave setup instead of future-wave setup', () => {
 		const context = toSelectedSeriesSetupWaveContext(configuredWorkspace);
 
@@ -426,7 +463,8 @@ describe('selected-series setup workflow model', () => {
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
 			title: 'Izvor studije',
-			description: 'Potvrdite na čemu se studija temelji prije izrade upitnika.'
+			description:
+				'Potvrdite izvorni ili uvezeni sadržaj. On pokreće upitnik, ali nije sama studija.'
 		});
 		expect(path.steps[1]?.disabledReason).toBe('Prvo potvrdite izvor studije.');
 		expect(toSelectedSeriesSetupPathStepDisplay(path.steps[0]!, path.currentActionId, 'template', copy)).toEqual({
