@@ -196,6 +196,32 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Answer_cannot_be_both_skipped_and_not_applicable()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "workload",
+                    QuestionTypes.Likert,
+                    "{}",
+                    ScaleMinValue: 1,
+                    ScaleMaxValue: 5,
+                    ScaleStep: 1,
+                    ScaleNaAllowed: true)
+            ],
+            [
+                new SaveAnswerRequest(questionId, Value: null, IsSkipped: true, IsNa: true)
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("both skipped and not applicable", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Skipped_or_not_applicable_answer_cannot_carry_a_comment()
     {
         var skippedId = Guid.NewGuid();

@@ -58,6 +58,11 @@ public static class ResponseAnswerValueValidator
                 return Failure("unknown", "references a question outside this campaign template");
             }
 
+            if (answer.IsSkipped && answer.IsNa)
+            {
+                return Failure(question.Code, "cannot be both skipped and not applicable");
+            }
+
             if ((answer.IsSkipped || answer.IsNa) &&
                 (answer.Value is not null || !string.IsNullOrWhiteSpace(answer.Comment)))
             {
