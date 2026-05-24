@@ -197,8 +197,66 @@ public sealed class CreateTemplateVersionCommandTests
         Assert.False(result.IsValid);
         Assert.Contains(
             result.Errors,
-            failure => failure.PropertyName == "Request.Questions" &&
+                failure => failure.PropertyName == "Request.Questions" &&
                 failure.ErrorMessage.Contains("earliest date must be on or before latest date", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_duplicate_question_codes_and_ordinals()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(1, "q01", QuestionTypes.Text),
+            Question(1, "Q01", QuestionTypes.Text));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("question codes must be unique", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("question ordinals must be unique", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_duplicate_section_and_scale_codes()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = new CreateTemplateVersionRequest(
+            "Private pulse",
+            "1.0.0",
+            "en",
+            InstrumentId: null,
+            Sections:
+            [
+                new CreateTemplateSectionRequest(1, "core", "Core"),
+                new CreateTemplateSectionRequest(2, "Core", "Duplicate core")
+            ],
+            Scales:
+            [
+                new CreateQuestionScaleRequest("agreement", ScaleTypes.Likert, 1, 5, 1, false, "[]"),
+                new CreateQuestionScaleRequest("Agreement", ScaleTypes.Likert, 1, 5, 1, false, "[]")
+            ],
+            Questions:
+            [
+                Question(1, "q01", QuestionTypes.Likert, ScaleCode: "agreement")
+            ]);
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Sections" &&
+                failure.ErrorMessage.Contains("section codes must be unique", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Scales" &&
+                failure.ErrorMessage.Contains("scale codes must be unique", StringComparison.OrdinalIgnoreCase));
     }
 
     private static CreateTemplateVersionRequest Request(params CreateTemplateQuestionRequest[] questions)
@@ -220,6 +278,7 @@ public sealed class CreateTemplateVersionCommandTests
         int ordinal,
         string code,
         string type,
+        string? ScaleCode = null,
         string payload = "{}")
     {
         return new CreateTemplateQuestionRequest(
@@ -228,6 +287,7 @@ public sealed class CreateTemplateVersionCommandTests
             type,
             $"Question {ordinal}",
             SectionCode: "core",
+            ScaleCode: ScaleCode,
             Payload: payload);
     }
 

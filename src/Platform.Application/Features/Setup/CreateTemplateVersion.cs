@@ -44,8 +44,40 @@ public sealed class CreateTemplateVersionValidator
             question.RuleFor(value => value.Payload).NotEmpty();
             question.RuleFor(value => value.MissingCodes).NotEmpty();
         });
+        RuleFor(command => command.Request).Custom(ValidateUniqueTemplateIdentities);
         RuleFor(command => command.Request).Custom(ValidateQuestionPayloadContracts);
         RuleFor(command => command.Request).Custom(ValidateDisplayLogicRules);
+    }
+
+    private static void ValidateUniqueTemplateIdentities(
+        CreateTemplateVersionRequest request,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        AddDuplicateOrdinalFailure(
+            request.Sections.Select(section => section.Ordinal),
+            "Request.Sections",
+            "Template section ordinals must be unique.",
+            context);
+        AddDuplicateCodeFailure(
+            request.Sections.Select(section => section.Code),
+            "Request.Sections",
+            "Template section codes must be unique.",
+            context);
+        AddDuplicateCodeFailure(
+            request.Scales.Select(scale => scale.Code),
+            "Request.Scales",
+            "Question scale codes must be unique.",
+            context);
+        AddDuplicateOrdinalFailure(
+            request.Questions.Select(question => question.Ordinal),
+            "Request.Questions",
+            "Template question ordinals must be unique.",
+            context);
+        AddDuplicateCodeFailure(
+            request.Questions.Select(question => question.Code),
+            "Request.Questions",
+            "Template question codes must be unique.",
+            context);
     }
 
     private static void ValidateQuestionPayloadContracts(
@@ -419,6 +451,37 @@ public sealed class CreateTemplateVersionValidator
         }
 
         return property.TryGetDecimal(out var value) ? value : null;
+    }
+
+    private static void AddDuplicateCodeFailure(
+        IEnumerable<string> values,
+        string propertyName,
+        string message,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(NormalizeCode)
+            .GroupBy(value => value, StringComparer.Ordinal)
+            .Any(group => group.Count() > 1))
+        {
+            context.AddFailure(propertyName, message);
+        }
+    }
+
+    private static void AddDuplicateOrdinalFailure(
+        IEnumerable<int> values,
+        string propertyName,
+        string message,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (values
+            .Where(value => value > 0)
+            .GroupBy(value => value)
+            .Any(group => group.Count() > 1))
+        {
+            context.AddFailure(propertyName, message);
+        }
     }
 
     private static string NormalizeCode(string value)
