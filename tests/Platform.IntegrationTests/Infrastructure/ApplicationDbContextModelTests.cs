@@ -664,8 +664,10 @@ public sealed class ApplicationDbContextModelTests
 
         var model = db.GetService<IDesignTimeModel>().Model;
         var responseSession = model.FindEntityType(typeof(ResponseSession));
+        var answer = model.FindEntityType(typeof(Answer));
 
         Assert.NotNull(responseSession);
+        Assert.NotNull(answer);
         Assert.Equal(
             "public_handle_hash",
             responseSession.FindProperty(nameof(ResponseSession.PublicHandleHash))!.GetColumnName());
@@ -681,6 +683,8 @@ public sealed class ApplicationDbContextModelTests
             index.Properties.Single().Name == nameof(ResponseSession.PublicHandleHash));
         Assert.Contains(responseSession.GetCheckConstraints(), check =>
             check.Name == "ck_response_session_public_handle_hash");
+        Assert.Contains(answer.GetCheckConstraints(), check =>
+            check.Name == "ck_answer_skipped_na_payload_shape");
         Assert.Contains(responseSession.GetForeignKeys(), foreignKey =>
             foreignKey.Properties.Single().Name == nameof(ResponseSession.ParticipantCodeId) &&
             foreignKey.PrincipalEntityType.ClrType == typeof(ParticipantCode));

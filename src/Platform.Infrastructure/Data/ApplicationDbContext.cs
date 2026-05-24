@@ -2838,6 +2838,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "ck_answer_not_skipped_and_na",
                     "NOT (is_skipped = TRUE AND is_na = TRUE)");
                 table.HasCheckConstraint(
+                    "ck_answer_skipped_na_payload_shape",
+                    "NOT (is_skipped = TRUE OR is_na = TRUE) OR (value IS NULL AND NULLIF(BTRIM(COALESCE(comment, '')), '') IS NULL)");
+                table.HasCheckConstraint(
                     "ck_answer_value_json",
                     "value IS NULL OR jsonb_typeof(value) IS NOT NULL");
             });
