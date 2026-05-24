@@ -468,6 +468,11 @@ describe('product view models', () => {
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
 		expect(hubView.rows[0].label).toBe('Izrađeno');
+		expect(hubView.studyModel.title).toBe('Model studije');
+		expect(hubView.studyModel.items[0].label).toBe('Spremnik studije');
+		expect(hubView.studyModel.items[0].summary).toContain(
+			'To nije višekratni izvor upitnika.'
+		);
 		expect(hubView.governanceRows[0]).toEqual({
 			label: 'Pristanak',
 			value: 'pregled',
@@ -841,6 +846,70 @@ describe('product view models', () => {
 
 		expect(view.surfaceTitle).toBe('Study overview');
 		expect(view.referenceTitle).toBe('Study reference');
+		expect(view.studyModel).toEqual({
+			title: 'Study model',
+			description:
+				'A study is the workspace container. Setup defines the questionnaire and result rules; collection waves gather answers; Results, Waves, and Exports reuse those saved records.',
+			items: [
+				{
+					id: 'study_container',
+					label: 'Study container',
+					status: 'ready',
+					badgeLabel: 'Saved',
+					summary:
+						'Quarterly burnout pulse holds setup, collection waves, results, and exports. It is not a reusable questionnaire source.',
+					guidance:
+						'Open Setup when you need to change what respondents answer or how results are prepared.',
+					detailRows: [
+						{ label: 'Campaigns', value: '2' },
+						{ label: 'Live campaigns', value: '1' },
+						{ label: 'Submitted responses', value: '31' },
+						{ label: 'Export files', value: '3' }
+					]
+				},
+				{
+					id: 'questionnaire_results',
+					label: 'Questionnaire and results setup',
+					status: 'ready',
+					badgeLabel: 'Ready',
+					summary:
+						'Questionnaire, result rules, policies, recipients, and launch checks are prepared in Setup.',
+					guidance: 'Governance prerequisites are configured for this series.',
+					detailRows: [
+						{ label: 'Consent', value: 'preview', status: 'proof_only' },
+						{ label: 'Retention', value: 'preview', status: 'proof_only' },
+						{ label: 'Disclosure', value: 'pending', status: 'pending' },
+						{ label: 'Scoring', value: 'not configured', status: 'not_configured' }
+					]
+				},
+				{
+					id: 'collection_waves',
+					label: 'Collection waves',
+					status: 'live',
+					badgeLabel: 'Live',
+					summary: '2 collection waves exist; 1 is live.',
+					guidance: 'Collection is live, but no submitted responses are available yet.',
+					detailRows: [
+						{ label: 'Campaigns', value: '2' },
+						{ label: 'Live campaigns', value: '1' }
+					]
+				},
+				{
+					id: 'evidence_outputs',
+					label: 'Evidence and comparison',
+					status: 'ready',
+					badgeLabel: 'Evidence ready',
+					summary: '31 submitted responses, 28 scores, and 3 export files are recorded.',
+					guidance:
+						'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+					detailRows: [
+						{ label: 'Submitted responses', value: '31' },
+						{ label: 'Scores', value: '28' },
+						{ label: 'Export files', value: '3' }
+					]
+				}
+			]
+		});
 		expect(view.lifecycleMap.title).toBe('Study lifecycle');
 		expect(view.lifecycleMap.items).toEqual([
 			{
@@ -885,6 +954,14 @@ describe('product view models', () => {
 			}
 		]);
 		expect(view.lifecycleMap.items[2].description).toContain('export files');
+		for (const item of view.studyModel.items) {
+			expectStatusBadgeStatus(item.status);
+			for (const row of item.detailRows) {
+				if (row.status) {
+					expectStatusBadgeStatus(row.status);
+				}
+			}
+		}
 		for (const item of view.lifecycleMap.items) {
 			expectStatusBadgeStatus(item.status);
 		}

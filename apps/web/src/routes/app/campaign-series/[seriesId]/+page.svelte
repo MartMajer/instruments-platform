@@ -220,6 +220,54 @@
 
 				<div
 					role="group"
+					aria-label={hubView.studyModel.title}
+					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
+				>
+					<div>
+						<p class="product-kicker">{copy.studyModel}</p>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">
+							{hubView.studyModel.title}
+						</h3>
+						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+							{hubView.studyModel.description}
+						</p>
+					</div>
+
+					<div class="record-list">
+						{#each hubView.studyModel.items as item}
+							<article aria-label={item.label} class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-row__title">{item.label}</p>
+										<p class="mt-2 text-sm leading-6 text-[var(--color-text)]">{item.summary}</p>
+										<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+											{item.guidance}
+										</p>
+									</div>
+									<StatusBadge status={item.status} label={item.badgeLabel} />
+								</div>
+								<dl class="record-grid mt-3">
+									{#each item.detailRows as row}
+										<div class="record-field">
+											<dt class="record-field__label">{row.label}</dt>
+											<dd class="record-field__value" class:font-mono={row.mono}>
+												{row.value}
+												{#if row.status}
+													<span class="ml-2 inline-flex align-middle">
+														<StatusBadge status={row.status} />
+													</span>
+												{/if}
+											</dd>
+										</div>
+									{/each}
+								</dl>
+							</article>
+						{/each}
+					</div>
+				</div>
+
+				<div
+					role="group"
 					aria-label={hubView.lifecycleMap.title}
 					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
 				>

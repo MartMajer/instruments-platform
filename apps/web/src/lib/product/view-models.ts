@@ -100,6 +100,22 @@ export type ReportsResultsOverviewItem = {
 	detailRows: DisplayRow[];
 };
 
+export type SelectedSeriesStudyModelItem = {
+	id: 'study_container' | 'questionnaire_results' | 'collection_waves' | 'evidence_outputs';
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	badgeLabel: string;
+	summary: string;
+	guidance: string;
+	detailRows: (DisplayRow & { status?: ProductReadModelBadgeStatus })[];
+};
+
+export type SelectedSeriesStudyModel = {
+	title: string;
+	description: string;
+	items: SelectedSeriesStudyModelItem[];
+};
+
 export type ExportArtifactLibraryOverviewItem = {
 	id: 'ready_downloads' | 'attention_needed' | 'artifact_purpose' | 'study_context';
 	label: string;
@@ -306,6 +322,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 			toGovernanceRow('Disclosure', hub.governance.disclosureStatus),
 			toGovernanceRow('Scoring', hub.governance.scoringStatus)
 		],
+		studyModel: toCampaignSeriesHubStudyModel(hub, locale),
 		lifecycleMap: toCampaignSeriesHubLifecycleMap(hub),
 		lifecycleItems: hub.lifecycle.map((item) => ({
 			id: item.id,
@@ -373,6 +390,209 @@ function campaignSeriesHubLifecyclePhase(id: CampaignSeriesHubResponse['lifecycl
 				label: 'Compare waves',
 				description: 'Create follow-up waves and compare results across collection rounds.'
 			};
+	}
+}
+
+function toCampaignSeriesHubStudyModel(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): SelectedSeriesStudyModel {
+	const setupLifecycle = findHubLifecycleItem(hub, 'setup');
+	const operationsLifecycle = findHubLifecycleItem(hub, 'operations');
+	const hr = locale === 'hr-HR';
+	const studyName = hub.name.trim() || (hr ? 'Studija bez naziva' : 'Untitled study');
+
+	return {
+		title: hr ? 'Model studije' : 'Study model',
+		description: hr
+			? 'Studija je spremnik u radnom prostoru. Postavljanje definira upitnik i pravila rezultata; valovi prikupljaju odgovore; Rezultati, Valovi i Izvozi koriste te spremljene zapise.'
+			: 'A study is the workspace container. Setup defines the questionnaire and result rules; collection waves gather answers; Results, Waves, and Exports reuse those saved records.',
+		items: [
+			{
+				id: 'study_container',
+				label: hr ? 'Spremnik studije' : 'Study container',
+				status: 'ready',
+				badgeLabel: hr ? 'Spremljeno' : 'Saved',
+				summary: hr
+					? `${studyName} sadrži postavljanje, valove prikupljanja, rezultate i izvoze. To nije višekratni izvor upitnika.`
+					: `${studyName} holds setup, collection waves, results, and exports. It is not a reusable questionnaire source.`,
+				guidance: hr
+					? 'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
+					: 'Open Setup when you need to change what respondents answer or how results are prepared.',
+				detailRows: [
+					{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
+					{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) },
+					{
+						label: 'Submitted responses',
+						value: formatCount(hub.totals.submittedResponseCount)
+					},
+					{ label: 'Export files', value: formatCount(hub.totals.exportArtifactCount) }
+				]
+			},
+			{
+				id: 'questionnaire_results',
+				label: hr ? 'Upitnik i postavljanje rezultata' : 'Questionnaire and results setup',
+				status: setupLifecycle ? toProductReadModelBadgeStatus(setupLifecycle.status) : 'pending',
+				badgeLabel: setupLifecycle
+					? toModelBadgeLabel(toProductReadModelBadgeStatus(setupLifecycle.status))
+					: 'Pending',
+				summary: hr
+					? 'Upitnik, pravila rezultata, pravila, primatelji i provjere pokretanja pripremaju se u Postavljanju.'
+					: 'Questionnaire, result rules, policies, recipients, and launch checks are prepared in Setup.',
+				guidance: hr
+					? 'Otvorite Postavljanje za dovršetak ili provjeru upitnika, pravila rezultata, pravila, vala i spremnosti pokretanja.'
+					: setupLifecycle?.guidance ??
+						'Open Setup to finish questionnaire, result rules, policies, wave, and launch readiness.',
+				detailRows: [
+					toGovernanceRow('Consent', hub.governance.consentStatus),
+					toGovernanceRow('Retention', hub.governance.retentionStatus),
+					toGovernanceRow('Disclosure', hub.governance.disclosureStatus),
+					toGovernanceRow('Scoring', hub.governance.scoringStatus)
+				]
+			},
+			{
+				id: 'collection_waves',
+				label: hr ? 'Valovi prikupljanja' : 'Collection waves',
+				status: toCollectionWavesModelStatus(hub),
+				badgeLabel: toCollectionWavesModelBadgeLabel(hub, locale),
+				summary: toCollectionWavesModelSummary(hub, locale),
+				guidance: hr
+					? 'Izradite ili provjerite val prikupljanja, zatim koristite Prikupljanje za otvaranje pristupa ispitanicima.'
+					: operationsLifecycle?.guidance ??
+						'Create a collection wave in Setup, then use Collect to open access for respondents.',
+				detailRows: [
+					{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
+					{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) }
+				]
+			},
+			{
+				id: 'evidence_outputs',
+				label: hr ? 'Dokazi i usporedba' : 'Evidence and comparison',
+				status: toEvidenceOutputsModelStatus(hub),
+				badgeLabel: toEvidenceOutputsModelBadgeLabel(hub, locale),
+				summary: toEvidenceOutputsModelSummary(hub, locale),
+				guidance: hr
+					? 'Koristite Rezultate za trenutne dokaze, Valove za ponovljene krugove prikupljanja i Izvoze za predaju analize.'
+					: 'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+				detailRows: [
+					{
+						label: 'Submitted responses',
+						value: formatCount(hub.totals.submittedResponseCount)
+					},
+					{ label: 'Scores', value: formatCount(hub.totals.scoreCount) },
+					{ label: 'Export files', value: formatCount(hub.totals.exportArtifactCount) }
+				]
+			}
+		]
+	};
+}
+
+function findHubLifecycleItem(
+	hub: CampaignSeriesHubResponse,
+	id: CampaignSeriesHubResponse['lifecycle'][number]['id']
+) {
+	return hub.lifecycle.find((item) => item.id === id);
+}
+
+function toCollectionWavesModelStatus(hub: CampaignSeriesHubResponse): ProductReadModelBadgeStatus {
+	if (hub.totals.liveCampaignCount > 0) {
+		return 'live';
+	}
+
+	if (hub.totals.campaignCount > 0) {
+		const operationsLifecycle = findHubLifecycleItem(hub, 'operations');
+		return operationsLifecycle ? toProductReadModelBadgeStatus(operationsLifecycle.status) : 'pending';
+	}
+
+	return 'not_configured';
+}
+
+function toCollectionWavesModelBadgeLabel(hub: CampaignSeriesHubResponse, locale: AppLocale) {
+	if (hub.totals.liveCampaignCount > 0) {
+		return locale === 'hr-HR' ? 'Aktivno' : 'Live';
+	}
+
+	if (hub.totals.campaignCount > 0) {
+		return locale === 'hr-HR' ? 'Pripremljeno' : 'Prepared';
+	}
+
+	return locale === 'hr-HR' ? 'Nema valova' : 'No waves';
+}
+
+function toCollectionWavesModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
+	if (hub.totals.campaignCount === 0) {
+		return locale === 'hr-HR'
+			? 'Još nema valova prikupljanja.'
+			: 'No collection waves exist yet.';
+	}
+
+	if (locale === 'hr-HR') {
+		return `${formatCount(hub.totals.campaignCount)} ${
+			hub.totals.campaignCount === 1 ? 'val prikupljanja postoji' : 'valova prikupljanja postoji'
+		}; ${formatCount(hub.totals.liveCampaignCount)} ${
+			hub.totals.liveCampaignCount === 1 ? 'je aktivan' : 'je aktivno'
+		}.`;
+	}
+
+	return `${formatCount(hub.totals.campaignCount)} ${
+		hub.totals.campaignCount === 1 ? 'collection wave exists' : 'collection waves exist'
+	}; ${formatCount(hub.totals.liveCampaignCount)} ${
+		hub.totals.liveCampaignCount === 1 ? 'is' : 'are'
+	} live.`;
+}
+
+function toEvidenceOutputsModelStatus(hub: CampaignSeriesHubResponse): ProductReadModelBadgeStatus {
+	if (hub.totals.exportArtifactCount > 0 || hub.totals.scoreCount > 0) {
+		return 'ready';
+	}
+
+	if (hub.totals.submittedResponseCount > 0) {
+		return 'pending';
+	}
+
+	return 'not_available';
+}
+
+function toEvidenceOutputsModelBadgeLabel(hub: CampaignSeriesHubResponse, locale: AppLocale) {
+	if (hub.totals.exportArtifactCount > 0 || hub.totals.scoreCount > 0) {
+		return locale === 'hr-HR' ? 'Dokazi spremni' : 'Evidence ready';
+	}
+
+	if (hub.totals.submittedResponseCount > 0) {
+		return locale === 'hr-HR' ? 'Treba bodovanje' : 'Needs scoring';
+	}
+
+	return locale === 'hr-HR' ? 'Još nema dokaza' : 'No evidence yet';
+}
+
+function toEvidenceOutputsModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
+	if (locale === 'hr-HR') {
+		return `${formatCount(hub.totals.submittedResponseCount)} predanih odgovora, ${formatCount(
+			hub.totals.scoreCount
+		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabilježeno.`;
+	}
+
+	return `${formatCount(hub.totals.submittedResponseCount)} submitted responses, ${formatCount(
+		hub.totals.scoreCount
+	)} scores, and ${formatCount(hub.totals.exportArtifactCount)} export files are recorded.`;
+}
+
+function toModelBadgeLabel(status: ProductReadModelBadgeStatus) {
+	switch (status) {
+		case 'ready':
+			return 'Ready';
+		case 'pending':
+			return 'Pending';
+		case 'blocked':
+			return 'Blocked';
+		case 'live':
+			return 'Live';
+		case 'not_configured':
+			return 'Not configured';
+		case 'not_available':
+			return 'Not available';
+		default:
+			return humanizeValue(status);
 	}
 }
 
