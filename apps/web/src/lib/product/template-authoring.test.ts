@@ -459,6 +459,22 @@ describe('scoring plan summaries', () => {
 		});
 	});
 
+	it('blocks minimum-answered rules that require more questions than the result includes', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows).map((output) => ({
+			...output,
+			name: 'Recovery',
+			code: 'recovery',
+			missingStrategy: 'min_valid_count' as const,
+			minValidCount: 3,
+			includedQuestionCodes: ['q01', 'q02']
+		}));
+
+		expect(validateScoreOutputRows(outputs, rows)).toContain(
+			'Recovery minimum answered count cannot exceed 2 selected scored questions.'
+		);
+	});
+
 	it('summarizes results blueprint review with coverage, missing answers, direction, and boundaries', () => {
 		const rows = createDefaultTemplateQuestionRows();
 		const outputs = createDefaultScoreOutputRows(rows);

@@ -905,6 +905,18 @@ export function validateScoreOutputRows(
 		) {
 			errors.push(`${label} needs a positive minimum answered count.`);
 		}
+
+		if (
+			output.missingStrategy === 'min_valid_count' &&
+			selectedCodes.length > 0 &&
+			Math.trunc(output.minValidCount) > selectedCodes.length
+		) {
+			errors.push(
+				`${label} minimum answered count cannot exceed ${selectedCodes.length} selected scored ${
+					selectedCodes.length === 1 ? 'question' : 'questions'
+				}.`
+			);
+		}
 	});
 
 	return errors;
