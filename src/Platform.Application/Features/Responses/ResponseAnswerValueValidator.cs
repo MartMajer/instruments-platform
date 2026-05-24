@@ -303,6 +303,11 @@ public static class ResponseAnswerValueValidator
             return Failure(question.Code, "must be text");
         }
 
+        if (string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            return Failure(question.Code, "must contain text when a text value is saved");
+        }
+
         var payload = ParseObject(question.Payload);
         if (!payload.TryGetProperty("text", out var text) ||
             text.ValueKind != JsonValueKind.Object ||

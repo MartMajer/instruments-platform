@@ -141,6 +141,28 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Text_answer_rejects_blank_saved_string()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "context",
+                    QuestionTypes.Text,
+                    "{}")
+            ],
+            [
+                new SaveAnswerRequest(questionId, "\"   \"")
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("text", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
