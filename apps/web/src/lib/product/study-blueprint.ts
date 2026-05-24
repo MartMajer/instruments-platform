@@ -184,19 +184,19 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 		nextSteps: [
 			{ label: 'Opseg', description: 'Definirajte grupu i mali skup tema koje puls treba pokriti.' },
 			{ label: 'Pitanja', description: 'Izradite kompaktan upitnik koji se može brzo ispuniti.' },
-			{ label: 'Primatelji', description: 'Odaberite ljude ili grupe za ovaj val prije pokretanja.' }
+			{ label: 'Primatelji', description: 'Odaberite ljude ili grupe za ovo mjerenje prije pokretanja.' }
 		]
 	},
 	repeated_wave: {
 		eyebrow: 'Mjerite promjenu kroz vrijeme',
-		title: 'Studija s ponovljenim valovima',
+		title: 'Studija s ponovljenim mjerenjima',
 		summary: 'Koristite ovo kada se ista studija treba ponoviti kasnije i usporedba je važna.',
 		bestFor: 'Bazne i follow-up studije, provjere intervencija i ponavljajuća mjerenja kohorte.',
 		namePlaceholder: 'npr. Follow-up studija dobrobiti',
-		highlights: ['Planiranje valova', 'Ponavljano sudjelovanje', 'Postavljanje spremno za usporedbu'],
-		nextStepsTitle: 'Pripremit ćete prvi val s follow-upom na umu',
+		highlights: ['Planiranje mjerenja', 'Ponavljano sudjelovanje', 'Postavljanje spremno za usporedbu'],
+		nextStepsTitle: 'Pripremit ćete prvo mjerenje s follow-upom na umu',
 		nextSteps: [
-			{ label: 'Plan vala', description: 'Počnite s Valom 1 i zadržite postavke spremne za kasniju usporedbu.' },
+			{ label: 'Plan mjerenja', description: 'Počnite s prvim mjerenjem i zadržite postavke spremne za kasniju usporedbu.' },
 			{ label: 'Način povezivanja', description: 'Koristite postavku ponavljanog sudjelovanja kada se isti sudionik uspoređuje kroz vrijeme.' },
 			{ label: 'Rezultati', description: 'Pregledajte trendove grupa i promjenu istih sudionika kada ima dovoljno podataka.' }
 		]
@@ -213,7 +213,7 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 		nextSteps: [
 			{ label: 'Izloženost zadacima', description: 'Mapirajte izloženost zadacima i grupe primatelja.' },
 			{ label: 'Upitnik', description: 'Pregledajte početni upitnik i prilagodite formulacije radnom mjestu.' },
-			{ label: 'Rezultati', description: 'Planirajte izlazne rezultate prije pokretanja prvog vala.' }
+			{ label: 'Rezultati', description: 'Planirajte izlazne rezultate prije pokretanja prvog mjerenja.' }
 		]
 	}
 };

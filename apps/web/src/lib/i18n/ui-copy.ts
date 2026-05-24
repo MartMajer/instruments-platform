@@ -348,7 +348,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			setup: 'Postavljanje',
 			collect: 'Prikupljanje',
 			results: 'Rezultati',
-			waves: 'Valovi',
+			waves: 'Mjerenja',
 			demoFixtures: 'Demo stanja'
 		},
 		descriptions: {
@@ -363,7 +363,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			buildStudy: 'Izradi studiju',
 			collect: 'Provedi prikupljanje',
 			reportsExports: 'Izvještaji i izvozi',
-			compareWaves: 'Usporedi valove',
+			compareWaves: 'Usporedi mjerenja',
 			localGatedStates: 'Lokalna testna stanja'
 		},
 		aria: {

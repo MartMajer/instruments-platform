@@ -211,15 +211,15 @@ describe('selected-series report snapshot model', () => {
 
 		expect(state).toMatchObject({
 			badgeLabel: 'Nije dostupno',
-			disabledReason: 'Izradite ili odaberite val prije učitavanja pregleda izvještaja.'
+			disabledReason: 'Izradite ili odaberite mjerenje prije učitavanja pregleda izvještaja.'
 		});
 		expect(dashboard).toMatchObject({
 			title: 'Nadzorna ploča izvještaja za Live wave',
 			badgeLabel: 'Pregled spreman'
 		});
 		expect(dashboard.readinessRows).toEqual([
-			{ label: 'Odabrani val', value: 'Live wave' },
-			{ label: 'Status vala', value: 'u tijeku' },
+			{ label: 'Odabrano mjerenje', value: 'Live wave' },
+			{ label: 'Status mjerenja', value: 'u tijeku' },
 			{ label: 'Status izvještaja', value: 'pregled' },
 			{ label: 'Tumačenje', value: 'tumačenje nije potvrđeno' },
 			{ label: 'Predani odgovori', value: '12' },
@@ -232,7 +232,7 @@ describe('selected-series report snapshot model', () => {
 		expect(dashboard.artifactRegistry[0]).toMatchObject({
 			badgeStatus: 'failed',
 			badgeLabel: 'Neuspjelo',
-			meta: ['CSV i šifrarnik s odgovorima', 'CSV šifrarnik', '0 redaka', '0 bajtova']
+			meta: ['CSV i opis podataka s odgovorima', 'CSV opis podataka', '0 redaka', '0 bajtova']
 		});
 		expect(dashboard.artifactRegistry[0].rows).toContainEqual({
 			label: 'Vrsta konteksta',

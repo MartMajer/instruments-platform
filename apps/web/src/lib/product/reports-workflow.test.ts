@@ -724,7 +724,7 @@ describe('selected-series reports workflow model', () => {
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
 			title: 'Pregled rezultata',
-			description: 'Pregledajte sažetke rezultata za odabrani val bez narušavanja pravila prikaza.'
+			description: 'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
 		});
 		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
 			title: 'Preuzmi CSV skupa odgovora'

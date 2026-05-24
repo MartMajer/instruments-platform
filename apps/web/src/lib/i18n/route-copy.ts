@@ -1623,7 +1623,7 @@ const hr: typeof en = {
 	},
 	publicEntry: {
 		metaTitle: 'Instruments Platform | Platforma za istraživanja i wellbeing programe',
-		metaDescription:'Platforma za upitnike, prikupljanje odgovora, rezultate, valove i izvoz podataka sa šifrarnikom.',
+		metaDescription:'Platforma za upitnike, prikupljanje odgovora, rezultate, ponovljena mjerenja i izvoz podataka s opisom podataka.',
 		brandSubtitle: 'Istraživanja i wellbeing programi',
 		navAria: 'Radnje ulaza u proizvod',
 		mobileNavAria: 'Mobilne radnje ulaza u proizvod',
@@ -1635,7 +1635,7 @@ const hr: typeof en = {
 		trustModel: 'Sigurnost i kontrola',
 		heroKicker: 'Platforma za istraživanja i wellbeing programe',
 		heroTitle: 'Vodite studije, prikupljanje odgovora i rezultate bez improviziranih tablica.',
-		heroBody:'Složite upitnik, odaberite način prikupljanja, pratite odgovore, usporedite valove i izvezite podatke sa šifrarnikom iz jednog radnog prostora.',
+		heroBody:'Složite upitnik, odaberite način prikupljanja, pratite odgovore, usporedite mjerenja i izvezite podatke s opisom podataka iz jednog radnog prostora.',
 		previewAria: 'Pregled proizvoda',
 		previewChrome: 'pregled studije',
 		governanceBody: 'Privola, zadržavanje podataka, konačnost i trag izvoza',
@@ -1662,10 +1662,10 @@ const hr: typeof en = {
 		launchChecklist: 'Provjera prije pokretanja',
 		prepareBody: 'Upitnik, izlazi rezultata, sudionici, privola i provjera prije pokretanja ostaju vidljivi na jednom mjestu.',
 		export: 'Izvoz',
-		datasetCodebook: 'Podaci + šifrarnik',
-		exportBody: 'Izvoz uključuje podatke, šifrarnik, status konačnosti i kontekst studije.',
+		datasetCodebook: 'Podaci + opis podataka',
+		exportBody: 'Izvoz uključuje podatke, opis podataka, status konačnosti i kontekst studije.',
 		trustAria: 'Kontrole studije',
-		workflowRibbon: 'Upitnik, prikupljanje, rezultati, valovi i izvoz',
+		workflowRibbon: 'Upitnik, prikupljanje, rezultati, mjerenja i izvoz',
 		access: 'Pristup studiji',
 		accessRibbon: 'Anonimni, ponovljeni, pozivni i identificirani način prikupljanja',
 		dataControls: 'Kontrola podataka',
@@ -1674,17 +1674,17 @@ const hr: typeof en = {
 		productStageRibbon:'Radni prostori i podaci obrađuju se u EU okruženju.',
 		workspaceOverview: 'Pregled studije',
 		suiteTitle: 'Vidite što je sljedeće u svakoj studiji.',
-		suiteBody:'Priprema, aktivno prikupljanje, pregled rezultata, usporedba valova i izvoz nalaze se na jednom mjestu.',
+		suiteBody:'Priprema, aktivno prikupljanje, pregled rezultata, usporedba mjerenja i izvoz nalaze se na jednom mjestu.',
 		nextAction: 'Sljedeći korak',
 		nextActionQuestion: 'Što prvo treba riješiti?',
 		appAreas: 'Područja rada',
 		studyStatus: 'Status studije',
 		workflowTitle: 'Od upitnika do rezultata spremnih za analizu.',
 		portfolio: 'Studije',
-		portfolioBody: 'Pokrenite novu studiju ili nastavite rad na postojećoj, uključujući ponovljene valove.',
+		portfolioBody: 'Pokrenite novu studiju ili nastavite rad na postojećoj, uključujući ponovljena mjerenja.',
 		prepareStepBody: 'Definirajte upitnik, izlaze rezultata, pravila, sudionike i provjeru prije pokretanja.',
 		collectStepBody: 'Podijelite poveznicu ili pošaljite pozive, pratite odgovore i status dostave.',
-		reviewStepBody: 'Pregledajte rezultate, usporedite valove i izvezite podatke sa šifrarnikom.'
+		reviewStepBody: 'Pregledajte rezultate, usporedite mjerenja i izvezite podatke s opisom podataka.'
 	},
 	signIn: {
 		metaTitle: 'Prijava | Instruments Platform',
@@ -1821,10 +1821,10 @@ const hr: typeof en = {
 		selectedStartingPoint: 'Odabrana početna točka',
 		studyModelTitle: 'Studija, izvor i upitnik',
 		studyModelBody:
-			'Prvo se izrađuje studija. Početna točka samo daje izvorni materijal za Postavljanje; upitnik, izlaze rezultata, primatelje i valove i dalje uređujete prije pokretanja.',
+			'Prvo se izrađuje studija. Početna točka samo daje izvorni materijal za Postavljanje; upitnik, izlaze rezultata, primatelje i mjerenja i dalje uređujete prije pokretanja.',
 		studyModelStudy: 'Studija',
 		studyModelStudyBody:
-			'Trajni spremnik u radnom prostoru za postavljanje, valove prikupljanja, rezultate i izvozne datoteke.',
+			'Trajni spremnik u radnom prostoru za postavljanje, mjerenja, rezultate i izvozne datoteke.',
 		studyModelStartingPoint: 'Početna točka',
 		studyModelStartingPointBody:
 			'Daje izvorni materijal za prvi nacrt u Postavljanju. To nije završni upitnik ni sama studija.',
@@ -1863,7 +1863,7 @@ const hr: typeof en = {
 	exports: {
 		eyebrow: 'Izvozi',
 		title: 'Preuzimanje datoteka',
-		description: 'Pronađite CSV i šifrarnik datoteke izrađene na stranicama Rezultata studije.',
+		description: 'Pronađite CSV datoteke i opise podataka izrađene na stranicama Rezultata studije.',
 		loading: 'Učitavanje izvoznih datoteka',
 		errorTitle: 'Izvozne datoteke nisu dostupne',
 		retry: 'Pokušaj izvoze ponovno',
@@ -1999,7 +1999,7 @@ const hr: typeof en = {
 		teamBody: 'Pozovite članove radnog prostora, pregledajte pristup na čekanju i upravljajte ulogama.',
 		directoryBody: 'Upravljajte ljudima, grupama i hijerarhijskim podacima za publike studija.',
 		studySetup: 'Postavljanje studije',
-		studySetupBody: 'Izradite ili nastavite studije, upitnike, valove prikupljanja i postavljanje rezultata.',
+		studySetupBody: 'Izradite ili nastavite studije, upitnike, mjerenja i postavljanje rezultata.',
 		exportsBody: 'Pregledajte generirane izvozne datoteke i preuzmite podatke spremne za analizu.',
 		workspaceDetails: 'Detalji radnog prostora',
 		profile: 'Profil radnog prostora',
@@ -2058,7 +2058,7 @@ const hr: typeof en = {
 			eyebrow: 'Odabrana studija',
 			title: 'Pregled',
 			description:
-				'Pogledajte gdje studija stoji, zatim nastavite postavljanje, prikupljanje, rezultate ili usporedbu valova.',
+				'Pogledajte gdje studija stoji, zatim nastavite postavljanje, prikupljanje, rezultate ili usporedbu mjerenja.',
 			ariaLabel: 'Pregled odabrane studije',
 			loading: 'Učitavanje pregleda studije',
 			errorTitle: 'Pregled studije nije dostupan',
@@ -2070,7 +2070,7 @@ const hr: typeof en = {
 			selectedStudy: 'Odabrana studija',
 			studyDetails: 'Detalji studije',
 			statusRecords: 'Status i zapisi',
-			statusDescription: 'Pregledajte spremnost, pravila i valove povezane s ovom studijom.',
+			statusDescription: 'Pregledajte spremnost, pravila i mjerenja povezana s ovom studijom.',
 			dates: 'Datumi',
 			datesAria: 'Datumi odabrane studije',
 			studyModel: 'Model studije',
@@ -2078,10 +2078,10 @@ const hr: typeof en = {
 			governance: 'Upravljanje',
 			governanceAria: 'Status upravljanja',
 			policyScoring: 'Status pravila i bodovanja',
-			campaigns: 'Valovi',
-			campaignsAria: 'Redci valova odabrane studije',
-			campaignsInStudy: 'Valovi u ovoj studiji',
-			noCampaigns: 'Nijedan val još nije povezan s ovom studijom.',
+			campaigns: 'Mjerenja',
+			campaignsAria: 'Popis mjerenja odabrane studije',
+			campaignsInStudy: 'Mjerenja u ovoj studiji',
+			noCampaigns: 'Nijedno mjerenje još nije povezan s ovom studijom.',
 			restore: 'Vrati',
 			restoring: 'Vraćanje...',
 			readOnly: 'Samo za čitanje',
@@ -2111,11 +2111,11 @@ const hr: typeof en = {
 				ariaLabel: 'Radni prostor rezultata'
 			},
 			waves: {
-				eyebrow: 'Usporedba valova',
-				title: 'Valovi',
+				eyebrow: 'Usporedba mjerenja',
+				title: 'Mjerenja',
 				description:
-					'Izradite naknadne valove prikupljanja, zatim usporedite povezanu longitudinalnu promjenu kad je studija spremna.',
-				ariaLabel: 'Valovi i povezane putanje'
+					'Izradite naknadna mjerenja, zatim usporedite povezanu longitudinalnu promjenu kad je studija spremna.',
+				ariaLabel: 'Mjerenja i povezane putanje'
 			}
 		},
 		setupBody: {
@@ -2123,7 +2123,7 @@ const hr: typeof en = {
 			progressKicker: 'Postavljanje studije',
 			progressTitle: 'Napredak postavljanja studije',
 			progressBody:
-				'Studija je projekt. Postavljanje pretvara izvorni materijal u upitnik, izlaze rezultata, primatelje za Val 1 i provjeru pokretanja.',
+				'Studija je projekt. Postavljanje pretvara izvorni materijal u upitnik, izlaze rezultata, primatelje za Mjerenje 1 i provjeru pokretanja.',
 			readOnlyTitle: 'Pristup samo za čitanje',
 			readOnlyBody: 'Radnje postavljanja zahtijevaju pravo za upravljanje postavljanjem.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -2191,7 +2191,7 @@ const hr: typeof en = {
 						category: 'Izvorni uređivi početni skup',
 						summary:
 							'Izvorne uređive stavke za jasnoću uloga, podršku, komunikaciju, pravednost i psihološku sigurnost.',
-						detail: 'Kompaktan puls zdravlja tima za ponovljene valove ili jednokratni interni pregled.'
+						detail: 'Kompaktan puls zdravlja tima za ponovljena mjerenja ili jednokratni interni pregled.'
 					},
 					healthcare_staff_strain: {
 						label: 'Opterećenje zdravstvenog osoblja',
@@ -2234,7 +2234,7 @@ const hr: typeof en = {
 					identifiedLabel: 'Identificirano',
 					anonymousHelp: 'Odgovori se u izvještaju ne povezuju s poznatom osobom.',
 					anonymousLongitudinalHelp:
-						'Ispitanici ostaju anonimni u izvještaju, ali se ponovljeni valovi mogu povezati za promjenu kroz vrijeme.',
+						'Ispitanici ostaju anonimni u izvještaju, ali se ponovljena mjerenja mogu povezati za promjenu kroz vrijeme.',
 					identifiedHelp: 'Odgovori se mogu povezati s poznatim ispitanicima za operativno praćenje.'
 				}
 			},
@@ -2245,7 +2245,7 @@ const hr: typeof en = {
 					externalEmailsLabel: 'Jednokratni uvoz e-pošte',
 					selfHelp: 'Jedan spremljeni primatelj stvara jednu pozivnicu.',
 					managerHelp: 'Voditelji dobivaju pozivnice za osobe u svom opsegu odgovornosti.',
-					externalEmailsHelp: 'Zalijepite vanjske adrese e-pošte za ovaj val bez dodavanja u imenik.'
+					externalEmailsHelp: 'Zalijepite vanjske adrese e-pošte za ovo mjerenje bez dodavanja u imenik.'
 				},
 				roles: {
 					respondent: 'Ispitanik',
@@ -2262,7 +2262,7 @@ const hr: typeof en = {
 		},
 		setupWorkflow: {
 			stepNumber: (number: number) => `${number}`,
-			defaultWaveName: (number: number) => `Val ${number}`,
+			defaultWaveName: (number: number) => `Mjerenje ${number}`,
 			steps: {
 				instrument: {
 					title: 'Izvor upitnika',
@@ -2279,19 +2279,19 @@ const hr: typeof en = {
 						'Odaberite koji odgovori iz upitnika postaju izlazi rezultata i kako se obrađuju nedostajući odgovori.'
 				},
 				campaign: {
-					title: 'Val i primatelji',
+					title: 'Mjerenje i primatelji',
 					description: 'Pripremite krug prikupljanja, način odgovaranja i primatelje za ovu studiju.'
 				},
 				readiness: {
 					title: 'Provjera pokretanja',
 					description:
-						'Provjerite upitnik, postavljanje rezultata, val, primatelje i pravila prije početka prikupljanja.'
+						'Provjerite upitnik, postavljanje rezultata, mjerenje, primatelje i pravila prije početka prikupljanja.'
 				}
 			},
 			disabled: {
 				confirmInstrument: 'Prvo odaberite izvor upitnika.',
 				saveQuestionnaire: 'Prvo spremite upitnik.',
-				createCollectionWave: 'Prvo izradite val prikupljanja.'
+				createCollectionWave: 'Prvo izradite mjerenje.'
 			},
 			pathDisplay: {
 				done: 'Gotovo',
@@ -2301,8 +2301,8 @@ const hr: typeof en = {
 				blocked: 'Blokirano'
 			},
 			launchState: {
-				createWaveFirstStatus: 'Prvo izradite val prikupljanja',
-				createWaveFirstNext: 'Izradite i spremite val prikupljanja prije provjere pokretanja.',
+				createWaveFirstStatus: 'Prvo izradite mjerenje',
+				createWaveFirstNext: 'Izradite i spremite mjerenje prije provjere pokretanja.',
 				runLaunchCheckFirst: 'Prvo pokrenite provjeru',
 				launchPassedSaveRecipients: 'Provjera je prošla; spremite primatelje za identificirani pristup',
 				launchPassedChooseAccess: 'Provjera je prošla; odaberite javnu poveznicu ili spremite primatelje',
@@ -2312,7 +2312,7 @@ const hr: typeof en = {
 					'Otvorite Prikupljanje za pokretanje javnom poveznicom ili spremite primatelje ispod prije pokretanja.',
 				launchPassedWithRecipients: 'Provjera je prošla sa spremljenim primateljima',
 				openCollectionStartSavedRecipients:
-					'Otvorite Prikupljanje za pokretanje vala i slanje spremljenim primateljima.',
+					'Otvorite Prikupljanje za pokretanje mjerenja i slanje spremljenim primateljima.',
 				openCollectionLaunch: 'Otvori pokretanje u Prikupljanju',
 				runLaunchCheck: 'Pokreni provjeru',
 				needsAttention: 'Treba pažnju',
@@ -2330,13 +2330,13 @@ const hr: typeof en = {
 			},
 			launchPlan: {
 				title: 'Plan pokretanja',
-				summary: 'Pripremite val, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.',
-				draftWave: 'Nacrt vala',
-				wave: 'Val',
+				summary: 'Pripremite mjerenje, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.',
+				draftWave: 'Nacrt mjerenja',
+				wave: 'Mjerenje',
 				responseMode: 'Način odgovaranja',
 				recipients: 'Primatelji',
 				collectionHandoff: 'Prijenos u Prikupljanje',
-				waveDraftReady: (waveName: string) => `${waveName} je nacrt vala za ovu studiju.`,
+				waveDraftReady: (waveName: string) => `${waveName} je nacrt mjerenja za ovu studiju.`,
 				waveWillBeCreated: (waveName: string) =>
 					`${waveName} nastat će kad spremite ovaj korak.`,
 				identifiedModeDetail:
@@ -2344,7 +2344,7 @@ const hr: typeof en = {
 				longitudinalModeDetail:
 					'Prikupljanje s ponovnim sudjelovanjem može koristiti javni pristup ili spremljene primatelje; sudionici koriste vlastiti ponovni kod za usporedbu.',
 				anonymousModeDetail: 'Anonimno prikupljanje može koristiti javnu poveznicu ili spremljene pozive e-poštom.',
-				chooseModeDetail: 'Odaberite kako sudionici ulaze u ovaj val.',
+				chooseModeDetail: 'Odaberite kako sudionici ulaze u ovo mjerenje.',
 				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
 					`${selectionCount} ${selectionCount === 1 ? 'spremljen odabir' : 'spremljena odabira'} s ${pairCount} ${
 						pairCount === 1 ? 'pozivnim parom' : 'pozivnih parova'
@@ -2356,17 +2356,17 @@ const hr: typeof en = {
 					'Nema spremljenih primatelja. Anonimno prikupljanje još možete pokrenuti javnom poveznicom.',
 				saveRecipientsBeforeIdentifiedLaunch:
 					'Spremite primatelje prije otvaranja Prikupljanja za identificirano pokretanje.',
-				launchPassedOpenCollection: 'Provjera je prošla; otvorite Prikupljanje za pokretanje vala.',
+				launchPassedOpenCollection: 'Provjera je prošla; otvorite Prikupljanje za pokretanje mjerenja.',
 				runLaunchCheckBeforeCollection: 'Pokrenite provjeru prije otvaranja Prikupljanja.'
 			},
 			designMap: {
 				title: 'Kako je ova studija sastavljena',
 				summary:
-					'Studija je projektni spremnik. Izvorni materijal pokreće upitnik; izlazi rezultata tumače odgovore; valovi prikupljaju odgovore.',
+					'Studija je projektni spremnik. Izvorni materijal pokreće upitnik; izlazi rezultata tumače odgovore; mjerenja prikupljajuju odgovore.',
 				source: 'Izvor upitnika',
 				questionnaire: 'Upitnik',
 				results: 'Izlazi rezultata',
-				waves: 'Valovi prikupljanja',
+				waves: 'Mjerenja prikupljanja',
 				sourceReady: 'Izvorni materijal spreman je za ovaj upitnik.',
 				sourceMissing: 'Odaberite višekratni ili uvezeni izvorni materijal prije spremanja upitnika.',
 				questionnaireSaved: (name: string, questionCount: number) =>
@@ -2374,26 +2374,26 @@ const hr: typeof en = {
 				questionnaireMissing: 'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
 				resultsReady: (ruleKey: string) => `Izlazi rezultata spremljeni su kao ${ruleKey}.`,
 				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju izlazi rezultata.',
-				noWaves: 'Još nema vala prikupljanja.',
+				noWaves: 'Još nema mjerenja prikupljajunja.',
 				draftWaveNeedsReadiness: (count: number) =>
-					`${count} ${count === 1 ? 'nacrt vala pripremljen je' : 'nacrta valova pripremljena su'}; spremnost pokretanja još treba pažnju.`,
+					`${count} ${count === 1 ? 'nacrt mjerenja pripremljen je' : 'nacrta mjerenja pripremljena su'}; spremnost pokretanja još treba pažnju.`,
 				waveReady: (count: number) =>
-					`${count} ${count === 1 ? 'nacrt vala spreman je' : 'nacrta valova spremna su'} za Prikupljanje.`,
+					`${count} ${count === 1 ? 'nacrt mjerenja spreman je' : 'nacrta mjerenja spremna su'} za Prikupljanje.`,
 				liveWave: (count: number) =>
-					`${count} ${count === 1 ? 'val prikuplja' : 'valova prikuplja'} odgovore.`,
+					`${count} ${count === 1 ? 'mjerenje prikuplja' : 'mjerenja prikupljaju'} odgovore.`,
 				closedWave: (count: number) =>
-					`${count} ${count === 1 ? 'val ima' : 'valova ima'} zatvorene podatke za pregled Rezultata.`
+					`${count} ${count === 1 ? 'mjerenje ima' : 'mjerenja imaju'} zatvorene podatke za pregled Rezultata.`
 			},
 			waveContext: {
 				prepareForCollection: (waveName: string) => `Pripremite ${waveName} za prikupljanje`,
-				firstWaveSetup: 'Postavljanje prvog vala',
-				currentDraftWave: 'Trenutni nacrt vala',
-				followUpDraftWave: 'Nacrt naknadnog vala',
-				futureWaveSetup: 'Postavljanje budućeg vala',
-				firstWaveSummary: 'Ovdje izradite prvi val prikupljanja i odlučite tko može odgovoriti.',
-				currentDraftSummary: 'Dovršite trenutni nacrt vala prije otvaranja Prikupljanja.',
+				firstWaveSetup: 'Postavljanje prvog mjerenja',
+				currentDraftWave: 'Trenutni nacrt mjerenja',
+				followUpDraftWave: 'Nacrt naknadnog mjerenja',
+				futureWaveSetup: 'Postavljanje budućeg mjerenja',
+				firstWaveSummary: 'Ovdje izradite prvo mjerenje i odlučite tko može odgovoriti.',
+				currentDraftSummary: 'Dovršite trenutni nacrt mjerenja prije otvaranja Prikupljanja.',
 				followUpDraftSummary: (waveName: string) =>
-					`${waveName} je nacrt naknadnog vala. Koristite ga samo kad je sljedeći krug prikupljanja namjeran.`,
+					`${waveName} je nacrt naknadnog mjerenja. Koristite ga samo kad je sljedeći krug prikupljanja namjeran.`,
 				closedOneWaveSummary: (
 					previousWaveName: string,
 					previousWaveStatus: string,
@@ -2401,26 +2401,26 @@ const hr: typeof en = {
 				) =>
 					`${previousWaveName} je već ${previousWaveStatus}. Izradite ${nextWaveName} samo kad je sljedeći krug prikupljanja namjeran.`,
 				multipleWaveSummary: (existingWaveCount: number, nextWaveName: string) =>
-					`${existingWaveCount} valova već postoji. Izradite ${nextWaveName} tek nakon pregleda rezultata trenutnog vala.`,
+					`${existingWaveCount} mjerenja već postoje. Izradite ${nextWaveName} tek nakon pregleda rezultata trenutnog mjerenja.`,
 				createFirstAfterSetup:
-					'Izradite Val 1 tek nakon što su upitnik i postavljanje rezultata spremljeni.',
+					'Izradite Mjerenje 1 tek nakon što su upitnik i postavljanje rezultata spremljeni.',
 				recipientBelongsUntilLaunch: (waveName: string) =>
-					'Odabir primatelja pripada ' + waveName + ' dok se taj val ne pokrene.',
+					'Odabir primatelja pripada ' + waveName + ' dok se to mjerenje ne pokrene.',
 				reviewResultsBeforeFollowup:
-					'Pregledajte prethodni val u Rezultatima prije nego ga tretirate kao naknadno prikupljanje.',
+					'Pregledajte prethodno mjerenje u Rezultatima prije nego ga tretirate kao naknadno prikupljanje.',
 				doNotAssumeRecipients:
-					'Nemojte pretpostaviti da su primatelji isti; spremite namjeravane ljude ili grupu za ovaj val.',
+					'Nemojte pretpostaviti da su primatelji isti; spremite namjeravane ljude ili grupu za ovo mjerenje.',
 				reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) =>
 					`Pregledajte ${previousWaveName} prije pripreme ${nextWaveName}`,
 				reviewExistingBeforePreparing: (nextWaveName: string) =>
-					`Pregledajte postojeće valove prije pripreme ${nextWaveName}`,
+					`Pregledajte postojeće mjerenja prije pripreme ${nextWaveName}`,
 				openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) =>
 					`Otvorite Rezultate za pregled ili izvoz ${reviewTarget} prije izrade ${nextWaveName}.`,
 				createOnlyWhenIntentional: (nextWaveName: string) =>
 					`Izradite ${nextWaveName} samo kad je sljedeći krug prikupljanja namjeran.`,
 				recipientBelongsToNewDraft: (previousLabel: string) =>
-					`Odabir primatelja u ovom koraku pripadat će novom nacrtu vala, ne ${previousLabel}.`,
-				previousWaves: 'prethodnim valovima'
+					`Odabir primatelja u ovom koraku pripadat će novom nacrtu mjerenja, ne ${previousLabel}.`,
+				previousWaves: 'prethodnim mjerenjima'
 			},
 			misc: {
 				notEditable: 'nije moguće uređivati',
@@ -2432,7 +2432,7 @@ const hr: typeof en = {
 			progressKicker: 'Prikupljanje studije',
 			progressTitle: 'Tijek prikupljanja',
 			progressBody:
-				'Pokrenite val, podijelite pristup sudionicima, pratite predaje i zatvorite prikupljanje kada studija završi.',
+				'Pokrenite mjerenje, podijelite pristup sudionicima, pratite predaje i zatvorite prikupljanje kada studija završi.',
 			stepsComplete: (completed: number, total: number) => `${completed}/${total} koraka dovršeno`,
 			statusKicker: 'Status prikupljanja',
 			nextAction: 'Sljedeća radnja',
@@ -2461,7 +2461,7 @@ const hr: typeof en = {
 				notChecked: 'Nije provjereno',
 				ready: 'Spremno',
 				status: 'Status',
-				collectionWave: 'Val prikupljanja',
+				collectionWave: 'Mjerenje prikupljanja',
 				setupCheck: 'Provjera postavljanja',
 				started: 'Započeto',
 				submitted: 'Predano',
@@ -2491,13 +2491,13 @@ const hr: typeof en = {
 			},
 			launch: {
 				body:
-					'Pokretanje prikupljanja otvara odabrani val za odgovore i bilježi verziju postavljanja koju će izvještaji kasnije koristiti.',
+					'Pokretanje prikupljanja otvara odabrano mjerenje za odgovore i bilježi verziju postavljanja koju će izvještaji kasnije koristiti.',
 				start: 'Pokreni prikupljanje',
 				resultLabel: 'Prikupljanje'
 			},
 			shareAccess: {
 				body:
-					'Odaberite kako sudionici ulaze u ovaj val. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
+					'Odaberite kako sudionici ulaze u ovo mjerenje. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
 				identifiedEntryLabel: 'Identificirani ulaz',
 				inviteOnlyLabel: 'Pristup samo pozivnicom',
 				openLinkLabel: 'Otvorena poveznica za sudionike',
@@ -2518,9 +2518,9 @@ const hr: typeof en = {
 				respondentLinkReady: 'Poveznica za sudionika spremna',
 				identifiedHelp: 'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
 				inviteOnlyHelp:
-					'Ovaj val već ima privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi sudjelovanje ostalo ograničeno na pozvane primatelje.',
+					'Ovo mjerenje već ima privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi sudjelovanje ostalo ograničeno na pozvane primatelje.',
 				openLinkReadyHelp:
-					'Ovaj val već ima jednu aktivnu otvorenu poveznicu. Ako je poveznica izgubljena, zamijenite je ovdje. Stara poveznica prestat će prihvaćati nove sudionike; postojeće sesije odgovaranja mogu završiti kroz svoje privatne sesijske oznake.',
+					'Ovo mjerenje već ima jednu aktivnu otvorenu poveznicu. Ako je poveznica izgubljena, zamijenite je ovdje. Stara poveznica prestat će prihvaćati nove sudionike; postojeće sesije odgovaranja mogu završiti kroz svoje privatne sesijske oznake.',
 				openLinkHelp:
 					'Koristite kada je široko anonimno sudjelovanje prihvatljivo i ne treba vam popis primatelja samo pozivnicom.'
 			},
@@ -2610,11 +2610,11 @@ const hr: typeof en = {
 				},
 				launch: {
 					title: 'Pokretanje prikupljanja',
-					description: 'Otvorite ovaj val za odgovore i zabilježite postavke korištene za izvještavanje.'
+					description: 'Otvorite ovo mjerenje za odgovore i zabilježite postavke korištene za izvještavanje.'
 				},
 				openLink: {
 					title: 'Dijeljenje pristupa',
-					description: 'Pošaljite spremljene pozive ili izradite otvorenu poveznicu za ovaj val.'
+					description: 'Pošaljite spremljene pozive ili izradite otvorenu poveznicu za ovo mjerenje.'
 				},
 				monitor: {
 					title: 'Praćenje odgovora',
@@ -2626,36 +2626,36 @@ const hr: typeof en = {
 				}
 			},
 			disabled: {
-				createWaveBeforeReadiness: 'Izradite val prikupljanja u Postavljanju prije provjere spremnosti.',
-				createWaveBeforeStart: 'Izradite val prikupljanja prije pokretanja prikupljanja.',
+				createWaveBeforeReadiness: 'Izradite mjerenje u Postavljanju prije provjere spremnosti.',
+				createWaveBeforeStart: 'Izradite mjerenje prije pokretanja prikupljanja.',
 				startBeforeAccess: 'Pokrenite prikupljanje prije pripreme pristupa sudionicima.',
 				startBeforeMonitor: 'Pokrenite prikupljanje prije praćenja odgovora.',
-				createWaveBeforeClose: 'Izradite val prikupljanja prije zatvaranja prikupljanja.',
-				waveClosed: 'Ovaj val prikupljanja je zatvoren.',
+				createWaveBeforeClose: 'Izradite mjerenje prije zatvaranja prikupljanja.',
+				waveClosed: 'Ovo mjerenje je zatvoren.',
 				alreadyLive: 'Prikupljanje je već aktivno.',
 				startedThisSession: 'Prikupljanje je pokrenuto u ovoj sesiji.',
 				runPrelaunchAndSetup:
 					'Pokrenite provjeru prije pokretanja. Ako kaže Blokirano, otvorite Postavljanje i dovršite navedene stavke.',
-				onlyLiveClosable: 'Zatvoriti se može samo aktivan val prikupljanja.'
+				onlyLiveClosable: 'Zatvoriti se može samo aktivan mjerenje.'
 			},
 			status: {
 				lifecycleLabel: 'Životni ciklus prikupljanja',
 				responseProgressLabel: 'Napredak odgovora',
 				accessLabel: 'Pristup',
 				reportingReadinessLabel: 'Spremnost izvještaja',
-				noWaveSelectedTitle: 'Nijedan val nije odabran',
-				noWaveSelectedDetail: 'Izradite ili odaberite val prikupljanja prije prikupljanja odgovora.',
+				noWaveSelectedTitle: 'Nijedno mjerenje nije odabran',
+				noWaveSelectedDetail: 'Izradite ili odaberite mjerenje prije prikupljanja odgovora.',
 				noResponsesYetTitle: 'Još nema odgovora',
-				noResponsesYetDetail: 'Brojevi odgovora pojavit će se nakon pokretanja vala.',
+				noResponsesYetDetail: 'Brojevi odgovora pojavit će se nakon pokretanja mjerenja.',
 				noRecipientAccessTitle: 'Pristup sudionicima nije pripremljen',
 				noRecipientAccessDetail: 'Odaberite primatelje ili izradite pristup sudionicima nakon što je postavljanje spremno.',
 				reportingNotAvailableTitle: 'Nije dostupno',
-				reportingNotAvailableDetail: 'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrani val.',
-				createWaveFirstHeadline: 'Prvo izradite val prikupljanja',
-				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima val prikupljanja.',
-				createWaveFirstNextAction: 'Otvorite Postavljanje i izradite val prikupljanja.',
+				reportingNotAvailableDetail: 'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrano mjerenje.',
+				createWaveFirstHeadline: 'Prvo izradite mjerenje',
+				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima mjerenje.',
+				createWaveFirstNextAction: 'Otvorite Postavljanje i izradite mjerenje.',
 				closedTitle: 'Zatvoreno',
-				closedDetail: 'Ovaj val više ne prihvaća nove odgovore.',
+				closedDetail: 'Ovo mjerenje više ne prihvaća nove odgovore.',
 				liveTitle: 'Aktivno: prihvaća odgovore',
 				liveDetail: 'Sudionici još mogu predati odgovore. Rezultati ostaju preliminarni dok se prikupljanje ne zatvori.',
 				draftTitle: 'Nacrt: još ne prikuplja',
@@ -2695,9 +2695,9 @@ const hr: typeof en = {
 				openLinkAccessTitle: 'Otvorena poveznica pripremljena',
 				recipientAccessTitle: 'Pristup primatelja pripremljen',
 				identifiedAccessDetail: (openLinkCount: string, pluralSuffix: string) =>
-					`${openLinkCount} identificirana pristupna poveznica${pluralSuffix} pripremljena. Sudionici su povezani s poznatim zapisima osoba za ovaj val.`,
+					`${openLinkCount} identificirana pristupna poveznica${pluralSuffix} pripremljena. Sudionici su povezani s poznatim zapisima osoba za ovo mjerenje.`,
 				inviteOnlyDetail: (invitationCount: string, verb: string, boundary: string) =>
-					`${invitationCount} spremljenih poziva e-poštom ${verb} za ovaj val. Samo spremljeni primatelji dobivaju privatni pristup, a ${boundary}`,
+					`${invitationCount} spremljenih poziva e-poštom ${verb} za ovo mjerenje. Samo spremljeni primatelji dobivaju privatni pristup, a ${boundary}`,
 				mixedAccessDetail: (
 					openLinkCount: string,
 					openPluralSuffix: string,
@@ -2707,7 +2707,7 @@ const hr: typeof en = {
 				) =>
 					`${openLinkCount} otvorenih poveznica${openPluralSuffix} i ${invitationCount} spremljenih poziva${invitationPluralSuffix}. Otvorena poveznica je širok pristup; invite-only e-pošta ograničava ulaz na spremljene primatelje. ${boundary}`,
 				openLinkDetail: (openLinkCount: string, verb: string) =>
-					`${openLinkCount} otvorenih poveznica ${verb}. Svatko s poveznicom može ući u ovaj val; koristite spremljene pozive kad pristup treba biti ograničen.`,
+					`${openLinkCount} otvorenih poveznica ${verb}. Svatko s poveznicom može ući u ovo mjerenje; koristite spremljene pozive kad pristup treba biti ograničen.`,
 				createAccessBeforeResponses:
 					'Izradite poveznicu za sudionike ili spremljene pozive e-poštom prije očekivanja odgovora.',
 				anonymousBoundary: 'anonimni izvještaji i dalje ne prikazuju tko je odgovorio.',
@@ -2724,7 +2724,7 @@ const hr: typeof en = {
 			actions: {
 				reportProof: {
 					title: 'Pregled rezultata',
-					description: 'Pregledajte sažetke rezultata za odabrani val bez narušavanja pravila prikaza.'
+					description: 'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
 				},
 				exportArtifact: {
 					title: 'Izradi sažetak izvještaja',
@@ -2752,7 +2752,7 @@ const hr: typeof en = {
 				}
 			},
 			disabled: {
-				createOrSelectWaveBeforeReviewingResults: 'Izradite ili odaberite val prije pregleda rezultata.',
+				createOrSelectWaveBeforeReviewingResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 				resolveReportPrerequisitesBeforeReviewingResults:
 					'Riješite preduvjete izvještavanja prije pregleda rezultata.',
 				reviewResultsBeforeCreatingReportExport: 'Pregledajte rezultate prije izrade sažetka izvještaja.',
@@ -2777,7 +2777,7 @@ const hr: typeof en = {
 				description:
 					'Provjerite imate li odgovore, vidljive rezultate, datoteku izvoza i jasnu granicu korištenja.',
 				primaryAction: {
-					noCampaign: 'Izradite ili odaberite val prije pregleda rezultata.',
+					noCampaign: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 					noResponses: 'Prikupite odgovore prije pregleda rezultata.',
 					noVisibleScores:
 						'Koristite sirovi izvoz odgovora za internu analizu ili pregledajte bodovanje, pravila nedostajućih odgovora i pravila prikaza.',
@@ -2797,10 +2797,10 @@ const hr: typeof en = {
 			exportPreview: {
 				title: 'Što je u ovom izvozu?',
 				description:
-					'Pregledajte namjenu datoteke, oblik redaka, polja vala, ključeve praćenja, varijable, nedostajuće vrijednosti i rezultate prije preuzimanja.',
-				createOrSelectWaveFirst: 'Prvo izradite ili odaberite val',
+					'Pregledajte namjenu datoteke, oblik redaka, polja mjerenja, ključeve praćenja, varijable, nedostajuće vrijednosti i rezultate prije preuzimanja.',
+				createOrSelectWaveFirst: 'Prvo izradite ili odaberite mjerenje',
 				reviewExportFileFirst: 'Prvo pregledajte datoteku izvoza',
-				selectWavePendingDetail: 'Odaberite val prije pripreme datoteka izvoza.',
+				selectWavePendingDetail: 'Odaberite mjerenje prije pripreme datoteka izvoza.',
 				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i knjigu kodova.',
 				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
 				downloadReportSummaryCsv: 'Preuzmi CSV sažetka izvještaja'
@@ -2808,80 +2808,80 @@ const hr: typeof en = {
 		},		wavesWorkflow: {
 			stepNumber: (number: number) => `${number}`,
 			plan: {
-				createFirstTitle: 'Izradite prvi val',
-				createFirstDescription: 'Počnite izradom Vala 1 kao prvog kruga prikupljanja za ovu studiju.',
+				createFirstTitle: 'Izradite prvo mjerenje',
+				createFirstDescription: 'Počnite izradom Mjerenja 1 kao prvog kruga prikupljanja za ovu studiju.',
 				openSetupLabel: 'Otvori Postavljanje',
 				createFirstGuidance: [
-					'Svaki val je krug prikupljanja unutar studije. Izradite Val 1 u Postavljanju, zatim ga pokrenite iz Prikupljanja.',
-					'Nakon što odgovori stignu, pregledajte val u Rezultatima prije dodavanja sljedećeg vala.',
-					'Koristite anonimno longitudinalno sudjelovanje od prvog vala ako kasnije trebate povezanu promjenu kroz vrijeme.'
+					'Svako mjerenje je krug prikupljanja unutar studije. Izradite Mjerenje 1 u Postavljanju, zatim ga pokrenite iz Prikupljanja.',
+					'Nakon što odgovori stignu, pregledajte mjerenje u Rezultatima prije dodavanja sljedećeg mjerenja.',
+					'Koristite anonimno longitudinalno sudjelovanje od prvog mjerenja ako kasnije trebate povezanu promjenu kroz vrijeme.'
 				],
 				reviewWavePairTitle: (wavePairTitle: string) => `Pregledajte ${wavePairTitle}`,
 				groupTrendReviewDescription:
-					'Ovi valovi mogu se pregledati kao rezultati na razini grupe. Povezana promjena istih sudionika traži ponovljeno sudjelovanje od prvog vala.',
+					'Ova mjerenja mogu se pregledati kao rezultati na razini grupe. Povezana promjena istih sudionika traži ponovljeno sudjelovanje od prvog mjerenja.',
 				reviewGroupTrendLabel: 'Pregledaj grupni trend',
 				groupTrendReviewGuidance: (nextWaveNumber: number) => [
-					'Pregledajte ove valove kao trend na razini grupe. Nemojte ga opisivati kao promjenu istih sudionika jer su valovi anonimni.',
-					'Koristite ponovljeno sudjelovanje od Vala 1 kada studija kasnije treba povezanu promjenu kroz vrijeme.',
-					`Pregledajte ili izvezite Val 1 i Val 2 prije izrade Vala ${nextWaveNumber} u Postavljanju.`
+					'Pregledajte ove mjerenja kao trend na razini grupe. Nemojte ga opisivati kao promjenu istih sudionika jer su mjerenja anonimni.',
+					'Koristite ponovljeno sudjelovanje od Mjerenja 1 kada studija kasnije treba povezanu promjenu kroz vrijeme.',
+					`Pregledajte ili izvezite Mjerenje 1 i Mjerenje 2 prije izrade Mjerenja ${nextWaveNumber} u Postavljanju.`
 				],
-				oneWaveTitle: (nextWaveNumber: number) => `Pregledajte Val 1 prije planiranja Vala ${nextWaveNumber}`,
+				oneWaveTitle: (nextWaveNumber: number) => `Pregledajte Mjerenje 1 prije planiranja Mjerenja ${nextWaveNumber}`,
 				oneWaveDescription:
-					'Val 1 postoji. Prvo pregledajte trenutne rezultate; sljedeći val planirajte samo kada je novi krug prikupljanja namjeran.',
-				reviewWaveResultsLabel: (waveNumber: number) => `Pregledaj rezultate Vala ${waveNumber}`,
-				planWaveLaterLabel: (waveNumber: number) => `Planiraj Val ${waveNumber} kasnije`,
+					'Mjerenje 1 postoji. Prvo pregledajte trenutne rezultate; sljedeće mjerenje planirajte samo kada je novi krug prikupljanja namjeran.',
+				reviewWaveResultsLabel: (waveNumber: number) => `Pregledaj rezultate Mjerenja ${waveNumber}`,
+				planWaveLaterLabel: (waveNumber: number) => `Planiraj Mjerenje ${waveNumber} kasnije`,
 				oneWaveGuidance: (nextWaveNumber: number) => [
-					`Pregledajte ili izvezite Val 1 prije izrade Vala ${nextWaveNumber} u Postavljanju.`,
-					'Koristite anonimno longitudinalno sudjelovanje kada isti sudionik treba biti povezan kroz valove.',
-					'Pregledajte primatelje prije pokretanja novog vala; nemojte pretpostaviti da je publika ista osim ako to Prikupljanje jasno pokazuje.'
+					`Pregledajte ili izvezite Mjerenje 1 prije izrade Mjerenja ${nextWaveNumber} u Postavljanju.`,
+					'Koristite anonimno longitudinalno sudjelovanje kada isti sudionik treba biti povezan kroz mjerenja.',
+					'Pregledajte primatelje prije pokretanja novog mjerenja; nemojte pretpostaviti da je publika ista osim ako to Prikupljanje jasno pokazuje.'
 				],
 				checkReadinessTitle: 'Provjera povezane promjene',
 				checkReadinessDescription:
-					'Postoje dva longitudinalna vala. Sada potvrdite povezane putanje i kompatibilnost bodovanja.',
+					'Postoje dva longitudinalna mjerenja. Sada potvrdite povezane putanje i kompatibilnost bodovanja.',
 				runChecksBelowLabel: 'Pokreni provjere u nastavku',
 				reviewResultsLabel: 'Pregledaj rezultate',
 				checkReadinessGuidance: [
-					'Koristite provjere u nastavku kako biste potvrdili da se oba vala mogu sigurno povezati.',
-					'Rezultati ostaju po valovima dok putanje, prikaz i bodovanje nisu spremni za povezanu usporedbu.',
+					'Koristite provjere u nastavku kako biste potvrdili da se oba mjerenja mogu sigurno povezati.',
+					'Rezultati ostaju po mjerenjima dok putanje, prikaz i bodovanje nisu spremni za povezanu usporedbu.',
 					'Ako je usporedba blokirana, u detaljima pogledajte koji preduvjet nedostaje.'
 				],
 				sameRespondentTitle: 'Provjeri promjenu istih sudionika',
 				sameRespondentDescription:
-					'Postoje dva vala s ponovljenim sudjelovanjem. Pokrenite provjere prije nego što ovo tretirate kao promjenu istih sudionika.',
+					'Postoje dva mjerenja s ponovljenim sudjelovanjem. Pokrenite provjere prije nego što ovo tretirate kao promjenu istih sudionika.',
 				runLinkedChecksBelowLabel: 'Pokreni povezane provjere',
 				sameRespondentGuidance: [
 					'Provjerite povezane odgovore, pravila prikaza, kompatibilnost bodovanja i vidljive promjene prije tvrdnji o promjeni kroz vrijeme.',
-					'Koristite Rezultate za izvoz po valovima; koristite Valove samo kada trebate pregledan kontekst promjene kroz vrijeme.',
-					'Novi sljedeći val izradite u Postavljanju kada počinje novi krug prikupljanja.'
+					'Koristite Rezultate za izvoz po mjerenjima; koristite Mjerenja samo kada trebate pregledan kontekst promjene kroz vrijeme.',
+					'Novi sljedeće mjerenje izradite u Postavljanju kada počinje novi krug prikupljanja.'
 				]
 			},
 			groupTrend: {
 				notReadyTitle: 'Grupni trend nije spreman',
-				notReadyDescription: 'Prikupite odgovore u barem dva vala prije pregleda trenda po valovima.',
+				notReadyDescription: 'Prikupite odgovore u barem dva mjerenja prije pregleda trenda po mjerenjima.',
 				sameRespondentComparisonLabel: 'Usporedba istih sudionika',
-				notReadySameRespondentValue: 'Nije dostupno dok ne postoje dva ponovljena vala',
+				notReadySameRespondentValue: 'Nije dostupno dok ne postoje dva ponovljena mjerenja',
 				disclosureStatusLabel: 'Status prikaza',
-				notReadyDisclosureValue: 'Pregledajte nakon što postoje rezultati sljedećeg vala',
+				notReadyDisclosureValue: 'Pregledajte nakon što postoje rezultati sljedećeg mjerenja',
 				notReadyGuidance: [
-					'Grupni trend uspoređuje rezultate na razini vala. Ne traži povezivanje sudionika.',
-					'Pokrenite i prikupite sljedeći val prije čitanja trenda.',
-					'Koristite ponovljeno sudjelovanje ako trebate promjenu istih sudionika, a ne samo pomak na razini vala.'
+					'Grupni trend uspoređuje rezultate na razini mjerenja. Ne traži povezivanje sudionika.',
+					'Pokrenite i prikupite sljedeće mjerenje prije čitanja trenda.',
+					'Koristite ponovljeno sudjelovanje ako trebate promjenu istih sudionika, a ne samo pomak na razini mjerenja.'
 				],
 				title: (baselineName: string, comparisonName: string) =>
 					`Samo grupni trend: ${baselineName} prema ${comparisonName}`,
 				readyDescription:
 					'Agregirani rezultati na razini grupe spremni su za pregled kao trend. To nije promjena istih sudionika.',
 				pendingDescription:
-					'Oba vala imaju odgovore. Dovršite rezultate bodovanja prije nego trend tretirate kao spreman.',
-				firstWaveScoresLabel: 'Rezultati prvog vala',
-				secondWaveScoresLabel: 'Rezultati drugog vala',
+					'Oba mjerenja imajuju odgovore. Dovršite rezultate bodovanja prije nego trend tretirate kao spreman.',
+				firstWaveScoresLabel: 'Rezultati prvog mjerenja',
+				secondWaveScoresLabel: 'Rezultati drugog mjerenja',
 				runComparisonChecksValue: 'Pokrenite provjere prije tvrdnji o promjeni istih sudionika',
 				notConfiguredValue: 'Nije konfigurirano za povezanu promjenu istih sudionika',
-				disclosureNotAvailableValue: 'Pregledajte prikaz po valovima u Rezultatima prije tvrdnji',
+				disclosureNotAvailableValue: 'Pregledajte prikaz po mjerenjima u Rezultatima prije tvrdnji',
 				suppressedLinkedComparisonsLabel: 'Skrivene povezane usporedbe',
 				openResultsLabel: 'Otvori Rezultate',
 				readyGuidance: [
-					'Koristite ovo za anonimne ili nepovezane valove kada je pitanje je li se grupa pomaknula između krugova.',
+					'Koristite ovo za anonimne ili nepovezana mjerenja kada je pitanje je li se grupa pomaknula između krugova.',
 					'Nemojte ovo opisivati kao individualno poboljšanje ili pogoršanje osim ako je povezana promjena spremna.',
 					'Pregledajte bodovanje i pravila prikaza u Rezultatima prije tvrdnji iz trenda.'
 				]
@@ -2889,38 +2889,38 @@ const hr: typeof en = {
 			comparisonReview: {
 				title: 'Plan usporedbe',
 				description:
-					'Provjerite je li studija spremna za sljedeći val, agregirani grupni trend ili povezanu promjenu istih sudionika.'
+					'Provjerite je li studija spremna za sljedeće mjerenje, agregirani grupni trend ili povezanu promjenu istih sudionika.'
 			},
 			scoreMethodReview: {
 				title: 'Što se uspoređuje?',
 				description:
-					'Pregledajte pravila bodovanja, metodu povezanih parova, uspoređene izlaze, nedostajuće vrijednosti i granice tumačenja prije korištenja promjene kroz valove.'
+					'Pregledajte pravila bodovanja, metodu povezanih parova, uspoređene izlaze, nedostajuće vrijednosti i granice tumačenja prije korištenja promjene kroz mjerenja.'
 			},
 			actions: {
 				twoWaveProof: {
 					title: 'Provjera povezane promjene',
 					description:
-						'Potvrdite da studija ima valove s ponovljenim sudjelovanjem i povezane odgovore za usporedbu istih sudionika.'
+						'Potvrdite da studija ima mjerenja s ponovljenim sudjelovanjem i povezane odgovore za usporedbu istih sudionika.'
 				},
 				waveComparisonProof: {
 					title: 'Pregled povezane promjene',
-					description: 'Pregledajte promjenu istih sudionika između odabranih valova bez narušavanja pravila prikaza.'
+					description: 'Pregledajte promjenu istih sudionika između odabranih mjerenja bez narušavanja pravila prikaza.'
 				}
 			},
 			disabled: {
 				unlinkedWavesUseGroupTrend:
-					'Povezana usporedba istih sudionika nije dostupna jer ovi valovi nisu izrađeni s ponovljenim sudjelovanjem. Pregledajte grupni trend.',
-				addRepeatedWaves: 'Dodajte barem dva ponovljena vala prije usporedbe promjene kroz vrijeme.',
-				chooseBaselineAndComparison: 'Odaberite početni i usporedni val prije pregleda promjene kroz vrijeme.',
+					'Povezana usporedba istih sudionika nije dostupna jer ova mjerenja nisu izrađeni s ponovljenim sudjelovanjem. Pregledajte grupni trend.',
+				addRepeatedWaves: 'Dodajte barem dva ponovljena mjerenja prije usporedbe promjene kroz vrijeme.',
+				chooseBaselineAndComparison: 'Odaberite početni i usporedno mjerenje prije pregleda promjene kroz vrijeme.',
 				checkReadinessBeforeReview: 'Provjerite spremnost usporedbe prije pregleda promjene kroz vrijeme.'
 			},
 			inactiveReason: {
 				groupTrend:
 					'Ova studija podržava samo agregirani grupni trend. Provjere povezane promjene nisu potrebne i bile bi zavaravajuće.',
-				noWaves: 'Izradite i prikupite prve valove prije provjera povezane promjene.',
+				noWaves: 'Izradite i prikupite prve mjerenja prije provjera povezane promjene.',
 				oneWave:
-					'Pregledajte Val 1 u Rezultatima. Planirajte Val 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
-				needScoredResponses: 'Prikupite bodovane odgovore u barem dva vala prije zadataka usporedbe.'
+					'Pregledajte Mjerenje 1 u Rezultatima. Planirajte Mjerenje 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
+				needScoredResponses: 'Prikupite bodovane odgovore u barem dva mjerenja prije zadataka usporedbe.'
 			}
 		},
 		waveSnapshot: {
@@ -2935,25 +2935,25 @@ const hr: typeof en = {
 			},
 			disabled: {
 				selectComparableWaves:
-					'Odaberite dva usporediva vala prije učitavanja pregleda usporedbe.',
+					'Odaberite dva usporediva mjerenja prije učitavanja pregleda usporedbe.',
 				runLinkedTrajectoryCheck:
 					'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
 			},
 			dashboard: {
-				unavailableTitle: 'Pregled valova nije dostupan',
-				unavailableMessage: 'Odaberite dva usporediva vala prije pregleda nadzorne ploče valova.',
+				unavailableTitle: 'Pregled mjerenja nije dostupan',
+				unavailableMessage: 'Odaberite dva usporediva mjerenja prije pregleda nadzorne ploče mjerenja.',
 				title: (baselineName: string, comparisonName: string) =>
-					`${baselineName} prema ${comparisonName} pregled valova`,
-				campaigns: 'Valovi',
-				longitudinalWaves: 'Longitudinalni valovi',
-				submittedWaves: 'Valovi s odgovorima',
+					`${baselineName} prema ${comparisonName} pregled mjerenja`,
+				campaigns: 'Mjerenja',
+				longitudinalWaves: 'Ponovljena mjerenja',
+				submittedWaves: 'Mjerenja s odgovorima',
 				missingPrerequisites: 'Nedostajući preduvjeti',
-				baselineWave: 'Početni val',
-				baselineStatus: 'Status početnog vala',
-				baselineSubmittedResponses: 'Predani odgovori početnog vala',
-				comparisonWave: 'Usporedni val',
-				comparisonStatus: 'Status usporednog vala',
-				comparisonSubmittedResponses: 'Predani odgovori usporednog vala',
+				baselineWave: 'Početno mjerenje',
+				baselineStatus: 'Status početnog mjerenja',
+				baselineSubmittedResponses: 'Predani odgovori početnog mjerenja',
+				comparisonWave: 'Usporedno mjerenje',
+				comparisonStatus: 'Status usporednog mjerenja',
+				comparisonSubmittedResponses: 'Predani odgovori usporednog mjerenja',
 				linkedTrajectories: 'Povezane putanje',
 				completeTrajectories: 'Potpune putanje',
 				previewStatus: 'Status pregleda',
@@ -2966,41 +2966,41 @@ const hr: typeof en = {
 				suppressedScores: 'Skriveni rezultati',
 				blockedScores: 'Blokirani rezultati',
 				baselineLaunchSnapshot: 'Početni zapis pokretanja',
-				baselineLatestLaunch: 'Zadnje pokretanje početnog vala',
-				baselineScoringRule: 'Bodovanje početnog vala',
-				baselineDisclosurePolicy: 'Pravilo prikaza početnog vala',
+				baselineLatestLaunch: 'Zadnje pokretanje početnog mjerenja',
+				baselineScoringRule: 'Bodovanje početnog mjerenja',
+				baselineDisclosurePolicy: 'Pravilo prikaza početnog mjerenja',
 				comparisonLaunchSnapshot: 'Usporedni zapis pokretanja',
-				comparisonLatestLaunch: 'Zadnje pokretanje usporednog vala',
-				comparisonScoringRule: 'Bodovanje usporednog vala',
-				comparisonDisclosurePolicy: 'Pravilo prikaza usporednog vala',
-				untitledWave: 'Neimenovani val'
+				comparisonLatestLaunch: 'Zadnje pokretanje usporednog mjerenja',
+				comparisonScoringRule: 'Bodovanje usporednog mjerenja',
+				comparisonDisclosurePolicy: 'Pravilo prikaza usporednog mjerenja',
+				untitledWave: 'Neimenovano mjerenje'
 			},
 			chrome: {
-				sectionAria: 'Pregled usporedbe valova',
-				kicker: 'Usporedba valova',
-				title: 'Uspoređeni valovi',
-				description: 'Usporedba odabranog početnog i usporednog vala uz pravila prikaza.',
-				summaryAria: 'Sažetak usporedbe valova',
+				sectionAria: 'Pregled usporedbe mjerenja',
+				kicker: 'Usporedba mjerenja',
+				title: 'Uspoređena mjerenja',
+				description: 'Usporedba odabranog početnog i usporednog mjerenja uz pravila prikaza.',
+				summaryAria: 'Sažetak usporedbe mjerenja',
 				readinessKicker: 'Spremnost usporedbe',
-				readinessTitle: 'Mogu li se ovi valovi usporediti?',
+				readinessTitle: 'Mogu li se ova mjerenja usporediti?',
 				readinessDescription:
-					'Provjerava mogu li se odabrani valovi usporediti bez otkrivanja premalih grupa.',
-				waveReadinessAria: 'Spremnost valova',
+					'Provjerava mogu li se odabrana mjerenja usporediti bez otkrivanja premalih grupa.',
+				waveReadinessAria: 'Spremnost mjerenja',
 				waveReadinessKicker: 'Spremnost',
-				waveReadinessTitle: 'Spremnost valova',
+				waveReadinessTitle: 'Spremnost mjerenja',
 				comparisonAria: 'Status usporedbe',
 				comparisonKicker: 'Usporedba',
 				comparisonTitle: 'Status usporedbe',
 				guardrailsAria: 'Prikaz i kompatibilnost',
 				guardrailsKicker: 'Zaštitna pravila',
 				guardrailsTitle: 'Prikaz i kompatibilnost',
-				sourceAria: 'Kontekst izvora valova',
+				sourceAria: 'Kontekst izvora mjerenja',
 				sourceKicker: 'Temeljeno na',
 				sourceTitle: 'Kontekst pokretanja i pravila',
-				resolvePrerequisites: 'Riješite preduvjete usporedbe valova prije učitavanja pregleda.',
-				loadFailed: 'Pregled usporedbe valova nije se mogao učitati.',
+				resolvePrerequisites: 'Riješite preduvjete usporedbe mjerenja prije učitavanja pregleda.',
+				loadFailed: 'Pregled usporedbe mjerenja nije se mogao učitati.',
 				loadingComparison: 'Učitavanje usporedbe',
-				refreshComparison: 'Osvježi usporedbu valova',
+				refreshComparison: 'Osvježi usporedbu mjerenja',
 				study: 'Studija'
 			},
 			codeLabels: {
@@ -3021,10 +3021,10 @@ const hr: typeof en = {
 			no: 'Ne',
 			labels: {
 				available: 'Dostupno',
-				campaign: 'Val',
-				campaignStatus: 'Status vala',
+				campaign: 'Mjerenje',
+				campaignStatus: 'Status mjerenja',
 				closedAt: 'Zatvoreno',
-				closedWave: 'Zatvoren val',
+				closedWave: 'Zatvoreno mjerenje',
 				completed: 'Dovršeno',
 				coverageStatus: 'Status pokrivenosti',
 				created: 'Izrađeno',
@@ -3054,7 +3054,7 @@ const hr: typeof en = {
 				preliminaryLive: 'Preliminarno uživo',
 				readinessDataUnavailable: 'Podaci o spremnosti nisu dostupni.',
 				reportable: 'Za izvještaj',
-				reportableCampaigns: 'Valovi za izvještaj',
+				reportableCampaigns: 'Mjerenja za izvještaj',
 				reportReadinessPrerequisites: 'Preduvjeti spremnosti rezultata',
 				reportPreview: 'pregled rezultata',
 				reportStatus: 'Status rezultata',
@@ -3071,9 +3071,9 @@ const hr: typeof en = {
 				scoreCoverageDataUnavailable: 'Podaci o pokrivenosti bodovanja nisu dostupni.',
 				scored: 'Bodovano',
 				scores: 'Rezultati',
-				selectedCampaign: 'Odabrani val',
+				selectedCampaign: 'Odabrano mjerenje',
 				selectedCampaignReportStateUnavailable:
-					'Stanje rezultata odabranog vala nije dostupno.',
+					'Stanje rezultata odabranog mjerenja nije dostupno.',
 				size: 'Veličina',
 				submitted: 'Predano',
 				submittedResponses: 'Predani odgovori',
@@ -3095,7 +3095,7 @@ const hr: typeof en = {
 				partial: 'djelomično',
 				no_submissions: 'bez odgovora',
 				ready_for_aggregate_report: 'spremno za agregirani izvještaj',
-				closed_wave: 'zatvoren val',
+				closed_wave: 'zatvoreno mjerenje',
 				preliminary_live: 'preliminarni podaci uživo',
 				not_reportable: 'nije za izvještaj',
 				succeeded: 'uspjelo',
@@ -3128,7 +3128,7 @@ const hr: typeof en = {
 				kicker: 'Detalji prikupljanja',
 				title: 'Operativni detalji',
 				description:
-					'Detalji za audit i rješavanje problema za ovaj val prikupljanja. Većina rada prikupljanja treba biti u tijeku iznad.',
+					'Detalji za audit i rješavanje problema za ovo mjerenje. Većina rada prikupljanja treba biti u tijeku iznad.',
 				monitorAria: 'Nadzor prikupljanja',
 				monitorKicker: 'Nadzor prikupljanja',
 				monitorTitle: 'Prikupljanje odgovora',
@@ -3161,8 +3161,8 @@ const hr: typeof en = {
 				scoreCoverageAria: 'Pokrivenost bodovanja',
 				scoreCoverageKicker: 'Pokrivenost bodovanja',
 				scoreCoverageTitle: 'Spremnost izvještaja',
-				selectedCampaignAria: 'Odabrani val rezultata',
-				selectedWaveKicker: 'Odabrani val',
+				selectedCampaignAria: 'Odabrano mjerenje rezultata',
+				selectedWaveKicker: 'Odabrano mjerenje',
 				reportStateTitle: 'Stanje izvještaja',
 				sourceAria: 'Kontekst izvora rezultata',
 				basedOn: 'Temeljeno na',
@@ -3170,36 +3170,36 @@ const hr: typeof en = {
 				prerequisitesAria: 'Nedostajući uvjeti rezultata',
 				prerequisitesKicker: 'Preduvjeti',
 				prerequisitesTitle: 'Nedostajući uvjeti rezultata',
-				waves: 'Valovi',
-				includedWaves: 'Uključeni valovi rezultata'
+				waves: 'Mjerenja',
+				includedWaves: 'Uključena mjerenja rezultata'
 			},
 			wavesDetails: {
-				summary: 'Detalji valova',
-				kicker: 'Detalji valova',
+				summary: 'Detalji mjerenja',
+				kicker: 'Detalji mjerenja',
 				title: 'Detalji usporedbe',
 				description:
-					'Koristite ove detalje kad je usporedba valova blokirana ili treba audit kontekst. Normalna usporedba treba biti u tijeku iznad.',
-				comparedWavesAria: 'Uspoređeni valovi',
-				comparedWavesKicker: 'Uspoređeni valovi',
+					'Koristite ove detalje kad je usporedba mjerenja blokirana ili treba audit kontekst. Normalna usporedba treba biti u tijeku iznad.',
+				comparedWavesAria: 'Uspoređena mjerenja',
+				comparedWavesKicker: 'Uspoređena mjerenja',
 				selectedComparison: 'Odabrana usporedba',
-				baselineWave: 'Početni val',
-				comparisonWave: 'Usporedni val',
+				baselineWave: 'Početno mjerenje',
+				comparisonWave: 'Usporedno mjerenje',
 				comparisonStatus: 'Status usporedbe',
 				disclosure: 'Prikaz',
 				compatibility: 'Kompatibilnost',
 				missing: 'Nedostaje',
-				readinessAria: 'Spremnost valova',
+				readinessAria: 'Spremnost mjerenja',
 				readinessKicker: 'Spremnost usporedbe',
 				availableTitle: 'Što je dostupno?',
-				sourceAria: 'Kontekst izvora valova',
+				sourceAria: 'Kontekst izvora mjerenja',
 				basedOn: 'Temeljeno na',
 				launchPolicy: 'Kontekst pokretanja i pravila',
-				prerequisitesAria: 'Nedostajući uvjeti valova',
+				prerequisitesAria: 'Nedostajući uvjeti mjerenja',
 				prerequisitesKicker: 'Blokirana usporedba',
 				prerequisitesTitle: 'Što treba pažnju?',
-				availableWavesAria: 'Dostupni valovi',
-				availableWavesKicker: 'Dostupni valovi',
-				waveHistory: 'Povijest valova'
+				availableWavesAria: 'Dostupna mjerenja',
+				availableWavesKicker: 'Dostupna mjerenja',
+				waveHistory: 'Povijest mjerenja'
 			},
 			fallback: {
 				selectedSeriesContext: 'kontekst odabrane studije',
@@ -3207,9 +3207,9 @@ const hr: typeof en = {
 				previewWorkflow: 'Pregled tijeka rada',
 				governance: 'Upravljanje',
 				selectedSeriesReadiness: 'Spremnost odabrane studije',
-				campaignRows: 'Redci valova',
-				campaignRowsAria: 'Redci valova odabrane studije',
-				campaignContext: 'Kontekst valova odabrane studije',
+				campaignRows: 'Popis mjerenja',
+				campaignRowsAria: 'Popis mjerenja odabrane studije',
+				campaignContext: 'Kontekst mjerenja odabrane studije',
 				readOnlyAccess: 'Pristup samo za čitanje',
 				workflowRequiresSetup: 'Radnje tijeka rada zahtijevaju pristup za upravljanje postavljanjem.'
 			}

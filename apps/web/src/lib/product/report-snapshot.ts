@@ -308,7 +308,7 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 		notAvailable: 'Nije dostupno',
 		yes: 'Da',
 		no: 'Ne',
-		untitledCampaign: 'Neimenovani val',
+		untitledCampaign: 'Neimenovano mjerenje',
 		untitledTarget: 'Neimenovani zapis',
 		untitledExportFile: 'Neimenovana izvozna datoteka',
 		state: {
@@ -318,20 +318,20 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			previewAvailable: 'Pregled dostupan'
 		},
 		disabled: {
-			noCampaign: 'Izradite ili odaberite val prije učitavanja pregleda izvještaja.',
+			noCampaign: 'Izradite ili odaberite mjerenje prije učitavanja pregleda izvještaja.',
 			blocked: 'Riješite preduvjete izvještaja prije učitavanja pregleda izvještaja.'
 		},
 		dashboard: {
 			unavailableTitle: 'Nadzorna ploča izvještaja nije dostupna',
-			unavailableMessage: 'Izradite ili odaberite val prije pregleda nadzorne ploče izvještaja.',
+			unavailableMessage: 'Izradite ili odaberite mjerenje prije pregleda nadzorne ploče izvještaja.',
 			title: (campaignName) => `Nadzorna ploča izvještaja za ${campaignName}`
 		},
 		labels: {
-			campaigns: 'Valovi',
-			reportableCampaigns: 'Valovi spremni za izvještaj',
+			campaigns: 'Mjerenja',
+			reportableCampaigns: 'Mjerenja spremni za izvještaj',
 			missingPrerequisites: 'Nedostajući preduvjeti',
-			selectedCampaign: 'Odabrani val',
-			campaignStatus: 'Status vala',
+			selectedCampaign: 'Odabrano mjerenje',
+			campaignStatus: 'Status mjerenja',
 			reportStatus: 'Status izvještaja',
 			interpretation: 'Tumačenje',
 			submittedResponses: 'Predani odgovori',
@@ -378,14 +378,14 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			visible: 'vidljivo',
 			not_available: 'nije dostupno',
 			campaign_series: 'studija',
-			campaign: 'val',
-			csv_codebook: 'CSV šifrarnik',
+			campaign: 'mjerenje',
+			csv_codebook: 'CSV opis podataka',
 			succeeded: 'uspjelo',
 			failed: 'neuspjelo'
 		},
 		exportFileTypeLabels: {
-			report_proof_csv_codebook: 'CSV i šifrarnik sa sažetkom izvještaja',
-			campaign_series_response_csv_codebook: 'CSV i šifrarnik s odgovorima'
+			report_proof_csv_codebook: 'CSV i opis podataka sa sažetkom izvještaja',
+			campaign_series_response_csv_codebook: 'CSV i opis podataka s odgovorima'
 		},
 		artifactStatusLabels: {
 			succeeded: 'Uspjelo',
@@ -400,11 +400,11 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			reportSnapshotAria: 'Pregled izvještaja',
 			snapshotKicker: 'Pregled izvještaja',
 			snapshotTitle: 'Pregled izvještaja odabrane studije',
-			snapshotDescription: 'Sažeti pregled za odabrani val izvještaja.',
+			snapshotDescription: 'Sažeti pregled za odabrano mjerenje izvještaja.',
 			dashboardAria: 'Nadzorna ploča izvještaja',
 			dashboardKicker: 'Nadzorna ploča izvještaja',
 			dashboardTitle: 'Nadzorna ploča izvještaja odabrane studije',
-			dashboardDescription: 'Zadnji pregled izvještaja za odabrani val.',
+			dashboardDescription: 'Zadnji pregled izvještaja za odabrano mjerenje.',
 			readinessAria: 'Spremnost izvještaja',
 			readinessKicker: 'Spremnost',
 			readinessTitle: 'Spremnost izvještaja',
@@ -428,7 +428,7 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			ready: 'Spremno',
 			failed: 'Neuspjelo',
 			local: 'Lokalno',
-			campaign: 'Val',
+			campaign: 'Mjerenje',
 			aggregateReportSnapshotAria: 'Sažeti pregled izvještaja',
 			reportPreviewKicker: 'Pregled izvještaja',
 			previewLabel: 'Pregled',

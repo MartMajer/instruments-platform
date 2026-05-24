@@ -459,7 +459,7 @@ describe('selected-series setup workflow model', () => {
 			copy
 		);
 
-		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Val 1');
+		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Mjerenje 1');
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
 			title: 'Izvor upitnika',
@@ -473,10 +473,10 @@ describe('selected-series setup workflow model', () => {
 		});
 		expect(plan).toMatchObject({
 			title: 'Plan pokretanja',
-			summary: 'Pripremite val, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.'
+			summary: 'Pripremite mjerenje, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.'
 		});
 		expect(plan.items.map((item) => item.label)).toEqual([
-			'Val',
+			'Mjerenje',
 			'Način odgovaranja',
 			'Primatelji',
 			'Prijenos u Prikupljanje'

@@ -153,15 +153,15 @@ describe('selected-series wave comparison snapshot model', () => {
 			hrWaveSnapshotCopy
 		);
 
-		expect(dashboard.title).toBe('Pulse wave 1 prema Pulse wave 2 pregled valova');
+		expect(dashboard.title).toBe('Pulse wave 1 prema Pulse wave 2 pregled mjerenja');
 		expect(dashboard.badgeLabel).toBe('Pregled spreman');
 		expect(dashboard.readinessRows).toEqual([
-			{ label: 'Početni val', value: 'Pulse wave 1' },
-			{ label: 'Status početnog vala', value: 'u tijeku' },
-			{ label: 'Predani odgovori početnog vala', value: '6' },
-			{ label: 'Usporedni val', value: 'Pulse wave 2' },
-			{ label: 'Status usporednog vala', value: 'u tijeku' },
-			{ label: 'Predani odgovori usporednog vala', value: '6' },
+			{ label: 'Početno mjerenje', value: 'Pulse wave 1' },
+			{ label: 'Status početnog mjerenja', value: 'u tijeku' },
+			{ label: 'Predani odgovori početnog mjerenja', value: '6' },
+			{ label: 'Usporedno mjerenje', value: 'Pulse wave 2' },
+			{ label: 'Status usporednog mjerenja', value: 'u tijeku' },
+			{ label: 'Predani odgovori usporednog mjerenja', value: '6' },
 			{ label: 'Povezane putanje', value: '6' },
 			{ label: 'Potpune putanje', value: '6' }
 		]);
@@ -180,13 +180,13 @@ describe('selected-series wave comparison snapshot model', () => {
 		]);
 		expect(dashboard.provenanceRows).toEqual([
 			{ label: 'Početni zapis pokretanja', value: 'baseline-launch-id', mono: true },
-			{ label: 'Zadnje pokretanje početnog vala', value: '2026-05-05T08:30:00Z' },
-			{ label: 'Bodovanje početnog vala', value: 'burnout.total 1.0.0' },
-			{ label: 'Pravilo prikaza početnog vala', value: 'disclosure-id', mono: true },
+			{ label: 'Zadnje pokretanje početnog mjerenja', value: '2026-05-05T08:30:00Z' },
+			{ label: 'Bodovanje početnog mjerenja', value: 'burnout.total 1.0.0' },
+			{ label: 'Pravilo prikaza početnog mjerenja', value: 'disclosure-id', mono: true },
 			{ label: 'Usporedni zapis pokretanja', value: 'comparison-launch-id', mono: true },
-			{ label: 'Zadnje pokretanje usporednog vala', value: '2026-05-12T08:30:00Z' },
-			{ label: 'Bodovanje usporednog vala', value: 'burnout.total 1.0.0' },
-			{ label: 'Pravilo prikaza usporednog vala', value: 'disclosure-id', mono: true }
+			{ label: 'Zadnje pokretanje usporednog mjerenja', value: '2026-05-12T08:30:00Z' },
+			{ label: 'Bodovanje usporednog mjerenja', value: 'burnout.total 1.0.0' },
+			{ label: 'Pravilo prikaza usporednog mjerenja', value: 'disclosure-id', mono: true }
 		]);
 	});
 });
@@ -199,24 +199,24 @@ const hrWaveSnapshotCopy = {
 		previewAvailable: 'Pregled dostupan'
 	},
 	disabled: {
-		selectComparableWaves: 'Odaberite dva usporediva vala prije učitavanja pregleda usporedbe.',
+		selectComparableWaves: 'Odaberite dva usporediva mjerenja prije učitavanja pregleda usporedbe.',
 		runLinkedTrajectoryCheck: 'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
 	},
 	dashboard: {
-		unavailableTitle: 'Pregled valova nije dostupan',
-		unavailableMessage: 'Odaberite dva usporediva vala prije pregleda nadzorne ploče valova.',
+		unavailableTitle: 'Pregled mjerenja nije dostupan',
+		unavailableMessage: 'Odaberite dva usporediva mjerenja prije pregleda nadzorne ploče mjerenja.',
 		title: (baselineName: string, comparisonName: string) =>
-			`${baselineName} prema ${comparisonName} pregled valova`,
-		campaigns: 'Valovi',
-		longitudinalWaves: 'Longitudinalni valovi',
-		submittedWaves: 'Valovi s odgovorima',
+			`${baselineName} prema ${comparisonName} pregled mjerenja`,
+		campaigns: 'Mjerenja',
+		longitudinalWaves: 'Ponovljena mjerenja',
+		submittedWaves: 'Mjerenja s odgovorima',
 		missingPrerequisites: 'Nedostajući preduvjeti',
-		baselineWave: 'Početni val',
-		baselineStatus: 'Status početnog vala',
-		baselineSubmittedResponses: 'Predani odgovori početnog vala',
-		comparisonWave: 'Usporedni val',
-		comparisonStatus: 'Status usporednog vala',
-		comparisonSubmittedResponses: 'Predani odgovori usporednog vala',
+		baselineWave: 'Početno mjerenje',
+		baselineStatus: 'Status početnog mjerenja',
+		baselineSubmittedResponses: 'Predani odgovori početnog mjerenja',
+		comparisonWave: 'Usporedno mjerenje',
+		comparisonStatus: 'Status usporednog mjerenja',
+		comparisonSubmittedResponses: 'Predani odgovori usporednog mjerenja',
 		linkedTrajectories: 'Povezane putanje',
 		completeTrajectories: 'Potpune putanje',
 		previewStatus: 'Status pregleda',
@@ -229,14 +229,14 @@ const hrWaveSnapshotCopy = {
 		suppressedScores: 'Skriveni rezultati',
 		blockedScores: 'Blokirani rezultati',
 		baselineLaunchSnapshot: 'Početni zapis pokretanja',
-		baselineLatestLaunch: 'Zadnje pokretanje početnog vala',
-		baselineScoringRule: 'Bodovanje početnog vala',
-		baselineDisclosurePolicy: 'Pravilo prikaza početnog vala',
+		baselineLatestLaunch: 'Zadnje pokretanje početnog mjerenja',
+		baselineScoringRule: 'Bodovanje početnog mjerenja',
+		baselineDisclosurePolicy: 'Pravilo prikaza početnog mjerenja',
 		comparisonLaunchSnapshot: 'Usporedni zapis pokretanja',
-		comparisonLatestLaunch: 'Zadnje pokretanje usporednog vala',
-		comparisonScoringRule: 'Bodovanje usporednog vala',
-		comparisonDisclosurePolicy: 'Pravilo prikaza usporednog vala',
-		untitledWave: 'Neimenovani val'
+		comparisonLatestLaunch: 'Zadnje pokretanje usporednog mjerenja',
+		comparisonScoringRule: 'Bodovanje usporednog mjerenja',
+		comparisonDisclosurePolicy: 'Pravilo prikaza usporednog mjerenja',
+		untitledWave: 'Neimenovano mjerenje'
 	},
 	codeLabels: {
 		live: 'u tijeku',

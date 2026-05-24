@@ -410,9 +410,9 @@ describe('selected-series waves workflow model', () => {
 		const review = toSelectedSeriesWaveComparisonReview(twoAnonymousClosedWorkspace, copy);
 
 		expect(plan).toMatchObject({
-			title: 'Pregledajte Val 1 prije planiranja Vala 2',
-			primaryLabel: 'Pregledaj rezultate Vala 1',
-			secondaryLabel: 'Planiraj Val 2 kasnije'
+			title: 'Pregledajte Mjerenje 1 prije planiranja Mjerenja 2',
+			primaryLabel: 'Pregledaj rezultate Mjerenja 1',
+			secondaryLabel: 'Planiraj Mjerenje 2 kasnije'
 		});
 		expect(groupTrend).toMatchObject({
 			title: 'Samo grupni trend: Wave 1 prema Wave 2',

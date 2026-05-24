@@ -461,7 +461,7 @@ describe('product view models', () => {
 			{ value: 'pending', label: 'Na Äekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
-		expect(listView.items[0].rows).toContainEqual({ label: 'Valovi', value: '2' });
+		expect(listView.items[0].rows).toContainEqual({ label: 'Mjerenja', value: '2' });
 		expect(listView.items[0].ownership.label).toBe('VaÅ¡a studija');
 		expect(listView.items[0].archiveActionLabel).toBe('Arhiviraj');
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
@@ -2685,7 +2685,7 @@ describe('product view models', () => {
 		expect(view.cards[0].nextUse).toBe(
 			'Koristite ovaj izvoz za predaju izvjeÅ¡taja, pregled saÅ¾etka ili provjere Å¡ifrarnika.'
 		);
-		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Val / Wave 1' });
+		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
 			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim Å¡ifrarnikom.'
 		);

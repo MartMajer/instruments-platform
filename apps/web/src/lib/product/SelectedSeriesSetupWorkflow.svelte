@@ -283,10 +283,10 @@
 				? workspace.selectedCampaign.name
 				: selectedCampaignId
 					? appLocale === 'hr-HR'
-						? 'Odabran val prikupljanja'
+						? 'Odabrano mjerenje'
 						: 'Collection wave selected'
 					: appLocale === 'hr-HR'
-						? 'Nije odabran uređivi val prikupljanja'
+						? 'Nije odabrano uređivo mjerenje'
 						: 'No editable collection wave selected'
 	);
 	const lockedSelectedCampaign = $derived(
@@ -1941,26 +1941,26 @@
 		'no result outputs yet': 'još nema izlaza rezultata',
 		'Save questionnaire': 'Spremi upitnik',
 		'Save results setup': 'Spremi postavljanje rezultata',
-		'Save collection wave': 'Spremi val prikupljanja',
+		'Save collection wave': 'Spremi mjerenje',
 		'Run launch check': 'Pokreni provjeru za pokretanje',
 		Ready: 'Spremno',
 		Yes: 'Da',
 		No: 'Ne',
 		'Save questionnaire first': 'Najprije spremite upitnik',
 		'Save results setup first': 'Najprije spremite postavljanje rezultata',
-		'Collection wave ready': 'Val prikupljanja spreman',
-		'Wave context': 'Kontekst vala',
-		'Wave setup guidance': 'Upute za postavljanje vala',
-		Wave: 'Val',
+		'Collection wave ready': 'Mjerenje prikupljanja spreman',
+		'Wave context': 'Kontekst mjerenja',
+		'Wave setup guidance': 'Upute za postavljanje mjerenja',
+		Wave: 'Mjerenje',
 		'Response mode': 'Način odgovaranja',
 		'Launch plan': 'Plan pokretanja',
-		'Wave name': 'Naziv vala',
+		'Wave name': 'Naziv mjerenja',
 		'Respondent language': 'Jezik ispitanika',
 		'Launch checklist': 'Kontrolna lista pokretanja',
 		Questionnaire: 'Upitnik',
-		'Collection wave': 'Val prikupljanja',
-		'Create collection wave first': 'Najprije izradite val prikupljanja',
-		'Create the collection wave first.': 'Najprije izradite val prikupljanja.',
+		'Collection wave': 'Mjerenje prikupljanja',
+		'Create collection wave first': 'Najprije izradite mjerenje',
+		'Create the collection wave first.': 'Najprije izradite mjerenje.',
 		'Save the questionnaire first.': 'Najprije spremite upitnik.',
 		'Select a subject group.': 'Odaberite grupu osoba.',
 		'Select a target subject.': 'Odaberite ciljnu osobu.',
@@ -1977,7 +1977,7 @@
 			'Testni primatelji su spremljeni, ali se ovaj prikaz postavljanja nije mogao osvježiti.',
 		'Recipient file could not be read.': 'Datoteka primatelja nije se mogla pročitati.',
 		'Enter one valid email address.': 'Unesite jednu valjanu email adresu.',
-		'This recipient is already in the wave list.': 'Ovaj primatelj već je na popisu vala.',
+		'This recipient is already in the wave list.': 'Ovaj primatelj već je na popisu mjerenja.',
 		'Setup action saved, but the setup workspace refresh failed.':
 			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
 		Status: 'Status',
@@ -1988,14 +1988,14 @@
 		'Save at least one recipient selection before launch, and make sure it resolves to active people.':
 			'Spremite barem jedan odabir primatelja prije pokretanja i provjerite da odabir pronalazi aktivne osobe.',
 		'Specific email lists are available for anonymous invite-only or repeat-participation waves only.':
-			'Posebni popisi email adresa dostupni su samo za anonimne valove s pozivnicom ili ponovljenim sudjelovanjem.',
+			'Posebni popisi email adresa dostupni su samo za anonimna mjerenja s pozivnicom ili ponovljenim sudjelovanjem.',
 		'Next action': 'Sljedeći korak',
 		'Next step': 'Sljedeći korak',
-		'Previous wave': 'Prethodni val',
+		'Previous wave': 'Prethodno mjerenje',
 		'Recipient selection is locked': 'Odabir primatelja je zaključan',
 		'Preview recipients, then save the selection': 'Pregledajte primatelje, zatim spremite odabir',
 		'Use Directory groups for recurring populations. Use all active Directory people only when the wave is truly for everyone. Use one-off email list for ad hoc recipients you do not want to manage in Directory. Save recipients before launch so Collection can create private respondent links and send email.':
-			'Koristite grupe iz imenika za ponavljajuće populacije. Sve aktivne osobe koristite samo kada je val stvarno za sve. Jednokratni popis email adresa koristite za ad hoc primatelje koje ne želite voditi u imeniku. Spremite primatelje prije pokretanja kako bi Prikupljanje moglo izraditi privatne poveznice i poslati email.',
+			'Koristite grupe iz imenika za ponavljajuće populacije. Sve aktivne osobe koristite samo kada je mjerenje stvarno za sve. Jednokratni popis email adresa koristite za ad hoc primatelje koje ne želite voditi u imeniku. Spremite primatelje prije pokretanja kako bi Prikupljanje moglo izraditi privatne poveznice i poslati email.',
 		'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.':
 			'Odabir primatelja još nije spremljen. Najprije pregledajte primatelje, zatim spremite pregledani odabir prije pokretanja.',
 		'Saved for launch': 'Spremljeno za pokretanje',
@@ -2006,15 +2006,15 @@
 		'Open participation': 'Otvoreno sudjelovanje',
 		'Open link in Collection': 'Otvorena poveznica u Prikupljanju',
 		'Demo/test data': 'Demo/testni podaci',
-		'Create test recipients for this wave': 'Izradi testne primatelje za ovaj val',
+		'Create test recipients for this wave': 'Izradi testne primatelje za ovo mjerenje',
 		"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this wave's recipient selection.":
-			'Koristite ovo u stagingu ili demo prikazima kada trebate realistične primatelje bez uvoza stvarnog imenika. Izrađuje označenu testnu skupinu i sprema je kao odabir primatelja za ovaj val.',
+			'Koristite ovo u stagingu ili demo prikazima kada trebate realistične primatelje bez uvoza stvarnog imenika. Izrađuje označenu testnu skupinu i sprema je kao odabir primatelja za ovo mjerenje.',
 		'Group name': 'Naziv grupe',
 		People: 'Osobe',
 		'Create test recipients': 'Izradi testne primatelje',
 		'Test cohort saved': 'Testna skupina spremljena',
 		'Send invitations to': 'Pošalji pozivnice za',
-		'Campaign-local recipients': 'Primatelji samo za ovaj val',
+		'Campaign-local recipients': 'Primatelji samo za ovo mjerenje',
 		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
 		ready: 'spremno',
 		invalid: 'nevaljano',
@@ -2027,20 +2027,20 @@
 		'Review or paste source list': 'Pregledajte ili zalijepite izvorni popis',
 		'Recipient source': 'Izvor primatelja',
 		'Use this when this wave has a one-time recipient list. For repeated waves or reusable cohorts, import people and groups in Directory instead. Limit:':
-			'Koristite ovo kada ovaj val ima jednokratni popis primatelja. Za ponavljajuće valove ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Imenik. Ograničenje:',
-		'recipients per wave update.': 'primatelja po ažuriranju vala.',
+			'Koristite ovo kada ovo mjerenje ima jednokratni popis primatelja. Za ponavljajuće mjerenja ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Imenik. Ograničenje:',
+		'recipients per wave update.': 'primatelja po ažuriranju mjerenja.',
 		'Keep valid only': 'Zadrži samo valjane',
 		'Clear list': 'Očisti popis',
 		'Directory group': 'Grupa iz imenika',
 		'No groups available': 'Nema dostupnih grupa',
 		'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this wave only.':
-			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Imeniku ili prijeđite na jednokratni uvoz email adresa samo za ovaj val.',
+			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Imeniku ili prijeđite na jednokratni uvoz email adresa samo za ovo mjerenje.',
 		'Focus person': 'Fokus osoba',
 		'Directory people': 'Osobe iz imenika',
 		'active people loaded': 'aktivnih osoba učitano',
 		'No active people loaded yet': 'Još nema učitanih aktivnih osoba',
 		'This selection is broad. Use a Directory group when the wave should only reach a department, cohort, class, or location.':
-			'Ovaj odabir je širok. Koristite grupu iz imenika kada val treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
+			'Ovaj odabir je širok. Koristite grupu iz imenika kada mjerenje treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
 		'Preview rows': 'Redci pregleda',
 		'Preview recipients': 'Pregledaj primatelje',
 		'Save previewed recipients': 'Spremi pregledane primatelje',
@@ -2081,7 +2081,7 @@
 		invitations: 'pozivnica',
 		Locked: 'Zaključano',
 		'This wave is already locked. Recipient selection can only be changed before launch. Save the next collection wave first, then choose recipients for that draft.':
-			'Ovaj val je već zaključan. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeći val prikupljanja, zatim odaberite primatelje za taj nacrt.',
+			'Ovo mjerenje je već zaključan. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeće mjerenje, zatim odaberite primatelje za taj nacrt.',
 		'Open Directory': 'Otvori imenik',
 		'Setup path': 'Put postavljanja',
 		'Number entry': 'Brojčani unos',

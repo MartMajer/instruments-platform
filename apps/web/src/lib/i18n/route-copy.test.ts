@@ -39,7 +39,7 @@ describe('localized route body copy', () => {
 			.join(' ');
 
 		expect(copy.publicEntry.metaDescription).toBe(
-			'Platforma za upitnike, prikupljanje odgovora, rezultate, valove i izvoz podataka sa šifrarnikom.'
+			'Platforma za upitnike, prikupljanje odgovora, rezultate, ponovljena mjerenja i izvoz podataka s opisom podataka.'
 		);
 		expect(copy.publicEntry.heroKicker).toBe('Platforma za istraživanja i wellbeing programe');
 		expect(copy.publicEntry.heroTitle).toBe(
@@ -51,11 +51,11 @@ describe('localized route body copy', () => {
 			'Radni prostori i podaci obrađuju se u EU okruženju.'
 		);
 		expect(copy.publicEntry.workflowRibbon).toBe(
-			'Upitnik, prikupljanje, rezultati, valovi i izvoz'
+			'Upitnik, prikupljanje, rezultati, mjerenja i izvoz'
 		);
 		expect(copy.publicEntry.workspaceOverview).toBe('Pregled studije');
 		expect(copy.publicEntry.showcaseStudies).toBe('Studije');
-		expect(publicEntryText).not.toMatch(/hostan|hosting/i);
+		expect(publicEntryText).not.toMatch(/hostan|hosting|valov|šifrarnik/i);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
 	});
@@ -79,7 +79,7 @@ describe('localized route body copy', () => {
 		expect(copy.selectedStudy.surfaces.setup.title).toBe('Postavljanje studije');
 		expect(copy.selectedStudy.surfaces.operations.title).toBe('Prikupljanje odgovora');
 		expect(copy.selectedStudy.surfaces.reports.title).toBe('Pregled rezultata');
-		expect(copy.selectedStudy.surfaces.waves.title).toBe('Valovi');
+		expect(copy.selectedStudy.surfaces.waves.title).toBe('Mjerenja');
 		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
 	});
 
