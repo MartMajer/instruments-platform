@@ -1614,7 +1614,7 @@ const hr: typeof en = {
 	publicEntry: {
 		metaTitle: 'Instruments Platform | Platforma za istraživačke studije i studije dobrobiti',
 		metaDescription:
-			'Platforma hostana u EU za upitnike, prikupljanje, bodovanje, izvještaje, longitudinalne valove i izvozive skupove podataka.',
+			'Platforma za upitnike, prikupljanje, bodovanje, izvještaje, longitudinalne valove i izvozive skupove podataka.',
 		brandSubtitle: 'Istraživačke studije i programi dobrobiti',
 		navAria: 'Radnje ulaza u proizvod',
 		mobileNavAria: 'Mobilne radnje ulaza u proizvod',
@@ -1624,7 +1624,7 @@ const hr: typeof en = {
 		closeMenu: 'Zatvori izbornik',
 		workflow: 'Tijek rada',
 		trustModel: 'Kontrole studije',
-		heroKicker: 'Studijski radni proces hostan u EU',
+		heroKicker: 'Radni proces za studije',
 		heroTitle: 'Vodite istraživačke studije i studije dobrobiti bez ponovne izgradnje podatkovnog procesa.',
 		heroBody:
 			'Dizajnirajte ozbiljne upitnike, odaberite odgovarajući način prikupljanja odgovora, pregledajte kontekst bodovanja, usporedite valove i izvezite skupove podataka sa šifrarnicima bez spajanja obrazaca, tablica, skripti i snimki zaslona.',
@@ -1649,8 +1649,9 @@ const hr: typeof en = {
 		accessRibbon: 'Anonimno, ponovljeno, pozivno i identificirano prikupljanje odgovora',
 		dataControls: 'Upravljanje',
 		dataControlsRibbon: 'Privola, zadržavanje, konačnost, otkrivanje i provenijencija izvoza',
-		productStage: 'Hosting',
-		productStageRibbon: 'Aplikacijski put hostan u EU uz postupno uključivanje radnih prostora',
+		productStage: 'Podaci u EU',
+		productStageRibbon:
+			'Aplikacijska okolina u Europskoj uniji uz postupno uključivanje radnih prostora',
 		workspaceOverview: 'Zapovjedni centar studije',
 		suiteTitle: 'Znajte što svaka studija treba sljedeće.',
 		suiteBody:

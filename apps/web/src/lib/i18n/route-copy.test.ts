@@ -31,14 +31,26 @@ describe('localized route body copy', () => {
 
 	it('provides Croatian public and auth page copy', () => {
 		const copy = routePageCopy('hr-HR');
+		const publicEntryText = Object.values(copy.publicEntry)
+			.filter((value) => typeof value === 'string')
+			.join(' ');
 
+		expect(copy.publicEntry.metaDescription).toBe(
+			'Platforma za upitnike, prikupljanje, bodovanje, izvještaje, longitudinalne valove i izvozive skupove podataka.'
+		);
+		expect(copy.publicEntry.heroKicker).toBe('Radni proces za studije');
 		expect(copy.publicEntry.heroTitle).toBe(
 			'Vodite istraživačke studije i studije dobrobiti bez ponovne izgradnje podatkovnog procesa.'
 		);
 		expect(copy.publicEntry.languageSwitchAria).toBe('Jezik');
+		expect(copy.publicEntry.productStage).toBe('Podaci u EU');
+		expect(copy.publicEntry.productStageRibbon).toBe(
+			'Aplikacijska okolina u Europskoj uniji uz postupno uključivanje radnih prostora'
+		);
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Dizajn upitnika, prikupljanje, bodovanje, izvještaji, valovi i izvozi'
 		);
+		expect(publicEntryText).not.toMatch(/hostan|hosting/i);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
 	});
