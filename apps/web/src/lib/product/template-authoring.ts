@@ -101,6 +101,7 @@ export type ScorePlanOutputSummary = {
 	includedQuestionCount: number;
 	dimensionLabels: string[];
 	reverseScoredQuestionCount: number;
+	conditionalQuestionCount: number;
 	calculationLabel: string;
 	missingPolicyLabel: string;
 };
@@ -1176,6 +1177,7 @@ export function summarizeScorePlan(
 		const dimensionLabels = [
 			...new Set(outputRows.map((row) => normalizeDimensionLabel(row.dimensionLabel)))
 		];
+		const conditionalQuestionCount = outputRows.filter(hasConditionalDisplayLogic).length;
 
 		return {
 			localId: output.localId,
@@ -1186,10 +1188,15 @@ export function summarizeScorePlan(
 			reverseScoredQuestionCount: outputRows.filter(
 				(row) => row.reverseCoded && isScaleBackedType(row.type)
 			).length,
+			conditionalQuestionCount,
 			calculationLabel: output.calculation === 'sum' ? 'Sum score' : 'Mean score',
 			missingPolicyLabel:
 				output.missingStrategy === 'min_valid_count'
 					? `Requires at least ${Math.max(1, Math.trunc(output.minValidCount || 1))} selected questions`
+					: conditionalQuestionCount > 0
+						? `Requires every selected question; includes ${conditionalQuestionCount} conditional ${
+								conditionalQuestionCount === 1 ? 'question that may' : 'questions that may'
+							} be hidden and saved as skipped`
 					: 'Requires every selected question'
 		};
 	});
@@ -1219,6 +1226,7 @@ export function summarizeResultsBlueprintReview(
 	const allRequireEveryQuestion =
 		normalizedOutputs.length > 0 &&
 		normalizedOutputs.every((output) => output.missingStrategy === 'require_all');
+	const strictConditionalQuestionCount = countStrictConditionalScoreQuestions(normalizedOutputs, rows);
 	const scaleCompatibilityWarnings = normalizedOutputs
 		.map((output) => scoreScaleCompatibilityWarning(output, rows))
 		.filter((warning): warning is string => Boolean(warning));
@@ -1260,10 +1268,18 @@ export function summarizeResultsBlueprintReview(
 			{
 				id: 'missing_answers',
 				label: 'Missing answers',
-				status: normalizedOutputs.length > 0 ? 'ready' : 'attention',
-				detail: allRequireEveryQuestion
-					? 'All outputs require every selected question.'
-					: 'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.'
+				status:
+					normalizedOutputs.length > 0 && strictConditionalQuestionCount === 0
+						? 'ready'
+						: 'attention',
+				detail:
+					strictConditionalQuestionCount > 0
+						? `${strictConditionalQuestionCount} selected scored ${
+								strictConditionalQuestionCount === 1 ? 'question is' : 'questions are'
+							} conditional. Hidden conditional answers are saved as skipped; use a minimum-answered rule unless strict missingness is intended.`
+						: allRequireEveryQuestion
+							? 'All outputs require every selected question.'
+							: 'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.'
 			},
 			{
 				id: 'scale_compatibility',
@@ -1608,6 +1624,41 @@ function missingPolicyDocument(output: ScoreOutputAuthoringRow) {
 	}
 
 	return { strategy: 'require_all' };
+}
+
+function countStrictConditionalScoreQuestions(
+	outputs: Array<ScoreOutputAuthoringRow & { code: string }>,
+	rows: TemplateQuestionAuthoringRow[]
+) {
+	const conditionalCodes = new Set(
+		rows
+			.filter((row) => isMeanScoreEligible(row) && hasConditionalDisplayLogic(row))
+			.map((row) => row.code.trim().toLowerCase())
+	);
+	const strictCodes = new Set<string>();
+
+	for (const output of outputs) {
+		if (output.missingStrategy !== 'require_all') {
+			continue;
+		}
+
+		for (const code of output.includedQuestionCodes) {
+			const normalized = code.trim().toLowerCase();
+			if (conditionalCodes.has(normalized)) {
+				strictCodes.add(normalized);
+			}
+		}
+	}
+
+	return strictCodes.size;
+}
+
+function hasConditionalDisplayLogic(row: TemplateQuestionAuthoringRow): boolean {
+	return (
+		row.displayLogicEnabled &&
+		Boolean(row.displayLogicSourceQuestionCode.trim()) &&
+		Boolean(row.displayLogicSourceOptionCode.trim())
+	);
 }
 
 function createScoreOutputLocalId() {

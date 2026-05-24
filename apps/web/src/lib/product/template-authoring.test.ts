@@ -415,6 +415,7 @@ describe('scoring plan summaries', () => {
 				includedQuestionCount: 3,
 				dimensionLabels: ['Topic 1', 'Topic 2', 'Topic 3'],
 				reverseScoredQuestionCount: 1,
+				conditionalQuestionCount: 0,
 				calculationLabel: 'Mean score',
 				missingPolicyLabel: 'Requires every selected question'
 			}
@@ -432,6 +433,30 @@ describe('scoring plan summaries', () => {
 		expect(summarizeScorePlan(outputs, rows)[0]?.missingPolicyLabel).toBe(
 			'Requires at least 2 selected questions'
 		);
+	});
+
+	it('surfaces conditional scored questions as missing-data risk instead of hiding the guardrail', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[1] = {
+			...rows[1],
+			displayLogicEnabled: true,
+			displayLogicSourceQuestionCode: 'q01',
+			displayLogicSourceOptionCode: 'o02'
+		};
+		const outputs = createDefaultScoreOutputRows(rows);
+
+		expect(summarizeScorePlan(outputs, rows)[0]).toMatchObject({
+			conditionalQuestionCount: 1,
+			missingPolicyLabel:
+				'Requires every selected question; includes 1 conditional question that may be hidden and saved as skipped'
+		});
+		expect(summarizeResultsBlueprintReview(rows, outputs).items).toContainEqual({
+			id: 'missing_answers',
+			label: 'Missing answers',
+			status: 'attention',
+			detail:
+				'1 selected scored question is conditional. Hidden conditional answers are saved as skipped; use a minimum-answered rule unless strict missingness is intended.'
+		});
 	});
 
 	it('summarizes results blueprint review with coverage, missing answers, direction, and boundaries', () => {
