@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Platform.Domain.Templates;
 using Platform.SharedKernel;
@@ -330,6 +331,11 @@ public static class ResponseAnswerValueValidator
         }
 
         var date = value.GetString()!.Trim();
+        if (!TryParseIsoCalendarDate(date, out var parsedDate))
+        {
+            return Failure(question.Code, "must use YYYY-MM-DD date format");
+        }
+
         var payload = ParseObject(question.Payload);
         if (!payload.TryGetProperty("validation", out var validation) ||
             validation.ValueKind != JsonValueKind.Object)
@@ -339,14 +345,16 @@ public static class ResponseAnswerValueValidator
 
         var minDate = ReadString(validation, "minDate");
         if (!string.IsNullOrWhiteSpace(minDate) &&
-            string.CompareOrdinal(date, minDate.Trim()) < 0)
+            TryParseIsoCalendarDate(minDate, out var parsedMinDate) &&
+            parsedDate < parsedMinDate)
         {
             return Failure(question.Code, "is before the configured earliest date");
         }
 
         var maxDate = ReadString(validation, "maxDate");
         if (!string.IsNullOrWhiteSpace(maxDate) &&
-            string.CompareOrdinal(date, maxDate.Trim()) > 0)
+            TryParseIsoCalendarDate(maxDate, out var parsedMaxDate) &&
+            parsedDate > parsedMaxDate)
         {
             return Failure(question.Code, "is after the configured latest date");
         }
@@ -446,6 +454,16 @@ public static class ResponseAnswerValueValidator
         return element.ValueKind == JsonValueKind.Object &&
             element.TryGetProperty(propertyName, out var property) &&
             property.ValueKind is JsonValueKind.True;
+    }
+
+    private static bool TryParseIsoCalendarDate(string value, out DateOnly date)
+    {
+        return DateOnly.TryParseExact(
+            value.Trim(),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out date);
     }
 
     private static string? ReadString(JsonElement element, string propertyName)

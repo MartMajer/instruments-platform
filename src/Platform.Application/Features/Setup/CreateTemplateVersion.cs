@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using FluentValidation;
 using MediatR;
@@ -298,12 +299,32 @@ public sealed class CreateTemplateVersionValidator
 
         var minDate = ReadString(validation, "minDate");
         var maxDate = ReadString(validation, "maxDate");
+        var minDateValid = true;
+        var maxDateValid = true;
+        if (!string.IsNullOrWhiteSpace(minDate) && !IsIsoCalendarDate(minDate))
+        {
+            minDateValid = false;
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' earliest date must use YYYY-MM-DD format.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(maxDate) && !IsIsoCalendarDate(maxDate))
+        {
+            maxDateValid = false;
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' latest date must use YYYY-MM-DD format.");
+        }
+
         if (string.IsNullOrWhiteSpace(minDate) || string.IsNullOrWhiteSpace(maxDate))
         {
             return;
         }
 
-        if (string.CompareOrdinal(minDate.Trim(), maxDate.Trim()) > 0)
+        if (minDateValid &&
+            maxDateValid &&
+            string.CompareOrdinal(minDate.Trim(), maxDate.Trim()) > 0)
         {
             context.AddFailure(
                 "Request.Questions",
@@ -488,6 +509,16 @@ public sealed class CreateTemplateVersionValidator
             property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+    }
+
+    private static bool IsIsoCalendarDate(string value)
+    {
+        return DateOnly.TryParseExact(
+            value.Trim(),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out _);
     }
 
     private static bool TryGetObject(JsonElement element, string propertyName, out JsonElement value)

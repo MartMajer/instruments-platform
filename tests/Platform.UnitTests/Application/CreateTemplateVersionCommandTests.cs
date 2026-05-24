@@ -202,6 +202,26 @@ public sealed class CreateTemplateVersionCommandTests
     }
 
     [Fact]
+    public void Validator_rejects_date_question_with_non_iso_bounds()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "start_date",
+                QuestionTypes.Date,
+                payload: """{"validation":{"minDate":"June 1 2026","maxDate":"2026-06-30"}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("YYYY-MM-DD", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Validator_rejects_duplicate_question_codes_and_ordinals()
     {
         var validator = new CreateTemplateVersionValidator();

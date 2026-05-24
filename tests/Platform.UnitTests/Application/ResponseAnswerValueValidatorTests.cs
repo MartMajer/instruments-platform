@@ -119,6 +119,28 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Date_answer_requires_iso_calendar_date()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "start_date",
+                    QuestionTypes.Date,
+                    "{}")
+            ],
+            [
+                new SaveAnswerRequest(questionId, "\"next Monday\"")
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("YYYY-MM-DD", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
