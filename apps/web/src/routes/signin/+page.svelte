@@ -148,9 +148,9 @@
 
 	<header class="public-nav">
 		<a class="launchpad-brand" href={resolve('/')}>
-			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
+			<img class="launchpad-brand__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
 			<span>
-				<strong>Instruments Platform</strong>
+				<strong>Validated Scale</strong>
 				<small>{text.signIn.brandSubtitle}</small>
 			</span>
 		</a>

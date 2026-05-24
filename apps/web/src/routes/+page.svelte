@@ -96,9 +96,9 @@
 
 	<header class="public-nav public-nav--home">
 		<a class="launchpad-brand" href={resolve('/')}>
-			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
+			<img class="launchpad-brand__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
 			<span>
-				<strong>Instruments Platform</strong>
+				<strong>Validated Scale</strong>
 				<small>{text.publicEntry.brandSubtitle}</small>
 			</span>
 		</a>
@@ -169,7 +169,7 @@
 			</div>
 			<div class="showcase__body">
 				<aside class="showcase-rail" aria-hidden="true">
-					<div class="showcase-rail__logo">IP</div>
+					<img class="showcase-rail__logo" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
 					<span class="showcase-rail__link showcase-rail__link--active">{text.publicEntry.showcaseStudies}</span>
 					<span class="showcase-rail__link">{text.publicEntry.showcaseCollect}</span>
 					<span class="showcase-rail__link">{text.publicEntry.showcaseResults}</span>
