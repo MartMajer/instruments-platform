@@ -516,6 +516,21 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Node_min_valid_count_above_available_item_count_is_rejected()
+    {
+        var document = ReplaceRequired(
+            ValidGraphDocument,
+            """{ "id": "total", "op": "mean", "input": "scored_answers" }""",
+            """{ "id": "total", "op": "mean", "input": "scored_answers", "missing_data": { "strategy": "min_valid_count", "min_valid_count": 4 } }""");
+        var request = ValidGraphRequest(document: document);
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.missing_policy_invalid", result.Error.Code);
+    }
+
+    [Fact]
     public void Unsupported_subscale_aggregator_is_rejected()
     {
         var document = ReplaceRequired(

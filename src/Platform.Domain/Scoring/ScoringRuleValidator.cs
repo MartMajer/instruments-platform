@@ -22,6 +22,8 @@ public static class ScoringRuleValidator
         Scalar
     }
 
+    private sealed record GraphMissingPolicy(string Strategy, int? MinValidCount);
+
     public static Result<ScoringRuleValidationSummary> Validate(
         ScoringRuleValidationRequest request)
     {
@@ -392,10 +394,10 @@ public static class ScoringRuleValidator
 
     private static Result<IReadOnlyList<string>> ValidateGraphShape(JsonElement document)
     {
-        var inputIds = ReadGraphInputIds(document);
-        if (inputIds.IsFailure)
+        var inputs = ReadGraphInputs(document);
+        if (inputs.IsFailure)
         {
-            return Result.Failure<IReadOnlyList<string>>(inputIds.Error);
+            return Result.Failure<IReadOnlyList<string>>(inputs.Error);
         }
 
         var scales = ReadScaleDefinitions(document);
@@ -404,13 +406,13 @@ public static class ScoringRuleValidator
             return Result.Failure<IReadOnlyList<string>>(scales.Error);
         }
 
-        var missingPolicy = ValidateMissingPolicy(document);
+        var missingPolicy = ReadDefaultMissingPolicy(document);
         if (missingPolicy.IsFailure)
         {
             return Result.Failure<IReadOnlyList<string>>(missingPolicy.Error);
         }
 
-        var nodes = ValidateGraphNodes(document, inputIds.Value, scales.Value);
+        var nodes = ValidateGraphNodes(document, inputs.Value, scales.Value, missingPolicy.Value);
         if (nodes.IsFailure)
         {
             return Result.Failure<IReadOnlyList<string>>(nodes.Error);
@@ -541,16 +543,16 @@ public static class ScoringRuleValidator
             : Result.Success<IReadOnlyList<string>>(outputCodes);
     }
 
-    private static Result<HashSet<string>> ReadGraphInputIds(JsonElement document)
+    private static Result<Dictionary<string, int>> ReadGraphInputs(JsonElement document)
     {
         if (!document.TryGetProperty("inputs", out var inputs) ||
             inputs.ValueKind != JsonValueKind.Array)
         {
-            return Result.Failure<HashSet<string>>(
+            return Result.Failure<Dictionary<string, int>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."));
         }
 
-        var inputIds = new HashSet<string>(StringComparer.Ordinal);
+        var inputItemCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var input in inputs.EnumerateArray())
         {
             var id = ReadRequiredString(
@@ -560,13 +562,13 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare an id.");
             if (id.IsFailure)
             {
-                return Result.Failure<HashSet<string>>(id.Error);
+                return Result.Failure<Dictionary<string, int>>(id.Error);
             }
 
             var normalizedId = NormalizeCode(id.Value);
-            if (!inputIds.Add(normalizedId))
+            if (inputItemCounts.ContainsKey(normalizedId))
             {
-                return Result.Failure<HashSet<string>>(
+                return Result.Failure<Dictionary<string, int>>(
                     Error.Validation("score.input_duplicate", $"Scoring rule input '{normalizedId}' is duplicated."));
             }
 
@@ -577,12 +579,12 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare a kind.");
             if (kind.IsFailure)
             {
-                return Result.Failure<HashSet<string>>(kind.Error);
+                return Result.Failure<Dictionary<string, int>>(kind.Error);
             }
 
             if (NormalizeCode(kind.Value) != "answers")
             {
-                return Result.Failure<HashSet<string>>(
+                return Result.Failure<Dictionary<string, int>>(
                     Error.Validation(
                         "score.input_kind_unsupported",
                         $"Scoring rule input kind '{kind.Value}' is unsupported."));
@@ -591,33 +593,36 @@ public static class ScoringRuleValidator
             if (!input.TryGetProperty("items", out var items) ||
                 items.ValueKind != JsonValueKind.Array)
             {
-                return Result.Failure<HashSet<string>>(
+                return Result.Failure<Dictionary<string, int>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input must declare items."));
             }
 
             var itemCodes = ReadStringArray(items, "score.items_missing", "Scoring rule item code");
             if (itemCodes.IsFailure)
             {
-                return Result.Failure<HashSet<string>>(itemCodes.Error);
+                return Result.Failure<Dictionary<string, int>>(itemCodes.Error);
             }
 
             if (itemCodes.Value.Count == 0)
             {
-                return Result.Failure<HashSet<string>>(
+                return Result.Failure<Dictionary<string, int>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input items must not be empty."));
             }
+
+            inputItemCounts.Add(normalizedId, itemCodes.Value.Count);
         }
 
-        return inputIds.Count == 0
-            ? Result.Failure<HashSet<string>>(
+        return inputItemCounts.Count == 0
+            ? Result.Failure<Dictionary<string, int>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."))
-            : Result.Success(inputIds);
+            : Result.Success(inputItemCounts);
     }
 
     private static Result<Dictionary<string, GraphValueType>> ValidateGraphNodes(
         JsonElement document,
-        HashSet<string> inputIds,
-        HashSet<string> scaleIds)
+        Dictionary<string, int> inputItemCounts,
+        HashSet<string> scaleIds,
+        GraphMissingPolicy defaultMissingPolicy)
     {
         if (!document.TryGetProperty("nodes", out var nodes) ||
             nodes.ValueKind != JsonValueKind.Array)
@@ -627,6 +632,7 @@ public static class ScoringRuleValidator
         }
 
         var nodeTypes = new Dictionary<string, GraphValueType>(StringComparer.Ordinal);
+        var vectorItemCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var node in nodes.EnumerateArray())
         {
             var id = ReadRequiredString(
@@ -667,16 +673,18 @@ public static class ScoringRuleValidator
             }
 
             var inputRef = NormalizeCode(input.Value);
-            switch (NormalizeCode(op.Value))
+            var normalizedOp = NormalizeCode(op.Value);
+            switch (normalizedOp)
             {
                 case "select_answers":
-                    if (!inputIds.Contains(inputRef))
+                    if (!inputItemCounts.TryGetValue(inputRef, out var selectedItemCount))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
                             Error.Validation("score.input_unknown", $"Scoring rule input '{inputRef}' is unknown."));
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Vector);
+                    vectorItemCounts.Add(normalizedId, selectedItemCount);
                     break;
 
                 case "reverse_code":
@@ -727,7 +735,14 @@ public static class ScoringRuleValidator
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
                     }
 
+                    if (!vectorItemCounts.TryGetValue(inputRef, out var reverseItemCount))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                    }
+
                     nodeTypes.Add(normalizedId, GraphValueType.Vector);
+                    vectorItemCounts.Add(normalizedId, reverseItemCount);
                     break;
 
                 case "mean":
@@ -745,6 +760,25 @@ public static class ScoringRuleValidator
                             Error.Validation(
                                 "score.node_type_invalid",
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
+                    }
+
+                    if (!vectorItemCounts.TryGetValue(inputRef, out var aggregateItemCount))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                    }
+
+                    if (normalizedOp is "mean" or "sum")
+                    {
+                        var aggregateMissingPolicy = ValidateNodeMissingPolicy(
+                            node,
+                            defaultMissingPolicy,
+                            aggregateItemCount,
+                            normalizedId);
+                        if (aggregateMissingPolicy.IsFailure)
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(aggregateMissingPolicy.Error);
+                        }
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Scalar);
@@ -782,6 +816,22 @@ public static class ScoringRuleValidator
                             Error.Validation(
                                 "score.node_type_invalid",
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
+                    }
+
+                    if (!vectorItemCounts.TryGetValue(inputRef, out var subscaleItemCount))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                    }
+
+                    var subscaleMissingPolicy = ValidateNodeMissingPolicy(
+                        node,
+                        defaultMissingPolicy,
+                        subscaleItemCount,
+                        normalizedId);
+                    if (subscaleMissingPolicy.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(subscaleMissingPolicy.Error);
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Scalar);
@@ -843,31 +893,72 @@ public static class ScoringRuleValidator
         return Result.Success(scaleIds);
     }
 
-    private static Result<bool> ValidateMissingPolicy(JsonElement document)
+    private static Result<GraphMissingPolicy> ReadDefaultMissingPolicy(JsonElement document)
     {
         if (!document.TryGetProperty("missing_data", out var missingData))
         {
-            return Result.Success(true);
+            return Result.Success(new GraphMissingPolicy("require_all", null));
         }
 
         if (missingData.ValueKind != JsonValueKind.Object ||
             !missingData.TryGetProperty("defaults", out var defaults) ||
             defaults.ValueKind != JsonValueKind.Object)
         {
-            return Result.Failure<bool>(
+            return Result.Failure<GraphMissingPolicy>(
                 Error.Validation("score.missing_policy_invalid", "Scoring rule missing_data.defaults must be an object."));
         }
 
+        return ReadMissingPolicy(defaults, "Scoring rule missing_data.defaults");
+    }
+
+    private static Result<bool> ValidateNodeMissingPolicy(
+        JsonElement node,
+        GraphMissingPolicy defaultMissingPolicy,
+        int availableItemCount,
+        string nodeId)
+    {
+        var missingPolicy = defaultMissingPolicy;
+        if (node.TryGetProperty("missing_data", out var missingData))
+        {
+            if (missingData.ValueKind != JsonValueKind.Object)
+            {
+                return Result.Failure<bool>(
+                    Error.Validation("score.missing_policy_invalid", "Scoring rule node missing_data must be an object."));
+            }
+
+            var nodeMissingPolicy = ReadMissingPolicy(missingData, "Scoring rule node missing_data");
+            if (nodeMissingPolicy.IsFailure)
+            {
+                return Result.Failure<bool>(nodeMissingPolicy.Error);
+            }
+
+            missingPolicy = nodeMissingPolicy.Value;
+        }
+
+        if (missingPolicy.Strategy == "min_valid_count" &&
+            missingPolicy.MinValidCount.GetValueOrDefault() > availableItemCount)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.missing_policy_invalid",
+                    $"Scoring rule node '{nodeId}' min_valid_count cannot exceed its {availableItemCount} available item(s)."));
+        }
+
+        return Result.Success(true);
+    }
+
+    private static Result<GraphMissingPolicy> ReadMissingPolicy(JsonElement policy, string subject)
+    {
         var strategy = "require_all";
-        if (defaults.TryGetProperty("strategy", out var strategyElement))
+        if (policy.TryGetProperty("strategy", out var strategyElement))
         {
             if (strategyElement.ValueKind != JsonValueKind.String ||
                 string.IsNullOrWhiteSpace(strategyElement.GetString()))
             {
-                return Result.Failure<bool>(
+                return Result.Failure<GraphMissingPolicy>(
                     Error.Validation(
                         "score.missing_policy_invalid",
-                        "Scoring rule missing_data.defaults.strategy must be a non-empty string."));
+                        $"{subject}.strategy must be a non-empty string."));
             }
 
             strategy = NormalizeCode(strategyElement.GetString()!);
@@ -875,22 +966,22 @@ public static class ScoringRuleValidator
 
         return strategy switch
         {
-            "require_all" => Result.Success(true),
-            "min_valid_count" => ValidateMinValidCountPolicy(defaults),
-            _ => Result.Failure<bool>(
+            "require_all" => Result.Success(new GraphMissingPolicy(strategy, null)),
+            "min_valid_count" => ReadMinValidCountPolicy(policy),
+            _ => Result.Failure<GraphMissingPolicy>(
                 Error.Validation(
                     "score.missing_policy_unsupported",
                     $"Scoring rule missing-data strategy '{strategy}' is unsupported."))
         };
     }
 
-    private static Result<bool> ValidateMinValidCountPolicy(JsonElement defaults)
+    private static Result<GraphMissingPolicy> ReadMinValidCountPolicy(JsonElement policy)
     {
-        return defaults.TryGetProperty("min_valid_count", out var count) &&
+        return policy.TryGetProperty("min_valid_count", out var count) &&
             count.TryGetInt32(out var minValidCount) &&
             minValidCount > 0
-            ? Result.Success(true)
-            : Result.Failure<bool>(
+            ? Result.Success(new GraphMissingPolicy("min_valid_count", minValidCount))
+            : Result.Failure<GraphMissingPolicy>(
                 Error.Validation(
                     "score.missing_policy_invalid",
                     "Scoring rule min_valid_count must be a positive integer."));
