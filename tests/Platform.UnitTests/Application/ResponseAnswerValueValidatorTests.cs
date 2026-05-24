@@ -75,6 +75,50 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Multi_choice_exclusive_option_cannot_be_combined_with_other_options()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "blockers",
+                    QuestionTypes.MultiChoice,
+                    """{"options":[{"code":"o01","label":"Workload"},{"code":"o02","label":"None","exclusive":true}]}""")
+            ],
+            [
+                new SaveAnswerRequest(questionId, """["o01","o02"]""")
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("exclusive", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Top_n_ranking_rejects_more_than_configured_choices()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "priorities",
+                    QuestionTypes.Ranking,
+                    """{"options":[{"code":"o01","label":"First"},{"code":"o02","label":"Second"},{"code":"o03","label":"Third"}],"ranking":{"mode":"top_n","topN":2}}""")
+            ],
+            [
+                new SaveAnswerRequest(questionId, """["o01","o02","o03"]""")
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("top 2", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();

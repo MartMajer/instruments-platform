@@ -89,8 +89,8 @@ public static class ResponseAnswerValueValidator
             var result = question.Type switch
             {
                 QuestionTypes.SingleChoice => ValidateSingleChoice(question, value),
-                QuestionTypes.MultiChoice => ValidateChoiceArray(question, value, "multiple-choice"),
-                QuestionTypes.Ranking => ValidateChoiceArray(question, value, "ranking"),
+                QuestionTypes.MultiChoice => ValidateChoiceArray(question, value, "multiple-choice", enforceExclusive: true),
+                QuestionTypes.Ranking => ValidateChoiceArray(question, value, "ranking", enforceRankingLimit: true),
                 QuestionTypes.Matrix => ValidateMatrix(question, value),
                 QuestionTypes.Likert or QuestionTypes.Nps => ValidateScale(question, value),
                 QuestionTypes.Number => ValidateNumber(question, value),
@@ -130,14 +130,17 @@ public static class ResponseAnswerValueValidator
     private static Result<bool> ValidateChoiceArray(
         ResponseAnswerQuestionContract question,
         JsonElement value,
-        string label)
+        string label,
+        bool enforceExclusive = false,
+        bool enforceRankingLimit = false)
     {
         if (value.ValueKind != JsonValueKind.Array)
         {
             return Failure(question.Code, $"must be a {label} array");
         }
 
-        var validOptions = ReadOptionCodes(ParseObject(question.Payload), "options");
+        var payload = ParseObject(question.Payload);
+        var validOptions = ReadOptionCodes(payload, "options");
         var selected = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in value.EnumerateArray())
         {
@@ -153,6 +156,24 @@ public static class ResponseAnswerValueValidator
         if (selected.Count == 0)
         {
             return Failure(question.Code, $"must include at least one {label} option when a value is saved");
+        }
+
+        if (enforceExclusive)
+        {
+            var exclusiveOptions = ReadExclusiveOptionCodes(payload);
+            if (selected.Count > 1 && selected.Any(exclusiveOptions.Contains))
+            {
+                return Failure(question.Code, "uses an exclusive option together with another option");
+            }
+        }
+
+        if (enforceRankingLimit)
+        {
+            var topN = ReadRankingTopN(payload);
+            if (topN.HasValue && selected.Count > topN.Value)
+            {
+                return Failure(question.Code, $"must include at most the top {topN.Value} ranked options");
+            }
         }
 
         return Result.Success(true);
@@ -368,6 +389,44 @@ public static class ResponseAnswerValueValidator
         }
 
         return codes;
+    }
+
+    private static HashSet<string> ReadExclusiveOptionCodes(JsonElement payload)
+    {
+        var codes = new HashSet<string>(StringComparer.Ordinal);
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty("options", out var options) ||
+            options.ValueKind != JsonValueKind.Array)
+        {
+            return codes;
+        }
+
+        foreach (var option in options.EnumerateArray())
+        {
+            var code = ReadString(option, "code");
+            if (!string.IsNullOrWhiteSpace(code) && ReadBoolean(option, "exclusive"))
+            {
+                codes.Add(code.Trim());
+            }
+        }
+
+        return codes;
+    }
+
+    private static int? ReadRankingTopN(JsonElement payload)
+    {
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty("ranking", out var ranking) ||
+            ranking.ValueKind != JsonValueKind.Object ||
+            ReadString(ranking, "mode") != "top_n" ||
+            !ranking.TryGetProperty("topN", out var topN) ||
+            !topN.TryGetInt32(out var topNValue) ||
+            topNValue < 1)
+        {
+            return null;
+        }
+
+        return topNValue;
     }
 
     private static decimal? ReadNullableDecimal(JsonElement element, string propertyName)
