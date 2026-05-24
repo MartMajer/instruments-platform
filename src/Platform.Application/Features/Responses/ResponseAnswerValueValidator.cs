@@ -105,7 +105,7 @@ public static class ResponseAnswerValueValidator
                 QuestionTypes.Number => ValidateNumber(question, value),
                 QuestionTypes.Text => ValidateText(question, value),
                 QuestionTypes.Date => ValidateDate(question, value),
-                _ => Result.Success(true)
+                _ => Failure(question.Code, "uses an answer type that is not supported by the current response runtime")
             };
 
             if (result.IsFailure)

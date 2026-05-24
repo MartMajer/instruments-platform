@@ -240,6 +240,28 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Unsupported_question_type_cannot_save_value()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "upload_proof",
+                    QuestionTypes.File,
+                    "{}")
+            ],
+            [
+                new SaveAnswerRequest(questionId, "[]")
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("not supported", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
