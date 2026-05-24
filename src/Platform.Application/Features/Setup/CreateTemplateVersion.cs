@@ -44,7 +44,103 @@ public sealed class CreateTemplateVersionValidator
             question.RuleFor(value => value.Payload).NotEmpty();
             question.RuleFor(value => value.MissingCodes).NotEmpty();
         });
+        RuleFor(command => command.Request).Custom(ValidateQuestionPayloadContracts);
         RuleFor(command => command.Request).Custom(ValidateDisplayLogicRules);
+    }
+
+    private static void ValidateQuestionPayloadContracts(
+        CreateTemplateVersionRequest request,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        foreach (var question in request.Questions.OrderBy(question => question.Ordinal))
+        {
+            using var document = ParsePayload(question.Payload, question.Code, context);
+            if (document is null)
+            {
+                continue;
+            }
+
+            switch (question.Type)
+            {
+                case QuestionTypes.SingleChoice:
+                case QuestionTypes.MultiChoice:
+                case QuestionTypes.Ranking:
+                    ValidateChoiceBackedQuestionPayload(question, document.RootElement, context);
+                    break;
+                case QuestionTypes.Matrix:
+                    ValidateMatrixQuestionPayload(question, document.RootElement, context);
+                    break;
+            }
+        }
+    }
+
+    private static void ValidateChoiceBackedQuestionPayload(
+        CreateTemplateQuestionRequest question,
+        JsonElement payload,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        var options = ReadChoiceOptionCodes(payload);
+        if (options.Count < 2)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' needs at least two answer options.");
+            return;
+        }
+
+        if (!string.Equals(question.Type, QuestionTypes.Ranking, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!payload.TryGetProperty("ranking", out var ranking) ||
+            ranking.ValueKind != JsonValueKind.Object ||
+            ReadString(ranking, "mode") != "top_n")
+        {
+            return;
+        }
+
+        if (!ranking.TryGetProperty("topN", out var topN) ||
+            !topN.TryGetInt32(out var topNValue) ||
+            topNValue < 1 ||
+            topNValue > options.Count)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' top-N ranking must be between 1 and the number of available options.");
+        }
+    }
+
+    private static void ValidateMatrixQuestionPayload(
+        CreateTemplateQuestionRequest question,
+        JsonElement payload,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        if (!payload.TryGetProperty("matrix", out var matrix) ||
+            matrix.ValueKind != JsonValueKind.Object ||
+            ReadString(matrix, "mode") != "single")
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' matrix payload must declare single-select rows and columns.");
+            return;
+        }
+
+        var rows = ReadOptionCodes(matrix, "rows");
+        if (rows.Count < 1)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' matrix needs at least one row.");
+        }
+
+        var columns = ReadOptionCodes(matrix, "columns");
+        if (columns.Count < 2)
+        {
+            context.AddFailure(
+                "Request.Questions",
+                $"Question '{question.Code}' matrix needs at least two column options.");
+        }
     }
 
     private static void ValidateDisplayLogicRules(
@@ -102,6 +198,30 @@ public sealed class CreateTemplateVersionValidator
         }
     }
 
+    private static JsonDocument? ParsePayload(
+        string payload,
+        string questionCode,
+        ValidationContext<CreateTemplateVersionCommand> context)
+    {
+        try
+        {
+            var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(payload) ? "{}" : payload);
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                return document;
+            }
+
+            document.Dispose();
+            context.AddFailure("Request.Questions", $"Question '{questionCode}' payload must be a JSON object.");
+            return null;
+        }
+        catch (JsonException)
+        {
+            context.AddFailure("Request.Questions", $"Question '{questionCode}' payload must be valid JSON.");
+            return null;
+        }
+    }
+
     private static bool TryReadDisplayLogicRule(
         string payload,
         out DisplayLogicRule? rule,
@@ -155,30 +275,39 @@ public sealed class CreateTemplateVersionValidator
 
     private static HashSet<string> ReadChoiceOptionCodes(string payload)
     {
-        var codes = new HashSet<string>(StringComparer.Ordinal);
-
         try
         {
             using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(payload) ? "{}" : payload);
-            if (document.RootElement.ValueKind != JsonValueKind.Object ||
-                !document.RootElement.TryGetProperty("options", out var options) ||
-                options.ValueKind != JsonValueKind.Array)
-            {
-                return codes;
-            }
-
-            foreach (var option in options.EnumerateArray())
-            {
-                var code = ReadString(option, "code");
-                if (!string.IsNullOrWhiteSpace(code))
-                {
-                    codes.Add(code.Trim());
-                }
-            }
+            return ReadChoiceOptionCodes(document.RootElement);
         }
         catch (JsonException)
         {
+            return [];
+        }
+    }
+
+    private static HashSet<string> ReadChoiceOptionCodes(JsonElement payload)
+    {
+        return ReadOptionCodes(payload, "options");
+    }
+
+    private static HashSet<string> ReadOptionCodes(JsonElement payload, string propertyName)
+    {
+        var codes = new HashSet<string>(StringComparer.Ordinal);
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty(propertyName, out var options) ||
+            options.ValueKind != JsonValueKind.Array)
+        {
             return codes;
+        }
+
+        foreach (var option in options.EnumerateArray())
+        {
+            var code = ReadString(option, "code");
+            if (!string.IsNullOrWhiteSpace(code))
+            {
+                codes.Add(code.Trim());
+            }
         }
 
         return codes;

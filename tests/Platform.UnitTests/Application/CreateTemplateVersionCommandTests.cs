@@ -79,6 +79,68 @@ public sealed class CreateTemplateVersionCommandTests
                 failure.ErrorMessage.Contains("display rule needs an earlier source question", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Validator_rejects_matrix_question_without_enough_column_options()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "body_discomfort",
+                QuestionTypes.Matrix,
+                payload:
+                """{"matrix":{"mode":"single","rows":[{"code":"r01","label":"Neck"}],"columns":[{"code":"c01","label":"None"}]}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("matrix needs at least two column options", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_choice_question_without_enough_options()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "department",
+                QuestionTypes.SingleChoice,
+                payload: ChoicePayload("o01")));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("needs at least two answer options", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_ranking_top_n_above_option_count()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "priorities",
+                QuestionTypes.Ranking,
+                payload:
+                """{"options":[{"code":"o01","label":"First"},{"code":"o02","label":"Second"}],"ranking":{"mode":"top_n","topN":3}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("top-N ranking must be between 1", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static CreateTemplateVersionRequest Request(params CreateTemplateQuestionRequest[] questions)
     {
         return new CreateTemplateVersionRequest(
