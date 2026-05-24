@@ -16,7 +16,7 @@ describe('localized route body copy', () => {
 			'Questionnaires, collection, results, waves, and exports'
 		);
 		expect(copy.publicEntry.productStageRibbon).toBe(
-			'Workspace onboarding and study data run in an EU-hosted environment.'
+			'Download response datasets, data descriptions, and report packets for analysis.'
 		);
 		expect(publicEntryText).not.toMatch(/private beta|tenant|authenticated|provider|owner-controlled/i);
 	});
@@ -46,9 +46,9 @@ describe('localized route body copy', () => {
 			'Vodite studije, prikupljanje odgovora i rezultate bez improviziranih tablica.'
 		);
 		expect(copy.publicEntry.languageSwitchAria).toBe('Jezik');
-		expect(copy.publicEntry.productStage).toBe('Podaci u EU');
+		expect(copy.publicEntry.productStage).toBe('Čist izvoz');
 		expect(copy.publicEntry.productStageRibbon).toBe(
-			'Radni prostori i podaci obrađuju se u EU okruženju.'
+			'Preuzmite podatke odgovora, opis podataka i sažetke izvještaja za analizu.'
 		);
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Upitnik, prikupljanje, rezultati, mjerenja i izvoz'
