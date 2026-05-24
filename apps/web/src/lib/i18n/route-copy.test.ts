@@ -11,6 +11,7 @@ describe('localized route body copy', () => {
 		expect(copy.publicEntry.heroTitle).toBe(
 			'Run research and wellbeing studies without rebuilding the data stack.'
 		);
+		expect(copy.publicEntry.languageSwitchAria).toBe('Language');
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Questionnaire design, collection, scoring, reports, waves, and exports'
 		);
@@ -34,6 +35,7 @@ describe('localized route body copy', () => {
 		expect(copy.publicEntry.heroTitle).toBe(
 			'Vodite istraživačke studije i studije dobrobiti bez ponovne izgradnje podatkovnog procesa.'
 		);
+		expect(copy.publicEntry.languageSwitchAria).toBe('Jezik');
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Dizajn upitnika, prikupljanje, bodovanje, izvještaji, valovi i izvozi'
 		);
@@ -69,7 +71,7 @@ describe('localized route body copy', () => {
 
 		expect(copy.progressTitle).toBe('Napredak postavljanja studije');
 		expect(copy.questionnaire.paletteTitle).toBe('Odaberite uređivi skup pitanja');
-		expect(copy.questionnaire.blueprintTitle).toBe('Pregled dizajna upitnika');
+		expect(copy.questionnaire.blueprintTitle).toBe('Provjera upitnika');
 		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');
 		expect(copy.scoring.resultsTitle).toBe('Izlazi rezultata');
 		expect(copy.wave.responseMode.anonymousLongitudinalLabel).toBe(
@@ -80,15 +82,15 @@ describe('localized route body copy', () => {
 	it('keeps English study setup language explicit about source, questionnaire, and starting points', () => {
 		const copy = routePageCopy('en');
 
-		expect(copy.portfolio.startBlueprint).toBe('Choose a study starting point');
-		expect(copy.portfolio.studyModelTitle).toBe('What this creates');
+		expect(copy.portfolio.startBlueprint).toBe('Choose how to start the study');
+		expect(copy.portfolio.studyModelTitle).toBe('Study, source, and questionnaire');
 		expect(copy.portfolio.studyModelStudyBody).toContain('study container');
-		expect(copy.portfolio.studyModelStartingPointBody).toContain('Seeds the first Setup draft');
+		expect(copy.portfolio.studyModelStartingPointBody).toContain('Provides source material');
 		expect(copy.instruments.description).toBe(
 			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.'
 		);
 		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe(
-			'Questionnaire design review'
+			'Questionnaire check'
 		);
 	});
 

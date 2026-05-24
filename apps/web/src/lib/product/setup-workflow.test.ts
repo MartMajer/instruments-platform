@@ -40,7 +40,7 @@ describe('selected-series setup workflow model', () => {
 				id: 'template',
 				status: 'blocked',
 				available: true,
-				disabledReason: 'Confirm the study source first.'
+				disabledReason: 'Choose the questionnaire source first.'
 			}),
 			expect.objectContaining({
 				id: 'scoring',
@@ -263,15 +263,15 @@ describe('selected-series setup workflow model', () => {
 		const design = toSelectedSeriesSetupDesignMap(configuredWorkspace);
 
 		expect(design).toEqual({
-			title: 'Study design map',
+			title: 'How this study is built',
 			summary:
-				'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
+				'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
 			items: [
 				{
 					id: 'source',
-					label: 'Study source',
+					label: 'Questionnaire source',
 					status: 'ready',
-					detail: 'Source content is ready for this questionnaire.'
+					detail: 'Source material is ready for this questionnaire.'
 				},
 				{
 					id: 'questionnaire',
@@ -281,9 +281,9 @@ describe('selected-series setup workflow model', () => {
 				},
 				{
 					id: 'results',
-					label: 'Results setup',
+					label: 'Result outputs',
 					status: 'ready',
-					detail: 'Results setup is saved as burnout.total.'
+					detail: 'Result outputs are saved as burnout.total.'
 				},
 				{
 					id: 'waves',
@@ -374,18 +374,18 @@ describe('selected-series setup workflow model', () => {
 		expect(path.currentActionId).toBe('instrument');
 		expect(path.completedCount).toBe(0);
 		expect(path.steps[0]).toMatchObject({
-			title: 'Study source',
+			title: 'Questionnaire source',
 			description:
-				'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
+				'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
 		});
 		expect(path.steps[1]).toMatchObject({
 			title: 'Questionnaire',
 			description: 'Build the saved question set respondents will answer for this study.'
 		});
 		expect(path.steps[2]).toMatchObject({
-			title: 'Results setup',
+			title: 'Result outputs',
 			description:
-				'Choose which questionnaire answers become study results and how missing answers are handled.'
+				'Choose which questionnaire answers become result outputs and how missing answers are handled.'
 		});
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'instrument', state: 'current' },
@@ -462,11 +462,11 @@ describe('selected-series setup workflow model', () => {
 		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Val 1');
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
-			title: 'Izvor studije',
+			title: 'Izvor upitnika',
 			description:
-				'Potvrdite izvorni ili uvezeni sadržaj. On pokreće upitnik, ali nije sama studija.'
+				'Odaberite višekratni ili uvezeni izvorni materijal. On pokreće upitnik, ali nije studija ni završni upitnik.'
 		});
-		expect(path.steps[1]?.disabledReason).toBe('Prvo potvrdite izvor studije.');
+		expect(path.steps[1]?.disabledReason).toBe('Prvo odaberite izvor upitnika.');
 		expect(toSelectedSeriesSetupPathStepDisplay(path.steps[0]!, path.currentActionId, 'template', copy)).toEqual({
 			label: 'Sljedeće',
 			state: 'next'

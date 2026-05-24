@@ -228,7 +228,7 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 		reportingNotAvailableTitle: 'Not available',
 		reportingNotAvailableDetail: 'Reporting readiness appears after collection has a selected wave.',
 		createWaveFirstHeadline: 'Create a collection wave first',
-		createWaveFirstGuidance: 'Collection starts after setup has a campaign wave.',
+		createWaveFirstGuidance: 'Collection starts after Setup has a collection wave.',
 		createWaveFirstNextAction: 'Open Setup and create a collection wave.',
 		closedTitle: 'Closed',
 		closedDetail: 'This wave no longer accepts new responses.',

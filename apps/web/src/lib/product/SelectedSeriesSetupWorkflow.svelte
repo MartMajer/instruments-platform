@@ -1739,7 +1739,9 @@
 		}
 
 		if (issue.code.includes('scoring')) {
-			return setupUi(issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup'));
+			return setupUi(
+				issue.message.replace('Scoring rule', 'Result outputs').replace('scoring rule', 'result outputs')
+			);
 		}
 
 		if (issue.code === 'respondent_rule.email_required') {
@@ -1775,11 +1777,11 @@
 			'Radnje postavljanja zahtijevaju pristup za upravljanje postavljanjem.',
 		Done: 'Dovršeno',
 		Editable: 'Uredivo',
-		'Study source ready': 'Izvor studije spreman',
-		'The study source is saved. Continue to the questionnaire.':
-			'Izvor studije je spremljen. Nastavite na upitnik.',
-		'Study source name': 'Naziv izvora studije',
-		'Save study source': 'Spremi izvor studije',
+		'Questionnaire source ready': 'Izvor upitnika spreman',
+		'The questionnaire source is saved. Continue to the questionnaire.':
+			'Izvor upitnika je spremljen. Nastavite na upitnik.',
+		'Questionnaire source name': 'Naziv izvora upitnika',
+		'Save questionnaire source': 'Spremi izvor upitnika',
 		'Questionnaire ready': 'Upitnik spreman',
 		'Questionnaire name': 'Naziv upitnika',
 		Language: 'Jezik',
@@ -1805,9 +1807,9 @@
 		'Workload fairness': 'Pravednost opterećenja',
 		'Shift strain': 'Opterećenje smjene',
 		'Operational support': 'Operativna podrška',
-		'Study model': 'Model studije',
-		'Authoring summary': 'Sažetak izrade',
-		'Questionnaire design review': 'Pregled dizajna upitnika',
+		'Study structure': 'Struktura studije',
+		'Questionnaire summary': 'Sažetak upitnika',
+		'Questionnaire check': 'Provjera upitnika',
 		'Design review': 'Pregled dizajna',
 		'Study dimensions': 'Dimenzije studije',
 		'What this questionnaire measures': 'Što ovaj upitnik mjeri',
@@ -1906,12 +1908,12 @@
 			'Ovo pitanje trenutačni prikaz za ispitanike ne može prikazati.',
 		'Result outputs': 'Izlazi rezultata',
 		Result: 'Rezultat',
-		'Results setup ready': 'Postavljanje rezultata spremno',
+		'Result outputs ready': 'Izlazi rezultata spremni',
 		Outputs: 'Izlazi',
 		'Unique scored questions': 'Jedinstvena bodovana pitanja',
 		'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.':
 			'Izradite jedan ukupni rezultat ili više dimenzija/podljestvica. Svaki izlaz bira vlastita pitanja, izračun i pravilo za nedostajuće odgovore.',
-		'Results plan': 'Plan rezultata',
+		'Result outputs plan': 'Plan izlaza rezultata',
 		'Remove result': 'Ukloni rezultat',
 		'Result name': 'Naziv rezultata',
 		'Result code': 'Kod rezultata',
@@ -1956,7 +1958,6 @@
 		'Respondent language': 'Jezik ispitanika',
 		'Launch checklist': 'Kontrolna lista pokretanja',
 		Questionnaire: 'Upitnik',
-		'Results setup': 'Postavljanje rezultata',
 		'Collection wave': 'Val prikupljanja',
 		'Create collection wave first': 'Najprije izradite val prikupljanja',
 		'Create the collection wave first.': 'Najprije izradite val prikupljanja.',
@@ -2192,7 +2193,7 @@
 		<section class="record-row" aria-labelledby="study-design-map-heading">
 			<div class="record-row__header">
 				<div>
-					<p class="record-field__label">{setupUi('Study model')}</p>
+					<p class="record-field__label">{setupUi('Study structure')}</p>
 					<h4 id="study-design-map-heading" class="record-row__title">{setupDesignMap.title}</h4>
 					<p class="text-sm text-[var(--color-text-muted)]">{setupDesignMap.summary}</p>
 				</div>
@@ -2233,9 +2234,9 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">{setupUi('Study source ready')}</h5>
+									<h5 class="record-row__title">{setupUi('Questionnaire source ready')}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('The study source is saved. Continue to the questionnaire.')}
+										{setupUi('The questionnaire source is saved. Continue to the questionnaire.')}
 									</p>
 								</div>
 								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
@@ -2244,13 +2245,13 @@
 					{:else}
 						<div class="grid gap-4">
 							<label class="field lg:col-span-2">
-								<span>{setupUi('Study source name')}</span>
+								<span>{setupUi('Questionnaire source name')}</span>
 								<input bind:value={instrumentForm.fullName} />
 							</label>
 						</div>
 						{@render ActionFooter({
 							id: 'instrument',
-							label: setupUi('Save study source'),
+							label: setupUi('Save questionnaire source'),
 							icon: 'plus',
 							onclick: createInstrumentImport
 						})}
@@ -2318,7 +2319,7 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">{setupUi('Authoring summary')}</p>
+										<p class="record-field__label">{setupBodyCopy.questionnaire.authoringSummary}</p>
 										<h5 class="record-row__title">{setupUi(authoringReadiness.label)}</h5>
 									</div>
 									<StatusBadge status="neutral" label={setupQuestionCount(authoringReadiness.questionCount)} />
@@ -3053,7 +3054,7 @@
 				{:else if activeActionIdForView === 'scoring'}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Results setup ready')}</h5>
+							<h5 class="record-row__title">{setupUi('Result outputs ready')}</h5>
 							<div class="record-grid">
 								<div class="record-field">
 									<p class="record-field__label">{setupUi('Result outputs')}</p>
@@ -3085,10 +3086,10 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">{setupUi('Results plan')}</p>
+										<p class="record-field__label">{setupUi('Result outputs plan')}</p>
 										<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
 									</div>
-									<StatusBadge status="neutral" label="Results plan" />
+									<StatusBadge status="neutral" label={setupUi('Result outputs plan')} />
 								</div>
 								<div class="questionnaire-blueprint-review">
 									{#each resultsBlueprintReview.items as item (item.id)}
@@ -3401,7 +3402,7 @@
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">{setupUi('Results setup')}</p>
+								<p class="record-field__label">{setupUi('Result outputs')}</p>
 								<p class="record-field__value">
 									{localState.scoringRuleId ?? workspace.scoring?.id
 										? setupUi('Ready')

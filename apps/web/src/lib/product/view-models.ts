@@ -309,7 +309,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 		referenceTitle: 'Study reference',
 		referenceDescription:
 			'Detailed records, governance status, and wave rows for this selected study.',
-		title: hub.name.trim() || 'Untitled campaign series',
+		title: hub.name.trim() || 'Untitled wave series',
 		subtitle: `${hub.totals.campaignCount} ${hub.totals.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${hub.totals.liveCampaignCount} live`,
 		rows,
 		ownership,
@@ -334,7 +334,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 		})),
 		campaignRows: hub.campaigns.map((campaign) => ({
 			id: campaign.id,
-			title: campaign.name.trim() || 'Untitled campaign',
+			title: campaign.name.trim() || 'Untitled wave',
 			status: toProductReadModelBadgeStatus(campaign.status),
 			rows: [
 				{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
@@ -403,25 +403,25 @@ function toCampaignSeriesHubStudyModel(
 	const studyName = hub.name.trim() || (hr ? 'Studija bez naziva' : 'Untitled study');
 
 	return {
-		title: hr ? 'Model studije' : 'Study model',
+		title: hr ? 'Što ova studija sadrži' : 'What this study contains',
 		description: hr
-			? 'Studija je spremnik u radnom prostoru. Postavljanje definira upitnik i pravila rezultata; valovi prikupljaju odgovore; Rezultati, Valovi i Izvozi koriste te spremljene zapise.'
-			: 'A study is the workspace container. Setup defines the questionnaire and result rules; collection waves gather answers; Results, Waves, and Exports reuse those saved records.',
+			? 'Studija je projektni spremnik. Izvor upitnika je samo početni materijal; upitnik je ono što ispitanici vide; valovi su krugovi prikupljanja; rezultati i izvozi koriste spremljene odgovore.'
+			: 'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
 		items: [
 			{
 				id: 'study_container',
-				label: hr ? 'Spremnik studije' : 'Study container',
+				label: hr ? 'Studija' : 'Study',
 				status: 'ready',
 				badgeLabel: hr ? 'Spremljeno' : 'Saved',
 				summary: hr
-					? `${studyName} sadrži postavljanje, valove prikupljanja, rezultate i izvoze. To nije višekratni izvor upitnika.`
-					: `${studyName} holds setup, collection waves, results, and exports. It is not a reusable questionnaire source.`,
+					? `${studyName} sadrži postavljanje, valove prikupljanja, rezultate i izvoze. To nije upitnik ni instrument.`
+					: `${studyName} holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.`,
 				guidance: hr
 					? 'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
 					: 'Open Setup when you need to change what respondents answer or how results are prepared.',
 				detailRows: [
-					{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
-					{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) },
+					{ label: 'Waves', value: formatCount(hub.totals.campaignCount) },
+					{ label: 'Live waves', value: formatCount(hub.totals.liveCampaignCount) },
 					{
 						label: 'Submitted responses',
 						value: formatCount(hub.totals.submittedResponseCount)
@@ -431,18 +431,18 @@ function toCampaignSeriesHubStudyModel(
 			},
 			{
 				id: 'questionnaire_results',
-				label: hr ? 'Upitnik i postavljanje rezultata' : 'Questionnaire and results setup',
+				label: hr ? 'Upitnik i izlazi rezultata' : 'Questionnaire and result outputs',
 				status: setupLifecycle ? toProductReadModelBadgeStatus(setupLifecycle.status) : 'pending',
 				badgeLabel: setupLifecycle
 					? toModelBadgeLabel(toProductReadModelBadgeStatus(setupLifecycle.status))
 					: 'Pending',
 				summary: hr
-					? 'Upitnik, pravila rezultata, pravila, primatelji i provjere pokretanja pripremaju se u Postavljanju.'
-					: 'Questionnaire, result rules, policies, recipients, and launch checks are prepared in Setup.',
+					? 'Upitnik definira pitanja; izlazi rezultata definiraju koje odgovore zbrajate, izvozite ili tumačite.'
+					: 'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
 				guidance: hr
-					? 'Otvorite Postavljanje za dovršetak ili provjeru upitnika, pravila rezultata, pravila, vala i spremnosti pokretanja.'
+					? 'Otvorite Postavljanje za dovršetak ili provjeru izvora, upitnika, izlaza rezultata, vala i spremnosti pokretanja.'
 					: setupLifecycle?.guidance ??
-						'Open Setup to finish questionnaire, result rules, policies, wave, and launch readiness.',
+						'Open Setup to finish the source, questionnaire, result outputs, wave, and launch readiness.',
 				detailRows: [
 					toGovernanceRow('Consent', hub.governance.consentStatus),
 					toGovernanceRow('Retention', hub.governance.retentionStatus),
@@ -461,8 +461,8 @@ function toCampaignSeriesHubStudyModel(
 					: operationsLifecycle?.guidance ??
 						'Create a collection wave in Setup, then use Collect to open access for respondents.',
 				detailRows: [
-					{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
-					{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) }
+					{ label: 'Waves', value: formatCount(hub.totals.campaignCount) },
+					{ label: 'Live waves', value: formatCount(hub.totals.liveCampaignCount) }
 				]
 			},
 			{
@@ -522,7 +522,7 @@ function toCollectionWavesModelBadgeLabel(hub: CampaignSeriesHubResponse, locale
 function toCollectionWavesModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (hub.totals.campaignCount === 0) {
 		return locale === 'hr-HR'
-			? 'Još nema valova prikupljanja.'
+			? 'JoÅ¡ nema valova prikupljanja.'
 			: 'No collection waves exist yet.';
 	}
 
@@ -562,14 +562,14 @@ function toEvidenceOutputsModelBadgeLabel(hub: CampaignSeriesHubResponse, locale
 		return locale === 'hr-HR' ? 'Treba bodovanje' : 'Needs scoring';
 	}
 
-	return locale === 'hr-HR' ? 'Još nema dokaza' : 'No evidence yet';
+	return locale === 'hr-HR' ? 'JoÅ¡ nema dokaza' : 'No evidence yet';
 }
 
 function toEvidenceOutputsModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (locale === 'hr-HR') {
 		return `${formatCount(hub.totals.submittedResponseCount)} predanih odgovora, ${formatCount(
 			hub.totals.scoreCount
-		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabilježeno.`;
+		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabiljeÅ¾eno.`;
 	}
 
 	return `${formatCount(hub.totals.submittedResponseCount)} submitted responses, ${formatCount(
@@ -630,7 +630,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
-		title: workspace.series.name.trim() || 'Untitled campaign series',
+		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
 		ownership,
 		canMutate: !ownership.isSample,
@@ -684,7 +684,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 		})),
 		campaignRows: workspace.campaigns.map((campaign) => ({
 			id: campaign.id,
-			title: campaign.name.trim() || 'Untitled campaign',
+			title: campaign.name.trim() || 'Untitled wave',
 			status: toProductReadModelBadgeStatus(campaign.status),
 			rows: toSetupCampaignSummaryRows(campaign)
 		})),
@@ -692,12 +692,12 @@ export function toCampaignSeriesSetupWorkspaceView(
 			workspace.campaigns.length === 0
 				? {
 						title: 'No campaigns yet',
-						message: 'Create a campaign draft before running launch readiness.'
+						message: 'Create a wave draft before running launch readiness.'
 					}
 				: null,
 		proofActionTitle: 'Preparation actions',
 		proofActionDescription:
-			'Import the instrument, prepare template and scoring drafts, create a campaign draft, and check launch readiness.'
+			'Choose a questionnaire source, prepare questionnaire and result outputs, create a wave draft, and check launch readiness.'
 	}, locale);
 }
 
@@ -710,7 +710,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
-		title: workspace.series.name.trim() || 'Untitled campaign series',
+		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
 		ownership,
 		canMutate: !ownership.isSample,
@@ -802,7 +802,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		})),
 		campaignRows: workspace.campaigns.map((campaign) => ({
 			id: campaign.id,
-			title: campaign.name.trim() || 'Untitled campaign',
+			title: campaign.name.trim() || 'Untitled wave',
 			status: toProductReadModelBadgeStatus(campaign.status),
 			rows: toOperationsCampaignSummaryRows(campaign)
 		})),
@@ -810,7 +810,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 			workspace.campaigns.length === 0
 				? {
 						title: 'No collection wave yet',
-						message: 'Create a campaign draft in setup, then start collection here.'
+						message: 'Create a wave draft in Setup, then start collection here.'
 					}
 				: null,
 		proofActionTitle: 'Collection actions',
@@ -828,7 +828,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
-		title: workspace.series.name.trim() || 'Untitled campaign series',
+		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
 		ownership,
 		canMutate: !ownership.isSample,
@@ -879,7 +879,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 		})),
 		campaignRows: workspace.campaigns.map((campaign) => ({
 			id: campaign.id,
-			title: campaign.name.trim() || 'Untitled campaign',
+			title: campaign.name.trim() || 'Untitled wave',
 			status: toProductReadModelBadgeStatus(campaign.reportStatus),
 			rows: toReportsCampaignSummaryRows(campaign)
 		})),
@@ -904,7 +904,7 @@ export function toCampaignSeriesWavesWorkspaceView(
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
-		title: workspace.series.name.trim() || 'Untitled campaign series',
+		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
 		ownership,
 		canMutate: !ownership.isSample,
@@ -1454,7 +1454,7 @@ function toSelectedSeriesCampaignRow(
 ) {
 	return {
 		id: campaign.id,
-		title: campaign.name.trim() || 'Untitled campaign',
+		title: campaign.name.trim() || 'Untitled wave',
 		status: toProductReadModelBadgeStatus(campaign.status),
 		rows: toSelectedSeriesCampaignRows(campaign, surface)
 	};
@@ -1510,7 +1510,7 @@ function toSetupPreparationChecklist(
 				? `${workspace.template.templateName} / ${humanizeValue(workspace.template.status)} / ${formatCount(workspace.template.questionCount)} ${pluralize(workspace.template.questionCount, 'question', 'questions')}`
 				: 'Missing template',
 			guidance: workspace.template
-				? 'Template is available for campaign drafts.'
+				? 'Questionnaire is available for wave drafts.'
 				: 'Save the questionnaire before results setup or wave drafts.',
 			detailRows: workspace.template
 				? [
@@ -1528,7 +1528,7 @@ function toSetupPreparationChecklist(
 				? `${workspace.scoring.ruleKey} / ${humanizeValue(workspace.scoring.status)}`
 				: 'Missing results setup',
 			guidance: workspace.scoring
-				? 'Results setup is available for launch-readiness checks.'
+				? 'Result outputs are available for launch-readiness checks.'
 				: 'Save results setup before launch-readiness checks.',
 			detailRows: workspace.scoring
 				? [
@@ -1558,18 +1558,18 @@ function toSetupPreparationChecklist(
 		},
 		{
 			id: 'campaign',
-			label: 'Campaign draft',
+			label: 'Wave draft',
 			status: campaign ? 'ready' : 'blocked',
 			badgeLabel: campaign ? 'Ready' : 'Blocked',
 			summary: campaign
-				? `${campaign.name.trim() || 'Untitled campaign'} / ${humanizeValue(campaign.status)} / ${humanizeValue(campaign.responseIdentityMode)}`
-				: 'Missing campaign draft',
+				? `${campaign.name.trim() || 'Untitled wave'} / ${humanizeValue(campaign.status)} / ${humanizeValue(campaign.responseIdentityMode)}`
+				: 'Missing wave draft',
 			guidance: campaign
-				? 'Campaign draft is ready for recipient setup and launch-readiness checks.'
-				: 'Create a campaign draft before checking launch readiness.',
+				? 'Wave draft is ready for recipient setup and launch checks.'
+				: 'Create a wave draft before checking launch readiness.',
 			detailRows: campaign
 				? [
-						{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+						{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 						{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 						{ label: 'Locale', value: campaign.defaultLocale }
 					]
@@ -1590,7 +1590,7 @@ function toSetupPreparationChecklist(
 						null,
 						workspace.readiness.campaignId
 							? 'Resolve the blocked launch-readiness requirements.'
-							: 'Create a campaign draft before checking launch readiness.'
+							: 'Create a wave draft before checking launch readiness.'
 					),
 			detailRows: [
 				{ label: 'Readiness', value: humanizeValue(workspace.readiness.status) },
@@ -1679,7 +1679,7 @@ function toSetupPolicyRow(label: string, policy: CampaignSeriesSetupPolicyRespon
 
 function toSetupCampaignDetailRows(campaign: CampaignSeriesSetupCampaignResponse): DisplayRow[] {
 	return [
-		{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+		{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 		{ label: 'Status', value: humanizeValue(campaign.status) },
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
@@ -1699,7 +1699,7 @@ function toOperationsCampaignDetailRows(
 	campaign: CampaignSeriesOperationsCampaignResponse
 ): DisplayRow[] {
 	return [
-		{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+		{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 		{ label: 'Status', value: humanizeValue(campaign.status) },
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
@@ -1903,7 +1903,7 @@ function toOperationsCollectionStateItem(
 			summary: 'No selected campaign is collecting responses',
 			guidance: 'Create and launch a campaign before collecting responses.',
 			detailRows: [
-				{ label: 'Selected campaign', value: 'Missing' },
+				{ label: 'Selected wave', value: 'Missing' },
 				{ label: 'Status', value: humanizeValue(workspace.summary.collectionStatus) },
 				{ label: 'Collection started', value: 'Not available' },
 				{
@@ -1921,10 +1921,10 @@ function toOperationsCollectionStateItem(
 		label: 'Collection status',
 		status,
 		badgeLabel: sentenceCase(humanizeValue(campaign.status)),
-		summary: `${campaign.name.trim() || 'Untitled campaign'} is ${humanizeValue(campaign.status)}`,
+		summary: `${campaign.name.trim() || 'Untitled wave'} is ${humanizeValue(campaign.status)}`,
 		guidance: campaign.collectionGuidance || workspace.summary.collectionGuidance,
 		detailRows: [
-			{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+			{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 			{ label: 'Status', value: humanizeValue(campaign.status) },
 			{ label: 'Collection started', value: formatCollectionDateTime(campaign.latestLaunchAt) },
 			{
@@ -2175,7 +2175,7 @@ function toReportsResultAvailabilityItem(
 			summary: 'No selected campaign has reportable results.',
 			guidance: 'Submit responses and compute scores before reviewing findings.',
 			detailRows: [
-				{ label: 'Selected campaign', value: 'Missing' },
+				{ label: 'Selected wave', value: 'Missing' },
 				{ label: 'Report status', value: 'blocked' },
 				{
 					label: 'Reportable campaigns',
@@ -2200,11 +2200,11 @@ function toReportsResultAvailabilityItem(
 		label: 'Result availability',
 		status: toProductReadModelBadgeStatus(campaign.reportStatus),
 		badgeLabel: sentenceCase(reportStatus),
-		summary: `${campaign.name.trim() || 'Untitled campaign'} has ${reportStatus} results from ${formatCount(campaign.submittedResponseCount)} submitted responses.`,
+		summary: `${campaign.name.trim() || 'Untitled wave'} has ${reportStatus} results from ${formatCount(campaign.submittedResponseCount)} submitted responses.`,
 		guidance:
 			'Use this as a preview of current findings until scoring coverage, disclosure, and finality are complete.',
 		detailRows: [
-			{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+			{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 			{ label: 'Report status', value: reportStatus },
 			{
 				label: 'Reportable campaigns',
@@ -2408,7 +2408,7 @@ function toReportsCampaignDetailRows(
 	campaign: CampaignSeriesReportsCampaignResponse
 ): DisplayRow[] {
 	return [
-		{ label: 'Selected campaign', value: campaign.name.trim() || 'Untitled campaign' },
+		{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
 		{ label: 'Status', value: humanizeValue(campaign.status) },
 		{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
 		{ label: 'Locale', value: campaign.defaultLocale },
@@ -2575,11 +2575,11 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 				eyebrow: 'Study preparation',
 				emptyState: {
 					title: 'No campaigns yet',
-					message: 'Create a campaign draft before running launch readiness.'
+					message: 'Create a wave draft before running launch readiness.'
 				},
 				proofActionTitle: 'Setup actions',
 				proofActionDescription:
-					'Import the instrument, prepare template and scoring drafts, create a campaign draft, and check launch readiness.'
+					'Choose a questionnaire source, prepare questionnaire and result outputs, create a wave draft, and check launch readiness.'
 			};
 		case 'operations':
 			return {
@@ -2632,7 +2632,7 @@ function toCampaignSeriesCard(item: CampaignSeriesListItemResponse) {
 	const archived = item.archived === true;
 	const ownership = toCampaignSeriesOwnership(item);
 	const lifecycle = toCampaignSeriesLifecycle(item, ownership);
-	const title = item.name.trim() || 'Untitled campaign series';
+	const title = item.name.trim() || 'Untitled wave series';
 	const rows: DisplayRow[] = [
 		{ label: 'Campaigns', value: formatCount(item.campaignCount) },
 		{ label: 'Live campaigns', value: formatCount(item.liveCampaignCount) },
@@ -3169,8 +3169,10 @@ function toProductDisplayCopy(value: string) {
 		.replace(/\bexport artifact\b/g, 'export file')
 		.replace(/\bTemplate version\b/g, 'Questionnaire')
 		.replace(/\btemplate version\b/g, 'questionnaire')
-		.replace(/\bScoring rule\b/g, 'Results setup')
-		.replace(/\bscoring rule\b/g, 'results setup')
+		.replace(/\bScoring rule\b/g, 'Result outputs')
+		.replace(/\bscoring rule\b/g, 'result outputs')
+		.replace(/\bCampaign draft\b/g, 'Wave draft')
+		.replace(/\bcampaign draft\b/g, 'wave draft')
 		.replace(/\bproof-only\b/g, 'preview')
 		.replace(/\bProof-only\b/g, 'Preview')
 		.replace(/\bproof only\b/g, 'preview')
@@ -3385,19 +3387,19 @@ function localizeReadModelString(value: string) {
 			/^(\d+) export (?:file needs|files need) attention\.$/u,
 			(_, count: string) =>
 				count === '1'
-					? '1 izvozna datoteka traži pažnju.'
-					: `${count} izvoznih datoteka traži pažnju.`
+					? '1 izvozna datoteka traÅ¾i paÅ¾nju.'
+					: `${count} izvoznih datoteka traÅ¾i paÅ¾nju.`
 		)
 		.replace(
 			/^(\d+) export (?:file is|files are) still queued or rendering\.$/u,
 			(_, count: string) =>
 				count === '1'
-					? '1 izvozna datoteka još je u redu čekanja ili se izrađuje.'
-					: `${count} izvoznih datoteka još je u redu čekanja ili se izrađuje.`
+					? '1 izvozna datoteka joÅ¡ je u redu Äekanja ili se izraÄ‘uje.'
+					: `${count} izvoznih datoteka joÅ¡ je u redu Äekanja ili se izraÄ‘uje.`
 		)
 		.replace(/^Exports cover (.+)\.$/u, (_, items: string) => {
 			const localizedItems = items
-				.replace(/\bReport summary export\b/gu, 'izvoz sažetka izvještaja')
+				.replace(/\bReport summary export\b/gu, 'izvoz saÅ¾etka izvjeÅ¡taja')
 				.replace(/\bResponse dataset export\b/gu, 'izvoz skupa podataka odgovora')
 				.replace(/\band\b/gu, 'i');
 			return `Izvozi pokrivaju ${localizedItems}.`;
@@ -3410,14 +3412,14 @@ function localizeReadModelString(value: string) {
 		.replace(/^Campaign \/ (.+)$/u, 'Val / $1')
 		.replace(/^(\d+) downloadable$/u, '$1 dostupno za preuzimanje')
 		.replace(/^(\d+) failed$/u, '$1 neuspjelo')
-		.replace(/^(\d+) pending$/u, '$1 na čekanju')
+		.replace(/^(\d+) pending$/u, '$1 na Äekanju')
 		.replace(/^(\d+) purpose$/u, '$1 svrha')
 		.replace(/^(\d+) purposes$/u, '$1 svrhe')
 		.replace(/^(\d+) source$/u, '$1 izvor')
 		.replace(/^(\d+) sources$/u, '$1 izvora')
 		.replace(/^(\d+) file$/u, '$1 datoteka')
 		.replace(/^(\d+) files$/u, '$1 datoteka')
-		.replace(/^(\d+) reportable$/u, '$1 spremno za izvještaj')
+		.replace(/^(\d+) reportable$/u, '$1 spremno za izvjeÅ¡taj')
 		.replace(/^(\d+) visible$/u, '$1 vidljivo')
 		.replace(/^(\d+) submitted$/u, '$1 predano')
 		.replace(/^(\d+) score rows?$/u, '$1 redaka rezultata')
@@ -3427,41 +3429,41 @@ function localizeReadModelString(value: string) {
 const hrReadModelStrings: Record<string, string> = {
 	'Not available': 'Nije dostupno',
 	'Not configured': 'Nije konfigurirano',
-	'No attention items': 'Nema stavki za pažnju',
+	'No attention items': 'Nema stavki za paÅ¾nju',
 	'No files': 'Nema datoteka',
 	'No sources': 'Nema izvora',
 	'No exports': 'Nema izvoza',
-	'No campaigns yet': 'Još nema valova',
-	'No waves yet': 'Još nema valova',
-	'No collection wave yet': 'Još nema vala za prikupljanje',
-	'No reportable campaigns yet': 'Još nema valova za izvještaj',
-	'No campaign operations yet': 'Još nema operacija prikupljanja',
-	'No matching studies': 'Nema odgovarajućih studija',
-	'No studies yet': 'Još nema studija',
+	'No campaigns yet': 'JoÅ¡ nema valova',
+	'No waves yet': 'JoÅ¡ nema valova',
+	'No collection wave yet': 'JoÅ¡ nema vala za prikupljanje',
+	'No reportable campaigns yet': 'JoÅ¡ nema valova za izvjeÅ¡taj',
+	'No campaign operations yet': 'JoÅ¡ nema operacija prikupljanja',
+	'No matching studies': 'Nema odgovarajuÄ‡ih studija',
+	'No studies yet': 'JoÅ¡ nema studija',
 	'No sample studies match this view. Clear filters to inspect examples.':
-		'Nijedna ogledna studija ne odgovara ovom prikazu. Očistite filtre za pregled primjera.',
+		'Nijedna ogledna studija ne odgovara ovom prikazu. OÄistite filtre za pregled primjera.',
 	'No own studies match this view. Clear filters or create your study when you have setup access.':
-		'Nijedna vaša studija ne odgovara ovom prikazu. Očistite filtre ili izradite studiju kada imate pristup postavljanju.',
+		'Nijedna vaÅ¡a studija ne odgovara ovom prikazu. OÄistite filtre ili izradite studiju kada imate pristup postavljanju.',
 	'Create your study when you have setup access, or add sample studies for learning.':
-		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.',
+		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za uÄenje.',
 	'Adjust search, readiness, or visibility filters to show sample or own studies.':
 		'Prilagodite pretragu, spremnost ili vidljivost za prikaz oglednih ili vlastitih studija.',
-	'Create a campaign draft before running launch readiness.':
+	'Create a wave draft before running launch readiness.':
 		'Izradite nacrt vala prije provjere spremnosti za pokretanje.',
 	'Create and launch at least two waves before comparing results over time.':
 		'Izradite i pokrenite najmanje dva vala prije usporedbe rezultata kroz vrijeme.',
-	'Create a campaign draft in setup, then start collection here.':
+	'Create a wave draft in Setup, then start collection here.':
 		'Izradite nacrt vala u postavljanju, zatim ovdje pokrenite prikupljanje.',
 	'Submit responses and compute scores before report previews are available.':
-		'Prikupite odgovore i izračunajte rezultate prije pregleda izvještaja.',
+		'Prikupite odgovore i izraÄunajte rezultate prije pregleda izvjeÅ¡taja.',
 
 	// Common row labels.
 	Slug: 'Slug',
 	Region: 'Regija',
 	'Default locale': 'Zadani jezik',
 	Status: 'Status',
-	Created: 'Izrađeno',
-	Updated: 'Ažurirano',
+	Created: 'IzraÄ‘eno',
+	Updated: 'AÅ¾urirano',
 	Archived: 'Arhivirano',
 	'Archive reason': 'Razlog arhiviranja',
 	'Campaign series': 'Studije',
@@ -3470,7 +3472,7 @@ const hrReadModelStrings: Record<string, string> = {
 	'Submitted responses': 'Predani odgovori',
 	Subjects: 'Ispitanici',
 	'Subject groups': 'Grupe ispitanika',
-	'Tenant members': 'Članovi radnog prostora',
+	'Tenant members': 'ÄŒlanovi radnog prostora',
 	'Tenant roles': 'Uloge radnog prostora',
 	'Export files': 'Izvozne datoteke',
 	Instruments: 'Instrumenti',
@@ -3480,27 +3482,27 @@ const hrReadModelStrings: Record<string, string> = {
 	Validity: 'Valjanost',
 	Downloadable: 'Dostupno za preuzimanje',
 	Failed: 'Neuspjelo',
-	Pending: 'Na čekanju',
-	Surface: 'Površina',
+	Pending: 'Na Äekanju',
+	Surface: 'PovrÅ¡ina',
 	Campaign: 'Val',
 	Scores: 'Rezultati',
 	'Visible scores': 'Vidljivi rezultati',
 	'Suppressed scores': 'Skriveni rezultati',
-	'Missing prerequisites': 'Nedostajući preduvjeti',
-	'Reportable campaigns': 'Valovi spremni za izvještaj',
-	'Preliminary live reports': 'Preliminarni izvještaji u tijeku',
-	'Closed-wave reports': 'Izvještaji zatvorenih valova',
+	'Missing prerequisites': 'NedostajuÄ‡i preduvjeti',
+	'Reportable campaigns': 'Valovi spremni za izvjeÅ¡taj',
+	'Preliminary live reports': 'Preliminarni izvjeÅ¡taji u tijeku',
+	'Closed-wave reports': 'IzvjeÅ¡taji zatvorenih valova',
 	'Respondent links': 'Poveznice za ispitanike',
 	'Queued emails': 'Emailovi u redu',
 	'Sent emails': 'Poslani emailovi',
 	'Failed emails': 'Neuspjeli emailovi',
 	'Suppressed emails': 'Potisnuti emailovi',
-	'Started responses': 'Započeti odgovori',
+	'Started responses': 'ZapoÄeti odgovori',
 	'Draft responses': 'Odgovori u nacrtu',
 	'Latest response activity': 'Zadnja aktivnost odgovora',
-	'Latest started': 'Zadnje započeto',
+	'Latest started': 'Zadnje zapoÄeto',
 	'Latest submitted': 'Zadnje predano',
-	'Identity mode': 'Način identiteta',
+	'Identity mode': 'NaÄin identiteta',
 	Locale: 'Jezik',
 	Questions: 'Pitanja',
 	Template: 'Upitnik',
@@ -3508,35 +3510,35 @@ const hrReadModelStrings: Record<string, string> = {
 	Source: 'Izvor',
 	Policies: 'Pravila',
 	Consent: 'Pristanak',
-	Retention: 'Zadržavanje',
+	Retention: 'ZadrÅ¾avanje',
 	Disclosure: 'Prikaz rezultata',
 	Scoring: 'Bodovanje',
 	'Launch snapshot': 'Zapis pokretanja',
 	'Latest launch': 'Zadnje pokretanje',
 	'Scoring rule': 'Pravilo bodovanja',
 	'Consent document': 'Dokument pristanka',
-	'Retention policy': 'Pravilo zadržavanja',
+	'Retention policy': 'Pravilo zadrÅ¾avanja',
 	'Disclosure policy': 'Pravilo prikaza rezultata',
 	'Disclosure k': 'Prag prikaza',
-	'Report status': 'Status izvještaja',
-	Interpretation: 'Tumačenje',
+	'Report status': 'Status izvjeÅ¡taja',
+	Interpretation: 'TumaÄenje',
 	'Data finality': 'Finalnost podataka',
 	'Latest export': 'Zadnji izvoz',
 	'Latest export file': 'Zadnja izvozna datoteka',
 	'Latest export status': 'Status zadnjeg izvoza',
 	'Latest export record': 'Zadnji zapis izvoza',
-	'Latest export created': 'Zadnji izvoz izrađen',
-	'Latest export completed': 'Zadnji izvoz dovršen',
+	'Latest export created': 'Zadnji izvoz izraÄ‘en',
+	'Latest export completed': 'Zadnji izvoz dovrÅ¡en',
 	'Latest export started': 'Zadnji izvoz pokrenut',
-	'Latest export failed': 'Zadnji izvoz neuspješan',
-	'Latest export expires': 'Zadnji izvoz istječe',
+	'Latest export failed': 'Zadnji izvoz neuspjeÅ¡an',
+	'Latest export expires': 'Zadnji izvoz istjeÄe',
 	'Latest export deleted': 'Zadnji izvoz obrisan',
 	'Latest export failure reason': 'Razlog neuspjeha zadnjeg izvoza',
 	'Latest export downloadable': 'Zadnji izvoz dostupan za preuzimanje',
-	'Selected campaign': 'Odabrani val',
+	'Selected wave': 'Odabrani val',
 	'Campaign status': 'Status vala',
 	'Frozen locale': 'Zamrznuti jezik',
-	'Response mode': 'Način odgovora',
+	'Response mode': 'NaÄin odgovora',
 	'Wave state': 'Stanje vala',
 	'Linked trajectories': 'Povezane putanje',
 	'Longitudinal waves': 'Longitudinalni valovi',
@@ -3548,9 +3550,9 @@ const hrReadModelStrings: Record<string, string> = {
 	'Preliminary live waves': 'Preliminarni valovi u tijeku',
 	'Closed waves': 'Zatvoreni valovi',
 	'Blocked comparisons': 'Blokirane usporedbe',
-	'Baseline wave': 'Početni val',
+	'Baseline wave': 'PoÄetni val',
 	'Comparison wave': 'Usporedni val',
-	'Baseline finality': 'Finalnost početnog vala',
+	'Baseline finality': 'Finalnost poÄetnog vala',
 	'Comparison finality': 'Finalnost usporednog vala',
 	'Comparison status': 'Status usporedbe',
 	Compatibility: 'Kompatibilnost',
@@ -3560,7 +3562,7 @@ const hrReadModelStrings: Record<string, string> = {
 	// Surface labels and descriptions.
 	'Study overview': 'Pregled studije',
 	'Study reference': 'Referenca studije',
-	'Study lifecycle': 'Životni ciklus studije',
+	'Study lifecycle': 'Å½ivotni ciklus studije',
 	'Prepare study': 'Priprema studije',
 	'Study preparation': 'Priprema studije',
 	'Setup reference': 'Referenca postavljanja',
@@ -3572,31 +3574,31 @@ const hrReadModelStrings: Record<string, string> = {
 	'Results reference': 'Referenca rezultata',
 	'Compare waves': 'Usporedba valova',
 	'Wave comparison': 'Usporedba valova',
-	'Use exports': 'Korištenje izvoza',
-	'Study support': 'Podrška studiji',
+	'Use exports': 'KoriÅ¡tenje izvoza',
+	'Study support': 'PodrÅ¡ka studiji',
 	'Export reference': 'Referenca izvoza',
 	'Use this overview to prepare, collect, review results, and compare waves for the selected study.':
 		'Ovaj pregled koristite za pripremu, prikupljanje, pregled rezultata i usporedbu valova odabrane studije.',
 	'Detailed records, governance status, and wave rows for this selected study.':
 		'Detaljni zapisi, status pravila i redci valova za ovu odabranu studiju.',
 	'Move through this study from preparation to collection, results, and waves.':
-		'Krećite se kroz studiju od pripreme do prikupljanja, rezultata i valova.',
+		'KreÄ‡ite se kroz studiju od pripreme do prikupljanja, rezultata i valova.',
 	'Prepare this study for collection by completing setup tasks and launch-readiness checks.':
-		'Pripremite studiju za prikupljanje dovršavanjem postavljanja i provjera spremnosti.',
+		'Pripremite studiju za prikupljanje dovrÅ¡avanjem postavljanja i provjera spremnosti.',
 	'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.':
-		'Detaljni zapisi postavljanja, status pravila, polja odabranog vala i bilješke provjere pokretanja ostaju ovdje za pregled.',
+		'Detaljni zapisi postavljanja, status pravila, polja odabranog vala i biljeÅ¡ke provjere pokretanja ostaju ovdje za pregled.',
 	'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.':
-		'Pokrenite odabrani val, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada završi.',
+		'Pokrenite odabrani val, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada zavrÅ¡i.',
 	'Launch records, prerequisite checks, and selected wave details stay here for review.':
 		'Zapisi pokretanja, provjere preduvjeta i detalji odabranog vala ostaju ovdje za pregled.',
 	'Review result availability, coverage, limitations, and export next use for the selected campaign.':
-		'Pregledajte dostupnost rezultata, pokrivenost, ograničenja i sljedeću upotrebu izvoza za odabrani val.',
+		'Pregledajte dostupnost rezultata, pokrivenost, ograniÄenja i sljedeÄ‡u upotrebu izvoza za odabrani val.',
 	'Selected wave details, limitations, prerequisite checks, and export records stay here for review.':
-		'Detalji odabranog vala, ograničenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
+		'Detalji odabranog vala, ograniÄenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
 	'Find generated CSV/codebook files by purpose, readiness, source study, and next use.':
-		'Pronađite generirane CSV/šifrarnik datoteke prema svrsi, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
+		'PronaÄ‘ite generirane CSV/Å¡ifrarnik datoteke prema svrsi, spremnosti, izvornoj studiji i sljedeÄ‡oj upotrebi.',
 	'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.':
-		'Metapodaci datoteka, vremenske oznake, kodovi grešaka i dostupnost preuzimanja ostaju dostupni za audit i rješavanje problema.',
+		'Metapodaci datoteka, vremenske oznake, kodovi greÅ¡aka i dostupnost preuzimanja ostaju dostupni za audit i rjeÅ¡avanje problema.',
 
 	// Actions and lifecycle.
 	Prepare: 'Priprema',
@@ -3607,15 +3609,15 @@ const hrReadModelStrings: Record<string, string> = {
 	'Build the questionnaire, results setup, policies, wave, and launch check.':
 		'Izradite upitnik, postavke rezultata, pravila, val i provjeru pokretanja.',
 	'Start the wave, share access, send invitations, and monitor submissions.':
-		'Pokrenite val, podijelite pristup, pošaljite pozive i pratite predaje.',
+		'Pokrenite val, podijelite pristup, poÅ¡aljite pozive i pratite predaje.',
 	'Review findings, limitations, and export files after responses are ready.':
-		'Pregledajte nalaze, ograničenja i izvozne datoteke nakon što su odgovori spremni.',
+		'Pregledajte nalaze, ograniÄenja i izvozne datoteke nakon Å¡to su odgovori spremni.',
 	'Inspect coverage, findings, limitations, and comparisons.':
-		'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
+		'Pregledajte pokrivenost, nalaze, ograniÄenja i usporedbe.',
 	'Use generated CSV and codebook files for analysis.':
-		'Koristite generirane CSV i šifrarnik datoteke za analizu.',
+		'Koristite generirane CSV i Å¡ifrarnik datoteke za analizu.',
 	'Create follow-up waves and compare results across collection rounds.':
-		'Izradite sljedeće valove i usporedite rezultate kroz krugove prikupljanja.',
+		'Izradite sljedeÄ‡e valove i usporedite rezultate kroz krugove prikupljanja.',
 	'Setup actions': 'Radnje postavljanja',
 	'Preparation actions': 'Radnje pripreme',
 	'Collection actions': 'Radnje prikupljanja',
@@ -3636,9 +3638,9 @@ const hrReadModelStrings: Record<string, string> = {
 
 	// Ownership and grouping.
 	'Sample study': 'Ogledna studija',
-	'Your study': 'Vaša studija',
+	'Your study': 'VaÅ¡a studija',
 	'Sample studies': 'Ogledne studije',
-	'Your studies': 'Vaše studije',
+	'Your studies': 'VaÅ¡e studije',
 	'Needs setup': 'Treba postavljanje',
 	'In collection': 'U prikupljanju',
 	'Results ready': 'Rezultati spremni',
@@ -3649,80 +3651,80 @@ const hrReadModelStrings: Record<string, string> = {
 	'Studies with submitted responses ready for review.':
 		'Studije s predanim odgovorima spremnima za pregled.',
 	'Studies kept for reference after active work ended.':
-		'Studije zadržane kao referenca nakon završetka aktivnog rada.',
-	'Studies available for normal inspection.': 'Studije dostupne za uobičajeni pregled.',
+		'Studije zadrÅ¾ane kao referenca nakon zavrÅ¡etka aktivnog rada.',
+	'Studies available for normal inspection.': 'Studije dostupne za uobiÄajeni pregled.',
 	'Read-only examples you can inspect before creating your own study.':
-		'Primjeri samo za čitanje koje možete pregledati prije izrade vlastite studije.',
+		'Primjeri samo za Äitanje koje moÅ¾ete pregledati prije izrade vlastite studije.',
 	'Editable studies owned by this workspace.':
-		'Uredivi zapisi studija u vlasništvu ovog radnog prostora.',
+		'Uredivi zapisi studija u vlasniÅ¡tvu ovog radnog prostora.',
 	'Setup sample: read-only starter content showing study preparation before launch.':
-		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje pripremu studije prije pokretanja.',
+		'Ogledni primjer postavljanja: sadrÅ¾aj samo za Äitanje koji prikazuje pripremu studije prije pokretanja.',
 	'Setup sample: read-only starter content showing blocked preparation before launch.':
-		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje blokiranu pripremu prije pokretanja.',
+		'Ogledni primjer postavljanja: sadrÅ¾aj samo za Äitanje koji prikazuje blokiranu pripremu prije pokretanja.',
 	'Collection sample: read-only starter content showing live or partial response collection.':
-		'Ogledni primjer prikupljanja: sadržaj samo za čitanje koji prikazuje aktivno ili djelomično prikupljanje odgovora.',
+		'Ogledni primjer prikupljanja: sadrÅ¾aj samo za Äitanje koji prikazuje aktivno ili djelomiÄno prikupljanje odgovora.',
 	'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.':
-		'Longitudinalni ogledni primjer: sadržaj samo za čitanje koji prikazuje ponovljene valove i pregled povezanih putanja.',
+		'Longitudinalni ogledni primjer: sadrÅ¾aj samo za Äitanje koji prikazuje ponovljene valove i pregled povezanih putanja.',
 	'Results sample: read-only starter content showing collected responses, scores, reports, and exports.':
-		'Ogledni primjer rezultata: sadržaj samo za čitanje koji prikazuje prikupljene odgovore, rezultate, izvještaje i izvoze.',
+		'Ogledni primjer rezultata: sadrÅ¾aj samo za Äitanje koji prikazuje prikupljene odgovore, rezultate, izvjeÅ¡taje i izvoze.',
 	'Sample study: read-only starter content you can inspect before duplicating.':
-		'Ogledna studija: sadržaj samo za čitanje koji možete pregledati prije dupliciranja.',
+		'Ogledna studija: sadrÅ¾aj samo za Äitanje koji moÅ¾ete pregledati prije dupliciranja.',
 
 	// Filters/options.
 	'All readiness': 'Sva spremnost',
 	Preview: 'Pregled',
 	'Latest activity': 'Zadnja aktivnost',
-	'Recently updated': 'Nedavno ažurirano',
-	'Recently created': 'Nedavno izrađeno',
+	'Recently updated': 'Nedavno aÅ¾urirano',
+	'Recently created': 'Nedavno izraÄ‘eno',
 	'Name A-Z': 'Naziv A-Z',
 	Active: 'Aktivno',
 	'All visibility': 'Sva vidljivost',
 
 	// Export library.
 	'Downloadable files': 'Datoteke za preuzimanje',
-	'Needs attention': 'Treba pažnju',
+	'Needs attention': 'Treba paÅ¾nju',
 	'File purpose': 'Svrha datoteke',
-	'Study context and next use': 'Kontekst studije i sljedeća upotreba',
+	'Study context and next use': 'Kontekst studije i sljedeÄ‡a upotreba',
 	'No export files are ready to download yet.':
-		'Još nema izvoznih datoteka spremnih za preuzimanje.',
+		'JoÅ¡ nema izvoznih datoteka spremnih za preuzimanje.',
 	'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.':
-		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
+		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze saÅ¾etka izvjeÅ¡taja koristite za pregledne pakete, saÅ¾etke za klijente ili provjere Å¡ifrarnika.',
 	'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.':
-		'Datoteke sažetka izvještaja dostupne su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup podataka odgovora spreman za analizu još nije dostupan.',
+		'Datoteke saÅ¾etka izvjeÅ¡taja dostupne su za pregledne pakete, saÅ¾etke za klijente ili provjere Å¡ifrarnika. Skup podataka odgovora spreman za analizu joÅ¡ nije dostupan.',
 	'Create an export from a study results page after results are available.':
-		'Izradite izvoz na stranici Rezultata studije nakon što rezultati budu dostupni.',
-	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.',
+		'Izradite izvoz na stranici Rezultata studije nakon Å¡to rezultati budu dostupni.',
+	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na Äekanju.',
 	'Review the failed export file, then recreate it from the source study after the cause is resolved.':
-		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon što se uzrok riješi.',
+		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon Å¡to se uzrok rijeÅ¡i.',
 	'Wait for generation to finish before using the export file for handoff.':
-		'Pričekajte da izrada završi prije korištenja izvozne datoteke za predaju.',
+		'PriÄekajte da izrada zavrÅ¡i prije koriÅ¡tenja izvozne datoteke za predaju.',
 	'New export issues will appear here when generation fails or remains pending.':
-		'Novi problemi s izvozom pojavit će se ovdje kada izrada ne uspije ili ostane na čekanju.',
+		'Novi problemi s izvozom pojavit Ä‡e se ovdje kada izrada ne uspije ili ostane na Äekanju.',
 	'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.':
-		'Odaberite izvoze sažetka izvještaja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa šifrarnikom.',
+		'Odaberite izvoze saÅ¾etka izvjeÅ¡taja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa Å¡ifrarnikom.',
 	'No generated export purposes are available yet.':
-		'Još nema dostupnih svrha generiranih izvoza.',
+		'JoÅ¡ nema dostupnih svrha generiranih izvoza.',
 	'Create report summary or response dataset exports from a study when results are ready.':
-		'Izradite izvoz sažetka izvještaja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
+		'Izradite izvoz saÅ¾etka izvjeÅ¡taja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
 	'No export files are tied to a study yet.':
-		'Još nema izvoznih datoteka povezanih sa studijom.',
+		'JoÅ¡ nema izvoznih datoteka povezanih sa studijom.',
 	'Open the source study or report context when you need to understand how an export file was generated.':
-		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvozna datoteka izrađena.',
+		'Otvorite izvornu studiju ili kontekst izvjeÅ¡taja kada trebate razumjeti kako je izvozna datoteka izraÄ‘ena.',
 	'Generated export files will link back to their study or report context when that context is available.':
-		'Generirane izvozne datoteke povezivat će se natrag na studiju ili kontekst izvještaja kada taj kontekst bude dostupan.',
+		'Generirane izvozne datoteke povezivat Ä‡e se natrag na studiju ili kontekst izvjeÅ¡taja kada taj kontekst bude dostupan.',
 	'Use this export for report handoff, summary review, or codebook checks.':
-		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
+		'Koristite ovaj izvoz za predaju izvjeÅ¡taja, pregled saÅ¾etka ili provjere Å¡ifrarnika.',
 	'Use this export for response-level analysis with the generated codebook.':
-		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
+		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim Å¡ifrarnikom.',
 	'Use this export with its source context and generated codebook.':
-		'Koristite ovaj izvoz s izvornim kontekstom i generiranim šifrarnikom.',
-	'Report-summary exports': 'Izvozi sažetka izvještaja',
-	'Report summary exports': 'Izvozi sažetka izvještaja',
+		'Koristite ovaj izvoz s izvornim kontekstom i generiranim Å¡ifrarnikom.',
+	'Report-summary exports': 'Izvozi saÅ¾etka izvjeÅ¡taja',
+	'Report summary exports': 'Izvozi saÅ¾etka izvjeÅ¡taja',
 	'Response datasets': 'Skupovi podataka odgovora',
 	'Response dataset exports': 'Izvozi skupa podataka odgovora',
 	'Campaign files': 'Datoteke valova',
 	'Study files': 'Datoteke studije',
-	'Report summary export': 'Izvoz sažetka izvještaja',
+	'Report summary export': 'Izvoz saÅ¾etka izvjeÅ¡taja',
 	'Response dataset export': 'Izvoz skupa podataka odgovora',
 	'Closed wave': 'Zatvoreni val',
 	'Not tied to a closed wave': 'Nije vezano uz zatvoreni val',
@@ -3730,14 +3732,14 @@ const hrReadModelStrings: Record<string, string> = {
 	'File type': 'Vrsta datoteke',
 	Format: 'Format',
 	Rows: 'Redci',
-	Size: 'Veličina',
-	Completed: 'Dovršeno',
+	Size: 'VeliÄina',
+	Completed: 'DovrÅ¡eno',
 	Download: 'Preuzimanje',
 	Available: 'Dostupno',
-	Failure: 'Greška',
-	'Report summary CSV and codebook': 'CSV i šifrarnik sažetka izvještaja',
-	'Response dataset CSV and codebook': 'CSV i šifrarnik skupa odgovora',
-	'Csv codebook': 'CSV šifrarnik',
+	Failure: 'GreÅ¡ka',
+	'Report summary CSV and codebook': 'CSV i Å¡ifrarnik saÅ¾etka izvjeÅ¡taja',
+	'Response dataset CSV and codebook': 'CSV i Å¡ifrarnik skupa odgovora',
+	'Csv codebook': 'CSV Å¡ifrarnik',
 	Succeeded: 'Uspjelo',
 
 	// Common values.
@@ -3759,14 +3761,14 @@ const hrReadModelStrings: Record<string, string> = {
 	wave: 'val',
 	'closed wave': 'zatvoreni val',
 	'preliminary live': 'preliminarno u tijeku',
-	'not reportable': 'nije spremno za izvještaj',
-	'not validated interpretation': 'tumačenje nije potvrđeno',
+	'not reportable': 'nije spremno za izvjeÅ¡taj',
+	'not validated interpretation': 'tumaÄenje nije potvrÄ‘eno',
 	'tenant attested': 'potvrdio radni prostor',
 	'tenant defined': 'definirao radni prostor',
 	'not reviewed': 'nije pregledano',
-	'not official': 'nije službeno',
+	'not official': 'nije sluÅ¾beno',
 	reviewed: 'pregledano',
-	official: 'službeno',
+	official: 'sluÅ¾beno',
 	Yes: 'Da',
 	No: 'Ne'
 };

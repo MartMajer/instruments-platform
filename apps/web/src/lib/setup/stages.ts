@@ -16,32 +16,32 @@ export type SetupStage = {
 export const setupStages: SetupStage[] = [
 	{
 		href: '/#instrument',
-		label: 'Instrument',
-		description: 'Tenant-provided source, provenance, and rights attestation.',
+		label: 'Questionnaire source',
+		description: 'Reusable or imported source material that seeds the questionnaire.',
 		status: 'ready'
 	},
 	{
 		href: '/#template',
-		label: 'Template',
-		description: 'Sections, questions, scale choices, and version metadata.',
+		label: 'Questionnaire',
+		description: 'Sections, questions, answer formats, and respondent wording.',
 		status: 'ready'
 	},
 	{
 		href: '/#scoring',
-		label: 'Scoring',
-		description: 'Draft scoring rule document bound to the template version.',
+		label: 'Result outputs',
+		description: 'Scores, dimensions, export columns, and missing-answer rules.',
 		status: 'ready'
 	},
 	{
 		href: '/#campaign',
-		label: 'Campaign',
-		description: 'Series, wave, identity mode, audience, and draft launch window.',
+		label: 'Wave',
+		description: 'One collection round with response mode, recipients, and launch window.',
 		status: 'ready'
 	},
 	{
 		href: '/#launch-readiness',
-		label: 'Launch readiness',
-		description: 'Diagnostics before a tenant-provided campaign can move toward launch.',
+		label: 'Launch check',
+		description: 'Diagnostics before the wave can move into collection.',
 		status: 'ready'
 	}
 ];

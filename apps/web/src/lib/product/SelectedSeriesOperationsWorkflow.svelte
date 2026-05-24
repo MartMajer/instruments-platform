@@ -1096,9 +1096,9 @@
 
 		if (code.startsWith('scoring_rule.') || normalized.includes('scoring')) {
 			return {
-				title: 'Finish Results setup',
+				title: 'Finish result outputs',
 				detail:
-					'Open Setup and save the Results setup step so reports know which answers become scores.',
+					'Open Setup and save result outputs so reports know which answers become scores.',
 				severity: issue.severity
 			};
 		}

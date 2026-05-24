@@ -17,11 +17,22 @@ describe('public entry chrome', () => {
 
 	it('keeps compact public navigation labels from wrapping awkwardly', () => {
 		expect(appCss).toMatch(/\.public-nav__links a[\s\S]*white-space:\s*nowrap/);
+		expect(appCss).toMatch(/\.public-nav__actions[\s\S]*flex-wrap:\s*nowrap/);
+		expect(appCss).toMatch(/\.public-language-switcher[\s\S]*white-space:\s*nowrap/);
 		expect(appCss).toMatch(/\.launchpad-brand strong,[\s\S]*white-space:\s*nowrap/);
 		expect(appCss).toMatch(/\.launchpad-button[\s\S]*white-space:\s*nowrap/);
 	});
 
 	it('keeps hardcoded homepage preview text out of internal product jargon', () => {
 		expect(homePage).not.toMatch(/tenant profile|private beta|Private response|owner-controlled/i);
+	});
+
+	it('offers locale switching without a visible mobile menu text button', () => {
+		expect(homePage).toContain("import { appLocaleFromPageData, localizedHref }");
+		expect(homePage).toContain("localizedHref(page.url, 'en')");
+		expect(homePage).toContain("localizedHref(page.url, 'hr-HR')");
+		expect(homePage).toContain('class="public-language-switcher"');
+		expect(homePage).toContain('class="public-nav__menu-icon"');
+		expect(homePage).not.toMatch(/<button[\s\S]*>\s*\{text\.publicEntry\.menu\}\s*<\/button>/);
 	});
 });

@@ -1473,7 +1473,7 @@ test('renders product surfaces read-only without setup management permission', a
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 	await expect(page.getByRole('region', { name: 'Collection reference' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Launch campaign' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Start collection' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Create open link' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Process local delivery' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Remediate missing scores' })).toHaveCount(0);
@@ -3121,7 +3121,7 @@ test('operations workflow exposes one current operations task for a draft campai
 		'Launch readiness'
 	);
 	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Launch campaign' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Start collection' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Create open link' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Queue email invitations' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Process local delivery' })).toHaveCount(0);
@@ -3375,11 +3375,11 @@ test('operations workflow runs primary actions against the selected campaign', a
 	const currentTask = workflow.getByRole('region', { name: 'Current collection task' });
 	await expect(workflow).toBeVisible();
 	await expect(currentTask).toContainText('Launch readiness');
-	await expect(workflow.getByRole('button', { name: 'Launch campaign' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Start collection' })).toHaveCount(0);
 	await workflow.getByRole('button', { name: 'Check launch readiness' }).click();
-	await expect(currentTask).toContainText('Launch campaign');
-	await expect(workflow.getByRole('button', { name: 'Launch campaign' })).toBeEnabled();
-	await workflow.getByRole('button', { name: 'Launch campaign' }).click();
+	await expect(currentTask).toContainText('Start collection');
+	await expect(workflow.getByRole('button', { name: 'Start collection' })).toBeEnabled();
+	await workflow.getByRole('button', { name: 'Start collection' }).click();
 	await expect(currentTask).toContainText('Open-link entry');
 	const openLinkButton = workflow.getByRole('button', { name: 'Create open link' });
 	await expect(openLinkButton).toBeEnabled();
@@ -4655,7 +4655,7 @@ test('setup route leads with a study preparation checklist before setup referenc
 	await expect(preparation.getByText('Instrument and template', { exact: true })).toBeVisible();
 	await expect(preparation.getByText('Scoring', { exact: true })).toBeVisible();
 	await expect(preparation.getByText('Policies', { exact: true })).toBeVisible();
-	await expect(preparation.getByText('Campaign draft', { exact: true })).toBeVisible();
+	await expect(preparation.getByText('Wave draft', { exact: true })).toBeVisible();
 	await expect(preparation.getByText('Launch readiness', { exact: true })).toBeVisible();
 	await expect(
 		preparation
@@ -4786,9 +4786,9 @@ test('setup workflow exposes one current setup task for an empty series', async 
 		'Instrument import'
 	);
 	await expect(workflow.getByRole('button', { name: 'Create instrument import' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Create template version' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Create scoring rule' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Create campaign draft' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Save questionnaire' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Save result outputs' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Create wave draft' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toHaveCount(0);
 	await expect(workflow.getByText('Generated setup defaults', { exact: true })).toBeVisible();
 });
@@ -4918,7 +4918,7 @@ test('setup template authoring edits question rows and generated scoring default
 	});
 	expect(templateBodies[0].questions.map((question) => question.code)).not.toContain('q02');
 
-	await expect(workflow).toContainText('Results setup');
+	await expect(workflow).toContainText('Result outputs');
 	await workflow.getByRole('button', { name: 'Add result output' }).click();
 	const recoveryOutput = workflow
 		.getByText('Result 2', { exact: true })
@@ -5176,8 +5176,8 @@ test('setup workflow creates a campaign draft from setup-workspace state and ref
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	await expect(setup.getByRole('button', { name: 'Create campaign draft' })).toBeEnabled();
-	await setup.getByRole('button', { name: 'Create campaign draft' }).click();
+	await expect(setup.getByRole('button', { name: 'Save collection wave' })).toBeEnabled();
+	await setup.getByRole('button', { name: 'Save collection wave' }).click();
 
 	await expect.poll(() => campaignCreates).toHaveLength(1);
 	expect(campaignCreates[0]).toMatchObject({
@@ -5251,7 +5251,7 @@ test('anchors selected-series campaign draft creation to the route series', asyn
 	});
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
-	await page.getByRole('button', { name: 'Create campaign draft' }).click();
+	await page.getByRole('button', { name: 'Create wave draft' }).click();
 
 	expect(unexpectedSeriesCreates).toBe(0);
 	await expect.poll(() => campaignCreates).toHaveLength(1);

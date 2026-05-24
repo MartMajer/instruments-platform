@@ -11,9 +11,9 @@ test('places setup workflow actions on the setup surface', async ({ page }) => {
 
 	await expect(page.getByRole('region', { name: 'Setup workspace' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create instrument import' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Create template version' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Create scoring rule' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Create campaign draft' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save questionnaire' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save result outputs' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Create wave draft' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Check launch readiness' })).toBeVisible();
 });
 
@@ -21,7 +21,7 @@ test('places launch and delivery actions on the operations surface', async ({ pa
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
 	await expect(page.getByRole('region', { name: 'Campaign operations' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Launch campaign' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Launch wave' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create open link' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Queue email invitations' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Process local delivery' })).toBeVisible();

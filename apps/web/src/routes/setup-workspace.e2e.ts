@@ -640,20 +640,20 @@ test('creates a setup draft through GF05 endpoints', async ({ page }) => {
 	await expect(page.getByRole('region', { name: 'Existing tenant instruments' })).toBeVisible();
 	await expect(page.getByText('Latest')).toBeVisible();
 
-	await page.getByRole('button', { name: 'Create template version' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
 	await expect(page.getByText(templateVersionId)).toBeVisible();
 
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await expect(page.getByText(scoringRuleId)).toBeVisible();
 
-	await page.getByRole('button', { name: 'Create campaign draft' }).click();
+	await page.getByRole('button', { name: 'Create wave draft' }).click();
 	await expect(page.getByText(campaignId)).toBeVisible();
 
 	const launchReadinessRegion = page.getByRole('region', { name: 'Launch readiness' });
 	await page.getByRole('button', { name: 'Check launch readiness' }).click();
 	await expect(launchReadinessRegion.getByText(/Ready:/)).toBeVisible();
 	await expect(launchReadinessRegion.getByText('yes', { exact: true })).toBeVisible();
-	await page.getByRole('button', { name: 'Launch campaign' }).click();
+	await page.getByRole('button', { name: 'Launch wave' }).click();
 	await expect(launchReadinessRegion.getByText('live', { exact: true })).toBeVisible();
 	await expect(page.getByText(launchSnapshotId)).toBeVisible();
 	await page.getByRole('button', { name: 'Create open link' }).click();
@@ -755,8 +755,8 @@ test('submits a response lab answer through R01 endpoints', async ({ page }) => 
 
 	await page.goto(proofLabPath);
 	await page.getByRole('button', { name: 'Create instrument import' }).click();
-	await page.getByRole('button', { name: 'Create template version' }).click();
-	await page.getByRole('button', { name: 'Create campaign draft' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
+	await page.getByRole('button', { name: 'Create wave draft' }).click();
 
 	await page.getByRole('button', { name: 'Load response lab' }).click();
 	await expect(page.getByText('After work, I need time to recover mentally.')).toBeVisible();
@@ -907,8 +907,8 @@ test('creates a two-wave anonymous longitudinal proof setup', async ({ page }) =
 	});
 
 	await page.goto(proofLabPath);
-	await page.getByRole('button', { name: 'Create template version' }).click();
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await page.getByRole('button', { name: 'Create two-wave proof' }).click();
 
 	const panel = page.getByRole('region', { name: 'Two-wave proof' });
@@ -1007,8 +1007,8 @@ test('shows wave comparison proof for a two-wave setup', async ({ page }) => {
 	});
 
 	await page.goto(proofLabPath);
-	await page.getByRole('button', { name: 'Create template version' }).click();
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await page.getByRole('button', { name: 'Create two-wave proof' }).click();
 	await page.getByRole('button', { name: 'View wave comparison proof' }).click();
 
@@ -1101,8 +1101,8 @@ test('clears stale two-wave anonymous longitudinal proof when setup is regenerat
 	});
 
 	await page.goto(proofLabPath);
-	await page.getByRole('button', { name: 'Create template version' }).click();
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await page.getByRole('button', { name: 'Create two-wave proof' }).click();
 
 	const panel = page.getByRole('region', { name: 'Two-wave proof' });
@@ -1115,13 +1115,13 @@ test('clears stale two-wave anonymous longitudinal proof when setup is regenerat
 	await expect(panel.locator('.step-pill')).toContainText('Failed');
 	await expect(panel.locator('.error-line')).toBeVisible();
 
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await expect(panel.locator('.step-pill')).toContainText('Ready');
 	await expect(panel.locator('.error-line')).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Create two-wave proof' }).click();
 	await expect(panel.getByText(wave1CampaignId)).toBeVisible();
-	await page.getByRole('button', { name: 'Create scoring rule' }).click();
+	await page.getByRole('button', { name: 'Save result outputs' }).click();
 	await expect(panel.getByText(wave1CampaignId)).toHaveCount(0);
 	await expect(panel.getByText(`/r/${wave1OpenLinkToken}`)).toHaveCount(0);
 	await expect(panel.locator('.step-pill')).toContainText('Ready');
@@ -1129,7 +1129,7 @@ test('clears stale two-wave anonymous longitudinal proof when setup is regenerat
 
 	await page.getByRole('button', { name: 'Create two-wave proof' }).click();
 	await expect(panel.getByText(wave1CampaignId)).toBeVisible();
-	await page.getByRole('button', { name: 'Create template version' }).click();
+	await page.getByRole('button', { name: 'Save questionnaire' }).click();
 	await expect(panel.getByText(wave1CampaignId)).toHaveCount(0);
 	await expect(panel.getByText(`/r/${wave1OpenLinkToken}`)).toHaveCount(0);
 	await expect(panel.locator('.step-pill')).toContainText('Ready');

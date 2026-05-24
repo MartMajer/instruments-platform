@@ -458,35 +458,33 @@ describe('product view models', () => {
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
 			{ value: 'not_configured', label: 'Nije konfigurirano' },
-			{ value: 'pending', label: 'Na čekanju' },
+			{ value: 'pending', label: 'Na Äekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
 		expect(listView.items[0].rows).toContainEqual({ label: 'Valovi', value: '2' });
-		expect(listView.items[0].ownership.label).toBe('Vaša studija');
+		expect(listView.items[0].ownership.label).toBe('VaÅ¡a studija');
 		expect(listView.items[0].archiveActionLabel).toBe('Arhiviraj');
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
-		expect(hubView.rows[0].label).toBe('Izrađeno');
-		expect(hubView.studyModel.title).toBe('Model studije');
-		expect(hubView.studyModel.items[0].label).toBe('Spremnik studije');
-		expect(hubView.studyModel.items[0].summary).toContain(
-			'To nije višekratni izvor upitnika.'
-		);
+		expect(hubView.rows[0].label).toBe('IzraÄ‘eno');
+		expect(hubView.studyModel.title).toBe('Što ova studija sadrži');
+		expect(hubView.studyModel.items[0].label).toBe('Studija');
+		expect(hubView.studyModel.items[0].summary).toContain('To nije upitnik ni instrument.');
 		expect(hubView.governanceRows[0]).toEqual({
 			label: 'Pristanak',
 			value: 'pregled',
 			status: 'proof_only'
 		});
-		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
+		expect(hubView.lifecycleMap.title).toBe('Å½ivotni ciklus studije');
 		expect(hubView.campaignRows[0].rows).toContainEqual({
-			label: 'Način identiteta',
+			label: 'NaÄin identiteta',
 			value: 'anonimno longitudinalno'
 		});
 
 		expect(setupView.surfaceLabel).toBe('Priprema studije');
 		expect(setupView.summaryRows).toContainEqual({
-			label: 'Nedostajući preduvjeti',
+			label: 'NedostajuÄ‡i preduvjeti',
 			value: '1'
 		});
 	});
@@ -847,33 +845,33 @@ describe('product view models', () => {
 		expect(view.surfaceTitle).toBe('Study overview');
 		expect(view.referenceTitle).toBe('Study reference');
 		expect(view.studyModel).toEqual({
-			title: 'Study model',
+			title: 'What this study contains',
 			description:
-				'A study is the workspace container. Setup defines the questionnaire and result rules; collection waves gather answers; Results, Waves, and Exports reuse those saved records.',
+				'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
 			items: [
 				{
 					id: 'study_container',
-					label: 'Study container',
+					label: 'Study',
 					status: 'ready',
 					badgeLabel: 'Saved',
 					summary:
-						'Quarterly burnout pulse holds setup, collection waves, results, and exports. It is not a reusable questionnaire source.',
+						'Quarterly burnout pulse holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.',
 					guidance:
 						'Open Setup when you need to change what respondents answer or how results are prepared.',
 					detailRows: [
-						{ label: 'Campaigns', value: '2' },
-						{ label: 'Live campaigns', value: '1' },
+						{ label: 'Waves', value: '2' },
+						{ label: 'Live waves', value: '1' },
 						{ label: 'Submitted responses', value: '31' },
 						{ label: 'Export files', value: '3' }
 					]
 				},
 				{
 					id: 'questionnaire_results',
-					label: 'Questionnaire and results setup',
+					label: 'Questionnaire and result outputs',
 					status: 'ready',
 					badgeLabel: 'Ready',
 					summary:
-						'Questionnaire, result rules, policies, recipients, and launch checks are prepared in Setup.',
+						'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
 					guidance: 'Governance prerequisites are configured for this series.',
 					detailRows: [
 						{ label: 'Consent', value: 'preview', status: 'proof_only' },
@@ -890,8 +888,8 @@ describe('product view models', () => {
 					summary: '2 collection waves exist; 1 is live.',
 					guidance: 'Collection is live, but no submitted responses are available yet.',
 					detailRows: [
-						{ label: 'Campaigns', value: '2' },
-						{ label: 'Live campaigns', value: '1' }
+						{ label: 'Waves', value: '2' },
+						{ label: 'Live waves', value: '1' }
 					]
 				},
 				{
@@ -1093,7 +1091,7 @@ describe('product view models', () => {
 			}
 		]);
 		expect(view.selectedCampaignRows).toEqual([
-			{ label: 'Selected campaign', value: 'Wave 1' },
+			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'draft' },
 			{ label: 'Identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Locale', value: 'en' },
@@ -1144,7 +1142,7 @@ describe('product view models', () => {
 				status: 'ready',
 				badgeLabel: 'Ready',
 				summary: 'Tenant burnout pulse template / draft / 5 questions',
-				guidance: 'Template is available for campaign drafts.',
+				guidance: 'Questionnaire is available for wave drafts.',
 				detailRows: [
 					{ label: 'Template', value: 'Tenant burnout pulse template' },
 					{ label: 'Questions', value: '5' }
@@ -1156,7 +1154,7 @@ describe('product view models', () => {
 				status: 'ready',
 				badgeLabel: 'Ready',
 				summary: 'burnout.total / draft',
-				guidance: 'Results setup is available for launch-readiness checks.',
+				guidance: 'Result outputs are available for launch-readiness checks.',
 				detailRows: [
 					{ label: 'Rule', value: 'burnout.total', mono: true }
 				]
@@ -1176,13 +1174,13 @@ describe('product view models', () => {
 			},
 			{
 				id: 'campaign',
-				label: 'Campaign draft',
+				label: 'Wave draft',
 				status: 'ready',
 				badgeLabel: 'Ready',
 				summary: 'Wave 1 / draft / anonymous longitudinal',
-				guidance: 'Campaign draft is ready for recipient setup and launch-readiness checks.',
+				guidance: 'Wave draft is ready for recipient setup and launch checks.',
 				detailRows: [
-					{ label: 'Selected campaign', value: 'Wave 1' },
+					{ label: 'Selected wave', value: 'Wave 1' },
 					{ label: 'Identity mode', value: 'anonymous longitudinal' },
 					{ label: 'Locale', value: 'en' }
 				]
@@ -1278,7 +1276,7 @@ describe('product view models', () => {
 			]
 		});
 		expect(view.selectedCampaignRows).toEqual([
-			{ label: 'Selected campaign', value: 'Wave 1' },
+			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'live' },
 			{ label: 'Identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Locale', value: 'en' },
@@ -1390,7 +1388,7 @@ describe('product view models', () => {
 				summary: 'Wave 1 is live',
 				guidance: 'Enough submitted responses exist for aggregate report visibility.',
 				detailRows: [
-					{ label: 'Selected campaign', value: 'Wave 1' },
+					{ label: 'Selected wave', value: 'Wave 1' },
 					{ label: 'Status', value: 'live' },
 					{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
 					{ label: 'Missing prerequisites', value: '1' }
@@ -1506,7 +1504,7 @@ describe('product view models', () => {
 		expect(view.campaignRows).toEqual([]);
 		expect(view.emptyState).toEqual({
 			title: 'No collection wave yet',
-			message: 'Create a campaign draft in setup, then start collection here.'
+			message: 'Create a wave draft in Setup, then start collection here.'
 		});
 		expect(view.collectionOverview).toContainEqual({
 			id: 'collection_state',
@@ -1516,7 +1514,7 @@ describe('product view models', () => {
 			summary: 'No selected campaign is collecting responses',
 			guidance: 'Create and launch a campaign before collecting responses.',
 			detailRows: [
-				{ label: 'Selected campaign', value: 'Missing' },
+				{ label: 'Selected wave', value: 'Missing' },
 				{ label: 'Status', value: 'not started' },
 				{ label: 'Collection started', value: 'Not available' },
 				{ label: 'Missing prerequisites', value: '5' }
@@ -1581,7 +1579,7 @@ describe('product view models', () => {
 				guidance:
 					'Use this as a preview of current findings until scoring coverage, disclosure, and finality are complete.',
 				detailRows: [
-					{ label: 'Selected campaign', value: 'Wave 1' },
+					{ label: 'Selected wave', value: 'Wave 1' },
 					{ label: 'Report status', value: 'preview' },
 					{ label: 'Reportable campaigns', value: '1' },
 					{ label: 'Submitted responses', value: '31' },
@@ -1650,7 +1648,7 @@ describe('product view models', () => {
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
 		expect(view.selectedCampaignRows).toEqual([
-			{ label: 'Selected campaign', value: 'Wave 1' },
+			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'live' },
 			{ label: 'Identity mode', value: 'anonymous longitudinal' },
 			{ label: 'Locale', value: 'en' },
@@ -1864,7 +1862,7 @@ describe('product view models', () => {
 				summary: 'No selected campaign has reportable results.',
 				guidance: 'Submit responses and compute scores before reviewing findings.',
 				detailRows: [
-					{ label: 'Selected campaign', value: 'Missing' },
+					{ label: 'Selected wave', value: 'Missing' },
 					{ label: 'Report status', value: 'blocked' },
 					{ label: 'Reportable campaigns', value: '0' },
 					{ label: 'Submitted responses', value: '0' },
@@ -2678,18 +2676,18 @@ describe('product view models', () => {
 			'Koristite izvoze skupa podataka odgovora za analizu.'
 		);
 		expect(view.exportOverview[1].summary).toBe(
-			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
+			'Nema neuspjelih izvoznih datoteka ni datoteka na Äekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
-			'Izvozi pokrivaju izvoz sažetka izvještaja i izvoz skupa podataka odgovora.'
+			'Izvozi pokrivaju izvoz saÅ¾etka izvjeÅ¡taja i izvoz skupa podataka odgovora.'
 		);
 		expect(view.exportOverview[3].summary).toBe('Izvozne datoteke povezane su s Wave 1 i AA.');
 		expect(view.cards[0].nextUse).toBe(
-			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.'
+			'Koristite ovaj izvoz za predaju izvjeÅ¡taja, pregled saÅ¾etka ili provjere Å¡ifrarnika.'
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Val / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.'
+			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim Å¡ifrarnikom.'
 		);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});

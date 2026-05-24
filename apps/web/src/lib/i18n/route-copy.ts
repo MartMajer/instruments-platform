@@ -19,6 +19,7 @@ const en = {
 		brandSubtitle: 'Research studies and wellbeing programs',
 		navAria: 'Product entry actions',
 		mobileNavAria: 'Mobile product entry actions',
+		languageSwitchAria: 'Language',
 		menu: 'Menu',
 		openMenu: 'Open menu',
 		closeMenu: 'Close menu',
@@ -200,20 +201,20 @@ const en = {
 		errorTitle: 'Studies unavailable',
 		retry: 'Retry studies',
 		guidedDesign: 'Guided study design',
-		startBlueprint: 'Choose a study starting point',
+		startBlueprint: 'Choose how to start the study',
 		selectedStartingPoint: 'Selected starting point',
-		studyModelTitle: 'What this creates',
+		studyModelTitle: 'Study, source, and questionnaire',
 		studyModelBody:
-			'This creates a study container first. The selected starting point only seeds Setup; you can edit the questionnaire, result outputs, recipients, and waves before launch.',
+			'This creates the study first. The starting point only provides source material for Setup; you still edit the questionnaire, result outputs, recipients, and waves before launch.',
 		studyModelStudy: 'Study',
 		studyModelStudyBody:
 			'The durable study container for setup, collection waves, results, and export files.',
 		studyModelStartingPoint: 'Starting point',
 		studyModelStartingPointBody:
-			'Seeds the first Setup draft. It is not the final questionnaire and not a reusable instrument record.',
+			'Provides source material for the first Setup draft. It is not the final questionnaire and not the study.',
 		studyModelSetup: 'Setup',
 		studyModelSetupBody:
-			'Where you turn the starting point into the questionnaire, results setup, recipient plan, and launch check.',
+			'Where you turn source material into the questionnaire, result outputs, recipient plan, and launch check.',
 		studyName: 'Study name',
 		continueSetup: 'Continue to guided setup',
 		creating: 'Creating...',
@@ -453,7 +454,7 @@ const en = {
 			selectedStudy: 'Selected study',
 			studyDetails: 'Study details',
 			statusRecords: 'Status and records',
-			statusDescription: 'Review readiness, governance, and campaigns linked to this study.',
+			statusDescription: 'Review readiness, governance, and waves linked to this study.',
 			dates: 'Dates',
 			datesAria: 'Selected study dates',
 			studyModel: 'Study model',
@@ -461,10 +462,10 @@ const en = {
 			governance: 'Governance',
 			governanceAria: 'Governance status',
 			policyScoring: 'Policy and scoring status',
-			campaigns: 'Campaigns',
-			campaignsAria: 'Selected series campaign rows',
-			campaignsInStudy: 'Campaigns in this study',
-			noCampaigns: 'No campaigns are linked to this series.',
+			campaigns: 'Waves',
+			campaignsAria: 'Selected study wave rows',
+			campaignsInStudy: 'Waves in this study',
+			noCampaigns: 'No waves are linked to this study yet.',
 			restore: 'Restore',
 			restoring: 'Restoring...',
 			readOnly: 'Read-only',
@@ -506,7 +507,7 @@ const en = {
 			progressKicker: 'Study setup',
 			progressTitle: 'Study setup progress',
 			progressBody:
-				'Build the study in order: source, questionnaire, results, wave, recipients, then launch readiness.',
+				'Study is the project. Setup turns source material into the questionnaire, result outputs, Wave 1 recipients, and the launch check.',
 			readOnlyTitle: 'Read-only access',
 			readOnlyBody: 'Setup workflow actions require setup management access.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -530,7 +531,7 @@ const en = {
 				addQuestion: 'Add question',
 				saveQuestionnaire: 'Save questionnaire',
 				authoringSummary: 'Questionnaire summary',
-				blueprintTitle: 'Questionnaire design review',
+				blueprintTitle: 'Questionnaire check',
 				studyDimensions: 'Study dimensions',
 				questionText: 'Question text',
 				answerFormat: 'Answer format',
@@ -608,7 +609,7 @@ const en = {
 				resultsTitle: 'Result outputs',
 				resultsBody: 'Define the scores and export columns this questionnaire should produce.',
 				saveResults: 'Save results setup',
-				errorsLabel: 'Results setup errors'
+				errorsLabel: 'Result output errors'
 			},
 			wave: {
 				responseMode: {
@@ -648,18 +649,18 @@ const en = {
 			defaultWaveName: (number: number) => `Wave ${number}`,
 			steps: {
 				instrument: {
-					title: 'Study source',
+					title: 'Questionnaire source',
 					description:
-						'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
+						'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
 				},
 				template: {
 					title: 'Questionnaire',
 					description: 'Build the saved question set respondents will answer for this study.'
 				},
 				scoring: {
-					title: 'Results setup',
+					title: 'Result outputs',
 					description:
-						'Choose which questionnaire answers become study results and how missing answers are handled.'
+						'Choose which questionnaire answers become result outputs and how missing answers are handled.'
 				},
 				campaign: {
 					title: 'Wave and recipients',
@@ -672,7 +673,7 @@ const en = {
 				}
 			},
 			disabled: {
-				confirmInstrument: 'Confirm the study source first.',
+				confirmInstrument: 'Choose the questionnaire source first.',
 				saveQuestionnaire: 'Save the questionnaire first.',
 				createCollectionWave: 'Create the collection wave first.'
 			},
@@ -743,20 +744,20 @@ const en = {
 				runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 			},
 			designMap: {
-				title: 'Study design map',
+				title: 'How this study is built',
 				summary:
-					'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
-				source: 'Study source',
+					'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
+				source: 'Questionnaire source',
 				questionnaire: 'Questionnaire',
-				results: 'Results setup',
+				results: 'Result outputs',
 				waves: 'Collection waves',
-				sourceReady: 'Source content is ready for this questionnaire.',
-				sourceMissing: 'Confirm reusable or imported source content before saving the questionnaire.',
+				sourceReady: 'Source material is ready for this questionnaire.',
+				sourceMissing: 'Choose reusable or imported source material before saving the questionnaire.',
 				questionnaireSaved: (name: string, questionCount: number) =>
 					`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
 				questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
-				resultsReady: (ruleKey: string) => `Results setup is saved as ${ruleKey}.`,
-				resultsMissing: 'Choose which questionnaire answers become study results.',
+				resultsReady: (ruleKey: string) => `Result outputs are saved as ${ruleKey}.`,
+				resultsMissing: 'Choose which questionnaire answers become result outputs.',
 				noWaves: 'No collection wave exists yet.',
 				draftWaveNeedsReadiness: (count: number) =>
 					`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,
@@ -1035,7 +1036,7 @@ const en = {
 				reportingNotAvailableTitle: 'Not available',
 				reportingNotAvailableDetail: 'Reporting readiness appears after collection has a selected wave.',
 				createWaveFirstHeadline: 'Create a collection wave first',
-				createWaveFirstGuidance: 'Collection starts after setup has a campaign wave.',
+				createWaveFirstGuidance: 'Collection starts after Setup has a collection wave.',
 				createWaveFirstNextAction: 'Open Setup and create a collection wave.',
 				closedTitle: 'Closed',
 				closedDetail: 'This wave no longer accepts new responses.',
@@ -1164,7 +1165,7 @@ const en = {
 					noCampaign: 'Create or select a wave before reviewing results.',
 					noResponses: 'Collect responses before reviewing results.',
 					noVisibleScores:
-						'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.',
+						'Use raw response export for internal analysis, or review result-output scoring, missing-answer rules, and disclosure.',
 					createExport:
 						'Create a response export for analysis, or create a report-summary file for internal review.',
 					downloadDataset: 'Download the response dataset for analysis.',
@@ -1590,8 +1591,8 @@ const en = {
 				previewWorkflow: 'Preview workflow',
 				governance: 'Governance',
 				selectedSeriesReadiness: 'Selected-series readiness',
-				campaignRows: 'Campaign rows',
-				campaignRowsAria: 'Selected series campaign rows',
+				campaignRows: 'Wave rows',
+				campaignRowsAria: 'Selected study wave rows',
 				campaignContext: 'Selected-series campaign context',
 				readOnlyAccess: 'Read-only access',
 				workflowRequiresSetup: 'Workflow actions require setup management access.'
@@ -1617,6 +1618,7 @@ const hr: typeof en = {
 		brandSubtitle: 'Istraživačke studije i programi dobrobiti',
 		navAria: 'Radnje ulaza u proizvod',
 		mobileNavAria: 'Mobilne radnje ulaza u proizvod',
+		languageSwitchAria: 'Jezik',
 		menu: 'Izbornik',
 		openMenu: 'Otvori izbornik',
 		closeMenu: 'Zatvori izbornik',
@@ -1795,20 +1797,20 @@ const hr: typeof en = {
 		errorTitle: 'Studije nisu dostupne',
 		retry: 'Pokušaj studije ponovno',
 		guidedDesign: 'Vođeni dizajn studije',
-		startBlueprint: 'Započnite predložak studije',
+		startBlueprint: 'Odaberite kako započeti studiju',
 		selectedStartingPoint: 'Odabrana početna točka',
-		studyModelTitle: 'Što se ovdje izrađuje',
+		studyModelTitle: 'Studija, izvor i upitnik',
 		studyModelBody:
-			'Prvo se izrađuje spremnik studije. Odabrana početna točka samo priprema Postavljanje; upitnik, izlaze rezultata, primatelje i valove možete urediti prije pokretanja.',
+			'Prvo se izrađuje studija. Početna točka samo daje izvorni materijal za Postavljanje; upitnik, izlaze rezultata, primatelje i valove i dalje uređujete prije pokretanja.',
 		studyModelStudy: 'Studija',
 		studyModelStudyBody:
 			'Trajni spremnik u radnom prostoru za postavljanje, valove prikupljanja, rezultate i izvozne datoteke.',
 		studyModelStartingPoint: 'Početna točka',
 		studyModelStartingPointBody:
-			'Priprema prvi nacrt u Postavljanju. To nije završni upitnik ni višekratni zapis instrumenta.',
+			'Daje izvorni materijal za prvi nacrt u Postavljanju. To nije završni upitnik ni sama studija.',
 		studyModelSetup: 'Postavljanje',
 		studyModelSetupBody:
-			'Mjesto gdje početnu točku pretvarate u upitnik, postavljanje rezultata, plan primatelja i provjeru pokretanja.',
+			'Mjesto gdje izvorni materijal pretvarate u upitnik, izlaze rezultata, plan primatelja i provjeru pokretanja.',
 		studyName: 'Naziv studije',
 		continueSetup: 'Nastavi na vođeno postavljanje',
 		creating: 'Izrada...',
@@ -2101,7 +2103,7 @@ const hr: typeof en = {
 			progressKicker: 'Postavljanje studije',
 			progressTitle: 'Napredak postavljanja studije',
 			progressBody:
-				'Izgradite studiju redom: izvor, upitnik, rezultati, val, primatelji, zatim provjera prije pokretanja.',
+				'Studija je projekt. Postavljanje pretvara izvorni materijal u upitnik, izlaze rezultata, primatelje za Val 1 i provjeru pokretanja.',
 			readOnlyTitle: 'Pristup samo za čitanje',
 			readOnlyBody: 'Radnje postavljanja zahtijevaju pravo za upravljanje postavljanjem.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -2125,7 +2127,7 @@ const hr: typeof en = {
 				addQuestion: 'Dodaj pitanje',
 				saveQuestionnaire: 'Spremi upitnik',
 				authoringSummary: 'Sažetak upitnika',
-				blueprintTitle: 'Pregled dizajna upitnika',
+				blueprintTitle: 'Provjera upitnika',
 				studyDimensions: 'Dimenzije studije',
 				questionText: 'Tekst pitanja',
 				answerFormat: 'Format odgovora',
@@ -2243,18 +2245,18 @@ const hr: typeof en = {
 			defaultWaveName: (number: number) => `Val ${number}`,
 			steps: {
 				instrument: {
-					title: 'Izvor studije',
+					title: 'Izvor upitnika',
 					description:
-						'Potvrdite izvorni ili uvezeni sadržaj. On pokreće upitnik, ali nije sama studija.'
+						'Odaberite višekratni ili uvezeni izvorni materijal. On pokreće upitnik, ali nije studija ni završni upitnik.'
 				},
 				template: {
 					title: 'Upitnik',
 					description: 'Izradite spremljeni skup pitanja na koji sudionici odgovaraju u ovoj studiji.'
 				},
 				scoring: {
-					title: 'Postavljanje rezultata',
+					title: 'Izlazi rezultata',
 					description:
-						'Odaberite koji odgovori iz upitnika postaju rezultati studije i kako se obrađuju nedostajući odgovori.'
+						'Odaberite koji odgovori iz upitnika postaju izlazi rezultata i kako se obrađuju nedostajući odgovori.'
 				},
 				campaign: {
 					title: 'Val i primatelji',
@@ -2267,7 +2269,7 @@ const hr: typeof en = {
 				}
 			},
 			disabled: {
-				confirmInstrument: 'Prvo potvrdite izvor studije.',
+				confirmInstrument: 'Prvo odaberite izvor upitnika.',
 				saveQuestionnaire: 'Prvo spremite upitnik.',
 				createCollectionWave: 'Prvo izradite val prikupljanja.'
 			},
@@ -2338,20 +2340,20 @@ const hr: typeof en = {
 				runLaunchCheckBeforeCollection: 'Pokrenite provjeru prije otvaranja Prikupljanja.'
 			},
 			designMap: {
-				title: 'Mapa dizajna studije',
+				title: 'Kako je ova studija sastavljena',
 				summary:
-					'Ova mapa prikazuje spremljene dijelove postavljanja, a ne početnu opciju odabranu pri izradi studije.',
-				source: 'Izvor studije',
+					'Studija je projektni spremnik. Izvorni materijal pokreće upitnik; izlazi rezultata tumače odgovore; valovi prikupljaju odgovore.',
+				source: 'Izvor upitnika',
 				questionnaire: 'Upitnik',
-				results: 'Postavljanje rezultata',
+				results: 'Izlazi rezultata',
 				waves: 'Valovi prikupljanja',
-				sourceReady: 'Izvorni sadržaj spreman je za ovaj upitnik.',
-				sourceMissing: 'Potvrdite izvorni ili uvezeni sadržaj prije spremanja upitnika.',
+				sourceReady: 'Izvorni materijal spreman je za ovaj upitnik.',
+				sourceMissing: 'Odaberite višekratni ili uvezeni izvorni materijal prije spremanja upitnika.',
 				questionnaireSaved: (name: string, questionCount: number) =>
 					`${name} spremljen je s ${questionCount} ${questionCount === 1 ? 'pitanjem' : 'pitanja'}.`,
 				questionnaireMissing: 'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
-				resultsReady: (ruleKey: string) => `Postavljanje rezultata spremljeno je kao ${ruleKey}.`,
-				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju rezultati studije.',
+				resultsReady: (ruleKey: string) => `Izlazi rezultata spremljeni su kao ${ruleKey}.`,
+				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju izlazi rezultata.',
 				noWaves: 'Još nema vala prikupljanja.',
 				draftWaveNeedsReadiness: (count: number) =>
 					`${count} ${count === 1 ? 'nacrt vala pripremljen je' : 'nacrta valova pripremljena su'}; spremnost pokretanja još treba pažnju.`,
@@ -2630,7 +2632,7 @@ const hr: typeof en = {
 				reportingNotAvailableTitle: 'Nije dostupno',
 				reportingNotAvailableDetail: 'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrani val.',
 				createWaveFirstHeadline: 'Prvo izradite val prikupljanja',
-				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima val kampanje.',
+				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima val prikupljanja.',
 				createWaveFirstNextAction: 'Otvorite Postavljanje i izradite val prikupljanja.',
 				closedTitle: 'Zatvoreno',
 				closedDetail: 'Ovaj val više ne prihvaća nove odgovore.',

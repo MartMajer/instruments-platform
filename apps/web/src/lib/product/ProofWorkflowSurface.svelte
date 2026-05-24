@@ -398,7 +398,7 @@
 	async function checkLaunchReadiness() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, readiness: 'Create a campaign draft first.' };
+			errors = { ...errors, readiness: 'Create a wave draft first.' };
 			return;
 		}
 
@@ -418,7 +418,7 @@
 	async function launchCampaign() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, readiness: 'Create a campaign draft first.' };
+			errors = { ...errors, readiness: 'Create a wave draft first.' };
 			return;
 		}
 
@@ -443,7 +443,7 @@
 	async function createOpenLink() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign || !launchResult) {
-			errors = { ...errors, readiness: 'Launch a campaign before creating an open link.' };
+			errors = { ...errors, readiness: 'Launch a wave before creating an open link.' };
 			return;
 		}
 
@@ -537,7 +537,7 @@
 	async function queueEmailInvitations() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign || !launchResult) {
-			errors = { ...errors, readiness: 'Launch a campaign before queuing invitations.' };
+			errors = { ...errors, readiness: 'Launch a wave before queuing invitations.' };
 			return;
 		}
 
@@ -577,7 +577,7 @@
 	async function loadResponseLab() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, response: 'Create a campaign draft first.' };
+			errors = { ...errors, response: 'Create a wave draft first.' };
 			return;
 		}
 
@@ -601,7 +601,7 @@
 	async function createLabAssignment() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, response: 'Create a campaign draft first.' };
+			errors = { ...errors, response: 'Create a wave draft first.' };
 			return;
 		}
 
@@ -712,7 +712,7 @@
 	async function viewReportProof() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, response: 'Create a campaign before viewing report proof.' };
+			errors = { ...errors, response: 'Create a wave before viewing the report preview.' };
 			return;
 		}
 
@@ -731,7 +731,7 @@
 	async function createReportProofExport() {
 		const currentCampaign = campaignResult;
 		if (!currentCampaign) {
-			errors = { ...errors, response: 'Create a campaign before creating export proof.' };
+			errors = { ...errors, response: 'Create a wave before creating the export preview.' };
 			return;
 		}
 
@@ -1322,14 +1322,14 @@
 		<div class="setup-panel__header">
 			<div>
 				<p class="setup-panel__eyebrow">Step 2</p>
-				<h2 id="template-title" class="setup-panel__title">Template version</h2>
+				<h2 id="template-title" class="setup-panel__title">Questionnaire</h2>
 			</div>
 			{@render StepPill({ state: stepStates.template })}
 		</div>
 
 		<div class="grid gap-4 lg:grid-cols-2">
 			<label class="field">
-				<span>Template name</span>
+				<span>Questionnaire name</span>
 				<input bind:value={templateName} />
 			</label>
 			<label class="field">
@@ -1365,7 +1365,7 @@
 				{:else}
 					<Send size={17} aria-hidden="true" />
 				{/if}
-				<span>Create template version</span>
+				<span>Save questionnaire</span>
 			</button>
 			{@render ResultLine({ value: templateResult?.templateVersionId })}
 		</div>
@@ -1377,18 +1377,18 @@
 		<div class="setup-panel__header">
 			<div>
 				<p class="setup-panel__eyebrow">Step 3</p>
-				<h2 id="scoring-title" class="setup-panel__title">Scoring rule</h2>
+				<h2 id="scoring-title" class="setup-panel__title">Result outputs</h2>
 			</div>
 			{@render StepPill({ state: stepStates.scoring })}
 		</div>
 
 		<div class="grid gap-4 lg:grid-cols-2">
 			<label class="field">
-				<span>Rule key</span>
+				<span>Result key</span>
 				<input bind:value={scoringForm.ruleKey} />
 			</label>
 			<label class="field">
-				<span>Rule version</span>
+				<span>Result version</span>
 				<input bind:value={scoringForm.ruleVersion} />
 			</label>
 			<label class="field lg:col-span-2">
@@ -1413,7 +1413,7 @@
 				{:else}
 					<Send size={17} aria-hidden="true" />
 				{/if}
-				<span>Create scoring rule</span>
+				<span>Save result outputs</span>
 			</button>
 			{@render ResultLine({ value: scoringResult?.id })}
 		</div>
@@ -1425,7 +1425,7 @@
 		<div class="setup-panel__header">
 			<div>
 				<p class="setup-panel__eyebrow">Step 4</p>
-				<h2 id="campaign-title" class="setup-panel__title">Campaign draft</h2>
+				<h2 id="campaign-title" class="setup-panel__title">Wave draft</h2>
 			</div>
 			{@render StepPill({ state: stepStates.campaign })}
 		</div>
@@ -1433,17 +1433,17 @@
 		<div class="grid gap-4 lg:grid-cols-2">
 			{#if selectedSeries}
 				<label class="field">
-					<span>Series name</span>
+					<span>Study name</span>
 					<input value={selectedSeries.name} disabled />
 				</label>
 			{:else}
 				<label class="field">
-					<span>Series name</span>
+					<span>Study name</span>
 					<input bind:value={campaignForm.seriesName} />
 				</label>
 			{/if}
 			<label class="field">
-				<span>Campaign name</span>
+				<span>Wave name</span>
 				<input bind:value={campaignForm.name} />
 			</label>
 			<label class="field">
@@ -1472,11 +1472,11 @@
 				{:else}
 					<Send size={17} aria-hidden="true" />
 				{/if}
-				<span>Create campaign draft</span>
+				<span>Create wave draft</span>
 			</button>
 			<div class="grid gap-1 text-sm text-[var(--color-text-muted)]">
 				{@render ResultLine({ label: 'Series', value: activeCampaignSeries?.id })}
-				{@render ResultLine({ label: 'Campaign', value: campaignResult?.id })}
+			{@render ResultLine({ label: 'Wave', value: campaignResult?.id })}
 			</div>
 		</div>
 
@@ -1536,7 +1536,7 @@
 				{:else}
 					<Send size={17} aria-hidden="true" />
 				{/if}
-				<span>Launch campaign</span>
+				<span>Launch wave</span>
 			</button>
 			<div class="grid gap-1 text-sm text-[var(--color-text-muted)]">
 				{@render ResultLine({ label: 'Status', value: launchResult?.status })}
@@ -1965,7 +1965,7 @@
 								value: reportProofResult.launchSnapshot.id
 							})}
 							{@render ResultLine({
-								label: 'Scoring rule',
+								label: 'Result outputs',
 								value: reportProofResult.launchSnapshot.scoringRuleId
 							})}
 							{@render ResultLine({
@@ -2235,7 +2235,7 @@
 								value: reportProofResult.launchSnapshot.id
 							})}
 							{@render ResultLine({
-								label: 'Scoring rule',
+								label: 'Result outputs',
 								value: reportProofResult.launchSnapshot.scoringRuleId
 							})}
 							{@render ResultLine({

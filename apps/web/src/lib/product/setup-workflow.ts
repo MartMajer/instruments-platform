@@ -238,9 +238,9 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 	defaultWaveName: (number) => `Wave ${number}`,
 	steps: {
 		instrument: {
-			title: 'Study source',
+			title: 'Questionnaire source',
 			description:
-				'Confirm reusable or imported source content. This seeds the questionnaire; it is not the study itself.'
+				'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
 		},
 		template: {
 			title: 'Questionnaire',
@@ -248,9 +248,9 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 				"Build the saved question set respondents will answer for this study."
 		},
 		scoring: {
-			title: 'Results setup',
+			title: 'Result outputs',
 			description:
-				'Choose which questionnaire answers become study results and how missing answers are handled.'
+				'Choose which questionnaire answers become result outputs and how missing answers are handled.'
 		},
 		campaign: {
 			title: 'Wave and recipients',
@@ -264,7 +264,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		}
 	},
 	disabled: {
-		confirmInstrument: 'Confirm the study source first.',
+		confirmInstrument: 'Choose the questionnaire source first.',
 		saveQuestionnaire: 'Save the questionnaire first.',
 		createCollectionWave: 'Create the collection wave first.'
 	},
@@ -334,20 +334,20 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 	},
 	designMap: {
-		title: 'Study design map',
+		title: 'How this study is built',
 		summary:
-			'This map reflects saved setup artifacts, not the starting point chosen when the study was created.',
-		source: 'Study source',
+			'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
+		source: 'Questionnaire source',
 		questionnaire: 'Questionnaire',
-		results: 'Results setup',
+		results: 'Result outputs',
 		waves: 'Collection waves',
-		sourceReady: 'Source content is ready for this questionnaire.',
-		sourceMissing: 'Confirm reusable or imported source content before saving the questionnaire.',
+		sourceReady: 'Source material is ready for this questionnaire.',
+		sourceMissing: 'Choose reusable or imported source material before saving the questionnaire.',
 		questionnaireSaved: (name, questionCount) =>
 			`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
 		questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
-		resultsReady: (ruleKey) => `Results setup is saved as ${ruleKey}.`,
-		resultsMissing: 'Choose which questionnaire answers become study results.',
+		resultsReady: (ruleKey) => `Result outputs are saved as ${ruleKey}.`,
+		resultsMissing: 'Choose which questionnaire answers become result outputs.',
 		noWaves: 'No collection wave exists yet.',
 		draftWaveNeedsReadiness: (count) =>
 			`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,

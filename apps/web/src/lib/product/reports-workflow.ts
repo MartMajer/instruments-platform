@@ -287,7 +287,7 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 			noCampaign: 'Create or select a wave before reviewing results.',
 			noResponses: 'Collect responses before reviewing results.',
 			noVisibleScores:
-				'Use raw response export for internal analysis, or review Results setup scoring, missing-answer rules, and disclosure.',
+				'Use raw response export for internal analysis, or review result-output scoring, missing-answer rules, and disclosure.',
 			createExport:
 				'Create a response export for analysis, or create a report-summary file for internal review.',
 			downloadDataset: 'Download the response dataset for analysis.',
