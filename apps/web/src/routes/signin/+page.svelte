@@ -144,7 +144,7 @@
 	<div class="registration-page__glow registration-page__glow--one" aria-hidden="true"></div>
 	<div class="registration-page__glow registration-page__glow--two" aria-hidden="true"></div>
 
-	<header class="registration-nav">
+	<header class="public-nav">
 		<a class="launchpad-brand" href={resolve('/')}>
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
@@ -152,7 +152,7 @@
 				<small>{text.signIn.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="registration-nav__links" aria-label={text.signIn.navAria}>
+		<nav class="public-nav__links" aria-label={text.signIn.navAria}>
 			<a href={resolve('/')}>{text.common.product}</a>
 			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
 		</nav>

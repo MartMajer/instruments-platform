@@ -2,10 +2,41 @@ import { describe, expect, it } from 'vitest';
 import { routePageCopy } from './route-copy';
 
 describe('localized route body copy', () => {
+	it('keeps the public entry copy buyer-facing instead of implementation-facing', () => {
+		const copy = routePageCopy('en');
+		const publicEntryText = Object.values(copy.publicEntry)
+			.filter((value) => typeof value === 'string')
+			.join(' ');
+
+		expect(copy.publicEntry.heroTitle).toBe(
+			'Run research and wellbeing studies without rebuilding the data stack.'
+		);
+		expect(copy.publicEntry.workflowRibbon).toBe(
+			'Questionnaire design, collection, scoring, reports, waves, and exports'
+		);
+		expect(publicEntryText).not.toMatch(/private beta|tenant|authenticated|provider|owner-controlled/i);
+	});
+
+	it('keeps public sign-in and registration copy out of provider and beta jargon', () => {
+		const copy = routePageCopy('en');
+		const authText = [copy.common.privateBeta, ...Object.values(copy.signIn), ...Object.values(copy.register)]
+			.filter((value) => typeof value === 'string')
+			.join(' ');
+
+		expect(copy.common.privateBeta).toBe('Access note');
+		expect(copy.register.betaAccessCode).toBe('Access code');
+		expect(authText).not.toMatch(/private beta|sign-in provider|provider handles|owner-controlled/i);
+	});
+
 	it('provides Croatian public and auth page copy', () => {
 		const copy = routePageCopy('hr-HR');
 
-		expect(copy.publicEntry.heroTitle).toContain('istraživačke studije');
+		expect(copy.publicEntry.heroTitle).toBe(
+			'Vodite istraživačke studije i studije dobrobiti bez ponovne izgradnje podatkovnog procesa.'
+		);
+		expect(copy.publicEntry.workflowRibbon).toBe(
+			'Dizajn upitnika, prikupljanje, bodovanje, izvještaji, valovi i izvozi'
+		);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
 	});

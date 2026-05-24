@@ -92,7 +92,7 @@
 	<div class="launchpad__glow launchpad__glow--one" aria-hidden="true"></div>
 	<div class="launchpad__glow launchpad__glow--two" aria-hidden="true"></div>
 
-	<header class="launchpad-nav">
+	<header class="public-nav public-nav--home">
 		<a class="launchpad-brand" href={resolve('/')}>
 			<span class="launchpad-brand__mark" aria-hidden="true">IP</span>
 			<span>
@@ -100,7 +100,7 @@
 				<small>{text.publicEntry.brandSubtitle}</small>
 			</span>
 		</a>
-		<nav class="launchpad-nav__links" aria-label={text.publicEntry.navAria}>
+		<nav class="public-nav__links" aria-label={text.publicEntry.navAria}>
 			<a href="#workflow">{text.publicEntry.workflow}</a>
 			<a href="#trust">{text.publicEntry.trustModel}</a>
 			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
@@ -108,7 +108,7 @@
 		</nav>
 		<button
 			type="button"
-			class="launchpad-nav__menu"
+			class="public-nav__menu"
 			aria-label={mobileEntryMenuOpen ? text.publicEntry.closeMenu : text.publicEntry.openMenu}
 			aria-expanded={mobileEntryMenuOpen}
 			onclick={() => (mobileEntryMenuOpen = !mobileEntryMenuOpen)}
@@ -117,7 +117,7 @@
 		</button>
 	</header>
 	{#if mobileEntryMenuOpen}
-		<nav class="launchpad-mobile-menu" aria-label={text.publicEntry.mobileNavAria}>
+		<nav class="public-mobile-menu" aria-label={text.publicEntry.mobileNavAria}>
 			<a href="#workflow">{text.publicEntry.workflow}</a>
 			<a href="#trust">{text.publicEntry.trustModel}</a>
 			<a href={resolve('/register')}>{text.common.createWorkspace}</a>
@@ -206,8 +206,8 @@
 			</div>
 			<div class="floating-card floating-card--receipt" aria-hidden="true">
 				<span>Respondent</span>
-				<strong>Private response receipt</strong>
-				<small>Completion state without exposing respondent identity</small>
+				<strong>Response receipt</strong>
+				<small>Completion state without exposing identity</small>
 			</div>
 			<div class="floating-card floating-card--proof" aria-hidden="true">
 				<span>Governance</span>
@@ -244,7 +244,7 @@
 				<div class="command-card__input">Launch readiness: review retention setting</div>
 				<ul>
 					<li><b>Review setting</b><small>Retention date needs confirmation</small></li>
-					<li><b>Audience prepared</b><small>Directory group resolves 1,240 subjects</small></li>
+					<li><b>Audience prepared</b><small>Directory group resolves 1,240 people</small></li>
 					<li>
 						<b>Export plan defined</b><small>Dataset and codebook outputs are selected</small>
 					</li>
@@ -260,11 +260,11 @@
 					<a href={resolve('/app/instruments')}
 						><b>Instruments</b><small>available study content</small></a
 					>
-					<a href={resolve('/app/directory')}><b>Directory</b><small>subjects + hierarchy</small></a
+					<a href={resolve('/app/directory')}><b>Directory</b><small>people + groups</small></a
 					>
 					<a href={resolve('/app/team')}><b>Team</b><small>roles + capabilities</small></a>
 					<a href={resolve('/app/exports')}><b>Exports</b><small>files + provenance</small></a>
-					<a href={resolve('/app/settings')}><b>Settings</b><small>tenant profile</small></a>
+					<a href={resolve('/app/settings')}><b>Settings</b><small>study defaults</small></a>
 				</div>
 			</section>
 

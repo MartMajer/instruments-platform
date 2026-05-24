@@ -1,6 +1,6 @@
 ﻿import { expect, test } from '@playwright/test';
 
-test('renders an app-first private beta product entry at the root route', async ({ page }) => {
+test('renders an app-first study operations product entry at the root route', async ({ page }) => {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
 			json: {
@@ -14,7 +14,9 @@ test('renders an app-first private beta product entry at the root route', async 
 	await page.goto('/');
 
 	await expect(
-		page.getByRole('heading', { name: /Run research studies from setup to defensible results/i })
+		page.getByRole('heading', {
+			name: /Run research and wellbeing studies without rebuilding the data stack/i
+		})
 	).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Create workspace' }).first()).toHaveAttribute(
 		'href',
@@ -27,13 +29,13 @@ test('renders an app-first private beta product entry at the root route', async 
 	await expect(page.getByRole('navigation', { name: 'Setup stages' })).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Tenant setup workspace' })).toHaveCount(0);
 });
-test('renders the private beta registration route', async ({ page }) => {
+test('renders the workspace registration route', async ({ page }) => {
 	await page.goto('/register');
 
 	await expect(page.getByRole('heading', { name: 'Create your workspace.' })).toBeVisible();
 	await expect(page.getByLabel('Email')).toBeVisible();
 	await expect(page.getByLabel('Workspace name')).toBeVisible();
-	await expect(page.getByLabel('Beta access code')).toBeVisible();
+	await expect(page.getByLabel('Access code')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create account' })).toBeVisible();
 	await expect(page.getByRole('navigation', { name: 'Setup stages' })).toHaveCount(0);
 });
