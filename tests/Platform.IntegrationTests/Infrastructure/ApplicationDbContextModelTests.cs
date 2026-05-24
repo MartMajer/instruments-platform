@@ -386,6 +386,8 @@ public sealed class ApplicationDbContextModelTests
             index.IsUnique &&
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(ChoiceOption.QuestionId), nameof(ChoiceOption.Value)]));
+        Assert.Contains(question.GetCheckConstraints(), check =>
+            check.Name == "ck_question_scale_only_for_scale_backed");
 
         Assert.Contains(section.GetKeys(), key =>
             key.Properties.Select(property => property.Name)

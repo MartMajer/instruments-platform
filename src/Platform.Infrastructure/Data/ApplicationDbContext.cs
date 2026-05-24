@@ -2985,6 +2985,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "ck_question_scale_backed",
                     "type NOT IN ('likert','nps') OR scale_id IS NOT NULL");
                 table.HasCheckConstraint(
+                    "ck_question_scale_only_for_scale_backed",
+                    "type IN ('likert','nps') OR scale_id IS NULL");
+                table.HasCheckConstraint(
                     "ck_question_weight_positive",
                     "weight > 0");
                 table.HasCheckConstraint(
