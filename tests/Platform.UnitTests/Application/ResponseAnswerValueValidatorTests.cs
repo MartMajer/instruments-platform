@@ -163,6 +163,39 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Skipped_or_not_applicable_answer_cannot_carry_a_value()
+    {
+        var skippedId = Guid.NewGuid();
+        var notApplicableId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    skippedId,
+                    "optional_context",
+                    QuestionTypes.Text,
+                    "{}"),
+                new ResponseAnswerQuestionContract(
+                    notApplicableId,
+                    "workload",
+                    QuestionTypes.Likert,
+                    "{}",
+                    ScaleMinValue: 1,
+                    ScaleMaxValue: 5,
+                    ScaleStep: 1,
+                    ScaleNaAllowed: true)
+            ],
+            [
+                new SaveAnswerRequest(skippedId, "\"some text\"", IsSkipped: true),
+                new SaveAnswerRequest(notApplicableId, "5", IsNa: true)
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("cannot carry a value", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
