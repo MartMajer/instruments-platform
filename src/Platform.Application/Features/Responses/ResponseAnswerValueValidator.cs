@@ -18,6 +18,7 @@ public sealed record ResponseAnswerQuestionContract(
 public sealed record ResponseAnswerValueContract(
     Guid QuestionId,
     string? Value,
+    string? Comment,
     bool IsSkipped,
     bool IsNa);
 
@@ -32,6 +33,7 @@ public static class ResponseAnswerValueValidator
             answers.Select(answer => new ResponseAnswerValueContract(
                 answer.QuestionId,
                 answer.Value,
+                answer.Comment,
                 answer.IsSkipped,
                 answer.IsNa)));
     }
@@ -56,9 +58,10 @@ public static class ResponseAnswerValueValidator
                 return Failure("unknown", "references a question outside this campaign template");
             }
 
-            if ((answer.IsSkipped || answer.IsNa) && answer.Value is not null)
+            if ((answer.IsSkipped || answer.IsNa) &&
+                (answer.Value is not null || !string.IsNullOrWhiteSpace(answer.Comment)))
             {
-                return Failure(question.Code, "cannot carry a value when marked skipped or not applicable");
+                return Failure(question.Code, "cannot carry a value or comment when marked skipped or not applicable");
             }
 
             if (answer.IsSkipped)

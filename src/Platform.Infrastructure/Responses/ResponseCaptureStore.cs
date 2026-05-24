@@ -411,6 +411,7 @@ public sealed class ResponseCaptureStore(
             savedAnswers.Select(answer => new ResponseAnswerValueContract(
                 answer.QuestionId,
                 answer.Value,
+                answer.Comment,
                 answer.IsSkipped,
                 answer.IsNa)));
         if (savedAnswerValidation.IsFailure)

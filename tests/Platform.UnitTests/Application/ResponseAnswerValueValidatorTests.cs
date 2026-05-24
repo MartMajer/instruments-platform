@@ -196,6 +196,28 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Skipped_or_not_applicable_answer_cannot_carry_a_comment()
+    {
+        var skippedId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    skippedId,
+                    "optional_context",
+                    QuestionTypes.Text,
+                    "{}")
+            ],
+            [
+                new SaveAnswerRequest(skippedId, Value: null, Comment: "Skipped because this did not apply.", IsSkipped: true)
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("comment", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
@@ -243,7 +265,7 @@ public sealed class ResponseAnswerValueValidatorTests
                     """{"options":[{"code":"o01","label":"Yes"},{"code":"o02","label":"No"}]}""")
             ],
             [
-                new ResponseAnswerValueContract(questionId, "\"legacy_bad\"", IsSkipped: false, IsNa: false)
+                new ResponseAnswerValueContract(questionId, "\"legacy_bad\"", Comment: null, IsSkipped: false, IsNa: false)
             ]);
 
         Assert.True(result.IsFailure);
