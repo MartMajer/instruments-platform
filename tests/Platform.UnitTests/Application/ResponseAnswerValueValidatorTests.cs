@@ -218,6 +218,28 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Non_scale_question_cannot_be_marked_not_applicable()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "context",
+                    QuestionTypes.Text,
+                    "{}")
+            ],
+            [
+                new SaveAnswerRequest(questionId, Value: null, IsNa: true)
+            ]);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("answer.value_invalid", result.Error.Code);
+        Assert.Contains("not-applicable", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();

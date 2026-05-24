@@ -71,7 +71,7 @@ public static class ResponseAnswerValueValidator
 
             if (answer.IsNa)
             {
-                if (QuestionTypes.RequiresScale(question.Type) && !question.ScaleNaAllowed)
+                if (!QuestionTypes.RequiresScale(question.Type) || !question.ScaleNaAllowed)
                 {
                     return Failure(question.Code, "does not allow a not-applicable answer");
                 }
