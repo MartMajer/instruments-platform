@@ -60,10 +60,17 @@ export interface AutonomousRunnerOptions {
   captureMode: CaptureMode;
   dataMode: AutonomousDataMode;
   fullstackDevAuth: AutonomousFullstackDevAuthOptions;
+  fullstackCleanupBefore: AutonomousFullstackCleanupBeforeOptions;
   actorMode: AutonomousActorMode;
   personaActionFile?: string;
   personaActionUrl?: string;
   outputRoot: string;
+}
+
+export interface AutonomousFullstackCleanupBeforeOptions {
+  enabled: boolean;
+  apiBaseUrl: string;
+  timeoutMs: number;
 }
 
 export interface NormalizeReviewOptions {
@@ -107,6 +114,9 @@ const allowedFlags = new Set([
   '--headless',
   '--data-mode',
   '--actor-mode',
+  '--api-base-url',
+  '--fullstack-cleanup-before',
+  '--timeout-ms',
   '--persona-action-file',
   '--persona-action-url',
   '--fullstack-dev-auth',
@@ -265,6 +275,7 @@ export function parseAutonomousRunnerOptions(args: string[]): AutonomousRunnerOp
     captureMode: parseCaptureMode(values.get('--capture-mode') ?? 'local-full'),
     dataMode: parseAutonomousDataMode(values.get('--data-mode') ?? 'fixture'),
     fullstackDevAuth: parseFullstackDevAuthOptions(values),
+    fullstackCleanupBefore: parseAutonomousFullstackCleanupBeforeOptions(values),
     actorMode: parseAutonomousActorMode(values.get('--actor-mode') ?? 'scripted'),
     ...parsePersonaActionProviderOptions(values),
     outputRoot: values.get('--output') ?? defaultOutputRoot,
@@ -421,6 +432,7 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     throw new Error(`Unknown persona: ${mission.personaId}`);
   }
 
+  const cleanupBefore = await runAutonomousFullstackCleanupBefore(options);
   const result = await captureAutonomousBrowserEvidence({
     baseUrl: options.baseUrl,
     missionId: mission.id,
@@ -463,6 +475,7 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
     personaId: persona.id,
     viewport: mission.viewport,
     outputRoot: options.outputRoot,
+    ...(cleanupBefore ? { fullstackCleanupBefore: cleanupBefore } : {}),
     ...(prompt ? { reviewPromptPath: prompt.promptPath } : {}),
     ...(report
       ? {
@@ -474,6 +487,23 @@ export async function runAutonomousAudit(options: AutonomousRunnerOptions) {
       : {}),
     ...result,
   };
+}
+
+async function runAutonomousFullstackCleanupBefore(options: AutonomousRunnerOptions) {
+  if (!options.fullstackCleanupBefore.enabled) {
+    return undefined;
+  }
+
+  if (options.dataMode !== 'fullstack') {
+    throw new Error('--fullstack-cleanup-before requires --data-mode fullstack.');
+  }
+
+  return await cleanupFullstackSyntheticStudies({
+    apiBaseUrl: options.fullstackCleanupBefore.apiBaseUrl,
+    fullstackDevAuth: options.fullstackDevAuth,
+    apply: true,
+    timeoutMs: options.fullstackCleanupBefore.timeoutMs,
+  });
 }
 
 export async function runNormalizeReview(options: NormalizeReviewOptions) {
@@ -610,6 +640,7 @@ function parseFlagValues(args: string[], flags: Set<string>) {
     if (
       flag === '--headless' ||
       flag === '--fullstack-dev-auth' ||
+      flag === '--fullstack-cleanup-before' ||
       flag === '--start' ||
       flag === '--apply'
     ) {
@@ -647,6 +678,25 @@ function parseHeadless(value: string): boolean {
   }
 
   throw new Error(`Invalid --headless: ${value}. Expected true or false.`);
+}
+
+function parseAutonomousFullstackCleanupBeforeOptions(
+  values: Map<string, string>
+): AutonomousFullstackCleanupBeforeOptions {
+  const enabled = values.has('--fullstack-cleanup-before')
+    ? parseBooleanFlag(
+        '--fullstack-cleanup-before',
+        values.get('--fullstack-cleanup-before') ?? 'true'
+      )
+    : false;
+  const apiBaseUrl = values.get('--api-base-url') ?? defaultApiBaseUrl;
+  validateUrl(apiBaseUrl);
+
+  return {
+    enabled,
+    apiBaseUrl,
+    timeoutMs: parsePositiveInteger(values.get('--timeout-ms') ?? '5000', '--timeout-ms'),
+  };
 }
 
 function parseFullstackDevAuthOptions(

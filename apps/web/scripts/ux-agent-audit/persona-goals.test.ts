@@ -8,6 +8,7 @@ describe('goal-based UX persona profiles', () => {
       'busy-professor',
       'first-time-researcher',
       'osh-consultant',
+      'work-ergonomics-specialist',
     ]);
 
     for (const profile of Object.values(goalPersonaProfiles)) {
@@ -36,6 +37,12 @@ describe('goal-based UX persona profiles', () => {
       expect.objectContaining({
         name: 'Prof. Ivana Radic',
         appGoal: expect.stringContaining('Wave 1'),
+      })
+    );
+    expect(getGoalPersonaProfile('work-ergonomics-specialist')).toEqual(
+      expect.objectContaining({
+        name: 'Nina Peric',
+        appGoal: expect.stringContaining('ergonomics study'),
       })
     );
   });

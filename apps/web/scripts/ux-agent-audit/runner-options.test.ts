@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { captureAutonomousBrowserEvidence, captureBrowserEvidence } from './browser.ts';
+import { cleanupFullstackSyntheticStudies } from './fullstack-cleanup.ts';
 import { missions } from './missions';
 import { writeNormalizedReviewReport } from './report.ts';
 import { writeReviewPromptForMission } from './review-prompt.ts';
@@ -37,6 +38,17 @@ vi.mock('./browser.ts', () => ({
       'C:\\safe-run\\missions\\fixture-first-study-setup\\transcript.md',
     reviewerOutput:
       '{"summary":"Autonomous review","findings":[{"severity":"confusion","surface":"Setup","observedConfusion":"Blocked setup","suggestedFix":"Clarify setup","ticketReadyWording":"Clarify setup blockers."}],"openQuestions":[]}',
+  })),
+}));
+
+vi.mock('./fullstack-cleanup.ts', () => ({
+  cleanupFullstackSyntheticStudies: vi.fn(async () => ({
+    status: 'applied',
+    apiBaseUrl: 'http://127.0.0.1:5055/',
+    apply: true,
+    matchedCount: 2,
+    archivedCount: 2,
+    candidates: [],
   })),
 }));
 
@@ -315,6 +327,11 @@ describe('UX audit runner option parsing', () => {
       captureMode: 'local-full',
       dataMode: 'fixture',
       fullstackDevAuth: { enabled: false },
+      fullstackCleanupBefore: {
+        enabled: false,
+        apiBaseUrl: 'http://127.0.0.1:5055',
+        timeoutMs: 5000,
+      },
       actorMode: 'scripted',
       outputRoot: '../../artifacts/ux-agent-runs/test',
     });
@@ -331,6 +348,28 @@ describe('UX audit runner option parsing', () => {
     ]);
 
     expect(options.dataMode).toBe('fullstack');
+  });
+
+  it('parses autonomous pre-run full-stack cleanup options', () => {
+    const options = parseAutonomousRunnerOptions([
+      '--base-url',
+      'http://127.0.0.1:5174',
+      '--mission',
+      'fullstack-osh-warehouse-pulse',
+      '--data-mode',
+      'fullstack',
+      '--fullstack-cleanup-before',
+      '--api-base-url',
+      'http://127.0.0.1:5055',
+      '--timeout-ms',
+      '12000',
+    ]);
+
+    expect(options.fullstackCleanupBefore).toEqual({
+      enabled: true,
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      timeoutMs: 12000,
+    });
   });
 
   it('parses autonomous action-file actor mode', () => {
@@ -585,6 +624,22 @@ describe('UX audit runner option parsing', () => {
     expect(captureAutonomousBrowserEvidence).not.toHaveBeenCalled();
   });
 
+  it('fails closed before browser launch when cleanup is requested for fixture mode', async () => {
+    await expect(
+      runAutonomousAudit(
+        parseAutonomousRunnerOptions([
+          '--base-url',
+          'http://127.0.0.1:5174',
+          '--mission',
+          'fixture-first-study-setup',
+          '--fullstack-cleanup-before',
+        ])
+      )
+    ).rejects.toThrow('--fullstack-cleanup-before requires --data-mode fullstack');
+    expect(cleanupFullstackSyntheticStudies).not.toHaveBeenCalled();
+    expect(captureAutonomousBrowserEvidence).not.toHaveBeenCalled();
+  });
+
   it('runs a fullstack-capable mission without fixture data mode', async () => {
     await runAutonomousAudit(
       parseAutonomousRunnerOptions([
@@ -626,6 +681,40 @@ describe('UX audit runner option parsing', () => {
         autonomousDataMode: 'fullstack',
         fullstackDevAuth: { enabled: true },
         autonomousActorMode: 'scripted',
+      })
+    );
+  });
+
+  it('applies full-stack cleanup before launching a full-stack autonomous browser run', async () => {
+    const result = await runAutonomousAudit(
+      parseAutonomousRunnerOptions([
+        '--base-url',
+        'http://127.0.0.1:5174',
+        '--mission',
+        'fullstack-osh-warehouse-pulse',
+        '--data-mode',
+        'fullstack',
+        '--fullstack-dev-auth',
+        '--fullstack-cleanup-before',
+      ])
+    );
+
+    expect(cleanupFullstackSyntheticStudies).toHaveBeenCalledWith({
+      apiBaseUrl: 'http://127.0.0.1:5055',
+      fullstackDevAuth: { enabled: true },
+      apply: true,
+      timeoutMs: 5000,
+    });
+    expect(captureAutonomousBrowserEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        missionId: 'fullstack-osh-warehouse-pulse',
+        autonomousDataMode: 'fullstack',
+      })
+    );
+    expect(result.fullstackCleanupBefore).toEqual(
+      expect.objectContaining({
+        status: 'applied',
+        archivedCount: 2,
       })
     );
   });
