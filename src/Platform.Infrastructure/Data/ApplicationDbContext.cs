@@ -2905,6 +2905,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
             builder.HasIndex(section => new { section.TemplateVersionId, section.ParentSectionId, section.Ordinal })
                 .HasDatabaseName("ix_section_template_version_id_parent_section_id_ordinal");
+            builder.HasIndex(section => new { section.TemplateVersionId, section.Ordinal })
+                .HasDatabaseName("ix_section_template_version_id_ordinal")
+                .IsUnique();
             builder.HasIndex(section => new { section.TemplateVersionId, section.Code })
                 .HasDatabaseName("ix_section_template_version_id_code")
                 .HasFilter("code IS NOT NULL")
@@ -3015,6 +3018,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
             builder.HasIndex(question => new { question.TemplateVersionId, question.SectionId, question.Ordinal })
                 .HasDatabaseName("ix_question_template_version_id_section_id_ordinal");
+            builder.HasIndex(question => new { question.TemplateVersionId, question.Ordinal })
+                .HasDatabaseName("ix_question_template_version_id_ordinal")
+                .IsUnique();
             builder.HasIndex(question => new { question.TemplateVersionId, question.Code })
                 .HasDatabaseName("ix_question_template_version_id_code")
                 .HasFilter("code IS NOT NULL")

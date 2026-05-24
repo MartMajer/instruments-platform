@@ -374,6 +374,14 @@ public sealed class ApplicationDbContextModelTests
             index.GetFilter() == "code IS NOT NULL" &&
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(TemplateQuestion.TemplateVersionId), nameof(TemplateQuestion.Code)]));
+        Assert.Contains(section.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(TemplateSection.TemplateVersionId), nameof(TemplateSection.Ordinal)]));
+        Assert.Contains(question.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(TemplateQuestion.TemplateVersionId), nameof(TemplateQuestion.Ordinal)]));
         Assert.Contains(choice.GetIndexes(), index =>
             index.IsUnique &&
             index.Properties.Select(property => property.Name)
