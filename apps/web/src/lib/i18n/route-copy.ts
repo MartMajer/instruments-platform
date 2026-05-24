@@ -201,6 +201,18 @@ const en = {
 		guidedDesign: 'Guided study design',
 		startBlueprint: 'Choose a study starting point',
 		selectedStartingPoint: 'Selected starting point',
+		studyModelTitle: 'What this creates',
+		studyModelBody:
+			'This creates a study container first. The selected starting point only seeds Setup; you can edit the questionnaire, result outputs, recipients, and waves before launch.',
+		studyModelStudy: 'Study',
+		studyModelStudyBody:
+			'The durable study container for setup, collection waves, results, and export files.',
+		studyModelStartingPoint: 'Starting point',
+		studyModelStartingPointBody:
+			'Seeds the first Setup draft. It is not the final questionnaire and not a reusable instrument record.',
+		studyModelSetup: 'Setup',
+		studyModelSetupBody:
+			'Where you turn the starting point into the questionnaire, results setup, recipient plan, and launch check.',
 		studyName: 'Study name',
 		continueSetup: 'Continue to guided setup',
 		creating: 'Creating...',
@@ -1784,6 +1796,18 @@ const hr: typeof en = {
 		guidedDesign: 'Vođeni dizajn studije',
 		startBlueprint: 'Započnite predložak studije',
 		selectedStartingPoint: 'Odabrana početna točka',
+		studyModelTitle: 'Što se ovdje izrađuje',
+		studyModelBody:
+			'Prvo se izrađuje spremnik studije. Odabrana početna točka samo priprema Postavljanje; upitnik, izlaze rezultata, primatelje i valove možete urediti prije pokretanja.',
+		studyModelStudy: 'Studija',
+		studyModelStudyBody:
+			'Trajni spremnik u radnom prostoru za postavljanje, valove prikupljanja, rezultate i izvozne datoteke.',
+		studyModelStartingPoint: 'Početna točka',
+		studyModelStartingPointBody:
+			'Priprema prvi nacrt u Postavljanju. To nije završni upitnik ni višekratni zapis instrumenta.',
+		studyModelSetup: 'Postavljanje',
+		studyModelSetupBody:
+			'Mjesto gdje početnu točku pretvarate u upitnik, postavljanje rezultata, plan primatelja i provjeru pokretanja.',
 		studyName: 'Naziv studije',
 		continueSetup: 'Nastavi na vođeno postavljanje',
 		creating: 'Izrada...',

@@ -50,6 +50,9 @@ describe('localized route body copy', () => {
 		const copy = routePageCopy('en');
 
 		expect(copy.portfolio.startBlueprint).toBe('Choose a study starting point');
+		expect(copy.portfolio.studyModelTitle).toBe('What this creates');
+		expect(copy.portfolio.studyModelStudyBody).toContain('study container');
+		expect(copy.portfolio.studyModelStartingPointBody).toContain('Seeds the first Setup draft');
 		expect(copy.instruments.description).toBe(
 			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.'
 		);

@@ -304,6 +304,31 @@
 						</div>
 					</div>
 
+					<section class="record-row" aria-label={text.portfolio.studyModelTitle}>
+						<div class="record-row__header">
+							<div>
+								<p class="record-row__title">{text.portfolio.studyModelTitle}</p>
+								<p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+									{text.portfolio.studyModelBody}
+								</p>
+							</div>
+						</div>
+						<dl class="record-grid mt-3">
+							<div class="record-field">
+								<dt class="record-field__label">{text.portfolio.studyModelStudy}</dt>
+								<dd class="record-field__value">{text.portfolio.studyModelStudyBody}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">{text.portfolio.studyModelStartingPoint}</dt>
+								<dd class="record-field__value">{text.portfolio.studyModelStartingPointBody}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">{text.portfolio.studyModelSetup}</dt>
+								<dd class="record-field__value">{text.portfolio.studyModelSetupBody}</dd>
+							</div>
+						</dl>
+					</section>
+
 					<div class="study-blueprint-picker" aria-label={text.portfolio.startBlueprint}>
 						{#each blueprintOptions as option}
 							<button
