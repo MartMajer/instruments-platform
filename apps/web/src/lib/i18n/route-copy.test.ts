@@ -15,8 +15,9 @@ describe('localized route body copy', () => {
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Questionnaires, collection, results, waves, and exports'
 		);
+		expect(copy.publicEntry.productStage).toBe('Analysis handoff');
 		expect(copy.publicEntry.productStageRibbon).toBe(
-			'Download response datasets, data descriptions, and report packets for analysis.'
+			'Keep datasets, data descriptions, and report context ready for analysis.'
 		);
 		expect(publicEntryText).not.toMatch(/private beta|tenant|authenticated|provider|owner-controlled/i);
 	});
@@ -46,16 +47,16 @@ describe('localized route body copy', () => {
 			'Vodite studije, prikupljanje odgovora i rezultate bez improviziranih tablica.'
 		);
 		expect(copy.publicEntry.languageSwitchAria).toBe('Jezik');
-		expect(copy.publicEntry.productStage).toBe('Čist izvoz');
+		expect(copy.publicEntry.productStage).toBe('Predaja za analizu');
 		expect(copy.publicEntry.productStageRibbon).toBe(
-			'Preuzmite podatke odgovora, opis podataka i sažetke izvještaja za analizu.'
+			'Podaci, opis podataka i kontekst izvještaja ostaju spremni za analizu.'
 		);
 		expect(copy.publicEntry.workflowRibbon).toBe(
 			'Upitnik, prikupljanje, rezultati, mjerenja i izvoz'
 		);
 		expect(copy.publicEntry.workspaceOverview).toBe('Pregled studije');
 		expect(copy.publicEntry.showcaseStudies).toBe('Studije');
-		expect(publicEntryText).not.toMatch(/hostan|hosting|valov|šifrarnik/i);
+		expect(publicEntryText).not.toMatch(/hostan|hosting|valov|šifrarnik|[ÂÃÄÅâ]/i);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
 	});
@@ -70,6 +71,12 @@ describe('localized route body copy', () => {
 		expect(copy.directory.title).toBe('Ljudi i grupe');
 		expect(copy.team.title).toBe('Tim');
 		expect(copy.settings.title).toBe('Postavke radnog prostora');
+		expect(copy.selectedStudy.surfaceChrome.missingStudy).toBe(
+			'Odaberite studiju prije otvaranja ove površine.'
+		);
+		expect(copy.selectedStudy.surfaceChrome.surfaceUnavailableFallback).toBe(
+			'Površina odabrane studije nije se mogla učitati.'
+		);
 	});
 
 	it('provides Croatian selected-study surface copy', () => {
