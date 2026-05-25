@@ -367,13 +367,13 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Review and export actions">
+<section class="product-panel" role="group" aria-label={reportsWorkflowCopy.surface.reviewActionsAria}>
 	<div class="product-panel__header">
 		<div>
 			<p class="product-kicker">Study flow · Results</p>
-			<h3 class="product-title">Review and export results</h3>
+			<h3 class="product-title">{reportsWorkflowCopy.surface.title}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Review aggregate results, check whether they are ready to share, and create export files when ready.
+				{reportsWorkflowCopy.surface.description}
 			</p>
 		</div>
 		<StatusBadge status={packetReview.status} />
@@ -383,10 +383,10 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Results use review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Use decision</p>
+				<p class="product-kicker">{reportsWorkflowCopy.surface.useDecisionLabel}</p>
 				<h4 class="setup-current-task__title">{packetReview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{packetReview.description}</p>
 			</div>
@@ -409,15 +409,15 @@
 			{/each}
 		</div>
 		<p class="result-line">
-			<span>Next action</span>
+			<span>{reportsWorkflowCopy.surface.nextActionLabel}</span>
 			<span>{packetReview.primaryAction}</span>
 		</p>
 	</article>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Score method review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.scoreMethodReviewAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Score method</p>
+				<p class="product-kicker">{reportsWorkflowCopy.surface.scoreMethodLabel}</p>
 				<h4 class="setup-current-task__title">{methodReview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{methodReview.description}</p>
 			</div>
@@ -441,10 +441,10 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Export preview">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.exportPreviewAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Export preview</p>
+				<p class="product-kicker">{reportsWorkflowCopy.surface.exportPreviewLabel}</p>
 				<h4 class="setup-current-task__title">{exportPreview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{exportPreview.description}</p>
 			</div>

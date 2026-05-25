@@ -7,7 +7,8 @@ import {
 	toSelectedSeriesResultsPacketReview,
 	toSelectedSeriesResultsHandoffStatus,
 	toSelectedSeriesReportsPath,
-	toSelectedSeriesReportsWorkflowActions
+	toSelectedSeriesReportsWorkflowActions,
+	type SelectedSeriesReportsWorkflowCopy
 } from './reports-workflow';
 import { routePageCopy } from '../i18n/route-copy';
 
@@ -712,7 +713,9 @@ describe('selected-series reports workflow model', () => {
 		);
 	});
 	it('localizes the results workflow model for Croatian route copy', () => {
-		const copy = routePageCopy('hr-HR').selectedStudy.reportsWorkflow;
+		const copy = routePageCopy('hr-HR').selectedStudy
+			.reportsWorkflow as SelectedSeriesReportsWorkflowCopy;
+		const translations = copy.translations ?? {};
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseExport, {}, copy);
 		const packet = toSelectedSeriesResultsPacketReview(reportableWorkspace, {}, copy);
 		const preview = toSelectedSeriesExportPreview(
@@ -733,11 +736,43 @@ describe('selected-series reports workflow model', () => {
 			title: 'Mogu li se ovi rezultati koristiti?',
 			primaryAction: 'Izradite izvoz odgovora za analizu ili datoteku sažetka izvještaja za interni pregled.'
 		});
-		expect(preview).toMatchObject({
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'responses',
+				label: translations.Responses,
+				summary: '12 prikupljenih odgovora'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'scores',
+				label: translations.Scores,
+				summary: '12 vidljivih rezultata'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'use_status',
+				label: translations['Use status'],
+				summary: translations['Internal review only']
+			})
+		);		expect(preview).toMatchObject({
 			title: 'Što je u ovom izvozu?',
 			downloadLabel: 'Preuzmi CSV skupa odgovora'
 		});
-	});
+			const method = toSelectedSeriesScoreMethodReview(reportableWorkspace, null, copy);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'coverage',
+				label: translations['Response coverage']
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'direction_scale',
+				label: translations['Direction and scale']
+			})
+		);});
 });
 
 const emptyWorkspace: CampaignSeriesReportsWorkspaceResponse = {

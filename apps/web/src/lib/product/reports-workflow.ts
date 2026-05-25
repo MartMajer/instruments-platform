@@ -165,7 +165,21 @@ type ReportsWorkflowActionCopy = {
 };
 
 export type SelectedSeriesReportsWorkflowCopy = {
+	locale?: string;
 	stepNumber: (number: number) => string;
+	surface: {
+		reviewActionsAria: string;
+		flowKicker: string;
+		title: string;
+		description: string;
+		useDecisionLabel: string;
+		resultsUseReviewAria: string;
+		nextActionLabel: string;
+		scoreMethodLabel: string;
+		scoreMethodReviewAria: string;
+		exportPreviewLabel: string;
+		exportPreviewAria: string;
+	};
 	actions: {
 		reportProof: ReportsWorkflowActionCopy;
 		exportArtifact: ReportsWorkflowActionCopy & {
@@ -224,10 +238,26 @@ export type SelectedSeriesReportsWorkflowCopy = {
 		downloadResponseDatasetCsv: string;
 		downloadReportSummaryCsv: string;
 	};
+	translations?: Record<string, string>;
 };
 
 export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWorkflowCopy = {
+	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
+	surface: {
+		reviewActionsAria: 'Review and export actions',
+		flowKicker: 'Study flow · Results',
+		title: 'Review and export results',
+		description:
+			'Review aggregate results, check whether they are ready to share, and create export files when ready.',
+		useDecisionLabel: 'Use decision',
+		resultsUseReviewAria: 'Results use review',
+		nextActionLabel: 'Next action',
+		scoreMethodLabel: 'Score method',
+		scoreMethodReviewAria: 'Score method review',
+		exportPreviewLabel: 'Export preview',
+		exportPreviewAria: 'Export preview'
+	},
 	actions: {
 		reportProof: {
 			title: 'Review results',
@@ -311,7 +341,8 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 		reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
 		downloadResponseDatasetCsv: 'Download response dataset CSV',
 		downloadReportSummaryCsv: 'Download report-summary CSV'
-	}
+	},
+	translations: {}
 };
 
 export function toSelectedSeriesReportsWorkflowActions(
@@ -706,7 +737,7 @@ export function toSelectedSeriesResultsPacketReview(
 			interpretationReviewed,
 			collectionClosed
 		}, copy),
-		items
+		items: items.map((item) => localizeReportsWorkflowItem(item, copy))
 	};
 }
 
@@ -741,7 +772,7 @@ export function toSelectedSeriesScoreMethodReview(
 				: interpretationReviewed && proofScores.length > 0 && !hasIncompleteInputs
 					? 'ready'
 					: 'pending',
-		items
+		items: items.map((item) => localizeReportsWorkflowItem(item, copy))
 	};
 }
 
@@ -757,6 +788,7 @@ export function toSelectedSeriesExportPreview(
 			status: 'not_available',
 			downloadLabel: copy.exportPreview.createOrSelectWaveFirst,
 			items: toPendingExportPreviewItems(copy.exportPreview.selectWavePendingDetail)
+				.map((item) => localizeReportsWorkflowItem(item, copy))
 		};
 	}
 
@@ -767,6 +799,7 @@ export function toSelectedSeriesExportPreview(
 			status: 'pending',
 			downloadLabel: copy.exportPreview.reviewExportFileFirst,
 			items: toPendingExportPreviewItems(copy.exportPreview.reviewFilePendingDetail)
+				.map((item) => localizeReportsWorkflowItem(item, copy))
 		};
 	}
 
@@ -791,7 +824,7 @@ export function toSelectedSeriesExportPreview(
 		downloadLabel: responseDataset
 			? copy.exportPreview.downloadResponseDatasetCsv
 			: copy.exportPreview.downloadReportSummaryCsv,
-		items
+		items: items.map((item) => localizeReportsWorkflowItem(item, copy))
 	};
 }
 
@@ -1857,6 +1890,50 @@ function toExportScoreOutputsItem(
 				: 'Score outputs not detected',
 		detail: 'Review score output fields before interpretation.'
 	};
+}
+
+function localizeReportsWorkflowItem<
+	TItem extends { label: string; summary: string; detail: string }
+>(item: TItem, copy: SelectedSeriesReportsWorkflowCopy): TItem {
+	return {
+		...item,
+		label: localizeReportsWorkflowText(item.label, copy),
+		summary: localizeReportsWorkflowText(item.summary, copy),
+		detail: localizeReportsWorkflowText(item.detail, copy)
+	};
+}
+
+function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsWorkflowCopy) {
+	const exact = copy.translations?.[value];
+	if (exact) {
+		return exact;
+	}
+
+	if (copy.locale !== 'hr-HR') {
+		return value;
+	}
+
+	const responseCollectedMatch = value.match(/^(\d+) responses? collected$/);
+	if (responseCollectedMatch) {
+		return `${responseCollectedMatch[1]} prikupljenih odgovora`;
+	}
+
+	const scoreVisibleMatch = value.match(/^(\d+) scores? visible$/);
+	if (scoreVisibleMatch) {
+		return `${scoreVisibleMatch[1]} vidljivih rezultata`;
+	}
+
+	const coverageMatch = value.match(/^(\d+) of (\d+) submitted responses scored$/);
+	if (coverageMatch) {
+		return `${coverageMatch[1]} od ${coverageMatch[2]} predanih odgovora ima izračun rezultata`;
+	}
+
+	const submittedVisibleMatch = value.match(/^(\d+) submitted responses?, (\d+) visible score rows?$/);
+	if (submittedVisibleMatch) {
+		return `${submittedVisibleMatch[1]} predanih odgovora, ${submittedVisibleMatch[2]} vidljivih redaka rezultata`;
+	}
+
+	return value;
 }
 
 function parseExportCodebook(value: string | null | undefined): ExportCodebookSummary {

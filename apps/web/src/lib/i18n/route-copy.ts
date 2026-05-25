@@ -1263,7 +1263,22 @@ const en = {
 			}
 		},
 		reportsWorkflow: {
+			locale: 'en',
 			stepNumber: (number: number) => `Step ${number}`,
+			surface: {
+				reviewActionsAria: 'Review and export actions',
+				flowKicker: 'Study flow Â· Results',
+				title: 'Review and export results',
+				description:
+					'Review aggregate results, check whether they are ready to share, and create export files when ready.',
+				useDecisionLabel: 'Use decision',
+				resultsUseReviewAria: 'Results use review',
+				nextActionLabel: 'Next action',
+				scoreMethodLabel: 'Score method',
+				scoreMethodReviewAria: 'Score method review',
+				exportPreviewLabel: 'Export preview',
+				exportPreviewAria: 'Export preview'
+			},
 			actions: {
 				reportProof: {
 					title: 'Review results',
@@ -1347,7 +1362,8 @@ const en = {
 				reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
 				downloadResponseDatasetCsv: 'Download response dataset CSV',
 				downloadReportSummaryCsv: 'Download report-summary CSV'
-			}
+			},
+			translations: {}
 		},		wavesWorkflow: {
 			stepNumber: (number: number) => `Step ${number}`,
 			plan: {
@@ -3017,7 +3033,22 @@ const hr: typeof en = {
 			}
 		},
 		reportsWorkflow: {
+			locale: 'hr-HR',
 			stepNumber: (number: number) => `${number}`,
+			surface: {
+				reviewActionsAria: 'Radnje pregleda i izvoza',
+				flowKicker: 'Tijek studije Â· Rezultati',
+				title: 'Pregled i izvoz rezultata',
+				description:
+					'Pregledajte agregirane rezultate, provjerite jesu li spremni za koriÅ¡tenje i izradite datoteke izvoza kada su spremne.',
+				useDecisionLabel: 'Odluka o koriÅ¡tenju',
+				resultsUseReviewAria: 'Pregled koriÅ¡tenja rezultata',
+				nextActionLabel: 'SljedeÄ‡i korak',
+				scoreMethodLabel: 'Metoda rezultata',
+				scoreMethodReviewAria: 'Pregled metode rezultata',
+				exportPreviewLabel: 'Pregled izvoza',
+				exportPreviewAria: 'Pregled izvoza'
+			},
 			actions: {
 				reportProof: {
 					title: 'Pregled rezultata',
@@ -3101,6 +3132,56 @@ const hr: typeof en = {
 				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i knjigu kodova.',
 				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
 				downloadReportSummaryCsv: 'Preuzmi CSV saÅ¾etka izvjeÅ¡taja'
+			},
+			translations: {
+				Responses: 'Odgovori',
+				Scores: 'Rezultati',
+				'Export files': 'Datoteke izvoza',
+				'Use status': 'Status korištenja',
+				'Raw submitted responses exist. They can be exported for internal analysis when an export file is created.':
+					'Postoje predani odgovori. Mogu se izvesti za internu analizu nakon izrade datoteke izvoza.',
+				'Scored results are visible for internal review. Keep score meaning and method notes with any exported analysis.':
+					'Izracunati rezultati vidljivi su za interni pregled. Uz svaku izvezenu analizu zadrite znacenje rezultata i bilješke o metodi.',
+				'Response dataset ready': 'Skup odgovora je spreman',
+				'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.':
+					'Ovaj CSV i knjigu kodova koristite za analizu. Uz datoteku zadrite bilješke o metodi i tumacenju.',
+				'Internal review only': 'Samo interni pregled',
+				'Use these results inside the workspace while export, interpretation, or collection status still needs review.':
+					'Ove rezultate koristite unutar radnog prostora dok izvoz, tumacenje ili status prikupljanja još trebaju pregled.',
+				'Score outputs': 'Izlazi rezultata',
+				'Output names available after reviewing results': 'Nazivi izlaza dostupni su nakon pregleda rezultata',
+				'Use Review results to load the score output rows. Results does not infer score meaning from hidden setup data.':
+					'Upotrijebite Pregled rezultata za ucitavanje redaka izlaza rezultata. Sustav ne zakljucuje znacenje rezultata iz skrivenih postavki.',
+				'Response coverage': 'Pokrivenost odgovora',
+				'All submitted responses have successful scoring activity.':
+					'Svi predani odgovori imaju uspješno izracunane rezultate.',
+				'Direction and scale': 'Smjer i ljestvica',
+				'Direction and scale family need setup context':
+					'Smjer i vrsta ljestvice trebaju kontekst iz postavki',
+				'Results can show output rows and missingness, but question-to-output coverage, reverse scoring, and answer scale family still need the Setup scoring plan. Do not infer better/worse meaning from output codes alone.':
+					'Rezultati mogu prikazati izlazne retke i nedostajuce vrijednosti, ali pokrivenost pitanja, obrnuto bodovanje i vrsta ljestvice još trebaju plan rezultata iz Postavki. Nemojte zakljucivati bolje/lošije znacenje samo iz kodova izlaza.',
+				'Missing answers': 'Nedostajuci odgovori',
+				'Missing-answer metadata available after reviewing results':
+					'Metapodaci o nedostajucim odgovorima dostupni su nakon pregleda rezultata',
+				'Use Review results to load valid/expected answer contribution counts where available.':
+					'Upotrijebite Pregled rezultata za ucitavanje broja vaecih i ocekivanih doprinosa odgovora gdje su dostupni.',
+				'Interpretation boundary': 'Granica tumacenja',
+				'Custom-study interpretation, not externally validated':
+					'Tumacenje prilagodene studije, bez vanjske validacije',
+				'Use these scores as tenant-defined custom-study calculations. Do not present them as official norms, benchmarks, clinical thresholds, or externally validated claims.':
+					'Ove rezultate koristite kao izracune prilagodene studije ovog radnog prostora. Nemojte ih predstavljati kao slubene norme, usporedne vrijednosti, klinicke pragove ili vanjski validirane tvrdnje.',
+				'No wave selected': 'Nije odabrano mjerenje',
+				'Select a wave before deciding how results can be used.':
+					'Odaberite mjerenje prije odluke o korištenju rezultata.',
+				'No result data yet': 'Još nema podataka rezultata',
+				'Collect responses before using or exporting results.':
+					'Prikupite odgovore prije korištenja ili izvoza rezultata.',
+				'Raw responses only': 'Samo sirovi odgovori',
+				'Do not present scored results yet. Use raw responses internally or fix scoring, missing-answer rules, and disclosure.':
+					'Još nemojte predstavljati izracunate rezultate. Sirove odgovore koristite interno ili popravite bodovanje, pravila nedostajucih odgovora i pravila prikaza.',
+				'Ready for controlled sharing': 'Spremno za kontrolirano dijeljenje',
+				'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.':
+					'Skup odgovora, vidljivi rezultati, pregledano tumacenje i zatvoreno prikupljanje su spremni. Uz sve što dijelite zadrite pravila prikaza i bilješke o metodi studije.'
 			}
 		},		wavesWorkflow: {
 			stepNumber: (number: number) => `${number}`,
