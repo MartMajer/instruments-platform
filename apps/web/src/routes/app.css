@@ -1631,7 +1631,7 @@ a {
 	border-bottom: 1px solid var(--color-border);
 	border-radius: 0;
 	background: transparent;
-	padding: 0.75rem 0;
+	padding: 0.75rem clamp(0.75rem, 1.8vw, 1rem);
 	box-shadow: var(--shadow-subtle);
 }
 
@@ -2822,7 +2822,7 @@ pre,
 .team-capability-row {
 	border-bottom: 1px solid var(--color-border);
 	background: transparent;
-	padding: 0.875rem 0;
+	padding: 0.875rem clamp(0.75rem, 1.8vw, 1rem);
 }
 
 .record-row {
@@ -7344,4 +7344,50 @@ img.app-mobile-topbar__mark {
 	.sample-study-card {
 		padding: 0.9rem;
 	}
+}
+
+.product-nav__link[data-disabled='true'] {
+	cursor: not-allowed;
+	opacity: 0.58;
+}
+
+.product-nav__link[data-disabled='true']:hover {
+	border-color: transparent;
+	background: transparent;
+}
+
+.product-nav__link[data-disabled='true'] .product-nav__icon {
+	color: var(--color-text-muted);
+}
+
+.app-mobile-menu .product-nav {
+	margin-top: 0;
+}
+
+.app-mobile-menu .product-nav__section {
+	border-radius: 1.25rem;
+	border: 1px solid var(--color-border);
+	background: var(--color-surface-raised);
+	padding: 0.75rem;
+}
+
+.app-mobile-menu .product-nav__section + .product-nav__section {
+	border-top: 1px solid var(--color-border);
+	padding-top: 0.75rem;
+}
+
+.app-mobile-bottom-nav {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.app-mobile-bottom-nav__link {
+	min-width: 0;
+}
+
+.app-mobile-bottom-nav__link span {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }

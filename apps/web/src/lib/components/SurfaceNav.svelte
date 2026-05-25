@@ -33,25 +33,29 @@
 					label: copy.surfaces.home,
 					href: '/app',
 					icon: Home,
-					description: copy.descriptions.startHere
+					description: copy.descriptions.startHere,
+					isDisabled: false
 				},
 				{
 					label: copy.surfaces.studies,
 					href: '/app/campaign-series',
 					icon: FolderKanban,
-					description: copy.descriptions.planStudies
+					description: copy.descriptions.planStudies,
+					isDisabled: false
 				},
 				{
 					label: copy.surfaces.instrumentLibrary,
 					href: '/app/instruments',
 					icon: BookOpen,
-					description: copy.descriptions.questionSets
+					description: copy.descriptions.questionSets,
+					isDisabled: false
 				},
 				{
 					label: copy.surfaces.exports,
 					href: '/app/exports',
 					icon: FileDown,
-					description: copy.descriptions.files
+					description: copy.descriptions.files,
+					isDisabled: false
 				}
 			]
 		},
@@ -63,13 +67,15 @@
 					label: copy.surfaces.directory,
 					href: '/app/directory',
 					icon: Network,
-					description: copy.descriptions.audiencesGroups
+					description: copy.descriptions.audiencesGroups,
+					isDisabled: false
 				},
 				{
 					label: copy.surfaces.team,
 					href: '/app/team',
 					icon: UsersRound,
-					description: copy.descriptions.workspaceAccess
+					description: copy.descriptions.workspaceAccess,
+					isDisabled: false
 				}
 			]
 		},
@@ -81,74 +87,85 @@
 					label: copy.surfaces.settings,
 					href: '/app/settings',
 					icon: Building2,
-					description: copy.descriptions.workspaceProfile
+					description: copy.descriptions.workspaceProfile,
+					isDisabled: false
 				}
 			]
 		}
 	]);
 
-	const selectedSeriesSection = $derived(
-		activeSeriesId
-			? {
-					id: 'selected-study',
-					label: copy.sections.selectedStudy,
-					surfaces: [
-						{
-							label: copy.surfaces.overview,
-							href: `/app/campaign-series/${activeSeriesId}`,
-							icon: ClipboardList,
-							description: copy.descriptions.planStatus
-						},
-						{
-							label: copy.surfaces.setup,
-							href: `/app/campaign-series/${activeSeriesId}/setup`,
-							icon: Settings2,
-							description: copy.descriptions.buildStudy
-						},
-						{
-							label: copy.surfaces.collect,
-							href: `/app/campaign-series/${activeSeriesId}/operations`,
-							icon: RadioTower,
-							description: copy.descriptions.collect
-						},
-						{
-							label: copy.surfaces.results,
-							href: `/app/campaign-series/${activeSeriesId}/reports`,
-							icon: BarChart3,
-							description: copy.descriptions.reportsExports
-						},
-						{
-							label: copy.surfaces.waves,
-							href: `/app/campaign-series/${activeSeriesId}/waves`,
-							icon: Waves,
-							description: copy.descriptions.compareWaves
-						}
-					]
-				}
-			: null
-	);
+	const selectedSeriesSection = $derived({
+		id: 'active-study',
+		label: copy.sections.selectedStudy,
+		surfaces: [
+			{
+				label: copy.surfaces.overview,
+				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}` : '/app/campaign-series',
+				icon: ClipboardList,
+				description: activeSeriesId ? copy.descriptions.planStatus : copy.descriptions.selectStudyFirst,
+				isDisabled: !activeSeriesId
+			},
+			{
+				label: copy.surfaces.setup,
+				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}/setup` : '/app/campaign-series',
+				icon: Settings2,
+				description: activeSeriesId ? copy.descriptions.buildStudy : copy.descriptions.selectStudyFirst,
+				isDisabled: !activeSeriesId
+			},
+			{
+				label: copy.surfaces.collect,
+				href: activeSeriesId
+					? `/app/campaign-series/${activeSeriesId}/operations`
+					: '/app/campaign-series',
+				icon: RadioTower,
+				description: activeSeriesId ? copy.descriptions.collect : copy.descriptions.selectStudyFirst,
+				isDisabled: !activeSeriesId
+			},
+			{
+				label: copy.surfaces.results,
+				href: activeSeriesId
+					? `/app/campaign-series/${activeSeriesId}/reports`
+					: '/app/campaign-series',
+				icon: BarChart3,
+				description: activeSeriesId
+					? copy.descriptions.reportsExports
+					: copy.descriptions.selectStudyFirst,
+				isDisabled: !activeSeriesId
+			},
+			{
+				label: copy.surfaces.waves,
+				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}/waves` : '/app/campaign-series',
+				icon: Waves,
+				description: activeSeriesId ? copy.descriptions.compareWaves : copy.descriptions.selectStudyFirst,
+				isDisabled: !activeSeriesId
+			}
+		]
+	});
 
-	const utilitySection = $derived(
+	const utilitySections = $derived(
 		demoSurfacesEnabled
-			? {
-					id: 'internal-tools',
-					label: copy.sections.internalTools,
-					surfaces: [
-						{
-							label: copy.surfaces.demoFixtures,
-							href: '/app/demo',
-							icon: ListChecks,
-							description: copy.descriptions.localGatedStates
-						}
-					]
-				}
-			: null
+			? [
+					{
+						id: 'internal-tools',
+						label: copy.sections.internalTools,
+						surfaces: [
+							{
+								label: copy.surfaces.demoFixtures,
+								href: '/app/demo',
+								icon: ListChecks,
+								description: copy.descriptions.localGatedStates,
+								isDisabled: false
+							}
+						]
+					}
+				]
+			: []
 	);
 
 	const navigationSections = $derived([
 		...globalNavigationSections,
-		...(selectedSeriesSection ? [selectedSeriesSection] : []),
-		...(utilitySection ? [utilitySection] : [])
+		selectedSeriesSection,
+		...utilitySections
 	]);
 </script>
 
@@ -164,8 +181,14 @@
 					<li>
 						<a
 							href={surface.href}
-							aria-current={isCurrent ? 'page' : undefined}
+							aria-current={!surface.isDisabled && isCurrent ? 'page' : undefined}
+							aria-disabled={surface.isDisabled ? 'true' : undefined}
+							data-disabled={surface.isDisabled ? 'true' : undefined}
+							tabindex={surface.isDisabled ? -1 : undefined}
 							class="product-nav__link"
+							onclick={(event) => {
+								if (surface.isDisabled) event.preventDefault();
+							}}
 						>
 							<span class="product-nav__icon">
 								<Icon size={17} strokeWidth={2.1} aria-hidden="true" />

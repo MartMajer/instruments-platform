@@ -4,24 +4,19 @@
 	import { env } from '$env/dynamic/public';
 	import {
 		ClipboardCheck,
-		FileDown,
 		FileStack,
-		FolderKanban,
 		Gauge,
-		Home,
 		LibraryBig,
 		Menu,
 		Network,
 		Send,
-		Settings2,
-		UsersRound,
 		X
 	} from 'lucide-svelte';
 	import SurfaceNav from '$lib/components/SurfaceNav.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
-	import { appShellCopy } from '$lib/i18n/ui-copy';
+	import { appShellCopy, surfaceNavCopy } from '$lib/i18n/ui-copy';
 	import { setupStages } from '$lib/setup/stages';
 
 	let { children } = $props();
@@ -30,6 +25,7 @@
 	const stageIcons = [LibraryBig, FileStack, Gauge, Send, ClipboardCheck];
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const copy = $derived(appShellCopy(locale));
+	const surfaceCopy = $derived(surfaceNavCopy(locale));
 	const isProductShell = $derived(page.url.pathname.startsWith('/app'));
 	const activeSeriesId = $derived(page.params.seriesId);
 	const isProductEntry = $derived(page.url.pathname === '/');
@@ -90,40 +86,47 @@
 		activeSeriesId ? `/app/campaign-series/${activeSeriesId}` : '/app/campaign-series'
 	);
 	const logoutUrl = $derived(env.PUBLIC_AUTH_LOGOUT_URL || resolve('/'));
-	const bottomNavItems = $derived([
-		{ id: 'home', label: copy.nav.home, href: '/app', icon: Home, match: (path: string) => path === '/app' },
-		{
-			id: 'studies',
-			label: copy.nav.studies,
-			href: '/app/campaign-series',
-			icon: FolderKanban,
-			match: (path: string) => path === '/app/campaign-series'
-		},
-		...(activeSeriesId
+	const bottomNavItems = $derived(
+		activeSeriesId
 			? [
 					{
-						id: 'study',
-						label: copy.nav.study,
-						href: currentStudyHref,
+						id: 'overview',
+						label: surfaceCopy.surfaces.overview,
+						href: `/app/campaign-series/${activeSeriesId}`,
+						icon: ClipboardCheck,
+						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}`
+					},
+					{
+						id: 'setup',
+						label: surfaceCopy.surfaces.setup,
+						href: `/app/campaign-series/${activeSeriesId}/setup`,
 						icon: FileStack,
-						match: (path: string) => /^\/app\/campaign-series\/[^/]+/.test(path)
+						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/setup`
+					},
+					{
+						id: 'collect',
+						label: surfaceCopy.surfaces.collect,
+						href: `/app/campaign-series/${activeSeriesId}/operations`,
+						icon: Send,
+						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/operations`
+					},
+					{
+						id: 'results',
+						label: surfaceCopy.surfaces.results,
+						href: `/app/campaign-series/${activeSeriesId}/reports`,
+						icon: Gauge,
+						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/reports`
+					},
+					{
+						id: 'waves',
+						label: surfaceCopy.surfaces.waves,
+						href: `/app/campaign-series/${activeSeriesId}/waves`,
+						icon: Network,
+						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/waves`
 					}
 				]
-			: []),
-		{
-			id: 'directory',
-			label: copy.nav.directory,
-			href: '/app/directory',
-			icon: Network,
-			match: (path: string) => path === '/app/directory'
-		}
-	]);
-	const moreNavItems = $derived([
-		{ label: copy.nav.team, href: '/app/team', icon: UsersRound, description: copy.descriptions.workspaceAccess },
-		{ label: copy.nav.exports, href: '/app/exports', icon: FileDown, description: copy.descriptions.filesAndDownloads },
-		{ label: copy.nav.settings, href: '/app/settings', icon: Settings2, description: copy.descriptions.workspaceSettings }
-	]);
-
+			: []
+	);
 	$effect(() => {
 		page.url.pathname;
 		mobileMenuOpen = false;
@@ -222,32 +225,9 @@
 
 				{#if mobileMenuOpen}
 					<div class="app-mobile-menu" role="dialog" aria-label={copy.aria.workspaceMenu}>
-						<nav class="app-mobile-menu__section" aria-label={copy.aria.primaryWorkspaceRoutes}>
-							<p class="app-mobile-menu__heading">{copy.nav.workspace}</p>
-							{#each bottomNavItems as item (item.id)}
-								{@const Icon = item.icon}
-								<a
-									class="app-mobile-menu__link"
-									data-current={item.match(page.url.pathname) ? 'true' : undefined}
-									href={item.href}
-								>
-									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
-									<span>{item.label}</span>
-								</a>
-							{/each}
-						</nav>
+						<SurfaceNav />
 						<nav class="app-mobile-menu__section" aria-label={copy.aria.moreWorkspaceRoutes}>
 							<p class="app-mobile-menu__heading">{copy.nav.more}</p>
-							{#each moreNavItems as item (item.href)}
-								{@const Icon = item.icon}
-								<a class="app-mobile-menu__link" href={item.href}>
-									<Icon size={18} strokeWidth={2.1} aria-hidden="true" />
-									<span>
-										<strong>{item.label}</strong>
-										<small>{item.description}</small>
-									</span>
-								</a>
-							{/each}
 							<LocaleSwitcher compact />
 							<a class="app-mobile-menu__link app-mobile-menu__link--muted" href={logoutUrl}>
 								<span>{copy.actions.signOut}</span>
@@ -282,8 +262,8 @@
 				</div>
 			</main>
 
-			{#if isProductShell}
-				<nav class="app-mobile-bottom-nav" aria-label={copy.aria.primaryMobileNavigation}>
+			{#if isProductShell && activeSeriesId}
+				<nav class="app-mobile-bottom-nav" aria-label={surfaceCopy.sections.selectedStudy}>
 					{#each bottomNavItems as item (item.id)}
 						{@const Icon = item.icon}
 						<a
@@ -295,16 +275,6 @@
 							<span>{item.label}</span>
 						</a>
 					{/each}
-					<button
-						type="button"
-						class="app-mobile-bottom-nav__link"
-						aria-current={mobileMenuOpen ? 'page' : undefined}
-						aria-expanded={mobileMenuOpen}
-						onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
-					>
-						<Menu size={18} strokeWidth={2.1} aria-hidden="true" />
-						<span>{copy.nav.more}</span>
-					</button>
 				</nav>
 			{/if}
 		</div>

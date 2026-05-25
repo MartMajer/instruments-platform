@@ -5,6 +5,7 @@ const homePage = readFileSync(new URL('./+page.svelte', import.meta.url), 'utf8'
 const signInPage = readFileSync(new URL('./signin/+page.svelte', import.meta.url), 'utf8');
 const registerPage = readFileSync(new URL('./register/+page.svelte', import.meta.url), 'utf8');
 const appShell = readFileSync(new URL('../lib/components/AppShell.svelte', import.meta.url), 'utf8');
+const surfaceNav = readFileSync(new URL('../lib/components/SurfaceNav.svelte', import.meta.url), 'utf8');
 const appCss = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
 
 describe('public entry chrome', () => {
@@ -33,6 +34,15 @@ describe('public entry chrome', () => {
 		expect(appShell).toContain('/brand/validated-scale-mark.svg');
 		expect(appShell).not.toContain('Instruments Platform');
 		expect(appShell).not.toContain('>IP<');
+	});
+
+	it('keeps active study navigation stable before a study is selected', () => {
+		expect(surfaceNav).toContain("id: 'active-study'");
+		expect(surfaceNav).toContain('isDisabled: !activeSeriesId');
+		expect(surfaceNav).toContain('aria-disabled={surface.isDisabled ?');
+		expect(surfaceNav).toContain('copy.descriptions.selectStudyFirst');
+		expect(surfaceNav).toContain('...utilitySections');
+		expect(surfaceNav).not.toContain(': null');
 	});
 
 	it('offers locale switching without a visible mobile menu text button', () => {

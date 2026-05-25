@@ -94,6 +94,7 @@ export type SurfaceNavCopy = {
 		collect: string;
 		reportsExports: string;
 		compareWaves: string;
+		selectStudyFirst: string;
 		localGatedStates: string;
 	};
 	aria: {
@@ -198,7 +199,7 @@ const appShellCopies: LocaleDictionary<AppShellCopy> = {
 			study: 'Study',
 			directory: 'Directory',
 			team: 'Team',
-			exports: 'Exports',
+			exports: 'Files',
 			settings: 'Settings',
 			instruments: 'Instruments',
 			workspace: 'Workspace',
@@ -253,7 +254,7 @@ const appShellCopies: LocaleDictionary<AppShellCopy> = {
 			study: 'Studija',
 			directory: 'Imenik',
 			team: 'Tim',
-			exports: 'Izvozi',
+			exports: 'Datoteke',
 			settings: 'Postavke',
 			instruments: 'Instrumenti',
 			workspace: 'Radni prostor',
@@ -288,17 +289,17 @@ const appShellCopies: LocaleDictionary<AppShellCopy> = {
 const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 	en: {
 		sections: {
-			studies: 'Studies',
+			studies: 'Workspace',
 			peopleAccess: 'People and access',
 			workspaceAdmin: 'Workspace admin',
-			selectedStudy: 'Selected study',
+			selectedStudy: 'Active study',
 			internalTools: 'Internal tools'
 		},
 		surfaces: {
 			home: 'Home',
 			studies: 'Studies',
 			instrumentLibrary: 'Instrument library',
-			exports: 'Exports',
+			exports: 'Files',
 			directory: 'Directory',
 			team: 'Team',
 			settings: 'Settings',
@@ -320,8 +321,9 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			planStatus: 'Plan and status',
 			buildStudy: 'Build study',
 			collect: 'Run collection',
-			reportsExports: 'Reports and exports',
+			reportsExports: 'Results and files',
 			compareWaves: 'Compare waves',
+			selectStudyFirst: 'Select or create a study first',
 			localGatedStates: 'Local gated states'
 		},
 		aria: {
@@ -330,17 +332,17 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 	},
 	'hr-HR': {
 		sections: {
-			studies: 'Studije',
+			studies: 'Radni prostor',
 			peopleAccess: 'Ljudi i pristup',
 			workspaceAdmin: 'Administracija',
-			selectedStudy: 'Odabrana studija',
+			selectedStudy: 'Aktivna studija',
 			internalTools: 'Interni alati'
 		},
 		surfaces: {
 			home: 'Početna',
 			studies: 'Studije',
 			instrumentLibrary: 'Knjižnica instrumenata',
-			exports: 'Izvozi',
+			exports: 'Datoteke',
 			directory: 'Imenik',
 			team: 'Tim',
 			settings: 'Postavke',
@@ -362,8 +364,9 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			planStatus: 'Plan i status',
 			buildStudy: 'Izradi studiju',
 			collect: 'Provedi prikupljanje',
-			reportsExports: 'Izvještaji i izvozi',
+			reportsExports: 'Rezultati i datoteke',
 			compareWaves: 'Usporedi mjerenja',
+			selectStudyFirst: 'Najprije odaberite ili izradite studiju',
 			localGatedStates: 'Lokalna testna stanja'
 		},
 		aria: {
