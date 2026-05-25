@@ -60,6 +60,26 @@ describe('app message catalog', () => {
 		).toBe('2 uspoređena izlaza rezultata: workload, recovery');
 	});
 
+	it('formats Setup workflow dynamic messages through stable ids', () => {
+		expect(
+			appMessage('hr-HR', 'setup.launchState.savedSelections', {
+				selectionCount: 2,
+				pairCount: 5
+			})
+		).toBe('Spremljeno: 2 odabira, spremno: 5 parova pozivnica.');
+		expect(
+			appMessage('hr-HR', 'setup.designMap.questionnaireSaved', {
+				name: 'Upitnik',
+				questionCount: 5
+			})
+		).toBe('Upitnik spremljen je s 5 pitanja.');
+		expect(
+			appMessage('hr-HR', 'setup.waveContext.recipientBelongsUntilLaunch', {
+				waveName: 'Mjerenje 1'
+			})
+		).toBe('Odabir primatelja pripada mjerenju Mjerenje 1 dok se to mjerenje ne pokrene.');
+	});
+
 	it('keeps message ids stable and non-empty', () => {
 		const invalidIds = appMessageIds().filter(
 			(id: AppMessageId) => !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/u.test(id)

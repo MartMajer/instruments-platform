@@ -803,6 +803,7 @@ const en = {
 			}
 		},
 		setupWorkflow: {
+			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Wave ${number}`,
 			steps: {
@@ -2575,6 +2576,7 @@ const hr: typeof en = {
 			}
 		},
 		setupWorkflow: {
+			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			defaultWaveName: (number: number) => `Mjerenje ${number}`,
 			steps: {

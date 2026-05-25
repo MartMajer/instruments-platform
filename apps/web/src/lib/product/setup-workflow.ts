@@ -1,4 +1,6 @@
 import type { CampaignSeriesSetupWorkspaceResponse } from '$lib/api/product';
+import type { AppLocale } from '$lib/i18n/localization';
+import { appMessage, type AppMessageId, type AppMessageValues } from '$lib/i18n/messages';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesSetupWorkflowActionId =
@@ -125,6 +127,7 @@ export type SelectedSeriesSetupWaveContext = {
 };
 
 export type SelectedSeriesSetupWorkflowCopy = {
+	locale?: AppLocale;
 	stepNumber: (number: number) => string;
 	defaultWaveName: (number: number) => string;
 	steps: Record<
@@ -234,6 +237,7 @@ export type SelectedSeriesSetupWorkflowCopy = {
 };
 
 export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflowCopy = {
+	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
 	defaultWaveName: (number) => `Wave ${number}`,
 	steps: {
@@ -551,8 +555,8 @@ export function toSelectedSeriesSetupLaunchPlan(
 				label: copy.launchPlan.wave,
 				status: campaignId ? 'ready' : 'attention',
 				detail: campaignId
-					? copy.launchPlan.waveDraftReady(waveName)
-					: copy.launchPlan.waveWillBeCreated(waveName)
+					? setupMessage(copy, 'setup.launchPlan.waveDraftReady', { waveName })
+					: setupMessage(copy, 'setup.launchPlan.waveWillBeCreated', { waveName })
 			},
 			{
 				id: 'response_mode',
@@ -611,10 +615,10 @@ export function toSelectedSeriesSetupDesignMap(
 				label: copy.designMap.questionnaire,
 				status: questionnaireReady ? 'ready' : 'blocked',
 				detail: questionnaireReady
-					? copy.designMap.questionnaireSaved(
-							workspace.template?.templateName?.trim() || copy.steps.template.title,
-							workspace.template?.questionCount ?? 0
-						)
+					? setupMessage(copy, 'setup.designMap.questionnaireSaved', {
+							name: workspace.template?.templateName?.trim() || copy.steps.template.title,
+							questionCount: workspace.template?.questionCount ?? 0
+						})
 					: copy.designMap.questionnaireMissing
 			},
 			{
@@ -622,7 +626,9 @@ export function toSelectedSeriesSetupDesignMap(
 				label: copy.designMap.results,
 				status: resultsReady ? 'ready' : questionnaireReady ? 'pending' : 'blocked',
 				detail: resultsReady
-					? copy.designMap.resultsReady(workspace.scoring?.ruleKey?.trim() || copy.steps.scoring.title)
+					? setupMessage(copy, 'setup.designMap.resultsReady', {
+							ruleKey: workspace.scoring?.ruleKey?.trim() || copy.steps.scoring.title
+						})
 					: copy.designMap.resultsMissing
 			},
 			{
@@ -645,13 +651,17 @@ export function toSelectedSeriesSetupWaveContext(
 
 	if (workspace.summary.campaignCount === 0 && !campaignId) {
 		return {
-			title: copy.waveContext.prepareForCollection(copy.defaultWaveName(1)),
+			title: setupMessage(copy, 'setup.waveContext.prepareForCollection', {
+				waveName: copy.defaultWaveName(1)
+			}),
 			label: copy.waveContext.firstWaveSetup,
 			status: 'pending',
 			summary: copy.waveContext.firstWaveSummary,
 			guidance: [
 				copy.waveContext.createFirstAfterSetup,
-				copy.waveContext.recipientBelongsUntilLaunch(copy.defaultWaveName(1)),
+				setupMessage(copy, 'setup.waveContext.recipientBelongsUntilLaunch', {
+					waveName: copy.defaultWaveName(1)
+				}),
 				copy.waveContext.reviewResultsBeforeFollowup
 			]
 		};
@@ -661,14 +671,14 @@ export function toSelectedSeriesSetupWaveContext(
 		const waveName = selectedSetupWaveName(workspace, campaignId) ?? nextWaveName;
 		const isFirstWave = workspace.summary.campaignCount <= 1;
 		return {
-			title: copy.waveContext.prepareForCollection(waveName),
+			title: setupMessage(copy, 'setup.waveContext.prepareForCollection', { waveName }),
 			label: isFirstWave ? copy.waveContext.currentDraftWave : copy.waveContext.followUpDraftWave,
 			status: 'pending',
 			summary: isFirstWave
 				? copy.waveContext.currentDraftSummary
-				: copy.waveContext.followUpDraftSummary(waveName),
+				: setupMessage(copy, 'setup.waveContext.followUpDraftSummary', { waveName }),
 			guidance: [
-				copy.waveContext.recipientBelongsUntilLaunch(waveName),
+				setupMessage(copy, 'setup.waveContext.recipientBelongsUntilLaunch', { waveName }),
 				copy.waveContext.reviewResultsBeforeFollowup,
 				copy.waveContext.doNotAssumeRecipients
 			]
@@ -689,20 +699,33 @@ export function toSelectedSeriesSetupWaveContext(
 	return {
 		title:
 			existingWaveCount === 1
-				? copy.waveContext.reviewBeforePreparing(previousWaveName, nextWaveName)
-				: copy.waveContext.reviewExistingBeforePreparing(nextWaveName),
+				? setupMessage(copy, 'setup.waveContext.reviewBeforePreparing', {
+						previousWaveName,
+						nextWaveName
+					})
+				: setupMessage(copy, 'setup.waveContext.reviewExistingBeforePreparing', { nextWaveName }),
 		label: copy.waveContext.futureWaveSetup,
 		status: 'pending',
 		summary:
 			existingWaveCount === 1
-				? copy.waveContext.closedOneWaveSummary(previousWaveName, previousWaveStatus, nextWaveName)
-				: copy.waveContext.multipleWaveSummary(existingWaveCount, nextWaveName),
+				? setupMessage(copy, 'setup.waveContext.closedOneWaveSummary', {
+						previousWaveName,
+						previousWaveStatus,
+						nextWaveName
+					})
+				: setupMessage(copy, 'setup.waveContext.multipleWaveSummary', {
+						existingWaveCount,
+						nextWaveName
+					}),
 		guidance: [
-			copy.waveContext.openResultsBeforeCreating(reviewTarget, nextWaveName),
-			copy.waveContext.createOnlyWhenIntentional(nextWaveName),
-			copy.waveContext.recipientBelongsToNewDraft(
-				existingWaveCount === 1 ? previousWaveName : copy.waveContext.previousWaves
-			)
+			setupMessage(copy, 'setup.waveContext.openResultsBeforeCreating', {
+				reviewTarget,
+				nextWaveName
+			}),
+			setupMessage(copy, 'setup.waveContext.createOnlyWhenIntentional', { nextWaveName }),
+			setupMessage(copy, 'setup.waveContext.recipientBelongsToNewDraft', {
+				previousLabel: existingWaveCount === 1 ? previousWaveName : copy.waveContext.previousWaves
+			})
 		]
 	};
 }
@@ -722,7 +745,9 @@ function summarizeWaveDesignStatus(
 	if (workspace.summary.liveCampaignCount > 0) {
 		return {
 			status: 'ready',
-			detail: copy.designMap.liveWave(workspace.summary.liveCampaignCount)
+			detail: setupMessage(copy, 'setup.designMap.liveWave', {
+				count: workspace.summary.liveCampaignCount
+			})
 		};
 	}
 
@@ -732,13 +757,21 @@ function summarizeWaveDesignStatus(
 
 	if (draftCount > 0) {
 		return workspace.readiness.ready
-			? { status: 'ready', detail: copy.designMap.waveReady(draftCount) }
-			: { status: 'pending', detail: copy.designMap.draftWaveNeedsReadiness(draftCount) };
+			? {
+					status: 'ready',
+					detail: setupMessage(copy, 'setup.designMap.waveReady', { count: draftCount })
+				}
+			: {
+					status: 'pending',
+					detail: setupMessage(copy, 'setup.designMap.draftWaveNeedsReadiness', {
+						count: draftCount
+					})
+				};
 	}
 
 	return {
 		status: 'ready',
-		detail: copy.designMap.closedWave(campaignCount)
+		detail: setupMessage(copy, 'setup.designMap.closedWave', { count: campaignCount })
 	};
 }
 
@@ -859,7 +892,35 @@ function formatCampaignStatus(
 	status: string | null | undefined,
 	copy: SelectedSeriesSetupWorkflowCopy
 ) {
-	return status?.replaceAll('_', ' ') || copy.misc.notEditable;
+	if (!status) {
+		return setupMessage(copy, 'setup.status.notEditable');
+	}
+
+	if (status === 'draft') {
+		return setupMessage(copy, 'setup.status.draft');
+	}
+
+	if (status === 'scheduled') {
+		return setupMessage(copy, 'setup.status.scheduled');
+	}
+
+	if (status === 'live') {
+		return setupMessage(copy, 'setup.status.live');
+	}
+
+	if (status === 'closed') {
+		return setupMessage(copy, 'setup.status.closed');
+	}
+
+	return status.replaceAll('_', ' ');
+}
+
+function setupMessage(
+	copy: SelectedSeriesSetupWorkflowCopy,
+	id: AppMessageId,
+	values: AppMessageValues = {}
+) {
+	return appMessage(copy.locale ?? 'en', id, values);
 }
 
 function toActionReadinessStatus(
@@ -907,7 +968,10 @@ function toRecipientSummary(
 	const selectionCount = options.savedRecipientSelectionCount ?? 0;
 	if (selectionCount > 0) {
 		const pairCount = options.savedRecipientPairCount ?? 0;
-		return copy.launchState.savedSelections(selectionCount, pairCount);
+		return setupMessage(copy, 'setup.launchState.savedSelections', {
+			selectionCount,
+			pairCount
+		});
 	}
 
 	if (options.responseIdentityMode === 'identified') {
@@ -947,7 +1011,10 @@ function recipientLaunchPlanDetail(
 	copy: SelectedSeriesSetupWorkflowCopy
 ) {
 	if (selectionCount > 0 || pairCount > 0) {
-		return copy.launchPlan.savedRecipientDetail(selectionCount, pairCount);
+		return setupMessage(copy, 'setup.launchPlan.savedRecipientDetail', {
+			selectionCount,
+			pairCount
+		});
 	}
 
 	if (mode === 'identified') {

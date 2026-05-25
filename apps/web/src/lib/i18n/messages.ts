@@ -10,14 +10,17 @@ type CountNounId =
 	| 'column'
 	| 'comparedOutput'
 	| 'comparisonScore'
+	| 'invitationPair'
 	| 'linkedPair'
 	| 'measurement'
+	| 'question'
 	| 'reportSummaryColumn'
 	| 'response'
 	| 'row'
 	| 'score'
 	| 'scoreMetadataField'
-	| 'scoreOutput';
+	| 'scoreOutput'
+	| 'selection';
 
 type CountNounForms = Record<PluralCategory | 'other', string>;
 
@@ -416,7 +419,88 @@ const enMessages = {
 		'Keep disclosure and method notes with any wave-comparison export or report.',
 	'waves.method.interpretation.custom.summary': 'Custom-study change, not a benchmark',
 	'waves.method.interpretation.custom.detail':
-		'Describe this as change in this tenant-defined study only. Do not present it as an official benchmark, norm, clinical threshold, or externally validated claim.'
+		'Describe this as change in this tenant-defined study only. Do not present it as an official benchmark, norm, clinical threshold, or externally validated claim.',
+
+	'setup.status.notEditable': 'not editable',
+	'setup.status.draft': 'draft',
+	'setup.status.scheduled': 'scheduled',
+	'setup.status.live': 'live',
+	'setup.status.closed': 'closed',
+	'setup.launchState.savedSelections': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'selectionCount'), 'selection')} saved, ${formatCount(
+			locale,
+			numberValue(values, 'pairCount'),
+			'invitationPair'
+		)} ready.`,
+	'setup.launchPlan.waveDraftReady': (values) =>
+		`${textValue(values, 'waveName')} is the draft wave for this study.`,
+	'setup.launchPlan.waveWillBeCreated': (values) =>
+		`${textValue(values, 'waveName')} will be created when you save this step.`,
+	'setup.launchPlan.savedRecipientDetail': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'selectionCount'), 'selection')} saved with ${formatCount(
+			locale,
+			numberValue(values, 'pairCount'),
+			'invitationPair'
+		)}.`,
+	'setup.designMap.questionnaireSaved': (values, locale) =>
+		`${textValue(values, 'name')} is saved with ${formatCount(
+			locale,
+			numberValue(values, 'questionCount'),
+			'question'
+		)}.`,
+	'setup.designMap.resultsReady': (values) =>
+		`Result outputs are saved as ${textValue(values, 'ruleKey')}.`,
+	'setup.designMap.draftWaveNeedsReadiness': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
+			numberValue(values, 'count') === 1 ? 'is' : 'are'
+		} prepared as draft; launch readiness still needs attention.`,
+	'setup.designMap.waveReady': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
+			numberValue(values, 'count') === 1 ? 'is' : 'are'
+		} ready for Collection.`,
+	'setup.designMap.liveWave': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
+			numberValue(values, 'count') === 1 ? 'is' : 'are'
+		} collecting responses.`,
+	'setup.designMap.closedWave': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
+			numberValue(values, 'count') === 1 ? 'has' : 'have'
+		} closed data for Results review.`,
+	'setup.waveContext.prepareForCollection': (values) =>
+		`Prepare ${textValue(values, 'waveName')} for collection`,
+	'setup.waveContext.followUpDraftSummary': (values) =>
+		`${textValue(values, 'waveName')} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+	'setup.waveContext.closedOneWaveSummary': (values) =>
+		`${textValue(values, 'previousWaveName')} is already ${textValue(
+			values,
+			'previousWaveStatus'
+		)}. Create ${textValue(values, 'nextWaveName')} only when the next collection round is intentional.`,
+	'setup.waveContext.multipleWaveSummary': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'existingWaveCount'), 'measurement')} already exist. Create ${textValue(
+			values,
+			'nextWaveName'
+		)} only after the current wave results have been reviewed.`,
+	'setup.waveContext.recipientBelongsUntilLaunch': (values) =>
+		`Recipient selection belongs to ${textValue(values, 'waveName')} until this wave is launched.`,
+	'setup.waveContext.reviewBeforePreparing': (values) =>
+		`Review ${textValue(values, 'previousWaveName')} before preparing ${textValue(
+			values,
+			'nextWaveName'
+		)}`,
+	'setup.waveContext.reviewExistingBeforePreparing': (values) =>
+		`Review existing waves before preparing ${textValue(values, 'nextWaveName')}`,
+	'setup.waveContext.openResultsBeforeCreating': (values) =>
+		`Open Results to review or export ${textValue(values, 'reviewTarget')} before creating ${textValue(
+			values,
+			'nextWaveName'
+		)}.`,
+	'setup.waveContext.createOnlyWhenIntentional': (values) =>
+		`Create ${textValue(values, 'nextWaveName')} only when the next collection round is intentional.`,
+	'setup.waveContext.recipientBelongsToNewDraft': (values) =>
+		`Recipient selection in this step will belong to the new draft wave, not to ${textValue(
+			values,
+			'previousLabel'
+		)}.`
 } satisfies Record<string, AppMessageTemplate>;
 
 export type AppMessageId = keyof typeof enMessages;
@@ -666,7 +750,91 @@ const hrMessages: AppMessageCatalog = {
 	'waves.method.interpretation.custom.summary':
 		'Promjena u prilagođenoj studiji, ne usporedna vrijednost',
 	'waves.method.interpretation.custom.detail':
-		'Opišite ovo samo kao promjenu u ovoj studiji radnog prostora. Nemojte je predstavljati kao službenu usporednu vrijednost, normu, klinički prag ili vanjski validiranu tvrdnju.'
+		'Opišite ovo samo kao promjenu u ovoj studiji radnog prostora. Nemojte je predstavljati kao službenu usporednu vrijednost, normu, klinički prag ili vanjski validiranu tvrdnju.',
+	'setup.status.notEditable': 'nije moguće uređivati',
+	'setup.status.draft': 'nacrt',
+	'setup.status.scheduled': 'zakazano',
+	'setup.status.live': 'u tijeku',
+	'setup.status.closed': 'zatvoreno',
+	'setup.launchState.savedSelections': (values, locale) =>
+		`Spremljeno: ${formatCount(
+			locale,
+			numberValue(values, 'selectionCount'),
+			'selection'
+		)}, spremno: ${formatCount(locale, numberValue(values, 'pairCount'), 'invitationPair')}.`,
+	'setup.launchPlan.waveDraftReady': (values) =>
+		`${textValue(values, 'waveName')} je nacrt mjerenja za ovu studiju.`,
+	'setup.launchPlan.waveWillBeCreated': (values) =>
+		`${textValue(values, 'waveName')} izradit će se kada spremite ovaj korak.`,
+	'setup.launchPlan.savedRecipientDetail': (values, locale) =>
+		`Spremljeno: ${formatCount(
+			locale,
+			numberValue(values, 'selectionCount'),
+			'selection'
+		)}, s ${formatCount(locale, numberValue(values, 'pairCount'), 'invitationPair')}.`,
+	'setup.designMap.questionnaireSaved': (values, locale) =>
+		`${textValue(values, 'name')} spremljen je s ${formatCount(
+			locale,
+			numberValue(values, 'questionCount'),
+			'question'
+		)}.`,
+	'setup.designMap.resultsReady': (values) =>
+		`Izlazi rezultata spremljeni su kao ${textValue(values, 'ruleKey')}.`,
+	'setup.designMap.draftWaveNeedsReadiness': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'count'),
+			'measurement'
+		)} u nacrtu je pripremljeno; provjera prije pokretanja još treba pažnju.`,
+	'setup.designMap.waveReady': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} spremno je za Prikupljanje.`,
+	'setup.designMap.liveWave': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} prikuplja odgovore.`,
+	'setup.designMap.closedWave': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'count'),
+			'measurement'
+		)} ima zatvorene podatke za pregled Rezultata.`,
+	'setup.waveContext.prepareForCollection': (values) =>
+		`Pripremite ${textValue(values, 'waveName')} za prikupljanje`,
+	'setup.waveContext.followUpDraftSummary': (values) =>
+		`${textValue(values, 'waveName')} je nacrt sljedećeg mjerenja. Koristite ga samo kada je sljedeći krug prikupljanja namjeran.`,
+	'setup.waveContext.closedOneWaveSummary': (values) =>
+		`${textValue(values, 'previousWaveName')} je već ${textValue(
+			values,
+			'previousWaveStatus'
+		)}. Izradite ${textValue(values, 'nextWaveName')} samo kada je sljedeći krug prikupljanja namjeran.`,
+	'setup.waveContext.multipleWaveSummary': (values, locale) =>
+		`Već postoji ${formatCount(
+			locale,
+			numberValue(values, 'existingWaveCount'),
+			'measurement'
+		)}. Izradite ${textValue(
+			values,
+			'nextWaveName'
+		)} tek nakon pregleda rezultata trenutnog mjerenja.`,
+	'setup.waveContext.recipientBelongsUntilLaunch': (values) =>
+		`Odabir primatelja pripada mjerenju ${textValue(values, 'waveName')} dok se to mjerenje ne pokrene.`,
+	'setup.waveContext.reviewBeforePreparing': (values) =>
+		`Pregledajte ${textValue(values, 'previousWaveName')} prije pripreme ${textValue(
+			values,
+			'nextWaveName'
+		)}`,
+	'setup.waveContext.reviewExistingBeforePreparing': (values) =>
+		`Pregledajte postojeća mjerenja prije pripreme ${textValue(values, 'nextWaveName')}`,
+	'setup.waveContext.openResultsBeforeCreating': (values) =>
+		`Otvorite Rezultate za pregled ili izvoz ${textValue(
+			values,
+			'reviewTarget'
+		)} prije izrade ${textValue(values, 'nextWaveName')}.`,
+	'setup.waveContext.createOnlyWhenIntentional': (values) =>
+		`Izradite ${textValue(values, 'nextWaveName')} samo kada je sljedeći krug prikupljanja namjeran.`,
+	'setup.waveContext.recipientBelongsToNewDraft': (values) =>
+		`Odabir primatelja u ovom koraku pripadat će novom nacrtu mjerenja, a ne mjerenju ${textValue(
+			values,
+			'previousLabel'
+		)}.`
 };
 
 const messageCatalogs: Record<AppLocale, AppMessageCatalog> = {
@@ -681,14 +849,17 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		column: { one: 'column', other: 'columns' },
 		comparedOutput: { one: 'compared output', other: 'compared outputs' },
 		comparisonScore: { one: 'visible comparison score', other: 'visible comparison scores' },
+		invitationPair: { one: 'invitation pair', other: 'invitation pairs' },
 		linkedPair: { one: 'linked pair', other: 'linked pairs' },
 		measurement: { one: 'wave', other: 'waves' },
+		question: { one: 'question', other: 'questions' },
 		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
 		response: { one: 'response', other: 'responses' },
 		row: { one: 'row', other: 'rows' },
 		score: { one: 'score', other: 'scores' },
 		scoreMetadataField: { one: 'score metadata field', other: 'score metadata fields' },
-		scoreOutput: { one: 'score output', other: 'score outputs' }
+		scoreOutput: { one: 'score output', other: 'score outputs' },
+		selection: { one: 'selection', other: 'selections' }
 	},
 	'hr-HR': {
 		answerMetadataField: {
@@ -712,8 +883,14 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			few: 'vidljiva usporedna rezultata',
 			other: 'vidljivih usporednih rezultata'
 		},
+		invitationPair: {
+			one: 'par pozivnica',
+			few: 'para pozivnica',
+			other: 'parova pozivnica'
+		},
 		linkedPair: { one: 'povezani par', few: 'povezana para', other: 'povezanih parova' },
 		measurement: { one: 'mjerenje', few: 'mjerenja', other: 'mjerenja' },
+		question: { one: 'pitanje', few: 'pitanja', other: 'pitanja' },
 		reportSummaryColumn: {
 			one: 'stupac sažetka izvještaja',
 			few: 'stupca sažetka izvještaja',
@@ -727,7 +904,8 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			few: 'metapodatkovna polja rezultata',
 			other: 'metapodatkovnih polja rezultata'
 		},
-		scoreOutput: { one: 'izlaz rezultata', few: 'izlaza rezultata', other: 'izlaza rezultata' }
+		scoreOutput: { one: 'izlaz rezultata', few: 'izlaza rezultata', other: 'izlaza rezultata' },
+		selection: { one: 'odabir', few: 'odabira', other: 'odabira' }
 	}
 };
 

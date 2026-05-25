@@ -289,7 +289,7 @@ describe('selected-series setup workflow model', () => {
 					id: 'waves',
 					label: 'Collection waves',
 					status: 'pending',
-					detail: '1 draft wave is prepared; launch readiness still needs attention.'
+					detail: '1 wave is prepared as draft; launch readiness still needs attention.'
 				}
 			]
 		});
