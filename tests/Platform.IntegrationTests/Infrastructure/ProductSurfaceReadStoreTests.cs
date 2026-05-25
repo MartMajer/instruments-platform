@@ -15,6 +15,7 @@ using Platform.Domain.Templates;
 using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.ProductSurfaces;
+using Platform.Infrastructure.Scoring;
 using Platform.Infrastructure.Tenancy;
 using Platform.IntegrationTests.Support;
 using Testcontainers.PostgreSql;
@@ -40,6 +41,65 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         .WithUsername("platform_app")
         .WithPassword("platform_app")
         .Build();
+
+    [DockerFact]
+    public async Task Sample_study_seeder_creates_finished_read_only_studies_idempotently()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(db);
+        await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            db.Tenants.Add(new Tenant(tenantId, "sample-seed", "Sample Seed"));
+            db.UserAccounts.Add(new UserAccount(actorUserId, tenantId, "owner@example.test"));
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        var seeder = new SampleStudySeeder(
+            db,
+            tenantDbScope,
+            new SubmittedResponseScoreMaterializer(db));
+
+        var first = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
+        var second = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
+
+        Assert.True(first.IsSuccess);
+        Assert.Equal(3, first.Value.CreatedSampleStudyCount);
+        Assert.True(first.Value.CreatedCampaignSeriesIds.Count >= 3);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(0, second.Value.CreatedSampleStudyCount);
+
+        var store = new ProductSurfaceReadStore(db, tenantDbScope);
+        var overview = await store.GetWorkspaceOverviewAsync(
+            tenantId,
+            canManageSetup: true,
+            canManageTeam: true,
+            CancellationToken.None);
+
+        Assert.Equal(3, overview.StudyCollections.SampleStudies.Count);
+        Assert.Empty(overview.StudyCollections.OwnStudies);
+        Assert.All(overview.StudyCollections.SampleStudies, sample =>
+        {
+            Assert.True(sample.IsSample);
+            Assert.Equal(CampaignSeriesReadOnlyReasons.SampleStudy, sample.ReadOnlyReason);
+            Assert.True(sample.CampaignCount >= 1);
+            Assert.Equal(0, sample.LiveCampaignCount);
+            Assert.True(sample.SubmittedResponseCount > 0);
+        });
+
+        await using var inspection = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 4);
+        Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
+        Assert.True(await db.Scores.CountAsync(score => score.TenantId == tenantId, CancellationToken.None) > 0);
+        Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 6);
+        await inspection.CommitAsync();
+    }
 
     [DockerFact]
     public async Task Workspace_overview_counts_only_current_tenant()

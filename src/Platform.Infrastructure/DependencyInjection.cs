@@ -99,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<ICampaignSeriesProofStore, CampaignSeriesProofStore>();
         services.AddScoped<IProductSurfaceReadStore, ProductSurfaceReadStore>();
         services.AddScoped<IProductSurfaceWriteStore, ProductSurfaceWriteStore>();
+        services.AddScoped<ISampleStudySeeder, SampleStudySeeder>();
         services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
         services.AddScoped<IOperationalNotificationStore, OperationalNotificationStore>();
         services.AddScoped<SubmittedResponseScoreMaterializer>();

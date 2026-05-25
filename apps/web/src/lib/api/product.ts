@@ -13,6 +13,13 @@ export type WorkspaceStudyCollectionsResponse = {
 	ownStudies: CampaignSeriesListItemResponse[];
 };
 
+export type EnsureSampleStudiesResponse = {
+	tenantId: string;
+	existingSampleStudyCount: number;
+	createdSampleStudyCount: number;
+	createdCampaignSeriesIds: string[];
+};
+
 export type WorkspaceOverviewTotalsResponse = {
 	campaignSeriesCount: number;
 	campaignCount: number;
@@ -964,6 +971,11 @@ export type CampaignSeriesWavesMissingPrerequisiteResponse = {
 
 export function createProductApi(client: ApiClient) {
 	return {
+		ensureSampleStudies: () =>
+			client.request<EnsureSampleStudiesResponse>(
+				'/sample-studies/ensure',
+				jsonRequest('POST', {})
+			),
 		getWorkspaceOverview: () => client.request<WorkspaceOverviewResponse>('/workspace-overview'),
 		getTenantSettings: () => client.request<TenantSettingsWorkspaceResponse>('/tenant-settings'),
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),

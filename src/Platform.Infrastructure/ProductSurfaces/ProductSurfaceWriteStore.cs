@@ -293,6 +293,21 @@ public sealed class ProductSurfaceWriteStore(
             actorUserId,
             cancellationToken: cancellationToken);
 
+        var series = await db.CampaignSeries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+
+        if (series is null)
+        {
+            return Result.Failure<CampaignCloseStateResponse>(
+                Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
+        }
+
+        if (series.IsSample)
+        {
+            return Result.Failure<CampaignCloseStateResponse>(CreateSampleReadOnlyError());
+        }
+
         var campaign = await db.Campaigns
             .SingleOrDefaultAsync(
                 entity => entity.Id == campaignId && entity.CampaignSeriesId == campaignSeriesId,
@@ -331,14 +346,19 @@ public sealed class ProductSurfaceWriteStore(
             actorUserId,
             cancellationToken: cancellationToken);
 
-        var seriesExists = await db.CampaignSeries
+        var series = await db.CampaignSeries
             .AsNoTracking()
-            .AnyAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+            .SingleOrDefaultAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
 
-        if (!seriesExists)
+        if (series is null)
         {
             return Result.Failure<CampaignSeriesScoreRemediationResponse>(
                 Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
+        }
+
+        if (series.IsSample)
+        {
+            return Result.Failure<CampaignSeriesScoreRemediationResponse>(CreateSampleReadOnlyError());
         }
 
         var submittedSessions = await (

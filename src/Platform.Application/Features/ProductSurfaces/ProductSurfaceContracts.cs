@@ -11,6 +11,12 @@ public sealed record WorkspaceStudyCollectionsResponse(
     IReadOnlyList<CampaignSeriesListItemResponse> SampleStudies,
     IReadOnlyList<CampaignSeriesListItemResponse> OwnStudies);
 
+public sealed record EnsureSampleStudiesResponse(
+    Guid TenantId,
+    int ExistingSampleStudyCount,
+    int CreatedSampleStudyCount,
+    IReadOnlyList<Guid> CreatedCampaignSeriesIds);
+
 public sealed record WorkspaceOverviewTotalsResponse(
     int CampaignSeriesCount,
     int CampaignCount,

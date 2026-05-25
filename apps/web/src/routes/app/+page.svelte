@@ -31,9 +31,6 @@
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
 	const overviewView = $derived(overview ? toWorkspaceOverviewView(overview, locale) : null);
-	function sampleHref(sample: string) {
-		return `${resolve('/app/demo')}?sample=${sample}`;
-	}
 
 	const firstRunActions = $derived([
 		{
@@ -55,29 +52,6 @@
 			href: resolve('/app/directory')
 		}
 	]);
-	const sampleStudyCards = $derived([
-		{
-			title: text.workspaceHome.sampleWorkloadTitle,
-			kicker: text.workspaceHome.sampleWorkloadKicker,
-			description: text.workspaceHome.sampleWorkloadBody,
-			meta: text.workspaceHome.sampleWorkloadMeta,
-			href: sampleHref('workload-recovery')
-		},
-		{
-			title: text.workspaceHome.sampleErgonomicsTitle,
-			kicker: text.workspaceHome.sampleErgonomicsKicker,
-			description: text.workspaceHome.sampleErgonomicsBody,
-			meta: text.workspaceHome.sampleErgonomicsMeta,
-			href: sampleHref('ergonomics-risk')
-		},
-		{
-			title: text.workspaceHome.sampleStudentTitle,
-			kicker: text.workspaceHome.sampleStudentKicker,
-			description: text.workspaceHome.sampleStudentBody,
-			meta: text.workspaceHome.sampleStudentMeta,
-			href: sampleHref('student-wellbeing')
-		}
-	]);
 
 	onMount(() => {
 		void loadWorkspaceOverview();
@@ -88,6 +62,7 @@
 		errorMessage = null;
 
 		try {
+			await productApi.ensureSampleStudies().catch(() => null);
 			overview = await productApi.getWorkspaceOverview();
 			loadState = 'ready';
 		} catch (error) {
@@ -211,17 +186,28 @@
 					</div>
 					<p>{text.workspaceHome.sampleStudiesBody}</p>
 				</div>
-				<div class="sample-study-grid">
-					{#each sampleStudyCards as study}
-						<a class="sample-study-card" href={study.href}>
-							<span class="sample-study-card__kicker">{study.kicker}</span>
+				{#if overviewView.sampleStudies.length === 0}
+					<EmptyState
+						title={text.workspaceHome.sampleStudies}
+						description={text.workspaceHome.sampleReadOnlyNote}
+						actionHref={resolve('/app/demo')}
+						actionLabel={text.workspaceHome.openSample}
+					/>
+				{:else}
+					<div class="sample-study-grid">
+						{#each overviewView.sampleStudies as study (study.id)}
+							<a class="sample-study-card" href={study.actionHref}>
+								<span class="sample-study-card__kicker">{study.ownership.label}</span>
 							<strong>{study.title}</strong>
-							<span>{study.description}</span>
-							<small>{study.meta}</small>
-							<span class="sample-study-card__action">{text.workspaceHome.openSample}</span>
-						</a>
-					{/each}
-				</div>
+								<span>{study.ownership.readOnlyMessage ?? text.workspaceHome.sampleReadOnlyNote}</span>
+								{#each study.rows.slice(0, 3) as row}
+									<small>{row.label}: {row.value}</small>
+								{/each}
+								<span class="sample-study-card__action">{study.actionLabel}</span>
+							</a>
+						{/each}
+					</div>
+				{/if}
 				<p class="workspace-home-note">{text.workspaceHome.sampleReadOnlyNote}</p>
 			</section>
 

@@ -20,6 +20,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("GetWorkspaceOverview")
             .WithTags("ProductSurfaces");
 
+        app.MapPost("/sample-studies/ensure", EnsureSampleStudies)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember)
+            .WithName("EnsureSampleStudies")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/tenant-settings", GetTenantSettings)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember)
@@ -198,6 +204,15 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         return Results.Ok(await sender.Send(new GetWorkspaceOverviewQuery(), cancellationToken));
+    }
+
+    private static async Task<IResult> EnsureSampleStudies(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new EnsureSampleStudiesCommand(), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> GetTenantSettings(
