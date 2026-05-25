@@ -59,6 +59,29 @@ function expectStatusBadgeStatus(_status: StatusBadgeStatus) {
 	return undefined;
 }
 
+const mojibakePattern =
+	/[\u00c2\u00c3]|\u00c4[\u0080-\u00bf]|\u00c5[\u0080-\u00bf]|\u00e2[\u0080-\u2122]/u;
+
+function collectStrings(value: unknown, path = '$', output: string[] = []) {
+	if (typeof value === 'string') {
+		output.push(`${path}: ${value}`);
+		return output;
+	}
+
+	if (Array.isArray(value)) {
+		value.forEach((item, index) => collectStrings(item, `${path}[${index}]`, output));
+		return output;
+	}
+
+	if (value && typeof value === 'object') {
+		for (const [key, entryValue] of Object.entries(value)) {
+			collectStrings(entryValue, `${path}.${key}`, output);
+		}
+	}
+
+	return output;
+}
+
 describe('product view models', () => {
 	it('keeps read-model statuses compatible with status badges', () => {
 		expect(readModelBadgeStatuses).toEqual([
@@ -458,16 +481,16 @@ describe('product view models', () => {
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
 			{ value: 'not_configured', label: 'Nije konfigurirano' },
-			{ value: 'pending', label: 'Na Äekanju' },
+			{ value: 'pending', label: 'Na čekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
 		expect(listView.items[0].rows).toContainEqual({ label: 'Mjerenja', value: '2' });
-		expect(listView.items[0].ownership.label).toBe('VaÅ¡a studija');
+		expect(listView.items[0].ownership.label).toBe('Vaša studija');
 		expect(listView.items[0].archiveActionLabel).toBe('Arhiviraj');
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
-		expect(hubView.rows[0].label).toBe('IzraÄ‘eno');
+		expect(hubView.rows[0].label).toBe('Izrađeno');
 		expect(hubView.studyModel.title).toBe('Što ova studija sadrži');
 		expect(hubView.studyModel.items[0].label).toBe('Studija');
 		expect(hubView.studyModel.items[0].summary).toContain('To nije upitnik ni instrument.');
@@ -476,17 +499,28 @@ describe('product view models', () => {
 			value: 'pregled',
 			status: 'proof_only'
 		});
-		expect(hubView.lifecycleMap.title).toBe('Å½ivotni ciklus studije');
+		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
 		expect(hubView.campaignRows[0].rows).toContainEqual({
-			label: 'NaÄin identiteta',
+			label: 'Način identiteta',
 			value: 'anonimno longitudinalno'
 		});
 
 		expect(setupView.surfaceLabel).toBe('Priprema studije');
 		expect(setupView.summaryRows).toContainEqual({
-			label: 'NedostajuÄ‡i preduvjeti',
+			label: 'Nedostajući preduvjeti',
 			value: '1'
 		});
+	});
+
+	it('does not emit mojibake in Croatian generated read-model text', () => {
+		const views = [
+			toCampaignSeriesListView(sampleCampaignSeriesList, {}, 'hr-HR'),
+			toCampaignSeriesHubView(sampleCampaignSeriesHub, 'hr-HR'),
+			toCampaignSeriesSetupWorkspaceView(sampleSetupWorkspace, 'hr-HR')
+		];
+		const generatedStrings = views.flatMap((view, index) => collectStrings(view, `view${index}`));
+
+		expect(generatedStrings.filter((entry) => mojibakePattern.test(entry))).toEqual([]);
 	});
 
 	it('maps archived campaign-series list items to restore-ready cards', () => {
@@ -2676,18 +2710,18 @@ describe('product view models', () => {
 			'Koristite izvoze skupa podataka odgovora za analizu.'
 		);
 		expect(view.exportOverview[1].summary).toBe(
-			'Nema neuspjelih izvoznih datoteka ni datoteka na Äekanju.'
+			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
-			'Izvozi pokrivaju izvoz saÅ¾etka izvjeÅ¡taja i izvoz skupa podataka odgovora.'
+			'Izvozi pokrivaju izvoz sažetka izvještaja i izvoz skupa podataka odgovora.'
 		);
 		expect(view.exportOverview[3].summary).toBe('Izvozne datoteke povezane su s Wave 1 i AA.');
 		expect(view.cards[0].nextUse).toBe(
-			'Koristite ovaj izvoz za predaju izvjeÅ¡taja, pregled saÅ¾etka ili provjere Å¡ifrarnika.'
+			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.'
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim Å¡ifrarnikom.'
+			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.'
 		);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});

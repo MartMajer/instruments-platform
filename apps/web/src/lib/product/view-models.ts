@@ -522,7 +522,7 @@ function toCollectionWavesModelBadgeLabel(hub: CampaignSeriesHubResponse, locale
 function toCollectionWavesModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (hub.totals.campaignCount === 0) {
 		return locale === 'hr-HR'
-			? 'JoÅ¡ nema mjerenja prikupljajunja.'
+			? 'Još nema mjerenja prikupljajunja.'
 			: 'No collection waves exist yet.';
 	}
 
@@ -562,14 +562,14 @@ function toEvidenceOutputsModelBadgeLabel(hub: CampaignSeriesHubResponse, locale
 		return locale === 'hr-HR' ? 'Treba bodovanje' : 'Needs scoring';
 	}
 
-	return locale === 'hr-HR' ? 'JoÅ¡ nema dokaza' : 'No evidence yet';
+	return locale === 'hr-HR' ? 'Još nema dokaza' : 'No evidence yet';
 }
 
 function toEvidenceOutputsModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (locale === 'hr-HR') {
 		return `${formatCount(hub.totals.submittedResponseCount)} predanih odgovora, ${formatCount(
 			hub.totals.scoreCount
-		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabiljeÅ¾eno.`;
+		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabilježeno.`;
 	}
 
 	return `${formatCount(hub.totals.submittedResponseCount)} submitted responses, ${formatCount(
@@ -3387,19 +3387,19 @@ function localizeReadModelString(value: string) {
 			/^(\d+) export (?:file needs|files need) attention\.$/u,
 			(_, count: string) =>
 				count === '1'
-					? '1 izvozna datoteka traÅ¾i paÅ¾nju.'
-					: `${count} izvoznih datoteka traÅ¾i paÅ¾nju.`
+					? '1 izvozna datoteka traži pažnju.'
+					: `${count} izvoznih datoteka traži pažnju.`
 		)
 		.replace(
 			/^(\d+) export (?:file is|files are) still queued or rendering\.$/u,
 			(_, count: string) =>
 				count === '1'
-					? '1 izvozna datoteka joÅ¡ je u redu Äekanja ili se izraÄ‘uje.'
-					: `${count} izvoznih datoteka joÅ¡ je u redu Äekanja ili se izraÄ‘uje.`
+					? '1 izvozna datoteka još je u redu čekanja ili se izrađuje.'
+					: `${count} izvoznih datoteka još je u redu čekanja ili se izrađuje.`
 		)
 		.replace(/^Exports cover (.+)\.$/u, (_, items: string) => {
 			const localizedItems = items
-				.replace(/\bReport summary export\b/gu, 'izvoz saÅ¾etka izvjeÅ¡taja')
+				.replace(/\bReport summary export\b/gu, 'izvoz sažetka izvještaja')
 				.replace(/\bResponse dataset export\b/gu, 'izvoz skupa podataka odgovora')
 				.replace(/\band\b/gu, 'i');
 			return `Izvozi pokrivaju ${localizedItems}.`;
@@ -3412,14 +3412,14 @@ function localizeReadModelString(value: string) {
 		.replace(/^Campaign \/ (.+)$/u, 'Mjerenje / $1')
 		.replace(/^(\d+) downloadable$/u, '$1 dostupno za preuzimanje')
 		.replace(/^(\d+) failed$/u, '$1 neuspjelo')
-		.replace(/^(\d+) pending$/u, '$1 na Äekanju')
+		.replace(/^(\d+) pending$/u, '$1 na čekanju')
 		.replace(/^(\d+) purpose$/u, '$1 svrha')
 		.replace(/^(\d+) purposes$/u, '$1 svrhe')
 		.replace(/^(\d+) source$/u, '$1 izvor')
 		.replace(/^(\d+) sources$/u, '$1 izvora')
 		.replace(/^(\d+) file$/u, '$1 datoteka')
 		.replace(/^(\d+) files$/u, '$1 datoteka')
-		.replace(/^(\d+) reportable$/u, '$1 spremno za izvjeÅ¡taj')
+		.replace(/^(\d+) reportable$/u, '$1 spremno za izvještaj')
 		.replace(/^(\d+) visible$/u, '$1 vidljivo')
 		.replace(/^(\d+) submitted$/u, '$1 predano')
 		.replace(/^(\d+) score rows?$/u, '$1 redaka rezultata')
@@ -3429,23 +3429,23 @@ function localizeReadModelString(value: string) {
 const hrReadModelStrings: Record<string, string> = {
 	'Not available': 'Nije dostupno',
 	'Not configured': 'Nije konfigurirano',
-	'No attention items': 'Nema stavki za paÅ¾nju',
+	'No attention items': 'Nema stavki za pažnju',
 	'No files': 'Nema datoteka',
 	'No sources': 'Nema izvora',
 	'No exports': 'Nema izvoza',
-	'No campaigns yet': 'JoÅ¡ nema mjerenja',
-	'No waves yet': 'JoÅ¡ nema mjerenja',
-	'No collection wave yet': 'JoÅ¡ nema mjerenja za prikupljanje',
-	'No reportable campaigns yet': 'JoÅ¡ nema mjerenja za izvjeÅ¡taj',
-	'No campaign operations yet': 'JoÅ¡ nema operacija prikupljanja',
-	'No matching studies': 'Nema odgovarajuÄ‡ih studija',
-	'No studies yet': 'JoÅ¡ nema studija',
+	'No campaigns yet': 'Još nema mjerenja',
+	'No waves yet': 'Još nema mjerenja',
+	'No collection wave yet': 'Još nema mjerenja za prikupljanje',
+	'No reportable campaigns yet': 'Još nema mjerenja za izvještaj',
+	'No campaign operations yet': 'Još nema operacija prikupljanja',
+	'No matching studies': 'Nema odgovarajućih studija',
+	'No studies yet': 'Još nema studija',
 	'No sample studies match this view. Clear filters to inspect examples.':
-		'Nijedna ogledna studija ne odgovara ovom prikazu. OÄistite filtre za pregled primjera.',
+		'Nijedna ogledna studija ne odgovara ovom prikazu. Očistite filtre za pregled primjera.',
 	'No own studies match this view. Clear filters or create your study when you have setup access.':
-		'Nijedna vaÅ¡a studija ne odgovara ovom prikazu. OÄistite filtre ili izradite studiju kada imate pristup postavljanju.',
+		'Nijedna vaša studija ne odgovara ovom prikazu. Očistite filtre ili izradite studiju kada imate pristup postavljanju.',
 	'Create your study when you have setup access, or add sample studies for learning.':
-		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za uÄenje.',
+		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.',
 	'Adjust search, readiness, or visibility filters to show sample or own studies.':
 		'Prilagodite pretragu, spremnost ili vidljivost za prikaz oglednih ili vlastitih studija.',
 	'Create a wave draft before running launch readiness.':
@@ -3455,15 +3455,15 @@ const hrReadModelStrings: Record<string, string> = {
 	'Create a wave draft in Setup, then start collection here.':
 		'Izradite nacrt mjerenja u postavljanju, zatim ovdje pokrenite prikupljanje.',
 	'Submit responses and compute scores before report previews are available.':
-		'Prikupite odgovore i izraÄunajte rezultate prije pregleda izvjeÅ¡taja.',
+		'Prikupite odgovore i izračunajte rezultate prije pregleda izvještaja.',
 
 	// Common row labels.
 	Slug: 'Slug',
 	Region: 'Regija',
 	'Default locale': 'Zadani jezik',
 	Status: 'Status',
-	Created: 'IzraÄ‘eno',
-	Updated: 'AÅ¾urirano',
+	Created: 'Izrađeno',
+	Updated: 'Ažurirano',
 	Archived: 'Arhivirano',
 	'Archive reason': 'Razlog arhiviranja',
 	'Campaign series': 'Studije',
@@ -3472,7 +3472,7 @@ const hrReadModelStrings: Record<string, string> = {
 	'Submitted responses': 'Predani odgovori',
 	Subjects: 'Ispitanici',
 	'Subject groups': 'Grupe ispitanika',
-	'Tenant members': 'ÄŒlanovi radnog prostora',
+	'Tenant members': 'Članovi radnog prostora',
 	'Tenant roles': 'Uloge radnog prostora',
 	'Export files': 'Izvozne datoteke',
 	Instruments: 'Instrumenti',
@@ -3482,27 +3482,27 @@ const hrReadModelStrings: Record<string, string> = {
 	Validity: 'Valjanost',
 	Downloadable: 'Dostupno za preuzimanje',
 	Failed: 'Neuspjelo',
-	Pending: 'Na Äekanju',
-	Surface: 'PovrÅ¡ina',
+	Pending: 'Na čekanju',
+	Surface: 'Površina',
 	Campaign: 'Mjerenje',
 	Scores: 'Rezultati',
 	'Visible scores': 'Vidljivi rezultati',
 	'Suppressed scores': 'Skriveni rezultati',
-	'Missing prerequisites': 'NedostajuÄ‡i preduvjeti',
-	'Reportable campaigns': 'Mjerenja spremni za izvjeÅ¡taj',
-	'Preliminary live reports': 'Preliminarni izvjeÅ¡taji u tijeku',
-	'Closed-wave reports': 'IzvjeÅ¡taji zatvorenih mjerenja',
+	'Missing prerequisites': 'Nedostajući preduvjeti',
+	'Reportable campaigns': 'Mjerenja spremni za izvještaj',
+	'Preliminary live reports': 'Preliminarni izvještaji u tijeku',
+	'Closed-wave reports': 'Izvještaji zatvorenih mjerenja',
 	'Respondent links': 'Poveznice za ispitanike',
 	'Queued emails': 'Emailovi u redu',
 	'Sent emails': 'Poslani emailovi',
 	'Failed emails': 'Neuspjeli emailovi',
 	'Suppressed emails': 'Potisnuti emailovi',
-	'Started responses': 'ZapoÄeti odgovori',
+	'Started responses': 'Započeti odgovori',
 	'Draft responses': 'Odgovori u nacrtu',
 	'Latest response activity': 'Zadnja aktivnost odgovora',
-	'Latest started': 'Zadnje zapoÄeto',
+	'Latest started': 'Zadnje započeto',
 	'Latest submitted': 'Zadnje predano',
-	'Identity mode': 'NaÄin identiteta',
+	'Identity mode': 'Način identiteta',
 	Locale: 'Jezik',
 	Questions: 'Pitanja',
 	Template: 'Upitnik',
@@ -3510,35 +3510,35 @@ const hrReadModelStrings: Record<string, string> = {
 	Source: 'Izvor',
 	Policies: 'Pravila',
 	Consent: 'Pristanak',
-	Retention: 'ZadrÅ¾avanje',
+	Retention: 'Zadržavanje',
 	Disclosure: 'Prikaz rezultata',
 	Scoring: 'Bodovanje',
 	'Launch snapshot': 'Zapis pokretanja',
 	'Latest launch': 'Zadnje pokretanje',
 	'Scoring rule': 'Pravilo bodovanja',
 	'Consent document': 'Dokument pristanka',
-	'Retention policy': 'Pravilo zadrÅ¾avanja',
+	'Retention policy': 'Pravilo zadržavanja',
 	'Disclosure policy': 'Pravilo prikaza rezultata',
 	'Disclosure k': 'Prag prikaza',
-	'Report status': 'Status izvjeÅ¡taja',
-	Interpretation: 'TumaÄenje',
+	'Report status': 'Status izvještaja',
+	Interpretation: 'Tumačenje',
 	'Data finality': 'Finalnost podataka',
 	'Latest export': 'Zadnji izvoz',
 	'Latest export file': 'Zadnja izvozna datoteka',
 	'Latest export status': 'Status zadnjeg izvoza',
 	'Latest export record': 'Zadnji zapis izvoza',
-	'Latest export created': 'Zadnji izvoz izraÄ‘en',
-	'Latest export completed': 'Zadnji izvoz dovrÅ¡en',
+	'Latest export created': 'Zadnji izvoz izrađen',
+	'Latest export completed': 'Zadnji izvoz dovršen',
 	'Latest export started': 'Zadnji izvoz pokrenut',
-	'Latest export failed': 'Zadnji izvoz neuspjeÅ¡an',
-	'Latest export expires': 'Zadnji izvoz istjeÄe',
+	'Latest export failed': 'Zadnji izvoz neuspješan',
+	'Latest export expires': 'Zadnji izvoz istječe',
 	'Latest export deleted': 'Zadnji izvoz obrisan',
 	'Latest export failure reason': 'Razlog neuspjeha zadnjeg izvoza',
 	'Latest export downloadable': 'Zadnji izvoz dostupan za preuzimanje',
 	'Selected wave': 'Odabrano mjerenje',
 	'Campaign status': 'Status mjerenja',
 	'Frozen locale': 'Zamrznuti jezik',
-	'Response mode': 'NaÄin odgovora',
+	'Response mode': 'Način odgovora',
 	'Wave state': 'Stanje mjerenja',
 	'Linked trajectories': 'Povezane putanje',
 	'Longitudinal waves': 'Ponovljena mjerenja',
@@ -3550,9 +3550,9 @@ const hrReadModelStrings: Record<string, string> = {
 	'Preliminary live waves': 'Preliminarna mjerenja u tijeku',
 	'Closed waves': 'Zatvorena mjerenja',
 	'Blocked comparisons': 'Blokirane usporedbe',
-	'Baseline wave': 'PoÄetni mjerenje',
+	'Baseline wave': 'Početni mjerenje',
 	'Comparison wave': 'Usporedno mjerenje',
-	'Baseline finality': 'Finalnost poÄetnog mjerenja',
+	'Baseline finality': 'Finalnost početnog mjerenja',
 	'Comparison finality': 'Finalnost usporednog mjerenja',
 	'Comparison status': 'Status usporedbe',
 	Compatibility: 'Kompatibilnost',
@@ -3562,7 +3562,7 @@ const hrReadModelStrings: Record<string, string> = {
 	// Surface labels and descriptions.
 	'Study overview': 'Pregled studije',
 	'Study reference': 'Referenca studije',
-	'Study lifecycle': 'Å½ivotni ciklus studije',
+	'Study lifecycle': 'Životni ciklus studije',
 	'Prepare study': 'Priprema studije',
 	'Study preparation': 'Priprema studije',
 	'Setup reference': 'Referenca postavljanja',
@@ -3574,31 +3574,31 @@ const hrReadModelStrings: Record<string, string> = {
 	'Results reference': 'Referenca rezultata',
 	'Compare waves': 'Usporedba mjerenja',
 	'Wave comparison': 'Usporedba mjerenja',
-	'Use exports': 'KoriÅ¡tenje izvoza',
-	'Study support': 'PodrÅ¡ka studiji',
+	'Use exports': 'Korištenje izvoza',
+	'Study support': 'Podrška studiji',
 	'Export reference': 'Referenca izvoza',
 	'Use this overview to prepare, collect, review results, and compare waves for the selected study.':
 		'Ovaj pregled koristite za pripremu, prikupljanje, pregled rezultata i usporedbu mjerenja odabrane studije.',
 	'Detailed records, governance status, and wave rows for this selected study.':
 		'Detaljni zapisi, status pravila i popis mjerenja za ovu odabranu studiju.',
 	'Move through this study from preparation to collection, results, and waves.':
-		'KreÄ‡ite se kroz studiju od pripreme do prikupljanja, rezultata i mjerenja.',
+		'Krećite se kroz studiju od pripreme do prikupljanja, rezultata i mjerenja.',
 	'Prepare this study for collection by completing setup tasks and launch-readiness checks.':
-		'Pripremite studiju za prikupljanje dovrÅ¡avanjem postavljanja i provjera spremnosti.',
+		'Pripremite studiju za prikupljanje dovršavanjem postavljanja i provjera spremnosti.',
 	'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.':
-		'Detaljni zapisi postavljanja, status pravila, polja odabranog mjerenja i biljeÅ¡ke provjere pokretanja ostaju ovdje za pregled.',
+		'Detaljni zapisi postavljanja, status pravila, polja odabranog mjerenja i bilješke provjere pokretanja ostaju ovdje za pregled.',
 	'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.':
-		'Pokrenite odabrano mjerenje, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada zavrÅ¡i.',
+		'Pokrenite odabrano mjerenje, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada završi.',
 	'Launch records, prerequisite checks, and selected wave details stay here for review.':
 		'Zapisi pokretanja, provjere preduvjeta i detalji odabranog mjerenja ostaju ovdje za pregled.',
 	'Review result availability, coverage, limitations, and export next use for the selected campaign.':
-		'Pregledajte dostupnost rezultata, pokrivenost, ograniÄenja i sljedeÄ‡u upotrebu izvoza za odabrano mjerenje.',
+		'Pregledajte dostupnost rezultata, pokrivenost, ograničenja i sljedeću upotrebu izvoza za odabrano mjerenje.',
 	'Selected wave details, limitations, prerequisite checks, and export records stay here for review.':
-		'Detalji odabranog mjerenja, ograniÄenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
+		'Detalji odabranog mjerenja, ograničenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
 	'Find generated CSV/codebook files by purpose, readiness, source study, and next use.':
-		'PronaÄ‘ite generirane CSV/Å¡ifrarnik datoteke prema svrsi, spremnosti, izvornoj studiji i sljedeÄ‡oj upotrebi.',
+		'Pronađite generirane CSV/šifrarnik datoteke prema svrsi, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
 	'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.':
-		'Metapodaci datoteka, vremenske oznake, kodovi greÅ¡aka i dostupnost preuzimanja ostaju dostupni za audit i rjeÅ¡avanje problema.',
+		'Metapodaci datoteka, vremenske oznake, kodovi grešaka i dostupnost preuzimanja ostaju dostupni za audit i rješavanje problema.',
 
 	// Actions and lifecycle.
 	Prepare: 'Priprema',
@@ -3609,15 +3609,15 @@ const hrReadModelStrings: Record<string, string> = {
 	'Build the questionnaire, results setup, policies, wave, and launch check.':
 		'Izradite upitnik, postavke rezultata, pravila, mjerenje i provjeru pokretanja.',
 	'Start the wave, share access, send invitations, and monitor submissions.':
-		'Pokrenite mjerenje, podijelite pristup, poÅ¡aljite pozive i pratite predaje.',
+		'Pokrenite mjerenje, podijelite pristup, pošaljite pozive i pratite predaje.',
 	'Review findings, limitations, and export files after responses are ready.':
-		'Pregledajte nalaze, ograniÄenja i izvozne datoteke nakon Å¡to su odgovori spremni.',
+		'Pregledajte nalaze, ograničenja i izvozne datoteke nakon što su odgovori spremni.',
 	'Inspect coverage, findings, limitations, and comparisons.':
-		'Pregledajte pokrivenost, nalaze, ograniÄenja i usporedbe.',
+		'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
 	'Use generated CSV and codebook files for analysis.':
-		'Koristite generirane CSV i Å¡ifrarnik datoteke za analizu.',
+		'Koristite generirane CSV i šifrarnik datoteke za analizu.',
 	'Create follow-up waves and compare results across collection rounds.':
-		'Izradite sljedeÄ‡e mjerenja i usporedite rezultate između mjerenja.',
+		'Izradite sljedeće mjerenja i usporedite rezultate između mjerenja.',
 	'Setup actions': 'Radnje postavljanja',
 	'Preparation actions': 'Radnje pripreme',
 	'Collection actions': 'Radnje prikupljanja',
@@ -3638,9 +3638,9 @@ const hrReadModelStrings: Record<string, string> = {
 
 	// Ownership and grouping.
 	'Sample study': 'Ogledna studija',
-	'Your study': 'VaÅ¡a studija',
+	'Your study': 'Vaša studija',
 	'Sample studies': 'Ogledne studije',
-	'Your studies': 'VaÅ¡e studije',
+	'Your studies': 'Vaše studije',
 	'Needs setup': 'Treba postavljanje',
 	'In collection': 'U prikupljanju',
 	'Results ready': 'Rezultati spremni',
@@ -3651,80 +3651,80 @@ const hrReadModelStrings: Record<string, string> = {
 	'Studies with submitted responses ready for review.':
 		'Studije s predanim odgovorima spremnima za pregled.',
 	'Studies kept for reference after active work ended.':
-		'Studije zadrÅ¾ane kao referenca nakon zavrÅ¡etka aktivnog rada.',
-	'Studies available for normal inspection.': 'Studije dostupne za uobiÄajeni pregled.',
+		'Studije zadržane kao referenca nakon završetka aktivnog rada.',
+	'Studies available for normal inspection.': 'Studije dostupne za uobičajeni pregled.',
 	'Read-only examples you can inspect before creating your own study.':
-		'Primjeri samo za Äitanje koje moÅ¾ete pregledati prije izrade vlastite studije.',
+		'Primjeri samo za čitanje koje možete pregledati prije izrade vlastite studije.',
 	'Editable studies owned by this workspace.':
-		'Uredivi zapisi studija u vlasniÅ¡tvu ovog radnog prostora.',
+		'Uredivi zapisi studija u vlasništvu ovog radnog prostora.',
 	'Setup sample: read-only starter content showing study preparation before launch.':
-		'Ogledni primjer postavljanja: sadrÅ¾aj samo za Äitanje koji prikazuje pripremu studije prije pokretanja.',
+		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje pripremu studije prije pokretanja.',
 	'Setup sample: read-only starter content showing blocked preparation before launch.':
-		'Ogledni primjer postavljanja: sadrÅ¾aj samo za Äitanje koji prikazuje blokiranu pripremu prije pokretanja.',
+		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje blokiranu pripremu prije pokretanja.',
 	'Collection sample: read-only starter content showing live or partial response collection.':
-		'Ogledni primjer prikupljanja: sadrÅ¾aj samo za Äitanje koji prikazuje aktivno ili djelomiÄno prikupljanje odgovora.',
+		'Ogledni primjer prikupljanja: sadržaj samo za čitanje koji prikazuje aktivno ili djelomično prikupljanje odgovora.',
 	'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.':
-		'Longitudinalni ogledni primjer: sadrÅ¾aj samo za Äitanje koji prikazuje ponovljena mjerenja i pregled povezanih putanja.',
+		'Longitudinalni ogledni primjer: sadržaj samo za čitanje koji prikazuje ponovljena mjerenja i pregled povezanih putanja.',
 	'Results sample: read-only starter content showing collected responses, scores, reports, and exports.':
-		'Ogledni primjer rezultata: sadrÅ¾aj samo za Äitanje koji prikazuje prikupljene odgovore, rezultate, izvjeÅ¡taje i izvoze.',
+		'Ogledni primjer rezultata: sadržaj samo za čitanje koji prikazuje prikupljene odgovore, rezultate, izvještaje i izvoze.',
 	'Sample study: read-only starter content you can inspect before duplicating.':
-		'Ogledna studija: sadrÅ¾aj samo za Äitanje koji moÅ¾ete pregledati prije dupliciranja.',
+		'Ogledna studija: sadržaj samo za čitanje koji možete pregledati prije dupliciranja.',
 
 	// Filters/options.
 	'All readiness': 'Sva spremnost',
 	Preview: 'Pregled',
 	'Latest activity': 'Zadnja aktivnost',
-	'Recently updated': 'Nedavno aÅ¾urirano',
-	'Recently created': 'Nedavno izraÄ‘eno',
+	'Recently updated': 'Nedavno ažurirano',
+	'Recently created': 'Nedavno izrađeno',
 	'Name A-Z': 'Naziv A-Z',
 	Active: 'Aktivno',
 	'All visibility': 'Sva vidljivost',
 
 	// Export library.
 	'Downloadable files': 'Datoteke za preuzimanje',
-	'Needs attention': 'Treba paÅ¾nju',
+	'Needs attention': 'Treba pažnju',
 	'File purpose': 'Svrha datoteke',
-	'Study context and next use': 'Kontekst studije i sljedeÄ‡a upotreba',
+	'Study context and next use': 'Kontekst studije i sljedeća upotreba',
 	'No export files are ready to download yet.':
-		'JoÅ¡ nema izvoznih datoteka spremnih za preuzimanje.',
+		'Još nema izvoznih datoteka spremnih za preuzimanje.',
 	'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.':
-		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze saÅ¾etka izvjeÅ¡taja koristite za pregledne pakete, saÅ¾etke za klijente ili provjere Å¡ifrarnika.',
+		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
 	'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.':
-		'Datoteke saÅ¾etka izvjeÅ¡taja dostupne su za pregledne pakete, saÅ¾etke za klijente ili provjere Å¡ifrarnika. Skup podataka odgovora spreman za analizu joÅ¡ nije dostupan.',
+		'Datoteke sažetka izvještaja dostupne su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup podataka odgovora spreman za analizu još nije dostupan.',
 	'Create an export from a study results page after results are available.':
-		'Izradite izvoz na stranici Rezultata studije nakon Å¡to rezultati budu dostupni.',
-	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na Äekanju.',
+		'Izradite izvoz na stranici Rezultata studije nakon što rezultati budu dostupni.',
+	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.',
 	'Review the failed export file, then recreate it from the source study after the cause is resolved.':
-		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon Å¡to se uzrok rijeÅ¡i.',
+		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon što se uzrok riješi.',
 	'Wait for generation to finish before using the export file for handoff.':
-		'PriÄekajte da izrada zavrÅ¡i prije koriÅ¡tenja izvozne datoteke za predaju.',
+		'Pričekajte da izrada završi prije korištenja izvozne datoteke za predaju.',
 	'New export issues will appear here when generation fails or remains pending.':
-		'Novi problemi s izvozom pojavit Ä‡e se ovdje kada izrada ne uspije ili ostane na Äekanju.',
+		'Novi problemi s izvozom pojavit će se ovdje kada izrada ne uspije ili ostane na čekanju.',
 	'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.':
-		'Odaberite izvoze saÅ¾etka izvjeÅ¡taja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa Å¡ifrarnikom.',
+		'Odaberite izvoze sažetka izvještaja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa šifrarnikom.',
 	'No generated export purposes are available yet.':
-		'JoÅ¡ nema dostupnih svrha generiranih izvoza.',
+		'Još nema dostupnih svrha generiranih izvoza.',
 	'Create report summary or response dataset exports from a study when results are ready.':
-		'Izradite izvoz saÅ¾etka izvjeÅ¡taja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
+		'Izradite izvoz sažetka izvještaja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
 	'No export files are tied to a study yet.':
-		'JoÅ¡ nema izvoznih datoteka povezanih sa studijom.',
+		'Još nema izvoznih datoteka povezanih sa studijom.',
 	'Open the source study or report context when you need to understand how an export file was generated.':
-		'Otvorite izvornu studiju ili kontekst izvjeÅ¡taja kada trebate razumjeti kako je izvozna datoteka izraÄ‘ena.',
+		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvozna datoteka izrađena.',
 	'Generated export files will link back to their study or report context when that context is available.':
-		'Generirane izvozne datoteke povezivat Ä‡e se natrag na studiju ili kontekst izvjeÅ¡taja kada taj kontekst bude dostupan.',
+		'Generirane izvozne datoteke povezivat će se natrag na studiju ili kontekst izvještaja kada taj kontekst bude dostupan.',
 	'Use this export for report handoff, summary review, or codebook checks.':
-		'Koristite ovaj izvoz za predaju izvjeÅ¡taja, pregled saÅ¾etka ili provjere Å¡ifrarnika.',
+		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
 	'Use this export for response-level analysis with the generated codebook.':
-		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim Å¡ifrarnikom.',
+		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
 	'Use this export with its source context and generated codebook.':
-		'Koristite ovaj izvoz s izvornim kontekstom i generiranim Å¡ifrarnikom.',
-	'Report-summary exports': 'Izvozi saÅ¾etka izvjeÅ¡taja',
-	'Report summary exports': 'Izvozi saÅ¾etka izvjeÅ¡taja',
+		'Koristite ovaj izvoz s izvornim kontekstom i generiranim šifrarnikom.',
+	'Report-summary exports': 'Izvozi sažetka izvještaja',
+	'Report summary exports': 'Izvozi sažetka izvještaja',
 	'Response datasets': 'Skupovi podataka odgovora',
 	'Response dataset exports': 'Izvozi skupa podataka odgovora',
 	'Campaign files': 'Datoteke mjerenja',
 	'Study files': 'Datoteke studije',
-	'Report summary export': 'Izvoz saÅ¾etka izvjeÅ¡taja',
+	'Report summary export': 'Izvoz sažetka izvještaja',
 	'Response dataset export': 'Izvoz skupa podataka odgovora',
 	'Closed wave': 'Zatvoreno mjerenje',
 	'Not tied to a closed wave': 'Nije vezano uz zatvoreno mjerenje',
@@ -3732,14 +3732,14 @@ const hrReadModelStrings: Record<string, string> = {
 	'File type': 'Vrsta datoteke',
 	Format: 'Format',
 	Rows: 'Redci',
-	Size: 'VeliÄina',
-	Completed: 'DovrÅ¡eno',
+	Size: 'Veličina',
+	Completed: 'Dovršeno',
 	Download: 'Preuzimanje',
 	Available: 'Dostupno',
-	Failure: 'GreÅ¡ka',
-	'Report summary CSV and codebook': 'CSV i Å¡ifrarnik saÅ¾etka izvjeÅ¡taja',
-	'Response dataset CSV and codebook': 'CSV i Å¡ifrarnik skupa odgovora',
-	'Csv codebook': 'CSV Å¡ifrarnik',
+	Failure: 'Greška',
+	'Report summary CSV and codebook': 'CSV i šifrarnik sažetka izvještaja',
+	'Response dataset CSV and codebook': 'CSV i šifrarnik skupa odgovora',
+	'Csv codebook': 'CSV šifrarnik',
 	Succeeded: 'Uspjelo',
 
 	// Common values.
@@ -3761,14 +3761,14 @@ const hrReadModelStrings: Record<string, string> = {
 	wave: 'mjerenje',
 	'closed wave': 'zatvoreno mjerenje',
 	'preliminary live': 'preliminarno u tijeku',
-	'not reportable': 'nije spremno za izvjeÅ¡taj',
-	'not validated interpretation': 'tumaÄenje nije potvrÄ‘eno',
+	'not reportable': 'nije spremno za izvještaj',
+	'not validated interpretation': 'tumačenje nije potvrđeno',
 	'tenant attested': 'potvrdio radni prostor',
 	'tenant defined': 'definirao radni prostor',
 	'not reviewed': 'nije pregledano',
-	'not official': 'nije sluÅ¾beno',
+	'not official': 'nije službeno',
 	reviewed: 'pregledano',
-	official: 'sluÅ¾beno',
+	official: 'službeno',
 	Yes: 'Da',
 	No: 'Ne'
 };
