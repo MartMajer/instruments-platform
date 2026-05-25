@@ -1134,7 +1134,7 @@
 	<title>Tenant setup workspace</title>
 	<meta
 		name="description"
-		content="Tenant-provided instrument setup workspace for the Instruments Platform."
+		content="Tenant-provided instrument setup workspace for the Validated Scale."
 	/>
 </svelte:head>
 

@@ -6630,6 +6630,32 @@ table {
 	color: rgba(32, 51, 40, 0.64);
 }
 
+img.app-brand__mark,
+img.app-mobile-topbar__mark {
+	box-sizing: border-box;
+	display: block;
+	object-fit: contain;
+}
+
+img.app-brand__mark {
+	width: 2.35rem;
+	height: 2.35rem;
+	padding: 0.14rem;
+	border-radius: 0.95rem;
+}
+
+img.app-mobile-topbar__mark {
+	width: 2.1rem;
+	height: 2.1rem;
+	padding: 0.12rem;
+	border: 1px solid rgba(47, 67, 53, 0.16);
+	border-radius: 0.82rem;
+	background:
+		linear-gradient(145deg, rgba(255, 250, 242, 0.98), rgba(232, 219, 199, 0.78)),
+		var(--color-surface);
+	box-shadow: 0 10px 24px rgba(47, 67, 53, 0.08);
+}
+
 .app-topbar {
 	border-color: rgba(47, 67, 53, 0.12);
 	background:

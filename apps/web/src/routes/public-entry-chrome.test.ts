@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const homePage = readFileSync(new URL('./+page.svelte', import.meta.url), 'utf8');
 const signInPage = readFileSync(new URL('./signin/+page.svelte', import.meta.url), 'utf8');
 const registerPage = readFileSync(new URL('./register/+page.svelte', import.meta.url), 'utf8');
+const appShell = readFileSync(new URL('../lib/components/AppShell.svelte', import.meta.url), 'utf8');
 const appCss = readFileSync(new URL('./app.css', import.meta.url), 'utf8');
 
 describe('public entry chrome', () => {
@@ -25,6 +26,13 @@ describe('public entry chrome', () => {
 
 	it('keeps hardcoded homepage preview text out of internal product jargon', () => {
 		expect(homePage).not.toMatch(/tenant profile|private beta|Private response|owner-controlled/i);
+	});
+
+	it('uses Validated Scale branding in the logged-in app shell', () => {
+		expect(appShell).toContain('Validated Scale');
+		expect(appShell).toContain('/brand/validated-scale-mark.svg');
+		expect(appShell).not.toContain('Instruments Platform');
+		expect(appShell).not.toContain('>IP<');
 	});
 
 	it('offers locale switching without a visible mobile menu text button', () => {

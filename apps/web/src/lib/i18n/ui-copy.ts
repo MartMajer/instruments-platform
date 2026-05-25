@@ -376,7 +376,7 @@ const authBoundaryCopies: LocaleDictionary<AuthBoundaryCopy> = {
 	en: {
 		head: {
 			title: 'Workspace',
-			description: 'Authenticated campaign-series workspace for the Instruments Platform.'
+			description: 'Authenticated campaign-series workspace for Validated Scale.'
 		},
 		access: {
 			workspaceAccess: 'Workspace access',
@@ -441,7 +441,7 @@ const authBoundaryCopies: LocaleDictionary<AuthBoundaryCopy> = {
 	'hr-HR': {
 		head: {
 			title: 'Radni prostor',
-			description: 'Autentificirani radni prostor za studije u Instruments Platform.'
+			description: 'Autentificirani radni prostor za studije u Validated Scaleu.'
 		},
 		access: {
 			workspaceAccess: 'Pristup radnom prostoru',

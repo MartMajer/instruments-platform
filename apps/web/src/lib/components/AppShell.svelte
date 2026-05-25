@@ -12,7 +12,6 @@
 		LibraryBig,
 		Menu,
 		Network,
-		PanelLeft,
 		Send,
 		Settings2,
 		UsersRound,
@@ -152,11 +151,9 @@
 		{#if !isPublicEntry}
 			<aside class="app-sidebar">
 				<div class="app-brand">
-					<div class="app-brand__mark" aria-hidden="true">
-						<PanelLeft size={18} strokeWidth={2.1} />
-					</div>
+					<img class="app-brand__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
 					<div class="min-w-0">
-						<p class="app-brand__name">Instruments Platform</p>
+						<p class="app-brand__name">Validated Scale</p>
 						<p class="app-brand__context">{shellLabel}</p>
 					</div>
 				</div>
@@ -202,9 +199,9 @@
 			{#if isProductShell}
 				<header class="app-mobile-topbar" aria-label={copy.aria.mobileWorkspaceNavigation}>
 					<a class="app-mobile-topbar__brand" href={resolve('/app')}>
-						<span class="app-mobile-topbar__mark" aria-hidden="true">IP</span>
+						<img class="app-mobile-topbar__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
 						<span>
-							<strong>Instruments Platform</strong>
+							<strong>Validated Scale</strong>
 							<small>{currentAppArea}</small>
 						</span>
 					</a>

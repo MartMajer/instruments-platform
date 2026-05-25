@@ -13,7 +13,7 @@ const en = {
 		privateBeta: 'Access note'
 	},
 	publicEntry: {
-		metaTitle: 'Instruments Platform | Research and wellbeing study platform',
+		metaTitle: 'Validated Scale | Research and wellbeing study platform',
 		metaDescription:'Study operations for questionnaires, collection, results, repeat-participation waves, and analysis-ready exports in one workspace.',
 		brandSubtitle: 'Research studies and wellbeing programs',
 		navAria: 'Product entry actions',
@@ -78,9 +78,9 @@ const en = {
 		reviewStepBody: 'Review results, compare waves, and export datasets with codebooks.'
 	},
 	signIn: {
-		metaTitle: 'Sign in | Instruments Platform',
+		metaTitle: 'Sign in | Validated Scale',
 		metaDescription:
-			'Find your Instruments Platform workspace and continue to the app.',
+			'Find your Validated Scale workspace and continue to the app.',
 		brandSubtitle: 'Workspace sign-in',
 		navAria: 'Sign-in actions',
 		eyebrow: 'Workspace access',
@@ -114,9 +114,9 @@ const en = {
 		fallbackError: 'We could not find a workspace for this email.'
 	},
 	register: {
-		metaTitle: 'Create workspace | Instruments Platform',
+		metaTitle: 'Create workspace | Validated Scale',
 		metaDescription:
-			'Create an Instruments Platform workspace for research or wellbeing studies.',
+			'Create a Validated Scale workspace for research or wellbeing studies.',
 		brandSubtitle: 'Study workspace',
 		navAria: 'Registration actions',
 		eyebrow: 'Workspace access',
@@ -639,7 +639,7 @@ const en = {
 			code + ' must be between ' + min + ' and ' + max + '.'
 	},
 	unsubscribe: {
-		metaTitle: 'Unsubscribe from study invitations - Instruments Platform',
+		metaTitle: 'Unsubscribe from study invitations - Validated Scale',
 		kicker: 'Study invitation email',
 		title: 'Unsubscribe from future invitations',
 		body:
@@ -2208,7 +2208,7 @@ const hr: typeof en = {
 		privateBeta: 'Napomena o pristupu'
 	},
 	publicEntry: {
-		metaTitle: 'Instruments Platform | Platforma za istraživanja i wellbeing programe',
+		metaTitle: 'Validated Scale | Platforma za istraživanja i wellbeing programe',
 		metaDescription:'Platforma za upitnike, prikupljanje odgovora, rezultate, ponovljena mjerenja i izvoz podataka s opisom podataka.',
 		brandSubtitle: 'Istraživanja i wellbeing programi',
 		navAria: 'Radnje ulaza u proizvod',
@@ -2273,7 +2273,7 @@ const hr: typeof en = {
 		reviewStepBody: 'Pregledajte rezultate, usporedite mjerenja i izvezite podatke s opisom podataka.'
 	},
 	signIn: {
-		metaTitle: 'Prijava | Instruments Platform',
+		metaTitle: 'Prijava | Validated Scale',
 		metaDescription: 'Pronađite radni prostor i nastavite u aplikaciju.',
 		brandSubtitle: 'Prijava u radni prostor',
 		navAria: 'Radnje prijave',
@@ -2308,7 +2308,7 @@ const hr: typeof en = {
 		fallbackError: 'Nismo mogli pronaći radni prostor za ovu e-poštu.'
 	},
 	register: {
-		metaTitle: 'Izradi radni prostor | Instruments Platform',
+		metaTitle: 'Izradi radni prostor | Validated Scale',
 		metaDescription:
 			'Izradite radni prostor za istraživačke studije ili studije dobrobiti.',
 		brandSubtitle: 'Radni prostor studije',
@@ -2832,7 +2832,7 @@ const hr: typeof en = {
 			code + ' mora biti između ' + min + ' i ' + max + '.'
 	},
 	unsubscribe: {
-		metaTitle: 'Odjava od pozivnica za studije - Instruments Platform',
+		metaTitle: 'Odjava od pozivnica za studije - Validated Scale',
 		kicker: 'E-pošta pozivnice za studiju',
 		title: 'Odjava od budućih pozivnica',
 		body:
