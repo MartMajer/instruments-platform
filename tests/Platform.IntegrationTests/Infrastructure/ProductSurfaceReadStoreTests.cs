@@ -98,6 +98,23 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.Scores.CountAsync(score => score.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 6);
+        var responseExports = await db.ExportArtifacts
+            .Where(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook)
+            .ToListAsync(CancellationToken.None);
+        Assert.Equal(3, responseExports.Count);
+        Assert.All(responseExports, artifact =>
+        {
+            Assert.True(artifact.RowCount > 20);
+            Assert.NotNull(artifact.Content);
+            Assert.StartsWith(
+                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total",
+                artifact.Content);
+            Assert.Contains("q01", artifact.Content);
+            Assert.Contains("sample_response_rows", artifact.MetadataJson);
+            Assert.Contains("question_code", artifact.CodebookJson);
+        });
         await inspection.CommitAsync();
     }
 

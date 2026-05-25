@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Campaigns;
@@ -35,14 +36,16 @@ public sealed class SampleStudySeeder(
             actorUserId,
             cancellationToken: cancellationToken);
 
-        var existingSampleNames = await db.CampaignSeries
+        var existingSampleSeries = await db.CampaignSeries
             .AsNoTracking()
             .Where(series =>
                 series.TenantId == tenantId &&
                 series.StudyKind == CampaignSeriesStudyKinds.Sample)
-            .Select(series => series.Name)
+            .Select(series => new ExistingSampleSeries(series.Id, series.Name))
             .ToListAsync(cancellationToken);
-        var existingSampleNameSet = existingSampleNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existingSampleNameSet = existingSampleSeries
+            .Select(series => series.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var spec in SampleStudySpecs.All)
         {
@@ -59,11 +62,34 @@ public sealed class SampleStudySeeder(
             createdSeriesIds.Add(seriesId);
         }
 
+        var sampleSeries = await db.CampaignSeries
+            .AsNoTracking()
+            .Where(series =>
+                series.TenantId == tenantId &&
+                series.StudyKind == CampaignSeriesStudyKinds.Sample)
+            .Select(series => new ExistingSampleSeries(series.Id, series.Name))
+            .ToListAsync(cancellationToken);
+
+        foreach (var spec in SampleStudySpecs.All)
+        {
+            var series = sampleSeries.SingleOrDefault(
+                item => string.Equals(item.Name, spec.Name, StringComparison.OrdinalIgnoreCase));
+            if (series is not null)
+            {
+                await EnsureSeriesResponseExportAsync(
+                    tenantId,
+                    series.Id,
+                    spec,
+                    DateTimeOffset.UtcNow,
+                    cancellationToken);
+            }
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new EnsureSampleStudiesResponse(
             tenantId,
-            existingSampleNames.Count,
+            existingSampleSeries.Count,
             createdSeriesIds.Count,
             createdSeriesIds));
     }
@@ -311,15 +337,39 @@ public sealed class SampleStudySeeder(
             }
         }
 
-        db.ExportArtifacts.Add(CreateSeriesResponseExport(
-            tenantId,
-            series,
-            spec,
-            sessions.Count,
-            baseTime.AddDays(23)));
         await db.SaveChangesAsync(cancellationToken);
 
         return series.Id;
+    }
+
+    private async Task EnsureSeriesResponseExportAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        SampleStudySpec spec,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
+    {
+        var existingArtifacts = await db.ExportArtifacts
+            .Where(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                artifact.CampaignSeriesId == campaignSeriesId &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook)
+            .ToListAsync(cancellationToken);
+
+        if (existingArtifacts.Count == 1 && IsRowLevelResponseExport(existingArtifacts[0]))
+        {
+            return;
+        }
+
+        db.ExportArtifacts.RemoveRange(existingArtifacts);
+        db.ExportArtifacts.Add(await CreateSeriesResponseExportAsync(
+            tenantId,
+            campaignSeriesId,
+            spec,
+            completedAt,
+            cancellationToken));
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static IReadOnlyList<ParticipantCode> CreateParticipantCodes(
@@ -390,17 +440,142 @@ public sealed class SampleStudySeeder(
             completedAt);
     }
 
-    private static ExportArtifact CreateSeriesResponseExport(
+    private async Task<ExportArtifact> CreateSeriesResponseExportAsync(
         Guid tenantId,
-        CampaignSeries series,
+        Guid campaignSeriesId,
         SampleStudySpec spec,
-        int responseCount,
-        DateTimeOffset completedAt)
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
     {
-        var content = string.Join(
-            "\n",
-            "study,responses,identity_mode,scoring,status",
-            CsvRow(series.Name, responseCount.ToString(), spec.ResponseIdentityMode, "total_mean_1_7", "sample_closed"));
+        var series = await db.CampaignSeries
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+        var campaigns = await db.Campaigns
+            .AsNoTracking()
+            .Where(campaign => campaign.CampaignSeriesId == campaignSeriesId)
+            .OrderBy(campaign => campaign.StartAt)
+            .ThenBy(campaign => campaign.Name)
+            .ThenBy(campaign => campaign.Id)
+            .Select(campaign => new SampleCampaignExportRow(
+                campaign.Id,
+                campaign.TemplateVersionId,
+                campaign.Name,
+                campaign.StartAt))
+            .ToListAsync(cancellationToken);
+        var templateVersionId = campaigns
+            .Select(campaign => campaign.TemplateVersionId)
+            .FirstOrDefault();
+        var questions = templateVersionId == Guid.Empty
+            ? []
+            : await db.TemplateQuestions
+                .AsNoTracking()
+                .Where(question => question.TemplateVersionId == templateVersionId)
+                .OrderBy(question => question.Ordinal)
+                .ThenBy(question => question.Code)
+                .Select(question => new SampleQuestionExportRow(
+                    question.Id,
+                    question.Ordinal,
+                    question.Code,
+                    question.TextDefault))
+                .ToListAsync(cancellationToken);
+        var sessions = await (
+                from session in db.ResponseSessions.AsNoTracking()
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                join campaign in db.Campaigns.AsNoTracking()
+                    on assignment.CampaignId equals campaign.Id
+                where campaign.CampaignSeriesId == campaignSeriesId &&
+                    session.SubmittedAt.HasValue
+                select new SampleSessionExportRow(
+                    session.Id,
+                    campaign.Id,
+                    campaign.Name,
+                    campaign.StartAt,
+                    session.SubmittedAt!.Value,
+                    session.ParticipantCodeId))
+            .ToListAsync(cancellationToken);
+        var orderedSessions = sessions
+            .OrderBy(session => session.WaveStartAt ?? DateTimeOffset.MinValue)
+            .ThenBy(session => session.WaveName, StringComparer.Ordinal)
+            .ThenBy(session => session.SubmittedAt)
+            .ThenBy(session => session.Id)
+            .ToList();
+        var sessionIds = orderedSessions.Select(session => session.Id).ToArray();
+        var answers = sessionIds.Length == 0
+            ? []
+            : await db.Answers
+                .AsNoTracking()
+                .Where(answer => sessionIds.Contains(answer.SessionId))
+                .Select(answer => new SampleAnswerExportRow(
+                    answer.SessionId,
+                    answer.QuestionId,
+                    answer.Value))
+                .ToListAsync(cancellationToken);
+        var scores = sessionIds.Length == 0
+            ? []
+            : await db.Scores
+                .AsNoTracking()
+                .Where(score =>
+                    sessionIds.Contains(score.ResponseSessionId) &&
+                    score.DimensionCode == "total")
+                .Select(score => new SampleScoreExportRow(
+                    score.ResponseSessionId,
+                    score.Value,
+                    score.ComputedAt))
+                .ToListAsync(cancellationToken);
+        var answersBySessionAndQuestion = answers.ToDictionary(
+            answer => (answer.SessionId, answer.QuestionId),
+            answer => answer);
+        var scoreBySession = scores
+            .GroupBy(score => score.SessionId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(score => score.ComputedAt)
+                    .ThenByDescending(score => score.Value)
+                    .First());
+        var trajectoryKeys = orderedSessions
+            .Where(session => session.ParticipantCodeId.HasValue)
+            .Select(session => session.ParticipantCodeId!.Value)
+            .Distinct()
+            .OrderBy(id => id)
+            .Select((id, index) => new { Id = id, Key = $"T{index + 1:0000}" })
+            .ToDictionary(item => item.Id, item => item.Key);
+        var lines = new List<string>
+        {
+            "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total"
+        };
+
+        for (var sessionIndex = 0; sessionIndex < orderedSessions.Count; sessionIndex++)
+        {
+            var session = orderedSessions[sessionIndex];
+            var responseKey = $"R{sessionIndex + 1:0000}";
+            var trajectoryKey = session.ParticipantCodeId.HasValue &&
+                trajectoryKeys.TryGetValue(session.ParticipantCodeId.Value, out var key)
+                    ? key
+                    : string.Empty;
+            var scoreTotal = scoreBySession.TryGetValue(session.Id, out var score)
+                ? score.Value.ToString("0.####", CultureInfo.InvariantCulture)
+                : string.Empty;
+
+            foreach (var question in questions)
+            {
+                answersBySessionAndQuestion.TryGetValue((session.Id, question.Id), out var answer);
+                lines.Add(CsvRow(
+                    series.Name,
+                    session.WaveName,
+                    responseKey,
+                    trajectoryKey,
+                    session.SubmittedAt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+                    question.Code,
+                    question.Text,
+                    NormalizeAnswerValue(answer?.Value),
+                    scoreTotal));
+            }
+        }
+
+        var content = string.Join("\n", lines);
+        var rowCount = Math.Max(0, lines.Count - 1);
 
         return CreateInlineExport(
             tenantId,
@@ -409,19 +584,41 @@ public sealed class SampleStudySeeder(
             campaignSeriesId: series.Id,
             ExportArtifactTypes.CampaignSeriesResponseCsvCodebook,
             $"{spec.Key}-responses.csv",
-            rowCount: responseCount,
+            rowCount,
             content,
             metadataJson: JsonSerializer.Serialize(new
             {
                 sampleStudy = true,
                 study = series.Name,
-                purpose = "sample_response_dataset"
+                purpose = "sample_response_rows",
+                responses = orderedSessions.Count,
+                rows = rowCount,
+                identityMode = spec.ResponseIdentityMode
             }, JsonOptions),
             codebookJson: JsonSerializer.Serialize(new
             {
-                columns = new[] { "study", "responses", "identity_mode", "scoring", "status" }
+                columns = new[]
+                {
+                    new { name = "study", description = "Sample study name." },
+                    new { name = "wave", description = "Collection round name." },
+                    new { name = "response_key", description = "Local synthetic response key for this export." },
+                    new { name = "trajectory_key", description = "Local synthetic repeated-response key when anonymous longitudinal linking is available." },
+                    new { name = "submitted_at", description = "Response submission timestamp in UTC." },
+                    new { name = "question_code", description = "Question variable code." },
+                    new { name = "question_text", description = "Question wording shown to respondents." },
+                    new { name = "answer_value", description = "Submitted answer value." },
+                    new { name = "score_total", description = "Simple total mean score for the response." }
+                }
             }, JsonOptions),
             completedAt);
+    }
+
+    private static bool IsRowLevelResponseExport(ExportArtifact artifact)
+    {
+        return artifact.Content?.StartsWith(
+                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total",
+                StringComparison.Ordinal) == true &&
+            artifact.MetadataJson.Contains("sample_response_rows", StringComparison.Ordinal);
     }
 
     private static ExportArtifact CreateInlineExport(
@@ -466,6 +663,32 @@ public sealed class SampleStudySeeder(
     private static string CsvCell(string value)
     {
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static string NormalizeAnswerValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind switch
+            {
+                JsonValueKind.String => document.RootElement.GetString() ?? string.Empty,
+                JsonValueKind.Number => document.RootElement.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                JsonValueKind.Null => string.Empty,
+                _ => document.RootElement.GetRawText()
+            };
+        }
+        catch (JsonException)
+        {
+            return value;
+        }
     }
 
     private static string Slugify(string value)
@@ -564,3 +787,35 @@ internal sealed record SampleStudySpec(
 internal sealed record SampleQuestionSpec(string Code, string Text);
 
 internal sealed record SampleWaveSpec(string Name, double TargetMean);
+
+internal sealed record ExistingSampleSeries(Guid Id, string Name);
+
+internal sealed record SampleCampaignExportRow(
+    Guid Id,
+    Guid TemplateVersionId,
+    string Name,
+    DateTimeOffset? StartAt);
+
+internal sealed record SampleQuestionExportRow(
+    Guid Id,
+    int Ordinal,
+    string Code,
+    string Text);
+
+internal sealed record SampleSessionExportRow(
+    Guid Id,
+    Guid CampaignId,
+    string WaveName,
+    DateTimeOffset? WaveStartAt,
+    DateTimeOffset SubmittedAt,
+    Guid? ParticipantCodeId);
+
+internal sealed record SampleAnswerExportRow(
+    Guid SessionId,
+    Guid QuestionId,
+    string? Value);
+
+internal sealed record SampleScoreExportRow(
+    Guid SessionId,
+    decimal Value,
+    DateTimeOffset ComputedAt);
