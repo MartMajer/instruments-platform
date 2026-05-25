@@ -1145,6 +1145,7 @@ const en = {
 					'You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]'
 			}
 		},		operationsWorkflow: {
+			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
@@ -2918,6 +2919,7 @@ const hr: typeof en = {
 					'Pozvani ste da ispunite studiju.\n\nRadi privatnosti, ova e-pošta ne uključuje naziv ni temu studije. Poveznica otvara stranicu studije prije nego odlučite hoćete li odgovoriti.\n\nOtvorite svoju poveznicu za studiju:\n[jedinstvena poveznica sudionika]\n\nAko ste već odgovorili, ovu poruku možete zanemariti.\n\nAko više ne biste trebali primati pozivnice za studije iz ovog radnog prostora, odjavite se ovdje:\n[poveznica za odjavu]\n\n[podnožje pozivnice radnog prostora]'
 			}
 		},		operationsWorkflow: {
+			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {

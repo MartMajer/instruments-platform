@@ -80,6 +80,28 @@ describe('app message catalog', () => {
 		).toBe('Odabir primatelja pripada mjerenju Mjerenje 1 dok se to mjerenje ne pokrene.');
 	});
 
+	it('formats Collection workflow dynamic messages through stable ids', () => {
+		expect(
+			appMessage('hr-HR', 'operations.status.liveHeadline', { submitted: 21 })
+		).toBe('Aktivno: prihvaća odgovore; predano: 21 odgovor');
+		expect(
+			appMessage('hr-HR', 'operations.status.responseActivityDetail', {
+				started: 24,
+				drafts: 3,
+				submitted: 21
+			})
+		).toBe('Započeto: 24; u tijeku: 3; predano: 21.');
+		expect(
+			appMessage('hr-HR', 'operations.access.mixedDetail', {
+				openLinkCount: 1,
+				invitationCount: 21,
+				boundary: 'anonimni izvještaji i dalje ne prikazuju tko je odgovorio.'
+			})
+		).toBe(
+			'1 otvorena poveznica za sudionike i 21 spremljeni poziv e-poštom. Otvorena poveznica je širok pristup; invite-only e-pošta ograničava ulaz na spremljene primatelje. anonimni izvještaji i dalje ne prikazuju tko je odgovorio.'
+		);
+	});
+
 	it('keeps message ids stable and non-empty', () => {
 		const invalidIds = appMessageIds().filter(
 			(id: AppMessageId) => !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/u.test(id)

@@ -1,5 +1,7 @@
 import type { CampaignSeriesOperationsWorkspaceResponse } from '$lib/api/product';
 import type { EmailSuppressionResponse } from '$lib/api/setup';
+import type { AppLocale } from '$lib/i18n/localization';
+import { appMessage, type AppMessageId, type AppMessageValues } from '$lib/i18n/messages';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesOperationsWorkflowActionId =
@@ -87,6 +89,7 @@ export type RecipientSuppressionReview = {
 };
 
 export type SelectedSeriesOperationsWorkflowCopy = {
+	locale?: AppLocale;
 	stepNumber: (number: number) => string;
 	actions: Record<
 		SelectedSeriesOperationsWorkflowActionId,
@@ -178,6 +181,7 @@ export type SelectedSeriesOperationsWorkflowCopy = {
 };
 
 export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperationsWorkflowCopy = {
+	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
 	actions: {
 		readiness: {
@@ -625,13 +629,13 @@ export function toSelectedSeriesCollectionStatusSummary(
 		? {
 				id: 'responses',
 				label: copy.status.responseProgressLabel,
-				title: copy.status.submittedTitle(formatCount(submitted)),
+				title: operationsMessage(copy, 'operations.status.submittedTitle', { submitted }),
 				status: submitted > 0 ? 'ready' : 'pending',
-				detail: copy.status.responseActivityDetail(
-					formatCount(started),
-					formatCount(drafts),
-					formatCount(submitted)
-				)
+				detail: operationsMessage(copy, 'operations.status.responseActivityDetail', {
+					started,
+					drafts,
+					submitted
+				})
 			}
 		: launched
 			? {
@@ -687,7 +691,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 	const reportingLane: SelectedSeriesCollectionStatusLane = {
 		id: 'reporting',
 		label: copy.status.reportingReadinessLabel,
-		title: humanize(workspace.summary.reportVisibilityStatus),
+		title: localizedReportVisibilityStatus(workspace.summary.reportVisibilityStatus, copy),
 		status: toReportingStatus(workspace.summary.reportVisibilityStatus, submitted),
 		detail:
 			submitted > 0
@@ -701,7 +705,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 		return {
 			overallStatus: 'closed',
 			overallLabel: copy.status.closedOverallLabel,
-			headline: copy.status.closedHeadline(formatCount(submitted), submitted),
+			headline: operationsMessage(copy, 'operations.status.closedHeadline', { submitted }),
 			guidance: copy.status.closedGuidance,
 			nextAction: copy.status.closedNextAction,
 			lanes
@@ -712,7 +716,7 @@ export function toSelectedSeriesCollectionStatusSummary(
 		return {
 			overallStatus: 'live',
 			overallLabel: copy.status.liveOverallLabel,
-			headline: copy.status.liveHeadline(formatCount(submitted)),
+			headline: operationsMessage(copy, 'operations.status.liveHeadline', { submitted }),
 			guidance: copy.status.liveGuidance,
 			nextAction:
 				submitted > 0
@@ -801,12 +805,42 @@ function toPathStepState(
 	return 'blocked';
 }
 
-function formatCount(value: number | null | undefined) {
-	return new Intl.NumberFormat('hr-HR').format(value ?? 0);
-}
-
 function humanize(value: string | null | undefined) {
 	return value ? value.replaceAll('_', ' ') : 'Not available';
+}
+
+function operationsMessage(
+  copy: SelectedSeriesOperationsWorkflowCopy,
+  id: AppMessageId,
+  values: AppMessageValues = {}
+) {
+  return appMessage(copy.locale ?? 'en', id, values);
+}
+
+function formatCount(value: number | null | undefined) {
+  return new Intl.NumberFormat('hr-HR').format(value ?? 0);
+}
+
+function localizedReportVisibilityStatus(
+  value: string | null | undefined,
+  copy: SelectedSeriesOperationsWorkflowCopy
+) {
+	switch (value) {
+		case 'reportable':
+			return operationsMessage(copy, 'operations.status.reportVisibility.reportable');
+		case 'visible':
+			return operationsMessage(copy, 'operations.status.reportVisibility.visible');
+		case 'blocked':
+			return operationsMessage(copy, 'operations.status.reportVisibility.blocked');
+		case 'unknown_policy':
+			return operationsMessage(copy, 'operations.status.reportVisibility.unknownPolicy');
+		case null:
+		case undefined:
+		case '':
+			return operationsMessage(copy, 'operations.status.reportVisibility.notAvailable');
+		default:
+			return humanize(value);
+	}
 }
 
 function normalizeRecipientEmail(value: string) {
@@ -872,35 +906,30 @@ function audienceAccessDetail(
 	const effectiveOpenLinkCount = openLinkCount || (openLinkCreated ? 1 : 0);
 
 	if (responseIdentityMode === 'identified') {
-		return copy.status.identifiedAccessDetail(
-			formatCount(effectiveOpenLinkCount),
-			effectiveOpenLinkCount === 1 ? '' : 's'
-		);
+		return operationsMessage(copy, 'operations.access.identifiedDetail', {
+			openLinkCount: effectiveOpenLinkCount
+		});
 	}
 
 	if (invitationCount > 0 && effectiveOpenLinkCount === 0) {
-		return copy.status.inviteOnlyDetail(
-			formatCount(invitationCount),
-			invitationCount === 1 ? ' is' : 's are',
-			anonymousResultBoundary(responseIdentityMode, false, copy)
-		);
+		return operationsMessage(copy, 'operations.access.inviteOnlyDetail', {
+			invitationCount,
+			boundary: anonymousResultBoundary(responseIdentityMode, false, copy)
+		});
 	}
 
 	if (effectiveOpenLinkCount > 0 && invitationCount > 0) {
-		return copy.status.mixedAccessDetail(
-			formatCount(effectiveOpenLinkCount),
-			effectiveOpenLinkCount === 1 ? '' : 's',
-			formatCount(invitationCount),
-			invitationCount === 1 ? '' : 's',
-			anonymousResultBoundary(responseIdentityMode, true, copy)
-		);
+		return operationsMessage(copy, 'operations.access.mixedDetail', {
+			openLinkCount: effectiveOpenLinkCount,
+			invitationCount,
+			boundary: anonymousResultBoundary(responseIdentityMode, true, copy)
+		});
 	}
 
 	if (effectiveOpenLinkCount > 0) {
-		return copy.status.openLinkDetail(
-			formatCount(effectiveOpenLinkCount),
-			effectiveOpenLinkCount === 1 ? ' is' : 's are'
-		);
+		return operationsMessage(copy, 'operations.access.openLinkDetail', {
+			openLinkCount: effectiveOpenLinkCount
+		});
 	}
 
 	return copy.status.createAccessBeforeResponses;

@@ -444,7 +444,7 @@ describe('selected-series operations workflow model', () => {
 		);
 		expect(summary).toMatchObject({
 			overallLabel: 'Aktivno',
-			headline: 'Aktivno: prihvaća odgovore s 21 predanim odgovorom',
+			headline: 'Aktivno: prihvaća odgovore; predano: 21 odgovor',
 			nextAction:
 				'Nastavite prikupljati, pregledajte preliminarne Rezultate ili zatvorite prikupljanje kad ste spremni.'
 		});

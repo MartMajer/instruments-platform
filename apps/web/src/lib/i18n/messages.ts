@@ -10,9 +10,11 @@ type CountNounId =
 	| 'column'
 	| 'comparedOutput'
 	| 'comparisonScore'
+	| 'emailInvitation'
 	| 'invitationPair'
 	| 'linkedPair'
 	| 'measurement'
+	| 'openRespondentLink'
 	| 'question'
 	| 'reportSummaryColumn'
 	| 'response'
@@ -500,7 +502,63 @@ const enMessages = {
 		`Recipient selection in this step will belong to the new draft wave, not to ${textValue(
 			values,
 			'previousLabel'
-		)}.`
+		)}.`,
+
+	'operations.status.reportVisibility.notAvailable': 'Not available',
+	'operations.status.reportVisibility.reportable': 'reportable',
+	'operations.status.reportVisibility.visible': 'visible',
+	'operations.status.reportVisibility.blocked': 'blocked',
+	'operations.status.reportVisibility.unknownPolicy': 'policy not confirmed',
+	'operations.status.submittedTitle': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'submitted'))} submitted`,
+	'operations.status.responseActivityDetail': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'started'))} started, ${formatNumber(
+			locale,
+			numberValue(values, 'drafts')
+		)} in progress, ${formatNumber(locale, numberValue(values, 'submitted'))} submitted.`,
+	'operations.status.closedHeadline': (values, locale) =>
+		`Closed: ${formatNumber(locale, numberValue(values, 'submitted'))} submitted ${
+			numberValue(values, 'submitted') === 1 ? 'response' : 'responses'
+		}`,
+	'operations.status.liveHeadline': (values, locale) =>
+		`Live: accepting responses with ${formatNumber(
+			locale,
+			numberValue(values, 'submitted')
+		)} submitted`,
+	'operations.access.identifiedDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} prepared. Respondents are connected to known subject records for this wave.`,
+	'operations.access.inviteOnlyDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'invitationCount'),
+			'emailInvitation'
+		)} ${numberValue(values, 'invitationCount') === 1 ? 'is' : 'are'} ready for this wave. Only saved recipients receive private access, and ${textValue(
+			values,
+			'boundary'
+		)}`,
+	'operations.access.mixedDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} and ${formatCount(
+			locale,
+			numberValue(values, 'invitationCount'),
+			'emailInvitation'
+		)}. Open-link access is broad; invite-only email access limits entry to saved recipients. ${textValue(
+			values,
+			'boundary'
+		)}`,
+	'operations.access.openLinkDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} ${numberValue(values, 'openLinkCount') === 1 ? 'is' : 'are'} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`
 } satisfies Record<string, AppMessageTemplate>;
 
 export type AppMessageId = keyof typeof enMessages;
@@ -834,7 +892,61 @@ const hrMessages: AppMessageCatalog = {
 		`Odabir primatelja u ovom koraku pripadat će novom nacrtu mjerenja, a ne mjerenju ${textValue(
 			values,
 			'previousLabel'
-		)}.`
+		)}.`,
+	'operations.status.reportVisibility.notAvailable': 'Nije dostupno',
+	'operations.status.reportVisibility.reportable': 'spremno za izvještaj',
+	'operations.status.reportVisibility.visible': 'vidljivo',
+	'operations.status.reportVisibility.blocked': 'blokirano',
+	'operations.status.reportVisibility.unknownPolicy': 'pravila nisu potvrđena',
+	'operations.status.submittedTitle': (values, locale) =>
+		`Predano: ${formatCount(locale, numberValue(values, 'submitted'), 'response')}`,
+	'operations.status.responseActivityDetail': (values, locale) =>
+		`Započeto: ${formatNumber(locale, numberValue(values, 'started'))}; u tijeku: ${formatNumber(
+			locale,
+			numberValue(values, 'drafts')
+		)}; predano: ${formatNumber(locale, numberValue(values, 'submitted'))}.`,
+	'operations.status.closedHeadline': (values, locale) =>
+		`Zatvoreno; predano: ${formatCount(locale, numberValue(values, 'submitted'), 'response')}`,
+	'operations.status.liveHeadline': (values, locale) =>
+		`Aktivno: prihvaća odgovore; predano: ${formatCount(
+			locale,
+			numberValue(values, 'submitted'),
+			'response'
+		)}`,
+	'operations.access.identifiedDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} pripremljeno. Sudionici su povezani s poznatim zapisima osoba za ovo mjerenje.`,
+	'operations.access.inviteOnlyDetail': (values, locale) =>
+		`Za ovo mjerenje spremno je: ${formatCount(
+			locale,
+			numberValue(values, 'invitationCount'),
+			'emailInvitation'
+		)}. Samo spremljeni primatelji dobivaju privatni pristup, a ${textValue(
+			values,
+			'boundary'
+		)}`,
+	'operations.access.mixedDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} i ${formatCount(
+			locale,
+			numberValue(values, 'invitationCount'),
+			'emailInvitation'
+		)}. Otvorena poveznica je širok pristup; invite-only e-pošta ograničava ulaz na spremljene primatelje. ${textValue(
+			values,
+			'boundary'
+		)}`,
+	'operations.access.openLinkDetail': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'openLinkCount'),
+			'openRespondentLink'
+		)} aktivno je. Svatko s poveznicom može ući u ovo mjerenje; koristite spremljene pozive kad pristup treba biti ograničen.`
 };
 
 const messageCatalogs: Record<AppLocale, AppMessageCatalog> = {
@@ -849,9 +961,11 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		column: { one: 'column', other: 'columns' },
 		comparedOutput: { one: 'compared output', other: 'compared outputs' },
 		comparisonScore: { one: 'visible comparison score', other: 'visible comparison scores' },
+		emailInvitation: { one: 'saved email invitation', other: 'saved email invitations' },
 		invitationPair: { one: 'invitation pair', other: 'invitation pairs' },
 		linkedPair: { one: 'linked pair', other: 'linked pairs' },
 		measurement: { one: 'wave', other: 'waves' },
+		openRespondentLink: { one: 'open respondent link', other: 'open respondent links' },
 		question: { one: 'question', other: 'questions' },
 		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
 		response: { one: 'response', other: 'responses' },
@@ -883,6 +997,11 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			few: 'vidljiva usporedna rezultata',
 			other: 'vidljivih usporednih rezultata'
 		},
+		emailInvitation: {
+			one: 'spremljeni poziv e-poštom',
+			few: 'spremljena poziva e-poštom',
+			other: 'spremljenih poziva e-poštom'
+		},
 		invitationPair: {
 			one: 'par pozivnica',
 			few: 'para pozivnica',
@@ -890,6 +1009,11 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		},
 		linkedPair: { one: 'povezani par', few: 'povezana para', other: 'povezanih parova' },
 		measurement: { one: 'mjerenje', few: 'mjerenja', other: 'mjerenja' },
+		openRespondentLink: {
+			one: 'otvorena poveznica za sudionike',
+			few: 'otvorene poveznice za sudionike',
+			other: 'otvorenih poveznica za sudionike'
+		},
 		question: { one: 'pitanje', few: 'pitanja', other: 'pitanja' },
 		reportSummaryColumn: {
 			one: 'stupac sažetka izvještaja',
