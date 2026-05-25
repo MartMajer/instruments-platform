@@ -121,6 +121,14 @@ type WavesWorkflowActionCopy = {
 export type SelectedSeriesWavesWorkflowCopy = {
 	locale?: AppLocale;
 	stepNumber: (number: number) => string;
+	surface: {
+		reviewActionsAria: string;
+		flowKicker: string;
+		title: string;
+		description: string;
+		scoreMethodLabel: string;
+		scoreMethodReviewAria: string;
+	};
 	plan: {
 		createFirstTitle: string;
 		createFirstDescription: string;
@@ -194,6 +202,15 @@ export type SelectedSeriesWavesWorkflowCopy = {
 export const defaultSelectedSeriesWavesWorkflowCopy: SelectedSeriesWavesWorkflowCopy = {
 	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
+	surface: {
+		reviewActionsAria: 'Wave comparison workflow',
+		flowKicker: 'Study flow · Waves',
+		title: 'Repeat the study and compare waves',
+		description:
+			'Create follow-up waves from Setup, collect responses from Collection, then compare closed waves here.',
+		scoreMethodLabel: 'Score method',
+		scoreMethodReviewAria: 'Wave score method review'
+	},
 	plan: {
 		createFirstTitle: 'Create the first wave',
 		createFirstDescription: 'Start by creating Wave 1 as the first collection round for this study.',

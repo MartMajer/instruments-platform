@@ -11,10 +11,12 @@ type CountNounId =
 	| 'comparedOutput'
 	| 'comparisonScore'
 	| 'emailInvitation'
+	| 'exportFile'
 	| 'invitationPair'
 	| 'linkedPair'
 	| 'measurement'
 	| 'openRespondentLink'
+	| 'purpose'
 	| 'question'
 	| 'recipient'
 	| 'reportSummaryColumn'
@@ -29,6 +31,191 @@ type CountNounId =
 type CountNounForms = Record<PluralCategory | 'other', string>;
 
 const enMessages = {
+	'overview.surface.title': 'Study overview',
+	'overview.surface.description':
+		'Use this overview to prepare, collect, review results, and compare waves for the selected study.',
+	'overview.reference.title': 'Study reference',
+	'overview.reference.description':
+		'Detailed records, governance status, and wave rows for this selected study.',
+	'overview.untitledSeries': 'Untitled wave series',
+	'overview.untitledStudy': 'Untitled study',
+	'overview.subtitle': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'campaignCount'))} ${
+			numberValue(values, 'campaignCount') === 1 ? 'campaign' : 'campaigns'
+		}, ${formatNumber(
+			locale,
+			numberValue(values, 'liveCount')
+		)} live`,
+	'overview.lifecycle.title': 'Study lifecycle',
+	'overview.lifecycle.description':
+		'Move through this study from preparation to collection, results, and waves.',
+	'overview.lifecycle.setup.label': 'Prepare',
+	'overview.lifecycle.setup.description':
+		'Build the questionnaire, results setup, policies, wave, and launch check.',
+	'overview.lifecycle.operations.label': 'Collect',
+	'overview.lifecycle.operations.description':
+		'Start the wave, share access, send invitations, and monitor submissions.',
+	'overview.lifecycle.reports.label': 'Review results',
+	'overview.lifecycle.reports.description':
+		'Review findings, limitations, and export files after responses are ready.',
+	'overview.lifecycle.waves.label': 'Compare waves',
+	'overview.lifecycle.waves.description':
+		'Create follow-up waves and compare results across collection rounds.',
+	'overview.studyModel.title': 'What this study contains',
+	'overview.studyModel.description':
+		'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
+	'overview.studyModel.studyContainer.label': 'Study',
+	'overview.studyModel.studyContainer.badge': 'Saved',
+	'overview.studyModel.studyContainer.summary': (values) =>
+		`${textValue(
+			values,
+			'studyName'
+		)} holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.`,
+	'overview.studyModel.studyContainer.guidance':
+		'Open Setup when you need to change what respondents answer or how results are prepared.',
+	'overview.studyModel.questionnaireResults.label': 'Questionnaire and result outputs',
+	'overview.studyModel.questionnaireResults.summary':
+		'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
+	'overview.studyModel.questionnaireResults.guidance':
+		'Open Setup to finish the source, questionnaire, result outputs, wave, and launch readiness.',
+	'overview.studyModel.collectionWaves.label': 'Collection waves',
+	'overview.studyModel.collectionWaves.badge.live': 'Live',
+	'overview.studyModel.collectionWaves.badge.prepared': 'Prepared',
+	'overview.studyModel.collectionWaves.badge.none': 'No waves',
+	'overview.studyModel.collectionWaves.summary.none': 'No collection waves exist yet.',
+	'overview.studyModel.collectionWaves.summary.existing': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'campaignCount'))} ${
+			numberValue(values, 'campaignCount') === 1
+				? 'collection wave exists'
+				: 'collection waves exist'
+		}; ${formatNumber(locale, numberValue(values, 'liveCount'))} ${
+			numberValue(values, 'liveCount') === 1 ? 'is' : 'are'
+		} live.`,
+	'overview.studyModel.collectionWaves.guidance':
+		'Create a collection wave in Setup, then use Collect to open access for respondents.',
+	'overview.studyModel.evidenceOutputs.label': 'Evidence and comparison',
+	'overview.studyModel.evidenceOutputs.badge.ready': 'Evidence ready',
+	'overview.studyModel.evidenceOutputs.badge.needsScoring': 'Needs scoring',
+	'overview.studyModel.evidenceOutputs.badge.none': 'No evidence yet',
+	'overview.studyModel.evidenceOutputs.summary': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'submittedCount'))} submitted responses, ${formatNumber(
+			locale,
+			numberValue(values, 'scoreCount')
+		)} scores, and ${formatNumber(
+			locale,
+			numberValue(values, 'exportCount')
+		)} export files are recorded.`,
+	'overview.studyModel.evidenceOutputs.guidance':
+		'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+	'overview.row.waves': 'Waves',
+	'overview.row.liveWaves': 'Live waves',
+	'overview.row.submittedResponses': 'Submitted responses',
+	'overview.row.scores': 'Scores',
+	'overview.row.exportFiles': 'Export files',
+	'overview.badge.ready': 'Ready',
+	'overview.badge.pending': 'Pending',
+	'overview.badge.blocked': 'Blocked',
+	'overview.badge.live': 'Live',
+	'overview.badge.notConfigured': 'Not configured',
+	'overview.badge.notAvailable': 'Not available',
+	'exports.library.surface.title': 'Use exports',
+	'exports.library.surface.eyebrow': 'Study support',
+	'exports.library.surface.description':
+		'Find generated CSV/codebook files by purpose, readiness, source study, and next use.',
+	'exports.library.reference.title': 'Export reference',
+	'exports.library.reference.description':
+		'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.',
+	'exports.library.row.exportFiles': 'Export files',
+	'exports.library.row.downloadable': 'Downloadable',
+	'exports.library.row.failed': 'Failed',
+	'exports.library.row.pending': 'Pending',
+	'exports.library.row.reportSummaryExports': 'Report summary exports',
+	'exports.library.row.responseDatasetExports': 'Response dataset exports',
+	'exports.library.row.reportSummaryDownloads': 'Report-summary exports',
+	'exports.library.row.responseDatasets': 'Response datasets',
+	'exports.library.row.campaignFiles': 'Campaign files',
+	'exports.library.row.studyFiles': 'Study files',
+	'exports.library.row.studyContext': 'Study context',
+	'exports.library.row.fileType': 'File type',
+	'exports.library.row.format': 'Format',
+	'exports.library.row.dataFinality': 'Data finality',
+	'exports.library.row.rows': 'Rows',
+	'exports.library.row.size': 'Size',
+	'exports.library.row.created': 'Created',
+	'exports.library.row.completed': 'Completed',
+	'exports.library.row.failure': 'Failure',
+	'exports.library.row.download': 'Download',
+	'exports.library.readyDownloads.label': 'Downloadable files',
+	'exports.library.readyDownloads.badge': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} downloadable`,
+	'exports.library.readyDownloads.summary.ready': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'exportFile')} ${
+			numberValue(values, 'count') === 1 ? 'is' : 'are'
+		} ready to download.`,
+	'exports.library.readyDownloads.summary.empty': 'No export files are ready to download yet.',
+	'exports.library.readyDownloads.guidance.withDataset':
+		'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.',
+	'exports.library.readyDownloads.guidance.reportOnly':
+		'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.',
+	'exports.library.readyDownloads.guidance.empty':
+		'Create an export from a study results page after results are available.',
+	'exports.library.attention.label': 'Needs attention',
+	'exports.library.attention.badge.failed': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} failed`,
+	'exports.library.attention.badge.pending': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} pending`,
+	'exports.library.attention.badge.ready': 'No attention items',
+	'exports.library.attention.summary.failed': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'exportFile')} ${
+			numberValue(values, 'count') === 1 ? 'needs' : 'need'
+		} attention.`,
+	'exports.library.attention.summary.pending': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'exportFile')} ${
+			numberValue(values, 'count') === 1 ? 'is' : 'are'
+		} still queued or rendering.`,
+	'exports.library.attention.summary.ready': 'No failed or pending export files.',
+	'exports.library.attention.guidance.failed':
+		'Review the failed export file, then recreate it from the source study after the cause is resolved.',
+	'exports.library.attention.guidance.pending':
+		'Wait for generation to finish before using the export file for handoff.',
+	'exports.library.attention.guidance.ready':
+		'New export issues will appear here when generation fails or remains pending.',
+	'exports.library.purpose.label': 'File purpose',
+	'exports.library.purpose.badge.ready': (values, locale) =>
+		formatCount(locale, numberValue(values, 'count'), 'purpose'),
+	'exports.library.purpose.badge.empty': 'No files',
+	'exports.library.purpose.summary.ready': (values) =>
+		`Exports cover ${textValue(values, 'purposeLabels')}.`,
+	'exports.library.purpose.summary.empty': 'No generated export purposes are available yet.',
+	'exports.library.purpose.guidance.ready':
+		'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.',
+	'exports.library.purpose.guidance.empty':
+		'Create report summary or response dataset exports from a study when results are ready.',
+	'exports.library.context.label': 'Study context and next use',
+	'exports.library.context.badge.ready': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} ${
+			numberValue(values, 'count') === 1 ? 'source' : 'sources'
+		}`,
+	'exports.library.context.badge.empty': 'No sources',
+	'exports.library.context.summary.ready': (values) =>
+		`Export files are tied to ${textValue(values, 'sourceLabels')}.`,
+	'exports.library.context.summary.empty': 'No export files are tied to a study yet.',
+	'exports.library.context.guidance.ready':
+		'Open the source study or report context when you need to understand how an export file was generated.',
+	'exports.library.context.guidance.empty':
+		'Generated export files will link back to their study or report context when that context is available.',
+	'exports.library.purpose.reportSummary.label': 'Report summary export',
+	'exports.library.purpose.reportSummary.nextUse':
+		'Use this export for report handoff, summary review, or codebook checks.',
+	'exports.library.purpose.responseDataset.label': 'Response dataset export',
+	'exports.library.purpose.responseDataset.nextUse':
+		'Use this export for response-level analysis with the generated codebook.',
+	'exports.library.purpose.other.nextUse':
+		'Use this export with its source context and generated codebook.',
+	'exports.library.finality.closedWave': 'Closed wave',
+	'exports.library.finality.notClosedWave': 'Not tied to a closed wave',
+	'exports.library.download.available': 'Available',
+	'exports.library.download.notAvailable': 'Not available',
 	'results.packet.responses.label': 'Responses',
 	'results.packet.scores.label': 'Scores',
 	'results.packet.exportFiles.label': 'Export files',
@@ -678,6 +865,192 @@ type AppMessageCatalog = Record<AppMessageId, AppMessageTemplate>;
 
 const hrMessages: AppMessageCatalog = {
 	...enMessages,
+	'overview.surface.title': 'Pregled studije',
+	'overview.surface.description':
+		'Ovaj pregled koristite za pripremu, prikupljanje, pregled rezultata i usporedbu mjerenja u odabranoj studiji.',
+	'overview.reference.title': 'Referenca studije',
+	'overview.reference.description':
+		'Detaljni zapisi, status pravila i redci mjerenja za odabranu studiju.',
+	'overview.untitledSeries': 'Studija bez naziva',
+	'overview.untitledStudy': 'Studija bez naziva',
+	'overview.subtitle': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'campaignCount'), 'measurement')}, aktivno: ${formatNumber(
+			locale,
+			numberValue(values, 'liveCount')
+		)}`,
+	'overview.lifecycle.title': 'Životni ciklus studije',
+	'overview.lifecycle.description':
+		'Prođite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.',
+	'overview.lifecycle.setup.label': 'Priprema',
+	'overview.lifecycle.setup.description':
+		'Izradite upitnik, pripremu rezultata, pravila, mjerenje i provjeru pokretanja.',
+	'overview.lifecycle.operations.label': 'Prikupljanje',
+	'overview.lifecycle.operations.description':
+		'Pokrenite mjerenje, otvorite pristup, pošaljite pozive i pratite odgovore.',
+	'overview.lifecycle.reports.label': 'Pregled rezultata',
+	'overview.lifecycle.reports.description':
+		'Pregledajte nalaze, ograničenja i datoteke izvoza nakon što odgovori budu spremni.',
+	'overview.lifecycle.waves.label': 'Usporedba mjerenja',
+	'overview.lifecycle.waves.description':
+		'Izradite sljedeća mjerenja i usporedite rezultate između krugova prikupljanja.',
+	'overview.studyModel.title': 'Što ova studija sadrži',
+	'overview.studyModel.description':
+		'Studija je projektni spremnik. Izvor upitnika je samo početni materijal; upitnik je ono što ispitanici vide; mjerenja su krugovi prikupljanja; rezultati i izvozi koriste spremljene odgovore.',
+	'overview.studyModel.studyContainer.label': 'Studija',
+	'overview.studyModel.studyContainer.badge': 'Spremljeno',
+	'overview.studyModel.studyContainer.summary': (values) =>
+		`${textValue(
+			values,
+			'studyName'
+		)} sadrži postavljanje, mjerenja, rezultate i izvoze. To nije upitnik ni instrument.`,
+	'overview.studyModel.studyContainer.guidance':
+		'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.',
+	'overview.studyModel.questionnaireResults.label': 'Upitnik i izlazi rezultata',
+	'overview.studyModel.questionnaireResults.summary':
+		'Upitnik definira pitanja; izlazi rezultata definiraju koje odgovore zbrajate, izvozite ili tumačite.',
+	'overview.studyModel.questionnaireResults.guidance':
+		'Otvorite Postavljanje za dovršetak ili provjeru izvora, upitnika, izlaza rezultata, mjerenja i spremnosti pokretanja.',
+	'overview.studyModel.collectionWaves.label': 'Mjerenja prikupljanja',
+	'overview.studyModel.collectionWaves.badge.live': 'Aktivno',
+	'overview.studyModel.collectionWaves.badge.prepared': 'Pripremljeno',
+	'overview.studyModel.collectionWaves.badge.none': 'Nema mjerenja',
+	'overview.studyModel.collectionWaves.summary.none': 'Još nema mjerenja prikupljanja.',
+	'overview.studyModel.collectionWaves.summary.existing': (values, locale) =>
+		`Mjerenja u studiji: ${formatCount(
+			locale,
+			numberValue(values, 'campaignCount'),
+			'measurement'
+		)}; aktivno: ${formatNumber(locale, numberValue(values, 'liveCount'))}.`,
+	'overview.studyModel.collectionWaves.guidance':
+		'Izradite ili provjerite mjerenje, zatim koristite Prikupljanje za otvaranje pristupa ispitanicima.',
+	'overview.studyModel.evidenceOutputs.label': 'Dokazi i usporedba',
+	'overview.studyModel.evidenceOutputs.badge.ready': 'Dokazi spremni',
+	'overview.studyModel.evidenceOutputs.badge.needsScoring': 'Treba bodovanje',
+	'overview.studyModel.evidenceOutputs.badge.none': 'Još nema dokaza',
+	'overview.studyModel.evidenceOutputs.summary': (values, locale) =>
+		`Zabilježeno: ${formatCount(
+			locale,
+			numberValue(values, 'submittedCount'),
+			'response'
+		)}, ${formatCount(locale, numberValue(values, 'scoreCount'), 'score')} i ${formatCount(
+			locale,
+			numberValue(values, 'exportCount'),
+			'exportFile'
+		)}.`,
+	'overview.studyModel.evidenceOutputs.guidance':
+		'Koristite Rezultate za trenutne dokaze, Mjerenja za ponovljene krugove prikupljanja i Izvoze za predaju analize.',
+	'overview.row.waves': 'Mjerenja',
+	'overview.row.liveWaves': 'Aktivna mjerenja',
+	'overview.row.submittedResponses': 'Predani odgovori',
+	'overview.row.scores': 'Rezultati',
+	'overview.row.exportFiles': 'Datoteke izvoza',
+	'overview.badge.ready': 'Spremno',
+	'overview.badge.pending': 'Na čekanju',
+	'overview.badge.blocked': 'Blokirano',
+	'overview.badge.live': 'Aktivno',
+	'overview.badge.notConfigured': 'Nije postavljeno',
+	'overview.badge.notAvailable': 'Nije dostupno',
+	'exports.library.surface.title': 'Datoteke za preuzimanje',
+	'exports.library.surface.eyebrow': 'Podrška studiji',
+	'exports.library.surface.description':
+		'Pronađite izrađene CSV/šifrarnik datoteke prema namjeni, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
+	'exports.library.reference.title': 'Referenca izvoza',
+	'exports.library.reference.description':
+		'Metapodaci datoteke, vremenske oznake, kodovi grešaka i dostupnost preuzimanja ostaju dostupni za audit i rješavanje problema.',
+	'exports.library.row.exportFiles': 'Datoteke izvoza',
+	'exports.library.row.downloadable': 'Dostupno za preuzimanje',
+	'exports.library.row.failed': 'Neuspjelo',
+	'exports.library.row.pending': 'Na čekanju',
+	'exports.library.row.reportSummaryExports': 'Izvozi sažetka izvještaja',
+	'exports.library.row.responseDatasetExports': 'Izvozi skupa podataka odgovora',
+	'exports.library.row.reportSummaryDownloads': 'Izvozi sažetka izvještaja',
+	'exports.library.row.responseDatasets': 'Skupovi podataka odgovora',
+	'exports.library.row.campaignFiles': 'Datoteke mjerenja',
+	'exports.library.row.studyFiles': 'Datoteke studije',
+	'exports.library.row.studyContext': 'Kontekst studije',
+	'exports.library.row.fileType': 'Vrsta datoteke',
+	'exports.library.row.format': 'Format',
+	'exports.library.row.dataFinality': 'Finalnost podataka',
+	'exports.library.row.rows': 'Redci',
+	'exports.library.row.size': 'Veličina',
+	'exports.library.row.created': 'Izrađeno',
+	'exports.library.row.completed': 'Dovršeno',
+	'exports.library.row.failure': 'Greška',
+	'exports.library.row.download': 'Preuzimanje',
+	'exports.library.readyDownloads.label': 'Datoteke za preuzimanje',
+	'exports.library.readyDownloads.badge': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} dostupno za preuzimanje`,
+	'exports.library.readyDownloads.summary.ready': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'count'),
+			'exportFile'
+		)} spremno je za preuzimanje.`,
+	'exports.library.readyDownloads.summary.empty':
+		'Još nema izvoznih datoteka spremnih za preuzimanje.',
+	'exports.library.readyDownloads.guidance.withDataset':
+		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
+	'exports.library.readyDownloads.guidance.reportOnly':
+		'Sažeci izvještaja dostupni su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup odgovora za analizu još nije dostupan.',
+	'exports.library.readyDownloads.guidance.empty':
+		'Izradite izvoz sa stranice rezultata studije nakon što rezultati budu dostupni.',
+	'exports.library.attention.label': 'Treba pažnju',
+	'exports.library.attention.badge.failed': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} neuspjelo`,
+	'exports.library.attention.badge.pending': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} na čekanju`,
+	'exports.library.attention.badge.ready': 'Nema stavki za pažnju',
+	'exports.library.attention.summary.failed': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'exportFile')} traži pažnju.`,
+	'exports.library.attention.summary.pending': (values, locale) =>
+		`${formatCount(
+			locale,
+			numberValue(values, 'count'),
+			'exportFile'
+		)} još je u redu čekanja ili se izrađuje.`,
+	'exports.library.attention.summary.ready':
+		'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.',
+	'exports.library.attention.guidance.failed':
+		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon uklanjanja uzroka.',
+	'exports.library.attention.guidance.pending':
+		'Pričekajte završetak izrade prije korištenja izvoza za predaju.',
+	'exports.library.attention.guidance.ready':
+		'Novi problemi izvoza pojavit će se ovdje kada izrada ne uspije ili ostane na čekanju.',
+	'exports.library.purpose.label': 'Namjena datoteke',
+	'exports.library.purpose.badge.ready': (values, locale) =>
+		formatCount(locale, numberValue(values, 'count'), 'purpose'),
+	'exports.library.purpose.badge.empty': 'Nema datoteka',
+	'exports.library.purpose.summary.ready': (values) =>
+		`Izvozi pokrivaju ${textValue(values, 'purposeLabels')}.`,
+	'exports.library.purpose.summary.empty': 'Još nema namjena izrađenih izvoznih datoteka.',
+	'exports.library.purpose.guidance.ready':
+		'Izvoze sažetka izvještaja odaberite za predaju rezultata; izvoze skupa odgovora za analizu uz šifrarnik.',
+	'exports.library.purpose.guidance.empty':
+		'Izradite sažetak izvještaja ili skup odgovora iz studije kada rezultati budu spremni.',
+	'exports.library.context.label': 'Kontekst studije i sljedeća upotreba',
+	'exports.library.context.badge.ready': (values, locale) =>
+		`${formatNumber(locale, numberValue(values, 'count'))} izvora`,
+	'exports.library.context.badge.empty': 'Nema izvora',
+	'exports.library.context.summary.ready': (values) =>
+		`Izvozne datoteke povezane su s ${textValue(values, 'sourceLabels')}.`,
+	'exports.library.context.summary.empty':
+		'Još nema izvoznih datoteka povezanih sa studijom.',
+	'exports.library.context.guidance.ready':
+		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvoz izrađen.',
+	'exports.library.context.guidance.empty':
+		'Izrađene izvozne datoteke povezat će se sa studijom ili kontekstom izvještaja kada taj kontekst bude dostupan.',
+	'exports.library.purpose.reportSummary.label': 'Izvoz sažetka izvještaja',
+	'exports.library.purpose.reportSummary.nextUse':
+		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
+	'exports.library.purpose.responseDataset.label': 'Izvoz skupa podataka odgovora',
+	'exports.library.purpose.responseDataset.nextUse':
+		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
+	'exports.library.purpose.other.nextUse':
+		'Ovaj izvoz koristite uz izvorni kontekst i generirani šifrarnik.',
+	'exports.library.finality.closedWave': 'Zatvoreno mjerenje',
+	'exports.library.finality.notClosedWave': 'Nije vezano uz zatvoreno mjerenje',
+	'exports.library.download.available': 'Dostupno',
+	'exports.library.download.notAvailable': 'Nije dostupno',
 	'results.packet.responses.label': 'Odgovori',
 	'results.packet.scores.label': 'Rezultati',
 	'results.packet.exportFiles.label': 'Datoteke izvoza',
@@ -1183,10 +1556,12 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		comparedOutput: { one: 'compared output', other: 'compared outputs' },
 		comparisonScore: { one: 'visible comparison score', other: 'visible comparison scores' },
 		emailInvitation: { one: 'saved email invitation', other: 'saved email invitations' },
+		exportFile: { one: 'export file', other: 'export files' },
 		invitationPair: { one: 'invitation pair', other: 'invitation pairs' },
 		linkedPair: { one: 'linked pair', other: 'linked pairs' },
 		measurement: { one: 'wave', other: 'waves' },
 		openRespondentLink: { one: 'open respondent link', other: 'open respondent links' },
+		purpose: { one: 'purpose', other: 'purposes' },
 		question: { one: 'question', other: 'questions' },
 		recipient: { one: 'recipient', other: 'recipients' },
 		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
@@ -1225,6 +1600,11 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			few: 'spremljena poziva e-poštom',
 			other: 'spremljenih poziva e-poštom'
 		},
+		exportFile: {
+			one: 'izvozna datoteka',
+			few: 'izvozne datoteke',
+			other: 'izvoznih datoteka'
+		},
 		invitationPair: {
 			one: 'par pozivnica',
 			few: 'para pozivnica',
@@ -1237,6 +1617,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			few: 'otvorene poveznice za sudionike',
 			other: 'otvorenih poveznica za sudionike'
 		},
+		purpose: { one: 'namjena', few: 'namjene', other: 'namjena' },
 		question: { one: 'pitanje', few: 'pitanja', other: 'pitanja' },
 		recipient: { one: 'primatelj', few: 'primatelja', other: 'primatelja' },
 		reportSummaryColumn: {

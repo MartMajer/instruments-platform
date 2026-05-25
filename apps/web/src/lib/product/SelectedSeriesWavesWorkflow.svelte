@@ -196,13 +196,13 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label="Waves action workflow">
+<section class="product-panel" role="group" aria-label={wavesWorkflowCopy.surface.reviewActionsAria}>
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Study flow · Waves</p>
-			<h3 class="product-title">Repeat the study and compare waves</h3>
+			<p class="product-kicker">{wavesWorkflowCopy.surface.flowKicker}</p>
+			<h3 class="product-title">{wavesWorkflowCopy.surface.title}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-				Create follow-up waves from Setup, collect responses from Collection, then compare closed waves here.
+				{wavesWorkflowCopy.surface.description}
 			</p>
 		</div>
 		<StatusBadge status={wavePlan.status} label={wavePlan.title} />
@@ -265,10 +265,10 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Wave score method review">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={wavesWorkflowCopy.surface.scoreMethodReviewAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Score method</p>
+				<p class="product-kicker">{wavesWorkflowCopy.surface.scoreMethodLabel}</p>
 				<h4 class="setup-current-task__title">{methodReview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{methodReview.description}</p>
 			</div>

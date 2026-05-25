@@ -999,6 +999,41 @@ describe('product view models', () => {
 		}
 	});
 
+	it('localizes selected-series overview read-model copy for Croatian app mode', () => {
+		const view = toCampaignSeriesHubView(sampleCampaignSeriesHub, 'hr-HR');
+
+		expect(view.surfaceTitle).toBe('Pregled studije');
+		expect(view.referenceTitle).toBe('Referenca studije');
+		expect(view.studyModel.title).toBe('Što ova studija sadrži');
+		expect(view.studyModel.description).toContain('Studija je projektni spremnik');
+		expect(view.studyModel.items[0]).toMatchObject({
+			label: 'Studija',
+			badgeLabel: 'Spremljeno',
+			summary:
+				'Quarterly burnout pulse sadrži postavljanje, mjerenja, rezultate i izvoze. To nije upitnik ni instrument.',
+			guidance:
+				'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
+		});
+		expect(view.studyModel.items[2]).toMatchObject({
+			label: 'Mjerenja prikupljanja',
+			badgeLabel: 'Aktivno',
+			summary: 'Mjerenja u studiji: 2 mjerenja; aktivno: 1.'
+		});
+		expect(view.studyModel.items[3]).toMatchObject({
+			label: 'Dokazi i usporedba',
+			badgeLabel: 'Dokazi spremni',
+			summary: 'Zabilježeno: 31 odgovor, 28 rezultata i 3 izvozne datoteke.'
+		});
+		expect(view.lifecycleMap).toMatchObject({
+			title: 'Životni ciklus studije',
+			description: 'Prođite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
+		});
+		expect(view.lifecycleMap.items[0]).toMatchObject({
+			label: 'Priprema',
+			description: 'Izradite upitnik, pripremu rezultata, pravila, mjerenje i provjeru pokretanja.'
+		});
+	});
+
 	it('maps archived campaign-series hub response to archive state rows', () => {
 		const view = toCampaignSeriesHubView({
 			...sampleCampaignSeriesHub,
@@ -2758,7 +2793,7 @@ describe('product view models', () => {
 		const view = toExportArtifactLibraryView(library, 'hr-HR');
 
 		expect(view.exportOverview[0].summary).toBe(
-			'2 izvoznih datoteka spremno je za preuzimanje.'
+			'2 izvozne datoteke spremno je za preuzimanje.'
 		);
 		expect(view.exportOverview[0].guidance).toContain(
 			'Koristite izvoze skupa podataka odgovora za analizu.'

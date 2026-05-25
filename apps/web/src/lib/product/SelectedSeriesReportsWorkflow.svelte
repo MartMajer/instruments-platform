@@ -370,7 +370,7 @@
 <section class="product-panel" role="group" aria-label={reportsWorkflowCopy.surface.reviewActionsAria}>
 	<div class="product-panel__header">
 		<div>
-			<p class="product-kicker">Study flow · Results</p>
+			<p class="product-kicker">{reportsWorkflowCopy.surface.flowKicker}</p>
 			<h3 class="product-title">{reportsWorkflowCopy.surface.title}</h3>
 			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
 				{reportsWorkflowCopy.surface.description}

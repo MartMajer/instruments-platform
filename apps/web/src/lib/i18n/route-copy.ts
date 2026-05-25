@@ -1369,6 +1369,15 @@ const en = {
 		},		wavesWorkflow: {
 			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `Step ${number}`,
+			surface: {
+				reviewActionsAria: 'Wave comparison workflow',
+				flowKicker: 'Study flow · Waves',
+				title: 'Repeat the study and compare waves',
+				description:
+					'Create follow-up waves from Setup, collect responses from Collection, then compare closed waves here.',
+				scoreMethodLabel: 'Score method',
+				scoreMethodReviewAria: 'Wave score method review'
+			},
 			plan: {
 				createFirstTitle: 'Create the first wave',
 				createFirstDescription: 'Start by creating Wave 1 as the first collection round for this study.',
@@ -3142,6 +3151,15 @@ const hr: typeof en = {
 		},		wavesWorkflow: {
 			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
+			surface: {
+				reviewActionsAria: 'Tijek usporedbe mjerenja',
+				flowKicker: 'Tijek studije · Mjerenja',
+				title: 'Ponovite studiju i usporedite mjerenja',
+				description:
+					'Izradite sljedeća mjerenja iz Postavljanja, prikupite odgovore iz Prikupljanja, zatim ovdje usporedite zatvorena mjerenja.',
+				scoreMethodLabel: 'Metoda rezultata',
+				scoreMethodReviewAria: 'Pregled metode rezultata za mjerenja'
+			},
 			plan: {
 				createFirstTitle: 'Izradite prvo mjerenje',
 				createFirstDescription: 'Počnite izradom Mjerenja 1 kao prvog kruga prikupljanja za ovu studiju.',

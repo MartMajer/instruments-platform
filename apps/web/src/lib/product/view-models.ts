@@ -243,21 +243,31 @@ export function toExportArtifactLibraryView(
 	locale: AppLocale = 'en'
 ) {
 	return localizeProductReadModel({
-		surfaceTitle: 'Use exports',
-		surfaceEyebrow: 'Study support',
-		surfaceDescription:
-			'Find generated CSV/codebook files by purpose, readiness, source study, and next use.',
-		referenceTitle: 'Export reference',
-		referenceDescription:
-			'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.',
-		exportOverview: toExportArtifactLibraryOverview(library),
+		surfaceTitle: appMessage(locale, 'exports.library.surface.title'),
+		surfaceEyebrow: appMessage(locale, 'exports.library.surface.eyebrow'),
+		surfaceDescription: appMessage(locale, 'exports.library.surface.description'),
+		referenceTitle: appMessage(locale, 'exports.library.reference.title'),
+		referenceDescription: appMessage(locale, 'exports.library.reference.description'),
+		exportOverview: toExportArtifactLibraryOverview(library, locale),
 		metricRows: [
-			{ label: 'Export files', value: formatCount(library.summary.totalCount) },
-			{ label: 'Downloadable', value: formatCount(library.summary.downloadableCount) },
-			{ label: 'Failed', value: formatCount(library.summary.failedCount) },
-			{ label: 'Pending', value: formatCount(library.summary.pendingCount) }
+			{
+				label: appMessage(locale, 'exports.library.row.exportFiles'),
+				value: formatCount(library.summary.totalCount)
+			},
+			{
+				label: appMessage(locale, 'exports.library.row.downloadable'),
+				value: formatCount(library.summary.downloadableCount)
+			},
+			{
+				label: appMessage(locale, 'exports.library.row.failed'),
+				value: formatCount(library.summary.failedCount)
+			},
+			{
+				label: appMessage(locale, 'exports.library.row.pending'),
+				value: formatCount(library.summary.pendingCount)
+			}
 		],
-		cards: library.artifacts.map(toExportArtifactLibraryCard)
+		cards: library.artifacts.map((artifact) => toExportArtifactLibraryCard(artifact, locale))
 	}, locale);
 }
 
@@ -309,14 +319,15 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 
 	return localizeProductReadModel({
 		id: hub.id,
-		surfaceTitle: 'Study overview',
-		surfaceDescription:
-			'Use this overview to prepare, collect, review results, and compare waves for the selected study.',
-		referenceTitle: 'Study reference',
-		referenceDescription:
-			'Detailed records, governance status, and wave rows for this selected study.',
-		title: hub.name.trim() || 'Untitled wave series',
-		subtitle: `${hub.totals.campaignCount} ${hub.totals.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${hub.totals.liveCampaignCount} live`,
+		surfaceTitle: appMessage(locale, 'overview.surface.title'),
+		surfaceDescription: appMessage(locale, 'overview.surface.description'),
+		referenceTitle: appMessage(locale, 'overview.reference.title'),
+		referenceDescription: appMessage(locale, 'overview.reference.description'),
+		title: hub.name.trim() || appMessage(locale, 'overview.untitledSeries'),
+		subtitle: appMessage(locale, 'overview.subtitle', {
+			campaignCount: hub.totals.campaignCount,
+			liveCount: hub.totals.liveCampaignCount
+		}),
 		rows,
 		ownership,
 		canMutate: !ownership.isSample,
@@ -329,7 +340,7 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 			toGovernanceRow('Scoring', hub.governance.scoringStatus)
 		],
 		studyModel: toCampaignSeriesHubStudyModel(hub, locale),
-		lifecycleMap: toCampaignSeriesHubLifecycleMap(hub),
+		lifecycleMap: toCampaignSeriesHubLifecycleMap(hub, locale),
 		lifecycleItems: hub.lifecycle.map((item) => ({
 			id: item.id,
 			label: toProductDisplayCopy(item.label),
@@ -353,12 +364,12 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 	}, locale);
 }
 
-function toCampaignSeriesHubLifecycleMap(hub: CampaignSeriesHubResponse) {
+function toCampaignSeriesHubLifecycleMap(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	return {
-		title: 'Study lifecycle',
-		description: 'Move through this study from preparation to collection, results, and waves.',
+		title: appMessage(locale, 'overview.lifecycle.title'),
+		description: appMessage(locale, 'overview.lifecycle.description'),
 		items: hub.lifecycle.map((item) => {
-			const phase = campaignSeriesHubLifecyclePhase(item.id);
+			const phase = campaignSeriesHubLifecyclePhase(item.id, locale);
 
 			return {
 				id: item.id,
@@ -374,27 +385,30 @@ function toCampaignSeriesHubLifecycleMap(hub: CampaignSeriesHubResponse) {
 	};
 }
 
-function campaignSeriesHubLifecyclePhase(id: CampaignSeriesHubResponse['lifecycle'][number]['id']) {
+function campaignSeriesHubLifecyclePhase(
+	id: CampaignSeriesHubResponse['lifecycle'][number]['id'],
+	locale: AppLocale
+) {
 	switch (id) {
 		case 'setup':
 			return {
-				label: 'Prepare',
-				description: 'Build the questionnaire, results setup, policies, wave, and launch check.'
+				label: appMessage(locale, 'overview.lifecycle.setup.label'),
+				description: appMessage(locale, 'overview.lifecycle.setup.description')
 			};
 		case 'operations':
 			return {
-				label: 'Collect',
-				description: 'Start the wave, share access, send invitations, and monitor submissions.'
+				label: appMessage(locale, 'overview.lifecycle.operations.label'),
+				description: appMessage(locale, 'overview.lifecycle.operations.description')
 			};
 		case 'reports':
 			return {
-				label: 'Review results',
-				description: 'Review findings, limitations, and export files after responses are ready.'
+				label: appMessage(locale, 'overview.lifecycle.reports.label'),
+				description: appMessage(locale, 'overview.lifecycle.reports.description')
 			};
 		case 'waves':
 			return {
-				label: 'Compare waves',
-				description: 'Create follow-up waves and compare results across collection rounds.'
+				label: appMessage(locale, 'overview.lifecycle.waves.label'),
+				description: appMessage(locale, 'overview.lifecycle.waves.description')
 			};
 	}
 }
@@ -405,50 +419,50 @@ function toCampaignSeriesHubStudyModel(
 ): SelectedSeriesStudyModel {
 	const setupLifecycle = findHubLifecycleItem(hub, 'setup');
 	const operationsLifecycle = findHubLifecycleItem(hub, 'operations');
-	const hr = locale === 'hr-HR';
-	const studyName = hub.name.trim() || (hr ? 'Studija bez naziva' : 'Untitled study');
+	const studyName = hub.name.trim() || appMessage(locale, 'overview.untitledStudy');
 
 	return {
-		title: hr ? 'Što ova studija sadrži' : 'What this study contains',
-		description: hr
-			? 'Studija je projektni spremnik. Izvor upitnika je samo početni materijal; upitnik je ono što ispitanici vide; mjerenja su krugovi prikupljanja; rezultati i izvozi koriste spremljene odgovore.'
-			: 'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
+		title: appMessage(locale, 'overview.studyModel.title'),
+		description: appMessage(locale, 'overview.studyModel.description'),
 		items: [
 			{
 				id: 'study_container',
-				label: hr ? 'Studija' : 'Study',
+				label: appMessage(locale, 'overview.studyModel.studyContainer.label'),
 				status: 'ready',
-				badgeLabel: hr ? 'Spremljeno' : 'Saved',
-				summary: hr
-					? `${studyName} sadrži postavljanje, mjerenja, rezultate i izvoze. To nije upitnik ni instrument.`
-					: `${studyName} holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.`,
-				guidance: hr
-					? 'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
-					: 'Open Setup when you need to change what respondents answer or how results are prepared.',
+				badgeLabel: appMessage(locale, 'overview.studyModel.studyContainer.badge'),
+				summary: appMessage(locale, 'overview.studyModel.studyContainer.summary', { studyName }),
+				guidance: appMessage(locale, 'overview.studyModel.studyContainer.guidance'),
 				detailRows: [
-					{ label: 'Waves', value: formatCount(hub.totals.campaignCount) },
-					{ label: 'Live waves', value: formatCount(hub.totals.liveCampaignCount) },
 					{
-						label: 'Submitted responses',
+						label: appMessage(locale, 'overview.row.waves'),
+						value: formatCount(hub.totals.campaignCount)
+					},
+					{
+						label: appMessage(locale, 'overview.row.liveWaves'),
+						value: formatCount(hub.totals.liveCampaignCount)
+					},
+					{
+						label: appMessage(locale, 'overview.row.submittedResponses'),
 						value: formatCount(hub.totals.submittedResponseCount)
 					},
-					{ label: 'Export files', value: formatCount(hub.totals.exportArtifactCount) }
+					{
+						label: appMessage(locale, 'overview.row.exportFiles'),
+						value: formatCount(hub.totals.exportArtifactCount)
+					}
 				]
 			},
 			{
 				id: 'questionnaire_results',
-				label: hr ? 'Upitnik i izlazi rezultata' : 'Questionnaire and result outputs',
+				label: appMessage(locale, 'overview.studyModel.questionnaireResults.label'),
 				status: setupLifecycle ? toProductReadModelBadgeStatus(setupLifecycle.status) : 'pending',
 				badgeLabel: setupLifecycle
-					? toModelBadgeLabel(toProductReadModelBadgeStatus(setupLifecycle.status))
-					: 'Pending',
-				summary: hr
-					? 'Upitnik definira pitanja; izlazi rezultata definiraju koje odgovore zbrajate, izvozite ili tumačite.'
-					: 'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
-				guidance: hr
-					? 'Otvorite Postavljanje za dovršetak ili provjeru izvora, upitnika, izlaza rezultata, mjerenja i spremnosti pokretanja.'
-					: setupLifecycle?.guidance ??
-						'Open Setup to finish the source, questionnaire, result outputs, wave, and launch readiness.',
+					? toModelBadgeLabel(toProductReadModelBadgeStatus(setupLifecycle.status), locale)
+					: appMessage(locale, 'overview.badge.pending'),
+				summary: appMessage(locale, 'overview.studyModel.questionnaireResults.summary'),
+				guidance:
+					locale === 'en' && setupLifecycle?.guidance
+						? setupLifecycle.guidance
+						: appMessage(locale, 'overview.studyModel.questionnaireResults.guidance'),
 				detailRows: [
 					toGovernanceRow('Consent', hub.governance.consentStatus),
 					toGovernanceRow('Retention', hub.governance.retentionStatus),
@@ -458,35 +472,42 @@ function toCampaignSeriesHubStudyModel(
 			},
 			{
 				id: 'collection_waves',
-				label: hr ? 'Mjerenja prikupljanja' : 'Collection waves',
+				label: appMessage(locale, 'overview.studyModel.collectionWaves.label'),
 				status: toCollectionWavesModelStatus(hub),
 				badgeLabel: toCollectionWavesModelBadgeLabel(hub, locale),
 				summary: toCollectionWavesModelSummary(hub, locale),
-				guidance: hr
-					? 'Izradite ili provjerite mjerenje, zatim koristite Prikupljanje za otvaranje pristupa ispitanicima.'
-					: operationsLifecycle?.guidance ??
-						'Create a collection wave in Setup, then use Collect to open access for respondents.',
+				guidance:
+					locale === 'en' && operationsLifecycle?.guidance
+						? operationsLifecycle.guidance
+						: appMessage(locale, 'overview.studyModel.collectionWaves.guidance'),
 				detailRows: [
-					{ label: 'Waves', value: formatCount(hub.totals.campaignCount) },
-					{ label: 'Live waves', value: formatCount(hub.totals.liveCampaignCount) }
+					{
+						label: appMessage(locale, 'overview.row.waves'),
+						value: formatCount(hub.totals.campaignCount)
+					},
+					{
+						label: appMessage(locale, 'overview.row.liveWaves'),
+						value: formatCount(hub.totals.liveCampaignCount)
+					}
 				]
 			},
 			{
 				id: 'evidence_outputs',
-				label: hr ? 'Dokazi i usporedba' : 'Evidence and comparison',
+				label: appMessage(locale, 'overview.studyModel.evidenceOutputs.label'),
 				status: toEvidenceOutputsModelStatus(hub),
 				badgeLabel: toEvidenceOutputsModelBadgeLabel(hub, locale),
 				summary: toEvidenceOutputsModelSummary(hub, locale),
-				guidance: hr
-					? 'Koristite Rezultate za trenutne dokaze, Mjerenja za ponovljene krugove prikupljanja i Izvoze za predaju analize.'
-					: 'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+				guidance: appMessage(locale, 'overview.studyModel.evidenceOutputs.guidance'),
 				detailRows: [
 					{
-						label: 'Submitted responses',
+						label: appMessage(locale, 'overview.row.submittedResponses'),
 						value: formatCount(hub.totals.submittedResponseCount)
 					},
-					{ label: 'Scores', value: formatCount(hub.totals.scoreCount) },
-					{ label: 'Export files', value: formatCount(hub.totals.exportArtifactCount) }
+					{ label: appMessage(locale, 'overview.row.scores'), value: formatCount(hub.totals.scoreCount) },
+					{
+						label: appMessage(locale, 'overview.row.exportFiles'),
+						value: formatCount(hub.totals.exportArtifactCount)
+					}
 				]
 			}
 		]
@@ -515,36 +536,25 @@ function toCollectionWavesModelStatus(hub: CampaignSeriesHubResponse): ProductRe
 
 function toCollectionWavesModelBadgeLabel(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (hub.totals.liveCampaignCount > 0) {
-		return locale === 'hr-HR' ? 'Aktivno' : 'Live';
+		return appMessage(locale, 'overview.studyModel.collectionWaves.badge.live');
 	}
 
 	if (hub.totals.campaignCount > 0) {
-		return locale === 'hr-HR' ? 'Pripremljeno' : 'Prepared';
+		return appMessage(locale, 'overview.studyModel.collectionWaves.badge.prepared');
 	}
 
-	return locale === 'hr-HR' ? 'Nema mjerenja' : 'No waves';
+	return appMessage(locale, 'overview.studyModel.collectionWaves.badge.none');
 }
 
 function toCollectionWavesModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (hub.totals.campaignCount === 0) {
-		return locale === 'hr-HR'
-			? 'Još nema mjerenja prikupljajunja.'
-			: 'No collection waves exist yet.';
+		return appMessage(locale, 'overview.studyModel.collectionWaves.summary.none');
 	}
 
-	if (locale === 'hr-HR') {
-		return `${formatCount(hub.totals.campaignCount)} ${
-			hub.totals.campaignCount === 1 ? 'mjerenje postoji' : 'mjerenja postoji'
-		}; ${formatCount(hub.totals.liveCampaignCount)} ${
-			hub.totals.liveCampaignCount === 1 ? 'je aktivan' : 'je aktivno'
-		}.`;
-	}
-
-	return `${formatCount(hub.totals.campaignCount)} ${
-		hub.totals.campaignCount === 1 ? 'collection wave exists' : 'collection waves exist'
-	}; ${formatCount(hub.totals.liveCampaignCount)} ${
-		hub.totals.liveCampaignCount === 1 ? 'is' : 'are'
-	} live.`;
+	return appMessage(locale, 'overview.studyModel.collectionWaves.summary.existing', {
+		campaignCount: hub.totals.campaignCount,
+		liveCount: hub.totals.liveCampaignCount
+	});
 }
 
 function toEvidenceOutputsModelStatus(hub: CampaignSeriesHubResponse): ProductReadModelBadgeStatus {
@@ -561,42 +571,38 @@ function toEvidenceOutputsModelStatus(hub: CampaignSeriesHubResponse): ProductRe
 
 function toEvidenceOutputsModelBadgeLabel(hub: CampaignSeriesHubResponse, locale: AppLocale) {
 	if (hub.totals.exportArtifactCount > 0 || hub.totals.scoreCount > 0) {
-		return locale === 'hr-HR' ? 'Dokazi spremni' : 'Evidence ready';
+		return appMessage(locale, 'overview.studyModel.evidenceOutputs.badge.ready');
 	}
 
 	if (hub.totals.submittedResponseCount > 0) {
-		return locale === 'hr-HR' ? 'Treba bodovanje' : 'Needs scoring';
+		return appMessage(locale, 'overview.studyModel.evidenceOutputs.badge.needsScoring');
 	}
 
-	return locale === 'hr-HR' ? 'Još nema dokaza' : 'No evidence yet';
+	return appMessage(locale, 'overview.studyModel.evidenceOutputs.badge.none');
 }
 
 function toEvidenceOutputsModelSummary(hub: CampaignSeriesHubResponse, locale: AppLocale) {
-	if (locale === 'hr-HR') {
-		return `${formatCount(hub.totals.submittedResponseCount)} predanih odgovora, ${formatCount(
-			hub.totals.scoreCount
-		)} rezultata i ${formatCount(hub.totals.exportArtifactCount)} izvoznih datoteka je zabilježeno.`;
-	}
-
-	return `${formatCount(hub.totals.submittedResponseCount)} submitted responses, ${formatCount(
-		hub.totals.scoreCount
-	)} scores, and ${formatCount(hub.totals.exportArtifactCount)} export files are recorded.`;
+	return appMessage(locale, 'overview.studyModel.evidenceOutputs.summary', {
+		submittedCount: hub.totals.submittedResponseCount,
+		scoreCount: hub.totals.scoreCount,
+		exportCount: hub.totals.exportArtifactCount
+	});
 }
 
-function toModelBadgeLabel(status: ProductReadModelBadgeStatus) {
+function toModelBadgeLabel(status: ProductReadModelBadgeStatus, locale: AppLocale) {
 	switch (status) {
 		case 'ready':
-			return 'Ready';
+			return appMessage(locale, 'overview.badge.ready');
 		case 'pending':
-			return 'Pending';
+			return appMessage(locale, 'overview.badge.pending');
 		case 'blocked':
-			return 'Blocked';
+			return appMessage(locale, 'overview.badge.blocked');
 		case 'live':
-			return 'Live';
+			return appMessage(locale, 'overview.badge.live');
 		case 'not_configured':
-			return 'Not configured';
+			return appMessage(locale, 'overview.badge.notConfigured');
 		case 'not_available':
-			return 'Not available';
+			return appMessage(locale, 'overview.badge.notAvailable');
 		default:
 			return humanizeValue(status);
 	}
@@ -3157,18 +3163,19 @@ function toProductReadModelBadgeStatus(
 }
 
 function toExportArtifactLibraryOverview(
-	library: ExportArtifactLibraryResponse
+	library: ExportArtifactLibraryResponse,
+	locale: AppLocale
 ): ExportArtifactLibraryOverviewItem[] {
 	const { totalCount, downloadableCount, failedCount, pendingCount } = library.summary;
 	const purposeLabels = uniqueValues(
-		library.artifacts.map((artifact) => toExportArtifactPurpose(artifact.artifactType).label)
+		library.artifacts.map((artifact) => toExportArtifactPurpose(artifact.artifactType, locale).label)
 	);
 	const sourceLabels = uniqueValues(library.artifacts.map((artifact) => artifact.targetLabel));
 	const reportSummaryCount = library.artifacts.filter(
-		(artifact) => toExportArtifactPurpose(artifact.artifactType).kind === 'report_summary'
+		(artifact) => toExportArtifactPurpose(artifact.artifactType, locale).kind === 'report_summary'
 	).length;
 	const responseDatasetCount = library.artifacts.filter(
-		(artifact) => toExportArtifactPurpose(artifact.artifactType).kind === 'response_dataset'
+		(artifact) => toExportArtifactPurpose(artifact.artifactType, locale).kind === 'response_dataset'
 	).length;
 	const campaignArtifactCount = library.artifacts.filter(
 		(artifact) => artifact.targetKind === 'campaign'
@@ -3180,117 +3187,146 @@ function toExportArtifactLibraryOverview(
 	return [
 		{
 			id: 'ready_downloads',
-			label: 'Downloadable files',
+			label: appMessage(locale, 'exports.library.readyDownloads.label'),
 			status: downloadableCount > 0 ? 'ready' : 'empty',
-			badgeLabel: `${formatCount(downloadableCount)} downloadable`,
+			badgeLabel: appMessage(locale, 'exports.library.readyDownloads.badge', {
+				count: downloadableCount
+			}),
 			summary:
 				downloadableCount > 0
-					? `${formatCount(downloadableCount)} export ${pluralize(
-							downloadableCount,
-							'file is',
-							'files are'
-						)} ready to download.`
-					: 'No export files are ready to download yet.',
+					? appMessage(locale, 'exports.library.readyDownloads.summary.ready', {
+							count: downloadableCount
+						})
+					: appMessage(locale, 'exports.library.readyDownloads.summary.empty'),
 			guidance:
 				downloadableCount > 0
 					? responseDatasetCount > 0
-						? 'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.'
-						: 'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.'
-					: 'Create an export from a study results page after results are available.',
+						? appMessage(locale, 'exports.library.readyDownloads.guidance.withDataset')
+						: appMessage(locale, 'exports.library.readyDownloads.guidance.reportOnly')
+					: appMessage(locale, 'exports.library.readyDownloads.guidance.empty'),
 			detailRows: [
-				{ label: 'Export files', value: formatCount(totalCount) },
-				{ label: 'Downloadable', value: formatCount(downloadableCount) },
-				{ label: 'Report-summary exports', value: formatCount(reportSummaryCount) },
-				{ label: 'Response datasets', value: formatCount(responseDatasetCount) }
+				{ label: appMessage(locale, 'exports.library.row.exportFiles'), value: formatCount(totalCount) },
+				{
+					label: appMessage(locale, 'exports.library.row.downloadable'),
+					value: formatCount(downloadableCount)
+				},
+				{
+					label: appMessage(locale, 'exports.library.row.reportSummaryDownloads'),
+					value: formatCount(reportSummaryCount)
+				},
+				{
+					label: appMessage(locale, 'exports.library.row.responseDatasets'),
+					value: formatCount(responseDatasetCount)
+				}
 			]
 		},
 		{
 			id: 'attention_needed',
-			label: 'Needs attention',
+			label: appMessage(locale, 'exports.library.attention.label'),
 			status: failedCount > 0 ? 'failed' : pendingCount > 0 ? 'pending' : 'ready',
 			badgeLabel:
 				failedCount > 0
-					? `${formatCount(failedCount)} failed`
+					? appMessage(locale, 'exports.library.attention.badge.failed', { count: failedCount })
 					: pendingCount > 0
-						? `${formatCount(pendingCount)} pending`
-						: 'No attention items',
+						? appMessage(locale, 'exports.library.attention.badge.pending', {
+								count: pendingCount
+							})
+						: appMessage(locale, 'exports.library.attention.badge.ready'),
 			summary:
 				failedCount > 0
-					? `${formatCount(failedCount)} export ${pluralize(
-							failedCount,
-							'file needs',
-							'files need'
-						)} attention.`
+					? appMessage(locale, 'exports.library.attention.summary.failed', {
+							count: failedCount
+						})
 					: pendingCount > 0
-						? `${formatCount(pendingCount)} export ${pluralize(
-								pendingCount,
-								'file is',
-								'files are'
-							)} still queued or rendering.`
-						: 'No failed or pending export files.',
+						? appMessage(locale, 'exports.library.attention.summary.pending', {
+								count: pendingCount
+							})
+						: appMessage(locale, 'exports.library.attention.summary.ready'),
 			guidance:
 				failedCount > 0
-					? 'Review the failed export file, then recreate it from the source study after the cause is resolved.'
+					? appMessage(locale, 'exports.library.attention.guidance.failed')
 					: pendingCount > 0
-						? 'Wait for generation to finish before using the export file for handoff.'
-						: 'New export issues will appear here when generation fails or remains pending.',
+						? appMessage(locale, 'exports.library.attention.guidance.pending')
+						: appMessage(locale, 'exports.library.attention.guidance.ready'),
 			detailRows: [
-				{ label: 'Failed', value: formatCount(failedCount) },
-				{ label: 'Pending', value: formatCount(pendingCount) }
+				{ label: appMessage(locale, 'exports.library.row.failed'), value: formatCount(failedCount) },
+				{ label: appMessage(locale, 'exports.library.row.pending'), value: formatCount(pendingCount) }
 			]
 		},
 		{
 			id: 'artifact_purpose',
-			label: 'File purpose',
+			label: appMessage(locale, 'exports.library.purpose.label'),
 			status: totalCount > 0 ? 'ready' : 'empty',
 			badgeLabel:
 				totalCount > 0
-					? `${formatCount(purposeLabels.length)} ${pluralize(
-							purposeLabels.length,
-							'purpose',
-							'purposes'
-						)}`
-					: 'No files',
+					? appMessage(locale, 'exports.library.purpose.badge.ready', {
+							count: purposeLabels.length
+						})
+					: appMessage(locale, 'exports.library.purpose.badge.empty'),
 			summary:
 				totalCount > 0
-					? `Exports cover ${formatInlineList(purposeLabels)}.`
-					: 'No generated export purposes are available yet.',
+					? appMessage(locale, 'exports.library.purpose.summary.ready', {
+							purposeLabels:
+								locale === 'hr-HR'
+									? formatInlineList(purposeLabels, locale).toLocaleLowerCase(locale)
+									: formatInlineList(purposeLabels, locale)
+						})
+					: appMessage(locale, 'exports.library.purpose.summary.empty'),
 			guidance:
 				totalCount > 0
-					? 'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.'
-					: 'Create report summary or response dataset exports from a study when results are ready.',
+					? appMessage(locale, 'exports.library.purpose.guidance.ready')
+					: appMessage(locale, 'exports.library.purpose.guidance.empty'),
 			detailRows: [
-				{ label: 'Report summary exports', value: formatCount(reportSummaryCount) },
-				{ label: 'Response dataset exports', value: formatCount(responseDatasetCount) }
+				{
+					label: appMessage(locale, 'exports.library.row.reportSummaryExports'),
+					value: formatCount(reportSummaryCount)
+				},
+				{
+					label: appMessage(locale, 'exports.library.row.responseDatasetExports'),
+					value: formatCount(responseDatasetCount)
+				}
 			]
 		},
 		{
 			id: 'study_context',
-			label: 'Study context and next use',
+			label: appMessage(locale, 'exports.library.context.label'),
 			status: totalCount > 0 ? 'ready' : 'empty',
 			badgeLabel:
 				totalCount > 0
-					? `${formatCount(sourceLabels.length)} ${pluralize(sourceLabels.length, 'source', 'sources')}`
-					: 'No sources',
+					? appMessage(locale, 'exports.library.context.badge.ready', {
+							count: sourceLabels.length
+						})
+					: appMessage(locale, 'exports.library.context.badge.empty'),
 			summary:
 				totalCount > 0
-					? `Export files are tied to ${formatInlineList(sourceLabels)}.`
-					: 'No export files are tied to a study yet.',
+					? appMessage(locale, 'exports.library.context.summary.ready', {
+							sourceLabels: formatInlineList(sourceLabels, locale)
+						})
+					: appMessage(locale, 'exports.library.context.summary.empty'),
 			guidance:
 				totalCount > 0
-					? 'Open the source study or report context when you need to understand how an export file was generated.'
-					: 'Generated export files will link back to their study or report context when that context is available.',
+					? appMessage(locale, 'exports.library.context.guidance.ready')
+					: appMessage(locale, 'exports.library.context.guidance.empty'),
 			detailRows: [
-				{ label: 'Campaign files', value: formatCount(campaignArtifactCount) },
-				{ label: 'Study files', value: formatCount(campaignSeriesArtifactCount) }
+				{
+					label: appMessage(locale, 'exports.library.row.campaignFiles'),
+					value: formatCount(campaignArtifactCount)
+				},
+				{
+					label: appMessage(locale, 'exports.library.row.studyFiles'),
+					value: formatCount(campaignSeriesArtifactCount)
+				}
 			]
 		}
 	];
 }
 
-function toExportArtifactLibraryCard(artifact: ExportArtifactLibraryResponse['artifacts'][number]) {
-	const purpose = toExportArtifactPurpose(artifact.artifactType);
-	const finalityLabel = toExportArtifactFinalityLabel(artifact.dataFinality);
+function toExportArtifactLibraryCard(
+	artifact: ExportArtifactLibraryResponse['artifacts'][number],
+	locale: AppLocale
+) {
+	const purpose = toExportArtifactPurpose(artifact.artifactType, locale);
+	const finalityLabel = toExportArtifactFinalityLabel(artifact.dataFinality, locale);
 
 	return {
 		id: artifact.id,
@@ -3307,64 +3343,72 @@ function toExportArtifactLibraryCard(artifact: ExportArtifactLibraryResponse['ar
 				: null,
 		rows: [
 			{
-				label: 'Study context',
+				label: appMessage(locale, 'exports.library.row.studyContext'),
 				value: `${sentenceCase(humanizeValue(artifact.targetKind))} / ${artifact.targetLabel}`
 			},
 			{
-				label: 'File type',
+				label: appMessage(locale, 'exports.library.row.fileType'),
 				value: sentenceCase(humanizeValue(artifact.artifactType))
 			},
 			{
-				label: 'Format',
+				label: appMessage(locale, 'exports.library.row.format'),
 				value: sentenceCase(humanizeValue(artifact.format))
 			},
-			{ label: 'Data finality', value: finalityLabel },
-			{ label: 'Rows', value: formatCount(artifact.rowCount) },
-			{ label: 'Size', value: formatBytes(artifact.byteSize) },
-			{ label: 'Created', value: formatDateTime(artifact.createdAt) },
-			{ label: 'Completed', value: formatNullableDateTime(artifact.completedAt) },
+			{ label: appMessage(locale, 'exports.library.row.dataFinality'), value: finalityLabel },
+			{ label: appMessage(locale, 'exports.library.row.rows'), value: formatCount(artifact.rowCount) },
+			{ label: appMessage(locale, 'exports.library.row.size'), value: formatBytes(artifact.byteSize) },
+			{ label: appMessage(locale, 'exports.library.row.created'), value: formatDateTime(artifact.createdAt) },
+			{
+				label: appMessage(locale, 'exports.library.row.completed'),
+				value: formatNullableDateTime(artifact.completedAt)
+			},
 			...(artifact.failureReasonCode
-				? [{ label: 'Failure', value: artifact.failureReasonCode }]
+				? [{ label: appMessage(locale, 'exports.library.row.failure'), value: artifact.failureReasonCode }]
 				: []),
-			{ label: 'Download', value: artifact.canDownload ? 'Available' : 'Not available' }
+			{
+				label: appMessage(locale, 'exports.library.row.download'),
+				value: artifact.canDownload
+					? appMessage(locale, 'exports.library.download.available')
+					: appMessage(locale, 'exports.library.download.notAvailable')
+			}
 		]
 	};
 }
 
-function toExportArtifactPurpose(artifactType: string) {
+function toExportArtifactPurpose(artifactType: string, locale: AppLocale) {
 	switch (artifactType) {
 		case 'report_proof_csv_codebook':
 			return {
 				kind: 'report_summary',
-				label: 'Report summary export',
-				nextUse: 'Use this export for report handoff, summary review, or codebook checks.'
+				label: appMessage(locale, 'exports.library.purpose.reportSummary.label'),
+				nextUse: appMessage(locale, 'exports.library.purpose.reportSummary.nextUse')
 			};
 		case 'campaign_series_response_csv_codebook':
 			return {
 				kind: 'response_dataset',
-				label: 'Response dataset export',
-				nextUse: 'Use this export for response-level analysis with the generated codebook.'
+				label: appMessage(locale, 'exports.library.purpose.responseDataset.label'),
+				nextUse: appMessage(locale, 'exports.library.purpose.responseDataset.nextUse')
 			};
 		default:
 			return {
 				kind: 'other',
 				label: sentenceCase(humanizeValue(artifactType)),
-				nextUse: 'Use this export with its source context and generated codebook.'
+				nextUse: appMessage(locale, 'exports.library.purpose.other.nextUse')
 			};
 	}
 }
 
-function toExportArtifactFinalityLabel(dataFinality: string | null | undefined) {
+function toExportArtifactFinalityLabel(dataFinality: string | null | undefined, locale: AppLocale) {
 	switch (dataFinality) {
 		case 'closed_wave':
-			return 'Closed wave';
+			return appMessage(locale, 'exports.library.finality.closedWave');
 		case 'preliminary_live':
 			return 'Preliminary live data';
 		case 'not_reportable':
 			return 'Not reportable';
 		case null:
 		case undefined:
-			return 'Not tied to a closed wave';
+			return appMessage(locale, 'exports.library.finality.notClosedWave');
 		default:
 			return sentenceCase(humanizeValue(dataFinality));
 	}
@@ -3374,9 +3418,9 @@ function uniqueValues(values: string[]) {
 	return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
-function formatInlineList(values: string[]) {
+function formatInlineList(values: string[], locale: AppLocale = 'en') {
 	if (values.length === 0) {
-		return 'no items';
+		return locale === 'hr-HR' ? 'nema stavki' : 'no items';
 	}
 
 	if (values.length === 1) {
@@ -3384,10 +3428,12 @@ function formatInlineList(values: string[]) {
 	}
 
 	if (values.length === 2) {
-		return `${values[0]} and ${values[1]}`;
+		return locale === 'hr-HR' ? `${values[0]} i ${values[1]}` : `${values[0]} and ${values[1]}`;
 	}
 
-	return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
+	return locale === 'hr-HR'
+		? `${values.slice(0, -1).join(', ')} i ${values[values.length - 1]}`
+		: `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
 }
 
 function toExportArtifactBadgeStatus(status: string): ProductReadModelBadgeStatus {
@@ -3648,38 +3694,6 @@ function localizeReadModelString(value: string) {
 		.replace(/^Copy of (.+)$/u, 'Kopija: $1')
 		.replace(/^(\d+) campaign, (\d+) live$/u, '$1 mjerenje, $2 u tijeku')
 		.replace(/^(\d+) campaigns, (\d+) live$/u, '$1 mjerenja, $2 u tijeku')
-		.replace(
-			/^(\d+) export (?:file is|files are) ready to download\.$/u,
-			(_, count: string) =>
-				count === '1'
-					? '1 izvozna datoteka spremna je za preuzimanje.'
-					: `${count} izvoznih datoteka spremno je za preuzimanje.`
-		)
-		.replace(
-			/^(\d+) export (?:file needs|files need) attention\.$/u,
-			(_, count: string) =>
-				count === '1'
-					? '1 izvozna datoteka traži pažnju.'
-					: `${count} izvoznih datoteka traži pažnju.`
-		)
-		.replace(
-			/^(\d+) export (?:file is|files are) still queued or rendering\.$/u,
-			(_, count: string) =>
-				count === '1'
-					? '1 izvozna datoteka još je u redu čekanja ili se izrađuje.'
-					: `${count} izvoznih datoteka još je u redu čekanja ili se izrađuje.`
-		)
-		.replace(/^Exports cover (.+)\.$/u, (_, items: string) => {
-			const localizedItems = items
-				.replace(/\bReport summary export\b/gu, 'izvoz sažetka izvještaja')
-				.replace(/\bResponse dataset export\b/gu, 'izvoz skupa podataka odgovora')
-				.replace(/\band\b/gu, 'i');
-			return `Izvozi pokrivaju ${localizedItems}.`;
-		})
-		.replace(
-			/^Export files are tied to (.+)\.$/u,
-			(_, items: string) => `Izvozne datoteke povezane su s ${items.replace(/\band\b/gu, 'i')}.`
-		)
 		.replace(/^Campaign series \/ (.+)$/u, 'Studija / $1')
 		.replace(/^Campaign \/ (.+)$/u, 'Mjerenje / $1')
 		.replace(/^(\d+) downloadable$/u, '$1 dostupno za preuzimanje')
@@ -3832,9 +3846,6 @@ const hrReadModelStrings: Record<string, string> = {
 	'Blocked scores': 'Blokirani rezultati',
 
 	// Surface labels and descriptions.
-	'Study overview': 'Pregled studije',
-	'Study reference': 'Referenca studije',
-	'Study lifecycle': 'Životni ciklus studije',
 	'Prepare study': 'Priprema studije',
 	'Study preparation': 'Priprema studije',
 	'Setup reference': 'Referenca postavljanja',
@@ -3846,15 +3857,6 @@ const hrReadModelStrings: Record<string, string> = {
 	'Results reference': 'Referenca rezultata',
 	'Compare waves': 'Usporedba mjerenja',
 	'Wave comparison': 'Usporedba mjerenja',
-	'Use exports': 'Korištenje izvoza',
-	'Study support': 'Podrška studiji',
-	'Export reference': 'Referenca izvoza',
-	'Use this overview to prepare, collect, review results, and compare waves for the selected study.':
-		'Ovaj pregled koristite za pripremu, prikupljanje, pregled rezultata i usporedbu mjerenja odabrane studije.',
-	'Detailed records, governance status, and wave rows for this selected study.':
-		'Detaljni zapisi, status pravila i popis mjerenja za ovu odabranu studiju.',
-	'Move through this study from preparation to collection, results, and waves.':
-		'Krećite se kroz studiju od pripreme do prikupljanja, rezultata i mjerenja.',
 	'Prepare this study for collection by completing setup tasks and launch-readiness checks.':
 		'Pripremite studiju za prikupljanje dovršavanjem postavljanja i provjera spremnosti.',
 	'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.':
@@ -3867,11 +3869,6 @@ const hrReadModelStrings: Record<string, string> = {
 		'Pregledajte dostupnost rezultata, pokrivenost, ograničenja i sljedeću upotrebu izvoza za odabrano mjerenje.',
 	'Selected wave details, limitations, prerequisite checks, and export records stay here for review.':
 		'Detalji odabranog mjerenja, ograničenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
-	'Find generated CSV/codebook files by purpose, readiness, source study, and next use.':
-		'Pronađite generirane CSV/šifrarnik datoteke prema svrsi, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
-	'File metadata, lifecycle timestamps, failure codes, and download availability stay available for audit and troubleshooting.':
-		'Metapodaci datoteka, vremenske oznake, kodovi grešaka i dostupnost preuzimanja ostaju dostupni za audit i rješavanje problema.',
-
 	// Actions and lifecycle.
 	Prepare: 'Priprema',
 	Collect: 'Prikupljanje',
@@ -3953,61 +3950,7 @@ const hrReadModelStrings: Record<string, string> = {
 	'All visibility': 'Sva vidljivost',
 
 	// Export library.
-	'Downloadable files': 'Datoteke za preuzimanje',
-	'Needs attention': 'Treba pažnju',
-	'File purpose': 'Svrha datoteke',
-	'Study context and next use': 'Kontekst studije i sljedeća upotreba',
-	'No export files are ready to download yet.':
-		'Još nema izvoznih datoteka spremnih za preuzimanje.',
-	'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.':
-		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
-	'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.':
-		'Datoteke sažetka izvještaja dostupne su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup podataka odgovora spreman za analizu još nije dostupan.',
-	'Create an export from a study results page after results are available.':
-		'Izradite izvoz na stranici Rezultata studije nakon što rezultati budu dostupni.',
-	'No failed or pending export files.': 'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.',
-	'Review the failed export file, then recreate it from the source study after the cause is resolved.':
-		'Pregledajte neuspjelu izvoznu datoteku, zatim je ponovno izradite iz izvorne studije nakon što se uzrok riješi.',
-	'Wait for generation to finish before using the export file for handoff.':
-		'Pričekajte da izrada završi prije korištenja izvozne datoteke za predaju.',
-	'New export issues will appear here when generation fails or remains pending.':
-		'Novi problemi s izvozom pojavit će se ovdje kada izrada ne uspije ili ostane na čekanju.',
-	'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.':
-		'Odaberite izvoze sažetka izvještaja za predaju rezultata; odaberite izvoze skupa podataka odgovora za analizu sa šifrarnikom.',
-	'No generated export purposes are available yet.':
-		'Još nema dostupnih svrha generiranih izvoza.',
-	'Create report summary or response dataset exports from a study when results are ready.':
-		'Izradite izvoz sažetka izvještaja ili skupa podataka odgovora iz studije kada rezultati budu spremni.',
-	'No export files are tied to a study yet.':
-		'Još nema izvoznih datoteka povezanih sa studijom.',
-	'Open the source study or report context when you need to understand how an export file was generated.':
-		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvozna datoteka izrađena.',
-	'Generated export files will link back to their study or report context when that context is available.':
-		'Generirane izvozne datoteke povezivat će se natrag na studiju ili kontekst izvještaja kada taj kontekst bude dostupan.',
-	'Use this export for report handoff, summary review, or codebook checks.':
-		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
-	'Use this export for response-level analysis with the generated codebook.':
-		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
-	'Use this export with its source context and generated codebook.':
-		'Koristite ovaj izvoz s izvornim kontekstom i generiranim šifrarnikom.',
-	'Report-summary exports': 'Izvozi sažetka izvještaja',
-	'Report summary exports': 'Izvozi sažetka izvještaja',
-	'Response datasets': 'Skupovi podataka odgovora',
-	'Response dataset exports': 'Izvozi skupa podataka odgovora',
-	'Campaign files': 'Datoteke mjerenja',
-	'Study files': 'Datoteke studije',
-	'Report summary export': 'Izvoz sažetka izvještaja',
-	'Response dataset export': 'Izvoz skupa podataka odgovora',
-	'Closed wave': 'Zatvoreno mjerenje',
-	'Not tied to a closed wave': 'Nije vezano uz zatvoreno mjerenje',
-	'Study context': 'Kontekst studije',
-	'File type': 'Vrsta datoteke',
 	Format: 'Format',
-	Rows: 'Redci',
-	Size: 'Veličina',
-	Completed: 'Dovršeno',
-	Download: 'Preuzimanje',
-	Available: 'Dostupno',
 	Failure: 'Greška',
 	'Report summary CSV and codebook': 'CSV i šifrarnik sažetka izvještaja',
 	'Response dataset CSV and codebook': 'CSV i šifrarnik skupa odgovora',

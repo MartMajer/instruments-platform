@@ -128,6 +128,12 @@ describe('localized route body copy', () => {
 		expect(copy.selectedStudy.surfaces.reports.title).toBe('Pregled rezultata');
 		expect(copy.selectedStudy.surfaces.waves.title).toBe('Mjerenja');
 		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
+		expect(copy.selectedStudy.reportsWorkflow.surface.flowKicker).toBe('Tijek studije · Rezultati');
+		expect(copy.selectedStudy.wavesWorkflow.surface.flowKicker).toBe('Tijek studije · Mjerenja');
+		expect(copy.selectedStudy.wavesWorkflow.surface.title).toBe(
+			'Ponovite studiju i usporedite mjerenja'
+		);
+		expect(copy.selectedStudy.wavesWorkflow.surface.scoreMethodLabel).toBe('Metoda rezultata');
 	});
 
 	it('provides Croatian selected-study setup body copy', () => {
