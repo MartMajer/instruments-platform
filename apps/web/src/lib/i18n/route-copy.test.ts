@@ -65,6 +65,13 @@ describe('localized route body copy', () => {
 		const copy = routePageCopy('hr-HR');
 
 		expect(copy.workspaceHome.title).toBe('Početna');
+		expect(copy.workspaceHome.heroTitle).toBe(
+			'Izradite studiju, prikupite odgovore, pregledajte rezultate i pripremite dokaze.'
+		);
+		expect(copy.workspaceHome.sampleStudies).toBe('Primjeri studija');
+		expect(copy.workspaceHome.sampleReadOnlyNote).toContain('samo za čitanje');
+		expect(copy.workspaceHome.sampleDemo.title).toBe('Pregledajte zavr?ene primjere studija.');
+		expect(copy.workspaceHome.sampleDemo.workloadFiles[0]).toContain('opisom podataka');
 		expect(copy.portfolio.title).toBe('Studije');
 		expect(copy.instruments.title).toBe('Instrumenti');
 		expect(copy.exports.title).toBe('Preuzimanje datoteka');

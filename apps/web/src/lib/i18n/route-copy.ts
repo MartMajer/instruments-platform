@@ -175,33 +175,181 @@ const en = {
 		eyebrow: 'Workspace',
 		title: 'Home',
 		description:
-			'Pick the next useful task: create a study, continue work, invite people, manage audiences, or download results.',
+			'Start real study work, explore read-only examples, and continue active studies from one place.',
 		loading: 'Loading workspace overview',
 		errorTitle: 'Workspace overview unavailable',
 		retry: 'Retry overview',
+		homeAria: 'Workspace home',
+		heroAria: 'Workspace onboarding',
+		heroKicker: 'Research workspace',
+		heroTitle: 'Build the study, collect responses, review results, and export evidence.',
+		heroBody:
+			'Use this home screen as the shortest path into the product: start a real study, learn from finished sample studies, or return to work already in progress.',
+		primaryActionsAria: 'Primary workspace actions',
+		createStudy: 'Create study',
+		exploreSamples: 'Explore samples',
+		workflowAria: 'Study workflow',
+		workflowLabel: 'How the app works',
 		start: 'Start',
+		startAria: 'Start here',
+		startTitle: 'Start with one concrete action.',
+		startBody:
+			'Most teams begin by creating a study, adding people, then launching collection after setup is ready.',
 		setupWorkspace: 'Set up your workspace',
 		chooseNext: 'Choose what to do next',
 		firstRunActions: [
 			'Create first study',
 			'Invite team',
-			'Set up directory',
-			'Review instruments'
+			'Set up directory'
 		],
-		firstRunActionStatuses: ['Start here', 'Access', 'People', 'Library'],
+		firstRunActionStatuses: ['Start here', 'Access', 'People'],
 		firstRunActionDescriptions: [
 			'Start a real study and continue through setup, collection, and results.',
 			'Prepare tenant member access before sharing the first sign-in link.',
-			'Create people, groups, memberships, and manager links for targeting.',
-			'Confirm which instruments are available before starting production study work.'
+			'Create people, groups, memberships, and manager links for targeting.'
 		],
 		nextActions: 'Next actions',
+		nextActionsTitle: 'Continue the work that needs attention.',
+		noWorkspaceActions: 'No urgent workspace actions',
+		noWorkspaceActionsBody: 'Open Studies to create or continue study work.',
 		openStudies: 'Open Studies',
 		examples: 'Examples',
 		sampleStudies: 'Sample studies',
+		sampleStudiesBody:
+			'Finished synthetic studies show the product flow without changing your workspace data.',
+		sampleWorkloadTitle: 'Workload and recovery pulse',
+		sampleWorkloadKicker: 'Two-wave workplace study',
+		sampleWorkloadBody:
+			'Explore a closed repeated-wave pulse with setup complete, responses collected, results ready, and comparison context.',
+		sampleWorkloadMeta: 'Anonymous longitudinal, two waves, mock report data',
+		sampleErgonomicsTitle: 'Ergonomics risk review',
+		sampleErgonomicsKicker: 'OSH review study',
+		sampleErgonomicsBody:
+			'Review a finished occupational-health style study with department-level aggregate results and export context.',
+		sampleErgonomicsMeta: 'Closed collection, visible aggregate scores, mock exports',
+		sampleStudentTitle: 'Student wellbeing and study load',
+		sampleStudentKicker: 'Academic study example',
+		sampleStudentBody:
+			'See how a student wellbeing study can move from questionnaire setup to response review and wave comparison.',
+		sampleStudentMeta: 'Repeated measurement, linked comparison, synthetic responses',
+		openSample: 'Open read-only sample',
+		sampleReadOnlyNote:
+			'Sample studies are read-only examples. They do not create or change real workspace studies.',
 		yourWork: 'Your work',
 		yourStudies: 'Your studies',
-		workspaceOverview: 'Workspace overview'
+		openPortfolio: 'Open Studies',
+		noStudiesYet: 'No real studies yet',
+		noStudiesYetBody: 'Your editable studies appear here after you create one.',
+		workspaceOverview: 'Workspace overview',
+		sampleDemo: {
+			eyebrow: 'Read-only samples',
+			title: 'Explore finished sample studies.',
+			description:
+				'See complete synthetic studies with setup, collection, results, and export context before creating your own.',
+			status: 'Sample data',
+			aria: 'Read-only sample study library',
+			backToHome: 'Back to Home',
+			synthetic: 'Synthetic data',
+			readOnlyTitle: 'Read-only example',
+			readOnlyBody:
+				'This sample is for orientation only. It does not create participants, send invitations, or change workspace studies.',
+			chooseSample: 'Choose a sample study',
+			chooseSampleBody:
+				'Switch between realistic study types to see how different research contexts move through the same workflow.',
+			snapshot: 'Study snapshot',
+			inspect: 'What you can inspect',
+			questionnaire: 'Questionnaire excerpt',
+			findings: 'Example result notes',
+			files: 'Files shown',
+			responseMetric: 'Responses',
+			measurementMetric: 'Measurements',
+			resultMetric: 'Result packet',
+			exportMetric: 'Export',
+			ready: 'Ready',
+			closed: 'Closed',
+			available: 'Available',
+			workloadMetrics: [
+				'412 submitted responses across selected teams.',
+				'Two closed measurements prepared for change-over-time review.',
+				'Coverage, limitations, and comparison notes are ready.',
+				'Response dataset and data description are available.'
+			],
+			workloadChecks: [
+				'Questionnaire and result outputs are complete.',
+				'Collection is closed before the results packet is reviewed.',
+				'Repeated participation supports linked change-over-time interpretation.',
+				'Export context explains what each file can be used for.'
+			],
+			workloadQuestions: [
+				'How manageable was your workload during the last two weeks?',
+				'How often could you recover enough between demanding work periods?',
+				'How confident are you that current work demands can be sustained?'
+			],
+			workloadFindings: [
+				'Recovery capacity improved after schedule and workload planning changes.',
+				'Workload strain remains elevated in one operational group.',
+				'Interpretation notes separate observed signal from unsupported claims.'
+			],
+			workloadFiles: [
+				'Response dataset with data description.',
+				'Results summary export for review packets.',
+				'Comparison notes for the two closed measurements.'
+			],
+			ergonomicsMetrics: [
+				'128 submitted responses from the selected workplace groups.',
+				'One closed measurement prepared for department-level review.',
+				'Aggregate results are visible where disclosure rules allow.',
+				'CSV export and review notes are available.'
+			],
+			ergonomicsChecks: [
+				'Workplace groups are visible without exposing individual responses.',
+				'Questionnaire sections separate physical load, workstation fit, and recovery.',
+				'Action notes focus on follow-up review, not medical diagnosis.',
+				'Export state is final because collection is closed.'
+			],
+			ergonomicsQuestions: [
+				'How often did your workstation posture feel difficult to sustain?',
+				'How much control did you have over breaks or movement during the day?',
+				'How often did task layout or equipment make work harder than necessary?'
+			],
+			ergonomicsFindings: [
+				'One role group shows higher workstation-fit concern than the workplace average.',
+				'Break-control responses suggest a practical intervention area.',
+				'Small groups stay hidden under disclosure rules.'
+			],
+			ergonomicsFiles: [
+				'Department aggregate review export.',
+				'Response dataset with data description.',
+				'Action-note summary for internal follow-up.'
+			],
+			studentMetrics: [
+				'275 submitted responses across course cohorts.',
+				'Two measurements support before-and-after review.',
+				'Wellbeing and study-load summaries are prepared.',
+				'Analysis export is available with context notes.'
+			],
+			studentChecks: [
+				'Study-load and wellbeing sections stay separate in result outputs.',
+				'Comparison notes flag where cohorts are comparable.',
+				'Open-text style findings are summarized as review prompts.',
+				'Files are marked as synthetic and read-only.'
+			],
+			studentQuestions: [
+				'How manageable was your study load during the last week?',
+				'How confident did you feel about completing required work on time?',
+				'How often did study demands interfere with recovery or sleep?'
+			],
+			studentFindings: [
+				'Study-load pressure improved after assessment scheduling changes.',
+				'Recovery remains weaker in one cohort and needs follow-up review.',
+				'Result notes avoid individual-level claims.'
+			],
+			studentFiles: [
+				'Cohort trend export with data description.',
+				'Results summary for academic review.',
+				'Comparison context for the two measurements.'
+			]
+		}
 	},
 	portfolio: {
 		eyebrow: 'Study workspace',
@@ -1785,28 +1933,177 @@ const hr: typeof en = {
 		eyebrow: 'Radni prostor',
 		title: 'Početna',
 		description:
-			'Odaberite sljedeći koristan zadatak: izradite studiju, nastavite rad, pozovite ljude, upravljajte publikama ili preuzmite rezultate.',
+			'Pokrenite stvaran rad na studiji, istražite primjere i nastavite aktivne studije s jednog mjesta.',
 		loading: 'Učitavanje pregleda radnog prostora',
 		errorTitle: 'Pregled radnog prostora nije dostupan',
 		retry: 'Pokušaj pregled ponovno',
+		homeAria: 'Početna radnog prostora',
+		heroAria: 'Uvod u radni prostor',
+		heroKicker: 'Radni prostor za istraživanja',
+		heroTitle: 'Izradite studiju, prikupite odgovore, pregledajte rezultate i pripremite dokaze.',
+		heroBody:
+			'Ova početna stranica vodi vas najkraćim putem kroz proizvod: pokrenite stvarnu studiju, učite iz dovršenih primjera ili nastavite rad koji je već u tijeku.',
+		primaryActionsAria: 'Glavne radnje radnog prostora',
+		createStudy: 'Izradi studiju',
+		exploreSamples: 'Istraži primjere',
+		workflowAria: 'Tijek rada studije',
+		workflowLabel: 'Kako aplikacija radi',
 		start: 'Početak',
+		startAria: 'Počnite ovdje',
+		startTitle: 'Krenite s jednom konkretnom radnjom.',
+		startBody:
+			'Većina timova počinje izradom studije, dodavanjem ljudi i pokretanjem prikupljanja nakon što je postavljanje spremno.',
 		setupWorkspace: 'Postavite radni prostor',
 		chooseNext: 'Odaberite sljedeću radnju',
-		firstRunActions: ['Izradi prvu studiju', 'Pozovi tim', 'Postavi imenik', 'Pregledaj instrumente'],
-		firstRunActionStatuses: ['Počnite ovdje', 'Pristup', 'Ljudi', 'Knjižnica'],
+		firstRunActions: ['Izradi prvu studiju', 'Pozovi tim', 'Postavi imenik'],
+		firstRunActionStatuses: ['Počnite ovdje', 'Pristup', 'Ljudi'],
 		firstRunActionDescriptions: [
 			'Pokrenite stvarnu studiju i nastavite kroz postavljanje, prikupljanje i rezultate.',
 			'Pripremite pristup članova radnog prostora prije dijeljenja prve poveznice za prijavu.',
-			'Izradite ljude, grupe, članstva i veze s voditeljima za ciljanje.',
-			'Potvrdite koji su instrumenti dostupni prije početka produkcijskog rada na studiji.'
+			'Izradite ljude, grupe, članstva i veze s voditeljima za ciljanje.'
 		],
 		nextActions: 'Sljedeće radnje',
+		nextActionsTitle: 'Nastavite rad koji traži pažnju.',
+		noWorkspaceActions: 'Nema hitnih radnji',
+		noWorkspaceActionsBody: 'Otvorite Studije za izradu ili nastavak rada na studiji.',
 		openStudies: 'Otvori Studije',
 		examples: 'Primjeri',
 		sampleStudies: 'Primjeri studija',
+		sampleStudiesBody:
+			'Dovršeni sintetički primjeri pokazuju tijek rada bez promjene stvarnih podataka radnog prostora.',
+		sampleWorkloadTitle: 'Opterećenje i oporavak',
+		sampleWorkloadKicker: 'Radna studija kroz dva mjerenja',
+		sampleWorkloadBody:
+			'Istražite zatvorenu ponovljenu studiju s dovršenim postavljanjem, prikupljenim odgovorima, rezultatima i usporedbom.',
+		sampleWorkloadMeta: 'Anonimno povezano praćenje, dva mjerenja, ogledni izvještaj',
+		sampleErgonomicsTitle: 'Pregled ergonomskog rizika',
+		sampleErgonomicsKicker: 'Primjer zaštite na radu',
+		sampleErgonomicsBody:
+			'Pregledajte dovršenu studiju u stilu medicine rada s agregiranim rezultatima po skupinama i kontekstom izvoza.',
+		sampleErgonomicsMeta: 'Zatvoreno prikupljanje, vidljivi agregati, ogledni izvoz',
+		sampleStudentTitle: 'Dobrobit i opterećenje studenata',
+		sampleStudentKicker: 'Akademski primjer studije',
+		sampleStudentBody:
+			'Pogledajte kako studentska wellbeing studija prolazi od upitnika do pregleda odgovora i usporedbe mjerenja.',
+		sampleStudentMeta: 'Ponovljeno mjerenje, povezana usporedba, sintetički odgovori',
+		openSample: 'Otvori primjer samo za čitanje',
+		sampleReadOnlyNote:
+			'Primjeri studija služe samo za čitanje. Ne izrađuju i ne mijenjaju stvarne studije radnog prostora.',
 		yourWork: 'Vaš rad',
 		yourStudies: 'Vaše studije',
-		workspaceOverview: 'Pregled radnog prostora'
+		openPortfolio: 'Otvori Studije',
+		noStudiesYet: 'Još nema stvarnih studija',
+		noStudiesYetBody: 'Vaše uređive studije pojavit će se ovdje nakon izrade.',
+		workspaceOverview: 'Pregled radnog prostora',
+		sampleDemo: {
+			eyebrow: 'Primjeri za pregled',
+			title: 'Pregledajte zavr?ene primjere studija.',
+			description:
+				'Pogledajte zavr?ene sintetske studije s postavljanjem, prikupljanjem, rezultatima i izvozom prije izrade vlastite studije.',
+			status: 'Primjer podataka',
+			aria: 'Knji?nica primjera studija samo za ?itanje',
+			backToHome: 'Natrag na po?etnu',
+			synthetic: 'Sintetski podaci',
+			readOnlyTitle: 'Primjer samo za ?itanje',
+			readOnlyBody:
+				'Ovaj primjer slu?i za orijentaciju. Ne izra?uje sudionike, ne ?alje pozivnice i ne mijenja stvarne studije u radnom prostoru.',
+			chooseSample: 'Odaberite primjer studije',
+			chooseSampleBody:
+				'Prebacujte se izme?u realisti?nih tipova studija i vidite kako razli?iti istra?iva?ki konteksti prolaze kroz isti tijek rada.',
+			snapshot: 'Sa?etak studije',
+			inspect: '?to mo?ete pregledati',
+			questionnaire: 'Izvadak iz upitnika',
+			findings: 'Primjeri bilje?ki rezultata',
+			files: 'Prikazane datoteke',
+			responseMetric: 'Odgovori',
+			measurementMetric: 'Mjerenja',
+			resultMetric: 'Paket rezultata',
+			exportMetric: 'Izvoz',
+			ready: 'Spremno',
+			closed: 'Zatvoreno',
+			available: 'Dostupno',
+			workloadMetrics: [
+				'412 predanih odgovora u odabranim timovima.',
+				'Dva zatvorena mjerenja pripremljena za pregled promjene kroz vrijeme.',
+				'Pokrivenost, ograni?enja i bilje?ke usporedbe su spremni.',
+				'Skup odgovora i opis podataka dostupni su za preuzimanje.'
+			],
+			workloadChecks: [
+				'Upitnik i izlazi rezultata su dovr?eni.',
+				'Prikupljanje je zatvoreno prije pregleda paketa rezultata.',
+				'Ponovljeno sudjelovanje podr?ava tuma?enje promjene kroz vrijeme.',
+				'Kontekst izvoza obja?njava ?emu svaka datoteka slu?i.'
+			],
+			workloadQuestions: [
+				'Koliko je radno optere?enje bilo upravljivo tijekom zadnja dva tjedna?',
+				'Koliko ?esto ste se mogli dovoljno oporaviti izme?u zahtjevnih razdoblja rada?',
+				'Koliko ste sigurni da se trenutni radni zahtjevi mogu odr?ati?'
+			],
+			workloadFindings: [
+				'Kapacitet oporavka pobolj?ao se nakon promjena u planiranju rasporeda i optere?enja.',
+				'Radno optere?enje ostaje povi?eno u jednoj operativnoj grupi.',
+				'Bilje?ke tuma?enja razdvajaju opa?eni signal od tvrdnji koje podaci ne podr?avaju.'
+			],
+			workloadFiles: [
+				'Skup odgovora s opisom podataka.',
+				'Izvoz sa?etka rezultata za pregledni paket.',
+				'Bilje?ke usporedbe za dva zatvorena mjerenja.'
+			],
+			ergonomicsMetrics: [
+				'128 predanih odgovora iz odabranih radnih grupa.',
+				'Jedno zatvoreno mjerenje pripremljeno za pregled po odjelima.',
+				'Agregirani rezultati vidljivi su ondje gdje pravila prikaza to dopu?taju.',
+				'CSV izvoz i bilje?ke pregleda su dostupni.'
+			],
+			ergonomicsChecks: [
+				'Radne grupe vidljive su bez otkrivanja pojedina?nih odgovora.',
+				'Dijelovi upitnika odvajaju fizi?ko optere?enje, prilagodbu radnog mjesta i oporavak.',
+				'Bilje?ke za djelovanje usmjerene su na daljnji pregled, ne na medicinsku dijagnozu.',
+				'Izvoz je kona?an jer je prikupljanje zatvoreno.'
+			],
+			ergonomicsQuestions: [
+				'Koliko ?esto je polo?aj tijela na radnom mjestu bilo te?ko odr?ati?',
+				'Koliko ste kontrole imali nad pauzama ili kretanjem tijekom dana?',
+				'Koliko ?esto su raspored zadataka ili oprema nepotrebno ote?avali rad?'
+			],
+			ergonomicsFindings: [
+				'Jedna grupa uloga pokazuje ve?u zabrinutost za prilagodbu radnog mjesta od prosjeka.',
+				'Odgovori o kontroli pauza upu?uju na prakti?no podru?je intervencije.',
+				'Male grupe ostaju skrivene prema pravilima prikaza.'
+			],
+			ergonomicsFiles: [
+				'Izvoz agregiranog pregleda po odjelima.',
+				'Skup odgovora s opisom podataka.',
+				'Sa?etak bilje?ki za interno pra?enje.'
+			],
+			studentMetrics: [
+				'275 predanih odgovora kroz studentske skupine.',
+				'Dva mjerenja podr?avaju pregled prije i poslije.',
+				'Sa?eci wellbeing stanja i optere?enja studijem su pripremljeni.',
+				'Izvoz za analizu dostupan je s kontekstnim bilje?kama.'
+			],
+			studentChecks: [
+				'Optere?enje studijem i wellbeing ostaju odvojeni u izlazima rezultata.',
+				'Bilje?ke usporedbe ozna?avaju gdje su studentske skupine usporedive.',
+				'Nalazi iz otvorenog teksta sa?eti su kao poticaji za pregled.',
+				'Datoteke su ozna?ene kao sintetske i samo za ?itanje.'
+			],
+			studentQuestions: [
+				'Koliko je optere?enje studijem bilo upravljivo tijekom zadnjeg tjedna?',
+				'Koliko ste bili sigurni da mo?ete dovr?iti obvezni rad na vrijeme?',
+				'Koliko ?esto su studijski zahtjevi ometali oporavak ili san?'
+			],
+			studentFindings: [
+				'Pritisak optere?enja studijem smanjio se nakon promjena rasporeda provjera.',
+				'Oporavak ostaje slabiji u jednoj skupini i tra?i daljnji pregled.',
+				'Bilje?ke rezultata izbjegavaju tvrdnje na razini pojedinca.'
+			],
+			studentFiles: [
+				'Izvoz trenda skupine s opisom podataka.',
+				'Sa?etak rezultata za akademski pregled.',
+				'Kontekst usporedbe za dva mjerenja.'
+			]
+		}
 	},
 	portfolio: {
 		eyebrow: 'Radni prostor studija',
