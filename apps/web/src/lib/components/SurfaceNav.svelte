@@ -30,6 +30,7 @@
 			label: copy.sections.studies,
 			surfaces: [
 				{
+					id: 'home',
 					label: copy.surfaces.home,
 					href: '/app',
 					icon: Home,
@@ -37,6 +38,7 @@
 					isDisabled: false
 				},
 				{
+					id: 'studies',
 					label: copy.surfaces.studies,
 					href: '/app/campaign-series',
 					icon: FolderKanban,
@@ -44,6 +46,7 @@
 					isDisabled: false
 				},
 				{
+					id: 'instrument-library',
 					label: copy.surfaces.instrumentLibrary,
 					href: '/app/instruments',
 					icon: BookOpen,
@@ -51,6 +54,7 @@
 					isDisabled: false
 				},
 				{
+					id: 'files',
 					label: copy.surfaces.exports,
 					href: '/app/exports',
 					icon: FileDown,
@@ -64,6 +68,7 @@
 			label: copy.sections.peopleAccess,
 			surfaces: [
 				{
+					id: 'directory',
 					label: copy.surfaces.directory,
 					href: '/app/directory',
 					icon: Network,
@@ -71,6 +76,7 @@
 					isDisabled: false
 				},
 				{
+					id: 'team',
 					label: copy.surfaces.team,
 					href: '/app/team',
 					icon: UsersRound,
@@ -84,6 +90,7 @@
 			label: copy.sections.workspaceAdmin,
 			surfaces: [
 				{
+					id: 'settings',
 					label: copy.surfaces.settings,
 					href: '/app/settings',
 					icon: Building2,
@@ -99,6 +106,7 @@
 		label: copy.sections.selectedStudy,
 		surfaces: [
 			{
+				id: 'overview',
 				label: copy.surfaces.overview,
 				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}` : '/app/campaign-series',
 				icon: ClipboardList,
@@ -106,6 +114,7 @@
 				isDisabled: !activeSeriesId
 			},
 			{
+				id: 'setup',
 				label: copy.surfaces.setup,
 				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}/setup` : '/app/campaign-series',
 				icon: Settings2,
@@ -113,6 +122,7 @@
 				isDisabled: !activeSeriesId
 			},
 			{
+				id: 'collect',
 				label: copy.surfaces.collect,
 				href: activeSeriesId
 					? `/app/campaign-series/${activeSeriesId}/operations`
@@ -122,6 +132,7 @@
 				isDisabled: !activeSeriesId
 			},
 			{
+				id: 'results',
 				label: copy.surfaces.results,
 				href: activeSeriesId
 					? `/app/campaign-series/${activeSeriesId}/reports`
@@ -133,6 +144,7 @@
 				isDisabled: !activeSeriesId
 			},
 			{
+				id: 'waves',
 				label: copy.surfaces.waves,
 				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}/waves` : '/app/campaign-series',
 				icon: Waves,
@@ -150,6 +162,7 @@
 						label: copy.sections.internalTools,
 						surfaces: [
 							{
+								id: 'demo-fixtures',
 								label: copy.surfaces.demoFixtures,
 								href: '/app/demo',
 								icon: ListChecks,
@@ -175,7 +188,7 @@
 		<div class="product-nav__section" role="group" aria-labelledby={sectionLabelId}>
 			<p id={sectionLabelId} class="product-nav__section-heading">{section.label}</p>
 			<ol class="product-nav__list">
-				{#each section.surfaces as surface (surface.href)}
+				{#each section.surfaces as surface (surface.id)}
 					{@const Icon = surface.icon}
 					{@const isCurrent = page.url.pathname === surface.href}
 					<li>
