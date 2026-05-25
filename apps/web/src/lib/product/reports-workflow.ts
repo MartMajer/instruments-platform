@@ -1933,7 +1933,117 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 		return `${submittedVisibleMatch[1]} predanih odgovora, ${submittedVisibleMatch[2]} vidljivih redaka rezultata`;
 	}
 
+	const rowShapeResponseMatch = value.match(/^(\d+) rows?; one row per submitted response$/);
+	if (rowShapeResponseMatch) {
+		const count = Number(rowShapeResponseMatch[1]);
+		return `${count} ${croatianRows(count)}; jedan redak po predanom odgovoru`;
+	}
+
+	const rowShapeScoreMatch = value.match(
+		/^(\d+) rows?; one row per visible or suppressed score output$/
+	);
+	if (rowShapeScoreMatch) {
+		const count = Number(rowShapeScoreMatch[1]);
+		return `${count} ${croatianRows(count)}; jedan redak po vidljivom ili skrivenom izlazu rezultata`;
+	}
+
+	const rowCountMatch = value.match(/^(\d+) rows?$/);
+	if (rowCountMatch) {
+		const count = Number(rowCountMatch[1]);
+		return `${count} ${croatianRows(count)}`;
+	}
+
+	const waveFieldsMatch = value.match(/^Wave fields included for (\d+) waves?$/);
+	if (waveFieldsMatch) {
+		const count = Number(waveFieldsMatch[1]);
+		return `Polja mjerenja uključena su za ${count} ${croatianMeasurements(count)}`;
+	}
+
+	const answerVariableMatch = value.match(
+		/^(\d+) answer variables?, (\d+) score metadata fields?(?:, (\d+) answer metadata fields?)?, (\d+) columns total$/
+	);
+	if (answerVariableMatch) {
+		const answerCount = Number(answerVariableMatch[1]);
+		const scoreMetadataCount = Number(answerVariableMatch[2]);
+		const answerMetadataCount = answerVariableMatch[3] ? Number(answerVariableMatch[3]) : null;
+		const columnCount = Number(answerVariableMatch[4]);
+		const answerMetadataPart =
+			answerMetadataCount === null
+				? ''
+				: `, ${answerMetadataCount} ${croatianAnswerMetadataFields(answerMetadataCount)}`;
+		return `${answerCount} ${croatianAnswerVariables(answerCount)}, ${scoreMetadataCount} ${croatianScoreMetadataFields(scoreMetadataCount)}${answerMetadataPart}, ukupno ${columnCount} ${croatianColumns(columnCount)}`;
+	}
+
+	const reportSummaryColumnsMatch = value.match(/^(\d+) report-summary columns$/);
+	if (reportSummaryColumnsMatch) {
+		const count = Number(reportSummaryColumnsMatch[1]);
+		return `${count} ${croatianReportSummaryColumns(count)}`;
+	}
+
+	const columnsDetectedMatch = value.match(/^(\d+) columns detected$/);
+	if (columnsDetectedMatch) {
+		const count = Number(columnsDetectedMatch[1]);
+		return `Otkriveno ${count} ${croatianColumns(count)}`;
+	}
+
+	const scoreMetadataMatch = value.match(/^Score metadata for (.+)$/);
+	if (scoreMetadataMatch) {
+		return `Metapodaci rezultata za ${scoreMetadataMatch[1]}`;
+	}
+
+	const scoreOutputsMatch = value.match(/^(\d+) score outputs?: (.+)$/);
+	if (scoreOutputsMatch) {
+		const count = Number(scoreOutputsMatch[1]);
+		return `${count} ${croatianScoreOutputs(count)}: ${scoreOutputsMatch[2]}`;
+	}
+
+	const trajectoryPolicyMatch = value.match(
+		/^Trajectory ids are (.+) and should not be treated as raw participant codes or reusable identifiers\.$/
+	);
+	if (trajectoryPolicyMatch) {
+		return `Ključevi praćenja su ${trajectoryPolicyMatch[1]} i ne smiju se tretirati kao izvorni kodovi sudionika ili ponovno upotrebljivi identifikatori.`;
+	}
+
+	const incompleteScoreInputMatch = value.match(
+		/^(.+) used (\d+) of (\d+) expected answer contributions$/
+	);
+	if (incompleteScoreInputMatch) {
+		return `${incompleteScoreInputMatch[1]} koristi ${incompleteScoreInputMatch[2]} od ${incompleteScoreInputMatch[3]} očekivanih doprinosa odgovora`;
+	}
+
 	return value;
+}
+
+function croatianRows(value: number) {
+	return value === 1 ? 'redak' : 'redaka';
+}
+
+function croatianMeasurements(value: number) {
+	return value === 1 ? 'mjerenje' : 'mjerenja';
+}
+
+function croatianAnswerVariables(value: number) {
+	return value === 1 ? 'varijabla odgovora' : 'varijabli odgovora';
+}
+
+function croatianScoreMetadataFields(value: number) {
+	return value === 1 ? 'metapodatkovno polje rezultata' : 'metapodatkovnih polja rezultata';
+}
+
+function croatianAnswerMetadataFields(value: number) {
+	return value === 1 ? 'metapodatkovno polje odgovora' : 'metapodatkovnih polja odgovora';
+}
+
+function croatianColumns(value: number) {
+	return value === 1 ? 'stupac' : 'stupaca';
+}
+
+function croatianReportSummaryColumns(value: number) {
+	return value === 1 ? 'stupac sažetka izvještaja' : 'stupaca sažetka izvještaja';
+}
+
+function croatianScoreOutputs(value: number) {
+	return value === 1 ? 'izlaz rezultata' : 'izlaza rezultata';
 }
 
 function parseExportCodebook(value: string | null | undefined): ExportCodebookSummary {

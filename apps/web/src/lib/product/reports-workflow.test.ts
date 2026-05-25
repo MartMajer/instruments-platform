@@ -723,6 +723,11 @@ describe('selected-series reports workflow model', () => {
 			responseExportArtifact,
 			copy
 		);
+		const pendingPreview = toSelectedSeriesExportPreview(
+			reportableWorkspaceWithResponseExport,
+			null,
+			copy
+		);
 
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
@@ -756,11 +761,48 @@ describe('selected-series reports workflow model', () => {
 				label: translations['Use status'],
 				summary: translations['Internal review only']
 			})
-		);		expect(preview).toMatchObject({
+		);
+		expect(pendingPreview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'file_purpose',
+				label: translations['File purpose'],
+				summary: translations['Review export file to inspect contents']
+			})
+		);
+		expect(pendingPreview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'trajectory_keys',
+				label: translations['Trajectory keys'],
+				summary: translations['Trajectory key policy available after file review']
+			})
+		);
+		expect(preview).toMatchObject({
 			title: 'Što je u ovom izvozu?',
 			downloadLabel: 'Preuzmi CSV skupa odgovora'
 		});
-			const method = toSelectedSeriesScoreMethodReview(reportableWorkspace, null, copy);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'file_purpose',
+				label: translations['File purpose'],
+				summary: translations['Response dataset CSV and codebook']
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'row_shape',
+				label: translations['Row shape'],
+				summary: '12 redaka; jedan redak po predanom odgovoru'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'wave_fields',
+				label: translations['Wave fields'],
+				summary: 'Polja mjerenja uključena su za 2 mjerenja'
+			})
+		);
+
+		const method = toSelectedSeriesScoreMethodReview(reportableWorkspace, null, copy);
 		expect(method.items).toContainEqual(
 			expect.objectContaining({
 				id: 'coverage',
@@ -772,7 +814,8 @@ describe('selected-series reports workflow model', () => {
 				id: 'direction_scale',
 				label: translations['Direction and scale']
 			})
-		);});
+		);
+	});
 });
 
 const emptyWorkspace: CampaignSeriesReportsWorkspaceResponse = {
