@@ -9,6 +9,43 @@ import {
 import type { AppLocale } from './localization';
 
 const supportedLocales: AppLocale[] = ['en', 'hr-HR'];
+const mojibakeOrPlaceholderPattern =
+	/[\u00c2\u00c3]|\u00c4[\u0080-\u00bf]|\u00c5[\u0080-\u00bf]|\u00e2[\u0080-\u2122]|\uFFFD|\?itan|\?em|\?a|\?e|\?u|\?z|\{[a-zA-Z0-9_.]+\}/u;
+const smokeValues = {
+	answerCount: 3,
+	boundary: 'granica prikaza',
+	campaignCount: 2,
+	closedWaveCount: 1,
+	columnCount: 4,
+	completedAt: '22. 05. 2026. 20:56',
+	count: 2,
+	createdAt: '21. 05. 2026. 23:11',
+	dimension: 'workload',
+	drafts: 1,
+	expected: 4,
+	failedCount: 0,
+	groupCount: 2,
+	invitationCount: 3,
+	linkedPairs: 2,
+	liveCount: 1,
+	missingPrerequisiteCount: 1,
+	name: 'Upitnik',
+	openLinkCount: 1,
+	outputs: 'workload, recovery',
+	pairCount: 5,
+	questionCount: 5,
+	rowCount: 10,
+	scoreCount: 2,
+	selectionCount: 2,
+	sourceLabel: 'Administrator radnog prostora',
+	started: 4,
+	studyName: 'Studija',
+	submitted: 3,
+	uploadedAt: '22. 05. 2026. 20:56',
+	valid: 3,
+	visibleScores: 1,
+	waveName: 'Mjerenje 1'
+};
 
 describe('app message catalog', () => {
 	it('keeps every supported locale aligned with the English message id set', () => {
@@ -18,6 +55,16 @@ describe('app message catalog', () => {
 		for (const locale of supportedLocales) {
 			expect(missingAppMessageIds(locale)).toEqual([]);
 		}
+	});
+
+	it('does not leak mojibake, replacement characters, or unresolved placeholders', () => {
+		const offenders = supportedLocales.flatMap((locale) =>
+			appMessageIds()
+				.map((id) => [locale, id, appMessage(locale, id, smokeValues)] as const)
+				.filter(([, , value]) => mojibakeOrPlaceholderPattern.test(value))
+		);
+
+		expect(offenders).toEqual([]);
 	});
 
 	it('formats Croatian count nouns with plural-aware forms', () => {

@@ -150,12 +150,16 @@ export function toLaunchReadinessView(readiness: LaunchReadinessResponse) {
 export function toWorkspaceOverviewView(overview: WorkspaceOverviewResponse, locale: AppLocale = 'en') {
 	return localizeProductReadModel({
 		tenantId: overview.tenantId,
-		lifecycleSteps: workspaceLifecycleSteps,
-		sampleStudies: overview.studyCollections.sampleStudies.map(toWorkspaceStudyCard),
-		ownStudies: overview.studyCollections.ownStudies.map(toWorkspaceStudyCard),
-		commandItems: overview.commandCenter.items.map(toWorkspaceCommandItem),
-		totalRows: toWorkspaceTotalRows(overview.totals),
-		recentSeries: overview.recentSeries.map(toCampaignSeriesCard)
+		lifecycleSteps: workspaceLifecycleSteps(locale),
+		sampleStudies: overview.studyCollections.sampleStudies.map((item) =>
+			toWorkspaceStudyCard(item, locale)
+		),
+		ownStudies: overview.studyCollections.ownStudies.map((item) =>
+			toWorkspaceStudyCard(item, locale)
+		),
+		commandItems: overview.commandCenter.items.map((item) => toWorkspaceCommandItem(item, locale)),
+		totalRows: toWorkspaceTotalRows(overview.totals, locale),
+		recentSeries: overview.recentSeries.map((item) => toCampaignSeriesCard(item, locale))
 	}, locale);
 }
 
@@ -164,31 +168,52 @@ export function toTenantSettingsView(
 	locale: AppLocale = 'en'
 ) {
 	return localizeProductReadModel({
-		title: settings.profile.name.trim() || 'Tenant settings',
+		title: settings.profile.name.trim() || appMessage(locale, 'settings.tenant.untitled'),
 		status: (settings.profile.status === 'active'
 			? 'ready'
 			: toProductReadModelBadgeStatus(settings.profile.status)) as ProductReadModelBadgeStatus,
 		profileRows: [
-			{ label: 'Slug', value: settings.profile.slug, mono: true },
-			{ label: 'Region', value: settings.profile.region.toUpperCase() },
-			{ label: 'Default locale', value: settings.profile.defaultLocale },
-			{ label: 'Status', value: sentenceCase(humanizeValue(settings.profile.status)) },
-			{ label: 'Created', value: formatDateTime(settings.profile.createdAt) },
-			{ label: 'Updated', value: formatDateTime(settings.profile.updatedAt) }
+			{ label: appMessage(locale, 'settings.profile.slug'), value: settings.profile.slug, mono: true },
+			{ label: appMessage(locale, 'settings.profile.region'), value: settings.profile.region.toUpperCase() },
+			{ label: appMessage(locale, 'settings.profile.defaultLocale'), value: settings.profile.defaultLocale },
+			{
+				label: appMessage(locale, 'settings.profile.status'),
+				value: sentenceCase(humanizeValue(settings.profile.status))
+			},
+			{ label: appMessage(locale, 'settings.profile.created'), value: formatDateTime(settings.profile.createdAt) },
+			{ label: appMessage(locale, 'settings.profile.updated'), value: formatDateTime(settings.profile.updatedAt) }
 		],
 		metricRows: [
-			{ label: 'Campaign series', value: formatCount(settings.counts.campaignSeriesCount) },
-			{ label: 'Campaigns', value: formatCount(settings.counts.campaignCount) },
-			{ label: 'Live campaigns', value: formatCount(settings.counts.liveCampaignCount) },
 			{
-				label: 'Submitted responses',
+				label: appMessage(locale, 'settings.metric.studies'),
+				value: formatCount(settings.counts.campaignSeriesCount)
+			},
+			{ label: appMessage(locale, 'settings.metric.campaigns'), value: formatCount(settings.counts.campaignCount) },
+			{
+				label: appMessage(locale, 'settings.metric.liveCampaigns'),
+				value: formatCount(settings.counts.liveCampaignCount)
+			},
+			{
+				label: appMessage(locale, 'settings.metric.submittedResponses'),
 				value: formatCount(settings.counts.submittedResponseCount)
 			},
-			{ label: 'Subjects', value: formatCount(settings.counts.subjectCount) },
-			{ label: 'Subject groups', value: formatCount(settings.counts.subjectGroupCount) },
-			{ label: 'Tenant members', value: formatCount(settings.counts.tenantMemberCount) },
-			{ label: 'Tenant roles', value: formatCount(settings.counts.tenantRoleCount) },
-			{ label: 'Export files', value: formatCount(settings.counts.exportArtifactCount) }
+			{ label: appMessage(locale, 'settings.metric.subjects'), value: formatCount(settings.counts.subjectCount) },
+			{
+				label: appMessage(locale, 'settings.metric.subjectGroups'),
+				value: formatCount(settings.counts.subjectGroupCount)
+			},
+			{
+				label: appMessage(locale, 'settings.metric.tenantMembers'),
+				value: formatCount(settings.counts.tenantMemberCount)
+			},
+			{
+				label: appMessage(locale, 'settings.metric.tenantRoles'),
+				value: formatCount(settings.counts.tenantRoleCount)
+			},
+			{
+				label: appMessage(locale, 'settings.metric.exportFiles'),
+				value: formatCount(settings.counts.exportArtifactCount)
+			}
 		],
 		managementLinks: settings.managementLinks.map((link) => ({
 			id: link.id,
@@ -210,9 +235,9 @@ export function toInstrumentLibraryView(
 
 	return localizeProductReadModel({
 		metricRows: [
-			{ label: 'Instruments', value: formatCount(instruments.length) },
-			{ label: 'Launch eligible', value: formatCount(launchEligibleCount) },
-			{ label: 'Launch blocked', value: formatCount(launchBlockedCount) }
+			{ label: appMessage(locale, 'instruments.metric.sources'), value: formatCount(instruments.length) },
+			{ label: appMessage(locale, 'instruments.metric.launchEligible'), value: formatCount(launchEligibleCount) },
+			{ label: appMessage(locale, 'instruments.metric.launchBlocked'), value: formatCount(launchBlockedCount) }
 		],
 		cards: instruments.map((instrument) => {
 			const launchEligible = instrument.canStartNewCampaign;
@@ -222,14 +247,16 @@ export function toInstrumentLibraryView(
 				title: instrument.fullName.trim() || instrument.code,
 				subtitle: `${instrument.code} ${instrument.version}`,
 				status: (launchEligible ? 'ready' : 'blocked') as ProductReadModelBadgeStatus,
-				statusLabel: launchEligible ? 'Launch eligible' : 'Launch blocked',
+				statusLabel: launchEligible
+					? appMessage(locale, 'instruments.status.launchEligible')
+					: appMessage(locale, 'instruments.status.launchBlocked'),
 				rows: [
 					{
-						label: 'Rights',
+						label: appMessage(locale, 'instruments.row.rights'),
 						value: sentenceCase(humanizeValue(instrument.rightsStatus))
 					},
 					{
-						label: 'Validity',
+						label: appMessage(locale, 'instruments.row.validity'),
 						value: instrument.validityLabel
 					}
 				]
@@ -277,27 +304,25 @@ export function toCampaignSeriesListView(
 	locale: AppLocale = 'en'
 ) {
 	const filtersActive = hasActiveCampaignSeriesFilters(query);
-	const items = list.items.map(toCampaignSeriesCard);
+	const items = list.items.map((item) => toCampaignSeriesCard(item, locale));
 
 	return localizeProductReadModel({
 		items,
-		studySections: toCampaignSeriesStudySections(items),
+		studySections: toCampaignSeriesStudySections(items, locale),
 		filtersActive,
-		statusOptions: campaignSeriesPortfolioStatusOptions,
-		sortOptions: campaignSeriesPortfolioSortOptions,
-		visibilityOptions: campaignSeriesPortfolioVisibilityOptions,
+		statusOptions: campaignSeriesPortfolioStatusOptions(locale),
+		sortOptions: campaignSeriesPortfolioSortOptions(locale),
+		visibilityOptions: campaignSeriesPortfolioVisibilityOptions(locale),
 		emptyState:
 			list.items.length === 0
 				? filtersActive
 					? {
-							title: 'No matching studies',
-							message:
-								'Adjust search, readiness, or visibility filters to show sample or own studies.'
+							title: appMessage(locale, 'portfolio.empty.noMatching.title'),
+							message: appMessage(locale, 'portfolio.empty.noMatching.message')
 						}
 					: {
-							title: 'No studies yet',
-							message:
-								'Create your study when you have setup access, or add sample studies for learning.'
+							title: appMessage(locale, 'portfolio.empty.noStudies.title'),
+							message: appMessage(locale, 'portfolio.empty.noStudies.message')
 						}
 				: null
 	}, locale);
@@ -305,7 +330,7 @@ export function toCampaignSeriesListView(
 
 export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: AppLocale = 'en') {
 	const archiveState = toCampaignSeriesArchiveState(hub);
-	const ownership = toCampaignSeriesOwnership(hub);
+	const ownership = toCampaignSeriesOwnership(hub, locale);
 	const rows: DisplayRow[] = [
 		{ label: 'Created', value: formatDateTime(hub.createdAt) },
 		{ label: 'Updated', value: formatDateTime(hub.updatedAt) }
@@ -638,7 +663,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	locale: AppLocale = 'en'
 ) {
-	const ownership = toCampaignSeriesOwnership(workspace.series);
+	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
@@ -717,7 +742,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
 	locale: AppLocale = 'en'
 ) {
-	const ownership = toCampaignSeriesOwnership(workspace.series);
+	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 	const scoreCoverage = normalizeOperationsScoreCoverage(workspace.scoreCoverage);
 
 	return localizeProductReadModel({
@@ -835,7 +860,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 	workspace: CampaignSeriesReportsWorkspaceResponse,
 	locale: AppLocale = 'en'
 ) {
-	const ownership = toCampaignSeriesOwnership(workspace.series);
+	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 	const scoreCoverage = normalizeOperationsScoreCoverage(workspace.scoreCoverage);
 
 	return localizeProductReadModel({
@@ -912,7 +937,7 @@ export function toCampaignSeriesWavesWorkspaceView(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	locale: AppLocale = 'en'
 ) {
-	const ownership = toCampaignSeriesOwnership(workspace.series);
+	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 
 	return localizeProductReadModel({
 		id: workspace.series.id,
@@ -1212,12 +1237,12 @@ export function toSessionView(input: {
 	session?: AuthSessionResponse | null;
 	error?: unknown;
 	checking?: boolean;
-}) {
+}, locale: AppLocale = 'en') {
 	if (input.checking) {
 		return {
 			state: 'checking',
-			title: 'Checking access',
-			message: 'Loading authenticated workspace access.',
+			title: appMessage(locale, 'session.checking.title'),
+			message: appMessage(locale, 'session.checking.message'),
 			tenantId: null,
 			userId: null
 		};
@@ -1226,8 +1251,10 @@ export function toSessionView(input: {
 	if (input.session) {
 		return {
 			state: 'authenticated',
-			title: 'Signed in',
-			message: `Tenant ${input.session.tenantId}`,
+			title: appMessage(locale, 'session.authenticated.title'),
+			message: appMessage(locale, 'session.authenticated.message', {
+				tenantId: input.session.tenantId
+			}),
 			tenantId: input.session.tenantId,
 			userId: input.session.userId
 		};
@@ -1236,8 +1263,8 @@ export function toSessionView(input: {
 	if (input.error instanceof ApiError && input.error.status === 401) {
 		return {
 			state: 'unauthenticated',
-			title: 'Sign in required',
-			message: 'Sign in before opening tenant product surfaces.',
+			title: appMessage(locale, 'session.unauthenticated.title'),
+			message: appMessage(locale, 'session.unauthenticated.message'),
 			tenantId: null,
 			userId: null
 		};
@@ -1246,8 +1273,8 @@ export function toSessionView(input: {
 	if (input.error instanceof ApiError && input.error.status === 403) {
 		return {
 			state: 'forbidden',
-			title: 'Tenant access unavailable',
-			message: 'Your session does not have access to this tenant workspace.',
+			title: appMessage(locale, 'session.forbidden.title'),
+			message: appMessage(locale, 'session.forbidden.message'),
 			tenantId: null,
 			userId: null
 		};
@@ -1255,11 +1282,11 @@ export function toSessionView(input: {
 
 	return {
 		state: 'failed',
-		title: 'Session check failed',
+		title: appMessage(locale, 'session.failed.title'),
 		message:
 			input.error instanceof ApiError
-				? `Session check failed with status ${input.error.status}.`
-				: 'Session check failed.',
+				? appMessage(locale, 'session.failed.statusMessage', { status: input.error.status })
+				: appMessage(locale, 'session.failed.message'),
 		tenantId: null,
 		userId: null
 	};
@@ -1281,26 +1308,35 @@ function toDisclosureDisplayState(disclosure: string | null | undefined): Disclo
 	return 'suppressed';
 }
 
-function toWorkspaceTotalRows(totals: WorkspaceOverviewResponse['totals']): DisplayRow[] {
+function toWorkspaceTotalRows(
+	totals: WorkspaceOverviewResponse['totals'],
+	locale: AppLocale
+): DisplayRow[] {
 	return [
-		{ label: 'Campaign series', value: formatCount(totals.campaignSeriesCount) },
-		{ label: 'Campaigns', value: formatCount(totals.campaignCount) },
-		{ label: 'Live campaigns', value: formatCount(totals.liveCampaignCount) },
-		{ label: 'Submitted responses', value: formatCount(totals.submittedResponseCount) },
-		{ label: 'Export files', value: formatCount(totals.exportArtifactCount) }
+		{ label: appMessage(locale, 'settings.metric.studies'), value: formatCount(totals.campaignSeriesCount) },
+		{ label: appMessage(locale, 'settings.metric.campaigns'), value: formatCount(totals.campaignCount) },
+		{ label: appMessage(locale, 'settings.metric.liveCampaigns'), value: formatCount(totals.liveCampaignCount) },
+		{
+			label: appMessage(locale, 'settings.metric.submittedResponses'),
+			value: formatCount(totals.submittedResponseCount)
+		},
+		{ label: appMessage(locale, 'settings.metric.exportFiles'), value: formatCount(totals.exportArtifactCount) }
 	];
 }
 
-function toWorkspaceCommandItem(item: WorkspaceOverviewResponse['commandCenter']['items'][number]) {
-	const surfaceLabel = toWorkspaceCommandSurfaceLabel(item.surface);
-	const rows: DisplayRow[] = [{ label: 'Surface', value: surfaceLabel }];
+function toWorkspaceCommandItem(
+	item: WorkspaceOverviewResponse['commandCenter']['items'][number],
+	locale: AppLocale
+) {
+	const surfaceLabel = toWorkspaceCommandSurfaceLabel(item.surface, locale);
+	const rows: DisplayRow[] = [{ label: appMessage(locale, 'workspace.row.surface'), value: surfaceLabel }];
 
 	return {
 		id: item.id,
-		title: item.title.trim() || 'Workspace action',
-		description: item.description.trim() || 'Open the linked product surface for details.',
+		title: item.title.trim() || appMessage(locale, 'workspace.command.untitled'),
+		description: item.description.trim() || appMessage(locale, 'workspace.command.defaultDescription'),
 		href: item.route,
-		actionLabel: item.actionLabel.trim() || 'Open',
+		actionLabel: item.actionLabel.trim() || appMessage(locale, 'workspace.command.defaultAction'),
 		status: toProductReadModelBadgeStatus(item.state),
 		priority: item.priority,
 		surfaceLabel,
@@ -1308,32 +1344,34 @@ function toWorkspaceCommandItem(item: WorkspaceOverviewResponse['commandCenter']
 	};
 }
 
-const workspaceLifecycleSteps = [
-	{
-		id: 'prepare',
-		label: 'Prepare',
-		description: 'Set up the instrument, questions, scoring, and launch rules.'
-	},
-	{
-		id: 'collect',
-		label: 'Collect',
-		description: 'Launch the study and track response progress.'
-	},
-	{
-		id: 'review',
-		label: 'Review',
-		description: 'Inspect coverage, findings, limitations, and comparisons.'
-	},
-	{
-		id: 'export',
-		label: 'Export',
-		description: 'Use generated CSV and codebook files for analysis.'
-	}
-] as const;
+function workspaceLifecycleSteps(locale: AppLocale) {
+	return [
+		{
+			id: 'prepare',
+			label: appMessage(locale, 'workspace.lifecycle.prepare.label'),
+			description: appMessage(locale, 'workspace.lifecycle.prepare.description')
+		},
+		{
+			id: 'collect',
+			label: appMessage(locale, 'workspace.lifecycle.collect.label'),
+			description: appMessage(locale, 'workspace.lifecycle.collect.description')
+		},
+		{
+			id: 'review',
+			label: appMessage(locale, 'workspace.lifecycle.review.label'),
+			description: appMessage(locale, 'workspace.lifecycle.review.description')
+		},
+		{
+			id: 'export',
+			label: appMessage(locale, 'workspace.lifecycle.export.label'),
+			description: appMessage(locale, 'workspace.lifecycle.export.description')
+		}
+	] as const;
+}
 
-function toWorkspaceStudyCard(item: CampaignSeriesListItemResponse) {
-	const card = toCampaignSeriesCard(item);
-	const action = toWorkspaceStudyAction(item);
+function toWorkspaceStudyCard(item: CampaignSeriesListItemResponse, locale: AppLocale) {
+	const card = toCampaignSeriesCard(item, locale);
+	const action = toWorkspaceStudyAction(item, locale);
 
 	return {
 		...card,
@@ -1342,75 +1380,84 @@ function toWorkspaceStudyCard(item: CampaignSeriesListItemResponse) {
 	};
 }
 
-function toWorkspaceStudyAction(item: CampaignSeriesListItemResponse) {
+function toWorkspaceStudyAction(item: CampaignSeriesListItemResponse, locale: AppLocale) {
 	const baseHref = `/app/campaign-series/${item.id}`;
 	const isSample = item.isSample === true || item.studyKind === 'sample';
 
 	if (isSample) {
 		if (item.submittedResponseCount > 0) {
-			return { label: 'Review sample results', href: `${baseHref}/reports` };
+			return { label: appMessage(locale, 'workspace.action.reviewSampleResults'), href: `${baseHref}/reports` };
 		}
 
 		if (item.liveCampaignCount > 0) {
-			return { label: 'Inspect sample collection', href: `${baseHref}/operations` };
+			return {
+				label: appMessage(locale, 'workspace.action.inspectSampleCollection'),
+				href: `${baseHref}/operations`
+			};
 		}
 
 		if (item.campaignCount === 0 || item.readinessStatus === 'not_configured') {
-			return { label: 'Inspect sample setup', href: `${baseHref}/setup` };
+			return { label: appMessage(locale, 'workspace.action.inspectSampleSetup'), href: `${baseHref}/setup` };
 		}
 
-		return { label: 'Open study', href: baseHref };
+		return { label: appMessage(locale, 'workspace.action.openStudy'), href: baseHref };
 	}
 
 	if (item.readinessStatus === 'not_configured') {
-		return { label: 'Continue setup', href: `${baseHref}/setup` };
+		return { label: appMessage(locale, 'workspace.action.continueSetup'), href: `${baseHref}/setup` };
 	}
 
 	if (item.liveCampaignCount > 0) {
-		return { label: 'Monitor collection', href: `${baseHref}/operations` };
+		return { label: appMessage(locale, 'workspace.action.monitorCollection'), href: `${baseHref}/operations` };
 	}
 
 	if (item.submittedResponseCount > 0) {
-		return { label: 'Review results', href: `${baseHref}/reports` };
+		return { label: appMessage(locale, 'workspace.action.reviewResults'), href: `${baseHref}/reports` };
 	}
 
-	return { label: 'Open study', href: baseHref };
+	return { label: appMessage(locale, 'workspace.action.openStudy'), href: baseHref };
 }
 
-function toWorkspaceCommandSurfaceLabel(surface: string) {
+function toWorkspaceCommandSurfaceLabel(surface: string, locale: AppLocale) {
 	const labels: Record<string, string> = {
-		campaign_series: 'Campaign series',
-		directory: 'Directory',
-		operations: 'Operations',
-		reports: 'Reports',
-		setup: 'Setup',
-		team: 'Team',
-		waves: 'Waves',
-		workspace: 'Workspace'
+		campaign_series: appMessage(locale, 'workspace.surface.campaignSeries'),
+		directory: appMessage(locale, 'workspace.surface.directory'),
+		operations: appMessage(locale, 'workspace.surface.operations'),
+		reports: appMessage(locale, 'workspace.surface.reports'),
+		setup: appMessage(locale, 'workspace.surface.setup'),
+		team: appMessage(locale, 'workspace.surface.team'),
+		waves: appMessage(locale, 'workspace.surface.waves'),
+		workspace: appMessage(locale, 'workspace.surface.workspace')
 	};
 
 	return labels[surface] ?? labelFromCode(surface);
 }
 
-const campaignSeriesPortfolioStatusOptions = [
-	{ value: 'all', label: 'All readiness' },
-	{ value: 'not_configured', label: 'Not configured' },
-	{ value: 'pending', label: 'Pending' },
-	{ value: 'proof_only', label: 'Preview' }
-] as const;
+function campaignSeriesPortfolioStatusOptions(locale: AppLocale) {
+	return [
+		{ value: 'all', label: appMessage(locale, 'portfolio.filter.allReadiness') },
+		{ value: 'not_configured', label: appMessage(locale, 'portfolio.filter.notConfigured') },
+		{ value: 'pending', label: appMessage(locale, 'portfolio.filter.pending') },
+		{ value: 'proof_only', label: appMessage(locale, 'portfolio.filter.preview') }
+	] as const;
+}
 
-const campaignSeriesPortfolioSortOptions = [
-	{ value: 'activity_desc', label: 'Latest activity' },
-	{ value: 'updated_desc', label: 'Recently updated' },
-	{ value: 'created_desc', label: 'Recently created' },
-	{ value: 'name_asc', label: 'Name A-Z' }
-] as const;
+function campaignSeriesPortfolioSortOptions(locale: AppLocale) {
+	return [
+		{ value: 'activity_desc', label: appMessage(locale, 'portfolio.sort.latestActivity') },
+		{ value: 'updated_desc', label: appMessage(locale, 'portfolio.sort.recentlyUpdated') },
+		{ value: 'created_desc', label: appMessage(locale, 'portfolio.sort.recentlyCreated') },
+		{ value: 'name_asc', label: appMessage(locale, 'portfolio.sort.nameAscending') }
+	] as const;
+}
 
-const campaignSeriesPortfolioVisibilityOptions = [
-	{ value: 'active', label: 'Active' },
-	{ value: 'archived', label: 'Archived' },
-	{ value: 'all', label: 'All visibility' }
-] as const;
+function campaignSeriesPortfolioVisibilityOptions(locale: AppLocale) {
+	return [
+		{ value: 'active', label: appMessage(locale, 'portfolio.visibility.active') },
+		{ value: 'archived', label: appMessage(locale, 'portfolio.visibility.archived') },
+		{ value: 'all', label: appMessage(locale, 'portfolio.visibility.all') }
+	] as const;
+}
 
 function hasActiveCampaignSeriesFilters(query: CampaignSeriesPortfolioQuery) {
 	const search = query.search?.trim() ?? '';
@@ -2906,19 +2953,25 @@ function toGovernanceRow(label: string, status: string) {
 	};
 }
 
-function toCampaignSeriesCard(item: CampaignSeriesListItemResponse) {
+function toCampaignSeriesCard(item: CampaignSeriesListItemResponse, locale: AppLocale = 'en') {
 	const archived = item.archived === true;
-	const ownership = toCampaignSeriesOwnership(item);
-	const lifecycle = toCampaignSeriesLifecycle(item, ownership);
-	const title = item.name.trim() || 'Untitled wave series';
+	const ownership = toCampaignSeriesOwnership(item, locale);
+	const lifecycle = toCampaignSeriesLifecycle(item, ownership, locale);
+	const title = item.name.trim() || appMessage(locale, 'overview.untitledSeries');
 	const rows: DisplayRow[] = [
-		{ label: 'Campaigns', value: formatCount(item.campaignCount) },
-		{ label: 'Live campaigns', value: formatCount(item.liveCampaignCount) },
-		{ label: 'Submitted responses', value: formatCount(item.submittedResponseCount) },
-		{ label: 'Latest activity', value: latestActivityLabel(item) }
+		{ label: appMessage(locale, 'portfolio.row.campaigns'), value: formatCount(item.campaignCount) },
+		{ label: appMessage(locale, 'portfolio.row.liveCampaigns'), value: formatCount(item.liveCampaignCount) },
+		{
+			label: appMessage(locale, 'portfolio.row.submittedResponses'),
+			value: formatCount(item.submittedResponseCount)
+		},
+		{ label: appMessage(locale, 'portfolio.row.latestActivity'), value: latestActivityLabel(item) }
 	];
 	if (archived) {
-		rows.push({ label: 'Archived', value: item.archivedAt ?? 'Not available' });
+		rows.push({
+			label: appMessage(locale, 'portfolio.row.archived'),
+			value: item.archivedAt ?? appMessage(locale, 'portfolio.value.notAvailable')
+		});
 	}
 
 	return {
@@ -2927,11 +2980,13 @@ function toCampaignSeriesCard(item: CampaignSeriesListItemResponse) {
 		href: `/app/campaign-series/${item.id}`,
 		status: archived ? 'archived' : toProductReadModelBadgeStatus(item.readinessStatus),
 		archived,
-		archiveActionLabel: archived ? 'Restore' : 'Archive',
+		archiveActionLabel: archived
+			? appMessage(locale, 'portfolio.action.restore')
+			: appMessage(locale, 'portfolio.action.archive'),
 		canMutate: !ownership.isSample,
 		duplicateAction: ownership.isSample
 			? {
-					label: 'Duplicate as study',
+					label: appMessage(locale, 'portfolio.action.duplicateAsStudy'),
 					defaultName: `Copy of ${title}`
 				}
 			: null,
@@ -2961,51 +3016,64 @@ const campaignSeriesLifecycleOrder: CampaignSeriesLifecycleId[] = [
 	'open'
 ];
 
-const campaignSeriesLifecycleLabels: Record<CampaignSeriesLifecycleId, string> = {
-	needs_setup: 'Needs setup',
-	in_collection: 'In collection',
-	results_ready: 'Results ready',
-	archived: 'Archived',
-	open: 'Open study'
-};
+function campaignSeriesLifecycleLabel(id: CampaignSeriesLifecycleId, locale: AppLocale) {
+	switch (id) {
+		case 'needs_setup':
+			return appMessage(locale, 'portfolio.lifecycle.needsSetup.label');
+		case 'in_collection':
+			return appMessage(locale, 'portfolio.lifecycle.inCollection.label');
+		case 'results_ready':
+			return appMessage(locale, 'portfolio.lifecycle.resultsReady.label');
+		case 'archived':
+			return appMessage(locale, 'portfolio.lifecycle.archived.label');
+		case 'open':
+			return appMessage(locale, 'portfolio.lifecycle.open.label');
+	}
+}
 
-const campaignSeriesLifecycleDescriptions: Record<CampaignSeriesLifecycleId, string> = {
-	needs_setup: 'Studies that need setup before collection is useful.',
-	in_collection: 'Studies with live collection activity to monitor.',
-	results_ready: 'Studies with submitted responses ready for review.',
-	archived: 'Studies kept for reference after active work ended.',
-	open: 'Studies available for normal inspection.'
-};
+function campaignSeriesLifecycleDescription(id: CampaignSeriesLifecycleId, locale: AppLocale) {
+	switch (id) {
+		case 'needs_setup':
+			return appMessage(locale, 'portfolio.lifecycle.needsSetup.description');
+		case 'in_collection':
+			return appMessage(locale, 'portfolio.lifecycle.inCollection.description');
+		case 'results_ready':
+			return appMessage(locale, 'portfolio.lifecycle.resultsReady.description');
+		case 'archived':
+			return appMessage(locale, 'portfolio.lifecycle.archived.description');
+		case 'open':
+			return appMessage(locale, 'portfolio.lifecycle.open.description');
+	}
+}
 
-function toCampaignSeriesStudySections(items: CampaignSeriesCardView[]) {
+function toCampaignSeriesStudySections(items: CampaignSeriesCardView[], locale: AppLocale) {
 	const sampleItems = items.filter((item) => item.ownership.isSample);
 	const ownItems = items.filter((item) => !item.ownership.isSample);
 
 	return [
 		{
 			id: 'sample_studies',
-			title: 'Sample studies',
-			description: 'Read-only examples you can inspect before creating your own study.',
-			emptyState: 'No sample studies match this view. Clear filters to inspect examples.',
-			groups: toCampaignSeriesLifecycleGroups(sampleItems)
+			title: appMessage(locale, 'portfolio.section.sample.title'),
+			description: appMessage(locale, 'portfolio.section.sample.description'),
+			emptyState: appMessage(locale, 'portfolio.section.sample.empty'),
+			groups: toCampaignSeriesLifecycleGroups(sampleItems, locale)
 		},
 		{
 			id: 'your_studies',
-			title: 'Your studies',
-			description: 'Editable studies owned by this workspace.',
-			emptyState:
-				'No own studies match this view. Clear filters or create your study when you have setup access.',
-			groups: toCampaignSeriesLifecycleGroups(ownItems)
+			title: appMessage(locale, 'portfolio.section.own.title'),
+			description: appMessage(locale, 'portfolio.section.own.description'),
+			emptyState: appMessage(locale, 'portfolio.section.own.empty'),
+			groups: toCampaignSeriesLifecycleGroups(ownItems, locale)
 		}
 	];
 }
 
-function toCampaignSeriesLifecycleGroups(items: CampaignSeriesCardView[]) {
+function toCampaignSeriesLifecycleGroups(items: CampaignSeriesCardView[], locale: AppLocale) {
 	return campaignSeriesLifecycleOrder
 		.map((id) => ({
 			id,
-			label: campaignSeriesLifecycleLabels[id],
-			description: campaignSeriesLifecycleDescriptions[id],
+			label: campaignSeriesLifecycleLabel(id, locale),
+			description: campaignSeriesLifecycleDescription(id, locale),
 			items: items.filter((item) => item.lifecycle.id === id)
 		}))
 		.filter((group) => group.items.length > 0);
@@ -3013,7 +3081,8 @@ function toCampaignSeriesLifecycleGroups(items: CampaignSeriesCardView[]) {
 
 function toCampaignSeriesLifecycle(
 	item: CampaignSeriesListItemResponse,
-	ownership: CampaignSeriesOwnershipView
+	ownership: CampaignSeriesOwnershipView,
+	locale: AppLocale
 ) {
 	const baseHref = `/app/campaign-series/${item.id}`;
 	const isSample = ownership.isSample;
@@ -3021,9 +3090,9 @@ function toCampaignSeriesLifecycle(
 	if (item.archived === true) {
 		return {
 			id: 'archived' as const,
-			label: 'Archived',
+			label: appMessage(locale, 'portfolio.lifecycle.archived.label'),
 			status: 'archived' as ProductReadModelBadgeStatus,
-			actionLabel: 'Open archived study',
+			actionLabel: appMessage(locale, 'workspace.action.openArchivedStudy'),
 			actionHref: baseHref
 		};
 	}
@@ -3031,9 +3100,11 @@ function toCampaignSeriesLifecycle(
 	if (item.submittedResponseCount > 0) {
 		return {
 			id: 'results_ready' as const,
-			label: 'Results ready',
+			label: appMessage(locale, 'portfolio.lifecycle.resultsReady.label'),
 			status: 'ready' as ProductReadModelBadgeStatus,
-			actionLabel: isSample ? 'Review sample results' : 'Review results',
+			actionLabel: isSample
+				? appMessage(locale, 'workspace.action.reviewSampleResults')
+				: appMessage(locale, 'workspace.action.reviewResults'),
 			actionHref: `${baseHref}/reports`
 		};
 	}
@@ -3041,9 +3112,11 @@ function toCampaignSeriesLifecycle(
 	if (item.liveCampaignCount > 0) {
 		return {
 			id: 'in_collection' as const,
-			label: 'In collection',
+			label: appMessage(locale, 'portfolio.lifecycle.inCollection.label'),
 			status: 'live' as ProductReadModelBadgeStatus,
-			actionLabel: isSample ? 'Inspect collection' : 'Monitor collection',
+			actionLabel: isSample
+				? appMessage(locale, 'workspace.action.inspectSampleCollection')
+				: appMessage(locale, 'workspace.action.monitorCollection'),
 			actionHref: `${baseHref}/operations`
 		};
 	}
@@ -3051,18 +3124,22 @@ function toCampaignSeriesLifecycle(
 	if (item.campaignCount === 0 || item.readinessStatus === 'not_configured') {
 		return {
 			id: 'needs_setup' as const,
-			label: 'Needs setup',
+			label: appMessage(locale, 'portfolio.lifecycle.needsSetup.label'),
 			status: 'not_configured' as ProductReadModelBadgeStatus,
-			actionLabel: isSample ? 'Inspect setup' : 'Continue setup',
+			actionLabel: isSample
+				? appMessage(locale, 'workspace.action.inspectSampleSetup')
+				: appMessage(locale, 'workspace.action.continueSetup'),
 			actionHref: `${baseHref}/setup`
 		};
 	}
 
 	return {
 		id: 'open' as const,
-		label: 'Open study',
+		label: appMessage(locale, 'portfolio.lifecycle.open.label'),
 		status: toProductReadModelBadgeStatus(item.readinessStatus),
-		actionLabel: isSample ? 'Inspect study' : 'Open study',
+		actionLabel: isSample
+			? appMessage(locale, 'workspace.action.inspectStudy')
+			: appMessage(locale, 'workspace.action.openStudy'),
 		actionHref: baseHref
 	};
 }
@@ -3079,36 +3156,39 @@ function toCampaignSeriesArchiveState(hub: CampaignSeriesHubResponse) {
 }
 
 function toCampaignSeriesOwnership(
-	series: CampaignSeriesOwnershipMetadata
+	series: CampaignSeriesOwnershipMetadata,
+	locale: AppLocale = 'en'
 ): CampaignSeriesOwnershipView {
 	const isSample = series.isSample === true || series.studyKind === 'sample';
 	const sampleScenario = series.sampleScenario ?? null;
 
 	return {
-		label: isSample ? 'Sample study' : 'Your study',
+		label: isSample
+			? appMessage(locale, 'portfolio.ownership.sample.label')
+			: appMessage(locale, 'portfolio.ownership.own.label'),
 		badgeStatus: isSample ? 'demo' : 'neutral',
 		isSample,
 		sampleScenario,
 		readOnlyReason: series.readOnlyReason ?? null,
-		readOnlyMessage: isSample ? toSampleStudyReadOnlyMessage(sampleScenario) : null
+		readOnlyMessage: isSample ? toSampleStudyReadOnlyMessage(sampleScenario, locale) : null
 	};
 }
 
-function toSampleStudyReadOnlyMessage(sampleScenario: string | null) {
+function toSampleStudyReadOnlyMessage(sampleScenario: string | null, locale: AppLocale) {
 	switch (sampleScenario) {
 		case 'setup':
-			return 'Setup sample: read-only starter content showing study preparation before launch.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.setup');
 		case 'blocked':
-			return 'Setup sample: read-only starter content showing blocked preparation before launch.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.blocked');
 		case 'in_collection':
-			return 'Collection sample: read-only starter content showing live or partial response collection.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.inCollection');
 		case 'longitudinal':
-			return 'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.longitudinal');
 		case 'mixed_lifecycle':
 		case 'completed':
-			return 'Results sample: read-only starter content showing collected responses, scores, reports, and exports.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.results');
 		default:
-			return 'Sample study: read-only starter content you can inspect before duplicating.';
+			return appMessage(locale, 'portfolio.sampleReadOnly.default');
 	}
 }
 
@@ -3724,12 +3804,6 @@ const hrReadModelStrings: Record<string, string> = {
 	'No collection wave yet': 'Još nema mjerenja za prikupljanje',
 	'No reportable campaigns yet': 'Još nema mjerenja za izvještaj',
 	'No campaign operations yet': 'Još nema operacija prikupljanja',
-	'No matching studies': 'Nema odgovarajućih studija',
-	'No studies yet': 'Još nema studija',
-	'No sample studies match this view. Clear filters to inspect examples.':
-		'Nijedna ogledna studija ne odgovara ovom prikazu. Očistite filtre za pregled primjera.',
-	'No own studies match this view. Clear filters or create your study when you have setup access.':
-		'Nijedna vaša studija ne odgovara ovom prikazu. Očistite filtre ili izradite studiju kada imate pristup postavljanju.',
 	'Create your study when you have setup access, or add sample studies for learning.':
 		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.',
 	'Adjust search, readiness, or visibility filters to show sample or own studies.':
@@ -3757,19 +3831,10 @@ const hrReadModelStrings: Record<string, string> = {
 	'Live campaigns': 'Mjerenja u tijeku',
 	'Submitted responses': 'Predani odgovori',
 	Subjects: 'Ispitanici',
-	'Subject groups': 'Grupe ispitanika',
-	'Tenant members': 'Članovi radnog prostora',
-	'Tenant roles': 'Uloge radnog prostora',
 	'Export files': 'Izvozne datoteke',
-	Instruments: 'Instrumenti',
-	'Launch eligible': 'Spremno za pokretanje',
-	'Launch blocked': 'Pokretanje blokirano',
-	Rights: 'Prava',
-	Validity: 'Valjanost',
 	Downloadable: 'Dostupno za preuzimanje',
 	Failed: 'Neuspjelo',
 	Pending: 'Na čekanju',
-	Surface: 'Površina',
 	Campaign: 'Mjerenje',
 	Scores: 'Rezultati',
 	'Visible scores': 'Vidljivi rezultati',
@@ -3893,61 +3958,16 @@ const hrReadModelStrings: Record<string, string> = {
 	'Results actions': 'Radnje rezultata',
 	'Comparison actions': 'Radnje usporedbe',
 	'Open setup': 'Otvori postavljanje',
-	'Continue setup': 'Nastavi postavljanje',
 	'Inspect setup': 'Pregledaj postavljanje',
-	'Open study': 'Otvori studiju',
-	'Open archived study': 'Otvori arhiviranu studiju',
-	'Monitor collection': 'Prati prikupljanje',
 	'Inspect collection': 'Pregledaj prikupljanje',
-	'Review sample results': 'Pregledaj ogledne rezultate',
-	'Inspect study': 'Pregledaj studiju',
 	Archive: 'Arhiviraj',
 	Restore: 'Vrati',
-	'Duplicate as study': 'Dupliciraj kao studiju',
 
 	// Ownership and grouping.
-	'Sample study': 'Ogledna studija',
-	'Your study': 'Vaša studija',
-	'Sample studies': 'Ogledne studije',
-	'Your studies': 'Vaše studije',
-	'Needs setup': 'Treba postavljanje',
-	'In collection': 'U prikupljanju',
-	'Results ready': 'Rezultati spremni',
-	'Studies that need setup before collection is useful.':
-		'Studije kojima treba postavljanje prije smislenog prikupljanja.',
-	'Studies with live collection activity to monitor.':
-		'Studije s aktivnim prikupljanjem koje treba pratiti.',
-	'Studies with submitted responses ready for review.':
-		'Studije s predanim odgovorima spremnima za pregled.',
-	'Studies kept for reference after active work ended.':
-		'Studije zadržane kao referenca nakon završetka aktivnog rada.',
-	'Studies available for normal inspection.': 'Studije dostupne za uobičajeni pregled.',
-	'Read-only examples you can inspect before creating your own study.':
-		'Primjeri samo za čitanje koje možete pregledati prije izrade vlastite studije.',
-	'Editable studies owned by this workspace.':
-		'Uredivi zapisi studija u vlasništvu ovog radnog prostora.',
-	'Setup sample: read-only starter content showing study preparation before launch.':
-		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje pripremu studije prije pokretanja.',
-	'Setup sample: read-only starter content showing blocked preparation before launch.':
-		'Ogledni primjer postavljanja: sadržaj samo za čitanje koji prikazuje blokiranu pripremu prije pokretanja.',
-	'Collection sample: read-only starter content showing live or partial response collection.':
-		'Ogledni primjer prikupljanja: sadržaj samo za čitanje koji prikazuje aktivno ili djelomično prikupljanje odgovora.',
-	'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.':
-		'Longitudinalni ogledni primjer: sadržaj samo za čitanje koji prikazuje ponovljena mjerenja i pregled povezanih putanja.',
-	'Results sample: read-only starter content showing collected responses, scores, reports, and exports.':
-		'Ogledni primjer rezultata: sadržaj samo za čitanje koji prikazuje prikupljene odgovore, rezultate, izvještaje i izvoze.',
-	'Sample study: read-only starter content you can inspect before duplicating.':
-		'Ogledna studija: sadržaj samo za čitanje koji možete pregledati prije dupliciranja.',
 
 	// Filters/options.
-	'All readiness': 'Sva spremnost',
 	Preview: 'Pregled',
-	'Latest activity': 'Zadnja aktivnost',
-	'Recently updated': 'Nedavno ažurirano',
-	'Recently created': 'Nedavno izrađeno',
-	'Name A-Z': 'Naziv A-Z',
 	Active: 'Aktivno',
-	'All visibility': 'Sva vidljivost',
 
 	// Export library.
 	Format: 'Format',

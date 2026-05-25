@@ -251,6 +251,49 @@ describe('product view models', () => {
 		expectStatusBadgeStatus(view.recentSeries[0].status);
 	});
 
+	it('localizes workspace overview and studies portfolio chrome for Croatian app mode', () => {
+		const view = toWorkspaceOverviewView(sampleWorkspaceOverview, 'hr-HR');
+
+		expect(view.lifecycleSteps.map((step) => step.label)).toEqual([
+			'Priprema',
+			'Prikupljanje',
+			'Pregled',
+			'Izvoz'
+		]);
+		expect(view.totalRows.map((row) => row.label)).toEqual([
+			'Studije',
+			'Mjerenja',
+			'Aktivna mjerenja',
+			'Predani odgovori',
+			'Datoteke izvoza'
+		]);
+		expect(view.commandItems[0].rows).toContainEqual({ label: 'Površina', value: 'Postavljanje' });
+		expect(view.sampleStudies[0].actionLabel).toBe('Pregledaj ogledne rezultate');
+		expect(view.sampleStudies[0].ownership.label).toBe('Ogledna studija');
+		expect(view.ownStudies[0].actionLabel).toBe('Nastavi postavljanje');
+		expect(view.recentSeries[0].rows).toContainEqual({
+			label: 'Zadnja aktivnost',
+			value: '03. 05. 2026. 13:00'
+		});
+
+		const empty = toCampaignSeriesListView({ items: [] }, {}, 'hr-HR');
+		expect(empty.emptyState).toEqual({
+			title: 'Još nema studija',
+			message:
+				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.'
+		});
+		expect(empty.statusOptions.map((option) => option.label)).toEqual([
+			'Sva spremnost',
+			'Nije postavljeno',
+			'Na čekanju',
+			'Pregled'
+		]);
+		expect(empty.studySections.map((section) => section.title)).toEqual([
+			'Ogledne studije',
+			'Vaše studije'
+		]);
+	});
+
 	it('maps tenant settings profile, counts, and management links', () => {
 		const settings: TenantSettingsWorkspaceResponse = {
 			profile: {
@@ -323,6 +366,83 @@ describe('product view models', () => {
 			'/app/team',
 			'/app/directory'
 		]);
+	});
+
+	it('localizes settings, instrument library, and session states for Croatian app mode', () => {
+		const settings: TenantSettingsWorkspaceResponse = {
+			profile: {
+				tenantId: 'tenant-id',
+				slug: 'algebra-research',
+				name: 'Algebra Research',
+				region: 'eu',
+				defaultLocale: 'hr',
+				status: 'active',
+				createdAt: '2026-05-01T08:00:00Z',
+				updatedAt: '2026-05-11T09:00:00Z'
+			},
+			counts: {
+				campaignSeriesCount: 4,
+				campaignCount: 7,
+				liveCampaignCount: 2,
+				submittedResponseCount: 128,
+				subjectCount: 42,
+				subjectGroupCount: 6,
+				tenantMemberCount: 5,
+				tenantRoleCount: 3,
+				exportArtifactCount: 9
+			},
+			managementLinks: []
+		};
+
+		const settingsView = toTenantSettingsView(settings, 'hr-HR');
+		expect(settingsView.profileRows.map((row) => row.label)).toEqual([
+			'Slug',
+			'Regija',
+			'Zadani jezik',
+			'Status',
+			'Izrađeno',
+			'Ažurirano'
+		]);
+		expect(settingsView.metricRows.map((row) => row.label)).toContain('Studije');
+		expect(settingsView.metricRows.map((row) => row.label)).toContain('Članovi radnog prostora');
+
+		const instruments = toInstrumentLibraryView(
+			[
+				{
+					id: 'instrument-id-1',
+					code: 'BURNOUT_16',
+					version: '1.0.0',
+					fullName: 'Tenant burnout pulse',
+					rightsStatus: 'tenant_attested',
+					validityLabel: 'Tenant-provided validated instrument',
+					canStartNewCampaign: true
+				}
+			],
+			'hr-HR'
+		);
+		expect(instruments.metricRows.map((row) => row.label)).toEqual([
+			'Izvori upitnika',
+			'Spremno za pokretanje',
+			'Blokirano za pokretanje'
+		]);
+		expect(instruments.cards[0].statusLabel).toBe('Spremno za pokretanje');
+		expect(instruments.cards[0].rows).toContainEqual({
+			label: 'Prava korištenja',
+			value: 'Tenant attested'
+		});
+
+		expect(toSessionView({ error: new ApiError('Unauthorized', 401, null) }, 'hr-HR')).toMatchObject(
+			{
+				state: 'unauthenticated',
+				title: 'Potrebna je prijava',
+				message: 'Prijavite se prije otvaranja površina radnog prostora.'
+			}
+		);
+		expect(toSessionView({ error: new ApiError('Failure', 500, null) }, 'hr-HR')).toMatchObject({
+			state: 'failed',
+			title: 'Provjera sesije nije uspjela',
+			message: 'Provjera sesije nije uspjela sa statusom 500.'
+		});
 	});
 
 	it('maps instrument library summary and cards', () => {
@@ -480,7 +600,7 @@ describe('product view models', () => {
 
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
-			{ value: 'not_configured', label: 'Nije konfigurirano' },
+			{ value: 'not_configured', label: 'Nije postavljeno' },
 			{ value: 'pending', label: 'Na čekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);

@@ -4,6 +4,7 @@ import { routePageCopy } from './route-copy';
 const mojibakePattern =
 	/[\u00c2\u00c3]|\u00c4[\u0080-\u00bf]|\u00c5[\u0080-\u00bf]|\u00e2[\u0080-\u2122]/u;
 const replacementQuestionMarkPattern = /\p{L}\?\p{L}/u;
+const unresolvedPlaceholderPattern = /\{[a-zA-Z0-9_.]+\}/u;
 
 function collectStrings(value: unknown, path = '$', output: string[] = []) {
 	if (typeof value === 'string') {
@@ -111,12 +112,13 @@ describe('localized route body copy', () => {
 		);
 	});
 
-	it('does not contain mojibake or replacement question marks in Croatian route copy', () => {
+	it('does not contain mojibake, replacement question marks, or unresolved placeholders in Croatian route copy', () => {
 		const copy = routePageCopy('hr-HR');
 		const strings = collectStrings(copy);
 
 		expect(strings.filter((entry) => mojibakePattern.test(entry))).toEqual([]);
 		expect(strings.filter((entry) => replacementQuestionMarkPattern.test(entry))).toEqual([]);
+		expect(strings.filter((entry) => unresolvedPlaceholderPattern.test(entry))).toEqual([]);
 	});
 
 	it('provides Croatian selected-study surface copy', () => {
