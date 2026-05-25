@@ -97,7 +97,7 @@ const defaultWaveSnapshotCopy: SelectedSeriesWaveSnapshotCopy = {
 		selectComparableWaves:
 			'Select two comparable waves before loading the wave comparison snapshot.',
 		runLinkedTrajectoryCheck:
-			'Run the linked trajectory check before loading the wave comparison snapshot.'
+			'Run the linked repeat response check before loading the wave comparison snapshot.'
 	},
 	dashboard: {
 		unavailableTitle: 'Wave dashboard unavailable',
@@ -105,7 +105,7 @@ const defaultWaveSnapshotCopy: SelectedSeriesWaveSnapshotCopy = {
 		title: (baselineName: string, comparisonName: string) =>
 			`${baselineName} vs ${comparisonName} wave dashboard`,
 		campaigns: 'Campaigns',
-		longitudinalWaves: 'Longitudinal waves',
+		longitudinalWaves: 'Repeat-participation waves',
 		submittedWaves: 'Submitted waves',
 		missingPrerequisites: 'Missing prerequisites',
 		baselineWave: 'Baseline wave',
@@ -114,8 +114,8 @@ const defaultWaveSnapshotCopy: SelectedSeriesWaveSnapshotCopy = {
 		comparisonWave: 'Comparison wave',
 		comparisonStatus: 'Comparison status',
 		comparisonSubmittedResponses: 'Comparison submitted responses',
-		linkedTrajectories: 'Linked trajectories',
-		completeTrajectories: 'Complete trajectories',
+		linkedTrajectories: 'Linked repeat responses',
+		completeTrajectories: 'Complete repeat-response pairs',
 		previewStatus: 'Preview status',
 		interpretation: 'Interpretation',
 		linkedPairs: 'Linked pairs',

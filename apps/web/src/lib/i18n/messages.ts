@@ -240,7 +240,7 @@ const enMessages = {
 	'readModel.status.notAvailable': 'not available',
 	'readModel.status.notConfigured': 'not configured',
 	'readModel.identity.anonymous': 'anonymous',
-	'readModel.identity.anonymousLongitudinal': 'anonymous longitudinal',
+	'readModel.identity.anonymousLongitudinal': 'anonymous repeat participation',
 	'readModel.identity.identified': 'identified',
 	'readModel.untitledWaveSeries': 'Untitled wave series',
 	'readModel.untitledWave': 'Untitled wave',
@@ -381,7 +381,7 @@ const enMessages = {
 	'portfolio.sampleReadOnly.inCollection':
 		'Collection sample: read-only starter content showing live or partial response collection.',
 	'portfolio.sampleReadOnly.longitudinal':
-		'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.',
+		'Repeat-participation sample: read-only starter content showing repeated measurements and linked repeat-response review.',
 	'portfolio.sampleReadOnly.results':
 		'Results sample: read-only starter content showing collected responses, scores, reports, and exports.',
 	'portfolio.sampleReadOnly.default':
@@ -475,7 +475,7 @@ const enMessages = {
 	'results.export.filePurpose.label': 'File purpose',
 	'results.export.rowShape.label': 'Row shape',
 	'results.export.waveFields.label': 'Wave fields',
-	'results.export.trajectoryKeys.label': 'Trajectory keys',
+	'results.export.trajectoryKeys.label': 'Repeat-response keys',
 	'results.export.variablesValues.label': 'Variables and values',
 	'results.export.missingness.label': 'Missingness',
 	'results.export.scoreOutputs.label': 'Score outputs',
@@ -483,7 +483,7 @@ const enMessages = {
 	'results.export.pending.rowShape.summary': 'Row shape available after file review',
 	'results.export.pending.waveFields.summary': 'Wave fields available after file review',
 	'results.export.pending.trajectoryKeys.summary':
-		'Trajectory key policy available after file review',
+		'Repeat-response key policy available after file review',
 	'results.export.pending.variablesValues.summary':
 		'Variables and values available after file review',
 	'results.export.pending.missingness.summary':
@@ -535,24 +535,24 @@ const enMessages = {
 	'results.export.waveFields.grouping.detail':
 		'Review the codebook column list before using wave-level grouping.',
 	'results.export.trajectoryKeys.reportSummary.summary':
-		'No trajectory keys in report-summary export',
+		'No repeat-response keys in report-summary export',
 	'results.export.trajectoryKeys.reportSummary.detail':
-		'Report-summary exports are aggregate files and do not include respondent trajectory rows.',
-	'results.export.trajectoryKeys.included.summary': 'Artifact-local trajectory keys included',
+		'Report-summary exports are aggregate files and do not include respondent repeat-response rows.',
+	'results.export.trajectoryKeys.included.summary': 'Artifact-local repeat-response keys included',
 	'results.export.trajectoryKeys.policy.detail': (values, locale) =>
 		locale === 'hr-HR'
 			? `Ključevi praćenja su ${textValue(
 					values,
 					'policy'
 				)} i ne smiju se tretirati kao izvorni kodovi sudionika ili ponovno upotrebljivi identifikatori.`
-			: `Trajectory ids are ${textValue(
+			: `Repeat-response ids are ${textValue(
 					values,
 					'policy'
 				)} and should not be treated as raw participant codes or reusable identifiers.`,
-	'results.export.trajectoryKeys.noColumn.summary': 'No trajectory key column detected',
-	'results.export.trajectoryKeys.none.summary': 'No trajectory keys',
+	'results.export.trajectoryKeys.noColumn.summary': 'No repeat-response key column detected',
+	'results.export.trajectoryKeys.none.summary': 'No repeat-response keys',
 	'results.export.trajectoryKeys.usage.detail':
-		'Use trajectory fields only when anonymous longitudinal linking is present and disclosure allows it.',
+		'Use repeat-response fields only when anonymous repeat participation linking is present and disclosure allows it.',
 	'results.export.variables.responseDatasetSummary': (values, locale) => {
 		const answerMetadataCount = numberValue(values, 'answerMetadataCount');
 		const answerMetadata =
@@ -720,7 +720,7 @@ const enMessages = {
 			'comparisonScore'
 		)}`,
 	'waves.method.comparisonMethod.linked.detail':
-		'Linked change uses repeat-participation trajectories after scoring compatibility and disclosure checks.',
+		'Linked change uses repeated-response pairs after scoring compatibility and disclosure checks.',
 	'waves.method.outputs.noRepeated.summary': 'No linked outputs yet',
 	'waves.method.outputs.noRepeated.detail':
 		'Compared output names appear after repeated waves are ready for linked change.',
@@ -1245,7 +1245,7 @@ const hrMessages: AppMessageCatalog = {
 	'readModel.status.notAvailable': 'nije dostupno',
 	'readModel.status.notConfigured': 'nije postavljeno',
 	'readModel.identity.anonymous': 'anonimno',
-	'readModel.identity.anonymousLongitudinal': 'anonimno longitudinalno',
+	'readModel.identity.anonymousLongitudinal': 'anonimno s ponovljenim sudjelovanjem',
 	'readModel.identity.identified': 'identificirano',
 	'readModel.untitledWaveSeries': 'Neimenovana studija',
 	'readModel.untitledWave': 'Neimenovano mjerenje',
@@ -1386,7 +1386,7 @@ const hrMessages: AppMessageCatalog = {
 	'portfolio.sampleReadOnly.inCollection':
 		'Ogledno prikupljanje: sadržaj samo za čitanje koji prikazuje aktivno ili djelomično prikupljanje odgovora.',
 	'portfolio.sampleReadOnly.longitudinal':
-		'Longitudinalni ogledni primjer: sadržaj samo za čitanje koji prikazuje ponovljena mjerenja i pregled povezanih putanja.',
+		'Ogledni primjer ponovljenog sudjelovanja: sadržaj samo za čitanje koji prikazuje ponovljena mjerenja i pregled povezanih ponovljenih odgovora.',
 	'portfolio.sampleReadOnly.results':
 		'Ogledni rezultati: sadržaj samo za čitanje koji prikazuje prikupljene odgovore, rezultate, izvještaje i izvoze.',
 	'portfolio.sampleReadOnly.default':
@@ -1489,7 +1489,7 @@ const hrMessages: AppMessageCatalog = {
 		'Stupac ključa praćenja nije otkriven',
 	'results.export.trajectoryKeys.none.summary': 'Nema ključeva praćenja',
 	'results.export.trajectoryKeys.usage.detail':
-		'Polja praćenja koristite samo kada postoji anonimno longitudinalno povezivanje i kada pravila prikaza to dopuštaju.',
+		'Polja praćenja koristite samo kada postoji anonimno s ponovljenim sudjelovanjem povezivanje i kada pravila prikaza to dopuštaju.',
 	'results.export.variables.responseDataset.detail':
 		'Stupci pitanja uključuju metapodatke knjige kodova kao što su vrsta pitanja, kodovi nedostajućih vrijednosti, sidrišta ljestvice, oznake vrijednosti i ograničenja odgovora kada su dostupni.',
 	'results.export.variables.reportSummary.detail':
@@ -1596,7 +1596,7 @@ const hrMessages: AppMessageCatalog = {
 	'waves.method.comparisonMethod.waveOnly.detail':
 		'Promjena istih sudionika treba mjerenja s ponovljenim sudjelovanjem. Anonimna nepovezana mjerenja podržavaju samo agregirani grupni trend.',
 	'waves.method.comparisonMethod.linked.detail':
-		'Povezana promjena koristi putanje ponovljenog sudjelovanja nakon provjera kompatibilnosti bodovanja i pravila prikaza.',
+		'Povezana promjena koristi parove ponovljenih odgovora nakon provjera kompatibilnosti bodovanja i pravila prikaza.',
 	'waves.method.outputs.noRepeated.summary': 'Još nema povezanih izlaza',
 	'waves.method.outputs.noRepeated.detail':
 		'Nazivi uspoređenih izlaza pojavljuju se nakon što su ponovljena mjerenja spremna za povezanu promjenu.',

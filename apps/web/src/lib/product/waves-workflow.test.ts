@@ -178,7 +178,7 @@ describe('selected-series waves workflow model', () => {
 		);
 	});
 
-	it('blocks wave actions when the series has no longitudinal waves', () => {
+	it('blocks wave actions when the series has no repeat-participation waves', () => {
 		const actions = toSelectedSeriesWavesWorkflowActions(emptyWorkspace);
 
 		expect(actions).toEqual([
@@ -212,7 +212,7 @@ describe('selected-series waves workflow model', () => {
 		});
 	});
 
-	it('allows linked trajectory checks and waits on comparison preview until prerequisites are ready', () => {
+	it('allows linked repeat response checks and waits on comparison preview until prerequisites are ready', () => {
 		const actions = toSelectedSeriesWavesWorkflowActions(twoWavePendingWorkspace);
 
 		expect(actions.find((action) => action.id === 'twoWaveProof')).toMatchObject({
@@ -258,7 +258,7 @@ describe('selected-series waves workflow model', () => {
 		});
 	});
 
-	it('selects linked trajectory check as the current waves task for comparable waves', () => {
+	it('selects linked repeat response check as the current waves task for comparable waves', () => {
 		const path = toSelectedSeriesWavesPath(twoWavePendingWorkspace);
 
 		expect(path.currentActionId).toBe('twoWaveProof');
@@ -270,7 +270,7 @@ describe('selected-series waves workflow model', () => {
 		]);
 	});
 
-	it('advances the waves path to wave comparison after linked trajectory check is viewed', () => {
+	it('advances the waves path to wave comparison after linked repeat response check is viewed', () => {
 		const path = toSelectedSeriesWavesPath(twoWavePendingWorkspace, {
 			twoWaveProofViewed: true
 		});
@@ -297,7 +297,7 @@ describe('selected-series waves workflow model', () => {
 		]);
 	});
 
-	it('keeps the waves path current task on blocked linked trajectory check without enough waves', () => {
+	it('keeps the waves path current task on blocked linked repeat response check without enough waves', () => {
 		const path = toSelectedSeriesWavesPath(emptyWorkspace);
 
 		expect(path.showWorkflow).toBe(false);

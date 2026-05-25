@@ -629,7 +629,7 @@ describe('product view models', () => {
 		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
 		expect(hubView.campaignRows[0].rows).toContainEqual({
 			label: 'Način identiteta',
-			value: 'anonimno longitudinalno'
+			value: 'anonimno s ponovljenim sudjelovanjem'
 		});
 
 		expect(setupView.surfaceLabel).toBe('Priprema studije');
@@ -684,8 +684,8 @@ describe('product view models', () => {
 			'Coverage and visibility',
 			'Limitations and finality',
 			'Export next use',
-			'Longitudinal waves',
-			'Linked trajectories',
+			'Repeat-participation waves',
+			'Linked repeat responses',
 			'Visible comparisons'
 		]) {
 			expect(generatedText).not.toContain(forbidden);
@@ -800,7 +800,7 @@ describe('product view models', () => {
 			{
 				scenario: 'longitudinal',
 				message:
-					'Longitudinal sample: read-only starter content showing repeated waves and linked trajectory review.'
+					'Repeat-participation sample: read-only starter content showing repeated measurements and linked repeat-response review.'
 			}
 		] as const;
 
@@ -1010,7 +1010,7 @@ describe('product view models', () => {
 				title: 'Wave 1',
 				status: 'live',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Submitted responses', value: '31' },
 					{ label: 'Scores', value: '28' },
@@ -1331,7 +1331,7 @@ describe('product view models', () => {
 		expect(view.selectedCampaignRows).toEqual([
 			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'draft' },
-			{ label: 'Identity mode', value: 'anonymous longitudinal' },
+			{ label: 'Identity mode', value: 'anonymous repeat participation' },
 			{ label: 'Locale', value: 'en' },
 			{ label: 'Latest launch', value: 'Not available' }
 		]);
@@ -1415,11 +1415,11 @@ describe('product view models', () => {
 				label: 'Wave draft',
 				status: 'ready',
 				badgeLabel: 'Ready',
-				summary: 'Wave 1 / draft / anonymous longitudinal',
+				summary: 'Wave 1 / draft / anonymous repeat participation',
 				guidance: 'Wave draft is ready for recipient setup and launch checks.',
 				detailRows: [
 					{ label: 'Selected wave', value: 'Wave 1' },
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' }
 				]
 			},
@@ -1457,7 +1457,7 @@ describe('product view models', () => {
 				title: 'Wave 1',
 				status: 'live',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Submitted responses', value: '31' },
 					{ label: 'Latest launch', value: '05. 05. 2026. 10:30' }
@@ -1516,7 +1516,7 @@ describe('product view models', () => {
 		expect(view.selectedCampaignRows).toEqual([
 			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'live' },
-			{ label: 'Identity mode', value: 'anonymous longitudinal' },
+			{ label: 'Identity mode', value: 'anonymous repeat participation' },
 			{ label: 'Locale', value: 'en' },
 			{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
 			{ label: 'Closed', value: 'Not available' },
@@ -1537,7 +1537,7 @@ describe('product view models', () => {
 			{ label: 'Latest email activity', value: '05. 05. 2026. 11:30' }
 		]);
 		expect(view.launchSnapshotRows).toEqual([
-			{ label: 'Frozen identity mode', value: 'anonymous longitudinal' },
+			{ label: 'Frozen identity mode', value: 'anonymous repeat participation' },
 			{ label: 'Frozen locale', value: 'en' },
 			{ label: 'Template questions', value: '5' },
 			{ label: 'Launched at', value: '05. 05. 2026. 10:30' }
@@ -1557,7 +1557,7 @@ describe('product view models', () => {
 				title: 'Wave 1',
 				status: 'live',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Collection started', value: '05. 05. 2026. 10:30' },
 					{ label: 'Closed', value: 'Not available' },
@@ -1640,7 +1640,7 @@ describe('product view models', () => {
 				summary: '1 respondent link, 8 sent emails',
 				guidance: 'Respondents can enter through shared links and sent emails.',
 				detailRows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Respondent links', value: '1' },
 					{ label: 'Queued emails', value: '1' },
 					{ label: 'Sent emails', value: '8' },
@@ -1942,7 +1942,7 @@ describe('product view models', () => {
 		expect(view.selectedCampaignRows).toEqual([
 			{ label: 'Selected wave', value: 'Wave 1' },
 			{ label: 'Status', value: 'live' },
-			{ label: 'Identity mode', value: 'anonymous longitudinal' },
+			{ label: 'Identity mode', value: 'anonymous repeat participation' },
 			{ label: 'Locale', value: 'en' },
 			{ label: 'Disclosure', value: 'visible' },
 			{ label: 'Disclosure k', value: '5' },
@@ -1988,7 +1988,7 @@ describe('product view models', () => {
 				title: 'Wave 1',
 				status: 'proof_only',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Launch snapshot', value: 'launch-snapshot-id', mono: true },
 					{ label: 'Latest launch', value: '05. 05. 2026. 10:30' },
@@ -2261,10 +2261,10 @@ describe('product view models', () => {
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '2' },
-			{ label: 'Longitudinal waves', value: '2' },
+			{ label: 'Repeat-participation waves', value: '2' },
 			{ label: 'Submitted waves', value: '2' },
-			{ label: 'Linked trajectories', value: '6' },
-			{ label: 'Complete trajectories', value: '6' },
+			{ label: 'Linked repeat responses', value: '6' },
+			{ label: 'Complete repeat-response pairs', value: '6' },
 			{ label: 'Comparable scores', value: '1' },
 			{ label: 'Visible comparisons', value: '1' },
 			{ label: 'Suppressed comparisons', value: '0' },
@@ -2301,7 +2301,7 @@ describe('product view models', () => {
 				title: 'Wave 1',
 				status: 'live',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Wave state', value: 'wave' },
 					{ label: 'Launch snapshot', value: 'wave-1-launch-id', mono: true },
@@ -2310,7 +2310,7 @@ describe('product view models', () => {
 					{ label: 'Disclosure k', value: '5' },
 					{ label: 'Submitted responses', value: '6' },
 					{ label: 'Scores', value: '6' },
-					{ label: 'Linked trajectories', value: '6' }
+					{ label: 'Linked repeat responses', value: '6' }
 				]
 			},
 			{
@@ -2318,7 +2318,7 @@ describe('product view models', () => {
 				title: 'Wave 2',
 				status: 'live',
 				rows: [
-					{ label: 'Identity mode', value: 'anonymous longitudinal' },
+					{ label: 'Identity mode', value: 'anonymous repeat participation' },
 					{ label: 'Locale', value: 'en' },
 					{ label: 'Wave state', value: 'wave' },
 					{ label: 'Launch snapshot', value: 'wave-2-launch-id', mono: true },
@@ -2327,7 +2327,7 @@ describe('product view models', () => {
 					{ label: 'Disclosure k', value: '5' },
 					{ label: 'Submitted responses', value: '6' },
 					{ label: 'Scores', value: '6' },
-					{ label: 'Linked trajectories', value: '6' }
+					{ label: 'Linked repeat responses', value: '6' }
 				]
 			}
 		]);
@@ -2436,7 +2436,7 @@ describe('product view models', () => {
 		]);
 		expect(view.campaignRows[0].rows).toContainEqual({
 			label: 'Identity mode',
-			value: 'anonymous longitudinal'
+			value: 'anonymous repeat participation'
 		});
 	});
 

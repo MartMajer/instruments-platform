@@ -14,7 +14,7 @@ const en = {
 	},
 	publicEntry: {
 		metaTitle: 'Instruments Platform | Research and wellbeing study platform',
-		metaDescription:'Study operations for questionnaires, collection, results, longitudinal waves, and analysis-ready exports in one workspace.',
+		metaDescription:'Study operations for questionnaires, collection, results, repeat-participation waves, and analysis-ready exports in one workspace.',
 		brandSubtitle: 'Research studies and wellbeing programs',
 		navAria: 'Product entry actions',
 		mobileNavAria: 'Mobile product entry actions',
@@ -221,7 +221,7 @@ const en = {
 		sampleWorkloadKicker: 'Two-wave workplace study',
 		sampleWorkloadBody:
 			'Explore a closed repeated-wave pulse with setup complete, responses collected, results ready, and comparison context.',
-		sampleWorkloadMeta: 'Anonymous longitudinal, two waves, mock report data',
+		sampleWorkloadMeta: 'Anonymous with repeated participation, two waves, mock report data',
 		sampleErgonomicsTitle: 'Ergonomics risk review',
 		sampleErgonomicsKicker: 'OSH review study',
 		sampleErgonomicsBody:
@@ -713,8 +713,8 @@ const en = {
 				eyebrow: 'Wave comparison',
 				title: 'Waves',
 				description:
-					'Create follow-up collection waves, then compare linked longitudinal change when the study is ready.',
-				ariaLabel: 'Waves and linked trajectories'
+					'Create follow-up collection waves, then compare linked repeat-participation change when the study is ready.',
+				ariaLabel: 'Waves and linked repeat responses'
 			}
 		},
 		setupBody: {
@@ -1588,7 +1588,7 @@ const en = {
 			exportPreview: {
 				title: 'What is in this export?',
 				description:
-					'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+					'Review file purpose, row shape, wave fields, repeat-response keys, variables, missingness, and score outputs before downloading.',
 				createOrSelectWaveFirst: 'Create or select a wave first',
 				reviewExportFileFirst: 'Review export file first',
 				selectWavePendingDetail: 'Select a wave before preparing export files.',
@@ -1700,7 +1700,7 @@ const en = {
 				createFirstGuidance: [
 					'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
 					'After responses arrive, review the wave in Results before adding a follow-up wave.',
-					'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
+					'Use repeat participation from the first wave if you need linked change-over-time comparison later.'
 				],
 				reviewWavePairTitle: (wavePairTitle: string) => `Review ${wavePairTitle}`,
 				groupTrendReviewDescription:
@@ -1718,17 +1718,17 @@ const en = {
 				planWaveLaterLabel: (waveNumber: number) => `Plan Wave ${waveNumber} later`,
 				oneWaveGuidance: (nextWaveNumber: number) => [
 					`Review or export Wave 1 before using Setup to create Wave ${nextWaveNumber}.`,
-					'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
+					'Use repeat participation when the same respondent should be linked across waves for change-over-time comparison.',
 					'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
 				],
 				checkReadinessTitle: 'Check comparison readiness',
 				checkReadinessDescription:
-					'Two longitudinal waves exist. Now confirm linked trajectories and scoring compatibility.',
+					'Two repeat-participation waves exist. Now confirm linked repeat responses and scoring compatibility.',
 				runChecksBelowLabel: 'Run checks below',
 				reviewResultsLabel: 'Review results',
 				checkReadinessGuidance: [
 					'Use the checks below to confirm both waves can be linked safely.',
-					'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
+					'Results remain wave-by-wave until linked repeat responses, disclosure, and scoring compatibility are ready.',
 					'If the comparison is blocked, use the details section to see which prerequisite is missing.'
 				],
 				sameRespondentTitle: 'Check same-respondent change',
@@ -1840,8 +1840,8 @@ const en = {
 				currentTaskTitle: 'Current comparison task',
 				selectedSeries: 'Selected series',
 				repeatedWaves: 'Repeated waves',
-				potentialCompleteTrajectories: 'Potential complete trajectories',
-				runLinkedTrajectoryCheck: 'Run linked trajectory check',
+				potentialCompleteTrajectories: 'Potential complete repeat-response pairs',
+				runLinkedTrajectoryCheck: 'Check linked repeat responses',
 				study: 'Study',
 				baseline: 'Baseline',
 				comparison: 'Comparison',
@@ -1856,13 +1856,13 @@ const en = {
 				linkedChangeWorkflow: 'Linked-change workflow',
 				linkedChecksNotNeeded: 'Linked-change checks not needed',
 				linkedChecksNotActiveYet: 'Linked-change checks not active yet',
-				linkedTrajectoryCheckAria: 'Linked trajectory check',
+				linkedTrajectoryCheckAria: 'Linked repeat response check',
 				waveReadiness: 'Wave readiness',
-				linkedTrajectoryCheck: 'Linked trajectory check',
+				linkedTrajectoryCheck: 'Linked repeat response check',
 				launchedWaves: (count: number) => `${count} launched waves`,
 				wavesWithResponses: (count: number) => `${count} waves with responses`,
-				linkedTrajectories: (count: number) => `${count} linked trajectories`,
-				completeTrajectories: (count: number) => `${count} complete trajectories`,
+				linkedTrajectories: (count: number) => `${count} linked repeat responses`,
+				completeTrajectories: (count: number) => `${count} complete repeat-response pairs`,
 				waveAria: (name: string) => `Wave ${name}`,
 				responseMode: 'Response mode',
 				submittedResponses: 'Submitted responses',
@@ -1902,7 +1902,7 @@ const en = {
 				selectComparableWaves:
 					'Select two comparable waves before loading the wave comparison snapshot.',
 				runLinkedTrajectoryCheck:
-					'Run the linked trajectory check before loading the wave comparison snapshot.'
+					'Run the linked repeat response check before loading the wave comparison snapshot.'
 			},
 			dashboard: {
 				unavailableTitle: 'Wave dashboard unavailable',
@@ -1910,7 +1910,7 @@ const en = {
 				title: (baselineName: string, comparisonName: string) =>
 					`${baselineName} vs ${comparisonName} wave dashboard`,
 				campaigns: 'Campaigns',
-				longitudinalWaves: 'Longitudinal waves',
+				longitudinalWaves: 'Repeat-participation waves',
 				submittedWaves: 'Submitted waves',
 				missingPrerequisites: 'Missing prerequisites',
 				baselineWave: 'Baseline wave',
@@ -1919,8 +1919,8 @@ const en = {
 				comparisonWave: 'Comparison wave',
 				comparisonStatus: 'Comparison status',
 				comparisonSubmittedResponses: 'Comparison submitted responses',
-				linkedTrajectories: 'Linked trajectories',
-				completeTrajectories: 'Complete trajectories',
+				linkedTrajectories: 'Linked repeat responses',
+				completeTrajectories: 'Complete repeat-response pairs',
 				previewStatus: 'Preview status',
 				interpretation: 'Interpretation',
 				linkedPairs: 'Linked pairs',
@@ -1970,7 +1970,7 @@ const en = {
 				aggregateSnapshotAria: 'Aggregate wave comparison snapshot',
 				changeOverTimeTitle: 'Change over time',
 				comparisonReady: 'Comparison ready',
-				completeTrajectories: (count: number | string) => `complete trajectories ${count}`,
+				completeTrajectories: (count: number | string) => `complete repeat-response pairs ${count}`,
 				linkedPairs: (count: number | string) => `linked pairs ${count}`,
 				waveComparisonRowsAria: 'Wave comparison rows',
 				waveComparisonScoreAria: (dimensionCode: string) =>
@@ -2906,8 +2906,8 @@ const hr: typeof en = {
 				eyebrow: 'Usporedba mjerenja',
 				title: 'Mjerenja',
 				description:
-					'Izradite naknadna mjerenja, zatim usporedite povezanu longitudinalnu promjenu kad je studija spremna.',
-				ariaLabel: 'Mjerenja i povezane putanje'
+					'Izradite naknadna mjerenja, zatim usporedite povezanu promjenu kroz ponovljeno sudjelovanje kad je studija spremna.',
+				ariaLabel: 'Mjerenja i povezani ponovljeni odgovori'
 			}
 		},
 		setupBody: {
@@ -3896,7 +3896,7 @@ const hr: typeof en = {
 				createFirstGuidance: [
 					'Svako mjerenje je krug prikupljanja unutar studije. Izradite Mjerenje 1 u Postavljanju, zatim ga pokrenite iz Prikupljanja.',
 					'Nakon što odgovori stignu, pregledajte mjerenje u Rezultatima prije dodavanja sljedećeg mjerenja.',
-					'Koristite anonimno longitudinalno sudjelovanje od prvog mjerenja ako kasnije trebate povezanu promjenu kroz vrijeme.'
+					'Koristite anonimno ponovljeno sudjelovanje od prvog mjerenja ako kasnije trebate povezanu promjenu kroz vrijeme.'
 				],
 				reviewWavePairTitle: (wavePairTitle: string) => `Pregledajte ${wavePairTitle}`,
 				groupTrendReviewDescription:
@@ -3914,17 +3914,17 @@ const hr: typeof en = {
 				planWaveLaterLabel: (waveNumber: number) => `Planiraj Mjerenje ${waveNumber} kasnije`,
 				oneWaveGuidance: (nextWaveNumber: number) => [
 					`Pregledajte ili izvezite Mjerenje 1 prije izrade Mjerenja ${nextWaveNumber} u Postavljanju.`,
-					'Koristite anonimno longitudinalno sudjelovanje kada isti sudionik treba biti povezan kroz mjerenja.',
+					'Koristite anonimno ponovljeno sudjelovanje kada isti sudionik treba biti povezan kroz mjerenja.',
 					'Pregledajte primatelje prije pokretanja novog mjerenja; nemojte pretpostaviti da je publika ista osim ako to Prikupljanje jasno pokazuje.'
 				],
 				checkReadinessTitle: 'Provjera povezane promjene',
 				checkReadinessDescription:
-					'Postoje dva longitudinalna mjerenja. Sada potvrdite povezane putanje i kompatibilnost bodovanja.',
+					'Postoje dva mjerenja s ponovljenim sudjelovanjem. Sada potvrdite povezani ponovljeni odgovori i kompatibilnost bodovanja.',
 				runChecksBelowLabel: 'Pokreni provjere u nastavku',
 				reviewResultsLabel: 'Pregledaj rezultate',
 				checkReadinessGuidance: [
 					'Koristite provjere u nastavku kako biste potvrdili da se oba mjerenja mogu sigurno povezati.',
-					'Rezultati ostaju po mjerenjima dok putanje, prikaz i bodovanje nisu spremni za povezanu usporedbu.',
+					'Rezultati ostaju po mjerenjima dok povezani odgovori, prikaz i bodovanje nisu spremni za povezanu usporedbu.',
 					'Ako je usporedba blokirana, u detaljima pogledajte koji preduvjet nedostaje.'
 				],
 				sameRespondentTitle: 'Provjeri promjenu istih sudionika',
@@ -4037,8 +4037,8 @@ const hr: typeof en = {
 				currentTaskTitle: 'Trenutni zadatak usporedbe',
 				selectedSeries: 'Odabrana studija',
 				repeatedWaves: 'Ponovljena mjerenja',
-				potentialCompleteTrajectories: 'Moguće potpune putanje',
-				runLinkedTrajectoryCheck: 'Pokreni provjeru povezanih putanja',
+				potentialCompleteTrajectories: 'Moguće potpuni parovi ponovljenih odgovora',
+				runLinkedTrajectoryCheck: 'Provjeri povezane ponovljene odgovore',
 				study: 'Studija',
 				baseline: 'Početno mjerenje',
 				comparison: 'Usporedno mjerenje',
@@ -4053,13 +4053,13 @@ const hr: typeof en = {
 				linkedChangeWorkflow: 'Tijek povezane promjene',
 				linkedChecksNotNeeded: 'Provjere povezane promjene nisu potrebne',
 				linkedChecksNotActiveYet: 'Provjere povezane promjene još nisu aktivne',
-				linkedTrajectoryCheckAria: 'Provjera povezanih putanja',
+				linkedTrajectoryCheckAria: 'Provjera povezanih ponovljenih odgovora',
 				waveReadiness: 'Spremnost mjerenja',
-				linkedTrajectoryCheck: 'Provjera povezanih putanja',
+				linkedTrajectoryCheck: 'Provjera povezanih ponovljenih odgovora',
 				launchedWaves: (count: number) => `${count} pokrenutih mjerenja`,
 				wavesWithResponses: (count: number) => `${count} mjerenja s odgovorima`,
-				linkedTrajectories: (count: number) => `${count} povezanih putanja`,
-				completeTrajectories: (count: number) => `${count} potpunih putanja`,
+				linkedTrajectories: (count: number) => `${count} povezanih ponovljenih odgovora`,
+				completeTrajectories: (count: number) => `${count} potpunih parova ponovljenih odgovora`,
 				waveAria: (name: string) => `Mjerenje ${name}`,
 				responseMode: 'Način odgovaranja',
 				submittedResponses: 'Predani odgovori',
@@ -4099,7 +4099,7 @@ const hr: typeof en = {
 				selectComparableWaves:
 					'Odaberite dva usporediva mjerenja prije učitavanja pregleda usporedbe.',
 				runLinkedTrajectoryCheck:
-					'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
+					'Provjerite povezane ponovljene odgovore prije učitavanja pregleda usporedbe.'
 			},
 			dashboard: {
 				unavailableTitle: 'Pregled mjerenja nije dostupan',
@@ -4116,8 +4116,8 @@ const hr: typeof en = {
 				comparisonWave: 'Usporedno mjerenje',
 				comparisonStatus: 'Status usporednog mjerenja',
 				comparisonSubmittedResponses: 'Predani odgovori usporednog mjerenja',
-				linkedTrajectories: 'Povezane putanje',
-				completeTrajectories: 'Potpune putanje',
+				linkedTrajectories: 'Povezani ponovljeni odgovori',
+				completeTrajectories: 'Potpuni parovi ponovljenih odgovora',
 				previewStatus: 'Status pregleda',
 				interpretation: 'Tumačenje',
 				linkedPairs: 'Povezani parovi',
@@ -4167,7 +4167,7 @@ const hr: typeof en = {
 				aggregateSnapshotAria: 'Sažetak usporedbe mjerenja',
 				changeOverTimeTitle: 'Promjena kroz vrijeme',
 				comparisonReady: 'Usporedba spremna',
-				completeTrajectories: (count: number | string) => `potpune putanje ${count}`,
+				completeTrajectories: (count: number | string) => `potpuni parovi ponovljenih odgovora ${count}`,
 				linkedPairs: (count: number | string) => `povezanih parova ${count}`,
 				waveComparisonRowsAria: 'Redci usporedbe mjerenja',
 				waveComparisonScoreAria: (dimensionCode: string) =>

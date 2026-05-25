@@ -627,7 +627,7 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'trajectory_keys',
 				status: 'ready',
-				summary: 'Artifact-local trajectory keys included'
+				summary: 'Artifact-local repeat-response keys included'
 			})
 		);
 		expect(preview.items).toContainEqual(
@@ -685,7 +685,7 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'trajectory_keys',
 				status: 'not_available',
-				summary: 'No trajectory keys in report-summary export'
+				summary: 'No repeat-response keys in report-summary export'
 			})
 		);
 		expect(preview.items).toContainEqual(

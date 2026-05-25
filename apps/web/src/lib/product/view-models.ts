@@ -1,4 +1,4 @@
-﻿import { ApiError } from '../api/client';
+import { ApiError } from '../api/client';
 import type {
 	CampaignSeriesHubResponse,
 	CampaignSeriesListItemResponse,
@@ -964,16 +964,16 @@ export function toCampaignSeriesWavesWorkspaceView(
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
 			{
-				label: 'Longitudinal waves',
+				label: 'Repeat-participation waves',
 				value: formatCount(workspace.summary.longitudinalWaveCount)
 			},
 			{ label: 'Submitted waves', value: formatCount(workspace.summary.submittedWaveCount) },
 			{
-				label: 'Linked trajectories',
+				label: 'Linked repeat responses',
 				value: formatCount(workspace.summary.linkedTrajectoryCount)
 			},
 			{
-				label: 'Complete trajectories',
+				label: 'Complete repeat-response pairs',
 				value: formatCount(workspace.summary.completeTrajectoryCount)
 			},
 			{ label: 'Comparable scores', value: formatCount(workspace.summary.comparableScoreCount) },
@@ -2888,7 +2888,7 @@ function toWavesWaveSummaryRows(wave: CampaignSeriesWavesWaveResponse): DisplayR
 		{ label: 'Disclosure k', value: String(wave.disclosureKMin ?? 'Not configured') },
 		{ label: 'Submitted responses', value: formatCount(wave.submittedResponseCount) },
 		{ label: 'Scores', value: formatCount(wave.scoreCount) },
-		{ label: 'Linked trajectories', value: formatCount(wave.linkedTrajectoryCount) }
+		{ label: 'Linked repeat responses', value: formatCount(wave.linkedTrajectoryCount) }
 	];
 }
 
@@ -3141,7 +3141,7 @@ const legacyApiReadModelCroatianChrome: Record<string, string> = {
 	compatible: 'kompatibilno',
 	'no submissions': 'nema odgovora',
 	'anonymous': 'anonimno',
-	'anonymous longitudinal': 'anonimno longitudinalno',
+	'anonymous repeat participation': 'anonimno s ponovljenim sudjelovanjem',
 	identified: 'identificirano',
 	wave: 'mjerenje',
 
@@ -3206,10 +3206,10 @@ const legacyApiReadModelCroatianChrome: Record<string, string> = {
 	'Wave comparison': 'Usporedba mjerenja',
 	'Comparison actions': 'Radnje usporedbe',
 	'Check whether repeated waves can be compared, then review safe change-over-time summaries.': 'Provjerite mogu li se ponovljena mjerenja usporediti, zatim pregledajte sigurne sažetke promjene kroz vrijeme.',
-	'Longitudinal waves': 'Ponovljena mjerenja',
+	'Repeat-participation waves': 'Ponovljena mjerenja',
 	'Submitted waves': 'Mjerenja s odgovorima',
-	'Linked trajectories': 'Povezane putanje',
-	'Complete trajectories': 'Potpune putanje',
+	'Linked repeat responses': 'Povezani ponovljeni odgovori',
+	'Complete repeat-response pairs': 'Potpuni parovi ponovljenih odgovora',
 	'Comparable scores': 'Usporedivi rezultati',
 	'Visible comparisons': 'Vidljive usporedbe',
 	'Suppressed comparisons': 'Skrivene usporedbe',
@@ -3851,6 +3851,14 @@ function labelFromCode(code: string) {
 function humanizeValue(value: string) {
 	if (value === 'proof_only') {
 		return 'preview';
+	}
+
+	if (value === 'anonymous_longitudinal') {
+		return 'anonymous repeat participation';
+	}
+
+	if (value === 'longitudinal') {
+		return 'repeat participation';
 	}
 
 	if (value === 'report_proof_csv_codebook') {

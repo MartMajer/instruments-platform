@@ -100,8 +100,8 @@ export const productFixtureCatalog: ProductFixtureGroup[] = [
 			),
 			scenario(
 				'launched-anonymous-longitudinal',
-				'Launched anonymous longitudinal',
-				'Wave is live and requires participant-code entry for linked trajectories.',
+				'Launched anonymous repeat participation',
+				'Wave is live and requires participant-code entry for linked repeat responses.',
 				'/app/campaign-series/fixture-series-linked/operations',
 				{ status: 'live', responseIdentityMode: 'anonymous_longitudinal' }
 			),
@@ -192,14 +192,14 @@ export const productFixtureCatalog: ProductFixtureGroup[] = [
 			scenario(
 				'two-waves-linked',
 				'Two waves linked',
-				'Baseline and comparison waves have linked trajectories above disclosure minimum.',
+				'Baseline and comparison waves have linked repeat responses above disclosure minimum.',
 				'/app/campaign-series/fixture-series-two-wave/waves',
 				{ waveCount: 2, linkedTrajectoryCount: 6 }
 			),
 			scenario(
 				'insufficient-linked-n',
 				'Insufficient linked n',
-				'Linked trajectory count is below disclosure minimum for comparison.',
+				'Linked repeat response count is below disclosure minimum for comparison.',
 				'/app/campaign-series/fixture-series-low-linked-n/waves',
 				{ disclosure: 'suppressed', linkedTrajectoryCount: 2 }
 			),
@@ -234,7 +234,7 @@ export const productFixtureCatalog: ProductFixtureGroup[] = [
 			scenario(
 				'participant-code-required',
 				'Participant code required',
-				'Anonymous longitudinal open link requires participant-code entry.',
+				'Anonymous with repeated participation open link requires participant-code entry.',
 				'/r/fixture-open-link-participant-code',
 				{ requiresParticipantCode: true }
 			),

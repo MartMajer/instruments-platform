@@ -335,7 +335,7 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 	exportPreview: {
 		title: 'What is in this export?',
 		description:
-			'Review file purpose, row shape, wave fields, trajectory keys, variables, missingness, and score outputs before downloading.',
+			'Review file purpose, row shape, wave fields, repeat-response keys, variables, missingness, and score outputs before downloading.',
 		createOrSelectWaveFirst: 'Create or select a wave first',
 		reviewExportFileFirst: 'Review export file first',
 		selectWavePendingDetail: 'Select a wave before preparing export files.',
@@ -1545,9 +1545,9 @@ function toPendingExportPreviewItems(detail: string): SelectedSeriesExportPrevie
 		},
 		{
 			id: 'trajectory_keys',
-			label: 'Trajectory keys',
+			label: 'Repeat-response keys',
 			status: 'pending',
-			summary: 'Trajectory key policy available after file review',
+			summary: 'Repeat-response key policy available after file review',
 			detail
 		},
 		{
@@ -1705,11 +1705,11 @@ function toExportTrajectoryKeysItem(
 	if (reportSummary) {
 		return {
 			id: 'trajectory_keys',
-			label: 'Trajectory keys',
+			label: 'Repeat-response keys',
 			status: 'not_available',
-			summary: 'No trajectory keys in report-summary export',
+			summary: 'No repeat-response keys in report-summary export',
 			detail:
-				'Report-summary exports are aggregate files and do not include respondent trajectory rows.'
+				'Report-summary exports are aggregate files and do not include respondent repeat-response rows.'
 		};
 	}
 
@@ -1718,20 +1718,20 @@ function toExportTrajectoryKeysItem(
 	if (responseDataset && hasTrajectory) {
 		return {
 			id: 'trajectory_keys',
-			label: 'Trajectory keys',
+			label: 'Repeat-response keys',
 			status: 'ready',
-			summary: 'Artifact-local trajectory keys included',
-			detail: `Trajectory ids are ${codebook.trajectoryIdPolicy ?? 'artifact-local'} and should not be treated as raw participant codes or reusable identifiers.`
+			summary: 'Artifact-local repeat-response keys included',
+			detail: `Repeat-response ids are ${codebook.trajectoryIdPolicy ?? 'artifact-local'} and should not be treated as raw participant codes or reusable identifiers.`
 		};
 	}
 
 	return {
 		id: 'trajectory_keys',
-		label: 'Trajectory keys',
+		label: 'Repeat-response keys',
 		status: responseDataset ? 'pending' : 'not_available',
-		summary: responseDataset ? 'No trajectory key column detected' : 'No trajectory keys',
+		summary: responseDataset ? 'No repeat-response key column detected' : 'No repeat-response keys',
 		detail:
-			'Use trajectory fields only when anonymous longitudinal linking is present and disclosure allows it.'
+			'Use repeat-response fields only when anonymous repeat participation linking is present and disclosure allows it.'
 	};
 }
 
@@ -1944,13 +1944,13 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'File purpose': 'results.export.filePurpose.label',
 	'Row shape': 'results.export.rowShape.label',
 	'Wave fields': 'results.export.waveFields.label',
-	'Trajectory keys': 'results.export.trajectoryKeys.label',
+	'Repeat-response keys': 'results.export.trajectoryKeys.label',
 	'Variables and values': 'results.export.variablesValues.label',
 	Missingness: 'results.export.missingness.label',
 	'Review export file to inspect contents': 'results.export.pending.filePurpose.summary',
 	'Row shape available after file review': 'results.export.pending.rowShape.summary',
 	'Wave fields available after file review': 'results.export.pending.waveFields.summary',
-	'Trajectory key policy available after file review':
+	'Repeat-response key policy available after file review':
 		'results.export.pending.trajectoryKeys.summary',
 	'Variables and values available after file review':
 		'results.export.pending.variablesValues.summary',
@@ -1976,14 +1976,14 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Wave fields not detected': 'results.export.waveFields.notDetected.summary',
 	'Review the codebook column list before using wave-level grouping.':
 		'results.export.waveFields.grouping.detail',
-	'No trajectory keys in report-summary export':
+	'No repeat-response keys in report-summary export':
 		'results.export.trajectoryKeys.reportSummary.summary',
-	'Report-summary exports are aggregate files and do not include respondent trajectory rows.':
+	'Report-summary exports are aggregate files and do not include respondent repeat-response rows.':
 		'results.export.trajectoryKeys.reportSummary.detail',
-	'Artifact-local trajectory keys included': 'results.export.trajectoryKeys.included.summary',
-	'No trajectory key column detected': 'results.export.trajectoryKeys.noColumn.summary',
-	'No trajectory keys': 'results.export.trajectoryKeys.none.summary',
-	'Use trajectory fields only when anonymous longitudinal linking is present and disclosure allows it.':
+	'Artifact-local repeat-response keys included': 'results.export.trajectoryKeys.included.summary',
+	'No repeat-response key column detected': 'results.export.trajectoryKeys.noColumn.summary',
+	'No repeat-response keys': 'results.export.trajectoryKeys.none.summary',
+	'Use repeat-response fields only when anonymous repeat participation linking is present and disclosure allows it.':
 		'results.export.trajectoryKeys.usage.detail',
 	'Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available.':
 		'results.export.variables.responseDataset.detail',
@@ -2137,7 +2137,7 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 	}
 
 	const trajectoryPolicyMatch = value.match(
-		/^Trajectory ids are (.+) and should not be treated as raw participant codes or reusable identifiers\.$/
+		/^Repeat-response ids are (.+) and should not be treated as raw participant codes or reusable identifiers\.$/
 	);
 	if (trajectoryPolicyMatch) {
 		return appMessage(locale, 'results.export.trajectoryKeys.policy.detail', {

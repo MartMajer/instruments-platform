@@ -30,7 +30,7 @@ describe('selected-series wave comparison snapshot model', () => {
 			baselineWaveName: 'Pulse wave 1',
 			comparisonWaveName: 'Pulse wave 2',
 			badgeLabel: 'Blocked',
-			disabledReason: 'Run the linked trajectory check before loading the wave comparison snapshot.'
+			disabledReason: 'Run the linked repeat response check before loading the wave comparison snapshot.'
 		});
 	});
 
@@ -97,8 +97,8 @@ describe('selected-series wave comparison snapshot model', () => {
 			{ label: 'Comparison wave', value: 'Pulse wave 2' },
 			{ label: 'Comparison status', value: 'live' },
 			{ label: 'Comparison submitted responses', value: '6' },
-			{ label: 'Linked trajectories', value: '6' },
-			{ label: 'Complete trajectories', value: '6' }
+			{ label: 'Linked repeat responses', value: '6' },
+			{ label: 'Complete repeat-response pairs', value: '6' }
 		]);
 		expect(dashboard.comparisonRows).toEqual([
 			{ label: 'Preview status', value: 'preview' },
@@ -137,7 +137,7 @@ describe('selected-series wave comparison snapshot model', () => {
 		});
 		expect(dashboard.readinessRows).toEqual([
 			{ label: 'Campaigns', value: '0' },
-			{ label: 'Longitudinal waves', value: '0' },
+			{ label: 'Repeat-participation waves', value: '0' },
 			{ label: 'Submitted waves', value: '0' },
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
@@ -162,8 +162,8 @@ describe('selected-series wave comparison snapshot model', () => {
 			{ label: 'Usporedno mjerenje', value: 'Pulse wave 2' },
 			{ label: 'Status usporednog mjerenja', value: 'u tijeku' },
 			{ label: 'Predani odgovori usporednog mjerenja', value: '6' },
-			{ label: 'Povezane putanje', value: '6' },
-			{ label: 'Potpune putanje', value: '6' }
+			{ label: 'Povezani ponovljeni odgovori', value: '6' },
+			{ label: 'Potpuni parovi ponovljenih odgovora', value: '6' }
 		]);
 		expect(dashboard.comparisonRows).toEqual([
 			{ label: 'Status pregleda', value: 'pregled' },
@@ -200,7 +200,7 @@ const hrWaveSnapshotCopy = {
 	},
 	disabled: {
 		selectComparableWaves: 'Odaberite dva usporediva mjerenja prije učitavanja pregleda usporedbe.',
-		runLinkedTrajectoryCheck: 'Pokrenite provjeru povezanih putanja prije učitavanja pregleda usporedbe.'
+		runLinkedTrajectoryCheck: 'Provjerite povezane ponovljene odgovore prije učitavanja pregleda usporedbe.'
 	},
 	dashboard: {
 		unavailableTitle: 'Pregled mjerenja nije dostupan',
@@ -217,8 +217,8 @@ const hrWaveSnapshotCopy = {
 		comparisonWave: 'Usporedno mjerenje',
 		comparisonStatus: 'Status usporednog mjerenja',
 		comparisonSubmittedResponses: 'Predani odgovori usporednog mjerenja',
-		linkedTrajectories: 'Povezane putanje',
-		completeTrajectories: 'Potpune putanje',
+		linkedTrajectories: 'Povezani ponovljeni odgovori',
+		completeTrajectories: 'Potpuni parovi ponovljenih odgovora',
 		previewStatus: 'Status pregleda',
 		interpretation: 'Tumačenje',
 		linkedPairs: 'Povezani parovi',

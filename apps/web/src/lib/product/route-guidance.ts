@@ -113,10 +113,10 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 	},
 	waves: {
 		...englishChrome,
-		title: 'Advanced longitudinal context',
-		summary: 'Use Waves for longitudinal comparison across repeated study waves.',
+		title: 'Advanced repeat-participation context',
+		summary: 'Use Waves for repeat-participation comparison across repeated study waves.',
 		inspectFirst:
-			'Inspect selected waves, compatibility, linked trajectories, and disclosure limits.',
+			'Inspect selected waves, compatibility, linked repeat responses, and disclosure limits.',
 		whenItMatters: 'Use this only for repeated-wave studies where change over time matters.',
 		nextMove: 'For a single-wave study, return to Review results or Exports.'
 	},
@@ -222,7 +222,7 @@ const croatianGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView>
 		...croatianChrome,
 		title: 'Napredni kontekst ponovljenih mjerenja',
 		summary: 'Koristite Mjerenja za usporedbu kroz ponovljene krugove prikupljanja.',
-		inspectFirst: 'Prvo pregledajte odabrana mjerenja, kompatibilnost, povezane putanje i ograničenja prikaza.',
+		inspectFirst: 'Prvo pregledajte odabrana mjerenja, kompatibilnost, povezani ponovljeni odgovori i ograničenja prikaza.',
 		whenItMatters: 'Koristite ovo samo za studije s ponovljenim mjerenjima gdje je važna promjena kroz vrijeme.',
 		nextMove: 'Za studiju s jednim mjerenjem vratite se na Pregled rezultata ili Izvoze.'
 	},

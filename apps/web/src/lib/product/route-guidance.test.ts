@@ -59,11 +59,11 @@ describe('product route guidance', () => {
 		expect(guidance.nextMove).toContain('inspect');
 	});
 
-	it('marks waves as advanced longitudinal context', () => {
+	it('marks waves as advanced repeat-participation context', () => {
 		const guidance = toProductRouteGuidance('waves');
 
 		expect(guidance.title).toContain('Advanced');
-		expect(guidance.summary).toContain('longitudinal');
+		expect(guidance.summary).toContain('repeat-participation');
 		expect(guidance.whenItMatters).toContain('repeated');
 		expect(guidance.nextMove).toContain('single-wave');
 	});

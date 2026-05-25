@@ -218,7 +218,7 @@ export const defaultSelectedSeriesWavesWorkflowCopy: SelectedSeriesWavesWorkflow
 		createFirstGuidance: [
 			'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
 			'After responses arrive, review the wave in Results before adding a follow-up wave.',
-			'Use anonymous longitudinal from the first wave if you need linked change-over-time comparison later.'
+			'Use repeat participation from the first wave if you need linked change-over-time comparison later.'
 		],
 		reviewWavePairTitle: (wavePairTitle) => `Review ${wavePairTitle}`,
 		groupTrendReviewDescription:
@@ -236,17 +236,17 @@ export const defaultSelectedSeriesWavesWorkflowCopy: SelectedSeriesWavesWorkflow
 		planWaveLaterLabel: (waveNumber) => `Plan Wave ${waveNumber} later`,
 		oneWaveGuidance: (nextWaveNumber) => [
 			`Review or export Wave 1 before using Setup to create Wave ${nextWaveNumber}.`,
-			'Use anonymous longitudinal when the same respondent should be linked across waves for change-over-time comparison.',
+			'Use repeat participation when the same respondent should be linked across waves for change-over-time comparison.',
 			'Review recipients before launching the new wave; do not assume the recipient list is unchanged unless Collection shows it.'
 		],
 		checkReadinessTitle: 'Check comparison readiness',
 		checkReadinessDescription:
-			'Two longitudinal waves exist. Now confirm linked trajectories and scoring compatibility.',
+			'Two repeat-participation waves exist. Now confirm linked repeat responses and scoring compatibility.',
 		runChecksBelowLabel: 'Run checks below',
 		reviewResultsLabel: 'Review results',
 		checkReadinessGuidance: [
 			'Use the checks below to confirm both waves can be linked safely.',
-			'Results remain wave-by-wave until linked trajectories, disclosure, and scoring compatibility are ready.',
+			'Results remain wave-by-wave until linked repeat responses, disclosure, and scoring compatibility are ready.',
 			'If the comparison is blocked, use the details section to see which prerequisite is missing.'
 		],
 		sameRespondentTitle: 'Check same-respondent change',
