@@ -1997,23 +1997,23 @@ const hr: typeof en = {
 		workspaceOverview: 'Pregled radnog prostora',
 		sampleDemo: {
 			eyebrow: 'Primjeri za pregled',
-			title: 'Pregledajte zavr?ene primjere studija.',
+			title: 'Pregledajte završene primjere studija.',
 			description:
-				'Pogledajte zavr?ene sintetske studije s postavljanjem, prikupljanjem, rezultatima i izvozom prije izrade vlastite studije.',
+				'Pogledajte završene sintetske studije s postavljanjem, prikupljanjem, rezultatima i izvozom prije izrade vlastite studije.',
 			status: 'Primjer podataka',
-			aria: 'Knji?nica primjera studija samo za ?itanje',
-			backToHome: 'Natrag na po?etnu',
+			aria: 'Knjižnica primjera studija samo za čitanje',
+			backToHome: 'Natrag na početnu',
 			synthetic: 'Sintetski podaci',
-			readOnlyTitle: 'Primjer samo za ?itanje',
+			readOnlyTitle: 'Primjer samo za čitanje',
 			readOnlyBody:
-				'Ovaj primjer slu?i za orijentaciju. Ne izra?uje sudionike, ne ?alje pozivnice i ne mijenja stvarne studije u radnom prostoru.',
+				'Ovaj primjer služi za orijentaciju. Ne izrađuje sudionike, ne šalje pozivnice i ne mijenja stvarne studije u radnom prostoru.',
 			chooseSample: 'Odaberite primjer studije',
 			chooseSampleBody:
-				'Prebacujte se izme?u realisti?nih tipova studija i vidite kako razli?iti istra?iva?ki konteksti prolaze kroz isti tijek rada.',
-			snapshot: 'Sa?etak studije',
-			inspect: '?to mo?ete pregledati',
+				'Prebacujte se između realističnih tipova studija i vidite kako različiti istraživački konteksti prolaze kroz isti tijek rada.',
+			snapshot: 'Sažetak studije',
+			inspect: 'Što možete pregledati',
 			questionnaire: 'Izvadak iz upitnika',
-			findings: 'Primjeri bilje?ki rezultata',
+			findings: 'Primjeri bilješki rezultata',
 			files: 'Prikazane datoteke',
 			responseMetric: 'Odgovori',
 			measurementMetric: 'Mjerenja',
@@ -2025,82 +2025,82 @@ const hr: typeof en = {
 			workloadMetrics: [
 				'412 predanih odgovora u odabranim timovima.',
 				'Dva zatvorena mjerenja pripremljena za pregled promjene kroz vrijeme.',
-				'Pokrivenost, ograni?enja i bilje?ke usporedbe su spremni.',
+				'Pokrivenost, ograničenja i bilješke usporedbe su spremni.',
 				'Skup odgovora i opis podataka dostupni su za preuzimanje.'
 			],
 			workloadChecks: [
-				'Upitnik i izlazi rezultata su dovr?eni.',
+				'Upitnik i izlazi rezultata su dovršeni.',
 				'Prikupljanje je zatvoreno prije pregleda paketa rezultata.',
-				'Ponovljeno sudjelovanje podr?ava tuma?enje promjene kroz vrijeme.',
-				'Kontekst izvoza obja?njava ?emu svaka datoteka slu?i.'
+				'Ponovljeno sudjelovanje podržava tumačenje promjene kroz vrijeme.',
+				'Kontekst izvoza objašnjava čemu svaka datoteka služi.'
 			],
 			workloadQuestions: [
-				'Koliko je radno optere?enje bilo upravljivo tijekom zadnja dva tjedna?',
-				'Koliko ?esto ste se mogli dovoljno oporaviti izme?u zahtjevnih razdoblja rada?',
-				'Koliko ste sigurni da se trenutni radni zahtjevi mogu odr?ati?'
+				'Koliko je radno opterećenje bilo upravljivo tijekom zadnja dva tjedna?',
+				'Koliko često ste se mogli dovoljno oporaviti između zahtjevnih razdoblja rada?',
+				'Koliko ste sigurni da se trenutni radni zahtjevi mogu održati?'
 			],
 			workloadFindings: [
-				'Kapacitet oporavka pobolj?ao se nakon promjena u planiranju rasporeda i optere?enja.',
-				'Radno optere?enje ostaje povi?eno u jednoj operativnoj grupi.',
-				'Bilje?ke tuma?enja razdvajaju opa?eni signal od tvrdnji koje podaci ne podr?avaju.'
+				'Kapacitet oporavka poboljšao se nakon promjena u planiranju rasporeda i opterećenja.',
+				'Radno opterećenje ostaje povišeno u jednoj operativnoj grupi.',
+				'Bilješke tumačenja razdvajaju opaženi signal od tvrdnji koje podaci ne podržavaju.'
 			],
 			workloadFiles: [
 				'Skup odgovora s opisom podataka.',
-				'Izvoz sa?etka rezultata za pregledni paket.',
-				'Bilje?ke usporedbe za dva zatvorena mjerenja.'
+				'Izvoz sažetka rezultata za pregledni paket.',
+				'Bilješke usporedbe za dva zatvorena mjerenja.'
 			],
 			ergonomicsMetrics: [
 				'128 predanih odgovora iz odabranih radnih grupa.',
 				'Jedno zatvoreno mjerenje pripremljeno za pregled po odjelima.',
-				'Agregirani rezultati vidljivi su ondje gdje pravila prikaza to dopu?taju.',
-				'CSV izvoz i bilje?ke pregleda su dostupni.'
+				'Agregirani rezultati vidljivi su ondje gdje pravila prikaza to dopuštaju.',
+				'CSV izvoz i bilješke pregleda su dostupni.'
 			],
 			ergonomicsChecks: [
-				'Radne grupe vidljive su bez otkrivanja pojedina?nih odgovora.',
-				'Dijelovi upitnika odvajaju fizi?ko optere?enje, prilagodbu radnog mjesta i oporavak.',
-				'Bilje?ke za djelovanje usmjerene su na daljnji pregled, ne na medicinsku dijagnozu.',
-				'Izvoz je kona?an jer je prikupljanje zatvoreno.'
+				'Radne grupe vidljive su bez otkrivanja pojedinačnih odgovora.',
+				'Dijelovi upitnika odvajaju fizičko opterećenje, prilagodbu radnog mjesta i oporavak.',
+				'Bilješke za djelovanje usmjerene su na daljnji pregled, ne na medicinsku dijagnozu.',
+				'Izvoz je konačan jer je prikupljanje zatvoreno.'
 			],
 			ergonomicsQuestions: [
-				'Koliko ?esto je polo?aj tijela na radnom mjestu bilo te?ko odr?ati?',
+				'Koliko često je položaj tijela na radnom mjestu bilo teško održati?',
 				'Koliko ste kontrole imali nad pauzama ili kretanjem tijekom dana?',
-				'Koliko ?esto su raspored zadataka ili oprema nepotrebno ote?avali rad?'
+				'Koliko često su raspored zadataka ili oprema nepotrebno otežavali rad?'
 			],
 			ergonomicsFindings: [
-				'Jedna grupa uloga pokazuje ve?u zabrinutost za prilagodbu radnog mjesta od prosjeka.',
-				'Odgovori o kontroli pauza upu?uju na prakti?no podru?je intervencije.',
+				'Jedna grupa uloga pokazuje veću zabrinutost za prilagodbu radnog mjesta od prosjeka.',
+				'Odgovori o kontroli pauza upućuju na praktično područje intervencije.',
 				'Male grupe ostaju skrivene prema pravilima prikaza.'
 			],
 			ergonomicsFiles: [
 				'Izvoz agregiranog pregleda po odjelima.',
 				'Skup odgovora s opisom podataka.',
-				'Sa?etak bilje?ki za interno pra?enje.'
+				'Sažetak bilješki za interno praćenje.'
 			],
 			studentMetrics: [
 				'275 predanih odgovora kroz studentske skupine.',
-				'Dva mjerenja podr?avaju pregled prije i poslije.',
-				'Sa?eci wellbeing stanja i optere?enja studijem su pripremljeni.',
-				'Izvoz za analizu dostupan je s kontekstnim bilje?kama.'
+				'Dva mjerenja podržavaju pregled prije i poslije.',
+				'Sažeci wellbeing stanja i opterećenja studijem su pripremljeni.',
+				'Izvoz za analizu dostupan je s kontekstnim bilješkama.'
 			],
 			studentChecks: [
-				'Optere?enje studijem i wellbeing ostaju odvojeni u izlazima rezultata.',
-				'Bilje?ke usporedbe ozna?avaju gdje su studentske skupine usporedive.',
-				'Nalazi iz otvorenog teksta sa?eti su kao poticaji za pregled.',
-				'Datoteke su ozna?ene kao sintetske i samo za ?itanje.'
+				'Opterećenje studijem i wellbeing ostaju odvojeni u izlazima rezultata.',
+				'Bilješke usporedbe označavaju gdje su studentske skupine usporedive.',
+				'Nalazi iz otvorenog teksta sažeti su kao poticaji za pregled.',
+				'Datoteke su označene kao sintetske i samo za čitanje.'
 			],
 			studentQuestions: [
-				'Koliko je optere?enje studijem bilo upravljivo tijekom zadnjeg tjedna?',
-				'Koliko ste bili sigurni da mo?ete dovr?iti obvezni rad na vrijeme?',
-				'Koliko ?esto su studijski zahtjevi ometali oporavak ili san?'
+				'Koliko je opterećenje studijem bilo upravljivo tijekom zadnjeg tjedna?',
+				'Koliko ste bili sigurni da možete dovršiti obvezni rad na vrijeme?',
+				'Koliko često su studijski zahtjevi ometali oporavak ili san?'
 			],
 			studentFindings: [
-				'Pritisak optere?enja studijem smanjio se nakon promjena rasporeda provjera.',
-				'Oporavak ostaje slabiji u jednoj skupini i tra?i daljnji pregled.',
-				'Bilje?ke rezultata izbjegavaju tvrdnje na razini pojedinca.'
+				'Pritisak opterećenja studijem smanjio se nakon promjena rasporeda provjera.',
+				'Oporavak ostaje slabiji u jednoj skupini i traži daljnji pregled.',
+				'Bilješke rezultata izbjegavaju tvrdnje na razini pojedinca.'
 			],
 			studentFiles: [
 				'Izvoz trenda skupine s opisom podataka.',
-				'Sa?etak rezultata za akademski pregled.',
+				'Sažetak rezultata za akademski pregled.',
 				'Kontekst usporedbe za dva mjerenja.'
 			]
 		}

@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { routePageCopy } from './route-copy';
 
+const mojibakePattern =
+	/[\u00c2\u00c3]|\u00c4[\u0080-\u00bf]|\u00c5[\u0080-\u00bf]|\u00e2[\u0080-\u2122]/u;
+const replacementQuestionMarkPattern = /\p{L}\?\p{L}/u;
+
+function collectStrings(value: unknown, path = '$', output: string[] = []) {
+	if (typeof value === 'string') {
+		output.push(`${path}: ${value}`);
+		return output;
+	}
+
+	if (Array.isArray(value)) {
+		value.forEach((item, index) => collectStrings(item, `${path}[${index}]`, output));
+		return output;
+	}
+
+	if (value && typeof value === 'object') {
+		for (const [key, entryValue] of Object.entries(value)) {
+			collectStrings(entryValue, `${path}.${key}`, output);
+		}
+	}
+
+	return output;
+}
+
 describe('localized route body copy', () => {
 	it('keeps the public entry copy buyer-facing instead of implementation-facing', () => {
 		const copy = routePageCopy('en');
@@ -56,7 +80,8 @@ describe('localized route body copy', () => {
 		);
 		expect(copy.publicEntry.workspaceOverview).toBe('Pregled studije');
 		expect(copy.publicEntry.showcaseStudies).toBe('Studije');
-		expect(publicEntryText).not.toMatch(/hostan|hosting|valov|šifrarnik|[ÂÃÄÅâ]/i);
+		expect(publicEntryText).not.toMatch(/hostan|hosting|valov|šifrarnik/i);
+		expect(publicEntryText).not.toMatch(mojibakePattern);
 		expect(copy.signIn.title).toBe('Prijavite se u svoj radni prostor.');
 		expect(copy.register.workspaceName).toBe('Naziv radnog prostora');
 	});
@@ -70,7 +95,7 @@ describe('localized route body copy', () => {
 		);
 		expect(copy.workspaceHome.sampleStudies).toBe('Primjeri studija');
 		expect(copy.workspaceHome.sampleReadOnlyNote).toContain('samo za čitanje');
-		expect(copy.workspaceHome.sampleDemo.title).toBe('Pregledajte zavr?ene primjere studija.');
+		expect(copy.workspaceHome.sampleDemo.title).toBe('Pregledajte završene primjere studija.');
 		expect(copy.workspaceHome.sampleDemo.workloadFiles[0]).toContain('opisom podataka');
 		expect(copy.portfolio.title).toBe('Studije');
 		expect(copy.instruments.title).toBe('Instrumenti');
@@ -84,6 +109,14 @@ describe('localized route body copy', () => {
 		expect(copy.selectedStudy.surfaceChrome.surfaceUnavailableFallback).toBe(
 			'Površina odabrane studije nije se mogla učitati.'
 		);
+	});
+
+	it('does not contain mojibake or replacement question marks in Croatian route copy', () => {
+		const copy = routePageCopy('hr-HR');
+		const strings = collectStrings(copy);
+
+		expect(strings.filter((entry) => mojibakePattern.test(entry))).toEqual([]);
+		expect(strings.filter((entry) => replacementQuestionMarkPattern.test(entry))).toEqual([]);
 	});
 
 	it('provides Croatian selected-study surface copy', () => {
