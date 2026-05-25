@@ -1365,6 +1365,7 @@ const en = {
 			},
 
 		},		wavesWorkflow: {
+			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `Step ${number}`,
 			plan: {
 				createFirstTitle: 'Create the first wave',
@@ -3135,6 +3136,7 @@ const hr: typeof en = {
 			},
 
 		},		wavesWorkflow: {
+			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			plan: {
 				createFirstTitle: 'Izradite prvo mjerenje',

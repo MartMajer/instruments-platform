@@ -8,6 +8,9 @@ type CountNounId =
 	| 'answerMetadataField'
 	| 'answerVariable'
 	| 'column'
+	| 'comparedOutput'
+	| 'comparisonScore'
+	| 'linkedPair'
 	| 'measurement'
 	| 'reportSummaryColumn'
 	| 'response'
@@ -239,7 +242,181 @@ const enMessages = {
 	'results.export.scoreOutputs.dimensionCode.detail':
 		'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.',
 	'results.export.scoreOutputs.notDetected.summary': 'Score outputs not detected',
-	'results.export.scoreOutputs.review.detail': 'Review score output fields before interpretation.'
+	'results.export.scoreOutputs.review.detail': 'Review score output fields before interpretation.',
+
+	'waves.review.waveSequence.label': 'Wave sequence',
+	'waves.review.waveSequence.noWave.summary': 'No wave exists yet',
+	'waves.review.waveSequence.noWave.detail':
+		'Create Wave 1 in Setup, launch it from Collection, then return here after responses arrive.',
+	'waves.review.waveSequence.oneWave.summary': 'Only Wave 1 exists',
+	'waves.review.waveSequence.oneWave.detail':
+		'Review Wave 1 in Results before deciding whether Wave 2 is needed for a follow-up collection.',
+	'waves.review.waveSequence.multiple.summary': (values, locale) =>
+		locale === 'hr-HR'
+			? `Postoje ${formatCount(locale, numberValue(values, 'count'), 'measurement')}`
+			: `${formatCount(locale, numberValue(values, 'count'), 'measurement')} exist`,
+	'waves.review.waveSequence.multiple.detail':
+		'Review the latest two waves below. Add another wave only when a new collection round is actually planned.',
+	'waves.review.comparisonType.label': 'Comparison type',
+	'waves.review.comparisonType.noComparison.summary': 'No comparison yet',
+	'waves.review.comparisonType.noComparison.detail':
+		'A comparison needs at least two waves with responses.',
+	'waves.review.comparisonType.sameRespondent.summary': 'Same-respondent linked change',
+	'waves.review.comparisonType.sameRespondent.detail':
+		'These waves have repeat-participation linking, scoring compatibility, and disclosure-visible comparison output.',
+	'waves.review.comparisonType.linkedNeedsChecks.summary': 'Linked comparison needs checks',
+	'waves.review.comparisonType.linkedNeedsChecks.detail':
+		'The study has repeat-participation waves, but linked pairs, scoring compatibility, or disclosure output still need confirmation.',
+	'waves.review.comparisonType.groupTrend.summary': 'Group trend only',
+	'waves.review.comparisonType.groupTrend.detail':
+		'These waves can show aggregate movement between rounds, but not individual respondent change.',
+	'waves.review.comparisonType.collectTwo.detail':
+		'Collect responses in at least two waves before reviewing change over time.',
+	'waves.review.dataReadiness.label': 'Data readiness',
+	'waves.review.dataReadiness.linkedReady.summary': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'linkedPairs'), 'linkedPair')}, ${formatCount(
+			locale,
+			numberValue(values, 'visibleScores'),
+			'comparisonScore'
+		)}`,
+	'waves.review.dataReadiness.linkedReady.detail':
+		'The linked comparison is visible after disclosure and scoring checks. Suppressed scores stay hidden.',
+	'waves.review.dataReadiness.followUpFirst.summary': 'Collect a follow-up wave first',
+	'waves.review.dataReadiness.followUpFirst.detail':
+		'One wave can be reviewed in Results, but it cannot show change over time.',
+	'waves.review.dataReadiness.groupTrendReady.summary': (values, locale) =>
+		locale === 'hr-HR'
+			? `${formatCount(locale, numberValue(values, 'firstScores'), 'score')} u prvom mjerenju, ${formatCount(
+					locale,
+					numberValue(values, 'secondScores'),
+					'score'
+				)} u drugom mjerenju`
+			: `${formatCount(locale, numberValue(values, 'firstScores'), 'score')} first-wave, ${formatCount(
+					locale,
+					numberValue(values, 'secondScores'),
+					'score'
+				)} second-wave`,
+	'waves.review.dataReadiness.groupTrendPending.summary':
+		'Finish score output before reading the trend',
+	'waves.review.dataReadiness.groupTrend.detail':
+		'Use Results for the actual score tables and exports before making claims from this trend.',
+	'waves.review.dataReadiness.comparisonNotReady.summary': 'Comparison output is not ready',
+	'waves.review.dataReadiness.comparisonNotReady.detail':
+		'Run the checks below to see whether linked pairs, scoring, or disclosure are blocking review.',
+	'waves.review.claimBoundary.label': 'Claim boundary',
+	'waves.review.claimBoundary.sameReady.summary':
+		'Disclosure-gated custom-study comparison',
+	'waves.review.claimBoundary.sameReady.detail':
+		'Describe this as change in this tenant-provided custom study, not as an official benchmark or clinical threshold.',
+	'waves.review.claimBoundary.groupTrend.summary':
+		'Do not call this same-respondent change',
+	'waves.review.claimBoundary.groupTrend.detail':
+		'Use group-level wording such as aggregate trend between waves unless repeat-participation linking is ready.',
+	'waves.review.claimBoundary.oneWave.summary': 'Current results are wave-level only',
+	'waves.review.claimBoundary.oneWave.detail':
+		'Review Wave 1 on its own. Do not describe movement until a follow-up wave exists.',
+	'waves.review.claimBoundary.noClaim.summary': 'No change claim available',
+	'waves.review.claimBoundary.noClaim.detail':
+		'Create and collect waves before writing any change-over-time interpretation.',
+
+	'waves.method.scoringRules.label': 'Scoring rules',
+	'waves.method.comparisonMethod.label': 'Comparison method',
+	'waves.method.outputs.label': 'Compared outputs',
+	'waves.method.missingness.label': 'Missing answers',
+	'waves.method.interpretationBoundary.label': 'Interpretation boundary',
+	'waves.method.rule.notConfigured': 'not configured',
+	'waves.method.scoringRules.twoWavesNeeded.summary': 'Two waves needed',
+	'waves.method.scoringRules.twoWavesNeeded.detail':
+		'Select or create two waves before comparing scoring rules.',
+	'waves.method.scoringRules.sameRule.summary': (values, locale) =>
+		locale === 'hr-HR'
+			? `Mjerenje 1 i Mjerenje 2 koriste ${textValue(values, 'rule')}`
+			: `Wave 1 and Wave 2 use ${textValue(values, 'rule')}`,
+	'waves.method.scoringRules.sameRule.detail':
+		'The selected waves use the same scoring rule key and version.',
+	'waves.method.scoringRules.different.summary': (values, locale) =>
+		locale === 'hr-HR'
+			? `Mjerenje 1 koristi ${textValue(values, 'baselineRule')}; Mjerenje 2 koristi ${textValue(
+					values,
+					'comparisonRule'
+				)}`
+			: `Wave 1 uses ${textValue(values, 'baselineRule')}; Wave 2 uses ${textValue(
+					values,
+					'comparisonRule'
+				)}`,
+	'waves.method.scoringRules.different.detail':
+		'Review compatibility before describing score movement between waves.',
+	'waves.method.comparisonMethod.waveOnly.summary': 'Wave-level review only',
+	'waves.method.comparisonMethod.waveOnly.detail':
+		'Same-respondent change needs repeat-participation waves. Anonymous unlinked waves support aggregate group trend only.',
+	'waves.method.comparisonMethod.linked.summary': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'linkedPairs'), 'linkedPair')}, ${formatCount(
+			locale,
+			numberValue(values, 'visibleScores'),
+			'comparisonScore'
+		)}`,
+	'waves.method.comparisonMethod.linked.detail':
+		'Linked change uses repeat-participation trajectories after scoring compatibility and disclosure checks.',
+	'waves.method.outputs.noRepeated.summary': 'No linked outputs yet',
+	'waves.method.outputs.noRepeated.detail':
+		'Compared output names appear after repeated waves are ready for linked change.',
+	'waves.method.outputs.ready.summary': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'comparedOutput')}: ${textValue(
+			values,
+			'outputs'
+		)}`,
+	'waves.method.outputs.ready.detail':
+		'These output codes come from the linked-change proof. Keep the scoring plan with any interpretation.',
+	'waves.method.outputs.pending.summary':
+		'Compared output names available after reviewing linked change',
+	'waves.method.outputs.blocked.summary': 'No visible compared outputs yet',
+	'waves.method.outputs.review.detail':
+		'Run Review linked change to load the compared score output rows.',
+	'waves.method.missingness.noRepeated.summary': 'No linked missingness yet',
+	'waves.method.missingness.noRepeated.detail':
+		'Missing-answer comparison metadata appears after repeated waves are ready.',
+	'waves.method.missingness.pending.summary':
+		'Missing-answer metadata available after reviewing linked change',
+	'waves.method.missingness.pending.detail':
+		'Run Review linked change to load valid/expected answer contribution counts.',
+	'waves.method.missingness.complete.summary': 'No missing-score input gap in comparison preview',
+	'waves.method.missingness.complete.detail':
+		'The compared outputs reported complete valid/expected answer contribution counts.',
+	'waves.method.missingness.incomplete.summary':
+		'Some compared score inputs were incomplete',
+	'waves.method.missingness.incomplete.baseline': (values, locale) =>
+		locale === 'hr-HR'
+			? `${textValue(values, 'dimension')} u početnom mjerenju koristi ${formatNumber(
+					locale,
+					numberValue(values, 'valid')
+				)} od ${formatNumber(locale, numberValue(values, 'expected'))} očekivanih doprinosa odgovora`
+			: `${textValue(values, 'dimension')} baseline used ${formatNumber(
+					locale,
+					numberValue(values, 'valid')
+				)} of ${formatNumber(locale, numberValue(values, 'expected'))} expected answer contributions`,
+	'waves.method.missingness.incomplete.followUp': (values, locale) =>
+		locale === 'hr-HR'
+			? `${textValue(values, 'dimension')} u usporednom mjerenju koristi ${formatNumber(
+					locale,
+					numberValue(values, 'valid')
+				)} od ${formatNumber(locale, numberValue(values, 'expected'))} očekivanih doprinosa odgovora`
+			: `${textValue(values, 'dimension')} follow-up used ${formatNumber(
+					locale,
+					numberValue(values, 'valid')
+				)} of ${formatNumber(locale, numberValue(values, 'expected'))} expected answer contributions`,
+	'waves.method.interpretation.noWave.summary': 'No wave selected',
+	'waves.method.interpretation.noWave.detail':
+		'Create a wave before reviewing interpretation boundaries.',
+	'waves.method.interpretation.waveOnly.summary': 'Wave-level results only',
+	'waves.method.interpretation.waveOnly.detail':
+		'Do not describe change until a follow-up wave exists.',
+	'waves.method.interpretation.ready.summary':
+		'Interpretation reviewed for this comparison',
+	'waves.method.interpretation.ready.detail':
+		'Keep disclosure and method notes with any wave-comparison export or report.',
+	'waves.method.interpretation.custom.summary': 'Custom-study change, not a benchmark',
+	'waves.method.interpretation.custom.detail':
+		'Describe this as change in this tenant-defined study only. Do not present it as an official benchmark, norm, clinical threshold, or externally validated claim.'
 } satisfies Record<string, AppMessageTemplate>;
 
 export type AppMessageId = keyof typeof enMessages;
@@ -382,6 +559,114 @@ const hrMessages: AppMessageCatalog = {
 	'results.export.scoreOutputs.notDetected.summary': 'Izlazi rezultata nisu otkriveni',
 	'results.export.scoreOutputs.review.detail':
 		'Pregledajte polja izlaza rezultata prije tumačenja.'
+	,
+	'waves.review.waveSequence.label': 'Redoslijed mjerenja',
+	'waves.review.waveSequence.noWave.summary': 'Još nema mjerenja',
+	'waves.review.waveSequence.noWave.detail':
+		'Izradite Mjerenje 1 u Postavljanju, pokrenite ga iz Prikupljanja, zatim se vratite nakon što odgovori stignu.',
+	'waves.review.waveSequence.oneWave.summary': 'Postoji samo Mjerenje 1',
+	'waves.review.waveSequence.oneWave.detail':
+		'Pregledajte Mjerenje 1 u Rezultatima prije odluke treba li Mjerenje 2 za nastavak prikupljanja.',
+	'waves.review.waveSequence.multiple.detail':
+		'Pregledajte zadnja dva mjerenja u nastavku. Novo mjerenje dodajte samo kada je novi krug prikupljanja stvarno planiran.',
+	'waves.review.comparisonType.label': 'Vrsta usporedbe',
+	'waves.review.comparisonType.noComparison.summary': 'Još nema usporedbe',
+	'waves.review.comparisonType.noComparison.detail':
+		'Usporedba treba barem dva mjerenja s odgovorima.',
+	'waves.review.comparisonType.sameRespondent.summary': 'Povezana promjena istih sudionika',
+	'waves.review.comparisonType.sameRespondent.detail':
+		'Ova mjerenja imaju ponovljeno sudjelovanje, kompatibilno bodovanje i vidljiv izlaz usporedbe nakon pravila prikaza.',
+	'waves.review.comparisonType.linkedNeedsChecks.summary': 'Povezana usporedba treba provjere',
+	'waves.review.comparisonType.linkedNeedsChecks.detail':
+		'Studija ima mjerenja s ponovljenim sudjelovanjem, ali povezani parovi, kompatibilnost bodovanja ili vidljivost prikaza još trebaju potvrdu.',
+	'waves.review.comparisonType.groupTrend.summary': 'Samo grupni trend',
+	'waves.review.comparisonType.groupTrend.detail':
+		'Ova mjerenja mogu prikazati agregirani pomak između krugova, ali ne promjenu pojedinačnih sudionika.',
+	'waves.review.comparisonType.collectTwo.detail':
+		'Prikupite odgovore u barem dva mjerenja prije pregleda promjene kroz vrijeme.',
+	'waves.review.dataReadiness.label': 'Spremnost podataka',
+	'waves.review.dataReadiness.linkedReady.detail':
+		'Povezana usporedba vidljiva je nakon provjera prikaza i bodovanja. Skriveni rezultati ostaju skriveni.',
+	'waves.review.dataReadiness.followUpFirst.summary': 'Prvo prikupite sljedeće mjerenje',
+	'waves.review.dataReadiness.followUpFirst.detail':
+		'Jedno mjerenje može se pregledati u Rezultatima, ali ne može prikazati promjenu kroz vrijeme.',
+	'waves.review.dataReadiness.groupTrendPending.summary':
+		'Dovršite izlaze rezultata prije čitanja trenda',
+	'waves.review.dataReadiness.groupTrend.detail':
+		'Koristite Rezultate za stvarne tablice rezultata i izvoze prije tvrdnji iz ovog trenda.',
+	'waves.review.dataReadiness.comparisonNotReady.summary': 'Izlaz usporedbe nije spreman',
+	'waves.review.dataReadiness.comparisonNotReady.detail':
+		'Pokrenite provjere u nastavku kako biste vidjeli blokiraju li pregled povezani parovi, bodovanje ili pravila prikaza.',
+	'waves.review.claimBoundary.label': 'Granica tvrdnje',
+	'waves.review.claimBoundary.sameReady.summary':
+		'Usporedba prilagođene studije uz pravila prikaza',
+	'waves.review.claimBoundary.sameReady.detail':
+		'Opišite ovo kao promjenu u ovoj prilagođenoj studiji radnog prostora, a ne kao službenu usporednu vrijednost ili klinički prag.',
+	'waves.review.claimBoundary.groupTrend.summary':
+		'Nemojte ovo zvati promjenom istih sudionika',
+	'waves.review.claimBoundary.groupTrend.detail':
+		'Koristite formulacije na razini grupe, npr. agregirani trend između mjerenja, osim ako je ponovljeno sudjelovanje spremno.',
+	'waves.review.claimBoundary.oneWave.summary': 'Trenutni rezultati su samo za jedno mjerenje',
+	'waves.review.claimBoundary.oneWave.detail':
+		'Pregledajte Mjerenje 1 zasebno. Ne opisujte pomak dok ne postoji sljedeće mjerenje.',
+	'waves.review.claimBoundary.noClaim.summary': 'Nema dostupne tvrdnje o promjeni',
+	'waves.review.claimBoundary.noClaim.detail':
+		'Izradite i prikupite mjerenja prije pisanja tumačenja promjene kroz vrijeme.',
+	'waves.method.scoringRules.label': 'Pravila rezultata',
+	'waves.method.comparisonMethod.label': 'Metoda usporedbe',
+	'waves.method.outputs.label': 'Uspoređeni izlazi',
+	'waves.method.missingness.label': 'Nedostajući odgovori',
+	'waves.method.interpretationBoundary.label': 'Granica tumačenja',
+	'waves.method.rule.notConfigured': 'nije postavljeno',
+	'waves.method.scoringRules.twoWavesNeeded.summary': 'Potrebna su dva mjerenja',
+	'waves.method.scoringRules.twoWavesNeeded.detail':
+		'Odaberite ili izradite dva mjerenja prije usporedbe pravila rezultata.',
+	'waves.method.scoringRules.sameRule.detail':
+		'Odabrana mjerenja koriste isti ključ i verziju pravila rezultata.',
+	'waves.method.scoringRules.different.detail':
+		'Pregledajte kompatibilnost prije opisivanja pomaka rezultata između mjerenja.',
+	'waves.method.comparisonMethod.waveOnly.summary': 'Pregled samo na razini mjerenja',
+	'waves.method.comparisonMethod.waveOnly.detail':
+		'Promjena istih sudionika treba mjerenja s ponovljenim sudjelovanjem. Anonimna nepovezana mjerenja podržavaju samo agregirani grupni trend.',
+	'waves.method.comparisonMethod.linked.detail':
+		'Povezana promjena koristi putanje ponovljenog sudjelovanja nakon provjera kompatibilnosti bodovanja i pravila prikaza.',
+	'waves.method.outputs.noRepeated.summary': 'Još nema povezanih izlaza',
+	'waves.method.outputs.noRepeated.detail':
+		'Nazivi uspoređenih izlaza pojavljuju se nakon što su ponovljena mjerenja spremna za povezanu promjenu.',
+	'waves.method.outputs.ready.detail':
+		'Ovi kodovi izlaza dolaze iz provjere povezane promjene. Uz svako tumačenje zadržite plan rezultata.',
+	'waves.method.outputs.pending.summary':
+		'Nazivi uspoređenih izlaza dostupni su nakon pregleda povezane promjene',
+	'waves.method.outputs.blocked.summary': 'Još nema vidljivih uspoređenih izlaza',
+	'waves.method.outputs.review.detail':
+		'Pokrenite Pregled povezane promjene za učitavanje redaka uspoređenih izlaza rezultata.',
+	'waves.method.missingness.noRepeated.summary': 'Još nema povezanih nedostajućih vrijednosti',
+	'waves.method.missingness.noRepeated.detail':
+		'Metapodaci usporedbe nedostajućih odgovora pojavljuju se nakon što su ponovljena mjerenja spremna.',
+	'waves.method.missingness.pending.summary':
+		'Metapodaci nedostajućih odgovora dostupni su nakon pregleda povezane promjene',
+	'waves.method.missingness.pending.detail':
+		'Pokrenite Pregled povezane promjene za učitavanje broja važećih i očekivanih doprinosa odgovora.',
+	'waves.method.missingness.complete.summary':
+		'Nema praznine u ulazima rezultata u pregledu usporedbe',
+	'waves.method.missingness.complete.detail':
+		'Uspoređeni izlazi imaju potpune brojeve važećih i očekivanih doprinosa odgovora.',
+	'waves.method.missingness.incomplete.summary':
+		'Neki uspoređeni ulazi rezultata nisu potpuni',
+	'waves.method.interpretation.noWave.summary': 'Nije odabrano mjerenje',
+	'waves.method.interpretation.noWave.detail':
+		'Izradite mjerenje prije pregleda granica tumačenja.',
+	'waves.method.interpretation.waveOnly.summary': 'Rezultati su samo na razini mjerenja',
+	'waves.method.interpretation.waveOnly.detail':
+		'Ne opisujte promjenu dok ne postoji sljedeće mjerenje.',
+	'waves.method.interpretation.ready.summary':
+		'Tumačenje je pregledano za ovu usporedbu',
+	'waves.method.interpretation.ready.detail':
+		'Uz svaki izvoz ili izvještaj usporedbe mjerenja zadržite bilješke o prikazu i metodi.',
+	'waves.method.interpretation.custom.summary':
+		'Promjena u prilagođenoj studiji, ne usporedna vrijednost',
+	'waves.method.interpretation.custom.detail':
+		'Opišite ovo samo kao promjenu u ovoj studiji radnog prostora. Nemojte je predstavljati kao službenu usporednu vrijednost, normu, klinički prag ili vanjski validiranu tvrdnju.'
 };
 
 const messageCatalogs: Record<AppLocale, AppMessageCatalog> = {
@@ -394,6 +679,9 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		answerMetadataField: { one: 'answer metadata field', other: 'answer metadata fields' },
 		answerVariable: { one: 'answer variable', other: 'answer variables' },
 		column: { one: 'column', other: 'columns' },
+		comparedOutput: { one: 'compared output', other: 'compared outputs' },
+		comparisonScore: { one: 'visible comparison score', other: 'visible comparison scores' },
+		linkedPair: { one: 'linked pair', other: 'linked pairs' },
 		measurement: { one: 'wave', other: 'waves' },
 		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
 		response: { one: 'response', other: 'responses' },
@@ -414,6 +702,17 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			other: 'varijabli odgovora'
 		},
 		column: { one: 'stupac', few: 'stupca', other: 'stupaca' },
+		comparedOutput: {
+			one: 'uspoređeni izlaz rezultata',
+			few: 'uspoređena izlaza rezultata',
+			other: 'uspoređenih izlaza rezultata'
+		},
+		comparisonScore: {
+			one: 'vidljiv usporedni rezultat',
+			few: 'vidljiva usporedna rezultata',
+			other: 'vidljivih usporednih rezultata'
+		},
+		linkedPair: { one: 'povezani par', few: 'povezana para', other: 'povezanih parova' },
 		measurement: { one: 'mjerenje', few: 'mjerenja', other: 'mjerenja' },
 		reportSummaryColumn: {
 			one: 'stupac sažetka izvještaja',

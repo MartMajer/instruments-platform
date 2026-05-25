@@ -166,7 +166,7 @@ describe('selected-series waves workflow model', () => {
 			expect.objectContaining({
 				id: 'data_readiness',
 				status: 'ready',
-				summary: '6 linked pairs, 1 visible score'
+				summary: '6 linked pairs, 1 visible comparison score'
 			})
 		);
 		expect(review.items).toContainEqual(
@@ -408,6 +408,11 @@ describe('selected-series waves workflow model', () => {
 		const groupTrend = toSelectedSeriesGroupTrendPlan(twoAnonymousClosedWorkspace, copy);
 		const path = toSelectedSeriesWavesPath(comparisonReadyWorkspace, {}, copy);
 		const review = toSelectedSeriesWaveComparisonReview(twoAnonymousClosedWorkspace, copy);
+		const method = toSelectedSeriesWaveScoreMethodReview(
+			comparisonReadyWorkspace,
+			waveComparisonProof,
+			copy
+		);
 
 		expect(plan).toMatchObject({
 			title: 'Pregledajte Mjerenje 1 prije planiranja Mjerenja 2',
@@ -425,6 +430,30 @@ describe('selected-series waves workflow model', () => {
 		expect(review).toMatchObject({
 			title: 'Plan usporedbe'
 		});
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'comparison_type',
+				label: 'Vrsta usporedbe',
+				summary: 'Samo grupni trend'
+			})
+		);
+		expect(review.items).toContainEqual(
+			expect.objectContaining({
+				id: 'data_readiness',
+				label: 'Spremnost podataka',
+				summary: '1 rezultat u prvom mjerenju, 1 rezultat u drugom mjerenju'
+			})
+		);
+		expect(method.items).toContainEqual(
+			expect.objectContaining({
+				id: 'outputs',
+				label: 'Uspoređeni izlazi',
+				summary: '1 uspoređeni izlaz rezultata: burnout_total'
+			})
+		);
+		expect(method.items.find((item) => item.id === 'missingness')?.detail).toContain(
+			'burnout_total u početnom mjerenju koristi 5 od 6 očekivanih doprinosa odgovora'
+		);
 	});
 });
 

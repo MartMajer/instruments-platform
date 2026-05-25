@@ -3,6 +3,8 @@ import type {
 	CampaignSeriesWaveComparisonProofResponse,
 	WaveScoreComparisonResponse
 } from '$lib/api/setup';
+import type { AppLocale } from '$lib/i18n/localization';
+import { appMessage, type AppMessageId, type AppMessageValues } from '$lib/i18n/messages';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesWavesWorkflowActionId = 'twoWaveProof' | 'waveComparisonProof';
@@ -117,6 +119,7 @@ type WavesWorkflowActionCopy = {
 };
 
 export type SelectedSeriesWavesWorkflowCopy = {
+	locale?: AppLocale;
 	stepNumber: (number: number) => string;
 	plan: {
 		createFirstTitle: string;
@@ -189,6 +192,7 @@ export type SelectedSeriesWavesWorkflowCopy = {
 };
 
 export const defaultSelectedSeriesWavesWorkflowCopy: SelectedSeriesWavesWorkflowCopy = {
+	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
 	plan: {
 		createFirstTitle: 'Create the first wave',
@@ -477,10 +481,10 @@ export function toSelectedSeriesWaveComparisonReview(
 	const sameRespondentReady = isSameRespondentComparisonReady(workspace);
 	const groupTrendReady = groupTrendPlan.status === 'ready';
 	const items: SelectedSeriesWaveComparisonReviewItem[] = [
-		toWaveSequenceReviewItem(workspace),
-		toComparisonTypeReviewItem(workspace, groupTrendPlan, sameRespondentReady),
-		toDataReadinessReviewItem(workspace, groupTrendPlan, sameRespondentReady),
-		toClaimBoundaryReviewItem(workspace, groupTrendPlan, sameRespondentReady)
+		toWaveSequenceReviewItem(workspace, copy),
+		toComparisonTypeReviewItem(workspace, groupTrendPlan, sameRespondentReady, copy),
+		toDataReadinessReviewItem(workspace, groupTrendPlan, sameRespondentReady, copy),
+		toClaimBoundaryReviewItem(workspace, groupTrendPlan, sameRespondentReady, copy)
 	];
 
 	return {
@@ -509,11 +513,16 @@ export function toSelectedSeriesWaveScoreMethodReview(
 	const hasAnyWave = workspace.summary.campaignCount > 0;
 	const hasRepeatedWaves = workspace.summary.longitudinalWaveCount >= 2;
 	const items: SelectedSeriesWaveScoreMethodReviewItem[] = [
-		toWaveScoringRulesItem(workspace),
-		toWaveComparisonMethodItem(workspace),
-		toWaveComparedOutputsItem(hasRepeatedWaves, workspace.comparison.visibleScoreCount, proofScores),
-		toWaveMissingnessItem(hasRepeatedWaves, proofScores),
-		toWaveInterpretationBoundaryItem(hasAnyWave, hasRepeatedWaves, interpretationReviewed)
+		toWaveScoringRulesItem(workspace, copy),
+		toWaveComparisonMethodItem(workspace, copy),
+		toWaveComparedOutputsItem(
+			hasRepeatedWaves,
+			workspace.comparison.visibleScoreCount,
+			proofScores,
+			copy
+		),
+		toWaveMissingnessItem(hasRepeatedWaves, proofScores, copy),
+		toWaveInterpretationBoundaryItem(hasAnyWave, hasRepeatedWaves, interpretationReviewed, copy)
 	];
 
 	return {
@@ -694,6 +703,14 @@ function toWaveComparisonDisabledReason(
 		: copy.disabled.checkReadinessBeforeReview;
 }
 
+function waveMessage(
+	copy: SelectedSeriesWavesWorkflowCopy,
+	id: AppMessageId,
+	values: AppMessageValues = {}
+) {
+	return appMessage(copy.locale ?? 'en', id, values);
+}
+
 function toPathStepState(
 	actionId: SelectedSeriesWavesWorkflowActionId,
 	currentActionId: SelectedSeriesWavesWorkflowActionId,
@@ -711,199 +728,198 @@ function toPathStepState(
 }
 
 function toWaveSequenceReviewItem(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveComparisonReviewItem {
 	if (workspace.summary.campaignCount === 0) {
 		return {
 			id: 'wave_sequence',
-			label: 'Wave sequence',
+			label: waveMessage(copy, 'waves.review.waveSequence.label'),
 			status: 'blocked',
-			summary: 'No wave exists yet',
-			detail: 'Create Wave 1 in Setup, launch it from Collection, then return here after responses arrive.'
+			summary: waveMessage(copy, 'waves.review.waveSequence.noWave.summary'),
+			detail: waveMessage(copy, 'waves.review.waveSequence.noWave.detail')
 		};
 	}
 
 	if (workspace.summary.campaignCount === 1) {
 		return {
 			id: 'wave_sequence',
-			label: 'Wave sequence',
+			label: waveMessage(copy, 'waves.review.waveSequence.label'),
 			status: 'pending',
-			summary: 'Only Wave 1 exists',
-			detail:
-				'Review Wave 1 in Results before deciding whether Wave 2 is needed for a follow-up collection.'
+			summary: waveMessage(copy, 'waves.review.waveSequence.oneWave.summary'),
+			detail: waveMessage(copy, 'waves.review.waveSequence.oneWave.detail')
 		};
 	}
 
 	return {
 		id: 'wave_sequence',
-		label: 'Wave sequence',
+		label: waveMessage(copy, 'waves.review.waveSequence.label'),
 		status: 'ready',
-		summary: `${workspace.summary.campaignCount} waves exist`,
-		detail:
-			'Review the latest two waves below. Add another wave only when a new collection round is actually planned.'
+		summary: waveMessage(copy, 'waves.review.waveSequence.multiple.summary', {
+			count: workspace.summary.campaignCount
+		}),
+		detail: waveMessage(copy, 'waves.review.waveSequence.multiple.detail')
 	};
 }
 
 function toComparisonTypeReviewItem(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	groupTrendPlan: SelectedSeriesGroupTrendPlan,
-	sameRespondentReady: boolean
+	sameRespondentReady: boolean,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveComparisonReviewItem {
 	if (workspace.summary.campaignCount < 2) {
 		return {
 			id: 'comparison_type',
-			label: 'Comparison type',
+			label: waveMessage(copy, 'waves.review.comparisonType.label'),
 			status: 'pending',
-			summary: 'No comparison yet',
-			detail: 'A comparison needs at least two waves with responses.'
+			summary: waveMessage(copy, 'waves.review.comparisonType.noComparison.summary'),
+			detail: waveMessage(copy, 'waves.review.comparisonType.noComparison.detail')
 		};
 	}
 
 	if (sameRespondentReady) {
 		return {
 			id: 'comparison_type',
-			label: 'Comparison type',
+			label: waveMessage(copy, 'waves.review.comparisonType.label'),
 			status: 'ready',
-			summary: 'Same-respondent linked change',
-			detail:
-				'These waves have repeat-participation linking, scoring compatibility, and disclosure-visible comparison output.'
+			summary: waveMessage(copy, 'waves.review.comparisonType.sameRespondent.summary'),
+			detail: waveMessage(copy, 'waves.review.comparisonType.sameRespondent.detail')
 		};
 	}
 
 	if (workspace.summary.longitudinalWaveCount >= 2) {
 		return {
 			id: 'comparison_type',
-			label: 'Comparison type',
+			label: waveMessage(copy, 'waves.review.comparisonType.label'),
 			status: 'pending',
-			summary: 'Linked comparison needs checks',
-			detail:
-				'The study has repeat-participation waves, but linked pairs, scoring compatibility, or disclosure output still need confirmation.'
+			summary: waveMessage(copy, 'waves.review.comparisonType.linkedNeedsChecks.summary'),
+			detail: waveMessage(copy, 'waves.review.comparisonType.linkedNeedsChecks.detail')
 		};
 	}
 
 	if (groupTrendPlan.status !== 'blocked') {
 		return {
 			id: 'comparison_type',
-			label: 'Comparison type',
+			label: waveMessage(copy, 'waves.review.comparisonType.label'),
 			status: groupTrendPlan.status,
-			summary: 'Group trend only',
-			detail:
-				'These waves can show aggregate movement between rounds, but not individual respondent change.'
+			summary: waveMessage(copy, 'waves.review.comparisonType.groupTrend.summary'),
+			detail: waveMessage(copy, 'waves.review.comparisonType.groupTrend.detail')
 		};
 	}
 
 	return {
 		id: 'comparison_type',
-		label: 'Comparison type',
+		label: waveMessage(copy, 'waves.review.comparisonType.label'),
 		status: 'blocked',
-		summary: 'No comparison yet',
-		detail: 'Collect responses in at least two waves before reviewing change over time.'
+		summary: waveMessage(copy, 'waves.review.comparisonType.noComparison.summary'),
+		detail: waveMessage(copy, 'waves.review.comparisonType.collectTwo.detail')
 	};
 }
 
 function toDataReadinessReviewItem(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	groupTrendPlan: SelectedSeriesGroupTrendPlan,
-	sameRespondentReady: boolean
+	sameRespondentReady: boolean,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveComparisonReviewItem {
 	if (sameRespondentReady) {
 		return {
 			id: 'data_readiness',
-			label: 'Data readiness',
+			label: waveMessage(copy, 'waves.review.dataReadiness.label'),
 			status: 'ready',
-			summary: `${workspace.comparison.linkedPairCount} linked ${pluralize(
-				workspace.comparison.linkedPairCount,
-				'pair',
-				'pairs'
-			)}, ${workspace.comparison.visibleScoreCount} visible ${pluralize(
-				workspace.comparison.visibleScoreCount,
-				'score',
-				'scores'
-			)}`,
-			detail:
-				'The linked comparison is visible after disclosure and scoring checks. Suppressed scores stay hidden.'
+			summary: waveMessage(copy, 'waves.review.dataReadiness.linkedReady.summary', {
+				linkedPairs: workspace.comparison.linkedPairCount,
+				visibleScores: workspace.comparison.visibleScoreCount
+			}),
+			detail: waveMessage(copy, 'waves.review.dataReadiness.linkedReady.detail')
 		};
 	}
 
 	if (workspace.summary.campaignCount < 2) {
 		return {
 			id: 'data_readiness',
-			label: 'Data readiness',
+			label: waveMessage(copy, 'waves.review.dataReadiness.label'),
 			status: 'blocked',
-			summary: 'Collect a follow-up wave first',
-			detail: 'One wave can be reviewed in Results, but it cannot show change over time.'
+			summary: waveMessage(copy, 'waves.review.dataReadiness.followUpFirst.summary'),
+			detail: waveMessage(copy, 'waves.review.dataReadiness.followUpFirst.detail')
 		};
 	}
 
 	if (groupTrendPlan.status !== 'blocked') {
-		const firstScores = groupTrendPlan.safetyRows.find((row) => row.label === 'First wave scores');
-		const secondScores = groupTrendPlan.safetyRows.find((row) => row.label === 'Second wave scores');
+		const firstScores = groupTrendPlan.safetyRows.find(
+			(row) => row.label === copy.groupTrend.firstWaveScoresLabel
+		);
+		const secondScores = groupTrendPlan.safetyRows.find(
+			(row) => row.label === copy.groupTrend.secondWaveScoresLabel
+		);
 
 		return {
 			id: 'data_readiness',
-			label: 'Data readiness',
+			label: waveMessage(copy, 'waves.review.dataReadiness.label'),
 			status: groupTrendPlan.status,
 			summary:
 				groupTrendPlan.status === 'ready'
-					? `${firstScores?.value ?? 0} first-wave scores, ${secondScores?.value ?? 0} second-wave scores`
-					: 'Finish score output before reading the trend',
-			detail:
-				'Use Results for the actual score tables and exports before making claims from this trend.'
+					? waveMessage(copy, 'waves.review.dataReadiness.groupTrendReady.summary', {
+							firstScores: Number(firstScores?.value ?? 0),
+							secondScores: Number(secondScores?.value ?? 0)
+						})
+					: waveMessage(copy, 'waves.review.dataReadiness.groupTrendPending.summary'),
+			detail: waveMessage(copy, 'waves.review.dataReadiness.groupTrend.detail')
 		};
 	}
 
 	return {
 		id: 'data_readiness',
-		label: 'Data readiness',
+		label: waveMessage(copy, 'waves.review.dataReadiness.label'),
 		status: 'pending',
-		summary: 'Comparison output is not ready',
-		detail: 'Run the checks below to see whether linked pairs, scoring, or disclosure are blocking review.'
+		summary: waveMessage(copy, 'waves.review.dataReadiness.comparisonNotReady.summary'),
+		detail: waveMessage(copy, 'waves.review.dataReadiness.comparisonNotReady.detail')
 	};
 }
 
 function toClaimBoundaryReviewItem(
 	workspace: CampaignSeriesWavesWorkspaceResponse,
 	groupTrendPlan: SelectedSeriesGroupTrendPlan,
-	sameRespondentReady: boolean
+	sameRespondentReady: boolean,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveComparisonReviewItem {
 	if (sameRespondentReady) {
 		return {
 			id: 'claim_boundary',
-			label: 'Claim boundary',
+			label: waveMessage(copy, 'waves.review.claimBoundary.label'),
 			status: 'ready',
-			summary: 'Disclosure-gated custom-study comparison',
-			detail:
-				'Describe this as change in this tenant-provided custom study, not as an official benchmark or clinical threshold.'
+			summary: waveMessage(copy, 'waves.review.claimBoundary.sameReady.summary'),
+			detail: waveMessage(copy, 'waves.review.claimBoundary.sameReady.detail')
 		};
 	}
 
 	if (groupTrendPlan.status !== 'blocked') {
 		return {
 			id: 'claim_boundary',
-			label: 'Claim boundary',
+			label: waveMessage(copy, 'waves.review.claimBoundary.label'),
 			status: 'ready',
-			summary: 'Do not call this same-respondent change',
-			detail:
-				'Use group-level wording such as aggregate trend between waves unless repeat-participation linking is ready.'
+			summary: waveMessage(copy, 'waves.review.claimBoundary.groupTrend.summary'),
+			detail: waveMessage(copy, 'waves.review.claimBoundary.groupTrend.detail')
 		};
 	}
 
 	if (workspace.summary.campaignCount === 1) {
 		return {
 			id: 'claim_boundary',
-			label: 'Claim boundary',
+			label: waveMessage(copy, 'waves.review.claimBoundary.label'),
 			status: 'ready',
-			summary: 'Current results are wave-level only',
-			detail: 'Review Wave 1 on its own. Do not describe movement until a follow-up wave exists.'
+			summary: waveMessage(copy, 'waves.review.claimBoundary.oneWave.summary'),
+			detail: waveMessage(copy, 'waves.review.claimBoundary.oneWave.detail')
 		};
 	}
 
 	return {
 		id: 'claim_boundary',
-		label: 'Claim boundary',
+		label: waveMessage(copy, 'waves.review.claimBoundary.label'),
 		status: 'blocked',
-		summary: 'No change claim available',
-		detail: 'Create and collect waves before writing any change-over-time interpretation.'
+		summary: waveMessage(copy, 'waves.review.claimBoundary.noClaim.summary'),
+		detail: waveMessage(copy, 'waves.review.claimBoundary.noClaim.detail')
 	};
 }
 
@@ -919,7 +935,8 @@ function isSameRespondentComparisonReady(workspace: CampaignSeriesWavesWorkspace
 }
 
 function toWaveScoringRulesItem(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReviewItem {
 	const baseline = workspace.selectedBaselineWave;
 	const comparison = workspace.selectedComparisonWave;
@@ -927,44 +944,50 @@ function toWaveScoringRulesItem(
 	if (!baseline || !comparison) {
 		return {
 			id: 'scoring_rules',
-			label: 'Scoring rules',
+			label: waveMessage(copy, 'waves.method.scoringRules.label'),
 			status: 'pending',
-			summary: 'Two waves needed',
-			detail: 'Select or create two waves before comparing scoring rules.'
+			summary: waveMessage(copy, 'waves.method.scoringRules.twoWavesNeeded.summary'),
+			detail: waveMessage(copy, 'waves.method.scoringRules.twoWavesNeeded.detail')
 		};
 	}
 
-	const baselineRule = formatRuleVersion(baseline.scoringRuleKey, baseline.scoringRuleVersion);
+	const baselineRule = formatRuleVersion(baseline.scoringRuleKey, baseline.scoringRuleVersion, copy);
 	const comparisonRule = formatRuleVersion(
 		comparison.scoringRuleKey,
-		comparison.scoringRuleVersion
+		comparison.scoringRuleVersion,
+		copy
 	);
-	const sameRule = baselineRule === comparisonRule && baselineRule !== 'not configured';
+	const sameRule =
+		baselineRule === comparisonRule &&
+		baselineRule !== waveMessage(copy, 'waves.method.rule.notConfigured');
 
 	return {
 		id: 'scoring_rules',
-		label: 'Scoring rules',
+		label: waveMessage(copy, 'waves.method.scoringRules.label'),
 		status: sameRule ? 'ready' : 'pending',
 		summary: sameRule
-			? `Wave 1 and Wave 2 use ${baselineRule}`
-			: `Wave 1 uses ${baselineRule}; Wave 2 uses ${comparisonRule}`,
+			? waveMessage(copy, 'waves.method.scoringRules.sameRule.summary', { rule: baselineRule })
+			: waveMessage(copy, 'waves.method.scoringRules.different.summary', {
+					baselineRule,
+					comparisonRule
+				}),
 		detail: sameRule
-			? 'The selected waves use the same scoring rule key and version.'
-			: 'Review compatibility before describing score movement between waves.'
+			? waveMessage(copy, 'waves.method.scoringRules.sameRule.detail')
+			: waveMessage(copy, 'waves.method.scoringRules.different.detail')
 	};
 }
 
 function toWaveComparisonMethodItem(
-	workspace: CampaignSeriesWavesWorkspaceResponse
+	workspace: CampaignSeriesWavesWorkspaceResponse,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReviewItem {
 	if (workspace.summary.longitudinalWaveCount < 2) {
 		return {
 			id: 'comparison_method',
-			label: 'Comparison method',
+			label: waveMessage(copy, 'waves.method.comparisonMethod.label'),
 			status: 'pending',
-			summary: 'Wave-level review only',
-			detail:
-				'Same-respondent change needs repeat-participation waves. Anonymous unlinked waves support aggregate group trend only.'
+			summary: waveMessage(copy, 'waves.method.comparisonMethod.waveOnly.summary'),
+			detail: waveMessage(copy, 'waves.method.comparisonMethod.waveOnly.detail')
 		};
 	}
 
@@ -973,101 +996,99 @@ function toWaveComparisonMethodItem(
 
 	return {
 		id: 'comparison_method',
-		label: 'Comparison method',
+		label: waveMessage(copy, 'waves.method.comparisonMethod.label'),
 		status: linkedPairs > 0 && visibleScores > 0 ? 'ready' : 'pending',
-		summary: `${linkedPairs} linked ${pluralize(
+		summary: waveMessage(copy, 'waves.method.comparisonMethod.linked.summary', {
 			linkedPairs,
-			'pair',
-			'pairs'
-		)}, ${visibleScores} visible comparison ${pluralize(visibleScores, 'score', 'scores')}`,
-		detail:
-			'Linked change uses repeat-participation trajectories after scoring compatibility and disclosure checks.'
+			visibleScores
+		}),
+		detail: waveMessage(copy, 'waves.method.comparisonMethod.linked.detail')
 	};
 }
 
 function toWaveComparedOutputsItem(
 	hasRepeatedWaves: boolean,
 	visibleScoreCount: number,
-	proofScores: WaveScoreComparisonResponse[]
+	proofScores: WaveScoreComparisonResponse[],
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReviewItem {
 	if (!hasRepeatedWaves) {
 		return {
 			id: 'outputs',
-			label: 'Compared outputs',
+			label: waveMessage(copy, 'waves.method.outputs.label'),
 			status: 'pending',
-			summary: 'No linked outputs yet',
-			detail: 'Compared output names appear after repeated waves are ready for linked change.'
+			summary: waveMessage(copy, 'waves.method.outputs.noRepeated.summary'),
+			detail: waveMessage(copy, 'waves.method.outputs.noRepeated.detail')
 		};
 	}
 
 	if (proofScores.length > 0) {
 		return {
 			id: 'outputs',
-			label: 'Compared outputs',
+			label: waveMessage(copy, 'waves.method.outputs.label'),
 			status: 'ready',
-			summary: `${proofScores.length} compared ${pluralize(
-				proofScores.length,
-				'output',
-				'outputs'
-			)}: ${proofScores.map((score) => score.dimensionCode).join(', ')}`,
-			detail:
-				'These output codes come from the linked-change proof. Keep the scoring plan with any interpretation.'
+			summary: waveMessage(copy, 'waves.method.outputs.ready.summary', {
+				count: proofScores.length,
+				outputs: proofScores.map((score) => score.dimensionCode).join(', ')
+			}),
+			detail: waveMessage(copy, 'waves.method.outputs.ready.detail')
 		};
 	}
 
 	return {
 		id: 'outputs',
-		label: 'Compared outputs',
+		label: waveMessage(copy, 'waves.method.outputs.label'),
 		status: visibleScoreCount > 0 ? 'pending' : 'blocked',
 		summary:
 			visibleScoreCount > 0
-				? 'Compared output names available after reviewing linked change'
-				: 'No visible compared outputs yet',
-		detail: 'Run Review linked change to load the compared score output rows.'
+				? waveMessage(copy, 'waves.method.outputs.pending.summary')
+				: waveMessage(copy, 'waves.method.outputs.blocked.summary'),
+		detail: waveMessage(copy, 'waves.method.outputs.review.detail')
 	};
 }
 
 function toWaveMissingnessItem(
 	hasRepeatedWaves: boolean,
-	proofScores: WaveScoreComparisonResponse[]
+	proofScores: WaveScoreComparisonResponse[],
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReviewItem {
 	if (!hasRepeatedWaves) {
 		return {
 			id: 'missingness',
-			label: 'Missing answers',
+			label: waveMessage(copy, 'waves.method.missingness.label'),
 			status: 'pending',
-			summary: 'No linked missingness yet',
-			detail: 'Missing-answer comparison metadata appears after repeated waves are ready.'
+			summary: waveMessage(copy, 'waves.method.missingness.noRepeated.summary'),
+			detail: waveMessage(copy, 'waves.method.missingness.noRepeated.detail')
 		};
 	}
 
 	if (proofScores.length === 0) {
 		return {
 			id: 'missingness',
-			label: 'Missing answers',
+			label: waveMessage(copy, 'waves.method.missingness.label'),
 			status: 'pending',
-			summary: 'Missing-answer metadata available after reviewing linked change',
-			detail: 'Run Review linked change to load valid/expected answer contribution counts.'
+			summary: waveMessage(copy, 'waves.method.missingness.pending.summary'),
+			detail: waveMessage(copy, 'waves.method.missingness.pending.detail')
 		};
 	}
 
-	const incomplete = proofScores.flatMap(toIncompleteComparisonInputSummaries);
+	const incomplete = proofScores.flatMap((score) => toIncompleteComparisonInputSummaries(score, copy));
 
 	if (incomplete.length === 0) {
 		return {
 			id: 'missingness',
-			label: 'Missing answers',
+			label: waveMessage(copy, 'waves.method.missingness.label'),
 			status: 'ready',
-			summary: 'No missing-score input gap in comparison preview',
-			detail: 'The compared outputs reported complete valid/expected answer contribution counts.'
+			summary: waveMessage(copy, 'waves.method.missingness.complete.summary'),
+			detail: waveMessage(copy, 'waves.method.missingness.complete.detail')
 		};
 	}
 
 	return {
 		id: 'missingness',
-		label: 'Missing answers',
+		label: waveMessage(copy, 'waves.method.missingness.label'),
 		status: 'pending',
-		summary: 'Some compared score inputs were incomplete',
+		summary: waveMessage(copy, 'waves.method.missingness.incomplete.summary'),
 		detail: incomplete.join('; ')
 	};
 }
@@ -1075,51 +1096,55 @@ function toWaveMissingnessItem(
 function toWaveInterpretationBoundaryItem(
 	hasAnyWave: boolean,
 	hasRepeatedWaves: boolean,
-	interpretationReviewed: boolean
+	interpretationReviewed: boolean,
+	copy: SelectedSeriesWavesWorkflowCopy
 ): SelectedSeriesWaveScoreMethodReviewItem {
 	if (!hasAnyWave) {
 		return {
 			id: 'interpretation_boundary',
-			label: 'Interpretation boundary',
+			label: waveMessage(copy, 'waves.method.interpretationBoundary.label'),
 			status: 'not_available',
-			summary: 'No wave selected',
-			detail: 'Create a wave before reviewing interpretation boundaries.'
+			summary: waveMessage(copy, 'waves.method.interpretation.noWave.summary'),
+			detail: waveMessage(copy, 'waves.method.interpretation.noWave.detail')
 		};
 	}
 
 	if (!hasRepeatedWaves) {
 		return {
 			id: 'interpretation_boundary',
-			label: 'Interpretation boundary',
+			label: waveMessage(copy, 'waves.method.interpretationBoundary.label'),
 			status: 'pending',
-			summary: 'Wave-level results only',
-			detail: 'Do not describe change until a follow-up wave exists.'
+			summary: waveMessage(copy, 'waves.method.interpretation.waveOnly.summary'),
+			detail: waveMessage(copy, 'waves.method.interpretation.waveOnly.detail')
 		};
 	}
 
 	if (interpretationReviewed) {
 		return {
 			id: 'interpretation_boundary',
-			label: 'Interpretation boundary',
+			label: waveMessage(copy, 'waves.method.interpretationBoundary.label'),
 			status: 'ready',
-			summary: 'Interpretation reviewed for this comparison',
-			detail: 'Keep disclosure and method notes with any wave-comparison export or report.'
+			summary: waveMessage(copy, 'waves.method.interpretation.ready.summary'),
+			detail: waveMessage(copy, 'waves.method.interpretation.ready.detail')
 		};
 	}
 
 	return {
 		id: 'interpretation_boundary',
-		label: 'Interpretation boundary',
+		label: waveMessage(copy, 'waves.method.interpretationBoundary.label'),
 		status: 'pending',
-		summary: 'Custom-study change, not a benchmark',
-		detail:
-			'Describe this as change in this tenant-defined study only. Do not present it as an official benchmark, norm, clinical threshold, or externally validated claim.'
+		summary: waveMessage(copy, 'waves.method.interpretation.custom.summary'),
+		detail: waveMessage(copy, 'waves.method.interpretation.custom.detail')
 	};
 }
 
-function formatRuleVersion(key: string | null | undefined, version: string | null | undefined) {
+function formatRuleVersion(
+	key: string | null | undefined,
+	version: string | null | undefined,
+	copy: SelectedSeriesWavesWorkflowCopy
+) {
 	if (!key) {
-		return 'not configured';
+		return waveMessage(copy, 'waves.method.rule.notConfigured');
 	}
 
 	return version ? `${key} ${version}` : key;
@@ -1135,10 +1160,16 @@ function isInterpretationValidated(status: string | null | undefined) {
 }
 
 function hasIncompleteComparisonInputs(score: WaveScoreComparisonResponse) {
-	return toIncompleteComparisonInputSummaries(score).length > 0;
+	return toIncompleteComparisonInputSummaries(
+		score,
+		defaultSelectedSeriesWavesWorkflowCopy
+	).length > 0;
 }
 
-function toIncompleteComparisonInputSummaries(score: WaveScoreComparisonResponse) {
+function toIncompleteComparisonInputSummaries(
+	score: WaveScoreComparisonResponse,
+	copy: SelectedSeriesWavesWorkflowCopy
+) {
 	const summaries: string[] = [];
 
 	if (
@@ -1147,7 +1178,11 @@ function toIncompleteComparisonInputSummaries(score: WaveScoreComparisonResponse
 		score.baselineNValidTotal < score.baselineNExpectedTotal
 	) {
 		summaries.push(
-			`${score.dimensionCode} baseline used ${score.baselineNValidTotal} of ${score.baselineNExpectedTotal} expected answer contributions`
+			waveMessage(copy, 'waves.method.missingness.incomplete.baseline', {
+				dimension: score.dimensionCode,
+				valid: score.baselineNValidTotal,
+				expected: score.baselineNExpectedTotal
+			})
 		);
 	}
 
@@ -1157,7 +1192,11 @@ function toIncompleteComparisonInputSummaries(score: WaveScoreComparisonResponse
 		score.comparisonNValidTotal < score.comparisonNExpectedTotal
 	) {
 		summaries.push(
-			`${score.dimensionCode} follow-up used ${score.comparisonNValidTotal} of ${score.comparisonNExpectedTotal} expected answer contributions`
+			waveMessage(copy, 'waves.method.missingness.incomplete.followUp', {
+				dimension: score.dimensionCode,
+				valid: score.comparisonNValidTotal,
+				expected: score.comparisonNExpectedTotal
+			})
 		);
 	}
 
@@ -1169,10 +1208,6 @@ function toGroupTrendWaves(workspace: CampaignSeriesWavesWorkspaceResponse) {
 		.filter((wave) => wave.submittedResponseCount > 0)
 		.sort((left, right) => toTimestamp(left.latestLaunchAt) - toTimestamp(right.latestLaunchAt))
 		.slice(-2);
-}
-
-function pluralize(value: number, singular: string, plural: string) {
-	return value === 1 ? singular : plural;
 }
 
 function toTimestamp(value: string | null | undefined) {

@@ -42,6 +42,24 @@ describe('app message catalog', () => {
 		).toBe('Polja mjerenja uključena su za 2 mjerenja');
 	});
 
+	it('formats Waves workflow dynamic messages through stable ids', () => {
+		expect(appMessage('hr-HR', 'waves.review.waveSequence.multiple.summary', { count: 2 })).toBe(
+			'Postoje 2 mjerenja'
+		);
+		expect(
+			appMessage('hr-HR', 'waves.review.dataReadiness.linkedReady.summary', {
+				linkedPairs: 2,
+				visibleScores: 1
+			})
+		).toBe('2 povezana para, 1 vidljiv usporedni rezultat');
+		expect(
+			appMessage('hr-HR', 'waves.method.outputs.ready.summary', {
+				count: 2,
+				outputs: 'workload, recovery'
+			})
+		).toBe('2 uspoređena izlaza rezultata: workload, recovery');
+	});
+
 	it('keeps message ids stable and non-empty', () => {
 		const invalidIds = appMessageIds().filter(
 			(id: AppMessageId) => !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/u.test(id)
