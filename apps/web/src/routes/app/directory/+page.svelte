@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { page } from '$app/state';
 	import { onDestroy } from 'svelte';
@@ -138,7 +138,7 @@
 
 			directory = null;
 			groupList = null;
-			errorMessage = toProductApiErrorMessage(error, 'Subject directory could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, text.directory.loadFailed);
 			loadState = 'error';
 		}
 	}
@@ -149,7 +149,7 @@
 		}
 
 		if (!newSubjectDisplayName.trim() && !newSubjectEmail.trim() && !newSubjectExternalId.trim()) {
-			subjectMutationError = 'Enter a display name, email, or external id.';
+			subjectMutationError = text.directory.enterPersonIdentity;
 			return;
 		}
 
@@ -172,7 +172,7 @@
 			selectedSubjectId = created.id;
 			syncSelectedSubjectFields(directory?.subjects ?? []);
 		} catch (error) {
-			subjectMutationError = toProductApiErrorMessage(error, 'Person could not be created.');
+			subjectMutationError = toProductApiErrorMessage(error, text.directory.personCreateFailed);
 		} finally {
 			creatingSubject = false;
 		}
@@ -192,7 +192,7 @@
 		}
 
 		if (!importCsvContent.trim()) {
-			importError = 'Paste CSV rows or choose a CSV file first.';
+			importError = text.directory.csvRequired;
 			return;
 		}
 
@@ -216,7 +216,7 @@
 				await loadDirectory();
 			}
 		} catch (error) {
-			importError = toProductApiErrorMessage(error, 'CSV audience import could not be completed.');
+			importError = toProductApiErrorMessage(error, text.directory.csvImportFailed);
 		} finally {
 			previewingCsv = false;
 			applyingCsv = false;
@@ -237,7 +237,7 @@
 
 	async function saveSelectedSubject() {
 		if (!canManageSetup || !selectedSubjectId) {
-			editSubjectError = 'Select a person.';
+			editSubjectError = text.directory.selectPerson;
 			return;
 		}
 
@@ -246,7 +246,7 @@
 			!editSubjectEmail.trim() &&
 			!editSubjectExternalId.trim()
 		) {
-			editSubjectError = 'Enter a display name, email, or external id.';
+			editSubjectError = text.directory.enterPersonIdentity;
 			return;
 		}
 
@@ -263,7 +263,7 @@
 			});
 			await loadDirectory();
 		} catch (error) {
-			editSubjectError = toProductApiErrorMessage(error, 'Person could not be updated.');
+			editSubjectError = toProductApiErrorMessage(error, text.directory.personUpdateFailed);
 		} finally {
 			savingSubject = false;
 		}
@@ -275,7 +275,7 @@
 		}
 
 		if (!newGroupType.trim() || !newGroupName.trim()) {
-			groupMutationError = 'Enter a group type and name.';
+			groupMutationError = text.directory.enterGroupIdentity;
 			return;
 		}
 
@@ -295,7 +295,7 @@
 			await loadDirectory();
 			selectedGroupId = created.id;
 		} catch (error) {
-			groupMutationError = toProductApiErrorMessage(error, 'Subject group could not be created.');
+			groupMutationError = toProductApiErrorMessage(error, text.directory.groupCreateFailed);
 		} finally {
 			creatingGroup = false;
 		}
@@ -303,7 +303,7 @@
 
 	async function addSubjectGroupMember() {
 		if (!canManageSetup || !selectedSubjectId || !selectedGroupId) {
-			membershipError = 'Select a person and group.';
+			membershipError = text.directory.selectPersonAndGroup;
 			return;
 		}
 
@@ -318,7 +318,7 @@
 			membershipRole = '';
 			await loadDirectory();
 		} catch (error) {
-			membershipError = toProductApiErrorMessage(error, 'Group membership could not be saved.');
+			membershipError = toProductApiErrorMessage(error, text.directory.membershipSaveFailed);
 		} finally {
 			addingMembership = false;
 		}
@@ -326,7 +326,7 @@
 
 	async function setSubjectManager() {
 		if (!canManageSetup || !selectedSubjectId) {
-			managerError = 'Select a person.';
+			managerError = text.directory.selectPerson;
 			return;
 		}
 
@@ -341,7 +341,7 @@
 			managerValidFrom = '';
 			await loadDirectory();
 		} catch (error) {
-			managerError = toProductApiErrorMessage(error, 'Manager relationship could not be saved.');
+			managerError = toProductApiErrorMessage(error, text.directory.managerSaveFailed);
 		} finally {
 			savingManager = false;
 		}
@@ -427,7 +427,7 @@
 		message={text.directory.accessMessage}
 	/>
 {:else}
-	<section class="product-panel" aria-label="Audience directory overview">
+	<section class="product-panel" aria-label={text.directory.title}>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.setup}</p>
@@ -558,7 +558,7 @@
 			{#if importResult}
 				<div class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 					<p class="text-sm font-semibold text-[var(--color-text)]">
-						{importResult.dryRun ? 'Previewed' : 'Imported'} {importResult.importedRowCount} of
+						{importResult.dryRun ? text.directory.previewed : text.directory.imported} {importResult.importedRowCount} of
 						{importResult.rowCount} rows
 					</p>
 					<dl class="mt-3 grid gap-2 text-sm md:grid-cols-3">
@@ -593,12 +593,12 @@
 					</dl>
 					{#if importResult.rows.some((row) => row.status === 'failed')}
 						<div class="mt-4 grid gap-2" aria-label="CSV import row issues">
-							<p class="text-sm font-semibold text-[var(--color-text)]">Rows needing attention</p>
+							<p class="text-sm font-semibold text-[var(--color-text)]">{text.directory.rowsNeedingAttention}</p>
 							{#each importResult.rows.filter((row) => row.status === 'failed') as row}
 								<article class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
 									<p class="font-semibold">Row {row.rowNumber}</p>
 									<p class="text-[var(--color-text-muted)]">
-										{row.displayName ?? row.email ?? row.externalId ?? 'Unmatched row'}
+										{row.displayName ?? row.email ?? row.externalId ?? text.directory.unmatchedRow}
 									</p>
 									<ul class="mt-2 list-disc pl-5">
 										{#each row.issues as issue}
@@ -632,12 +632,12 @@
 	</section>
 
 	<section class="product-panel" aria-label={text.directory.peopleDirectoryAria}>
-		<LoadingBoundary loading={loadState === 'loading'} label="Loading subject directory">
+		<LoadingBoundary loading={loadState === 'loading'} label={text.directory.loadingDirectory}>
 			{#if loadState === 'error' && errorMessage}
 				<ErrorPanel
-					title="Subject directory unavailable"
+					title={text.directory.unavailableTitle}
 					message={errorMessage}
-					retryLabel="Retry directory"
+					retryLabel={text.directory.retryDirectory}
 					onRetry={loadDirectory}
 				/>
 			{:else if directory && groupList}
@@ -650,15 +650,15 @@
 
 				<dl class="directory-count-list" role="group" aria-label={text.directory.directoryGraphCounts}>
 					<div class="directory-count-row">
-						<dt class="directory-count-row__label">Subjects</dt>
+						<dt class="directory-count-row__label">{text.directory.subjects}</dt>
 						<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
 					</div>
 					<div class="directory-count-row">
-						<dt class="directory-count-row__label">Groups</dt>
+						<dt class="directory-count-row__label">{text.directory.groups}</dt>
 						<dd class="directory-count-row__value">{directory.summary.groupCount}</dd>
 					</div>
 					<div class="directory-count-row">
-						<dt class="directory-count-row__label">Manager links</dt>
+						<dt class="directory-count-row__label">{text.directory.managerLinks}</dt>
 						<dd class="directory-count-row__value">
 							{directory.summary.managerRelationshipCount}
 						</dd>
@@ -677,36 +677,36 @@
 										class="status-badge"
 										data-status={subject.managerSubjectId ? 'ready' : 'pending'}
 									>
-										{subject.managerSubjectId ? 'Managed' : 'No manager'}
+										{subject.managerSubjectId ? text.directory.managed : text.directory.noManager}
 									</span>
 								</span>
 								<span class="record-grid">
 									<span class="record-field">
 										<span class="record-field__label">Email</span>
-										<span class="record-field__value">{subject.email ?? 'Not available'}</span>
+										<span class="record-field__value">{subject.email ?? text.directory.notAvailable}</span>
 									</span>
 									<span class="record-field">
-										<span class="record-field__label">External id</span>
-										<span class="record-field__value">{subject.externalId ?? 'Not available'}</span>
+										<span class="record-field__label">{text.directory.externalId}</span>
+										<span class="record-field__value">{subject.externalId ?? text.directory.notAvailable}</span>
 									</span>
 									<span class="record-field">
-										<span class="record-field__label">Locale</span>
+										<span class="record-field__label">{text.directory.locale}</span>
 										<span class="record-field__value">{subject.locale}</span>
 									</span>
 									<span class="record-field">
-										<span class="record-field__label">Manager</span>
+										<span class="record-field__label">{text.directory.manager}</span>
 										<span class="record-field__value">{subject.managerDisplayName ?? 'None'}</span>
 									</span>
 									<span class="record-field">
-										<span class="record-field__label">Direct reports</span>
+										<span class="record-field__label">{text.directory.directReports}</span>
 										<span class="record-field__value">{subject.directReportCount}</span>
 									</span>
 								</span>
 								<div>
-									<p class="record-field__label">Groups</p>
+									<p class="record-field__label">{text.directory.groups}</p>
 									<div class="mt-2 flex flex-wrap gap-2">
 										{#if subject.groups.length === 0}
-											<span class="text-xs text-[var(--color-text-muted)]">No memberships</span>
+											<span class="text-xs text-[var(--color-text-muted)]">{text.directory.noMemberships}</span>
 										{:else}
 											{#each subject.groups as membership (membership.groupId)}
 												<span
@@ -753,11 +753,11 @@
 							</span>
 							<span class="record-grid">
 								<span class="record-field">
-									<span class="record-field__label">Parent</span>
+									<span class="record-field__label">{text.directory.parent}</span>
 									<span class="record-field__value">{groupParentLabel(group)}</span>
 								</span>
 								<span class="record-field">
-									<span class="record-field__label">Members</span>
+									<span class="record-field__label">{text.directory.members}</span>
 									<span class="record-field__value">{group.memberCount}</span>
 								</span>
 							</span>
@@ -768,7 +768,7 @@
 		{/if}
 	</section>
 
-	<section id="directory-create" class="product-panel" aria-label="Create directory records">
+	<section id="directory-create" class="product-panel" aria-label={text.directory.createRecordsAria}>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.addRecords}</p>
@@ -789,12 +789,12 @@
 				}}
 			>
 				<div>
-					<p class="product-kicker">Person</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">New person</h3>
+					<p class="product-kicker">{text.directory.person}</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">{text.directory.newPerson}</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
-						<span>Display name</span>
+						<span>{text.directory.displayName}</span>
 						<input bind:value={newSubjectDisplayName} disabled={creatingSubject} />
 					</label>
 					<label class="field">
@@ -802,11 +802,11 @@
 						<input type="email" bind:value={newSubjectEmail} disabled={creatingSubject} />
 					</label>
 					<label class="field">
-						<span>External id</span>
+						<span>{text.directory.externalId}</span>
 						<input bind:value={newSubjectExternalId} disabled={creatingSubject} />
 					</label>
 					<label class="field">
-						<span>Locale</span>
+						<span>{text.directory.locale}</span>
 						<input bind:value={newSubjectLocale} disabled={creatingSubject} />
 					</label>
 				</div>
@@ -815,7 +815,7 @@
 						Advanced attributes
 					</summary>
 					<label class="field mt-3">
-						<span>Attributes JSON</span>
+						<span>{text.directory.attributesJson}</span>
 						<textarea rows="3" bind:value={newSubjectAttributes} disabled={creatingSubject}
 						></textarea>
 					</label>
@@ -826,7 +826,7 @@
 					{:else}
 						<Plus size={17} aria-hidden="true" />
 					{/if}
-					<span>{creatingSubject ? 'Creating...' : 'Add person'}</span>
+					<span>{creatingSubject ? text.directory.creating : text.directory.addPerson}</span>
 				</button>
 				{#if subjectMutationError}
 					<p class="error-line" role="alert">{subjectMutationError}</p>
@@ -842,7 +842,7 @@
 			>
 				<div>
 					<p class="product-kicker">Group</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">New group</h3>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">{text.directory.newGroup}</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
@@ -855,9 +855,9 @@
 					</label>
 				</div>
 				<label class="field">
-					<span>Parent group</span>
+					<span>{text.directory.parentGroup}</span>
 					<select bind:value={newGroupParentId} disabled={creatingGroup || groups.length === 0}>
-						<option value="">No parent</option>
+						<option value="">{text.directory.noParent}</option>
 						{#each groups as group (group.id)}
 							<option value={group.id}>{group.name}</option>
 						{/each}
@@ -868,7 +868,7 @@
 						Advanced attributes
 					</summary>
 					<label class="field mt-3">
-						<span>Attributes JSON</span>
+						<span>{text.directory.attributesJson}</span>
 						<textarea rows="3" bind:value={newGroupAttributes} disabled={creatingGroup}></textarea>
 					</label>
 				</details>
@@ -878,7 +878,7 @@
 					{:else}
 						<Plus size={17} aria-hidden="true" />
 					{/if}
-					<span>{creatingGroup ? 'Creating...' : 'Create group'}</span>
+					<span>{creatingGroup ? text.directory.creating : text.directory.createGroup}</span>
 				</button>
 				{#if groupMutationError}
 					<p class="error-line" role="alert">{groupMutationError}</p>
@@ -890,7 +890,7 @@
 	<section class="product-panel" aria-label={text.directory.directoryRelationshipsAria}>
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Hierarchy setup</p>
+				<p class="product-kicker">{text.directory.hierarchySetup}</p>
 				<h2 class="product-title">{text.directory.membershipManager}</h2>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
 					Use memberships for audience targeting. Use manager links only when a study needs
@@ -908,7 +908,7 @@
 		>
 			<div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
 				<label class="field">
-					<span>Selected person</span>
+					<span>{text.directory.selectedPerson}</span>
 					<select bind:value={selectedSubjectId} disabled={subjects.length === 0 || savingSubject}>
 						{#each subjects as subject (subject.id)}
 							<option value={subject.id}>{subjectLabel(subject)}</option>
@@ -916,7 +916,7 @@
 					</select>
 				</label>
 				<label class="field">
-					<span>Display name</span>
+					<span>{text.directory.displayName}</span>
 					<input bind:value={editSubjectDisplayName} disabled={savingSubject || !selectedSubject} />
 				</label>
 				<label class="field">
@@ -928,11 +928,11 @@
 					/>
 				</label>
 				<label class="field">
-					<span>External id</span>
+					<span>{text.directory.externalId}</span>
 					<input bind:value={editSubjectExternalId} disabled={savingSubject || !selectedSubject} />
 				</label>
 				<label class="field">
-					<span>Locale</span>
+					<span>{text.directory.locale}</span>
 					<input bind:value={editSubjectLocale} disabled={savingSubject || !selectedSubject} />
 				</label>
 			</div>
@@ -941,7 +941,7 @@
 					Advanced attributes
 				</summary>
 				<label class="field mt-3">
-					<span>Attributes JSON</span>
+					<span>{text.directory.attributesJson}</span>
 					<textarea
 						rows="3"
 						bind:value={editSubjectAttributes}
@@ -972,7 +972,7 @@
 			>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
-						<span>Person</span>
+						<span>{text.directory.person}</span>
 						<select
 							bind:value={selectedSubjectId}
 							disabled={subjects.length === 0 || addingMembership}
@@ -1021,7 +1021,7 @@
 			>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
-						<span>Person</span>
+						<span>{text.directory.person}</span>
 						<select
 							bind:value={selectedSubjectId}
 							disabled={subjects.length === 0 || savingManager}
@@ -1032,12 +1032,12 @@
 						</select>
 					</label>
 					<label class="field">
-						<span>Manager</span>
+						<span>{text.directory.manager}</span>
 						<select
 							bind:value={managerSubjectId}
 							disabled={managerOptions.length === 0 || savingManager}
 						>
-							<option value="">No manager</option>
+							<option value="">{text.directory.noManager}</option>
 							{#each managerOptions as subject (subject.id)}
 								<option value={subject.id}>{subjectLabel(subject)}</option>
 							{/each}
@@ -1045,7 +1045,7 @@
 					</label>
 				</div>
 				<label class="field">
-					<span>Valid from</span>
+					<span>{text.directory.validFrom}</span>
 					<input type="date" bind:value={managerValidFrom} disabled={savingManager} />
 				</label>
 				<button
@@ -1072,3 +1072,5 @@
 		</div>
 	</section>
 {/if}
+
+

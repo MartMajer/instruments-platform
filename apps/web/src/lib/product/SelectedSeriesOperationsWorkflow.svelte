@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { page } from '$app/state';
 	import { CircleStop, LoaderCircle, Plus, RefreshCw, SearchCheck, Send } from 'lucide-svelte';
@@ -256,7 +256,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				readiness: 'Create a collection wave before running the pre-launch check.'
+				readiness: operationsBodyCopy.component.errors.createWaveBeforeReadiness
 			};
 			return;
 		}
@@ -274,7 +274,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				launch: 'Create a collection wave before starting collection.'
+				launch: operationsBodyCopy.component.errors.createWaveBeforeStart
 			};
 			return;
 		}
@@ -301,7 +301,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create a collection wave before creating respondent access.'
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeAccess
 			};
 			return;
 		}
@@ -310,7 +310,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'This wave already uses private email invitations. Open links are disabled so access stays invite-only.'
+					operationsBodyCopy.component.errors.privateInvitationsAlreadyActive
 			};
 			return;
 		}
@@ -319,7 +319,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'This wave already has an open respondent link. Keep using the link you created, or create a new wave if the link was lost.'
+					operationsBodyCopy.component.errors.openLinkAlreadyActive
 			};
 			return;
 		}
@@ -345,7 +345,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create a collection wave before replacing the open respondent link.'
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeReplaceLink
 			};
 			return;
 		}
@@ -354,7 +354,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'Open respondent link replacement is available only for anonymous open-link collection.'
+					operationsBodyCopy.component.errors.replaceLinkOnlyForAnonymous
 			};
 			return;
 		}
@@ -373,7 +373,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create a collection wave before preparing invitations.'
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeInvitations
 			};
 			return;
 		}
@@ -382,7 +382,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'Email invitations are available for anonymous or repeat-participation waves.'
+					operationsBodyCopy.component.errors.emailInvitationsRequireAnonymous
 			};
 			return;
 		}
@@ -391,7 +391,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'This wave already has an open respondent link. Private email invitations are disabled for open-link collection.'
+					operationsBodyCopy.component.errors.openLinkBlocksPrivateInvitations
 			};
 			return;
 		}
@@ -400,7 +400,7 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'Review the recipient list first. Remove invalid or duplicate emails before creating invitations.'
+					operationsBodyCopy.component.errors.reviewRecipientsBeforeInviting
 			};
 			return;
 		}
@@ -458,7 +458,7 @@
 			recipientImportText = await readRecipientImportFile(file);
 		} catch (error) {
 			recipientImportFileError =
-				error instanceof Error ? error.message : 'Recipient file could not be read.';
+				error instanceof Error ? error.message : operationsBodyCopy.component.errors.recipientFileCouldNotRead;
 		}
 	}
 
@@ -473,12 +473,12 @@
 		const recipient = candidateReview.recipients[0];
 
 		if (!recipient || candidateReview.hasBlockingIssues) {
-			manualRecipientError = 'Enter one valid email address.';
+			manualRecipientError = operationsBodyCopy.component.errors.enterOneValidEmail;
 			return;
 		}
 
 		if (recipientImportReview.recipients.some((item) => item.email === recipient.email)) {
-			manualRecipientError = 'This recipient is already in the wave list.';
+			manualRecipientError = operationsBodyCopy.component.errors.recipientAlreadyInWaveList;
 			return;
 		}
 
@@ -506,14 +506,14 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create a collection wave before sending invitations.'
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeSending
 			};
 			return;
 		}
 		if (!emailReadinessResult) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Check email sending setup before sending invitation emails.'
+				openLink: operationsBodyCopy.component.errors.checkEmailSetupBeforeSending
 			};
 			return;
 		}
@@ -522,7 +522,7 @@
 				...actionErrors,
 				openLink:
 					emailReadinessBlockingIssues[0]?.message ??
-					'Resolve email sending setup blockers before sending.'
+					operationsBodyCopy.component.errors.resolveEmailSetupBeforeSending
 			};
 			return;
 		}
@@ -550,7 +550,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create a collection wave before retrying failed emails.'
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeRetrying
 			};
 			return;
 		}
@@ -559,14 +559,14 @@
 			actionErrors = {
 				...actionErrors,
 				openLink:
-					'Confirm another invitation email is appropriate before requeueing.'
+					operationsBodyCopy.component.errors.confirmRetryBeforeRequeueing
 			};
 			return;
 		}
 		if (!emailReadinessResult) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Check email sending setup before retrying failed invitation emails.'
+				openLink: operationsBodyCopy.component.errors.checkEmailSetupBeforeRetrying
 			};
 			return;
 		}
@@ -575,7 +575,7 @@
 				...actionErrors,
 				openLink:
 					emailReadinessBlockingIssues[0]?.message ??
-					'Resolve email sending setup blockers before retrying failed invitations.'
+					operationsBodyCopy.component.errors.resolveEmailSetupBeforeRetrying
 			};
 			return;
 		}
@@ -604,7 +604,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Create and start a collection wave before simulating responses.'
+				openLink: operationsBodyCopy.component.errors.createAndStartBeforeSimulating
 			};
 			return;
 		}
@@ -655,7 +655,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				monitor: 'Create a collection wave before checking email repair readiness.'
+				monitor: operationsBodyCopy.component.errors.createWaveBeforeRepairReadiness
 			};
 			return;
 		}
@@ -687,7 +687,7 @@
 		if (!email) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Enter an email address before adding it to do-not-contact.'
+				openLink: operationsBodyCopy.component.errors.enterEmailBeforeSuppressing
 			};
 			return;
 		}
@@ -734,7 +734,7 @@
 		if (!suppression) {
 			actionErrors = {
 				...actionErrors,
-				openLink: 'Refresh the do-not-contact list before releasing this recipient.'
+				openLink: operationsBodyCopy.component.errors.refreshDoNotContactBeforeRelease
 			};
 			return;
 		}
@@ -766,14 +766,14 @@
 		try {
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				throw new Error('Collection status could not be refreshed.');
+				throw new Error(operationsBodyCopy.component.errors.collectionStatusRefreshError);
 			}
 			actionStates = { ...actionStates, monitor: 'succeeded' };
 		} catch (error) {
 			actionStates = { ...actionStates, monitor: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				monitor: toProductApiErrorMessage(error, 'Collection status refresh failed.')
+				monitor: toProductApiErrorMessage(error, operationsBodyCopy.component.errors.collectionStatusRefreshFailed)
 			};
 		}
 	}
@@ -782,7 +782,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				close: 'Create a collection wave before closing collection.'
+				close: operationsWorkflowCopy.disabled.createWaveBeforeClose
 			};
 			return;
 		}
@@ -809,14 +809,14 @@
 			actionStates = { ...actionStates, [actionId]: 'succeeded' };
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				refreshWarning = 'The action was saved, but this collection view could not refresh.';
+				refreshWarning = operationsBodyCopy.component.errors.refreshWarning;
 			}
 			return result;
 		} catch (error) {
 			actionStates = { ...actionStates, [actionId]: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				[actionId]: toProductApiErrorMessage(error, 'Collection action failed.')
+				[actionId]: toProductApiErrorMessage(error, operationsBodyCopy.component.errors.collectionActionFailed)
 			};
 			return null;
 		}
@@ -929,38 +929,38 @@
 			);
 
 			if (errors.has('ses_sandbox_recipient_not_verified')) {
-				return 'AWS SES rejected at least one recipient because the account is still in sandbox. Verify the lowercase recipient email in the same SES region, or wait for SES production access, then use Retry failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.sesSandbox;
 			}
 
 			if (errors.has('ses_sender_identity_not_verified')) {
-				return 'AWS SES rejected the sender identity. Check the verified sender domain/from address in SES, then use Retry failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.sesSenderRejected;
 			}
 
 			if (errors.has('ses_identity_not_verified')) {
-				return 'AWS SES rejected a verified-identity check. Confirm sender and sandbox recipient identities in the configured SES region, then retry failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.sesIdentityRejected;
 			}
 
 			if (errors.has('smtp_auth_failed')) {
-				return 'The SMTP provider rejected authentication. Check the SES SMTP username/password on the server, then retry failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.smtpAuth;
 			}
 
 			if (errors.has('smtp_tls_failed')) {
-				return 'The SMTP TLS handshake failed. Check provider host, port, and TLS settings before retrying failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.smtpTls;
 			}
 
 			if (errors.has('ses_throttled')) {
-				return 'AWS SES throttled this batch. Wait for the provider limit window to clear, then retry failed emails.';
+				return operationsBodyCopy.component.deliveryGuidance.throttled;
 			}
 
 			if (errors.has('recipient_suppressed')) {
-				return 'At least one recipient is on the workspace do-not-contact list. Review suppressions before retrying.';
+				return operationsBodyCopy.component.deliveryGuidance.suppressedRecipient;
 			}
 
-			return 'The provider rejected at least one invitation. Check email setup and provider status, then use Retry failed emails when another send is appropriate.';
+			return operationsBodyCopy.component.deliveryGuidance.providerRejected;
 		}
 
 		if (result.sentCount > 0) {
-			return 'Sent means the message was accepted by the SMTP handoff. Delivery, bounce, and complaint evidence appears later under Provider delivery evidence.';
+			return operationsBodyCopy.component.deliveryGuidance.sentAccepted;
 		}
 
 		return null;
@@ -968,22 +968,22 @@
 
 	function repairReadinessGuidance(result: CampaignEmailDeliveryRepairReadinessResponse) {
 		if (result.retryableFailedNotificationCount > 0) {
-			return 'Failed invitations can be retried after the provider issue is corrected. Use Retry failed emails in the respondent access step.';
+			return operationsBodyCopy.component.deliveryGuidance.failedRetry;
 		}
 
 		if (result.suppressedFailedNotificationCount > 0) {
-			return 'Some failed invitations are suppressed by do-not-contact or provider feedback. Review the suppression list before sending again.';
+			return operationsBodyCopy.component.deliveryGuidance.suppressedFailures;
 		}
 
 		if (result.stalePreparedAttemptCount > 0 || result.ambiguousFailedNotificationCount > 0) {
-			return 'Some handoffs are ambiguous. Treat them as possibly sent and retry only after checking provider evidence.';
+			return operationsBodyCopy.component.deliveryGuidance.ambiguous;
 		}
 
 		if (result.providerEventCount > 0) {
-			return 'Provider events have reconciled for this campaign. Load recent provider events to inspect accepted, delivered, bounced, or complained counts.';
+			return operationsBodyCopy.component.deliveryGuidance.providerEvents;
 		}
 
-		return 'No email delivery cleanup is currently needed for this wave.';
+		return operationsBodyCopy.component.deliveryGuidance.noCleanup;
 	}
 
 	function emailReadinessBadgeStatus() {
@@ -1002,30 +1002,30 @@
 
 	function emailReadinessBadgeLabel() {
 		if (!emailReadinessResult) {
-			return 'Not checked';
+			return operationsBodyCopy.component.emailStatus.notChecked;
 		}
 
 		if (emailReadinessResult.canSendRealEmail) {
-			return emailReadinessResult.webhookConfigured ? 'SMTP ready' : 'SMTP send ready';
+			return emailReadinessResult.webhookConfigured ? operationsBodyCopy.component.emailStatus.smtpReady : operationsBodyCopy.component.emailStatus.smtpSendReady;
 		}
 
-		return emailReadinessResult.mode === 'local_dev' ? 'Local proof mode' : 'Needs config';
+		return emailReadinessResult.mode === 'local_dev' ? operationsBodyCopy.component.emailStatus.localProofMode : operationsBodyCopy.component.emailStatus.needsConfig;
 	}
 
 	function emailSendDisabledReason() {
 		if (!selectedCampaign) {
-			return 'Create a collection wave before sending invitations.';
+			return operationsBodyCopy.component.errors.createWaveBeforeSending;
 		}
 		if (locallyQueuedInvitationCount <= 0) {
-			return 'No queued invitation emails are waiting to send.';
+			return operationsBodyCopy.component.emailStatus.noQueuedEmails;
 		}
 		if (!emailReadinessResult) {
-			return 'Check email sending setup before sending invitation emails.';
+			return operationsBodyCopy.component.errors.checkEmailSetupBeforeSending;
 		}
 		if (emailReadinessBlockingIssues.length > 0) {
 			return (
 				emailReadinessBlockingIssues[0]?.message ??
-				'Resolve email sending setup blockers before sending.'
+				operationsBodyCopy.component.errors.resolveEmailSetupBeforeSending
 			);
 		}
 
@@ -1034,21 +1034,21 @@
 
 	function emailRetryDisabledReason() {
 		if (!selectedCampaign) {
-			return 'Create a collection wave before retrying failed emails.';
+			return operationsBodyCopy.component.errors.createWaveBeforeRetrying;
 		}
 		if (locallyFailedInvitationCount <= 0) {
-			return 'No retryable failed invitation emails are waiting.';
+			return operationsBodyCopy.component.emailStatus.noRetryableFailedEmails;
 		}
 		if (!retryFailedDeliveryAcknowledged) {
-			return 'Confirm another invitation email is appropriate before requeueing.';
+			return operationsBodyCopy.component.errors.confirmRetryBeforeRequeueing;
 		}
 		if (!emailReadinessResult) {
-			return 'Check email sending setup before retrying failed invitation emails.';
+			return operationsBodyCopy.component.errors.checkEmailSetupBeforeRetrying;
 		}
 		if (emailReadinessBlockingIssues.length > 0) {
 			return (
 				emailReadinessBlockingIssues[0]?.message ??
-				'Resolve email sending setup blockers before retrying failed invitations.'
+				operationsBodyCopy.component.errors.resolveEmailSetupBeforeRetrying
 			);
 		}
 
@@ -1061,45 +1061,45 @@
 
 		if (code === 'campaign.status_not_launchable') {
 			return {
-				title: 'Use a draft collection wave',
+				title: operationsBodyCopy.component.readinessGuidance.useDraftWaveTitle,
 				detail:
-					'This wave is no longer draft or scheduled. Open Setup, select or create a draft collection wave, then run this check again.',
+					operationsBodyCopy.component.readinessGuidance.useDraftWaveDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'identity.unknown') {
 			return {
-				title: 'Choose the response mode',
+				title: operationsBodyCopy.component.readinessGuidance.chooseResponseModeTitle,
 				detail:
-					'Open Setup and save the Collection setup step with a valid response mode before starting collection.',
+					operationsBodyCopy.component.readinessGuidance.chooseResponseModeDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'template_version.missing') {
 			return {
-				title: 'Connect the questionnaire to this wave',
+				title: operationsBodyCopy.component.readinessGuidance.connectQuestionnaireTitle,
 				detail:
-					'Open Setup, save the Questionnaire step, then save the Collection setup step so the wave uses that questionnaire.',
+					operationsBodyCopy.component.readinessGuidance.connectQuestionnaireDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code.startsWith('template.')) {
 			return {
-				title: 'Finish the questionnaire',
+				title: operationsBodyCopy.component.readinessGuidance.finishQuestionnaireTitle,
 				detail:
-					'Open Setup and add at least one questionnaire section and question before starting collection.',
+					operationsBodyCopy.component.readinessGuidance.finishQuestionnaireDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code.startsWith('scoring_rule.') || normalized.includes('scoring')) {
 			return {
-				title: 'Finish result outputs',
+				title: operationsBodyCopy.component.readinessGuidance.finishResultsTitle,
 				detail:
-					'Open Setup and save result outputs so reports know which answers become scores.',
+					operationsBodyCopy.component.readinessGuidance.finishResultsDetail,
 				severity: issue.severity
 			};
 		}
@@ -1111,69 +1111,69 @@
 			normalized.includes('policy')
 		) {
 			return {
-				title: 'Complete study policies',
+				title: operationsBodyCopy.component.readinessGuidance.completePoliciesTitle,
 				detail:
-					'Open Setup and save the consent, retention, and disclosure policies for this study before launch.',
+					operationsBodyCopy.component.readinessGuidance.completePoliciesDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'respondent_rule.identity_mode_not_supported') {
 			return {
-				title: 'Switch response mode',
+				title: operationsBodyCopy.component.readinessGuidance.switchResponseModeTitle,
 				detail:
-					'Saved specific-email lists are available for anonymous or repeat-participation waves. Open Setup and change the response mode, or remove the saved recipient list.',
+					operationsBodyCopy.component.readinessGuidance.switchResponseModeDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'respondent_rule.email_required') {
 			return {
-				title: 'Add recipient email addresses',
+				title: operationsBodyCopy.component.readinessGuidance.addEmailsTitle,
 				detail:
-					'Open Directory and add email addresses for everyone in the saved recipient selection, then rerun the pre-launch check.',
+					operationsBodyCopy.component.readinessGuidance.addEmailsDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'respondent_rule.no_recipients') {
 			return {
-				title: 'Select at least one recipient',
+				title: operationsBodyCopy.component.readinessGuidance.selectRecipientTitle,
 				detail:
-					'Open Setup and save at least one recipient selection that resolves to active people.',
+					operationsBodyCopy.component.readinessGuidance.selectRecipientDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code === 'respondent_rule_preview.audience_missing') {
 			return {
-				title: 'Recipient selection is empty',
+				title: operationsBodyCopy.component.readinessGuidance.emptyRecipientTitle,
 				detail:
-					'Add active people to the selected group in Setup, or remove the saved recipient selection if this wave should use a general respondent link.',
+					operationsBodyCopy.component.readinessGuidance.emptyRecipientDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code.startsWith('respondent_rule_preview.')) {
 			return {
-				title: 'Fix who can answer',
+				title: operationsBodyCopy.component.readinessGuidance.fixAudienceTitle,
 				detail:
-					'Open Setup and adjust the recipient selection until the preview finds the people you expect.',
+					operationsBodyCopy.component.readinessGuidance.fixAudienceDetail,
 				severity: issue.severity
 			};
 		}
 
 		if (code.startsWith('instrument.')) {
 			return {
-				title: 'Review the instrument',
+				title: operationsBodyCopy.component.readinessGuidance.reviewInstrumentTitle,
 				detail:
-					'Open Setup and save the Instrument and Questionnaire steps again so this wave uses a launchable study instrument.',
+					operationsBodyCopy.component.readinessGuidance.reviewInstrumentDetail,
 				severity: issue.severity
 			};
 		}
 
 		return {
-			title: 'Review setup',
+			title: operationsBodyCopy.component.readinessGuidance.reviewSetupTitle,
 			detail: issue.message,
 			severity: issue.severity
 		};
@@ -1329,7 +1329,7 @@
 						id: 'readiness',
 						label: operationsBodyCopy.readiness.runCheck,
 						resultLabel: operationsBodyCopy.common.setupCheck,
-						resultValue: readinessResult ? (readinessResult.ready ? 'Ready' : 'Blocked') : null,
+						resultValue: readinessResult ? (readinessResult.ready ? operationsBodyCopy.common.ready : operationsBodyCopy.common.blocked) : null,
 						onclick: checkLaunchReadiness
 					})}
 				{:else if activeAction.id === 'launch'}
@@ -1424,15 +1424,15 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Do-not-contact list</p>
-								<h5 class="record-row__title">Suppress emails before inviting</h5>
+								<p class="record-field__label">{operationsBodyCopy.component.doNotContactList}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.component.suppressEmailsBeforeInviting}</h5>
 							</div>
 							<StatusBadge
 								status={(suppressionListResult?.activeCount ?? 0) > 0 ? 'pending' : 'neutral'}
 								label={
 									suppressionListResult
 										? `${formatCount(suppressionListResult.activeCount)} active`
-										: 'Not loaded'
+										: operationsBodyCopy.component.notLoaded
 								}
 							/>
 						</div>
@@ -1444,7 +1444,7 @@
 						</p>
 						<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
 							<label class="field">
-								<span>Email to suppress</span>
+								<span>{operationsBodyCopy.component.emailToSuppress}</span>
 								<input
 									type="email"
 									value={suppressionEmail}
@@ -1453,7 +1453,7 @@
 								/>
 							</label>
 							<label class="field">
-								<span>Internal note</span>
+								<span>{operationsBodyCopy.component.internalNote}</span>
 								<input
 									value={suppressionNote}
 									placeholder="Requested by tenant admin"
@@ -1467,7 +1467,7 @@
 								onclick={addEmailSuppression}
 							>
 								<CircleStop size={16} aria-hidden="true" />
-								<span>Add to do-not-contact</span>
+								<span>{operationsBodyCopy.component.addToDoNotContact}</span>
 							</button>
 						</div>
 						<div class="action-row">
@@ -1478,7 +1478,7 @@
 								onclick={loadEmailSuppressions}
 							>
 								<RefreshCw size={16} aria-hidden="true" />
-								<span>Refresh do-not-contact list</span>
+								<span>{operationsBodyCopy.component.refreshDoNotContactList}</span>
 							</button>
 						</div>
 						{#if suppressionListResult}
@@ -1535,12 +1535,12 @@
 					{#if locallyPreparedInvitationCount > 0}
 						<div class="record-row">
 							<div class="record-row__header">
-								<h5 class="record-row__title">Email invitation status</h5>
+								<h5 class="record-row__title">{operationsBodyCopy.component.emailInvitationStatus}</h5>
 								<span class="step-pill" data-state="succeeded">Ready</span>
 							</div>
 							<dl class="record-grid">
 								<div class="record-field">
-									<dt class="record-field__label">Queued</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.queued}</dt>
 									<dd class="record-field__value">
 										{formatCount(locallyQueuedInvitationCount)}
 									</dd>
@@ -1558,37 +1558,37 @@
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Suppressed</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.suppressed}</dt>
 									<dd class="record-field__value">
 										{formatCount(locallyBouncedInvitationCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Send attempts</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.sendAttempts}</dt>
 									<dd class="record-field__value">
 										{formatCount(platformDeliveryAttemptCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Provider accepted</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.providerAccepted}</dt>
 									<dd class="record-field__value">
 										{formatCount(providerAcceptedEventCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Provider delivered</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.providerDelivered}</dt>
 									<dd class="record-field__value">
 										{formatCount(providerDeliveredEventCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Provider bounced</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.providerBounced}</dt>
 									<dd class="record-field__value">
 										{formatCount(providerBouncedEventCount)}
 									</dd>
 								</div>
 								<div class="record-field">
-									<dt class="record-field__label">Complaints</dt>
+									<dt class="record-field__label">{operationsBodyCopy.component.complaints}</dt>
 									<dd class="record-field__value">
 										{formatCount(providerComplainedEventCount)}
 									</dd>
@@ -1609,17 +1609,17 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Invited email access</p>
-								<h5 class="record-row__title">Add one-off recipients after launch</h5>
+								<p class="record-field__label">{operationsBodyCopy.component.invitedEmailAccess}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.component.addOneOffRecipientsAfterLaunch}</h5>
 							</div>
 							<StatusBadge
 								status={selectedCampaignSupportsEmailInvites && !openLinkAccessActive ? 'neutral' : 'blocked'}
 								label={
 									selectedCampaignSupportsEmailInvites && !openLinkAccessActive
-										? 'Anonymous invite-only'
+										? operationsBodyCopy.component.anonymousInviteOnly
 										: openLinkAccessActive
 											? operationsBodyCopy.shareAccess.openLinkActive
-											: 'Unavailable'
+											: operationsBodyCopy.component.unavailable
 								}
 							/>
 						</div>
@@ -1633,8 +1633,8 @@
 							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">Post-launch additions</p>
-										<h6 class="record-row__title">Add one-time recipients to this wave</h6>
+										<p class="record-field__label">{operationsBodyCopy.component.postLaunchAdditions}</p>
+										<h6 class="record-row__title">{operationsBodyCopy.component.addOneTimeRecipientsToThisWave}</h6>
 									</div>
 									<span
 										class="step-pill"
@@ -1645,7 +1645,7 @@
 								</div>
 								<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
 									<label class="field">
-										<span>Name for review</span>
+										<span>{operationsBodyCopy.component.nameForReview}</span>
 										<input
 											value={manualRecipientName}
 											placeholder="Bo Horvat"
@@ -1663,14 +1663,14 @@
 									</label>
 									<button type="button" class="secondary-button self-end" onclick={addManualRecipient}>
 										<Plus size={16} aria-hidden="true" />
-										<span>Add to review list</span>
+										<span>{operationsBodyCopy.component.addToReviewList}</span>
 									</button>
 								</div>
 								{#if manualRecipientError}
 									<p class="error-line" role="alert">{manualRecipientError}</p>
 								{/if}
 								<label class="field">
-									<span>Import recipients</span>
+									<span>{operationsBodyCopy.component.importRecipients}</span>
 									<input
 										type="file"
 										accept=".csv,.txt,text/csv,text/plain"
@@ -1684,9 +1684,9 @@
 									</span>
 								</label>
 								<details>
-									<summary class="record-row__title">Review or paste source list</summary>
+									<summary class="record-row__title">{operationsBodyCopy.component.reviewOrPasteSourceList}</summary>
 									<label class="field mt-3">
-										<span>Recipient source</span>
+										<span>{operationsBodyCopy.component.recipientSource}</span>
 										<textarea
 											rows="5"
 											value={recipientImportText}
@@ -1707,7 +1707,7 @@
 							{#if recipientImportReview.rows.length > 0}
 								<div class="record-row">
 									<div class="record-row__header">
-										<h6 class="record-row__title">Import review</h6>
+										<h6 class="record-row__title">{operationsBodyCopy.component.importReview}</h6>
 										<span
 											class="step-pill"
 											data-state={recipientImportReview.hasBlockingIssues ? 'failed' : 'succeeded'}
@@ -1723,13 +1723,13 @@
 											</dd>
 										</div>
 										<div class="record-field">
-											<dt class="record-field__label">Invalid</dt>
+											<dt class="record-field__label">{operationsBodyCopy.component.invalid}</dt>
 											<dd class="record-field__value">
 												{formatCount(recipientImportReview.invalidCount)}
 											</dd>
 										</div>
 										<div class="record-field">
-											<dt class="record-field__label">Duplicates</dt>
+											<dt class="record-field__label">{operationsBodyCopy.component.duplicates}</dt>
 											<dd class="record-field__value">
 												{formatCount(recipientImportReview.duplicateCount)}
 											</dd>
@@ -1741,7 +1741,7 @@
 												<p class="record-field__label">
 													{row.displayName ?? row.sourceText}
 												</p>
-												<p class="record-field__value">{row.email || 'No email found'}</p>
+												<p class="record-field__value">{row.email || operationsBodyCopy.component.noEmailFound}</p>
 												<p class="text-sm text-[var(--color-text-muted)]">{row.reason}</p>
 											</div>
 										{/each}
@@ -1759,11 +1759,11 @@
 											onclick={keepOnlyValidRecipients}
 										>
 											<RefreshCw size={16} aria-hidden="true" />
-											<span>Keep valid only</span>
+											<span>{operationsBodyCopy.component.keepValidOnly}</span>
 										</button>
 										<button type="button" class="secondary-button" onclick={clearRecipientImport}>
 											<CircleStop size={16} aria-hidden="true" />
-											<span>Clear list</span>
+											<span>{operationsBodyCopy.component.clearList}</span>
 										</button>
 									</div>
 								</div>
@@ -1772,7 +1772,7 @@
 								<div class="record-row">
 									<div class="record-row__header">
 										<div>
-											<p class="record-field__label">Do-not-contact match</p>
+											<p class="record-field__label">{operationsBodyCopy.component.doNotContactMatch}</p>
 											<h6 class="record-row__title">{recipientSuppressionReview.headline}</h6>
 										</div>
 										<StatusBadge
@@ -1809,9 +1809,9 @@
 								</div>
 							{/if}
 							<details class="record-row">
-								<summary class="record-row__title">Invitation email preview</summary>
+								<summary class="record-row__title">{operationsBodyCopy.component.invitationEmailPreview}</summary>
 								<div class="mt-3 record-field">
-									<p class="record-field__label">Subject</p>
+									<p class="record-field__label">{operationsBodyCopy.component.subject}</p>
 									<p class="record-field__value">{emailSubject()}</p>
 									<p class="mt-2 whitespace-pre-wrap text-sm text-[var(--color-text-muted)]">
 										{emailBody()}
@@ -1827,7 +1827,7 @@
 							</details>
 							{#if locallyFailedInvitationCount > 0}
 								<div class="field">
-									<span>Retry safety check</span>
+									<span>{operationsBodyCopy.component.retrySafetyCheck}</span>
 									<label class="inline-flex items-start gap-2 text-sm text-[var(--color-text-muted)]">
 										<input
 											type="checkbox"
@@ -1855,7 +1855,7 @@
 									onclick={createEmailInvitations}
 								>
 									<Send size={17} aria-hidden="true" />
-									<span>Create ad hoc invitations</span>
+									<span>{operationsBodyCopy.component.createAdHocInvitations}</span>
 								</button>
 								<button
 									type="button"
@@ -1874,7 +1874,7 @@
 									onclick={sendQueuedEmails}
 								>
 									<Send size={17} aria-hidden="true" />
-									<span>Send next email batch</span>
+									<span>{operationsBodyCopy.component.sendNextEmailBatch}</span>
 								</button>
 								<button
 									type="button"
@@ -1884,7 +1884,7 @@
 									onclick={retryFailedEmails}
 								>
 									<RefreshCw size={17} aria-hidden="true" />
-									<span>Retry failed emails</span>
+									<span>{operationsBodyCopy.component.retryFailedEmails}</span>
 								</button>
 								<p class="step-pill" data-state={actionStates.openLink}>
 									{stepLabel(actionStates.openLink)}
@@ -1901,13 +1901,13 @@
 							{/if}
 							{#if invitationBatchResult}
 								<p class="result-line">
-									<span>Invitations created</span>
+									<span>{operationsBodyCopy.component.invitationsCreated}</span>
 									<code>{formatCount(invitationBatchResult.createdInvitationCount)}</code>
 								</p>
 							{/if}
 							{#if deliveryResult}
 								<p class="result-line">
-									<span>Email delivery batch</span>
+									<span>{operationsBodyCopy.component.emailDeliveryBatch}</span>
 									<code>{deliveryBatchSummary(deliveryResult)}</code>
 								</p>
 								{#if deliveryBatchGuidance(deliveryResult)}
@@ -1918,7 +1918,7 @@
 							{/if}
 							{#if requeueFailedResult}
 								<p class="result-line">
-									<span>Failed emails requeued</span>
+									<span>{operationsBodyCopy.component.failedEmailsRequeued}</span>
 									<code>{formatCount(requeueFailedResult.requeuedCount)}</code>
 								</p>
 							{/if}
@@ -1933,22 +1933,20 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">Demo/test data</p>
-								<h5 class="record-row__title">Simulate collection responses</h5>
+								<p class="record-field__label">{operationsBodyCopy.component.demoTestData}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.component.simulateCollectionResponses}</h5>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									Use this for staging demos and workflow checks when real email delivery or manual
-									respondents would slow you down. It submits marked synthetic answers through the
-									selected wave and updates queued test invitations as sent.
+									{operationsBodyCopy.simulation.body}
 								</p>
 							</div>
 							<StatusBadge
 								status={testResponseResult ? 'ready' : 'neutral'}
-								label={testResponseResult ? 'Responses created' : 'Staging/demo'}
+								label={testResponseResult ? operationsBodyCopy.component.responsesCreated : operationsBodyCopy.component.stagingDemo}
 							/>
 						</div>
 						<div class="grid gap-3 lg:grid-cols-[minmax(7rem,10rem)_minmax(7rem,10rem)_minmax(9rem,12rem)_auto]">
 							<label class="field">
-								<span>Responses</span>
+								<span>{operationsBodyCopy.simulation.responses}</span>
 								<input
 									type="number"
 									min="1"
@@ -1958,7 +1956,7 @@
 								/>
 							</label>
 							<label class="field">
-								<span>Average target</span>
+								<span>{operationsBodyCopy.simulation.averageTarget}</span>
 								<input
 									type="number"
 									min="0"
@@ -1968,14 +1966,14 @@
 								/>
 							</label>
 							<label class="field">
-								<span>Variation</span>
+								<span>{operationsBodyCopy.simulation.variation}</span>
 								<select
 									bind:value={testResponseVariation}
 									disabled={actionStates.openLink === 'submitting'}
 								>
-									<option value="tight">Tight</option>
-									<option value="normal">Normal</option>
-									<option value="noisy">Noisy</option>
+									<option value="tight">{operationsBodyCopy.simulation.tight}</option>
+									<option value="normal">{operationsBodyCopy.simulation.normal}</option>
+									<option value="noisy">{operationsBodyCopy.simulation.noisy}</option>
 								</select>
 							</label>
 							<button
@@ -2118,7 +2116,7 @@
 								<span class="step-pill" data-state="succeeded">{operationsBodyCopy.common.created}</span>
 							</div>
 							<p class="result-line">
-								<span>Share link</span>
+								<span>{operationsBodyCopy.component.shareLink}</span>
 								<code>{respondentEntry.respondentPath}</code>
 							</p>
 						</div>
@@ -2441,10 +2439,13 @@
 {/snippet}
 
 {#snippet ResultLine({ label, value }: { label: string; value: string | null | undefined })}
-	{#if value && value !== 'Not available'}
+	{#if value && value !== operationsBodyCopy.common.notAvailable}
 		<p class="result-line">
 			<span>{label}</span>
 			<code>{value}</code>
 		</p>
 	{/if}
 {/snippet}
+
+
+

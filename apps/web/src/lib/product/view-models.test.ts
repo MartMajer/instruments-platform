@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import type { ComponentProps } from 'svelte';
 import type StatusBadge from '../components/StatusBadge.svelte';
 import { ApiError } from '../api/client';
@@ -83,6 +84,12 @@ function collectStrings(value: unknown, path = '$', output: string[] = []) {
 }
 
 describe('product view models', () => {
+	it('does not rely on recursive exact-string localization fallback for generated read models', () => {
+		const source = readFileSync(new URL('./view-models.ts', import.meta.url), 'utf8');
+
+		expect(source).not.toMatch(/localizeProductReadModel|localizeReadModelString|hrReadModelStrings/);
+	});
+
 	it('keeps read-model statuses compatible with status badges', () => {
 		expect(readModelBadgeStatuses).toEqual([
 			'archived',
@@ -636,11 +643,53 @@ describe('product view models', () => {
 		const views = [
 			toCampaignSeriesListView(sampleCampaignSeriesList, {}, 'hr-HR'),
 			toCampaignSeriesHubView(sampleCampaignSeriesHub, 'hr-HR'),
-			toCampaignSeriesSetupWorkspaceView(sampleSetupWorkspace, 'hr-HR')
+			toCampaignSeriesSetupWorkspaceView(sampleSetupWorkspace, 'hr-HR'),
+			toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR'),
+			toCampaignSeriesReportsWorkspaceView(sampleReportsWorkspace, 'hr-HR'),
+			toCampaignSeriesWavesWorkspaceView(sampleWavesWorkspace, 'hr-HR')
 		];
 		const generatedStrings = views.flatMap((view, index) => collectStrings(view, `view${index}`));
 
 		expect(generatedStrings.filter((entry) => mojibakePattern.test(entry))).toEqual([]);
+	});
+
+	it('does not leak old English read-model chrome into Croatian workspace views', () => {
+		const views = [
+			toCampaignSeriesHubView(sampleCampaignSeriesHub, 'hr-HR'),
+			toCampaignSeriesSetupWorkspaceView(sampleSetupWorkspace, 'hr-HR'),
+			toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR'),
+			toCampaignSeriesReportsWorkspaceView(sampleReportsWorkspace, 'hr-HR'),
+			toCampaignSeriesWavesWorkspaceView(sampleWavesWorkspace, 'hr-HR')
+		];
+		const generatedText = views
+			.flatMap((view, index) => collectStrings(view, `view${index}`))
+			.join('\n');
+
+		for (const forbidden of [
+			'Prepare study',
+			'Study preparation',
+			'Setup reference',
+			'Collect responses',
+			'Study collection',
+			'Collection reference',
+			'Review results',
+			'Study results',
+			'Results reference',
+			'Compare waves',
+			'Wave comparison',
+			'Identity mode',
+			'Submitted responses',
+			'Missing prerequisites',
+			'Result availability',
+			'Coverage and visibility',
+			'Limitations and finality',
+			'Export next use',
+			'Longitudinal waves',
+			'Linked trajectories',
+			'Visible comparisons'
+		]) {
+			expect(generatedText).not.toContain(forbidden);
+		}
 	});
 
 	it('maps archived campaign-series list items to restore-ready cards', () => {
@@ -2709,7 +2758,7 @@ describe('product view models', () => {
 			rows: [
 				{ label: 'Study context', value: 'Campaign / Baseline wave' },
 				{ label: 'File type', value: 'Report summary CSV and codebook' },
-				{ label: 'Format', value: 'Csv codebook' },
+				{ label: 'Format', value: 'CSV codebook' },
 				{ label: 'Data finality', value: 'Closed wave' },
 				{ label: 'Rows', value: '12' },
 				{ label: 'Size', value: '2.0 KB' },

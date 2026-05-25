@@ -2,7 +2,11 @@
 	import type { Snippet } from 'svelte';
 	import type { ReportWidget } from '$lib/api/product';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
-	import { formatProductCopy, type ReportWidgetFormatCopy } from './report-widget-format';
+	import {
+		formatProductCopy,
+		formatWidgetLabel,
+		type ReportWidgetFormatCopy
+	} from './report-widget-format';
 
 	let {
 		widget,
@@ -11,9 +15,14 @@
 	}: { widget: ReportWidget; copy?: ReportWidgetFormatCopy; children?: Snippet } = $props();
 
 	const displayTitle = $derived(
-		formatProductCopy(widget.kind === 'export-artifact-registry/v1' ? 'Export files' : widget.title)
+		formatProductCopy(
+			widget.kind === 'export-artifact-registry/v1'
+				? formatWidgetLabel('exportFiles', copy)
+				: widget.title
+		)
 	);
 	const displayMessage = $derived(formatProductCopy(widget.message));
+	const kicker = $derived(formatWidgetLabel('resultsSummary', copy));
 </script>
 
 <article
@@ -23,7 +32,7 @@
 >
 	<div class="record-row__header">
 		<div>
-			<p class="product-kicker">Result summary</p>
+			<p class="product-kicker">{kicker}</p>
 			<h3 class="record-row__title">{displayTitle}</h3>
 		</div>
 		<StatusBadge status={widget.state} />

@@ -67,6 +67,7 @@
 
 	const appLocale = $derived(appLocaleFromPageData(page.data));
 	const reportsWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.reportsWorkflow);
+	const reportsUi = $derived(reportsWorkflowCopy.component);
 	const selectedCampaign = $derived(workspace.selectedCampaign);
 	const latestResponseExportArtifact = $derived(
 		workspace.exportArtifacts.find(
@@ -113,8 +114,8 @@
 	);
 	const currentExportPurpose = $derived(
 		currentExportArtifactId === latestResponseExportArtifact?.id || responseExportResult?.id === currentExportArtifactId
-			? 'Response dataset CSV and codebook'
-			: 'Report-summary CSV, not analysis-ready response dataset'
+			? reportsUi.currentPurpose.responseDataset
+			: reportsUi.currentPurpose.reportSummary
 	);
 	const localState = $derived({
 		reportProofViewed: Boolean(reportProofResult),
@@ -156,8 +157,8 @@
 		return [
 			humanize(interpretation.status),
 			humanize(interpretation.source),
-			interpretation.isValidated ? 'reviewed' : 'not reviewed',
-			interpretation.isOfficial ? 'official' : 'not official'
+			interpretation.isValidated ? reportsUi.reviewed : reportsUi.notReviewed,
+			interpretation.isOfficial ? reportsUi.official : reportsUi.notOfficial
 		].join(' / ');
 	}
 
@@ -165,7 +166,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				reportProof: 'Create or select a wave before reviewing results.'
+				reportProof: reportsUi.errors.createWaveBeforeResults
 			};
 			return;
 		}
@@ -187,7 +188,7 @@
 		if (!selectedCampaign) {
 			actionErrors = {
 				...actionErrors,
-				exportArtifact: 'Create or select a wave before creating a report export.'
+				exportArtifact: reportsUi.errors.createWaveBeforeReportExport
 			};
 			return;
 		}
@@ -210,8 +211,7 @@
 		if (!workspace.series.id) {
 			actionErrors = {
 				...actionErrors,
-				responseExport:
-					'Create or select a study before creating a response export.'
+				responseExport: reportsUi.errors.createStudyBeforeResponseExport
 			};
 			return;
 		}
@@ -233,7 +233,7 @@
 		if (!currentExportArtifactId) {
 			actionErrors = {
 				...actionErrors,
-				fetchArtifact: 'Create or select an export file before reviewing it.'
+				fetchArtifact: reportsUi.errors.createExportBeforeReview
 			};
 			return;
 		}
@@ -253,8 +253,8 @@
 			actionErrors = {
 				...actionErrors,
 				downloadCsv: currentExportArtifactId
-					? 'Select a downloadable export file before downloading CSV.'
-					: 'Create or select an export file before downloading CSV.'
+					? reportsUi.errors.selectDownloadableExport
+					: reportsUi.errors.createExportBeforeDownload
 			};
 			return;
 		}
@@ -284,7 +284,7 @@
 			if (options.refreshAfter) {
 				const refreshed = await onWorkspaceRefresh?.();
 				if (refreshed === false) {
-					refreshWarning = 'Reports action saved, but the reports workspace refresh failed.';
+					refreshWarning = reportsUi.errors.refreshFailed;
 				}
 			}
 			return result;
@@ -292,7 +292,7 @@
 			actionStates = { ...actionStates, [actionId]: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				[actionId]: toProductApiErrorMessage(error, 'Reports action failed.')
+				[actionId]: toProductApiErrorMessage(error, reportsUi.errors.actionFailed)
 			};
 			return null;
 		}
@@ -309,38 +309,38 @@
 
 	function stepLabel(state: StepState) {
 		if (state === 'submitting') {
-			return 'Working';
+			return reportsUi.state.working;
 		}
 
 		if (state === 'succeeded') {
-			return 'Saved';
+			return reportsUi.state.saved;
 		}
 
 		if (state === 'failed') {
-			return 'Failed';
+			return reportsUi.state.failed;
 		}
 
-		return 'Ready';
+		return reportsUi.state.ready;
 	}
 
 	function pathStateLabel(state: SelectedSeriesReportsPathStepState) {
 		if (state === 'done') {
-			return 'Done';
+			return reportsUi.state.done;
 		}
 
 		if (state === 'current') {
-			return 'Current';
+			return reportsUi.state.current;
 		}
 
-		return 'Blocked';
+		return reportsUi.state.blocked;
 	}
 
 	function formatNullableScoreValue(value: number | null) {
-		return value === null ? 'suppressed' : value.toFixed(2);
+		return value === null ? reportsUi.suppressed : value.toFixed(2);
 	}
 
 	function humanize(value: string | null | undefined) {
-		return value ? value.replaceAll('_', ' ') : 'Not available';
+		return value ? value.replaceAll('_', ' ') : reportsUi.notAvailable;
 	}
 
 	function csvPreview(content: string | null | undefined) {
@@ -467,12 +467,12 @@
 			{/each}
 		</div>
 		<p class="result-line">
-			<span>Download action</span>
-			<span>{exportPreview.downloadLabel}</span>
-		</p>
+		<span>{reportsUi.downloadAction}</span>
+		<span>{exportPreview.downloadLabel}</span>
+	</p>
 	</article>
 
-	<div class="setup-path" role="list" aria-label="Review and export path">
+	<div class="setup-path" role="list" aria-label={reportsUi.reviewPathAria}>
 		{#each reportsPath.steps as action, index (action.id)}
 			<div
 				class="setup-path__item"
@@ -492,17 +492,17 @@
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
-			<strong class="record-row__title">Read-only access</strong>
-			<span>Review and export actions require workspace management access.</span>
+			<strong class="record-row__title">{reportsUi.readOnlyTitle}</strong>
+			<span>{reportsUi.readOnlyBody}</span>
 		</p>
 	{:else}
-		<article class="record-row setup-current-task" role="region" aria-label="Current review task">
+		<article class="record-row setup-current-task" role="region" aria-label={reportsUi.currentTaskAria}>
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">
-						{reportsPath.completedCount} of {reportsPath.totalCount} results tasks done
+						{reportsUi.taskProgress(reportsPath.completedCount, reportsPath.totalCount)}
 					</p>
-					<h4 class="setup-current-task__title">Current results task</h4>
+					<h4 class="setup-current-task__title">{reportsUi.currentTaskTitle}</h4>
 					<p class="record-row__title">{currentAction.title}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 				</div>
@@ -516,19 +516,19 @@
 				{#if currentAction.id === 'reportProof'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Selected wave</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? 'Missing'}</dd>
+							<dt class="record-field__label">{reportsUi.selectedWave}</dt>
+							<dd class="record-field__value">{selectedCampaign?.name ?? reportsUi.missing}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Preview status</dt>
+							<dt class="record-field__label">{reportsUi.previewStatus}</dt>
 							<dd class="record-field__value">
 								{selectedCampaign?.reportStatus === 'proof_only'
-									? 'Ready for review'
-									: 'Finish setup first'}
+									? reportsUi.readyForReview
+									: reportsUi.finishSetupFirst}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Interpretation</dt>
+							<dt class="record-field__label">{reportsUi.interpretation}</dt>
 							<dd class="record-field__value">
 								{humanize(
 									reportProofResult?.interpretationStatus ?? selectedCampaign?.interpretationStatus
@@ -546,38 +546,38 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'reportProof',
-						label: 'Review results',
-						resultLabel: 'Preview',
-						resultValue: reportProofResult ? 'Ready' : null,
+						label: reportsWorkflowCopy.actions.reportProof.title,
+						resultLabel: reportsWorkflowCopy.surface.exportPreviewLabel,
+						resultValue: reportProofResult ? reportsUi.state.ready : null,
 						onclick: viewReportProof
 					})}
 				{:else if currentAction.id === 'exportArtifact'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Latest export</dt>
+							<dt class="record-field__label">{reportsUi.latestExport}</dt>
 							<dd class="record-field__value">
 								{exportResult?.fileName ??
 									selectedCampaign?.latestExportArtifactFileName ??
-									'Not available'}
+									reportsUi.notAvailable}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Export count</dt>
+							<dt class="record-field__label">{reportsUi.exportCount}</dt>
 							<dd class="record-field__value">{selectedCampaign?.exportArtifactCount ?? 0}</dd>
 						</div>
 					</dl>
 					{#if exportResult}
 						{@render ExportArtifactResult({
 							result: exportResult,
-							ariaLabel: 'Report export result',
-							kicker: 'Report export',
-							title: 'Report-summary CSV and codebook'
+							ariaLabel: reportsUi.reportExportResult,
+							kicker: reportsUi.reportExport,
+							title: reportsUi.reportSummaryCsvCodebook
 						})}
 					{/if}
 					{@render ActionFooter({
 						id: 'exportArtifact',
-						label: 'Create report-summary export',
-						resultLabel: 'Export file',
+						label: reportsUi.createReportSummaryExport,
+						resultLabel: reportsUi.exportFile,
 						resultValue:
 							exportResult?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null,
 						onclick: createExportArtifact
@@ -585,30 +585,30 @@
 				{:else if currentAction.id === 'responseExport'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Series</dt>
+							<dt class="record-field__label">{reportsUi.series}</dt>
 							<dd class="record-field__value">{workspace.series.name}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Latest response export</dt>
+							<dt class="record-field__label">{reportsUi.latestResponseExport}</dt>
 							<dd class="record-field__value">
 								{responseExportResult?.fileName ??
 									latestResponseExportArtifact?.fileName ??
-									'Not available'}
+									reportsUi.notAvailable}
 							</dd>
 						</div>
 					</dl>
 					{#if responseExportResult}
 						{@render ExportArtifactResult({
 							result: responseExportResult,
-							ariaLabel: 'Response export result',
-							kicker: 'Response export',
-							title: 'Response CSV and codebook'
+							ariaLabel: reportsUi.responseExportResult,
+							kicker: reportsUi.responseExport,
+							title: reportsUi.responseCsvCodebook
 						})}
 					{/if}
 					{@render ActionFooter({
 						id: 'responseExport',
-						label: 'Create response export',
-						resultLabel: 'Response file',
+						label: reportsUi.createResponseExport,
+						resultLabel: reportsUi.responseFile,
 						resultValue:
 							responseExportResult?.fileName ?? latestResponseExportArtifact?.fileName ?? null,
 						onclick: createResponseExportArtifact
@@ -616,13 +616,13 @@
 				{:else if currentAction.id === 'fetchArtifact'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Export file</dt>
-							<dd class="record-field__value">{currentExportFileName ?? 'Not available'}</dd>
+							<dt class="record-field__label">{reportsUi.exportFile}</dt>
+							<dd class="record-field__value">{currentExportFileName ?? reportsUi.notAvailable}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Download status</dt>
+							<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? 'Downloadable' : 'Not ready'}
+								{currentDownloadableExportArtifactId ? reportsUi.downloadable : reportsUi.notReady}
 							</dd>
 						</div>
 					</dl>
@@ -631,30 +631,30 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'fetchArtifact',
-						label: 'Review export file',
-						resultLabel: 'Reviewed file',
+						label: reportsWorkflowCopy.actions.fetchArtifact.title,
+						resultLabel: reportsUi.reviewedFile,
 						resultValue: storedExportResult?.fileName ?? currentExportFileName,
 						onclick: fetchStoredArtifact
 					})}
 				{:else}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Download status</dt>
+							<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
 							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? 'Downloadable' : 'Not ready'}
+								{currentDownloadableExportArtifactId ? reportsUi.downloadable : reportsUi.notReady}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Latest file</dt>
+							<dt class="record-field__label">{reportsUi.latestFile}</dt>
 							<dd class="record-field__value">
 								{downloadResult?.fileName ??
 									latestDownloadableExportArtifact?.fileName ??
 									selectedCampaign?.latestExportArtifactFileName ??
-									'Not available'}
+									reportsUi.notAvailable}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">File purpose</dt>
+							<dt class="record-field__label">{reportsUi.filePurpose}</dt>
 							<dd class="record-field__value">{currentExportPurpose}</dd>
 						</div>
 					</dl>
@@ -664,7 +664,7 @@
 					{@render ActionFooter({
 						id: 'downloadCsv',
 						label: currentAction.title,
-						resultLabel: 'Downloaded file',
+						resultLabel: reportsUi.downloadedFile,
 						resultValue:
 							downloadResult?.fileName ??
 							latestDownloadableExportArtifact?.fileName ??
@@ -680,20 +680,20 @@
 
 {#snippet ReportProofResult()}
 	{#if reportProofResult}
-		<section class="score-result-panel report-proof-panel" aria-label="Report preview">
+		<section class="score-result-panel report-proof-panel" aria-label={reportsUi.reportPreviewAria}>
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Results preview</p>
-					<h4 class="record-row__title">Aggregate result preview</h4>
+					<p class="product-kicker">{reportsUi.resultsPreview}</p>
+					<h4 class="record-row__title">{reportsUi.aggregateResultPreview}</h4>
 				</div>
-				<StatusBadge status="ready" label="Internal preview" />
+				<StatusBadge status="ready" label={reportsUi.internalPreview} />
 			</div>
 			<div class="response-lab__meta">
-				<span>Internal preview</span>
-				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} responses</span>
-				<span>Minimum group {reportProofResult.disclosurePolicy.kMin}</span>
+				<span>{reportsUi.internalPreview}</span>
+				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} {reportsUi.responsesSuffix}</span>
+				<span>{reportsUi.minimumGroup(reportProofResult.disclosurePolicy.kMin)}</span>
 			</div>
-			<div class="score-card-list" aria-label="Report preview scores">
+			<div class="score-card-list" aria-label={reportsUi.reportPreviewScoresAria}>
 				{#each reportProofResult.scores as score (score.dimensionCode)}
 					{@const scoreMetadata =
 						score.disclosure === 'visible'
@@ -703,7 +703,7 @@
 									score.missingPolicyStatusSummary
 								)
 							: null}
-					<article class="score-card" aria-label={`Report score ${score.dimensionCode}`}>
+					<article class="score-card" aria-label={reportsUi.reportScoreAria(score.dimensionCode)}>
 						<div>
 							<p class="score-card__label">{score.dimensionCode}</p>
 							<p
@@ -716,7 +716,7 @@
 						</div>
 						<p class="score-card__meta">{humanize(score.disclosure)}</p>
 						<p class="score-card__interpretation">
-							scores={score.scoreCount ?? 'suppressed'}
+							{reportsUi.scoreCount(score.scoreCount ?? reportsUi.suppressed)}
 						</p>
 						{#if scoreMetadata}
 							<p class="score-card__interpretation">{scoreMetadata}</p>
@@ -753,16 +753,16 @@
 				</div>
 			<StatusBadge
 				status={result.canDownload ? 'ready' : 'pending'}
-				label={result.canDownload ? 'Downloadable' : 'Preparing'}
+				label={result.canDownload ? reportsUi.downloadable : reportsUi.exportPreparing}
 			/>
 		</div>
 		<div class="response-lab__meta">
-			<span>Export file</span>
-			<span>{result.canDownload ? 'Downloadable' : humanize(result.status)}</span>
-			<span>{result.rowCount} rows</span>
+			<span>{reportsUi.exportFile}</span>
+			<span>{result.canDownload ? reportsUi.downloadable : humanize(result.status)}</span>
+			<span>{reportsUi.rows(result.rowCount)}</span>
 		</div>
 		<div class="score-result-panel__footer">
-			{@render ResultLine({ label: 'File', value: result.fileName })}
+			{@render ResultLine({ label: reportsUi.file, value: result.fileName })}
 		</div>
 		{#if csvPreview(result.csvContent)}
 			<pre class="csv-preview">{csvPreview(result.csvContent)}</pre>
@@ -774,17 +774,17 @@
 	{#if storedExportResult}
 		<dl class="record-grid">
 			<div class="record-field">
-				<dt class="record-field__label">Export file</dt>
+				<dt class="record-field__label">{reportsUi.exportFile}</dt>
 				<dd class="record-field__value">{storedExportResult.fileName}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Rows</dt>
+				<dt class="record-field__label">{reportsUi.rowsLabel}</dt>
 				<dd class="record-field__value">{storedExportResult.rowCount}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Download status</dt>
+				<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
 				<dd class="record-field__value">
-					{storedExportResult.canDownload ? 'Downloadable' : humanize(storedExportResult.status)}
+					{storedExportResult.canDownload ? reportsUi.downloadable : humanize(storedExportResult.status)}
 				</dd>
 			</div>
 		</dl>
@@ -794,11 +794,11 @@
 {#snippet CsvDownloadResult()}
 	{#if downloadResult}
 		<div class="response-lab__meta">
-			<span>Downloaded CSV</span>
+			<span>{reportsUi.downloadedCsv}</span>
 			<span>{downloadResult.contentType}</span>
-			<span>{downloadResult.byteSize} bytes</span>
+			<span>{reportsUi.bytes(downloadResult.byteSize)}</span>
 		</div>
-		{@render ResultLine({ label: 'Downloaded file', value: downloadResult.fileName })}
+		{@render ResultLine({ label: reportsUi.downloadedFile, value: downloadResult.fileName })}
 		{#if csvPreview(downloadResult.content)}
 			<pre class="csv-preview">{csvPreview(downloadResult.content)}</pre>
 		{/if}
@@ -840,7 +840,7 @@
 		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
 		{@render ResultLine({ label: resultLabel, value: resultValue })}
 		{#if id === 'downloadCsv'}
-			<a class="secondary-button" href={wavesHref}>Go to waves</a>
+			<a class="secondary-button" href={wavesHref}>{reportsUi.goToWaves}</a>
 		{/if}
 	</div>
 	{#if actionErrors[id]}

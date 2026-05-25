@@ -53,6 +53,7 @@
 	});
 	const appLocale = $derived(appLocaleFromPageData(page.data));
 	const wavesWorkflowCopy = $derived(routePageCopy(appLocale).selectedStudy.wavesWorkflow);
+	const wavesUi = $derived(wavesWorkflowCopy.component);
 	const wavePlan = $derived(toSelectedSeriesWavePlan(workspace, wavesWorkflowCopy));
 	const groupTrendPlan = $derived(toSelectedSeriesGroupTrendPlan(workspace, wavesWorkflowCopy));
 	const comparisonReview = $derived(toSelectedSeriesWaveComparisonReview(workspace, wavesWorkflowCopy));
@@ -83,8 +84,12 @@
 		return [
 			humanize(interpretation.status),
 			humanize(interpretation.source),
-			interpretation.isValidated ? 'reviewed' : 'not reviewed',
-			interpretation.isOfficial ? 'official' : 'not official'
+			interpretation.isValidated
+				? wavesUi.reviewedInterpretation
+				: wavesUi.notReviewedInterpretation,
+			interpretation.isOfficial
+				? wavesUi.officialInterpretation
+				: wavesUi.notOfficialInterpretation
 		].join(' / ');
 	}
 
@@ -128,7 +133,7 @@
 			if (options.refreshAfter) {
 				const refreshed = await onWorkspaceRefresh?.();
 				if (refreshed === false) {
-					refreshWarning = 'Waves action completed, but the waves workspace refresh failed.';
+					refreshWarning = wavesUi.errors.refreshFailed;
 				}
 			}
 			return result;
@@ -136,7 +141,7 @@
 			actionStates = { ...actionStates, [actionId]: 'failed' };
 			actionErrors = {
 				...actionErrors,
-				[actionId]: toProductApiErrorMessage(error, 'Waves action failed.')
+				[actionId]: toProductApiErrorMessage(error, wavesUi.errors.actionFailed)
 			};
 			return null;
 		}
@@ -153,46 +158,46 @@
 
 	function stepLabel(state: StepState) {
 		if (state === 'submitting') {
-			return 'Working';
+			return wavesUi.state.working;
 		}
 
 		if (state === 'succeeded') {
-			return 'Viewed';
+			return wavesUi.state.viewed;
 		}
 
 		if (state === 'failed') {
-			return 'Failed';
+			return wavesUi.state.failed;
 		}
 
-		return 'Ready';
+		return wavesUi.state.ready;
 	}
 
 	function pathStateLabel(state: SelectedSeriesWavesPathStepState) {
 		if (state === 'done') {
-			return 'Done';
+			return wavesUi.state.done;
 		}
 
 		if (state === 'current') {
-			return 'Current';
+			return wavesUi.state.current;
 		}
 
-		return 'Blocked';
+		return wavesUi.state.blocked;
 	}
 
 	function inactivePathTitle() {
 		if (wavesPath.mode === 'group_trend') {
-			return 'Linked-change checks not needed';
+			return wavesUi.linkedChecksNotNeeded;
 		}
 
-		return 'Linked-change checks not active yet';
+		return wavesUi.linkedChecksNotActiveYet;
 	}
 
 	function formatNullableScoreValue(value: number | null) {
-		return value === null ? 'suppressed' : value.toFixed(2);
+		return value === null ? wavesUi.suppressed : value.toFixed(2);
 	}
 
 	function humanize(value: string | null | undefined) {
-		return value ? value.replaceAll('_', ' ') : 'Not available';
+		return value ? value.replaceAll('_', ' ') : wavesUi.notAvailable;
 	}
 </script>
 
@@ -212,10 +217,10 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="record-row setup-current-task" role="region" aria-label="Wave plan">
+	<article class="record-row setup-current-task" role="region" aria-label={wavesUi.wavePlanAria}>
 		<div class="setup-current-task__header">
 			<div>
-				<p class="record-field__label">Where waves fit</p>
+				<p class="record-field__label">{wavesUi.whereWavesFit}</p>
 				<h4 class="setup-current-task__title">{wavePlan.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{wavePlan.description}</p>
 			</div>
@@ -238,10 +243,10 @@
 		</div>
 	</article>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label="Wave comparison plan">
+	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={wavesUi.waveComparisonPlanAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
-				<p class="product-kicker">Comparison plan</p>
+				<p class="product-kicker">{wavesUi.comparisonPlan}</p>
 				<h4 class="setup-current-task__title">{comparisonReview.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{comparisonReview.description}</p>
 			</div>
@@ -292,10 +297,10 @@
 		</div>
 	</article>
 
-	<article class="record-row setup-current-task" role="region" aria-label="Group trend review">
+	<article class="record-row setup-current-task" role="region" aria-label={wavesUi.groupTrendAria}>
 		<div class="setup-current-task__header">
 			<div>
-				<p class="record-field__label">Group trend</p>
+				<p class="record-field__label">{wavesUi.groupTrend}</p>
 				<h4 class="setup-current-task__title">{groupTrendPlan.title}</h4>
 				<p class="text-sm text-[var(--color-text-muted)]">{groupTrendPlan.description}</p>
 			</div>
@@ -303,19 +308,19 @@
 		</div>
 		<dl class="record-grid">
 			<div class="record-field">
-				<dt class="record-field__label">First wave</dt>
-				<dd class="record-field__value">{groupTrendPlan.baselineName ?? 'Missing'}</dd>
+				<dt class="record-field__label">{wavesUi.firstWave}</dt>
+				<dd class="record-field__value">{groupTrendPlan.baselineName ?? wavesUi.missing}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">First wave responses</dt>
+				<dt class="record-field__label">{wavesUi.firstWaveResponses}</dt>
 				<dd class="record-field__value">{groupTrendPlan.baselineResponseCount ?? 0}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Second wave</dt>
-				<dd class="record-field__value">{groupTrendPlan.comparisonName ?? 'Missing'}</dd>
+				<dt class="record-field__label">{wavesUi.secondWave}</dt>
+				<dd class="record-field__value">{groupTrendPlan.comparisonName ?? wavesUi.missing}</dd>
 			</div>
 			<div class="record-field">
-				<dt class="record-field__label">Second wave responses</dt>
+				<dt class="record-field__label">{wavesUi.secondWaveResponses}</dt>
 				<dd class="record-field__value">{groupTrendPlan.comparisonResponseCount ?? 0}</dd>
 			</div>
 			{#each groupTrendPlan.safetyRows as row}
@@ -345,7 +350,7 @@
 	</article>
 
 	{#if wavesPath.showWorkflow}
-		<div class="setup-path" role="list" aria-label="Waves path">
+		<div class="setup-path" role="list" aria-label={wavesUi.wavesPathAria}>
 			{#each wavesPath.steps as action, index (action.id)}
 				<div
 					class="setup-path__item"
@@ -363,13 +368,13 @@
 			{/each}
 		</div>
 
-		<article class="record-row setup-current-task" role="region" aria-label="Current waves task">
+		<article class="record-row setup-current-task" role="region" aria-label={wavesUi.currentTaskAria}>
 			<div class="setup-current-task__header">
 				<div>
 					<p class="record-field__label">
-						{wavesPath.completedCount} of {wavesPath.totalCount} comparison tasks done
+						{wavesUi.taskProgress(wavesPath.completedCount, wavesPath.totalCount)}
 					</p>
-					<h4 class="setup-current-task__title">Current comparison task</h4>
+					<h4 class="setup-current-task__title">{wavesUi.currentTaskTitle}</h4>
 					<p class="record-row__title">{currentAction.title}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
 				</div>
@@ -383,15 +388,15 @@
 				{#if currentAction.id === 'twoWaveProof'}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Selected series</dt>
+							<dt class="record-field__label">{wavesUi.selectedSeries}</dt>
 							<dd class="record-field__value">{workspace.series.name}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Repeated waves</dt>
+							<dt class="record-field__label">{wavesUi.repeatedWaves}</dt>
 							<dd class="record-field__value">{workspace.summary.longitudinalWaveCount}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Potential complete trajectories</dt>
+							<dt class="record-field__label">{wavesUi.potentialCompleteTrajectories}</dt>
 							<dd class="record-field__value">{workspace.summary.completeTrajectoryCount}</dd>
 						</div>
 					</dl>
@@ -400,39 +405,39 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'twoWaveProof',
-						label: 'Run linked trajectory check',
-						resultLabel: 'Study',
+						label: wavesUi.runLinkedTrajectoryCheck,
+						resultLabel: wavesUi.study,
 						resultValue: twoWaveProofResult ? workspace.series.name : null,
 						onclick: refreshTwoWaveProof
 					})}
 				{:else}
 					<dl class="record-grid">
 						<div class="record-field">
-							<dt class="record-field__label">Baseline</dt>
-							<dd class="record-field__value">{workspace.selectedBaselineWave?.name ?? 'Missing'}</dd>
+							<dt class="record-field__label">{wavesUi.baseline}</dt>
+							<dd class="record-field__value">{workspace.selectedBaselineWave?.name ?? wavesUi.missing}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Comparison</dt>
+							<dt class="record-field__label">{wavesUi.comparison}</dt>
 							<dd class="record-field__value">
-								{workspace.selectedComparisonWave?.name ?? 'Missing'}
+								{workspace.selectedComparisonWave?.name ?? wavesUi.missing}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Compatibility</dt>
+							<dt class="record-field__label">{wavesUi.compatibility}</dt>
 							<dd class="record-field__value">{humanize(workspace.comparison.compatibilityState)}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Disclosure</dt>
+							<dt class="record-field__label">{wavesUi.disclosure}</dt>
 							<dd class="record-field__value">{humanize(workspace.comparison.disclosureState)}</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Minimum group size</dt>
+							<dt class="record-field__label">{wavesUi.minimumGroupSize}</dt>
 							<dd class="record-field__value">
-								{workspace.comparison.disclosureKMin ?? 'Not configured'}
+								{workspace.comparison.disclosureKMin ?? wavesUi.notConfigured}
 							</dd>
 						</div>
 						<div class="record-field">
-							<dt class="record-field__label">Suppressed comparisons</dt>
+							<dt class="record-field__label">{wavesUi.suppressedComparisons}</dt>
 							<dd class="record-field__value">{workspace.summary.suppressedComparisonCount}</dd>
 						</div>
 					</dl>
@@ -442,19 +447,19 @@
 					{/if}
 					{@render ActionFooter({
 						id: 'waveComparisonProof',
-						label: 'Review comparison',
-						resultLabel: 'Comparison',
-						resultValue: waveComparisonProofResult ? 'Reviewed' : null,
+						label: wavesUi.reviewComparison,
+						resultLabel: wavesUi.comparison,
+						resultValue: waveComparisonProofResult ? wavesUi.reviewed : null,
 						onclick: viewWaveComparisonProof
 					})}
 				{/if}
 			</div>
 		</article>
 	{:else}
-		<article class="record-row setup-current-task" role="region" aria-label="Linked change task status">
+		<article class="record-row setup-current-task" role="region" aria-label={wavesUi.linkedChangeTaskStatusAria}>
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">Linked-change workflow</p>
+					<p class="record-field__label">{wavesUi.linkedChangeWorkflow}</p>
 					<h4 class="setup-current-task__title">{inactivePathTitle()}</h4>
 					<p class="text-sm text-[var(--color-text-muted)]">{wavesPath.inactiveReason}</p>
 				</div>
@@ -466,34 +471,34 @@
 
 {#snippet TwoWaveProofResult()}
 	{#if twoWaveProofResult}
-		<section class="score-result-panel report-proof-panel" aria-label="Linked trajectory check">
+		<section class="score-result-panel report-proof-panel" aria-label={wavesUi.linkedTrajectoryCheckAria}>
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Wave readiness</p>
-					<h4 class="record-row__title">Linked trajectory check</h4>
+					<p class="product-kicker">{wavesUi.waveReadiness}</p>
+					<h4 class="record-row__title">{wavesUi.linkedTrajectoryCheck}</h4>
 				</div>
-				<StatusBadge status="ready" label="Ready" />
+				<StatusBadge status="ready" label={wavesUi.state.ready} />
 			</div>
 			<div class="response-lab__meta">
-				<span>{twoWaveProofResult.launchedWaveCount} launched waves</span>
-				<span>{twoWaveProofResult.submittedWaveCount} waves with responses</span>
-				<span>{twoWaveProofResult.linkedTrajectoryCount} linked trajectories</span>
-				<span>{twoWaveProofResult.completeTrajectoryCount} complete trajectories</span>
+				<span>{wavesUi.launchedWaves(twoWaveProofResult.launchedWaveCount)}</span>
+				<span>{wavesUi.wavesWithResponses(twoWaveProofResult.submittedWaveCount)}</span>
+				<span>{wavesUi.linkedTrajectories(twoWaveProofResult.linkedTrajectoryCount)}</span>
+				<span>{wavesUi.completeTrajectories(twoWaveProofResult.completeTrajectoryCount)}</span>
 			</div>
 			<div class="record-list">
 				{#each twoWaveProofResult.waves as wave (wave.campaignId)}
-					<article class="record-row" aria-label={`Wave ${wave.name}`}>
+					<article class="record-row" aria-label={wavesUi.waveAria(wave.name)}>
 						<div class="record-row__header">
 							<h5 class="record-row__title">{wave.name}</h5>
 							<StatusBadge status="ready" label={humanize(wave.status)} />
 						</div>
 						<dl class="record-grid">
 							<div class="record-field">
-								<dt class="record-field__label">Response mode</dt>
+								<dt class="record-field__label">{wavesUi.responseMode}</dt>
 								<dd class="record-field__value">{humanize(wave.responseIdentityMode)}</dd>
 							</div>
 							<div class="record-field">
-								<dt class="record-field__label">Submitted responses</dt>
+								<dt class="record-field__label">{wavesUi.submittedResponses}</dt>
 								<dd class="record-field__value">{wave.submittedResponseCount}</dd>
 							</div>
 						</dl>
@@ -506,18 +511,18 @@
 
 {#snippet WaveComparisonProofResult()}
 	{#if waveComparisonProofResult}
-		<section class="score-result-panel report-proof-panel" aria-label="Wave comparison preview">
+		<section class="score-result-panel report-proof-panel" aria-label={wavesUi.waveComparisonPreviewAria}>
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">Wave comparison</p>
-					<h4 class="record-row__title">Disclosure-gated comparison</h4>
+					<p class="product-kicker">{wavesUi.waveComparison}</p>
+					<h4 class="record-row__title">{wavesUi.disclosureGatedComparison}</h4>
 				</div>
-				<StatusBadge status="ready" label="Ready" />
+				<StatusBadge status="ready" label={wavesUi.state.ready} />
 			</div>
 			<div class="response-lab__meta">
 				<span>{waveComparisonProofResult.interpretationStatus}</span>
 				{#if waveComparisonProofResult.disclosurePolicy}
-					<span>Disclosure k={waveComparisonProofResult.disclosurePolicy.kMin}</span>
+					<span>{wavesUi.disclosureK(waveComparisonProofResult.disclosurePolicy.kMin)}</span>
 				{/if}
 			</div>
 			{#if waveComparisonProofResult.baselineWave && waveComparisonProofResult.comparisonWave}
@@ -528,7 +533,7 @@
 					<span>{waveComparisonProofResult.comparisonWave.scoringRuleVersion}</span>
 				</div>
 			{/if}
-			<div class="score-card-list" aria-label="Wave comparison scores">
+			<div class="score-card-list" aria-label={wavesUi.waveComparisonScoresAria}>
 				{#each waveComparisonProofResult.scores as score (score.dimensionCode)}
 					{@const baselineScoreMetadata =
 						score.disclosure === 'visible'
@@ -546,7 +551,7 @@
 									score.comparisonMissingPolicyStatusSummary
 								)
 							: null}
-					<article class="score-card" aria-label={`Wave comparison ${score.dimensionCode}`}>
+					<article class="score-card" aria-label={wavesUi.waveComparisonScoreAria(score.dimensionCode)}>
 						<div>
 							<p class="score-card__label">{score.dimensionCode}</p>
 							<p
@@ -560,22 +565,22 @@
 						<p class="score-card__meta">{score.compatibilityStatus}</p>
 						<p class="score-card__interpretation">{score.disclosure}</p>
 						<p class="score-card__interpretation">
-							paired delta {formatNullableScoreValue(score.pairedDeltaMean)}
+							{wavesUi.pairedDelta(formatNullableScoreValue(score.pairedDeltaMean))}
 						</p>
 						{#if baselineScoreMetadata}
-							<p class="score-card__interpretation">baseline {baselineScoreMetadata}</p>
+							<p class="score-card__interpretation">{wavesUi.baselineMeta(baselineScoreMetadata)}</p>
 						{/if}
 						{#if comparisonScoreMetadata}
-							<p class="score-card__interpretation">comparison {comparisonScoreMetadata}</p>
+							<p class="score-card__interpretation">{wavesUi.comparisonMeta(comparisonScoreMetadata)}</p>
 						{/if}
 						{#if score.baselineInterpretation}
 							<p class="score-card__interpretation">
-								baseline band {score.baselineInterpretation.label}
+								{wavesUi.baselineBand(score.baselineInterpretation.label)}
 							</p>
 						{/if}
 						{#if score.comparisonInterpretation}
 							<p class="score-card__interpretation">
-								comparison band {score.comparisonInterpretation.label}
+								{wavesUi.comparisonBand(score.comparisonInterpretation.label)}
 							</p>
 						{/if}
 						{#if score.baselineInterpretation || score.comparisonInterpretation}
@@ -625,8 +630,8 @@
 		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
 		{@render ResultLine({ label: resultLabel, value: resultValue })}
 		{#if id === 'waveComparisonProof'}
-			<a class="secondary-button" href={resultsHref}>Back to results</a>
-			<a class="secondary-button" href={setupHref}>Set up next wave</a>
+			<a class="secondary-button" href={resultsHref}>{wavesUi.backToResults}</a>
+			<a class="secondary-button" href={setupHref}>{wavesUi.setUpNextWave}</a>
 		{/if}
 	</div>
 	{#if actionErrors[id]}

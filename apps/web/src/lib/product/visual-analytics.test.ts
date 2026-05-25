@@ -68,6 +68,33 @@ describe('selected-series visual analytics view models', () => {
 		]);
 	});
 
+	it('localizes visual analytics chart chrome and metric labels for Croatian', () => {
+		const reportView = toReportVisualAnalyticsView(sampleReportProof, 'hr-HR');
+		const waveView = toWaveVisualAnalyticsView(sampleWaveComparisonProof, 'hr-HR');
+
+		expect(reportView).toMatchObject({
+			title: 'Vizualni pregled izvještaja',
+			kicker: 'Vizualni pregled',
+			primarySeriesLabel: 'Prosjek',
+			noChartableValuesTitle: 'Nema vrijednosti za graf'
+		});
+		expect(reportView.points[0]?.meta).toEqual([
+			'rezultati 120',
+			'predano 128',
+			'raspon 1.00-5.00'
+		]);
+		expect(waveView).toMatchObject({
+			title: 'Vizualni pregled mjerenja',
+			primarySeriesLabel: 'Agregirana promjena',
+			secondarySeriesLabel: 'Promjena u paru'
+		});
+		expect(waveView.points[0]?.meta).toEqual([
+			'početno 3.70',
+			'usporedno 3.40',
+			'povezanih parova 6'
+		]);
+	});
+
 	it('keeps suppressed and incompatible wave rows out of numeric chart points', () => {
 		const view = toWaveVisualAnalyticsView(sampleWaveComparisonProof);
 

@@ -106,7 +106,7 @@
 <section class="visual-analytics" role="group" aria-label={view.ariaLabel}>
 	<div class="visual-analytics__header">
 		<div>
-			<p class="product-kicker">Visual analytics</p>
+			<p class="product-kicker">{view.kicker}</p>
 			<h5 class="text-base font-semibold text-[var(--color-text)]">{view.title}</h5>
 		</div>
 		<p class="step-pill" data-state="proof_only">{view.statusLabel}</p>
@@ -121,7 +121,7 @@
 			aria-hidden="true"
 		></div>
 
-		<ul class="visual-analytics__values" aria-label={`${view.title} chart values`}>
+		<ul class="visual-analytics__values" aria-label={view.chartValuesAria(view.title)}>
 			{#each view.points as point (point.id)}
 				<li class="visual-analytics__value-row">
 					<div>
@@ -143,19 +143,19 @@
 		</ul>
 	{:else}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
-			<strong class="record-row__title">No chartable values</strong>
+			<strong class="record-row__title">{view.noChartableValuesTitle}</strong>
 			<span>{view.emptyMessage}</span>
 		</p>
 	{/if}
 
 	{#if loadState === 'failed'}
-		<p class="error-line">Chart renderer could not be loaded. Values remain available below.</p>
+		<p class="error-line">{view.rendererFailedMessage}</p>
 	{/if}
 
 	{#if view.excludedRows.length > 0}
 		<div class="visual-analytics__excluded">
-			<p class="record-field__label">Excluded from chart</p>
-			<ul class="visual-analytics__excluded-list" aria-label={`${view.title} excluded rows`}>
+			<p class="record-field__label">{view.excludedFromChartLabel}</p>
+			<ul class="visual-analytics__excluded-list" aria-label={view.excludedRowsAria(view.title)}>
 				{#each view.excludedRows as row (row.id)}
 					<li>
 						<span>{row.label}</span>

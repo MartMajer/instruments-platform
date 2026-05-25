@@ -86,4 +86,28 @@ describe('product route guidance', () => {
 		expect(guidance.limits).toContain('team management access');
 		expect(guidance.nextMove).toContain('inspect');
 	});
+
+	it('localizes route guidance chrome and body copy for Croatian app mode', () => {
+		const guidance = toProductRouteGuidance(
+			'setup',
+			{
+				isSample: true,
+				canManageSetup: false
+			},
+			'hr-HR'
+		);
+
+		expect(guidance.ariaLabel).toBe('Smjernice rute');
+		expect(guidance.kicker).toBe('Smjernice rute');
+		expect(guidance.inspectFirstLabel).toBe('Prvo pregledajte');
+		expect(guidance.whenItMattersLabel).toBe('Kada je važno');
+		expect(guidance.nextMoveLabel).toBe('Sljedeći korak');
+		expect(guidance.limitsLabel).toBe('Ograničenja');
+		expect(guidance.title).toBe('Pripremite prije prikupljanja');
+		expect(guidance.limits).toContain('Ogledne studije su primjeri samo za čitanje');
+		expect(guidance.nextMove).toContain('Duplicirajte ovaj ogledni primjer');
+		expect(`${guidance.title} ${guidance.summary} ${guidance.nextMove}`).not.toMatch(
+			/Prepare study|Route guidance|Duplicate this sample/
+		);
+	});
 });

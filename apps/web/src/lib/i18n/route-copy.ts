@@ -384,7 +384,20 @@ const en = {
 		searchPlaceholder: 'Search by study name',
 		readiness: 'Readiness',
 		sort: 'Sort',
-		visibility: 'Visibility'
+		visibility: 'Visibility',
+		loadFailed: 'Studies could not be loaded.',
+		enterStudyName: 'Enter a study name.',
+		createFailed: 'Study could not be created.',
+		renameFailed: 'Study could not be renamed.',
+		restoreFailed: 'Study could not be restored.',
+		archiveFailed: 'Study could not be archived.',
+		duplicateSampleFailed: 'Sample study could not be duplicated.',
+		saving: 'Saving...',
+		saveName: 'Save name',
+		duplicating: 'Duplicating...',
+		renameStudyName: 'Rename study name',
+		cancel: 'Cancel',
+		rename: 'Rename'
 	},
 	instruments: {
 		eyebrow: 'Instrument library',
@@ -472,7 +485,51 @@ const en = {
 		saving: 'Saving...',
 		savePerson: 'Save person',
 		addMembership: 'Add membership',
-		saveManager: 'Save manager'
+		saveManager: 'Save manager',
+		loadFailed: 'Subject directory could not be loaded.',
+		enterPersonIdentity: 'Enter a display name, email, or external id.',
+		personCreateFailed: 'Person could not be created.',
+		csvRequired: 'Paste CSV rows or choose a CSV file first.',
+		csvImportFailed: 'CSV audience import could not be completed.',
+		selectPerson: 'Select a person.',
+		personUpdateFailed: 'Person could not be updated.',
+		enterGroupIdentity: 'Enter a group type and name.',
+		groupCreateFailed: 'Subject group could not be created.',
+		selectPersonAndGroup: 'Select a person and group.',
+		membershipSaveFailed: 'Group membership could not be saved.',
+		managerSaveFailed: 'Manager relationship could not be saved.',
+		rowsNeedingAttention: 'Rows needing attention',
+		subjects: 'Subjects',
+		externalId: 'External id',
+		locale: 'Locale',
+		manager: 'Manager',
+		directReports: 'Direct reports',
+		noMemberships: 'No memberships',
+		parent: 'Parent',
+		members: 'Members',
+		person: 'Person',
+		newPerson: 'New person',
+		displayName: 'Display name',
+		attributesJson: 'Attributes JSON',
+		newGroup: 'New group',
+		parentGroup: 'Parent group',
+		noParent: 'No parent',
+		hierarchySetup: 'Hierarchy setup',
+		validFrom: 'Valid from',
+		selectedPerson: 'Selected person',
+		noManager: 'No manager',
+		managed: 'Managed',
+		notAvailable: 'Not available',
+		unmatchedRow: 'Unmatched row',
+		previewed: 'Previewed',
+		imported: 'Imported',
+		loadingDirectory: 'Loading subject directory',
+		unavailableTitle: 'Subject directory unavailable',
+		retryDirectory: 'Retry directory',
+		createRecordsAria: 'Create directory records',
+		creating: 'Creating...',
+		addPerson: 'Add person',
+		createGroup: 'Create group'
 	},
 	team: {
 		eyebrow: 'Workspace access',
@@ -1143,6 +1200,180 @@ const en = {
 				subject: 'Study invitation',
 				body:
 					'You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]'
+			},
+			component: {
+				doNotContactList: 'Do-not-contact list',
+				suppressEmailsBeforeInviting: 'Suppress emails before inviting',
+				emailToSuppress: 'Email to suppress',
+				internalNote: 'Internal note',
+				addToDoNotContact: 'Add to do-not-contact',
+				refreshDoNotContactList: 'Refresh do-not-contact list',
+				emailInvitationStatus: 'Email invitation status',
+				queued: 'Queued',
+				suppressed: 'Suppressed',
+				sendAttempts: 'Send attempts',
+				providerAccepted: 'Provider accepted',
+				providerDelivered: 'Provider delivered',
+				providerBounced: 'Provider bounced',
+				complaints: 'Complaints',
+				invitedEmailAccess: 'Invited email access',
+				addOneOffRecipientsAfterLaunch: 'Add one-off recipients after launch',
+				postLaunchAdditions: 'Post-launch additions',
+				addOneTimeRecipientsToThisWave: 'Add one-time recipients to this wave',
+				nameForReview: 'Name for review',
+				addToReviewList: 'Add to review list',
+				importRecipients: 'Import recipients',
+				reviewOrPasteSourceList: 'Review or paste source list',
+				recipientSource: 'Recipient source',
+				importReview: 'Import review',
+				invalid: 'Invalid',
+				duplicates: 'Duplicates',
+				keepValidOnly: 'Keep valid only',
+				clearList: 'Clear list',
+				doNotContactMatch: 'Do-not-contact match',
+				invitationEmailPreview: 'Invitation email preview',
+				subject: 'Subject',
+				retrySafetyCheck: 'Retry safety check',
+				createAdHocInvitations: 'Create ad hoc invitations',
+				sendNextEmailBatch: 'Send next email batch',
+				retryFailedEmails: 'Retry failed emails',
+				invitationsCreated: 'Invitations created',
+				emailDeliveryBatch: 'Email delivery batch',
+				failedEmailsRequeued: 'Failed emails requeued',
+				demoTestData: 'Demo/test data',
+				simulateCollectionResponses: 'Simulate collection responses',
+				shareLink: 'Share link',
+				notLoaded: 'Not loaded',
+				anonymousInviteOnly: 'Anonymous invite-only',
+				unavailable: 'Unavailable',
+				noEmailFound: 'No email found',
+				responsesCreated: 'Responses created',
+				stagingDemo: 'Staging/demo',
+				errors: {
+					createWaveBeforeReadiness:
+						'Create a collection wave before running the pre-launch check.',
+					createWaveBeforeStart: 'Create a collection wave before starting collection.',
+					createWaveBeforeAccess: 'Create a collection wave before creating respondent access.',
+					privateInvitationsAlreadyActive:
+						'This wave already uses private email invitations. Open links are disabled so access stays invite-only.',
+					openLinkAlreadyActive:
+						'This wave already has an open respondent link. Keep using the link you created, or create a new wave if the link was lost.',
+					createWaveBeforeReplaceLink:
+						'Create a collection wave before replacing the open respondent link.',
+					replaceLinkOnlyForAnonymous:
+						'Open respondent link replacement is available only for anonymous open-link collection.',
+					createWaveBeforeInvitations: 'Create a collection wave before preparing invitations.',
+					emailInvitationsRequireAnonymous:
+						'Email invitations are available for anonymous or repeat-participation waves.',
+					openLinkBlocksPrivateInvitations:
+						'This wave already has an open respondent link. Private email invitations are disabled for open-link collection.',
+					reviewRecipientsBeforeInviting:
+						'Review the recipient list first. Remove invalid or duplicate emails before creating invitations.',
+					recipientFileCouldNotRead: 'Recipient file could not be read.',
+					enterOneValidEmail: 'Enter one valid email address.',
+					recipientAlreadyInWaveList: 'This recipient is already in the wave list.',
+					createWaveBeforeSending: 'Create a collection wave before sending invitations.',
+					checkEmailSetupBeforeSending:
+						'Check email sending setup before sending invitation emails.',
+					resolveEmailSetupBeforeSending:
+						'Resolve email sending setup blockers before sending.',
+					createWaveBeforeRetrying: 'Create a collection wave before retrying failed emails.',
+					confirmRetryBeforeRequeueing:
+						'Confirm another invitation email is appropriate before requeueing.',
+					checkEmailSetupBeforeRetrying:
+						'Check email sending setup before retrying failed invitation emails.',
+					resolveEmailSetupBeforeRetrying:
+						'Resolve email sending setup blockers before retrying failed invitations.',
+					createAndStartBeforeSimulating:
+						'Create and start a collection wave before simulating responses.',
+					createWaveBeforeRepairReadiness:
+						'Create a collection wave before checking email repair readiness.',
+					enterEmailBeforeSuppressing:
+						'Enter an email address before adding it to do-not-contact.',
+					refreshDoNotContactBeforeRelease:
+						'Refresh the do-not-contact list before releasing this recipient.',
+					collectionStatusRefreshError: 'Collection status could not be refreshed.',
+					collectionStatusRefreshFailed: 'Collection status refresh failed.',
+					refreshWarning: 'The action was saved, but this collection view could not refresh.',
+					collectionActionFailed: 'Collection action failed.'
+				},
+				emailStatus: {
+					notChecked: 'Not checked',
+					smtpReady: 'SMTP ready',
+					smtpSendReady: 'SMTP send ready',
+					localProofMode: 'Local proof mode',
+					needsConfig: 'Needs config',
+					noQueuedEmails: 'No queued invitation emails are waiting to send.',
+					noRetryableFailedEmails: 'No retryable failed invitation emails are waiting.'
+				},
+				deliveryGuidance: {
+					sesSandbox:
+						'AWS SES rejected at least one recipient because the account is still in sandbox. Verify the lowercase recipient email in the same SES region, or wait for SES production access, then use Retry failed emails.',
+					sesSenderRejected:
+						'AWS SES rejected the sender identity. Check the verified sender domain/from address in SES, then use Retry failed emails.',
+					sesIdentityRejected:
+						'AWS SES rejected a verified-identity check. Confirm sender and sandbox recipient identities in the configured SES region, then retry failed emails.',
+					smtpAuth:
+						'The SMTP provider rejected authentication. Check the SES SMTP username/password on the server, then retry failed emails.',
+					smtpTls:
+						'The SMTP TLS handshake failed. Check provider host, port, and TLS settings before retrying failed emails.',
+					throttled:
+						'AWS SES throttled this batch. Wait for the provider limit window to clear, then retry failed emails.',
+					suppressedRecipient:
+						'At least one recipient is on the workspace do-not-contact list. Review suppressions before retrying.',
+					providerRejected:
+						'The provider rejected at least one invitation. Check email setup and provider status, then use Retry failed emails when another send is appropriate.',
+					sentAccepted:
+						'Sent means the message was accepted by the SMTP handoff. Delivery, bounce, and complaint evidence appears later under Provider delivery evidence.',
+					failedRetry:
+						'Failed invitations can be retried after the provider issue is corrected. Use Retry failed emails in the respondent access step.',
+					suppressedFailures:
+						'Some failed invitations are suppressed by do-not-contact or provider feedback. Review the suppression list before sending again.',
+					ambiguous:
+						'Some handoffs are ambiguous. Treat them as possibly sent and retry only after checking provider evidence.',
+					providerEvents:
+						'Provider events have reconciled for this campaign. Load recent provider events to inspect accepted, delivered, bounced, or complained counts.',
+					noCleanup: 'No email delivery cleanup is currently needed for this wave.'
+				},
+				readinessGuidance: {
+					useDraftWaveTitle: 'Use a draft collection wave',
+					useDraftWaveDetail:
+						'This wave is no longer draft or scheduled. Open Setup, select or create a draft collection wave, then run this check again.',
+					chooseResponseModeTitle: 'Choose the response mode',
+					chooseResponseModeDetail:
+						'Open Setup and save the Collection setup step with a valid response mode before starting collection.',
+					connectQuestionnaireTitle: 'Connect the questionnaire to this wave',
+					connectQuestionnaireDetail:
+						'Open Setup, save the Questionnaire step, then save the Collection setup step so the wave uses that questionnaire.',
+					finishQuestionnaireTitle: 'Finish the questionnaire',
+					finishQuestionnaireDetail:
+						'Open Setup and add at least one questionnaire section and question before starting collection.',
+					finishResultsTitle: 'Finish result outputs',
+					finishResultsDetail:
+						'Open Setup and save result outputs so reports know which answers become scores.',
+					completePoliciesTitle: 'Complete study policies',
+					completePoliciesDetail:
+						'Open Setup and save the consent, retention, and disclosure policies for this study before launch.',
+					switchResponseModeTitle: 'Switch response mode',
+					switchResponseModeDetail:
+						'Saved specific-email lists are available for anonymous or repeat-participation waves. Open Setup and change the response mode, or remove the saved recipient list.',
+					addEmailsTitle: 'Add recipient email addresses',
+					addEmailsDetail:
+						'Open Directory and add email addresses for everyone in the saved recipient selection, then rerun the pre-launch check.',
+					selectRecipientTitle: 'Select at least one recipient',
+					selectRecipientDetail:
+						'Open Setup and save at least one recipient selection that resolves to active people.',
+					emptyRecipientTitle: 'Recipient selection is empty',
+					emptyRecipientDetail:
+						'Add active people to the selected group in Setup, or remove the saved recipient selection if this wave should use a general respondent link.',
+					fixAudienceTitle: 'Fix who can answer',
+					fixAudienceDetail:
+						'Open Setup and adjust the recipient selection until the preview finds the people you expect.',
+					reviewInstrumentTitle: 'Review the instrument',
+					reviewInstrumentDetail:
+						'Open Setup and save the Instrument and Questionnaire steps again so this wave uses a launchable study instrument.',
+					reviewSetupTitle: 'Review setup'
+				}
 			}
 		},		operationsWorkflow: {
 			locale: 'en' as AppLocale,
@@ -1365,6 +1596,90 @@ const en = {
 				downloadResponseDatasetCsv: 'Download response dataset CSV',
 				downloadReportSummaryCsv: 'Download report-summary CSV'
 			},
+			component: {
+				state: {
+					working: 'Working',
+					saved: 'Saved',
+					failed: 'Failed',
+					ready: 'Ready',
+					done: 'Done',
+					current: 'Current',
+					blocked: 'Blocked'
+				},
+				errors: {
+					refreshFailed: 'Reports action saved, but the reports workspace refresh failed.',
+					actionFailed: 'Reports action failed.',
+					createWaveBeforeResults: 'Create or select a wave before reviewing results.',
+					createWaveBeforeReportExport: 'Create or select a wave before creating a report export.',
+					createStudyBeforeResponseExport:
+						'Create or select a study before creating a response export.',
+					createExportBeforeReview: 'Create or select an export file before reviewing it.',
+					selectDownloadableExport:
+						'Select a downloadable export file before downloading CSV.',
+					createExportBeforeDownload: 'Create or select an export file before downloading CSV.'
+				},
+				currentPurpose: {
+					responseDataset: 'Response dataset CSV and codebook',
+					reportSummary: 'Report-summary CSV, not analysis-ready response dataset'
+				},
+				downloadAction: 'Download action',
+				reviewPathAria: 'Review and export path',
+				readOnlyTitle: 'Read-only access',
+				readOnlyBody: 'Review and export actions require workspace management access.',
+				currentTaskAria: 'Current review task',
+				taskProgress: (completed: number, total: number) =>
+					`${completed} of ${total} results tasks done`,
+				currentTaskTitle: 'Current results task',
+				selectedWave: 'Selected wave',
+				previewStatus: 'Preview status',
+				readyForReview: 'Ready for review',
+				finishSetupFirst: 'Finish setup first',
+				interpretation: 'Interpretation',
+				missing: 'Missing',
+				notAvailable: 'Not available',
+				suppressed: 'suppressed',
+				latestExport: 'Latest export',
+				exportCount: 'Export count',
+				reportExportResult: 'Report export result',
+				reportExport: 'Report export',
+				reportSummaryCsvCodebook: 'Report-summary CSV and codebook',
+				createReportSummaryExport: 'Create report-summary export',
+				exportFile: 'Export file',
+				series: 'Series',
+				latestResponseExport: 'Latest response export',
+				responseExportResult: 'Response export result',
+				responseExport: 'Response export',
+				responseCsvCodebook: 'Response CSV and codebook',
+				createResponseExport: 'Create response export',
+				responseFile: 'Response file',
+				downloadStatus: 'Download status',
+				downloadable: 'Downloadable',
+				notReady: 'Not ready',
+				latestFile: 'Latest file',
+				filePurpose: 'File purpose',
+				reviewedFile: 'Reviewed file',
+				downloadedFile: 'Downloaded file',
+				reportPreviewAria: 'Report preview',
+				resultsPreview: 'Results preview',
+				aggregateResultPreview: 'Aggregate result preview',
+				internalPreview: 'Internal preview',
+				responsesSuffix: 'responses',
+				minimumGroup: (kMin: number) => `Minimum group ${kMin}`,
+				reportPreviewScoresAria: 'Report preview scores',
+				reportScoreAria: (dimensionCode: string) => `Report score ${dimensionCode}`,
+				scoreCount: (count: number | string) => `scores=${count}`,
+				exportPreparing: 'Preparing',
+				rowsLabel: 'Rows',
+				rows: (count: number) => `${count} rows`,
+				file: 'File',
+				downloadedCsv: 'Downloaded CSV',
+				bytes: (count: number) => `${count} bytes`,
+				goToWaves: 'Go to waves',
+				reviewed: 'reviewed',
+				notReviewed: 'not reviewed',
+				official: 'official',
+				notOfficial: 'not official'
+			},
 
 		},		wavesWorkflow: {
 			locale: 'en' as AppLocale,
@@ -1492,6 +1807,85 @@ const en = {
 				oneWave:
 					'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.',
 				needScoredResponses: 'Collect scored responses in at least two waves before comparison tasks apply.'
+			},
+			component: {
+				state: {
+					working: 'Working',
+					viewed: 'Viewed',
+					failed: 'Failed',
+					ready: 'Ready',
+					done: 'Done',
+					current: 'Current',
+					blocked: 'Blocked'
+				},
+				errors: {
+					refreshFailed: 'Waves action completed, but the waves workspace refresh failed.',
+					actionFailed: 'Waves action failed.'
+				},
+				wavePlanAria: 'Wave plan',
+				whereWavesFit: 'Where waves fit',
+				waveComparisonPlanAria: 'Wave comparison plan',
+				comparisonPlan: 'Comparison plan',
+				groupTrendAria: 'Group trend review',
+				groupTrend: 'Group trend',
+				firstWave: 'First wave',
+				firstWaveResponses: 'First wave responses',
+				secondWave: 'Second wave',
+				secondWaveResponses: 'Second wave responses',
+				missing: 'Missing',
+				wavesPathAria: 'Waves path',
+				currentTaskAria: 'Current waves task',
+				taskProgress: (completed: number, total: number) =>
+					`${completed} of ${total} comparison tasks done`,
+				currentTaskTitle: 'Current comparison task',
+				selectedSeries: 'Selected series',
+				repeatedWaves: 'Repeated waves',
+				potentialCompleteTrajectories: 'Potential complete trajectories',
+				runLinkedTrajectoryCheck: 'Run linked trajectory check',
+				study: 'Study',
+				baseline: 'Baseline',
+				comparison: 'Comparison',
+				compatibility: 'Compatibility',
+				disclosure: 'Disclosure',
+				minimumGroupSize: 'Minimum group size',
+				notConfigured: 'Not configured',
+				suppressedComparisons: 'Suppressed comparisons',
+				reviewComparison: 'Review comparison',
+				reviewed: 'Reviewed',
+				linkedChangeTaskStatusAria: 'Linked change task status',
+				linkedChangeWorkflow: 'Linked-change workflow',
+				linkedChecksNotNeeded: 'Linked-change checks not needed',
+				linkedChecksNotActiveYet: 'Linked-change checks not active yet',
+				linkedTrajectoryCheckAria: 'Linked trajectory check',
+				waveReadiness: 'Wave readiness',
+				linkedTrajectoryCheck: 'Linked trajectory check',
+				launchedWaves: (count: number) => `${count} launched waves`,
+				wavesWithResponses: (count: number) => `${count} waves with responses`,
+				linkedTrajectories: (count: number) => `${count} linked trajectories`,
+				completeTrajectories: (count: number) => `${count} complete trajectories`,
+				waveAria: (name: string) => `Wave ${name}`,
+				responseMode: 'Response mode',
+				submittedResponses: 'Submitted responses',
+				waveComparisonPreviewAria: 'Wave comparison preview',
+				waveComparison: 'Wave comparison',
+				disclosureGatedComparison: 'Disclosure-gated comparison',
+				disclosureK: (kMin: number) => `Disclosure k=${kMin}`,
+				waveComparisonScoresAria: 'Wave comparison scores',
+				waveComparisonScoreAria: (dimensionCode: string) =>
+					`Wave comparison ${dimensionCode}`,
+				pairedDelta: (value: string) => `paired delta ${value}`,
+				baselineMeta: (value: string) => `baseline ${value}`,
+				comparisonMeta: (value: string) => `comparison ${value}`,
+				baselineBand: (label: string) => `baseline band ${label}`,
+				comparisonBand: (label: string) => `comparison band ${label}`,
+				suppressed: 'suppressed',
+				notAvailable: 'Not available',
+				backToResults: 'Back to results',
+				setUpNextWave: 'Set up next wave',
+				reviewedInterpretation: 'reviewed',
+				notReviewedInterpretation: 'not reviewed',
+				officialInterpretation: 'official',
+				notOfficialInterpretation: 'not official'
 			}
 		},
 		waveSnapshot: {
@@ -1572,7 +1966,23 @@ const en = {
 				loadFailed: 'Wave comparison snapshot could not be loaded.',
 				loadingComparison: 'Loading comparison',
 				refreshComparison: 'Refresh wave comparison',
-				study: 'Study'
+				study: 'Study',
+				aggregateSnapshotAria: 'Aggregate wave comparison snapshot',
+				changeOverTimeTitle: 'Change over time',
+				comparisonReady: 'Comparison ready',
+				completeTrajectories: (count: number | string) => `complete trajectories ${count}`,
+				linkedPairs: (count: number | string) => `linked pairs ${count}`,
+				waveComparisonRowsAria: 'Wave comparison rows',
+				waveComparisonScoreAria: (dimensionCode: string) =>
+					`Wave comparison ${dimensionCode}`,
+				baselineMean: (value: string) => `baseline mean ${value}`,
+				comparisonMean: (value: string) => `comparison mean ${value}`,
+				baselineMeta: (value: string) => `baseline ${value}`,
+				comparisonMeta: (value: string) => `comparison ${value}`,
+				aggregateDelta: (value: string) => `aggregate delta ${value}`,
+				pairedDelta: (value: string) => `paired delta ${value}`,
+				baselineBand: (value: string) => `baseline band ${value}`,
+				comparisonBand: (value: string) => `comparison band ${value}`
 			},
 			codeLabels: {
 				proof_only: 'preview',
@@ -2167,7 +2577,20 @@ const hr: typeof en = {
 		searchPlaceholder: 'Pretraži po nazivu studije',
 		readiness: 'Spremnost',
 		sort: 'Sortiranje',
-		visibility: 'Vidljivost'
+		visibility: 'Vidljivost',
+		loadFailed: 'Studije se nisu mogle učitati.',
+		enterStudyName: 'Unesite naziv studije.',
+		createFailed: 'Studiju nije moguće izraditi.',
+		renameFailed: 'Studiju nije moguće preimenovati.',
+		restoreFailed: 'Studiju nije moguće vratiti.',
+		archiveFailed: 'Studiju nije moguće arhivirati.',
+		duplicateSampleFailed: 'Primjer studije nije moguće duplicirati.',
+		saving: 'Spremanje...',
+		saveName: 'Spremi naziv',
+		duplicating: 'Dupliciranje...',
+		renameStudyName: 'Preimenuj studiju',
+		cancel: 'Odustani',
+		rename: 'Preimenuj'
 	},
 	instruments: {
 		eyebrow: 'Knjižnica instrumenata',
@@ -2255,7 +2678,51 @@ const hr: typeof en = {
 		saving: 'Spremanje...',
 		savePerson: 'Spremi osobu',
 		addMembership: 'Dodaj članstvo',
-		saveManager: 'Spremi managera'
+		saveManager: 'Spremi managera',
+		loadFailed: 'Imenik osoba nije se mogao učitati.',
+		enterPersonIdentity: 'Unesite ime za prikaz, e-poštu ili vanjski id.',
+		personCreateFailed: 'Osobu nije moguće izraditi.',
+		csvRequired: 'Zalijepite CSV retke ili prvo odaberite CSV datoteku.',
+		csvImportFailed: 'CSV uvoz publike nije moguće dovršiti.',
+		selectPerson: 'Odaberite osobu.',
+		personUpdateFailed: 'Osobu nije moguće ažurirati.',
+		enterGroupIdentity: 'Unesite vrstu i naziv grupe.',
+		groupCreateFailed: 'Grupu osoba nije moguće izraditi.',
+		selectPersonAndGroup: 'Odaberite osobu i grupu.',
+		membershipSaveFailed: 'Članstvo u grupi nije moguće spremiti.',
+		managerSaveFailed: 'Odnos managera nije moguće spremiti.',
+		rowsNeedingAttention: 'Redci koji traže pažnju',
+		subjects: 'Osobe',
+		externalId: 'Vanjski id',
+		locale: 'Jezik',
+		manager: 'Manager',
+		directReports: 'Izravni članovi',
+		noMemberships: 'Nema članstava',
+		parent: 'Nadređena grupa',
+		members: 'Članovi',
+		person: 'Osoba',
+		newPerson: 'Nova osoba',
+		displayName: 'Ime za prikaz',
+		attributesJson: 'Atributi JSON',
+		newGroup: 'Nova grupa',
+		parentGroup: 'Nadređena grupa',
+		noParent: 'Nema nadređene grupe',
+		hierarchySetup: 'Postavljanje hijerarhije',
+		validFrom: 'Vrijedi od',
+		selectedPerson: 'Odabrana osoba',
+		noManager: 'Nema managera',
+		managed: 'Ima managera',
+		notAvailable: 'Nije dostupno',
+		unmatchedRow: 'Nepovezan redak',
+		previewed: 'Pregledano',
+		imported: 'Uvezeno',
+		loadingDirectory: 'Učitavanje imenika osoba',
+		unavailableTitle: 'Imenik osoba nije dostupan',
+		retryDirectory: 'Pokušaj ponovno',
+		createRecordsAria: 'Izrada zapisa imenika',
+		creating: 'Izrada...',
+		addPerson: 'Dodaj osobu',
+		createGroup: 'Izradi grupu'
 	},
 	team: {
 		eyebrow: 'Pristup radnom prostoru',
@@ -2926,6 +3393,181 @@ const hr: typeof en = {
 				subject: 'Pozivnica za studiju',
 				body:
 					'Pozvani ste da ispunite studiju.\n\nRadi privatnosti, ova e-pošta ne uključuje naziv ni temu studije. Poveznica otvara stranicu studije prije nego odlučite hoćete li odgovoriti.\n\nOtvorite svoju poveznicu za studiju:\n[jedinstvena poveznica sudionika]\n\nAko ste već odgovorili, ovu poruku možete zanemariti.\n\nAko više ne biste trebali primati pozivnice za studije iz ovog radnog prostora, odjavite se ovdje:\n[poveznica za odjavu]\n\n[podnožje pozivnice radnog prostora]'
+			},
+			component: {
+				doNotContactList: 'Popis bez kontaktiranja',
+				suppressEmailsBeforeInviting: 'Blokiraj e-poštu prije slanja poziva',
+				emailToSuppress: 'E-pošta za blokiranje',
+				internalNote: 'Interna bilješka',
+				addToDoNotContact: 'Dodaj na popis bez kontaktiranja',
+				refreshDoNotContactList: 'Osvježi popis bez kontaktiranja',
+				emailInvitationStatus: 'Status pozivnica e-poštom',
+				queued: 'U redu čekanja',
+				suppressed: 'Blokirano',
+				sendAttempts: 'Pokušaji slanja',
+				providerAccepted: 'Davatelj prihvatio',
+				providerDelivered: 'Davatelj dostavio',
+				providerBounced: 'Davatelj odbio',
+				complaints: 'Pritužbe',
+				invitedEmailAccess: 'Pristup pozivnicom e-pošte',
+				addOneOffRecipientsAfterLaunch: 'Dodajte jednokratne primatelje nakon pokretanja',
+				postLaunchAdditions: 'Dodavanje nakon pokretanja',
+				addOneTimeRecipientsToThisWave: 'Dodaj jednokratne primatelje u ovo mjerenje',
+				nameForReview: 'Ime za pregled',
+				addToReviewList: 'Dodaj na popis za pregled',
+				importRecipients: 'Uvezi primatelje',
+				reviewOrPasteSourceList: 'Pregledajte ili zalijepite izvorni popis',
+				recipientSource: 'Izvor primatelja',
+				importReview: 'Pregled uvoza',
+				invalid: 'Neispravno',
+				duplicates: 'Duplikati',
+				keepValidOnly: 'Zadrži samo ispravne',
+				clearList: 'Očisti popis',
+				doNotContactMatch: 'Podudaranje s popisom bez kontaktiranja',
+				invitationEmailPreview: 'Pregled e-pošte pozivnice',
+				subject: 'Predmet',
+				retrySafetyCheck: 'Sigurnosna potvrda ponovnog slanja',
+				createAdHocInvitations: 'Izradi ad hoc pozivnice',
+				sendNextEmailBatch: 'Pošalji sljedeći paket e-pošte',
+				retryFailedEmails: 'Ponovi neuspjele e-poruke',
+				invitationsCreated: 'Pozivnice izrađene',
+				emailDeliveryBatch: 'Paket dostave e-pošte',
+				failedEmailsRequeued: 'Neuspjele e-poruke vraćene u red',
+				demoTestData: 'Demo/testni podaci',
+				simulateCollectionResponses: 'Simuliraj odgovore prikupljanja',
+				shareLink: 'Poveznica za dijeljenje',
+				notLoaded: 'Nije učitano',
+				anonymousInviteOnly: 'Anonimno samo pozivnicom',
+				unavailable: 'Nije dostupno',
+				noEmailFound: 'E-pošta nije pronađena',
+				responsesCreated: 'Odgovori izrađeni',
+				stagingDemo: 'Staging/demo',
+				errors: {
+					createWaveBeforeReadiness:
+						'Izradite mjerenje prije pokretanja provjere prije pokretanja.',
+					createWaveBeforeStart: 'Izradite mjerenje prije pokretanja prikupljanja.',
+					createWaveBeforeAccess: 'Izradite mjerenje prije izrade pristupa sudionicima.',
+					privateInvitationsAlreadyActive:
+						'Ovo mjerenje već koristi privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi pristup ostao samo pozivnicom.',
+					openLinkAlreadyActive:
+						'Ovo mjerenje već ima otvorenu poveznicu. Koristite postojeću poveznicu ili izradite novo mjerenje ako je poveznica izgubljena.',
+					createWaveBeforeReplaceLink:
+						'Izradite mjerenje prije zamjene otvorene poveznice.',
+					replaceLinkOnlyForAnonymous:
+						'Zamjena otvorene poveznice dostupna je samo za anonimno prikupljanje otvorenom poveznicom.',
+					createWaveBeforeInvitations: 'Izradite mjerenje prije pripreme pozivnica.',
+					emailInvitationsRequireAnonymous:
+						'Pozivnice e-poštom dostupne su za anonimna mjerenja ili mjerenja s ponovljenim sudjelovanjem.',
+					openLinkBlocksPrivateInvitations:
+						'Ovo mjerenje već ima otvorenu poveznicu. Privatne pozivnice e-poštom isključene su za prikupljanje otvorenom poveznicom.',
+					reviewRecipientsBeforeInviting:
+						'Prvo pregledajte popis primatelja. Uklonite neispravne ili duplicirane adrese prije izrade pozivnica.',
+					recipientFileCouldNotRead: 'Datoteku primatelja nije moguće pročitati.',
+					enterOneValidEmail: 'Unesite jednu ispravnu adresu e-pošte.',
+					recipientAlreadyInWaveList: 'Ovaj primatelj već je na popisu mjerenja.',
+					createWaveBeforeSending: 'Izradite mjerenje prije slanja pozivnica.',
+					checkEmailSetupBeforeSending:
+						'Provjerite postavke slanja e-pošte prije slanja pozivnica.',
+					resolveEmailSetupBeforeSending:
+						'Riješite blokade postavki e-pošte prije slanja.',
+					createWaveBeforeRetrying: 'Izradite mjerenje prije ponavljanja neuspjelih e-poruka.',
+					confirmRetryBeforeRequeueing:
+						'Potvrdite da je nova pozivnica prikladna prije vraćanja u red.',
+					checkEmailSetupBeforeRetrying:
+						'Provjerite postavke slanja e-pošte prije ponavljanja neuspjelih pozivnica.',
+					resolveEmailSetupBeforeRetrying:
+						'Riješite blokade postavki e-pošte prije ponavljanja neuspjelih pozivnica.',
+					createAndStartBeforeSimulating:
+						'Izradite i pokrenite mjerenje prije simulacije odgovora.',
+					createWaveBeforeRepairReadiness:
+						'Izradite mjerenje prije provjere spremnosti popravka e-pošte.',
+					enterEmailBeforeSuppressing:
+						'Unesite adresu e-pošte prije dodavanja na popis bez kontaktiranja.',
+					refreshDoNotContactBeforeRelease:
+						'Osvježite popis bez kontaktiranja prije oslobađanja ovog primatelja.',
+					collectionStatusRefreshError: 'Status prikupljanja nije moguće osvježiti.',
+					collectionStatusRefreshFailed: 'Osvježavanje statusa prikupljanja nije uspjelo.',
+					refreshWarning:
+						'Radnja je spremljena, ali ovaj prikaz prikupljanja nije se mogao osvježiti.',
+					collectionActionFailed: 'Radnja prikupljanja nije uspjela.'
+				},
+				emailStatus: {
+					notChecked: 'Nije provjereno',
+					smtpReady: 'SMTP spreman',
+					smtpSendReady: 'SMTP slanje spremno',
+					localProofMode: 'Lokalni dokazni način',
+					needsConfig: 'Nedostaju postavke',
+					noQueuedEmails: 'Nema pozivnica e-poštom koje čekaju slanje.',
+					noRetryableFailedEmails: 'Nema neuspjelih pozivnica koje čekaju ponavljanje.'
+				},
+				deliveryGuidance: {
+					sesSandbox:
+						'AWS SES je odbio barem jednog primatelja jer je račun još u sandboxu. Provjerite primatelja malim slovima u istoj SES regiji ili pričekajte produkcijski pristup, zatim ponovite neuspjele e-poruke.',
+					sesSenderRejected:
+						'AWS SES je odbio identitet pošiljatelja. Provjerite potvrđenu domenu/adresu pošiljatelja u SES-u, zatim ponovite neuspjele e-poruke.',
+					sesIdentityRejected:
+						'AWS SES je odbio provjeru potvrđenog identiteta. Potvrdite identitete pošiljatelja i sandbox primatelja u podešenoj SES regiji, zatim ponovite neuspjele e-poruke.',
+					smtpAuth:
+						'SMTP davatelj je odbio autentikaciju. Provjerite SES SMTP korisničko ime i lozinku na serveru, zatim ponovite neuspjele e-poruke.',
+					smtpTls:
+						'SMTP TLS rukovanje nije uspjelo. Provjerite host, port i TLS postavke prije ponavljanja neuspjelih e-poruka.',
+					throttled:
+						'AWS SES je ograničio ovaj paket. Pričekajte da prođe ograničenje davatelja, zatim ponovite neuspjele e-poruke.',
+					suppressedRecipient:
+						'Barem jedan primatelj je na popisu bez kontaktiranja. Pregledajte blokade prije ponavljanja.',
+					providerRejected:
+						'Davatelj je odbio barem jednu pozivnicu. Provjerite postavke e-pošte i status davatelja, zatim ponovite neuspjele e-poruke kada je novo slanje prikladno.',
+					sentAccepted:
+						'Poslano znači da je poruka prihvaćena u SMTP predaji. Dokazi dostave, odbijanja i pritužbi pojavit će se kasnije u dokazima dostave davatelja.',
+					failedRetry:
+						'Neuspjele pozivnice mogu se ponoviti nakon ispravka problema davatelja. Koristite ponavljanje neuspjelih e-poruka u koraku pristupa sudionicima.',
+					suppressedFailures:
+						'Neke neuspjele pozivnice blokirane su popisom bez kontaktiranja ili povratnom informacijom davatelja. Pregledajte popis blokada prije ponovnog slanja.',
+					ambiguous:
+						'Neke predaje nisu jasne. Tretirajte ih kao moguće poslane i ponavljajte tek nakon provjere dokaza davatelja.',
+					providerEvents:
+						'Događaji davatelja usklađeni su za ovo mjerenje. Učitajte nedavne događaje davatelja za pregled prihvaćanja, dostava, odbijanja ili pritužbi.',
+					noCleanup: 'Za ovo mjerenje trenutno nije potrebno čišćenje dostave e-pošte.'
+				},
+				readinessGuidance: {
+					useDraftWaveTitle: 'Koristite nacrt mjerenja',
+					useDraftWaveDetail:
+						'Ovo mjerenje više nije nacrt ili zakazano. Otvorite Postavljanje, odaberite ili izradite nacrt mjerenja i ponovno pokrenite provjeru.',
+					chooseResponseModeTitle: 'Odaberite način odgovaranja',
+					chooseResponseModeDetail:
+						'Otvorite Postavljanje i spremite korak Prikupljanje s važećim načinom odgovaranja prije pokretanja.',
+					connectQuestionnaireTitle: 'Povežite upitnik s ovim mjerenjem',
+					connectQuestionnaireDetail:
+						'Otvorite Postavljanje, spremite korak Upitnik, zatim spremite korak Prikupljanje kako bi mjerenje koristilo taj upitnik.',
+					finishQuestionnaireTitle: 'Dovršite upitnik',
+					finishQuestionnaireDetail:
+						'Otvorite Postavljanje i dodajte barem jednu sekciju i pitanje prije pokretanja prikupljanja.',
+					finishResultsTitle: 'Dovršite izlaze rezultata',
+					finishResultsDetail:
+						'Otvorite Postavljanje i spremite izlaze rezultata kako bi izvještaji znali koji odgovori postaju rezultati.',
+					completePoliciesTitle: 'Dovršite pravila studije',
+					completePoliciesDetail:
+						'Otvorite Postavljanje i spremite pravila privole, zadržavanja i prikaza prije pokretanja studije.',
+					switchResponseModeTitle: 'Promijenite način odgovaranja',
+					switchResponseModeDetail:
+						'Spremljeni popisi konkretnih e-adresa dostupni su za anonimna mjerenja ili mjerenja s ponovljenim sudjelovanjem. Otvorite Postavljanje i promijenite način odgovaranja ili uklonite spremljeni popis primatelja.',
+					addEmailsTitle: 'Dodajte adrese e-pošte primatelja',
+					addEmailsDetail:
+						'Otvorite Imenik i dodajte adrese e-pošte za sve u spremljenom odabiru primatelja, zatim ponovno pokrenite provjeru.',
+					selectRecipientTitle: 'Odaberite barem jednog primatelja',
+					selectRecipientDetail:
+						'Otvorite Postavljanje i spremite barem jedan odabir primatelja koji pronalazi aktivne osobe.',
+					emptyRecipientTitle: 'Odabir primatelja je prazan',
+					emptyRecipientDetail:
+						'Dodajte aktivne osobe u odabranu grupu u Postavljanju ili uklonite spremljeni odabir primatelja ako ovo mjerenje treba koristiti opću poveznicu.',
+					fixAudienceTitle: 'Popravite tko može odgovoriti',
+					fixAudienceDetail:
+						'Otvorite Postavljanje i prilagodite odabir primatelja dok pregled ne pronađe očekivane osobe.',
+					reviewInstrumentTitle: 'Pregledajte izvor upitnika',
+					reviewInstrumentDetail:
+						'Otvorite Postavljanje i ponovno spremite korake Izvor upitnika i Upitnik kako bi ovo mjerenje koristilo upitnik spreman za pokretanje.',
+					reviewSetupTitle: 'Pregledajte postavljanje'
+				}
 			}
 		},		operationsWorkflow: {
 			locale: 'hr-HR' as AppLocale,
@@ -3147,6 +3789,93 @@ const hr: typeof en = {
 				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
 				downloadReportSummaryCsv: 'Preuzmi CSV sažetka izvještaja'
 			},
+			component: {
+				state: {
+					working: 'U tijeku',
+					saved: 'Spremljeno',
+					failed: 'Neuspjelo',
+					ready: 'Spremno',
+					done: 'Dovršeno',
+					current: 'Trenutno',
+					blocked: 'Blokirano'
+				},
+				errors: {
+					refreshFailed:
+						'Radnja je spremljena, ali osvježavanje prostora rezultata nije uspjelo.',
+					actionFailed: 'Radnja nad rezultatima nije uspjela.',
+					createWaveBeforeResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
+					createWaveBeforeReportExport:
+						'Izradite ili odaberite mjerenje prije izrade sažetka izvještaja.',
+					createStudyBeforeResponseExport:
+						'Izradite ili odaberite studiju prije izrade izvoza odgovora.',
+					createExportBeforeReview: 'Izradite ili odaberite datoteku izvoza prije pregleda.',
+					selectDownloadableExport:
+						'Odaberite datoteku izvoza koja se može preuzeti prije preuzimanja CSV-a.',
+					createExportBeforeDownload:
+						'Izradite ili odaberite datoteku izvoza prije preuzimanja CSV-a.'
+				},
+				currentPurpose: {
+					responseDataset: 'CSV skupa odgovora i knjiga kodova',
+					reportSummary: 'CSV sažetka izvještaja, nije skup odgovora za analizu'
+				},
+				downloadAction: 'Radnja preuzimanja',
+				reviewPathAria: 'Tijek pregleda i izvoza',
+				readOnlyTitle: 'Samo za čitanje',
+				readOnlyBody: 'Pregled i izvoz traže pristup za upravljanje radnim prostorom.',
+				currentTaskAria: 'Trenutni zadatak pregleda',
+				taskProgress: (completed: number, total: number) =>
+					`${completed} od ${total} zadataka rezultata dovršeno`,
+				currentTaskTitle: 'Trenutni zadatak rezultata',
+				selectedWave: 'Odabrano mjerenje',
+				previewStatus: 'Status pregleda',
+				readyForReview: 'Spremno za pregled',
+				finishSetupFirst: 'Prvo dovršite postavljanje',
+				interpretation: 'Tumačenje',
+				missing: 'Nedostaje',
+				notAvailable: 'Nije dostupno',
+				suppressed: 'skriveno',
+				latestExport: 'Najnoviji izvoz',
+				exportCount: 'Broj izvoza',
+				reportExportResult: 'Rezultat izvoza sažetka',
+				reportExport: 'Izvoz sažetka',
+				reportSummaryCsvCodebook: 'CSV sažetka i knjiga kodova',
+				createReportSummaryExport: 'Izradi izvoz sažetka',
+				exportFile: 'Datoteka izvoza',
+				series: 'Studija',
+				latestResponseExport: 'Najnoviji izvoz odgovora',
+				responseExportResult: 'Rezultat izvoza odgovora',
+				responseExport: 'Izvoz odgovora',
+				responseCsvCodebook: 'CSV odgovora i knjiga kodova',
+				createResponseExport: 'Izradi izvoz odgovora',
+				responseFile: 'Datoteka odgovora',
+				downloadStatus: 'Status preuzimanja',
+				downloadable: 'Dostupno za preuzimanje',
+				notReady: 'Nije spremno',
+				latestFile: 'Najnovija datoteka',
+				filePurpose: 'Namjena datoteke',
+				reviewedFile: 'Pregledana datoteka',
+				downloadedFile: 'Preuzeta datoteka',
+				reportPreviewAria: 'Pregled izvještaja',
+				resultsPreview: 'Pregled rezultata',
+				aggregateResultPreview: 'Pregled agregiranih rezultata',
+				internalPreview: 'Interni pregled',
+				responsesSuffix: 'odgovori',
+				minimumGroup: (kMin: number) => `Najmanja grupa ${kMin}`,
+				reportPreviewScoresAria: 'Rezultati u pregledu izvještaja',
+				reportScoreAria: (dimensionCode: string) => `Rezultat ${dimensionCode}`,
+				scoreCount: (count: number | string) => `rezultata=${count}`,
+				exportPreparing: 'Priprema',
+				rowsLabel: 'Redci',
+				rows: (count: number) => `${count} redaka`,
+				file: 'Datoteka',
+				downloadedCsv: 'Preuzeti CSV',
+				bytes: (count: number) => `${count} bajtova`,
+				goToWaves: 'Idi na mjerenja',
+				reviewed: 'pregledano',
+				notReviewed: 'nije pregledano',
+				official: 'službeno',
+				notOfficial: 'nije službeno'
+			},
 
 		},		wavesWorkflow: {
 			locale: 'hr-HR' as AppLocale,
@@ -3274,6 +4003,86 @@ const hr: typeof en = {
 				oneWave:
 					'Pregledajte Mjerenje 1 u Rezultatima. Planirajte Mjerenje 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
 				needScoredResponses: 'Prikupite bodovane odgovore u barem dva mjerenja prije zadataka usporedbe.'
+			},
+			component: {
+				state: {
+					working: 'U tijeku',
+					viewed: 'Pregledano',
+					failed: 'Neuspjelo',
+					ready: 'Spremno',
+					done: 'Dovršeno',
+					current: 'Trenutno',
+					blocked: 'Blokirano'
+				},
+				errors: {
+					refreshFailed:
+						'Radnja nad mjerenjima je dovršena, ali osvježavanje prostora nije uspjelo.',
+					actionFailed: 'Radnja nad mjerenjima nije uspjela.'
+				},
+				wavePlanAria: 'Plan mjerenja',
+				whereWavesFit: 'Uloga mjerenja',
+				waveComparisonPlanAria: 'Plan usporedbe mjerenja',
+				comparisonPlan: 'Plan usporedbe',
+				groupTrendAria: 'Pregled grupnog trenda',
+				groupTrend: 'Grupni trend',
+				firstWave: 'Prvo mjerenje',
+				firstWaveResponses: 'Odgovori prvog mjerenja',
+				secondWave: 'Drugo mjerenje',
+				secondWaveResponses: 'Odgovori drugog mjerenja',
+				missing: 'Nedostaje',
+				wavesPathAria: 'Tijek mjerenja',
+				currentTaskAria: 'Trenutni zadatak mjerenja',
+				taskProgress: (completed: number, total: number) =>
+					`${completed} od ${total} zadataka usporedbe dovršeno`,
+				currentTaskTitle: 'Trenutni zadatak usporedbe',
+				selectedSeries: 'Odabrana studija',
+				repeatedWaves: 'Ponovljena mjerenja',
+				potentialCompleteTrajectories: 'Moguće potpune putanje',
+				runLinkedTrajectoryCheck: 'Pokreni provjeru povezanih putanja',
+				study: 'Studija',
+				baseline: 'Početno mjerenje',
+				comparison: 'Usporedno mjerenje',
+				compatibility: 'Kompatibilnost',
+				disclosure: 'Pravila prikaza',
+				minimumGroupSize: 'Najmanja grupa',
+				notConfigured: 'Nije postavljeno',
+				suppressedComparisons: 'Skrivene usporedbe',
+				reviewComparison: 'Pregledaj usporedbu',
+				reviewed: 'Pregledano',
+				linkedChangeTaskStatusAria: 'Status zadatka povezane promjene',
+				linkedChangeWorkflow: 'Tijek povezane promjene',
+				linkedChecksNotNeeded: 'Provjere povezane promjene nisu potrebne',
+				linkedChecksNotActiveYet: 'Provjere povezane promjene još nisu aktivne',
+				linkedTrajectoryCheckAria: 'Provjera povezanih putanja',
+				waveReadiness: 'Spremnost mjerenja',
+				linkedTrajectoryCheck: 'Provjera povezanih putanja',
+				launchedWaves: (count: number) => `${count} pokrenutih mjerenja`,
+				wavesWithResponses: (count: number) => `${count} mjerenja s odgovorima`,
+				linkedTrajectories: (count: number) => `${count} povezanih putanja`,
+				completeTrajectories: (count: number) => `${count} potpunih putanja`,
+				waveAria: (name: string) => `Mjerenje ${name}`,
+				responseMode: 'Način odgovaranja',
+				submittedResponses: 'Predani odgovori',
+				waveComparisonPreviewAria: 'Pregled usporedbe mjerenja',
+				waveComparison: 'Usporedba mjerenja',
+				disclosureGatedComparison: 'Usporedba uz pravila prikaza',
+				disclosureK: (kMin: number) => `Pravila prikaza k=${kMin}`,
+				waveComparisonScoresAria: 'Rezultati usporedbe mjerenja',
+				waveComparisonScoreAria: (dimensionCode: string) =>
+					`Usporedba mjerenja ${dimensionCode}`,
+				pairedDelta: (value: string) => `promjena u paru ${value}`,
+				baselineMeta: (value: string) => `početno ${value}`,
+				comparisonMeta: (value: string) => `usporedno ${value}`,
+				baselineBand: (label: string) => `početni raspon ${label}`,
+				comparisonBand: (label: string) => `usporedni raspon ${label}`,
+				suppressed: 'skriveno',
+				notAvailable: 'Nije dostupno',
+				backToResults: 'Natrag na rezultate',
+				setUpNextWave: 'Postavi sljedeće mjerenje',
+				reviewedInterpretation: 'pregledano',
+				notReviewedInterpretation: 'nije pregledano',
+				officialInterpretation: 'službeno',
+				notOfficialInterpretation: 'nije službeno'
 			}
 		},
 		waveSnapshot: {
@@ -3354,7 +4163,23 @@ const hr: typeof en = {
 				loadFailed: 'Pregled usporedbe mjerenja nije se mogao učitati.',
 				loadingComparison: 'Učitavanje usporedbe',
 				refreshComparison: 'Osvježi usporedbu mjerenja',
-				study: 'Studija'
+				study: 'Studija',
+				aggregateSnapshotAria: 'Sažetak usporedbe mjerenja',
+				changeOverTimeTitle: 'Promjena kroz vrijeme',
+				comparisonReady: 'Usporedba spremna',
+				completeTrajectories: (count: number | string) => `potpune putanje ${count}`,
+				linkedPairs: (count: number | string) => `povezanih parova ${count}`,
+				waveComparisonRowsAria: 'Redci usporedbe mjerenja',
+				waveComparisonScoreAria: (dimensionCode: string) =>
+					`Usporedba mjerenja ${dimensionCode}`,
+				baselineMean: (value: string) => `prosjek početnog mjerenja ${value}`,
+				comparisonMean: (value: string) => `prosjek usporednog mjerenja ${value}`,
+				baselineMeta: (value: string) => `početno ${value}`,
+				comparisonMeta: (value: string) => `usporedno ${value}`,
+				aggregateDelta: (value: string) => `agregirana promjena ${value}`,
+				pairedDelta: (value: string) => `promjena u paru ${value}`,
+				baselineBand: (value: string) => `početni raspon ${value}`,
+				comparisonBand: (value: string) => `usporedni raspon ${value}`
 			},
 			codeLabels: {
 				proof_only: 'pregled',

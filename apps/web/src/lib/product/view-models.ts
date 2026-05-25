@@ -1,4 +1,4 @@
-import { ApiError } from '../api/client';
+﻿import { ApiError } from '../api/client';
 import type {
 	CampaignSeriesHubResponse,
 	CampaignSeriesListItemResponse,
@@ -148,7 +148,7 @@ export function toLaunchReadinessView(readiness: LaunchReadinessResponse) {
 }
 
 export function toWorkspaceOverviewView(overview: WorkspaceOverviewResponse, locale: AppLocale = 'en') {
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		tenantId: overview.tenantId,
 		lifecycleSteps: workspaceLifecycleSteps(locale),
 		sampleStudies: overview.studyCollections.sampleStudies.map((item) =>
@@ -167,7 +167,7 @@ export function toTenantSettingsView(
 	settings: TenantSettingsWorkspaceResponse,
 	locale: AppLocale = 'en'
 ) {
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		title: settings.profile.name.trim() || appMessage(locale, 'settings.tenant.untitled'),
 		status: (settings.profile.status === 'active'
 			? 'ready'
@@ -233,7 +233,7 @@ export function toInstrumentLibraryView(
 	).length;
 	const launchBlockedCount = instruments.length - launchEligibleCount;
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		metricRows: [
 			{ label: appMessage(locale, 'instruments.metric.sources'), value: formatCount(instruments.length) },
 			{ label: appMessage(locale, 'instruments.metric.launchEligible'), value: formatCount(launchEligibleCount) },
@@ -269,7 +269,7 @@ export function toExportArtifactLibraryView(
 	library: ExportArtifactLibraryResponse,
 	locale: AppLocale = 'en'
 ) {
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		surfaceTitle: appMessage(locale, 'exports.library.surface.title'),
 		surfaceEyebrow: appMessage(locale, 'exports.library.surface.eyebrow'),
 		surfaceDescription: appMessage(locale, 'exports.library.surface.description'),
@@ -306,7 +306,7 @@ export function toCampaignSeriesListView(
 	const filtersActive = hasActiveCampaignSeriesFilters(query);
 	const items = list.items.map((item) => toCampaignSeriesCard(item, locale));
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		items,
 		studySections: toCampaignSeriesStudySections(items, locale),
 		filtersActive,
@@ -332,17 +332,20 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 	const archiveState = toCampaignSeriesArchiveState(hub);
 	const ownership = toCampaignSeriesOwnership(hub, locale);
 	const rows: DisplayRow[] = [
-		{ label: 'Created', value: formatDateTime(hub.createdAt) },
-		{ label: 'Updated', value: formatDateTime(hub.updatedAt) }
+		{ label: appMessage(locale, 'overview.row.created'), value: formatDateTime(hub.createdAt) },
+		{ label: appMessage(locale, 'overview.row.updated'), value: formatDateTime(hub.updatedAt) }
 	];
 	if (archiveState.archived) {
-		rows.push({ label: 'Archived', value: formatNullableDateTime(archiveState.archivedAt) });
+		rows.push({
+			label: appMessage(locale, 'overview.row.archived'),
+			value: formatNullableDateTime(archiveState.archivedAt)
+		});
 		if (archiveState.reason) {
-			rows.push({ label: 'Archive reason', value: archiveState.reason });
+			rows.push({ label: appMessage(locale, 'overview.row.archiveReason'), value: archiveState.reason });
 		}
 	}
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: hub.id,
 		surfaceTitle: appMessage(locale, 'overview.surface.title'),
 		surfaceDescription: appMessage(locale, 'overview.surface.description'),
@@ -359,10 +362,10 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 		archiveState,
 		totalRows: toCampaignSeriesHubTotalRows(hub.totals),
 		governanceRows: [
-			toGovernanceRow('Consent', hub.governance.consentStatus),
-			toGovernanceRow('Retention', hub.governance.retentionStatus),
-			toGovernanceRow('Disclosure', hub.governance.disclosureStatus),
-			toGovernanceRow('Scoring', hub.governance.scoringStatus)
+			toGovernanceRow('overview.governance.consent', hub.governance.consentStatus, locale),
+			toGovernanceRow('overview.governance.retention', hub.governance.retentionStatus, locale),
+			toGovernanceRow('overview.governance.disclosure', hub.governance.disclosureStatus, locale),
+			toGovernanceRow('overview.governance.scoring', hub.governance.scoringStatus, locale)
 		],
 		studyModel: toCampaignSeriesHubStudyModel(hub, locale),
 		lifecycleMap: toCampaignSeriesHubLifecycleMap(hub, locale),
@@ -379,11 +382,20 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 			title: campaign.name.trim() || 'Untitled wave',
 			status: toProductReadModelBadgeStatus(campaign.status),
 			rows: [
-				{ label: 'Identity mode', value: humanizeValue(campaign.responseIdentityMode) },
-				{ label: 'Locale', value: campaign.defaultLocale },
-				{ label: 'Submitted responses', value: formatCount(campaign.submittedResponseCount) },
-				{ label: 'Scores', value: formatCount(campaign.scoreCount) },
-				{ label: 'Export files', value: formatCount(campaign.exportArtifactCount) }
+				{
+					label: appMessage(locale, 'overview.row.identityMode'),
+					value: localizedIdentityModeLabel(campaign.responseIdentityMode, locale)
+				},
+				{ label: appMessage(locale, 'overview.row.locale'), value: campaign.defaultLocale },
+				{
+					label: appMessage(locale, 'overview.row.submittedResponses'),
+					value: formatCount(campaign.submittedResponseCount)
+				},
+				{ label: appMessage(locale, 'overview.row.scores'), value: formatCount(campaign.scoreCount) },
+				{
+					label: appMessage(locale, 'overview.row.exportFiles'),
+					value: formatCount(campaign.exportArtifactCount)
+				}
 			]
 		}))
 	}, locale);
@@ -489,10 +501,10 @@ function toCampaignSeriesHubStudyModel(
 						? setupLifecycle.guidance
 						: appMessage(locale, 'overview.studyModel.questionnaireResults.guidance'),
 				detailRows: [
-					toGovernanceRow('Consent', hub.governance.consentStatus),
-					toGovernanceRow('Retention', hub.governance.retentionStatus),
-					toGovernanceRow('Disclosure', hub.governance.disclosureStatus),
-					toGovernanceRow('Scoring', hub.governance.scoringStatus)
+					toGovernanceRow('overview.governance.consent', hub.governance.consentStatus, locale),
+					toGovernanceRow('overview.governance.retention', hub.governance.retentionStatus, locale),
+					toGovernanceRow('overview.governance.disclosure', hub.governance.disclosureStatus, locale),
+					toGovernanceRow('overview.governance.scoring', hub.governance.scoringStatus, locale)
 				]
 			},
 			{
@@ -641,7 +653,7 @@ export function toSelectedSeriesSurfaceView(
 	const hubView = toCampaignSeriesHubView(hub, locale);
 	const config = selectedSeriesSurfaceConfig(surface);
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: hubView.id,
 		title: hubView.title,
 		subtitle: hubView.subtitle,
@@ -665,25 +677,26 @@ export function toCampaignSeriesSetupWorkspaceView(
 ) {
 	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: workspace.series.id,
-		title: workspace.series.name.trim() || 'Untitled wave series',
-		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
+		title: workspace.series.name.trim() || appMessage(locale, 'readModel.untitledWaveSeries'),
+		subtitle: appMessage(locale, 'readModel.subtitle.campaignsLive', {
+			campaignCount: workspace.summary.campaignCount,
+			liveCount: workspace.summary.liveCampaignCount
+		}),
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
-		surfaceLabel: 'Prepare study',
-		surfaceEyebrow: 'Study preparation',
-		surfaceDescription:
-			'Prepare this study for collection by completing setup tasks and launch-readiness checks.',
-		referenceTitle: 'Setup reference',
-		referenceDescription:
-			'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.',
+		surfaceLabel: appMessage(locale, 'readModel.surface.setup.label'),
+		surfaceEyebrow: appMessage(locale, 'readModel.surface.setup.eyebrow'),
+		surfaceDescription: appMessage(locale, 'readModel.surface.setup.description'),
+		referenceTitle: appMessage(locale, 'readModel.surface.setup.referenceTitle'),
+		referenceDescription: appMessage(locale, 'readModel.surface.setup.referenceDescription'),
 		summaryRows: [
-			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
-			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
+			{ label: appMessage(locale, 'readModel.row.campaigns'), value: formatCount(workspace.summary.campaignCount) },
+			{ label: appMessage(locale, 'readModel.row.liveCampaigns'), value: formatCount(workspace.summary.liveCampaignCount) },
 			{
-				label: 'Missing prerequisites',
+				label: appMessage(locale, 'readModel.row.missingPrerequisites'),
 				value: formatCount(workspace.summary.missingPrerequisiteCount)
 			}
 		],
@@ -721,20 +734,19 @@ export function toCampaignSeriesSetupWorkspaceView(
 		})),
 		campaignRows: workspace.campaigns.map((campaign) => ({
 			id: campaign.id,
-			title: campaign.name.trim() || 'Untitled wave',
+			title: campaign.name.trim() || appMessage(locale, 'readModel.untitledWave'),
 			status: toProductReadModelBadgeStatus(campaign.status),
 			rows: toSetupCampaignSummaryRows(campaign)
 		})),
 		emptyState:
 			workspace.campaigns.length === 0
 				? {
-						title: 'No campaigns yet',
-						message: 'Create a wave draft before running launch readiness.'
+						title: appMessage(locale, 'readModel.surface.setup.emptyTitle'),
+						message: appMessage(locale, 'readModel.surface.setup.emptyMessage')
 					}
 				: null,
-		proofActionTitle: 'Preparation actions',
-		proofActionDescription:
-			'Choose a questionnaire source, prepare questionnaire and result outputs, create a wave draft, and check launch readiness.'
+		proofActionTitle: appMessage(locale, 'readModel.surface.setup.proofTitle'),
+		proofActionDescription: appMessage(locale, 'readModel.surface.setup.proofDescription')
 	}, locale);
 }
 
@@ -745,7 +757,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 	const scoreCoverage = normalizeOperationsScoreCoverage(workspace.scoreCoverage);
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: workspace.series.id,
 		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
@@ -863,7 +875,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 	const scoreCoverage = normalizeOperationsScoreCoverage(workspace.scoreCoverage);
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: workspace.series.id,
 		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
@@ -939,7 +951,7 @@ export function toCampaignSeriesWavesWorkspaceView(
 ) {
 	const ownership = toCampaignSeriesOwnership(workspace.series, locale);
 
-	return localizeProductReadModel({
+	return localizeLegacyApiReadModelChrome({
 		id: workspace.series.id,
 		title: workspace.series.name.trim() || 'Untitled wave series',
 		subtitle: `${workspace.summary.campaignCount} ${workspace.summary.campaignCount === 1 ? 'campaign' : 'campaigns'}, ${workspace.summary.liveCampaignCount} live`,
@@ -2414,17 +2426,13 @@ function localizedReportVisibilityStatus(value: string | null | undefined, local
 }
 
 function localizedIdentityModeLabel(value: string, locale: AppLocale) {
-	if (locale !== 'hr-HR') {
-		return humanizeValue(value);
-	}
-
 	switch (value) {
 		case 'anonymous':
-			return 'anonimno';
+			return appMessage(locale, 'readModel.identity.anonymous');
 		case 'anonymous_longitudinal':
-			return 'anonimno ponovljeno';
+			return appMessage(locale, 'readModel.identity.anonymousLongitudinal');
 		case 'identified':
-			return 'identificirano';
+			return appMessage(locale, 'readModel.identity.identified');
 		default:
 			return humanizeValue(value);
 	}
@@ -2945,13 +2953,283 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 	}
 }
 
-function toGovernanceRow(label: string, status: string) {
+function toGovernanceRow(labelId: AppMessageId, status: string, locale: AppLocale) {
 	return {
-		label,
-		value: humanizeValue(status),
+		label: appMessage(locale, labelId),
+		value: localizedStatusValue(status, locale),
 		status: toProductReadModelBadgeStatus(status)
 	};
 }
+
+function localizedStatusValue(status: string | null | undefined, locale: AppLocale) {
+	switch (status) {
+		case 'preview':
+		case 'proof_only':
+			return appMessage(locale, 'readModel.status.preview');
+		case 'ready':
+		case 'complete':
+			return appMessage(locale, 'readModel.status.ready');
+		case 'blocked':
+		case 'failed':
+			return appMessage(locale, 'readModel.status.blocked');
+		case 'live':
+			return appMessage(locale, 'readModel.status.live');
+		case 'pending':
+			return appMessage(locale, 'readModel.status.pending');
+		case 'not_available':
+			return appMessage(locale, 'readModel.status.notAvailable');
+		case 'not_configured':
+			return appMessage(locale, 'readModel.status.notConfigured');
+		default:
+			return status ? humanizeValue(status) : appMessage(locale, 'readModel.status.notAvailable');
+	}
+}
+
+function localizeLegacyApiReadModelChrome<T>(value: T, locale: AppLocale): T {
+	if (locale !== 'hr-HR') {
+		return value;
+	}
+
+	return localizeLegacyApiReadModelValue(value, null) as T;
+}
+
+function localizeLegacyApiReadModelValue(value: unknown, key: string | null): unknown {
+	if (Array.isArray(value)) {
+		return value.map((item) => localizeLegacyApiReadModelValue(item, key));
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.fromEntries(
+			Object.entries(value).map(([entryKey, entryValue]) => [
+				entryKey,
+				localizeLegacyApiReadModelValue(entryValue, entryKey)
+			])
+		);
+	}
+
+	if (typeof value === 'string' && shouldLocalizeLegacyApiReadModelKey(key)) {
+		return localizeLegacyApiReadModelString(value);
+	}
+
+	return value;
+}
+
+function shouldLocalizeLegacyApiReadModelKey(key: string | null) {
+	return (
+		key === 'label' ||
+		key === 'value' ||
+		key === 'title' ||
+		key === 'description' ||
+		key === 'message' ||
+		key === 'summary' ||
+		key === 'guidance' ||
+		key === 'statusLabel' ||
+		key === 'badgeLabel' ||
+		key === 'surfaceTitle' ||
+		key === 'surfaceLabel' ||
+		key === 'surfaceEyebrow' ||
+		key === 'surfaceDescription' ||
+		key === 'referenceTitle' ||
+		key === 'referenceDescription' ||
+		key === 'actionLabel' ||
+		key === 'archiveActionLabel' ||
+		key === 'proofActionTitle' ||
+		key === 'proofActionDescription' ||
+		key === 'readOnlyMessage' ||
+		key === 'emptyState' ||
+		key === 'purposeLabel' ||
+		key === 'finalityLabel' ||
+		key === 'nextUse' ||
+		key === 'detail'
+	);
+}
+
+function localizeLegacyApiReadModelString(value: string) {
+	const exact = legacyApiReadModelCroatianChrome[value];
+	if (exact) {
+		return exact;
+	}
+
+	return value
+		.replace(/^(\d+) campaign, (\d+) live$/u, '$1 mjerenje, $2 aktivno')
+		.replace(/^(\d+) campaigns, (\d+) live$/u, '$1 mjerenja, $2 aktivno')
+		.replace(/^(\d+) of (\d+) submitted responses scored$/u, 'Bodovano je $1 od $2 predanih odgovora.')
+		.replace(/^(\d+) of (\d+) scored$/u, '$1 od $2 bodovano')
+		.replace(/^(\d+) submitted$/u, 'Predano: $1 odgovor')
+		.replace(/^(\d+) started, (\d+) draft, (\d+) submitted$/u, 'Započeto: $1; u tijeku: $2; predano: $3.')
+		.replace(/^(\d+) visible scores, (\d+) suppressed scores, (\d+) submitted responses still unscored\\.$/u, '$1 vidljivih rezultata, $2 skrivenih rezultata, $3 predana odgovora još nisu bodovana.')
+		.replace(/^(.+) has (.+) results from (\\d+) submitted responses\\.$/u, '$1 ima rezultate statusa $2 iz $3 predanih odgovora.')
+		.replace(/^Latest export (.+) is downloadable\\.$/u, 'Zadnji izvoz $1 dostupan je za preuzimanje.')
+		.replace(/^Results are from a (.+) campaign with (.+) and no closed-wave finality yet\\.$/u, 'Rezultati su iz mjerenja statusa $1 s tumačenjem $2 i još nemaju finalnost zatvorenog mjerenja.')
+		.replace(/^Results are from a (.+) campaign with (.+) and (\\d+) closed-wave reports?\\.$/u, 'Rezultati su iz mjerenja statusa $1 s tumačenjem $2 i $3 izvještaja zatvorenog mjerenja.');
+}
+
+const legacyApiReadModelCroatianChrome: Record<string, string> = {
+	'Not available': 'Nije dostupno',
+	'Not configured': 'Nije postavljeno',
+	Missing: 'Nedostaje',
+	Configured: 'Postavljeno',
+	Ready: 'Spremno',
+	Blocked: 'Blokirano',
+	Pending: 'Na čekanju',
+	Preview: 'Pregled',
+	Active: 'Aktivno',
+	'No submissions': 'Nema odgovora',
+	'No scores': 'Nema rezultata',
+	'No finality': 'Nema finalnosti',
+	'No exports': 'Nema izvoza',
+	'Live data': 'Podaci u tijeku',
+	'Reports ready': 'Izvještaji su spremni',
+
+	Campaigns: 'Mjerenja',
+	'Live campaigns': 'Aktivna mjerenja',
+	'Submitted responses': 'Predani odgovori',
+	'Missing prerequisites': 'Nedostajući preduvjeti',
+	'Respondent links': 'Poveznice za ispitanike',
+	'Queued emails': 'E-poruke u redu',
+	'Sent emails': 'Poslane e-poruke',
+	'Failed emails': 'Neuspjele e-poruke',
+	'Suppressed emails': 'Blokirane e-poruke',
+	'Started responses': 'Započeti odgovori',
+	'Draft responses': 'Odgovori u tijeku',
+	'Latest response activity': 'Zadnja aktivnost odgovora',
+	'Latest started': 'Zadnje započeto',
+	'Latest submitted': 'Zadnje predano',
+	'Latest email activity': 'Zadnja aktivnost e-pošte',
+	'Identity mode': 'Način identiteta',
+	Locale: 'Jezik',
+	Status: 'Status',
+	Questions: 'Pitanja',
+	Template: 'Upitnik',
+	Rule: 'Pravilo',
+	Source: 'Izvor',
+	Policies: 'Pravila',
+	Consent: 'Pristanak',
+	Retention: 'Zadržavanje',
+	Disclosure: 'Prikaz rezultata',
+	Scoring: 'Bodovanje',
+	'Selected wave': 'Odabrano mjerenje',
+	Readiness: 'Spremnost',
+	'Latest launch': 'Zadnje pokretanje',
+	'Collection started': 'Prikupljanje pokrenuto',
+	Closed: 'Zatvoreno',
+	Title: 'Naslov',
+	'Required grants': 'Obvezne dozvole',
+	'Optional grants': 'Neobvezne dozvole',
+	Published: 'Objavljeno',
+	'Retain for': 'Zadrži tijekom',
+	'Starts from': 'Počinje od',
+	'Action after retention': 'Radnja nakon zadržavanja',
+	'Next review': 'Sljedeći pregled',
+
+	'Instrument and template': 'Upitnik',
+	'Wave draft': 'Nacrt mjerenja',
+	'Launch readiness': 'Spremnost pokretanja',
+	'Questionnaire is available for wave drafts.': 'Upitnik je dostupan za nacrte mjerenja.',
+	'Result outputs are available for launch-readiness checks.': 'Izlazi rezultata dostupni su za provjere spremnosti pokretanja.',
+	'Wave draft is ready for recipient setup and launch checks.': 'Nacrt mjerenja spreman je za odabir primatelja i provjere pokretanja.',
+	'Launch readiness is blocked': 'Spremnost pokretanja je blokirana',
+	'Disclosure policy: Add a disclosure policy for this series.': 'Prikaz rezultata: dodajte pravilo prikaza rezultata za ovu studiju.',
+	'2 of 3 policies configured': 'Postavljena su 2 od 3 pravila',
+	'template version': 'verzija upitnika',
+	draft: 'nacrt',
+	live: 'u tijeku',
+	closed: 'zatvoreno',
+	preview: 'pregled',
+	visible: 'vidljivo',
+	blocked: 'blokirano',
+	compatible: 'kompatibilno',
+	'no submissions': 'nema odgovora',
+	'anonymous': 'anonimno',
+	'anonymous longitudinal': 'anonimno longitudinalno',
+	identified: 'identificirano',
+	wave: 'mjerenje',
+
+	'Collect responses': 'Prikupljanje odgovora',
+	'Study collection': 'Prikupljanje studije',
+	'Collection reference': 'Referenca prikupljanja',
+	'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.': 'Pokrenite odabrano mjerenje, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada završi.',
+	'Launch records, prerequisite checks, and selected wave details stay here for review.': 'Zapisi pokretanja, provjere preduvjeta i detalji odabranog mjerenja ostaju ovdje za pregled.',
+	'Collection actions': 'Radnje prikupljanja',
+	'Run the pre-launch check, start collection, share respondent access, monitor submissions, and close the wave.': 'Pokrenite provjeru prije pokretanja, otvorite prikupljanje, podijelite pristup ispitanicima, pratite predaje i zatvorite mjerenje.',
+
+	'Review results': 'Pregled rezultata',
+	'Study results': 'Rezultati studije',
+	'Results reference': 'Referenca rezultata',
+	'Review result availability, coverage, limitations, and export next use for the selected campaign.': 'Pregledajte dostupnost rezultata, pokrivenost, ograničenja i sljedeću upotrebu izvoza za odabrano mjerenje.',
+	'Selected wave details, limitations, prerequisite checks, and export records stay here for review.': 'Detalji odabranog mjerenja, ograničenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
+	'Results actions': 'Radnje rezultata',
+	'Review aggregate results, create export files, and download files when they are ready.': 'Pregledajte skupne rezultate, izradite izvozne datoteke i preuzmite ih kada budu spremne.',
+	'Result availability': 'Dostupnost rezultata',
+	'Coverage and visibility': 'Pokrivenost i vidljivost',
+	'Limitations and finality': 'Ograničenja i finalnost',
+	'Export next use': 'Sljedeća upotreba izvoza',
+	'Report status': 'Status izvještaja',
+	'Reportable campaigns': 'Mjerenja spremna za izvještaj',
+	'Visible scores': 'Vidljivi rezultati',
+	'Suppressed scores': 'Skriveni rezultati',
+	'Scored submitted': 'Bodovani predani odgovori',
+	'Unscored submitted': 'Nebodovani predani odgovori',
+	'Disclosure k': 'Prag prikaza',
+	'Campaign status': 'Status mjerenja',
+	'Data finality': 'Finalnost podataka',
+	'Preliminary live reports': 'Preliminarni izvještaji u tijeku',
+	'Closed-wave reports': 'Izvještaji zatvorenih mjerenja',
+	Interpretation: 'Tumačenje',
+	'Export files': 'Datoteke izvoza',
+	'Latest export': 'Zadnji izvoz',
+	'Latest export file': 'Zadnja izvozna datoteka',
+	'Latest export status': 'Status zadnjeg izvoza',
+	'Latest export record': 'Zadnji zapis izvoza',
+	'Latest export created': 'Zadnji izvoz izrađen',
+	'Latest export completed': 'Zadnji izvoz dovršen',
+	'Latest export started': 'Zadnji izvoz pokrenut',
+	'Latest export failed': 'Zadnji izvoz neuspješan',
+	'Latest export expires': 'Zadnji izvoz istječe',
+	'Latest export deleted': 'Zadnji izvoz obrisan',
+	'Latest export failure reason': 'Razlog neuspjeha zadnjeg izvoza',
+	'Latest export downloadable': 'Zadnji izvoz dostupan za preuzimanje',
+	'Launch snapshot': 'Zapis pokretanja',
+	'Scoring rule': 'Pravilo bodovanja',
+	'Consent document': 'Dokument pristanka',
+	'Retention policy': 'Pravilo zadržavanja',
+	'Disclosure policy': 'Pravilo prikaza rezultata',
+	'Use this as a preview of current findings until scoring coverage, disclosure, and finality are complete.': 'Koristite ovo kao pregled trenutnih nalaza dok pokrivenost bodovanja, prikaz rezultata i finalnost ne budu dovršeni.',
+	'Review visible score coverage before treating the result set as complete.': 'Pregledajte pokrivenost vidljivih rezultata prije nego skup rezultata tretirate kao dovršen.',
+	'Collect submitted responses and compute scores before assessing coverage.': 'Prikupite predane odgovore i izračunajte rezultate prije procjene pokrivenosti.',
+	'Label this as preliminary until the wave is closed and interpretation posture is reviewed.': 'Označite ovo kao preliminarno dok mjerenje nije zatvoreno i tumačenje pregledano.',
+	'Closed-wave data is more stable, but interpretation labels still need the recorded validation posture.': 'Podaci zatvorenog mjerenja stabilniji su, ali oznake tumačenja i dalje trebaju zabilježeni stav validacije.',
+	'Create an export after report results become available.': 'Izradite izvoz nakon što rezultati izvještaja postanu dostupni.',
+	'Download the latest export file for handoff, or create a fresh export after results change.': 'Preuzmite zadnju izvoznu datoteku za predaju ili izradite novi izvoz nakon promjene rezultata.',
+
+	'Compare waves': 'Usporedba mjerenja',
+	'Wave comparison': 'Usporedba mjerenja',
+	'Comparison actions': 'Radnje usporedbe',
+	'Check whether repeated waves can be compared, then review safe change-over-time summaries.': 'Provjerite mogu li se ponovljena mjerenja usporediti, zatim pregledajte sigurne sažetke promjene kroz vrijeme.',
+	'Longitudinal waves': 'Ponovljena mjerenja',
+	'Submitted waves': 'Mjerenja s odgovorima',
+	'Linked trajectories': 'Povezane putanje',
+	'Complete trajectories': 'Potpune putanje',
+	'Comparable scores': 'Usporedivi rezultati',
+	'Visible comparisons': 'Vidljive usporedbe',
+	'Suppressed comparisons': 'Skrivene usporedbe',
+	'Blocked comparisons': 'Blokirane usporedbe',
+	'Baseline wave': 'Početno mjerenje',
+	'Comparison wave': 'Usporedno mjerenje',
+	'Comparison status': 'Status usporedbe',
+	Compatibility: 'Kompatibilnost',
+	'Linked pairs': 'Povezani parovi',
+	'Blocked scores': 'Blokirani rezultati',
+	'Wave state': 'Stanje mjerenja',
+	'Baseline launch snapshot': 'Zapis pokretanja početnog mjerenja',
+	'Baseline latest launch': 'Zadnje pokretanje početnog mjerenja',
+	'Baseline scoring rule': 'Pravilo bodovanja početnog mjerenja',
+	'Baseline disclosure policy': 'Pravilo prikaza početnog mjerenja',
+	'Comparison launch snapshot': 'Zapis pokretanja usporednog mjerenja',
+	'Comparison latest launch': 'Zadnje pokretanje usporednog mjerenja',
+	'Comparison scoring rule': 'Pravilo bodovanja usporednog mjerenja',
+	'Comparison disclosure policy': 'Pravilo prikaza usporednog mjerenja'
+};
 
 function toCampaignSeriesCard(item: CampaignSeriesListItemResponse, locale: AppLocale = 'en') {
 	const archived = item.archived === true;
@@ -3424,15 +3702,15 @@ function toExportArtifactLibraryCard(
 		rows: [
 			{
 				label: appMessage(locale, 'exports.library.row.studyContext'),
-				value: `${sentenceCase(humanizeValue(artifact.targetKind))} / ${artifact.targetLabel}`
+				value: toExportArtifactSourceContext(artifact.targetKind, artifact.targetLabel, locale)
 			},
 			{
 				label: appMessage(locale, 'exports.library.row.fileType'),
-				value: sentenceCase(humanizeValue(artifact.artifactType))
+				value: toExportArtifactFileType(artifact.artifactType, locale)
 			},
 			{
 				label: appMessage(locale, 'exports.library.row.format'),
-				value: sentenceCase(humanizeValue(artifact.format))
+				value: toExportArtifactFileFormat(artifact.format, locale)
 			},
 			{ label: appMessage(locale, 'exports.library.row.dataFinality'), value: finalityLabel },
 			{ label: appMessage(locale, 'exports.library.row.rows'), value: formatCount(artifact.rowCount) },
@@ -3453,6 +3731,37 @@ function toExportArtifactLibraryCard(
 			}
 		]
 	};
+}
+
+function toExportArtifactSourceContext(targetKind: string, targetLabel: string, locale: AppLocale) {
+	switch (targetKind) {
+		case 'campaign_series':
+			return appMessage(locale, 'exports.library.context.campaignSeries', { label: targetLabel });
+		case 'campaign':
+			return appMessage(locale, 'exports.library.context.campaign', { label: targetLabel });
+		default:
+			return `${sentenceCase(humanizeValue(targetKind))} / ${targetLabel}`;
+	}
+}
+
+function toExportArtifactFileType(artifactType: string, locale: AppLocale) {
+	switch (artifactType) {
+		case 'report_proof_csv_codebook':
+			return appMessage(locale, 'exports.library.fileType.reportSummary');
+		case 'campaign_series_response_csv_codebook':
+			return appMessage(locale, 'exports.library.fileType.responseDataset');
+		default:
+			return sentenceCase(humanizeValue(artifactType));
+	}
+}
+
+function toExportArtifactFileFormat(format: string, locale: AppLocale) {
+	switch (format) {
+		case 'csv_codebook':
+			return appMessage(locale, 'exports.library.fileFormat.csvCodebook');
+		default:
+			return sentenceCase(humanizeValue(format));
+	}
 }
 
 function toExportArtifactPurpose(artifactType: string, locale: AppLocale) {
@@ -3705,305 +4014,5 @@ function formatBytes(value: number) {
 	return `${(value / 1_000_000).toFixed(1)} MB`;
 }
 
-function localizeProductReadModel<T>(value: T, locale: AppLocale): T {
-	if (locale !== 'hr-HR') {
-		return value;
-	}
 
-	return localizeReadModelValue(value, null) as T;
-}
 
-function localizeReadModelValue(value: unknown, key: string | null): unknown {
-	if (Array.isArray(value)) {
-		return value.map((item) => localizeReadModelValue(item, key));
-	}
-
-	if (value && typeof value === 'object') {
-		return Object.fromEntries(
-			Object.entries(value).map(([entryKey, entryValue]) => [
-				entryKey,
-				localizeReadModelValue(entryValue, entryKey)
-			])
-		);
-	}
-
-	if (typeof value === 'string' && shouldLocalizeReadModelKey(key)) {
-		return localizeReadModelString(value);
-	}
-
-	return value;
-}
-
-function shouldLocalizeReadModelKey(key: string | null) {
-	return (
-		key === 'label' ||
-		key === 'value' ||
-		key === 'title' ||
-		key === 'description' ||
-		key === 'message' ||
-		key === 'summary' ||
-		key === 'guidance' ||
-		key === 'statusLabel' ||
-		key === 'badgeLabel' ||
-		key === 'surfaceTitle' ||
-		key === 'surfaceLabel' ||
-		key === 'surfaceEyebrow' ||
-		key === 'surfaceDescription' ||
-		key === 'referenceTitle' ||
-		key === 'referenceDescription' ||
-		key === 'actionLabel' ||
-		key === 'archiveActionLabel' ||
-		key === 'proofActionTitle' ||
-		key === 'proofActionDescription' ||
-		key === 'readOnlyMessage' ||
-		key === 'emptyState' ||
-		key === 'purposeLabel' ||
-		key === 'finalityLabel' ||
-		key === 'nextUse' ||
-		key === 'detail'
-	);
-}
-
-function localizeReadModelString(value: string) {
-	const exact = hrReadModelStrings[value];
-	if (exact) {
-		return exact;
-	}
-
-	return value
-		.replace(/^Copy of (.+)$/u, 'Kopija: $1')
-		.replace(/^(\d+) campaign, (\d+) live$/u, '$1 mjerenje, $2 u tijeku')
-		.replace(/^(\d+) campaigns, (\d+) live$/u, '$1 mjerenja, $2 u tijeku')
-		.replace(/^Campaign series \/ (.+)$/u, 'Studija / $1')
-		.replace(/^Campaign \/ (.+)$/u, 'Mjerenje / $1')
-		.replace(/^(\d+) downloadable$/u, '$1 dostupno za preuzimanje')
-		.replace(/^(\d+) failed$/u, '$1 neuspjelo')
-		.replace(/^(\d+) pending$/u, '$1 na čekanju')
-		.replace(/^(\d+) purpose$/u, '$1 svrha')
-		.replace(/^(\d+) purposes$/u, '$1 svrhe')
-		.replace(/^(\d+) source$/u, '$1 izvor')
-		.replace(/^(\d+) sources$/u, '$1 izvora')
-		.replace(/^(\d+) file$/u, '$1 datoteka')
-		.replace(/^(\d+) files$/u, '$1 datoteka')
-		.replace(/^(\d+) reportable$/u, '$1 spremno za izvještaj')
-		.replace(/^(\d+) visible$/u, '$1 vidljivo')
-		.replace(/^(\d+) submitted$/u, '$1 predano')
-		.replace(/^(\d+) score rows?$/u, '$1 redaka rezultata')
-		.replace(/^(\d+) rows$/u, '$1 redaka');
-}
-
-const hrReadModelStrings: Record<string, string> = {
-	'Not available': 'Nije dostupno',
-	'Not configured': 'Nije konfigurirano',
-	'No attention items': 'Nema stavki za pažnju',
-	'No files': 'Nema datoteka',
-	'No sources': 'Nema izvora',
-	'No exports': 'Nema izvoza',
-	'No campaigns yet': 'Još nema mjerenja',
-	'No waves yet': 'Još nema mjerenja',
-	'No collection wave yet': 'Još nema mjerenja za prikupljanje',
-	'No reportable campaigns yet': 'Još nema mjerenja za izvještaj',
-	'No campaign operations yet': 'Još nema operacija prikupljanja',
-	'Create your study when you have setup access, or add sample studies for learning.':
-		'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.',
-	'Adjust search, readiness, or visibility filters to show sample or own studies.':
-		'Prilagodite pretragu, spremnost ili vidljivost za prikaz oglednih ili vlastitih studija.',
-	'Create a wave draft before running launch readiness.':
-		'Izradite nacrt mjerenja prije provjere spremnosti za pokretanje.',
-	'Create and launch at least two waves before comparing results over time.':
-		'Izradite i pokrenite najmanje dva mjerenja prije usporedbe rezultata kroz vrijeme.',
-	'Create a wave draft in Setup, then start collection here.':
-		'Izradite nacrt mjerenja u postavljanju, zatim ovdje pokrenite prikupljanje.',
-	'Submit responses and compute scores before report previews are available.':
-		'Prikupite odgovore i izračunajte rezultate prije pregleda izvještaja.',
-
-	// Common row labels.
-	Slug: 'Slug',
-	Region: 'Regija',
-	'Default locale': 'Zadani jezik',
-	Status: 'Status',
-	Created: 'Izrađeno',
-	Updated: 'Ažurirano',
-	Archived: 'Arhivirano',
-	'Archive reason': 'Razlog arhiviranja',
-	'Campaign series': 'Studije',
-	Campaigns: 'Mjerenja',
-	'Live campaigns': 'Mjerenja u tijeku',
-	'Submitted responses': 'Predani odgovori',
-	Subjects: 'Ispitanici',
-	'Export files': 'Izvozne datoteke',
-	Downloadable: 'Dostupno za preuzimanje',
-	Failed: 'Neuspjelo',
-	Pending: 'Na čekanju',
-	Campaign: 'Mjerenje',
-	Scores: 'Rezultati',
-	'Visible scores': 'Vidljivi rezultati',
-	'Suppressed scores': 'Skriveni rezultati',
-	'Missing prerequisites': 'Nedostajući preduvjeti',
-	'Reportable campaigns': 'Mjerenja spremni za izvještaj',
-	'Preliminary live reports': 'Preliminarni izvještaji u tijeku',
-	'Closed-wave reports': 'Izvještaji zatvorenih mjerenja',
-	'Respondent links': 'Poveznice za ispitanike',
-	'Queued emails': 'Emailovi u redu',
-	'Sent emails': 'Poslani emailovi',
-	'Failed emails': 'Neuspjeli emailovi',
-	'Suppressed emails': 'Potisnuti emailovi',
-	'Started responses': 'Započeti odgovori',
-	'Draft responses': 'Odgovori u nacrtu',
-	'Latest response activity': 'Zadnja aktivnost odgovora',
-	'Latest started': 'Zadnje započeto',
-	'Latest submitted': 'Zadnje predano',
-	'Identity mode': 'Način identiteta',
-	Locale: 'Jezik',
-	Questions: 'Pitanja',
-	Template: 'Upitnik',
-	Rule: 'Pravilo',
-	Source: 'Izvor',
-	Policies: 'Pravila',
-	Consent: 'Pristanak',
-	Retention: 'Zadržavanje',
-	Disclosure: 'Prikaz rezultata',
-	Scoring: 'Bodovanje',
-	'Launch snapshot': 'Zapis pokretanja',
-	'Latest launch': 'Zadnje pokretanje',
-	'Scoring rule': 'Pravilo bodovanja',
-	'Consent document': 'Dokument pristanka',
-	'Retention policy': 'Pravilo zadržavanja',
-	'Disclosure policy': 'Pravilo prikaza rezultata',
-	'Disclosure k': 'Prag prikaza',
-	'Report status': 'Status izvještaja',
-	Interpretation: 'Tumačenje',
-	'Data finality': 'Finalnost podataka',
-	'Latest export': 'Zadnji izvoz',
-	'Latest export file': 'Zadnja izvozna datoteka',
-	'Latest export status': 'Status zadnjeg izvoza',
-	'Latest export record': 'Zadnji zapis izvoza',
-	'Latest export created': 'Zadnji izvoz izrađen',
-	'Latest export completed': 'Zadnji izvoz dovršen',
-	'Latest export started': 'Zadnji izvoz pokrenut',
-	'Latest export failed': 'Zadnji izvoz neuspješan',
-	'Latest export expires': 'Zadnji izvoz istječe',
-	'Latest export deleted': 'Zadnji izvoz obrisan',
-	'Latest export failure reason': 'Razlog neuspjeha zadnjeg izvoza',
-	'Latest export downloadable': 'Zadnji izvoz dostupan za preuzimanje',
-	'Selected wave': 'Odabrano mjerenje',
-	'Campaign status': 'Status mjerenja',
-	'Frozen locale': 'Zamrznuti jezik',
-	'Response mode': 'Način odgovora',
-	'Wave state': 'Stanje mjerenja',
-	'Linked trajectories': 'Povezane putanje',
-	'Longitudinal waves': 'Ponovljena mjerenja',
-	'Submitted waves': 'Mjerenja s odgovorima',
-	'Complete trajectories': 'Potpune putanje',
-	'Comparable scores': 'Usporedivi rezultati',
-	'Visible comparisons': 'Vidljive usporedbe',
-	'Suppressed comparisons': 'Skrivene usporedbe',
-	'Preliminary live waves': 'Preliminarna mjerenja u tijeku',
-	'Closed waves': 'Zatvorena mjerenja',
-	'Blocked comparisons': 'Blokirane usporedbe',
-	'Baseline wave': 'Početni mjerenje',
-	'Comparison wave': 'Usporedno mjerenje',
-	'Baseline finality': 'Finalnost početnog mjerenja',
-	'Comparison finality': 'Finalnost usporednog mjerenja',
-	'Comparison status': 'Status usporedbe',
-	Compatibility: 'Kompatibilnost',
-	'Linked pairs': 'Povezani parovi',
-	'Blocked scores': 'Blokirani rezultati',
-
-	// Surface labels and descriptions.
-	'Prepare study': 'Priprema studije',
-	'Study preparation': 'Priprema studije',
-	'Setup reference': 'Referenca postavljanja',
-	'Collect responses': 'Prikupljanje odgovora',
-	'Study collection': 'Prikupljanje studije',
-	'Collection reference': 'Referenca prikupljanja',
-	'Review results': 'Pregled rezultata',
-	'Study results': 'Rezultati studije',
-	'Results reference': 'Referenca rezultata',
-	'Compare waves': 'Usporedba mjerenja',
-	'Wave comparison': 'Usporedba mjerenja',
-	'Prepare this study for collection by completing setup tasks and launch-readiness checks.':
-		'Pripremite studiju za prikupljanje dovršavanjem postavljanja i provjera spremnosti.',
-	'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.':
-		'Detaljni zapisi postavljanja, status pravila, polja odabranog mjerenja i bilješke provjere pokretanja ostaju ovdje za pregled.',
-	'Start the selected wave, share respondent access, monitor submissions, and close collection when finished.':
-		'Pokrenite odabrano mjerenje, podijelite pristup ispitanicima, pratite predaje i zatvorite prikupljanje kada završi.',
-	'Launch records, prerequisite checks, and selected wave details stay here for review.':
-		'Zapisi pokretanja, provjere preduvjeta i detalji odabranog mjerenja ostaju ovdje za pregled.',
-	'Review result availability, coverage, limitations, and export next use for the selected campaign.':
-		'Pregledajte dostupnost rezultata, pokrivenost, ograničenja i sljedeću upotrebu izvoza za odabrano mjerenje.',
-	'Selected wave details, limitations, prerequisite checks, and export records stay here for review.':
-		'Detalji odabranog mjerenja, ograničenja, provjere preduvjeta i zapisi izvoza ostaju ovdje za pregled.',
-	// Actions and lifecycle.
-	Prepare: 'Priprema',
-	Collect: 'Prikupljanje',
-	Review: 'Pregled',
-	Export: 'Izvoz',
-	'Compare results': 'Usporedba rezultata',
-	'Build the questionnaire, results setup, policies, wave, and launch check.':
-		'Izradite upitnik, postavke rezultata, pravila, mjerenje i provjeru pokretanja.',
-	'Start the wave, share access, send invitations, and monitor submissions.':
-		'Pokrenite mjerenje, podijelite pristup, pošaljite pozive i pratite predaje.',
-	'Review findings, limitations, and export files after responses are ready.':
-		'Pregledajte nalaze, ograničenja i izvozne datoteke nakon što su odgovori spremni.',
-	'Inspect coverage, findings, limitations, and comparisons.':
-		'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
-	'Use generated CSV and codebook files for analysis.':
-		'Koristite generirane CSV i šifrarnik datoteke za analizu.',
-	'Create follow-up waves and compare results across collection rounds.':
-		'Izradite sljedeće mjerenja i usporedite rezultate između mjerenja.',
-	'Setup actions': 'Radnje postavljanja',
-	'Preparation actions': 'Radnje pripreme',
-	'Collection actions': 'Radnje prikupljanja',
-	'Results actions': 'Radnje rezultata',
-	'Comparison actions': 'Radnje usporedbe',
-	'Open setup': 'Otvori postavljanje',
-	'Inspect setup': 'Pregledaj postavljanje',
-	'Inspect collection': 'Pregledaj prikupljanje',
-	Archive: 'Arhiviraj',
-	Restore: 'Vrati',
-
-	// Ownership and grouping.
-
-	// Filters/options.
-	Preview: 'Pregled',
-	Active: 'Aktivno',
-
-	// Export library.
-	Format: 'Format',
-	Failure: 'Greška',
-	'Report summary CSV and codebook': 'CSV i šifrarnik sažetka izvještaja',
-	'Response dataset CSV and codebook': 'CSV i šifrarnik skupa odgovora',
-	'Csv codebook': 'CSV šifrarnik',
-	Succeeded: 'Uspjelo',
-
-	// Common values.
-	ready: 'spremno',
-	blocked: 'blokirano',
-	live: 'u tijeku',
-	draft: 'nacrt',
-	closed: 'zatvoreno',
-	cancelled: 'otkazano',
-	preview: 'pregled',
-	visible: 'vidljivo',
-	suppressed: 'skriveno',
-	empty: 'prazno',
-	'not available': 'nije dostupno',
-	'not configured': 'nije konfigurirano',
-	'anonymous': 'anonimno',
-	'anonymous longitudinal': 'anonimno longitudinalno',
-	identified: 'identificirano',
-	wave: 'mjerenje',
-	'closed wave': 'zatvoreno mjerenje',
-	'preliminary live': 'preliminarno u tijeku',
-	'not reportable': 'nije spremno za izvještaj',
-	'not validated interpretation': 'tumačenje nije potvrđeno',
-	'tenant attested': 'potvrdio radni prostor',
-	'tenant defined': 'definirao radni prostor',
-	'not reviewed': 'nije pregledano',
-	'not official': 'nije službeno',
-	reviewed: 'pregledano',
-	official: 'službeno',
-	Yes: 'Da',
-	No: 'Ne'
-};

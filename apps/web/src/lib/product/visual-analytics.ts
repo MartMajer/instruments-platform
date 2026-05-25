@@ -23,27 +23,132 @@ export type VisualAnalyticsExcludedRow = {
 export type VisualAnalyticsChartView = {
 	title: string;
 	ariaLabel: string;
+	kicker: string;
 	primarySeriesLabel: string;
 	secondarySeriesLabel: string | null;
 	yAxisLabel: string;
 	statusLabel: string;
 	emptyMessage: string;
+	noChartableValuesTitle: string;
+	rendererFailedMessage: string;
+	excludedFromChartLabel: string;
+	chartValuesAria: (title: string) => string;
+	excludedRowsAria: (title: string) => string;
 	points: VisualAnalyticsChartPoint[];
 	excludedRows: VisualAnalyticsExcludedRow[];
 };
 
+type VisualAnalyticsLocale = 'en' | 'hr-HR';
+
+const visualAnalyticsCopy = {
+	en: {
+		kicker: 'Visual analytics',
+		reportTitle: 'Report visual analytics',
+		reportAria: 'Report visual analytics',
+		waveTitle: 'Wave visual analytics',
+		waveAria: 'Wave visual analytics',
+		mean: 'Mean',
+		scoreMean: 'Score mean',
+		aggregateDelta: 'Aggregate delta',
+		pairedDelta: 'Paired delta',
+		delta: 'Delta',
+		status: 'Preview / not validated',
+		loadReportFirst: 'Load the selected report snapshot before reviewing visual analytics.',
+		noReportScores: 'No visible numeric report scores are available for charting.',
+		loadWaveFirst: 'Load the selected wave comparison snapshot before reviewing visual analytics.',
+		noWaveValues: 'No visible compatible wave comparison values are available for charting.',
+		noChartableValuesTitle: 'No chartable values',
+		rendererFailedMessage: 'Chart renderer could not be loaded. Values remain available below.',
+		excludedFromChartLabel: 'Excluded from chart',
+		chartValuesAria: (title: string) => `${title} chart values`,
+		excludedRowsAria: (title: string) => `${title} excluded rows`,
+		scores: (count: number) => `scores ${count}`,
+		submitted: (count: number) => `submitted ${count}`,
+		range: (range: string) => `range ${range}`,
+		baseline: (value: string) => `baseline ${value}`,
+		comparison: (value: string) => `comparison ${value}`,
+		linkedPairs: (count: number) => `linked pairs ${count}`,
+		notAvailable: 'not available'
+	},
+	'hr-HR': {
+		kicker: 'Vizualni pregled',
+		reportTitle: 'Vizualni pregled izvještaja',
+		reportAria: 'Vizualni pregled izvještaja',
+		waveTitle: 'Vizualni pregled mjerenja',
+		waveAria: 'Vizualni pregled mjerenja',
+		mean: 'Prosjek',
+		scoreMean: 'Prosjek rezultata',
+		aggregateDelta: 'Agregirana promjena',
+		pairedDelta: 'Promjena u paru',
+		delta: 'Promjena',
+		status: 'Pregled / nije validirano',
+		loadReportFirst: 'Učitajte odabrani pregled izvještaja prije vizualnog pregleda.',
+		noReportScores: 'Nema vidljivih numeričkih rezultata izvještaja za graf.',
+		loadWaveFirst: 'Učitajte odabranu usporedbu mjerenja prije vizualnog pregleda.',
+		noWaveValues: 'Nema vidljivih kompatibilnih vrijednosti usporedbe mjerenja za graf.',
+		noChartableValuesTitle: 'Nema vrijednosti za graf',
+		rendererFailedMessage: 'Prikaz grafa nije se mogao učitati. Vrijednosti ostaju dostupne ispod.',
+		excludedFromChartLabel: 'Isključeno iz grafa',
+		chartValuesAria: (title: string) => `${title} vrijednosti grafa`,
+		excludedRowsAria: (title: string) => `${title} isključeni redci`,
+		scores: (count: number) => `rezultati ${count}`,
+		submitted: (count: number) => `predano ${count}`,
+		range: (range: string) => `raspon ${range}`,
+		baseline: (value: string) => `početno ${value}`,
+		comparison: (value: string) => `usporedno ${value}`,
+		linkedPairs: (count: number) => `povezanih parova ${count}`,
+		notAvailable: 'nije dostupno'
+	}
+} satisfies Record<VisualAnalyticsLocale, {
+	kicker: string;
+	reportTitle: string;
+	reportAria: string;
+	waveTitle: string;
+	waveAria: string;
+	mean: string;
+	scoreMean: string;
+	aggregateDelta: string;
+	pairedDelta: string;
+	delta: string;
+	status: string;
+	loadReportFirst: string;
+	noReportScores: string;
+	loadWaveFirst: string;
+	noWaveValues: string;
+	noChartableValuesTitle: string;
+	rendererFailedMessage: string;
+	excludedFromChartLabel: string;
+	chartValuesAria: (title: string) => string;
+	excludedRowsAria: (title: string) => string;
+	scores: (count: number) => string;
+	submitted: (count: number) => string;
+	range: (range: string) => string;
+	baseline: (value: string) => string;
+	comparison: (value: string) => string;
+	linkedPairs: (count: number) => string;
+	notAvailable: string;
+}>;
+
 export function toReportVisualAnalyticsView(
-	report: CampaignReportProofResponse | null
+	report: CampaignReportProofResponse | null,
+	locale: VisualAnalyticsLocale = 'en'
 ): VisualAnalyticsChartView {
+	const copy = visualAnalyticsCopy[locale];
 	if (!report) {
 		return {
-			title: 'Report visual analytics',
-			ariaLabel: 'Report visual analytics',
-			primarySeriesLabel: 'Mean',
+			title: copy.reportTitle,
+			ariaLabel: copy.reportAria,
+			kicker: copy.kicker,
+			primarySeriesLabel: copy.mean,
 			secondarySeriesLabel: null,
-			yAxisLabel: 'Score mean',
-			statusLabel: 'Preview / not validated',
-			emptyMessage: 'Load the selected report snapshot before reviewing visual analytics.',
+			yAxisLabel: copy.scoreMean,
+			statusLabel: copy.status,
+			emptyMessage: copy.loadReportFirst,
+			noChartableValuesTitle: copy.noChartableValuesTitle,
+			rendererFailedMessage: copy.rendererFailedMessage,
+			excludedFromChartLabel: copy.excludedFromChartLabel,
+			chartValuesAria: copy.chartValuesAria,
+			excludedRowsAria: copy.excludedRowsAria,
 			points: [],
 			excludedRows: []
 		};
@@ -64,9 +169,9 @@ export function toReportVisualAnalyticsView(
 				secondaryValue: null,
 				secondaryDisplay: null,
 				meta: [
-					`scores ${score.scoreCount ?? 0}`,
-					`submitted ${score.submittedResponseCount}`,
-					`range ${formatNullableRange(score.min, score.max)}`
+					copy.scores(score.scoreCount ?? 0),
+					copy.submitted(score.submittedResponseCount),
+					copy.range(formatNullableRange(score.min, score.max, copy.notAvailable))
 				]
 			});
 			continue;
@@ -81,30 +186,44 @@ export function toReportVisualAnalyticsView(
 	}
 
 	return {
-		title: 'Report visual analytics',
-		ariaLabel: 'Report visual analytics',
-		primarySeriesLabel: 'Mean',
+		title: copy.reportTitle,
+		ariaLabel: copy.reportAria,
+		kicker: copy.kicker,
+		primarySeriesLabel: copy.mean,
 		secondarySeriesLabel: null,
-		yAxisLabel: 'Score mean',
-		statusLabel: 'Preview / not validated',
-		emptyMessage: 'No visible numeric report scores are available for charting.',
+		yAxisLabel: copy.scoreMean,
+		statusLabel: copy.status,
+		emptyMessage: copy.noReportScores,
+		noChartableValuesTitle: copy.noChartableValuesTitle,
+		rendererFailedMessage: copy.rendererFailedMessage,
+		excludedFromChartLabel: copy.excludedFromChartLabel,
+		chartValuesAria: copy.chartValuesAria,
+		excludedRowsAria: copy.excludedRowsAria,
 		points,
 		excludedRows
 	};
 }
 
 export function toWaveVisualAnalyticsView(
-	comparison: CampaignSeriesWaveComparisonProofResponse | null
+	comparison: CampaignSeriesWaveComparisonProofResponse | null,
+	locale: VisualAnalyticsLocale = 'en'
 ): VisualAnalyticsChartView {
+	const copy = visualAnalyticsCopy[locale];
 	if (!comparison) {
 		return {
-			title: 'Wave visual analytics',
-			ariaLabel: 'Wave visual analytics',
-			primarySeriesLabel: 'Aggregate delta',
-			secondarySeriesLabel: 'Paired delta',
-			yAxisLabel: 'Delta',
-			statusLabel: 'Preview / not validated',
-			emptyMessage: 'Load the selected wave comparison snapshot before reviewing visual analytics.',
+			title: copy.waveTitle,
+			ariaLabel: copy.waveAria,
+			kicker: copy.kicker,
+			primarySeriesLabel: copy.aggregateDelta,
+			secondarySeriesLabel: copy.pairedDelta,
+			yAxisLabel: copy.delta,
+			statusLabel: copy.status,
+			emptyMessage: copy.loadWaveFirst,
+			noChartableValuesTitle: copy.noChartableValuesTitle,
+			rendererFailedMessage: copy.rendererFailedMessage,
+			excludedFromChartLabel: copy.excludedFromChartLabel,
+			chartValuesAria: copy.chartValuesAria,
+			excludedRowsAria: copy.excludedRowsAria,
 			points: [],
 			excludedRows: []
 		};
@@ -127,9 +246,9 @@ export function toWaveVisualAnalyticsView(
 				secondaryDisplay:
 					score.pairedDeltaMean === null ? null : formatSignedNumber(score.pairedDeltaMean),
 				meta: [
-					`baseline ${formatNullableNumber(score.baselineMean)}`,
-					`comparison ${formatNullableNumber(score.comparisonMean)}`,
-					`linked pairs ${score.linkedPairCount}`
+					copy.baseline(formatNullableNumber(score.baselineMean, copy.notAvailable)),
+					copy.comparison(formatNullableNumber(score.comparisonMean, copy.notAvailable)),
+					copy.linkedPairs(score.linkedPairCount)
 				]
 			});
 			continue;
@@ -151,28 +270,34 @@ export function toWaveVisualAnalyticsView(
 	}
 
 	return {
-		title: 'Wave visual analytics',
-		ariaLabel: 'Wave visual analytics',
-		primarySeriesLabel: 'Aggregate delta',
-		secondarySeriesLabel: 'Paired delta',
-		yAxisLabel: 'Delta',
-		statusLabel: 'Preview / not validated',
-		emptyMessage: 'No visible compatible wave comparison values are available for charting.',
+		title: copy.waveTitle,
+		ariaLabel: copy.waveAria,
+		kicker: copy.kicker,
+		primarySeriesLabel: copy.aggregateDelta,
+		secondarySeriesLabel: copy.pairedDelta,
+		yAxisLabel: copy.delta,
+		statusLabel: copy.status,
+		emptyMessage: copy.noWaveValues,
+		noChartableValuesTitle: copy.noChartableValuesTitle,
+		rendererFailedMessage: copy.rendererFailedMessage,
+		excludedFromChartLabel: copy.excludedFromChartLabel,
+		chartValuesAria: copy.chartValuesAria,
+		excludedRowsAria: copy.excludedRowsAria,
 		points,
 		excludedRows
 	};
 }
 
-function formatNullableRange(min: number | null, max: number | null) {
+function formatNullableRange(min: number | null, max: number | null, fallback: string) {
 	if (min === null || max === null) {
-		return 'not available';
+		return fallback;
 	}
 
 	return `${formatNumber(min)}-${formatNumber(max)}`;
 }
 
-function formatNullableNumber(value: number | null) {
-	return value === null ? 'not available' : formatNumber(value);
+function formatNullableNumber(value: number | null, fallback: string) {
+	return value === null ? fallback : formatNumber(value);
 }
 
 function formatNumber(value: number) {

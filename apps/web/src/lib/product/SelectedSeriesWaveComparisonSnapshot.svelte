@@ -62,7 +62,7 @@
 		snapshotLoadedForSelectedSeries && snapshotResult ? toWaveComparisonView(snapshotResult) : null
 	);
 	const visualAnalyticsView = $derived(
-		snapshotLoadedForSelectedSeries ? toWaveVisualAnalyticsView(snapshotResult) : null
+		snapshotLoadedForSelectedSeries ? toWaveVisualAnalyticsView(snapshotResult, appLocale) : null
 	);
 	const snapshotBadgeStatus = $derived(loadState === 'error' ? 'failed' : snapshotState.status);
 	const snapshotBadgeLabel = $derived(
@@ -314,20 +314,20 @@
 
 			<section
 				class="score-result-panel report-proof-panel"
-				aria-label="Aggregate wave comparison snapshot"
+				aria-label={waveSnapshotCopy.chrome.aggregateSnapshotAria}
 			>
 				<div class="score-result-panel__header">
 					<div>
-						<p class="product-kicker">Wave comparison</p>
-						<h4 class="record-row__title">Change over time</h4>
+						<p class="product-kicker">{waveSnapshotCopy.chrome.kicker}</p>
+						<h4 class="record-row__title">{waveSnapshotCopy.chrome.changeOverTimeTitle}</h4>
 					</div>
-					<StatusBadge status="ready" label="Comparison ready" />
+					<StatusBadge status="ready" label={waveSnapshotCopy.chrome.comparisonReady} />
 				</div>
 
 				<div class="response-lab__meta">
 					<span>{snapshotResult?.interpretationStatus}</span>
-					<span>complete trajectories {workspace.summary.completeTrajectoryCount}</span>
-					<span>linked pairs {workspace.comparison.linkedPairCount}</span>
+					<span>{waveSnapshotCopy.chrome.completeTrajectories(workspace.summary.completeTrajectoryCount)}</span>
+					<span>{waveSnapshotCopy.chrome.linkedPairs(workspace.comparison.linkedPairCount)}</span>
 				</div>
 
 				<dl class="record-grid">
@@ -339,9 +339,9 @@
 					{/each}
 				</dl>
 
-				<div class="score-card-list" role="region" aria-label="Wave comparison rows">
+				<div class="score-card-list" role="region" aria-label={waveSnapshotCopy.chrome.waveComparisonRowsAria}>
 					{#each snapshotView.scoreRows as score (score.dimensionCode)}
-						<article class="score-card" aria-label={`Wave comparison ${score.dimensionCode}`}>
+						<article class="score-card" aria-label={waveSnapshotCopy.chrome.waveComparisonScoreAria(score.dimensionCode)}>
 							<div>
 								<p class="score-card__label">{score.dimensionCode}</p>
 								<p
@@ -354,25 +354,25 @@
 							</div>
 							<p class="score-card__meta">{score.compatibilityStatus}</p>
 							<p class="score-card__interpretation">{score.disclosureState}</p>
-							<p class="score-card__interpretation">baseline mean {score.baselineMean}</p>
-							<p class="score-card__interpretation">comparison mean {score.comparisonMean}</p>
-							<p class="score-card__interpretation">linked pairs {score.linkedPairCount}</p>
+							<p class="score-card__interpretation">{waveSnapshotCopy.chrome.baselineMean(score.baselineMean)}</p>
+							<p class="score-card__interpretation">{waveSnapshotCopy.chrome.comparisonMean(score.comparisonMean)}</p>
+							<p class="score-card__interpretation">{waveSnapshotCopy.chrome.linkedPairs(score.linkedPairCount)}</p>
 							{#if score.baselineScoreMetadata}
-								<p class="score-card__interpretation">baseline {score.baselineScoreMetadata}</p>
+								<p class="score-card__interpretation">{waveSnapshotCopy.chrome.baselineMeta(score.baselineScoreMetadata)}</p>
 							{/if}
 							{#if score.comparisonScoreMetadata}
-								<p class="score-card__interpretation">comparison {score.comparisonScoreMetadata}</p>
+								<p class="score-card__interpretation">{waveSnapshotCopy.chrome.comparisonMeta(score.comparisonScoreMetadata)}</p>
 							{/if}
-							<p class="score-card__interpretation">aggregate delta {score.aggregateDelta}</p>
-							<p class="score-card__interpretation">paired delta {score.pairedDeltaMean}</p>
+							<p class="score-card__interpretation">{waveSnapshotCopy.chrome.aggregateDelta(score.aggregateDelta)}</p>
+							<p class="score-card__interpretation">{waveSnapshotCopy.chrome.pairedDelta(score.pairedDeltaMean)}</p>
 							{#if score.baselineInterpretationLabel}
 								<p class="score-card__interpretation">
-									baseline band {score.baselineInterpretationLabel}
+									{waveSnapshotCopy.chrome.baselineBand(score.baselineInterpretationLabel)}
 								</p>
 							{/if}
 							{#if score.comparisonInterpretationLabel}
 								<p class="score-card__interpretation">
-									comparison band {score.comparisonInterpretationLabel}
+									{waveSnapshotCopy.chrome.comparisonBand(score.comparisonInterpretationLabel)}
 								</p>
 							{/if}
 							{#if score.interpretationMeta}

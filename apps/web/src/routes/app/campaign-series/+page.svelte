@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { env } from '$env/dynamic/public';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -103,7 +103,7 @@
 			}
 
 			campaignSeriesList = null;
-			errorMessage = toProductApiErrorMessage(error, 'Studies could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, text.portfolio.loadFailed);
 			loadState = 'error';
 		}
 	}
@@ -115,7 +115,7 @@
 
 		const name = newSeriesName.trim();
 		if (!name) {
-			createSeriesError = 'Enter a study name.';
+			createSeriesError = text.portfolio.enterStudyName;
 			return;
 		}
 
@@ -126,7 +126,7 @@
 			const created = await setupApi.createCampaignSeries({ name });
 			await goto(resolve(`/app/campaign-series/${created.id}/setup`));
 		} catch (error) {
-			createSeriesError = toProductApiErrorMessage(error, 'Study could not be created.');
+			createSeriesError = toProductApiErrorMessage(error, text.portfolio.createFailed);
 		} finally {
 			creatingSeries = false;
 		}
@@ -183,7 +183,7 @@
 
 		const name = renameValue.trim();
 		if (!name) {
-			renameError = 'Enter a study name.';
+			renameError = text.portfolio.enterStudyName;
 			return;
 		}
 
@@ -195,7 +195,7 @@
 			cancelRename();
 			await loadCampaignSeries(portfolioQuery);
 		} catch (error) {
-			renameError = toProductApiErrorMessage(error, 'Study could not be renamed.');
+			renameError = toProductApiErrorMessage(error, text.portfolio.renameFailed);
 		} finally {
 			renaming = false;
 		}
@@ -219,7 +219,7 @@
 		} catch (error) {
 			archiveActionError = toProductApiErrorMessage(
 				error,
-				archived ? 'Study could not be restored.' : 'Study could not be archived.'
+				archived ? text.portfolio.restoreFailed : text.portfolio.archiveFailed
 			);
 		} finally {
 			archiveActionSeriesId = null;
@@ -240,7 +240,7 @@
 		} catch (error) {
 			duplicateActionError = toProductApiErrorMessage(
 				error,
-				'Sample study could not be duplicated.'
+				text.portfolio.duplicateSampleFailed
 			);
 		} finally {
 			duplicateActionSeriesId = null;
@@ -501,7 +501,7 @@
 																}}
 															>
 																<label class="field portfolio-rename__field">
-																	<span>Rename study name</span>
+																	<span>{text.portfolio.renameStudyName}</span>
 																	<input bind:value={renameValue} disabled={renaming} />
 																</label>
 																<div class="action-row portfolio-rename__actions">
@@ -511,7 +511,7 @@
 																		{:else}
 																			<Check size={17} aria-hidden="true" />
 																		{/if}
-																		<span>{renaming ? 'Saving...' : 'Save name'}</span>
+																		<span>{renaming ? text.portfolio.saving : text.portfolio.saveName}</span>
 																	</button>
 																	<button
 																		type="button"
@@ -520,7 +520,7 @@
 																		onclick={cancelRename}
 																	>
 																		<X size={17} aria-hidden="true" />
-																		<span>Cancel</span>
+																		<span>{text.portfolio.cancel}</span>
 																	</button>
 																</div>
 															</form>
@@ -569,7 +569,7 @@
 																			onclick={() => startRename(item.id, item.title)}
 																		>
 																			<Pencil size={17} aria-hidden="true" />
-																			<span>Rename</span>
+																			<span>{text.portfolio.rename}</span>
 																		</button>
 																		<button
 																			type="button"
@@ -587,7 +587,7 @@
 																			{/if}
 																			<span
 																				>{archiveActionSeriesId === item.id
-																					? 'Saving...'
+																					? text.portfolio.saving
 																					: item.archiveActionLabel}</span
 																			>
 																		</button>
@@ -612,7 +612,7 @@
 																			{/if}
 																			<span
 																				>{duplicateActionSeriesId === item.id
-																					? 'Duplicating...'
+																					? text.portfolio.duplicating
 																					: item.duplicateAction.label}</span
 																			>
 																		</button>
@@ -641,3 +641,4 @@
 		{/if}
 	</LoadingBoundary>
 </section>
+

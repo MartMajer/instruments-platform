@@ -136,6 +136,14 @@ describe('localized route body copy', () => {
 			'Ponovite studiju i usporedite mjerenja'
 		);
 		expect(copy.selectedStudy.wavesWorkflow.surface.scoreMethodLabel).toBe('Metoda rezultata');
+		expect(copy.selectedStudy.reportsWorkflow.component.downloadAction).toBe('Radnja preuzimanja');
+		expect(copy.selectedStudy.reportsWorkflow.component.currentPurpose.responseDataset).toBe(
+			'CSV skupa odgovora i knjiga kodova'
+		);
+		expect(copy.selectedStudy.wavesWorkflow.component.whereWavesFit).toBe('Uloga mjerenja');
+		expect(copy.selectedStudy.wavesWorkflow.component.currentTaskTitle).toBe(
+			'Trenutni zadatak usporedbe'
+		);
 	});
 
 	it('provides Croatian selected-study setup body copy', () => {

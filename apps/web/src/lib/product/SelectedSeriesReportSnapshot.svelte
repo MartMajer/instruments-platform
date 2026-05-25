@@ -53,7 +53,7 @@
 		snapshotLoadedForSelectedCampaign && snapshotResult ? toReportProofView(snapshotResult) : null
 	);
 	const visualAnalyticsView = $derived(
-		snapshotLoadedForSelectedCampaign ? toReportVisualAnalyticsView(snapshotResult) : null
+		snapshotLoadedForSelectedCampaign ? toReportVisualAnalyticsView(snapshotResult, appLocale) : null
 	);
 	const snapshotBadgeStatus = $derived(loadState === 'error' ? 'failed' : snapshotState.status);
 	const snapshotBadgeLabel = $derived(

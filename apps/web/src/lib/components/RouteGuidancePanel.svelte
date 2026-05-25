@@ -4,29 +4,29 @@
 	let { guidance }: { guidance: ProductRouteGuidanceView } = $props();
 </script>
 
-<section class="route-guidance" aria-label="Route guidance">
+<section class="route-guidance" aria-label={guidance.ariaLabel}>
 	<div class="route-guidance__header">
-		<p class="product-kicker">Route guidance</p>
+		<p class="product-kicker">{guidance.kicker}</p>
 		<h2 class="route-guidance__title">{guidance.title}</h2>
 		<p class="route-guidance__summary">{guidance.summary}</p>
 	</div>
 
 	<dl class="route-guidance__grid">
 		<div class="route-guidance__field">
-			<dt>Inspect first</dt>
+			<dt>{guidance.inspectFirstLabel}</dt>
 			<dd>{guidance.inspectFirst}</dd>
 		</div>
 		<div class="route-guidance__field">
-			<dt>When it matters</dt>
+			<dt>{guidance.whenItMattersLabel}</dt>
 			<dd>{guidance.whenItMatters}</dd>
 		</div>
 		<div class="route-guidance__field">
-			<dt>Next move</dt>
+			<dt>{guidance.nextMoveLabel}</dt>
 			<dd>{guidance.nextMove}</dd>
 		</div>
 		{#if guidance.limits}
 			<div class="route-guidance__field">
-				<dt>Limits</dt>
+				<dt>{guidance.limitsLabel}</dt>
 				<dd>{guidance.limits}</dd>
 			</div>
 		{/if}

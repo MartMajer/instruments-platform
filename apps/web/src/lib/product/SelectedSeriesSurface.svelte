@@ -105,7 +105,7 @@
 			? toProductRouteGuidance('setup', {
 					isSample: setupWorkspaceView.ownership.isSample,
 					canManageSetup
-				})
+				}, appLocale)
 			: null
 	);
 	const scoreRemediationDisabledReason = $derived(
