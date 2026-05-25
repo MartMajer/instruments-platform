@@ -27,7 +27,7 @@
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import {
 		emailSuppressionReasonLabel,
-		emailSuppressionSourceLabel,
+		emailSuppressionSourceCreatedAtLabel,
 		toSelectedSeriesCollectionStatusSummary,
 		toSelectedSeriesOperationsPath,
 		toRecipientSuppressionReview,
@@ -237,7 +237,7 @@
 		suppressionListResult?.suppressions.filter((suppression) => suppression.active) ?? []
 	);
 	const recipientSuppressionReview = $derived(
-		toRecipientSuppressionReview(recipientImportReview.recipients, activeEmailSuppressions)
+		toRecipientSuppressionReview(recipientImportReview.recipients, activeEmailSuppressions, appLocale)
 	);
 	const providerDeliveryEventRows = $derived(providerDeliveryEventsResult?.events ?? []);
 	const latestResponseActivity = $derived(
@@ -412,7 +412,8 @@
 
 		const latestSuppressionReview = toRecipientSuppressionReview(
 			recipientImportReview.recipients,
-			suppressionReviewResult.suppressions.filter((suppression) => suppression.active)
+			suppressionReviewResult.suppressions.filter((suppression) => suppression.active),
+			appLocale
 		);
 		if (latestSuppressionReview.hasBlockedRecipients) {
 			actionErrors = {
@@ -1486,7 +1487,7 @@
 									{#each activeEmailSuppressions.slice(0, 6) as suppression (suppression.id)}
 										<div class="record-field">
 											<p class="record-field__label">
-												{emailSuppressionReasonLabel(suppression.reason)}
+												{emailSuppressionReasonLabel(suppression.reason, appLocale)}
 											</p>
 											<div class="flex flex-wrap items-center justify-between gap-3">
 												<p class="record-field__value">{suppression.recipient}</p>
@@ -1501,7 +1502,11 @@
 												</button>
 											</div>
 											<p class="text-sm text-[var(--color-text-muted)]">
-												{emailSuppressionSourceLabel(suppression.source)} - Added {formatDateTime(suppression.createdAt)}
+												{emailSuppressionSourceCreatedAtLabel(
+													suppression.source,
+													formatDateTime(suppression.createdAt),
+													appLocale
+												)}
 											</p>
 											{#if suppression.note}
 												<p class="text-sm text-[var(--color-text-muted)]">{suppression.note}</p>

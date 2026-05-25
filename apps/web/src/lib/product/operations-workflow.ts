@@ -303,7 +303,8 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 
 export function toRecipientSuppressionReview(
 	recipients: readonly RecipientSuppressionReviewRecipient[],
-	suppressions: readonly EmailSuppressionResponse[]
+	suppressions: readonly EmailSuppressionResponse[],
+	locale: AppLocale = 'en'
 ): RecipientSuppressionReview {
 	const activeSuppressionByRecipient = new Map(
 		suppressions
@@ -325,9 +326,9 @@ export function toRecipientSuppressionReview(
 			id: suppression.id,
 			recipient: suppression.recipient,
 			reason: suppression.reason,
-			reasonLabel: emailSuppressionReasonLabel(suppression.reason),
+			reasonLabel: emailSuppressionReasonLabel(suppression.reason, locale),
 			source: suppression.source,
-			sourceLabel: emailSuppressionSourceLabel(suppression.source),
+			sourceLabel: emailSuppressionSourceLabel(suppression.source, locale),
 			note: suppression.note ?? null,
 			createdAt: suppression.createdAt
 		}));
@@ -336,46 +337,58 @@ export function toRecipientSuppressionReview(
 	return {
 		hasBlockedRecipients: blockedCount > 0,
 		blockedCount,
-		headline:
-			blockedCount === 1
-				? '1 recipient is on the do-not-contact list'
-				: blockedCount > 1
-					? `${formatCount(blockedCount)} recipients are on the do-not-contact list`
-					: 'No recipients are on the do-not-contact list',
+		headline: appMessage(locale, 'operations.suppression.headline', { blockedCount }),
 		guidance:
 			blockedCount > 0
-				? 'Use another email, remove the recipient, or release the suppression only when you are sure future invitations are appropriate.'
-				: 'Recipient list is not blocked by active do-not-contact records.',
+				? appMessage(locale, 'operations.suppression.guidance.blocked')
+				: appMessage(locale, 'operations.suppression.guidance.clear'),
 		items
 	};
 }
 
-export function emailSuppressionReasonLabel(reason: string | null | undefined) {
+export function emailSuppressionReasonLabel(
+	reason: string | null | undefined,
+	locale: AppLocale = 'en'
+) {
 	switch (reason) {
 		case 'recipient_unsubscribed':
-			return 'Unsubscribed';
+			return appMessage(locale, 'operations.suppression.reason.recipientUnsubscribed');
 		case 'provider_bounced':
-			return 'Bounced';
+			return appMessage(locale, 'operations.suppression.reason.providerBounced');
 		case 'provider_complained':
-			return 'Spam complaint';
+			return appMessage(locale, 'operations.suppression.reason.providerComplained');
 		case 'operator_do_not_contact':
-			return 'Manually suppressed';
+			return appMessage(locale, 'operations.suppression.reason.operatorDoNotContact');
 		default:
 			return titleCaseLabel(reason);
 	}
 }
 
-export function emailSuppressionSourceLabel(source: string | null | undefined) {
+export function emailSuppressionSourceLabel(
+	source: string | null | undefined,
+	locale: AppLocale = 'en'
+) {
 	switch (source) {
 		case 'respondent_invitation_link':
-			return 'Invitation unsubscribe link';
+			return appMessage(locale, 'operations.suppression.source.respondentInvitationLink');
 		case 'provider_delivery_event':
-			return 'Provider delivery event';
+			return appMessage(locale, 'operations.suppression.source.providerDeliveryEvent');
 		case 'tenant_operator':
-			return 'Workspace admin';
+			return appMessage(locale, 'operations.suppression.source.tenantOperator');
 		default:
 			return titleCaseLabel(source);
 	}
+}
+
+export function emailSuppressionSourceCreatedAtLabel(
+	source: string | null | undefined,
+	createdAt: string,
+	locale: AppLocale = 'en'
+) {
+	return appMessage(locale, 'operations.suppression.sourceCreatedAt', {
+		sourceLabel: emailSuppressionSourceLabel(source, locale),
+		createdAt
+	});
 }
 
 export function toSelectedSeriesOperationsWorkflowActions(
@@ -815,10 +828,6 @@ function operationsMessage(
   values: AppMessageValues = {}
 ) {
   return appMessage(copy.locale ?? 'en', id, values);
-}
-
-function formatCount(value: number | null | undefined) {
-  return new Intl.NumberFormat('hr-HR').format(value ?? 0);
 }
 
 function localizedReportVisibilityStatus(

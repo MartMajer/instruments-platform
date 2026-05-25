@@ -100,6 +100,15 @@ describe('app message catalog', () => {
 		).toBe(
 			'1 otvorena poveznica za sudionike i 21 spremljeni poziv e-poštom. Otvorena poveznica je širok pristup; invite-only e-pošta ograničava ulaz na spremljene primatelje. anonimni izvještaji i dalje ne prikazuju tko je odgovorio.'
 		);
+		expect(appMessage('hr-HR', 'operations.suppression.headline', { blockedCount: 2 })).toBe(
+			'2 primatelja su na popisu osoba koje ne treba kontaktirati'
+		);
+		expect(
+			appMessage('hr-HR', 'operations.suppression.sourceCreatedAt', {
+				sourceLabel: 'Administrator radnog prostora',
+				createdAt: '21. 05. 2026. 23:11'
+			})
+		).toBe('Administrator radnog prostora - dodano 21. 05. 2026. 23:11');
 	});
 
 	it('keeps message ids stable and non-empty', () => {

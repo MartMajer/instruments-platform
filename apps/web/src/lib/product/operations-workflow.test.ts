@@ -429,6 +429,49 @@ describe('selected-series operations workflow model', () => {
 		expect(emailSuppressionSourceLabel('tenant_operator')).toBe('Workspace admin');
 	});
 
+	it('localizes recipient suppression review labels for Croatian route context', () => {
+		const review = toRecipientSuppressionReview(
+			[{ email: 'Ada@Example.com' }],
+			[
+				{
+					id: 'suppression-1',
+					recipient: 'ada@example.com',
+					reason: 'recipient_unsubscribed',
+					source: 'respondent_invitation_link',
+					note: null,
+					createdAt: '2026-05-21T23:11:52Z',
+					releasedAt: null,
+					releaseReason: null,
+					active: true
+				}
+			],
+			'hr-HR'
+		);
+
+		expect(review).toMatchObject({
+			hasBlockedRecipients: true,
+			blockedCount: 1,
+			headline: '1 primatelj je na popisu osoba koje ne treba kontaktirati',
+			guidance:
+				'Koristite drugu adresu e-pošte, uklonite primatelja ili maknite blokadu samo ako ste sigurni da je budući poziv opravdan.'
+		});
+		expect(review.items[0]).toMatchObject({
+			reasonLabel: 'Odjavljeno',
+			sourceLabel: 'Poveznica za odjavu iz poziva'
+		});
+		expect(emailSuppressionReasonLabel('provider_bounced', 'hr-HR')).toBe('Odbijena isporuka');
+		expect(emailSuppressionReasonLabel('provider_complained', 'hr-HR')).toBe(
+			'Prijava neželjene pošte'
+		);
+		expect(emailSuppressionReasonLabel('operator_do_not_contact', 'hr-HR')).toBe('Ručno blokirano');
+		expect(emailSuppressionSourceLabel('provider_delivery_event', 'hr-HR')).toBe(
+			'Događaj isporuke od pružatelja'
+		);
+		expect(emailSuppressionSourceLabel('tenant_operator', 'hr-HR')).toBe(
+			'Administrator radnog prostora'
+		);
+	});
+
 	it('localizes operations workflow and collection status copy for Croatian route context', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy.operationsWorkflow;
 		const path = toSelectedSeriesOperationsPath(draftWorkspace, {}, copy);

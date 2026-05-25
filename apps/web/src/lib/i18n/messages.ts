@@ -16,6 +16,7 @@ type CountNounId =
 	| 'measurement'
 	| 'openRespondentLink'
 	| 'question'
+	| 'recipient'
 	| 'reportSummaryColumn'
 	| 'response'
 	| 'row'
@@ -559,6 +560,29 @@ const enMessages = {
 			numberValue(values, 'openLinkCount'),
 			'openRespondentLink'
 		)} ${numberValue(values, 'openLinkCount') === 1 ? 'is' : 'are'} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`
+	,
+	'operations.suppression.headline': (values, locale) => {
+		const blockedCount = numberValue(values, 'blockedCount');
+		if (blockedCount === 0) {
+			return 'No recipients are on the do-not-contact list';
+		}
+		return `${formatCount(locale, blockedCount, 'recipient')} ${
+			blockedCount === 1 ? 'is' : 'are'
+		} on the do-not-contact list`;
+	},
+	'operations.suppression.guidance.blocked':
+		'Use another email, remove the recipient, or release the suppression only when you are sure future invitations are appropriate.',
+	'operations.suppression.guidance.clear':
+		'Recipient list is not blocked by active do-not-contact records.',
+	'operations.suppression.reason.recipientUnsubscribed': 'Unsubscribed',
+	'operations.suppression.reason.providerBounced': 'Bounced',
+	'operations.suppression.reason.providerComplained': 'Spam complaint',
+	'operations.suppression.reason.operatorDoNotContact': 'Manually suppressed',
+	'operations.suppression.source.respondentInvitationLink': 'Invitation unsubscribe link',
+	'operations.suppression.source.providerDeliveryEvent': 'Provider delivery event',
+	'operations.suppression.source.tenantOperator': 'Workspace admin',
+	'operations.suppression.sourceCreatedAt': (values) =>
+		`${textValue(values, 'sourceLabel')} - Added ${textValue(values, 'createdAt')}`
 } satisfies Record<string, AppMessageTemplate>;
 
 export type AppMessageId = keyof typeof enMessages;
@@ -946,7 +970,29 @@ const hrMessages: AppMessageCatalog = {
 			locale,
 			numberValue(values, 'openLinkCount'),
 			'openRespondentLink'
-		)} aktivno je. Svatko s poveznicom može ući u ovo mjerenje; koristite spremljene pozive kad pristup treba biti ograničen.`
+		)} aktivno je. Svatko s poveznicom može ući u ovo mjerenje; koristite spremljene pozive kad pristup treba biti ograničen.`,
+	'operations.suppression.headline': (values, locale) => {
+		const blockedCount = numberValue(values, 'blockedCount');
+		if (blockedCount === 0) {
+			return 'Nema primatelja na popisu osoba koje ne treba kontaktirati';
+		}
+		return `${formatCount(locale, blockedCount, 'recipient')} ${
+			blockedCount === 1 ? 'je' : 'su'
+		} na popisu osoba koje ne treba kontaktirati`;
+	},
+	'operations.suppression.guidance.blocked':
+		'Koristite drugu adresu e-pošte, uklonite primatelja ili maknite blokadu samo ako ste sigurni da je budući poziv opravdan.',
+	'operations.suppression.guidance.clear':
+		'Nema aktivnih zabrana kontaktiranja za ove primatelje.',
+	'operations.suppression.reason.recipientUnsubscribed': 'Odjavljeno',
+	'operations.suppression.reason.providerBounced': 'Odbijena isporuka',
+	'operations.suppression.reason.providerComplained': 'Prijava neželjene pošte',
+	'operations.suppression.reason.operatorDoNotContact': 'Ručno blokirano',
+	'operations.suppression.source.respondentInvitationLink': 'Poveznica za odjavu iz poziva',
+	'operations.suppression.source.providerDeliveryEvent': 'Događaj isporuke od pružatelja',
+	'operations.suppression.source.tenantOperator': 'Administrator radnog prostora',
+	'operations.suppression.sourceCreatedAt': (values) =>
+		`${textValue(values, 'sourceLabel')} - dodano ${textValue(values, 'createdAt')}`
 };
 
 const messageCatalogs: Record<AppLocale, AppMessageCatalog> = {
@@ -967,6 +1013,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		measurement: { one: 'wave', other: 'waves' },
 		openRespondentLink: { one: 'open respondent link', other: 'open respondent links' },
 		question: { one: 'question', other: 'questions' },
+		recipient: { one: 'recipient', other: 'recipients' },
 		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
 		response: { one: 'response', other: 'responses' },
 		row: { one: 'row', other: 'rows' },
@@ -1015,6 +1062,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			other: 'otvorenih poveznica za sudionike'
 		},
 		question: { one: 'pitanje', few: 'pitanja', other: 'pitanja' },
+		recipient: { one: 'primatelj', few: 'primatelja', other: 'primatelja' },
 		reportSummaryColumn: {
 			one: 'stupac sažetka izvještaja',
 			few: 'stupca sažetka izvještaja',
