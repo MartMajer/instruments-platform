@@ -715,7 +715,6 @@ describe('selected-series reports workflow model', () => {
 	it('localizes the results workflow model for Croatian route copy', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy
 			.reportsWorkflow as SelectedSeriesReportsWorkflowCopy;
-		const translations = copy.translations ?? {};
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseExport, {}, copy);
 		const packet = toSelectedSeriesResultsPacketReview(reportableWorkspace, {}, copy);
 		const preview = toSelectedSeriesExportPreview(
@@ -744,36 +743,36 @@ describe('selected-series reports workflow model', () => {
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
 				id: 'responses',
-				label: translations.Responses,
+				label: 'Odgovori',
 				summary: '12 prikupljenih odgovora'
 			})
 		);
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
 				id: 'scores',
-				label: translations.Scores,
+				label: 'Rezultati',
 				summary: '12 vidljivih rezultata'
 			})
 		);
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
 				id: 'use_status',
-				label: translations['Use status'],
-				summary: translations['Internal review only']
+				label: 'Status korištenja',
+				summary: 'Samo interni pregled'
 			})
 		);
 		expect(pendingPreview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'file_purpose',
-				label: translations['File purpose'],
-				summary: translations['Review export file to inspect contents']
+				label: 'Namjena datoteke',
+				summary: 'Pregledajte datoteku izvoza za provjeru sadržaja'
 			})
 		);
 		expect(pendingPreview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'trajectory_keys',
-				label: translations['Trajectory keys'],
-				summary: translations['Trajectory key policy available after file review']
+				label: 'Ključevi praćenja',
+				summary: 'Pravila ključeva praćenja dostupna su nakon pregleda datoteke'
 			})
 		);
 		expect(preview).toMatchObject({
@@ -783,21 +782,21 @@ describe('selected-series reports workflow model', () => {
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'file_purpose',
-				label: translations['File purpose'],
-				summary: translations['Response dataset CSV and codebook']
+				label: 'Namjena datoteke',
+				summary: 'CSV skup odgovora i knjiga kodova'
 			})
 		);
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'row_shape',
-				label: translations['Row shape'],
+				label: 'Oblik redaka',
 				summary: '12 redaka; jedan redak po predanom odgovoru'
 			})
 		);
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'wave_fields',
-				label: translations['Wave fields'],
+				label: 'Polja mjerenja',
 				summary: 'Polja mjerenja uključena su za 2 mjerenja'
 			})
 		);
@@ -806,13 +805,13 @@ describe('selected-series reports workflow model', () => {
 		expect(method.items).toContainEqual(
 			expect.objectContaining({
 				id: 'coverage',
-				label: translations['Response coverage']
+				label: 'Pokrivenost odgovora'
 			})
 		);
 		expect(method.items).toContainEqual(
 			expect.objectContaining({
 				id: 'direction_scale',
-				label: translations['Direction and scale']
+				label: 'Smjer i ljestvica'
 			})
 		);
 	});

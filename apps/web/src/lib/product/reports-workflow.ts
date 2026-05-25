@@ -4,6 +4,8 @@ import type {
 	ReportProofExportArtifactResponse,
 	ReportScoreSummaryResponse
 } from '$lib/api/setup';
+import type { AppLocale } from '$lib/i18n/localization';
+import { appMessage, type AppMessageId } from '$lib/i18n/messages';
 import type { ProductReadModelBadgeStatus } from './view-models';
 
 export type SelectedSeriesReportsWorkflowActionId =
@@ -238,7 +240,6 @@ export type SelectedSeriesReportsWorkflowCopy = {
 		downloadResponseDatasetCsv: string;
 		downloadReportSummaryCsv: string;
 	};
-	translations?: Record<string, string>;
 };
 
 export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWorkflowCopy = {
@@ -341,8 +342,7 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 		reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
 		downloadResponseDatasetCsv: 'Download response dataset CSV',
 		downloadReportSummaryCsv: 'Download report-summary CSV'
-	},
-	translations: {}
+	}
 };
 
 export function toSelectedSeriesReportsWorkflowActions(
@@ -1892,6 +1892,127 @@ function toExportScoreOutputsItem(
 	};
 }
 
+const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
+	Responses: 'results.packet.responses.label',
+	Scores: 'results.packet.scores.label',
+	'Export files': 'results.packet.exportFiles.label',
+	'Use status': 'results.packet.useStatus.label',
+	'Raw submitted responses exist. They can be exported for internal analysis when an export file is created.':
+		'results.packet.rawResponses.detail',
+	'Scored results are visible for internal review. Keep score meaning and method notes with any exported analysis.':
+		'results.packet.scoredResults.detail',
+	'Response dataset ready': 'results.packet.responseDatasetReady.summary',
+	'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.':
+		'results.packet.responseDatasetReady.detail',
+	'Internal review only': 'results.packet.internalReviewOnly.summary',
+	'Use these results inside the workspace while export, interpretation, or collection status still needs review.':
+		'results.packet.internalReviewOnly.detail',
+	'No wave selected': 'results.packet.noWaveSelected.summary',
+	'Select a wave before deciding how results can be used.': 'results.packet.noWaveSelected.detail',
+	'No result data yet': 'results.packet.noResultData.summary',
+	'Collect responses before using or exporting results.': 'results.packet.noResultData.detail',
+	'Raw responses only': 'results.packet.rawResponsesOnly.summary',
+	'Do not present scored results yet. Use raw responses internally or fix scoring, missing-answer rules, and disclosure.':
+		'results.packet.rawResponsesOnly.detail',
+	'Ready for controlled sharing': 'results.packet.controlledSharing.summary',
+	'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.':
+		'results.packet.controlledSharing.detail',
+
+	'Score outputs': 'results.method.outputs.label',
+	'Response coverage': 'results.method.coverage.label',
+	'Direction and scale': 'results.method.directionScale.label',
+	'Missing answers': 'results.method.missingAnswers.label',
+	'Interpretation boundary': 'results.method.interpretationBoundary.label',
+	'Output names available after reviewing results': 'results.method.outputs.pending.summary',
+	'Use Review results to load the score output rows. Results does not infer score meaning from hidden setup data.':
+		'results.method.outputs.pending.detail',
+	'All submitted responses have successful scoring activity.':
+		'results.method.coverage.allScored.detail',
+	'Direction and scale family need setup context': 'results.method.directionScale.pending.summary',
+	'Results can show output rows and missingness, but question-to-output coverage, reverse scoring, and answer scale family still need the Setup scoring plan. Do not infer better/worse meaning from output codes alone.':
+		'results.method.directionScale.pending.detail',
+	'Missing-answer metadata available after reviewing results':
+		'results.method.missingAnswers.pending.summary',
+	'Use Review results to load valid/expected answer contribution counts where available.':
+		'results.method.missingAnswers.pending.detail',
+	'Some score inputs were incomplete': 'results.method.missingAnswers.incomplete.summary',
+	'Custom-study interpretation, not externally validated':
+		'results.method.interpretation.custom.summary',
+	'Use these scores as tenant-defined custom-study calculations. Do not present them as official norms, benchmarks, clinical thresholds, or externally validated claims.':
+		'results.method.interpretation.custom.detail',
+
+	'File purpose': 'results.export.filePurpose.label',
+	'Row shape': 'results.export.rowShape.label',
+	'Wave fields': 'results.export.waveFields.label',
+	'Trajectory keys': 'results.export.trajectoryKeys.label',
+	'Variables and values': 'results.export.variablesValues.label',
+	Missingness: 'results.export.missingness.label',
+	'Review export file to inspect contents': 'results.export.pending.filePurpose.summary',
+	'Row shape available after file review': 'results.export.pending.rowShape.summary',
+	'Wave fields available after file review': 'results.export.pending.waveFields.summary',
+	'Trajectory key policy available after file review':
+		'results.export.pending.trajectoryKeys.summary',
+	'Variables and values available after file review':
+		'results.export.pending.variablesValues.summary',
+	'Missingness policy available after file review': 'results.export.pending.missingness.summary',
+	'Score outputs available after file review': 'results.export.pending.scoreOutputs.summary',
+	'Response dataset CSV and codebook': 'results.export.responseDataset.summary',
+	'Use this for row-level analysis. Keep method, disclosure, and interpretation notes with the file.':
+		'results.export.responseDataset.detail',
+	'Report-summary CSV, not row-level response data': 'results.export.reportSummary.summary',
+	'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.':
+		'results.export.reportSummary.detail',
+	'Review this file type before using it outside the workspace.': 'results.export.unknownFile.detail',
+	'Each row represents one submitted response session in this study export.':
+		'results.export.rowShape.responseRows.detail',
+	'Each row summarizes one score output for the selected wave, not one respondent.':
+		'results.export.rowShape.scoreRows.detail',
+	'Review the codebook before interpreting row meaning.':
+		'results.export.rowShape.generic.detail',
+	'Wave fields included': 'results.export.waveFields.included.summary',
+	'Selected-wave lifecycle fields included': 'results.export.waveFields.reportSummary.summary',
+	'The report-summary file describes the selected wave and its finality, not every wave in the study.':
+		'results.export.waveFields.reportSummary.detail',
+	'Wave fields not detected': 'results.export.waveFields.notDetected.summary',
+	'Review the codebook column list before using wave-level grouping.':
+		'results.export.waveFields.grouping.detail',
+	'No trajectory keys in report-summary export':
+		'results.export.trajectoryKeys.reportSummary.summary',
+	'Report-summary exports are aggregate files and do not include respondent trajectory rows.':
+		'results.export.trajectoryKeys.reportSummary.detail',
+	'Artifact-local trajectory keys included': 'results.export.trajectoryKeys.included.summary',
+	'No trajectory key column detected': 'results.export.trajectoryKeys.noColumn.summary',
+	'No trajectory keys': 'results.export.trajectoryKeys.none.summary',
+	'Use trajectory fields only when anonymous longitudinal linking is present and disclosure allows it.':
+		'results.export.trajectoryKeys.usage.detail',
+	'Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available.':
+		'results.export.variables.responseDataset.detail',
+	'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.':
+		'results.export.variables.reportSummary.detail',
+	'Review the codebook before using column values.': 'results.export.variables.codebook.detail',
+	'Missing-answer codes documented': 'results.export.missingness.codesDocumented.summary',
+	'Missing-answer codes not detected': 'results.export.missingness.codesNotDetected.summary',
+	'Use the codebook missing-treatment fields and question missing codes before treating blanks as real answers.':
+		'results.export.missingness.responseDataset.detail',
+	'Score missingness fields included': 'results.export.missingness.scoreFields.summary',
+	'Score missingness fields not detected':
+		'results.export.missingness.scoreFieldsNotDetected.summary',
+	'Report-summary missingness describes valid/expected score contributions, not respondent-level skipped answers.':
+		'results.export.missingness.reportSummary.detail',
+	'Missingness fields included': 'results.export.missingness.fields.summary',
+	'Missingness fields not detected': 'results.export.missingness.fieldsNotDetected.summary',
+	'Review missingness fields before analysis.': 'results.export.missingness.review.detail',
+	'No score metadata columns detected': 'results.export.scoreOutputs.noMetadata.summary',
+	'Response datasets include score metadata fields when scores exist; keep score method notes with analysis.':
+		'results.export.scoreOutputs.responseDataset.detail',
+	'Score outputs listed in dimension_code': 'results.export.scoreOutputs.dimensionCode.summary',
+	'Score output column not detected': 'results.export.scoreOutputs.noColumn.summary',
+	'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.':
+		'results.export.scoreOutputs.dimensionCode.detail',
+	'Score outputs not detected': 'results.export.scoreOutputs.notDetected.summary',
+	'Review score output fields before interpretation.': 'results.export.scoreOutputs.review.detail'
+};
+
 function localizeReportsWorkflowItem<
 	TItem extends { label: string; summary: string; detail: string }
 >(item: TItem, copy: SelectedSeriesReportsWorkflowCopy): TItem {
@@ -1904,146 +2025,142 @@ function localizeReportsWorkflowItem<
 }
 
 function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsWorkflowCopy) {
-	const exact = copy.translations?.[value];
-	if (exact) {
-		return exact;
+	const locale = reportsWorkflowLocale(copy);
+	const messageId = reportsWorkflowMessageIds[value];
+	if (messageId) {
+		return appMessage(locale, messageId);
 	}
 
-	if (copy.locale !== 'hr-HR') {
+	if (locale !== 'hr-HR') {
 		return value;
 	}
 
 	const responseCollectedMatch = value.match(/^(\d+) responses? collected$/);
 	if (responseCollectedMatch) {
-		return `${responseCollectedMatch[1]} prikupljenih odgovora`;
+		return appMessage(locale, 'results.packet.responses.collected', {
+			count: Number(responseCollectedMatch[1])
+		});
 	}
 
 	const scoreVisibleMatch = value.match(/^(\d+) scores? visible$/);
 	if (scoreVisibleMatch) {
-		return `${scoreVisibleMatch[1]} vidljivih rezultata`;
+		return appMessage(locale, 'results.packet.scores.visible', {
+			count: Number(scoreVisibleMatch[1])
+		});
 	}
 
 	const coverageMatch = value.match(/^(\d+) of (\d+) submitted responses scored$/);
 	if (coverageMatch) {
-		return `${coverageMatch[1]} od ${coverageMatch[2]} predanih odgovora ima izračun rezultata`;
+		return appMessage(locale, 'results.method.coverage.scored', {
+			scored: Number(coverageMatch[1]),
+			total: Number(coverageMatch[2])
+		});
 	}
 
 	const submittedVisibleMatch = value.match(/^(\d+) submitted responses?, (\d+) visible score rows?$/);
 	if (submittedVisibleMatch) {
-		return `${submittedVisibleMatch[1]} predanih odgovora, ${submittedVisibleMatch[2]} vidljivih redaka rezultata`;
+		return appMessage(locale, 'results.method.coverage.submittedVisible', {
+			submitted: Number(submittedVisibleMatch[1]),
+			visible: Number(submittedVisibleMatch[2])
+		});
 	}
 
 	const rowShapeResponseMatch = value.match(/^(\d+) rows?; one row per submitted response$/);
 	if (rowShapeResponseMatch) {
-		const count = Number(rowShapeResponseMatch[1]);
-		return `${count} ${croatianRows(count)}; jedan redak po predanom odgovoru`;
+		return appMessage(locale, 'results.export.rowShape.responseRows', {
+			count: Number(rowShapeResponseMatch[1])
+		});
 	}
 
 	const rowShapeScoreMatch = value.match(
 		/^(\d+) rows?; one row per visible or suppressed score output$/
 	);
 	if (rowShapeScoreMatch) {
-		const count = Number(rowShapeScoreMatch[1]);
-		return `${count} ${croatianRows(count)}; jedan redak po vidljivom ili skrivenom izlazu rezultata`;
+		return appMessage(locale, 'results.export.rowShape.scoreRows', {
+			count: Number(rowShapeScoreMatch[1])
+		});
 	}
 
 	const rowCountMatch = value.match(/^(\d+) rows?$/);
 	if (rowCountMatch) {
-		const count = Number(rowCountMatch[1]);
-		return `${count} ${croatianRows(count)}`;
+		return appMessage(locale, 'results.export.rowShape.rows', {
+			count: Number(rowCountMatch[1])
+		});
 	}
 
 	const waveFieldsMatch = value.match(/^Wave fields included for (\d+) waves?$/);
 	if (waveFieldsMatch) {
-		const count = Number(waveFieldsMatch[1]);
-		return `Polja mjerenja uključena su za ${count} ${croatianMeasurements(count)}`;
+		return appMessage(locale, 'results.export.waveFields.includedForWaves', {
+			count: Number(waveFieldsMatch[1])
+		});
 	}
 
 	const answerVariableMatch = value.match(
 		/^(\d+) answer variables?, (\d+) score metadata fields?(?:, (\d+) answer metadata fields?)?, (\d+) columns total$/
 	);
 	if (answerVariableMatch) {
-		const answerCount = Number(answerVariableMatch[1]);
-		const scoreMetadataCount = Number(answerVariableMatch[2]);
-		const answerMetadataCount = answerVariableMatch[3] ? Number(answerVariableMatch[3]) : null;
-		const columnCount = Number(answerVariableMatch[4]);
-		const answerMetadataPart =
-			answerMetadataCount === null
-				? ''
-				: `, ${answerMetadataCount} ${croatianAnswerMetadataFields(answerMetadataCount)}`;
-		return `${answerCount} ${croatianAnswerVariables(answerCount)}, ${scoreMetadataCount} ${croatianScoreMetadataFields(scoreMetadataCount)}${answerMetadataPart}, ukupno ${columnCount} ${croatianColumns(columnCount)}`;
+		return appMessage(locale, 'results.export.variables.responseDatasetSummary', {
+			answerCount: Number(answerVariableMatch[1]),
+			scoreMetadataCount: Number(answerVariableMatch[2]),
+			answerMetadataCount: answerVariableMatch[3] ? Number(answerVariableMatch[3]) : 0,
+			columnCount: Number(answerVariableMatch[4])
+		});
 	}
 
 	const reportSummaryColumnsMatch = value.match(/^(\d+) report-summary columns$/);
 	if (reportSummaryColumnsMatch) {
-		const count = Number(reportSummaryColumnsMatch[1]);
-		return `${count} ${croatianReportSummaryColumns(count)}`;
+		return appMessage(locale, 'results.export.variables.reportSummaryColumns', {
+			count: Number(reportSummaryColumnsMatch[1])
+		});
 	}
 
 	const columnsDetectedMatch = value.match(/^(\d+) columns detected$/);
 	if (columnsDetectedMatch) {
-		const count = Number(columnsDetectedMatch[1]);
-		return `Otkriveno ${count} ${croatianColumns(count)}`;
+		return appMessage(locale, 'results.export.variables.columnsDetected', {
+			count: Number(columnsDetectedMatch[1])
+		});
 	}
 
 	const scoreMetadataMatch = value.match(/^Score metadata for (.+)$/);
 	if (scoreMetadataMatch) {
-		return `Metapodaci rezultata za ${scoreMetadataMatch[1]}`;
+		return appMessage(locale, 'results.export.scoreOutputs.metadataFor', {
+			dimensions: scoreMetadataMatch[1]
+		});
 	}
 
 	const scoreOutputsMatch = value.match(/^(\d+) score outputs?: (.+)$/);
 	if (scoreOutputsMatch) {
-		const count = Number(scoreOutputsMatch[1]);
-		return `${count} ${croatianScoreOutputs(count)}: ${scoreOutputsMatch[2]}`;
+		return appMessage(locale, 'results.method.outputs.countList', {
+			count: Number(scoreOutputsMatch[1]),
+			outputs: scoreOutputsMatch[2]
+		});
 	}
 
 	const trajectoryPolicyMatch = value.match(
 		/^Trajectory ids are (.+) and should not be treated as raw participant codes or reusable identifiers\.$/
 	);
 	if (trajectoryPolicyMatch) {
-		return `Ključevi praćenja su ${trajectoryPolicyMatch[1]} i ne smiju se tretirati kao izvorni kodovi sudionika ili ponovno upotrebljivi identifikatori.`;
+		return appMessage(locale, 'results.export.trajectoryKeys.policy.detail', {
+			policy: trajectoryPolicyMatch[1]
+		});
 	}
 
 	const incompleteScoreInputMatch = value.match(
 		/^(.+) used (\d+) of (\d+) expected answer contributions$/
 	);
 	if (incompleteScoreInputMatch) {
-		return `${incompleteScoreInputMatch[1]} koristi ${incompleteScoreInputMatch[2]} od ${incompleteScoreInputMatch[3]} očekivanih doprinosa odgovora`;
+		return appMessage(locale, 'results.method.missingAnswers.incomplete.detail', {
+			dimension: incompleteScoreInputMatch[1],
+			valid: Number(incompleteScoreInputMatch[2]),
+			expected: Number(incompleteScoreInputMatch[3])
+		});
 	}
 
 	return value;
 }
 
-function croatianRows(value: number) {
-	return value === 1 ? 'redak' : 'redaka';
-}
-
-function croatianMeasurements(value: number) {
-	return value === 1 ? 'mjerenje' : 'mjerenja';
-}
-
-function croatianAnswerVariables(value: number) {
-	return value === 1 ? 'varijabla odgovora' : 'varijabli odgovora';
-}
-
-function croatianScoreMetadataFields(value: number) {
-	return value === 1 ? 'metapodatkovno polje rezultata' : 'metapodatkovnih polja rezultata';
-}
-
-function croatianAnswerMetadataFields(value: number) {
-	return value === 1 ? 'metapodatkovno polje odgovora' : 'metapodatkovnih polja odgovora';
-}
-
-function croatianColumns(value: number) {
-	return value === 1 ? 'stupac' : 'stupaca';
-}
-
-function croatianReportSummaryColumns(value: number) {
-	return value === 1 ? 'stupac sažetka izvještaja' : 'stupaca sažetka izvještaja';
-}
-
-function croatianScoreOutputs(value: number) {
-	return value === 1 ? 'izlaz rezultata' : 'izlaza rezultata';
+function reportsWorkflowLocale(copy: SelectedSeriesReportsWorkflowCopy): AppLocale {
+	return copy.locale === 'hr-HR' ? 'hr-HR' : 'en';
 }
 
 function parseExportCodebook(value: string | null | undefined): ExportCodebookSummary {
