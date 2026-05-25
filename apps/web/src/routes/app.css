@@ -7361,10 +7361,18 @@ img.app-mobile-topbar__mark {
 }
 
 .app-mobile-menu .product-nav {
+	display: grid;
+	gap: 1rem;
 	margin-top: 0;
+	overflow: visible;
+	padding-bottom: 0;
+	scroll-snap-type: none;
 }
 
 .app-mobile-menu .product-nav__section {
+	flex: initial;
+	min-width: 0;
+	scroll-snap-align: none;
 	border-radius: 1.25rem;
 	border: 1px solid var(--color-border);
 	background: var(--color-surface-raised);
@@ -7372,8 +7380,24 @@ img.app-mobile-topbar__mark {
 }
 
 .app-mobile-menu .product-nav__section + .product-nav__section {
+	border-left: 0;
 	border-top: 1px solid var(--color-border);
+	padding-left: 0.75rem;
 	padding-top: 0.75rem;
+}
+
+.app-mobile-menu .product-nav__section-heading {
+	white-space: normal;
+}
+
+.app-mobile-menu .product-nav__list {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.app-mobile-menu .product-nav__link {
+	width: auto;
+	scroll-snap-align: none;
 }
 
 .app-mobile-bottom-nav {
