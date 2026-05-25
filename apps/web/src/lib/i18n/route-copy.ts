@@ -3815,7 +3815,7 @@ const hr: typeof en = {
 						'Izradite ili odaberite datoteku izvoza prije preuzimanja CSV-a.'
 				},
 				currentPurpose: {
-					responseDataset: 'CSV skupa odgovora i knjiga kodova',
+					responseDataset: 'CSV skupa odgovora i opis podataka',
 					reportSummary: 'CSV sažetka izvještaja, nije skup odgovora za analizu'
 				},
 				downloadAction: 'Radnja preuzimanja',
@@ -3838,14 +3838,14 @@ const hr: typeof en = {
 				exportCount: 'Broj izvoza',
 				reportExportResult: 'Rezultat izvoza sažetka',
 				reportExport: 'Izvoz sažetka',
-				reportSummaryCsvCodebook: 'CSV sažetka i knjiga kodova',
+				reportSummaryCsvCodebook: 'CSV sažetka i opis podataka',
 				createReportSummaryExport: 'Izradi izvoz sažetka',
 				exportFile: 'Datoteka izvoza',
 				series: 'Studija',
 				latestResponseExport: 'Najnoviji izvoz odgovora',
 				responseExportResult: 'Rezultat izvoza odgovora',
 				responseExport: 'Izvoz odgovora',
-				responseCsvCodebook: 'CSV odgovora i knjiga kodova',
+				responseCsvCodebook: 'CSV odgovora i opis podataka',
 				createResponseExport: 'Izradi izvoz odgovora',
 				responseFile: 'Datoteka odgovora',
 				downloadStatus: 'Status preuzimanja',

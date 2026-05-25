@@ -231,7 +231,7 @@ const croatianGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView>
 		title: 'Koristite izrađene datoteke',
 		summary: 'Pronađite datoteke podrške prema spremnosti, namjeni, izvoru i sljedećoj upotrebi.',
 		inspectFirst: 'Prvo pregledajte spremna preuzimanja i stavke koje trebaju pažnju.',
-		whenItMatters: 'Koristite ovo kada analiza, šifrarnik ili paket rezultata trebaju izrađene datoteke.',
+		whenItMatters: 'Koristite ovo kada analiza, opis podataka ili paket rezultata trebaju izrađene datoteke.',
 		nextMove: 'Otvorite izvornu stranicu rezultata kada trebate razumjeti kako je datoteka izrađena.'
 	},
 	instruments: {

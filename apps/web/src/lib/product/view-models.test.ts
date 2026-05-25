@@ -2975,11 +2975,11 @@ describe('product view models', () => {
 		);
 		expect(view.exportOverview[3].summary).toBe('Izvozne datoteke povezane su s Wave 1 i AA.');
 		expect(view.cards[0].nextUse).toBe(
-			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.'
+			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere opisa podataka.'
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.'
+			'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.'
 		);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});

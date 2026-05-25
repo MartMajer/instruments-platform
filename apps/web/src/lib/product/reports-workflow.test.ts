@@ -783,7 +783,7 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'file_purpose',
 				label: 'Namjena datoteke',
-				summary: 'CSV skup odgovora i knjiga kodova'
+				summary: 'CSV skup odgovora i opis podataka'
 			})
 		);
 		expect(preview.items).toContainEqual(

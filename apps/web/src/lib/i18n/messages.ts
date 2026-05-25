@@ -1133,7 +1133,7 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.surface.title': 'Datoteke za preuzimanje',
 	'exports.library.surface.eyebrow': 'Podrška studiji',
 	'exports.library.surface.description':
-		'Pronađite izrađene CSV/šifrarnik datoteke prema namjeni, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
+		'Pronađite izrađene CSV datoteke i opise podataka prema namjeni, spremnosti, izvornoj studiji i sljedećoj upotrebi.',
 	'exports.library.reference.title': 'Referenca izvoza',
 	'exports.library.reference.description':
 		'Metapodaci datoteke, vremenske oznake, kodovi grešaka i dostupnost preuzimanja ostaju dostupni za audit i rješavanje problema.',
@@ -1169,9 +1169,9 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.readyDownloads.summary.empty':
 		'Još nema izvoznih datoteka spremnih za preuzimanje.',
 	'exports.library.readyDownloads.guidance.withDataset':
-		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere šifrarnika.',
+		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere opisa podataka.',
 	'exports.library.readyDownloads.guidance.reportOnly':
-		'Sažeci izvještaja dostupni su za pregledne pakete, sažetke za klijente ili provjere šifrarnika. Skup odgovora za analizu još nije dostupan.',
+		'Sažeci izvještaja dostupni su za pregledne pakete, sažetke za klijente ili provjere opisa podataka. Skup odgovora za analizu još nije dostupan.',
 	'exports.library.readyDownloads.guidance.empty':
 		'Izradite izvoz sa stranice rezultata studije nakon što rezultati budu dostupni.',
 	'exports.library.attention.label': 'Treba pažnju',
@@ -1204,7 +1204,7 @@ const hrMessages: AppMessageCatalog = {
 		`Izvozi pokrivaju ${textValue(values, 'purposeLabels')}.`,
 	'exports.library.purpose.summary.empty': 'Još nema namjena izrađenih izvoznih datoteka.',
 	'exports.library.purpose.guidance.ready':
-		'Izvoze sažetka izvještaja odaberite za predaju rezultata; izvoze skupa odgovora za analizu uz šifrarnik.',
+		'Izvoze sažetka izvještaja odaberite za predaju rezultata; izvoze skupa odgovora za analizu uz opis podataka.',
 	'exports.library.purpose.guidance.empty':
 		'Izradite sažetak izvještaja ili skup odgovora iz studije kada rezultati budu spremni.',
 	'exports.library.context.label': 'Kontekst studije i sljedeća upotreba',
@@ -1221,18 +1221,18 @@ const hrMessages: AppMessageCatalog = {
 		'Izrađene izvozne datoteke povezat će se sa studijom ili kontekstom izvještaja kada taj kontekst bude dostupan.',
 	'exports.library.purpose.reportSummary.label': 'Izvoz sažetka izvještaja',
 	'exports.library.purpose.reportSummary.nextUse':
-		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere šifrarnika.',
+		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere opisa podataka.',
 	'exports.library.purpose.responseDataset.label': 'Izvoz skupa podataka odgovora',
 	'exports.library.purpose.responseDataset.nextUse':
-		'Koristite ovaj izvoz za analizu na razini odgovora s generiranim šifrarnikom.',
+		'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.',
 	'exports.library.purpose.other.nextUse':
-		'Ovaj izvoz koristite uz izvorni kontekst i generirani šifrarnik.',
+		'Ovaj izvoz koristite uz izvorni kontekst i izrađeni opis podataka.',
 	'exports.library.context.campaignSeries': (values) =>
 		`Studija / ${textValue(values, 'label')}`,
 	'exports.library.context.campaign': (values) => `Mjerenje / ${textValue(values, 'label')}`,
-	'exports.library.fileType.reportSummary': 'CSV i šifrarnik sažetka izvještaja',
-	'exports.library.fileType.responseDataset': 'CSV i šifrarnik skupa odgovora',
-	'exports.library.fileFormat.csvCodebook': 'CSV šifrarnik',
+	'exports.library.fileType.reportSummary': 'CSV i opis podataka sažetka izvještaja',
+	'exports.library.fileType.responseDataset': 'CSV i opis podataka skupa odgovora',
+	'exports.library.fileFormat.csvCodebook': 'CSV opis podataka',
 	'exports.library.finality.closedWave': 'Zatvoreno mjerenje',
 	'exports.library.finality.notClosedWave': 'Nije vezano uz zatvoreno mjerenje',
 	'exports.library.download.available': 'Dostupno',
@@ -1310,7 +1310,7 @@ const hrMessages: AppMessageCatalog = {
 	'workspace.lifecycle.review.label': 'Pregled',
 	'workspace.lifecycle.review.description': 'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
 	'workspace.lifecycle.export.label': 'Izvoz',
-	'workspace.lifecycle.export.description': 'Koristite izrađene CSV i šifrarnik datoteke za analizu.',
+	'workspace.lifecycle.export.description': 'Koristite izrađene CSV datoteke i opise podataka za analizu.',
 	'workspace.command.untitled': 'Radnja radnog prostora',
 	'workspace.command.defaultDescription': 'Otvorite povezanu površinu proizvoda za detalje.',
 	'workspace.command.defaultAction': 'Otvori',
@@ -1457,7 +1457,7 @@ const hrMessages: AppMessageCatalog = {
 		'Pravila nedostajućih vrijednosti dostupna su nakon pregleda datoteke',
 	'results.export.pending.scoreOutputs.summary':
 		'Izlazi rezultata dostupni su nakon pregleda datoteke',
-	'results.export.responseDataset.summary': 'CSV skup odgovora i knjiga kodova',
+	'results.export.responseDataset.summary': 'CSV skup odgovora i opis podataka',
 	'results.export.responseDataset.detail':
 		'Koristite ovo za analizu na razini redaka. Uz datoteku zadržite bilješke o metodi, pravilima prikaza i tumačenju.',
 	'results.export.reportSummary.summary': 'CSV sažetka izvještaja, ne podaci odgovora po retku',
