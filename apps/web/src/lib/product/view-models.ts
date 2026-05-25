@@ -32,6 +32,12 @@ import type {
 	ScoreInterpretationResponse
 } from '../api/setup';
 import type { AppLocale } from '../i18n/localization';
+import {
+	appMessage,
+	formatCount as formatLocalizedCount,
+	type AppMessageId,
+	type AppMessageValues
+} from '../i18n/messages';
 
 export type DisclosureDisplayState = 'visible' | 'suppressed' | 'pending' | 'not_applicable';
 
@@ -758,35 +764,35 @@ export function toCampaignSeriesOperationsWorkspaceView(
 			}
 		],
 		collectionMonitor: {
-			title: 'Response monitor',
+			title: operationsReadModelMessage(locale, 'operations.readModel.collectionMonitor.title'),
 			status: workspace.summary.collectionStatus,
 			reportVisibilityStatus: workspace.summary.reportVisibilityStatus,
-			guidance: workspace.summary.collectionGuidance,
+			guidance: localizedCollectionGuidance(workspace.summary.collectionGuidance, locale),
 			summaryRows: [
 				{
-					label: 'Started responses',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.startedResponses'),
 					value: formatCount(workspace.summary.startedResponseCount)
 				},
 				{
-					label: 'Draft responses',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.draftResponses'),
 					value: formatCount(workspace.summary.draftResponseCount)
 				},
 				{
-					label: 'Submitted responses',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.submittedResponses'),
 					value: formatCount(workspace.summary.submittedResponseCount)
 				},
 				{
-					label: 'Latest started',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.latestStarted'),
 					value: formatCollectionDateTime(workspace.summary.latestResponseStartedAt)
 				},
 				{
-					label: 'Latest submitted',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.latestSubmitted'),
 					value: formatCollectionDateTime(workspace.summary.latestResponseSubmittedAt)
 				}
 			]
 		},
-		collectionOverview: toOperationsCollectionOverview(workspace, scoreCoverage),
-		scoreCoverageMonitor: toScoreCoverageMonitor(scoreCoverage, true),
+		collectionOverview: toOperationsCollectionOverview(workspace, scoreCoverage, locale),
+		scoreCoverageMonitor: toScoreCoverageMonitor(scoreCoverage, true, locale),
 		selectedCampaignRows: workspace.selectedCampaign
 			? toOperationsCampaignDetailRows(workspace.selectedCampaign)
 			: [],
@@ -863,7 +869,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 				value: formatCount(workspace.summary.missingPrerequisiteCount)
 			}
 		],
-		scoreCoverageSignal: toScoreCoverageMonitor(scoreCoverage, false),
+		scoreCoverageSignal: toScoreCoverageMonitor(scoreCoverage, false, locale),
 		selectedCampaignRows: workspace.selectedCampaign
 			? toReportsCampaignDetailRows(workspace.selectedCampaign)
 			: [],
@@ -1808,38 +1814,54 @@ function normalizeOperationsScoreCoverage(
 
 function toScoreCoverageMonitor(
 	scoreCoverage: CampaignSeriesScoreCoverageResponse | null | undefined,
-	includeCampaignCounts: boolean
+	includeCampaignCounts: boolean,
+	locale: AppLocale = 'en'
 ) {
 	const coverage = normalizeOperationsScoreCoverage(scoreCoverage);
 	const summaryRows: DisplayRow[] = [
-		{ label: 'Submitted responses', value: formatCount(coverage.submittedResponseCount) },
-		{ label: 'Scored submitted', value: formatCount(coverage.scoredSubmittedResponseCount) },
-		{ label: 'Unscored submitted', value: formatCount(coverage.unscoredSubmittedResponseCount) },
-		{ label: 'Not configured', value: formatCount(coverage.notConfiguredSubmittedResponseCount) }
+		{
+			label: operationsReadModelMessage(locale, 'operations.readModel.row.submittedResponses'),
+			value: formatCount(coverage.submittedResponseCount)
+		},
+		{
+			label: operationsReadModelMessage(locale, 'operations.readModel.row.scoredSubmitted'),
+			value: formatCount(coverage.scoredSubmittedResponseCount)
+		},
+		{
+			label: operationsReadModelMessage(locale, 'operations.readModel.row.unscoredSubmitted'),
+			value: formatCount(coverage.unscoredSubmittedResponseCount)
+		},
+		{
+			label: operationsReadModelMessage(locale, 'operations.readModel.row.notConfigured'),
+			value: formatCount(coverage.notConfiguredSubmittedResponseCount)
+		}
 	];
 
 	if (includeCampaignCounts) {
 		summaryRows.push(
 			{
-				label: 'Campaigns with scoring',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.campaignsWithScoring'),
 				value: formatCount(coverage.campaignsWithScoringRuleCount)
 			},
 			{
-				label: 'Campaigns without scoring',
+				label: operationsReadModelMessage(
+					locale,
+					'operations.readModel.row.campaignsWithoutScoring'
+				),
 				value: formatCount(coverage.campaignsWithoutScoringRuleCount)
 			}
 		);
 	}
 
 	summaryRows.push({
-		label: 'Latest scoring activity',
+		label: operationsReadModelMessage(locale, 'operations.readModel.row.latestScoringActivity'),
 		value: formatCollectionDateTime(coverage.latestScoringActivityAt)
 	});
 
 	return {
-		title: 'Score coverage',
+		title: operationsReadModelMessage(locale, 'operations.readModel.scoreCoverage.title'),
 		status: coverage.status,
-		guidance: coverage.guidance,
+		guidance: localizedScoreCoverageGuidance(coverage.guidance, coverage.status, locale),
 		summaryRows
 	};
 }
@@ -1879,35 +1901,55 @@ function operationScoringRuleRow(campaign: CampaignSeriesOperationsCampaignRespo
 
 function toOperationsCollectionOverview(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
-	scoreCoverage: CampaignSeriesScoreCoverageResponse
+	scoreCoverage: CampaignSeriesScoreCoverageResponse,
+	locale: AppLocale = 'en'
 ): OperationsCollectionOverviewItem[] {
 	return [
-		toOperationsCollectionStateItem(workspace),
-		toOperationsRespondentAccessItem(workspace),
-		toOperationsResponseProgressItem(workspace),
-		toOperationsScoreReadinessItem(workspace, scoreCoverage)
+		toOperationsCollectionStateItem(workspace, locale),
+		toOperationsRespondentAccessItem(workspace, locale),
+		toOperationsResponseProgressItem(workspace, locale),
+		toOperationsScoreReadinessItem(workspace, scoreCoverage, locale)
 	];
 }
 
 function toOperationsCollectionStateItem(
-	workspace: CampaignSeriesOperationsWorkspaceResponse
+	workspace: CampaignSeriesOperationsWorkspaceResponse,
+	locale: AppLocale = 'en'
 ): OperationsCollectionOverviewItem {
 	const campaign = workspace.selectedCampaign;
 
 	if (!campaign) {
 		return {
 			id: 'collection_state',
-			label: 'Collection state',
+			label: operationsReadModelMessage(locale, 'operations.readModel.collectionState.emptyLabel'),
 			status: 'blocked',
-			badgeLabel: 'Blocked',
-			summary: 'No selected campaign is collecting responses',
-			guidance: 'Create and launch a campaign before collecting responses.',
+			badgeLabel: operationsReadModelMessage(
+				locale,
+				'operations.readModel.collectionState.blockedBadge'
+			),
+			summary: operationsReadModelMessage(
+				locale,
+				'operations.readModel.collectionState.noSelectedSummary'
+			),
+			guidance: operationsReadModelMessage(
+				locale,
+				'operations.readModel.collectionState.noSelectedGuidance'
+			),
 			detailRows: [
-				{ label: 'Selected wave', value: 'Missing' },
-				{ label: 'Status', value: humanizeValue(workspace.summary.collectionStatus) },
-				{ label: 'Collection started', value: 'Not available' },
 				{
-					label: 'Missing prerequisites',
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.selectedWave'),
+					value: operationsReadModelMessage(locale, 'operations.readModel.value.missing')
+				},
+				{
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.status'),
+					value: localizedCollectionStatusLabel(workspace.summary.collectionStatus, locale)
+				},
+				{
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.collectionStarted'),
+					value: appMessage(locale, 'operations.status.reportVisibility.notAvailable')
+				},
+				{
+					label: operationsReadModelMessage(locale, 'operations.readModel.row.missingPrerequisites'),
 					value: formatCount(workspace.summary.missingPrerequisiteCount)
 				}
 			]
@@ -1918,17 +1960,32 @@ function toOperationsCollectionStateItem(
 
 	return {
 		id: 'collection_state',
-		label: 'Collection status',
+		label: operationsReadModelMessage(locale, 'operations.readModel.collectionState.label'),
 		status,
-		badgeLabel: sentenceCase(humanizeValue(campaign.status)),
-		summary: `${campaign.name.trim() || 'Untitled wave'} is ${humanizeValue(campaign.status)}`,
-		guidance: campaign.collectionGuidance || workspace.summary.collectionGuidance,
+		badgeLabel: sentenceCase(localizedCollectionStatusLabel(campaign.status, locale)),
+		summary: operationsReadModelMessage(locale, 'operations.readModel.collectionState.selectedSummary', {
+			campaignName: campaign.name.trim() || 'Untitled wave',
+			statusLabel: localizedCollectionStatusLabel(campaign.status, locale)
+		}),
+		guidance: localizedCollectionGuidance(
+			campaign.collectionGuidance || workspace.summary.collectionGuidance,
+			locale
+		),
 		detailRows: [
-			{ label: 'Selected wave', value: campaign.name.trim() || 'Untitled wave' },
-			{ label: 'Status', value: humanizeValue(campaign.status) },
-			{ label: 'Collection started', value: formatCollectionDateTime(campaign.latestLaunchAt) },
 			{
-				label: 'Missing prerequisites',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.selectedWave'),
+				value: campaign.name.trim() || 'Untitled wave'
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.status'),
+				value: localizedCollectionStatusLabel(campaign.status, locale)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.collectionStarted'),
+				value: formatCollectionDateTime(campaign.latestLaunchAt)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.missingPrerequisites'),
 				value: formatCount(workspace.summary.missingPrerequisiteCount)
 			}
 		]
@@ -1936,7 +1993,8 @@ function toOperationsCollectionStateItem(
 }
 
 function toOperationsRespondentAccessItem(
-	workspace: CampaignSeriesOperationsWorkspaceResponse
+	workspace: CampaignSeriesOperationsWorkspaceResponse,
+	locale: AppLocale = 'en'
 ): OperationsCollectionOverviewItem {
 	const campaign = workspace.selectedCampaign;
 	const openLinkAssignments =
@@ -1959,29 +2017,63 @@ function toOperationsRespondentAccessItem(
 
 	return {
 		id: 'respondent_access',
-		label: 'Respondent access',
+		label: operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.label'),
 		status,
 		badgeLabel:
-			status === 'ready' ? 'Access ready' : status === 'pending' ? 'Preparing access' : 'Blocked',
-		summary: `${formatAccessCount(openLinkAssignments, 'respondent link')}, ${formatAccessCount(sentInvitations, 'sent email')}`,
-		guidance: toRespondentAccessGuidance(openLinkAssignments, sentInvitations, deliveryAttempts),
+			status === 'ready'
+				? operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.badge.ready')
+				: status === 'pending'
+					? operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.badge.pending')
+					: operationsReadModelMessage(locale, 'operations.readModel.collectionState.blockedBadge'),
+		summary: operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.summary', {
+			openLinkSummary: formatOpenLinkAccessCount(openLinkAssignments, locale),
+			sentEmailSummary: formatSentEmailAccessCount(sentInvitations, locale),
+			sentInvitations
+		}),
+		guidance: toRespondentAccessGuidance(
+			openLinkAssignments,
+			sentInvitations,
+			deliveryAttempts,
+			locale
+		),
 		detailRows: [
 			{
-				label: 'Identity mode',
-				value: campaign ? humanizeValue(campaign.responseIdentityMode) : 'Missing'
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.identityMode'),
+				value: campaign
+					? localizedIdentityModeLabel(campaign.responseIdentityMode, locale)
+					: operationsReadModelMessage(locale, 'operations.readModel.value.missing')
 			},
-			{ label: 'Respondent links', value: formatCount(openLinkAssignments) },
-			{ label: 'Queued emails', value: formatCount(queuedInvitations) },
-			{ label: 'Sent emails', value: formatCount(sentInvitations) },
-			{ label: 'Failed emails', value: formatCount(failedInvitations) },
-			{ label: 'Suppressed emails', value: formatCount(bouncedInvitations) },
-			{ label: 'Latest email activity', value: formatCollectionDateTime(latestDeliveryAttempt) }
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.respondentLinks'),
+				value: formatCount(openLinkAssignments)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.queuedEmails'),
+				value: formatCount(queuedInvitations)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.sentEmails'),
+				value: formatCount(sentInvitations)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.failedEmails'),
+				value: formatCount(failedInvitations)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.suppressedEmails'),
+				value: formatCount(bouncedInvitations)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.latestEmailActivity'),
+				value: formatCollectionDateTime(latestDeliveryAttempt)
+			}
 		]
 	};
 }
 
 function toOperationsResponseProgressItem(
-	workspace: CampaignSeriesOperationsWorkspaceResponse
+	workspace: CampaignSeriesOperationsWorkspaceResponse,
+	locale: AppLocale = 'en'
 ): OperationsCollectionOverviewItem {
 	const submittedResponses = workspace.summary.submittedResponseCount;
 	const startedResponses = workspace.summary.startedResponseCount;
@@ -1995,22 +2087,44 @@ function toOperationsResponseProgressItem(
 
 	return {
 		id: 'response_progress',
-		label: 'Response progress',
+		label: operationsReadModelMessage(locale, 'operations.readModel.responseProgress.label'),
 		status,
 		badgeLabel:
-			submittedResponses > 0 ? `${formatCount(submittedResponses)} submitted` : 'No submissions',
-		summary: `${formatCount(startedResponses)} started, ${formatCount(draftResponses)} draft, ${formatCount(submittedResponses)} submitted`,
-		guidance: workspace.summary.collectionGuidance,
+			submittedResponses > 0
+				? operationsReadModelMessage(
+						locale,
+						'operations.readModel.responseProgress.badge.withSubmissions',
+						{ submitted: submittedResponses }
+					)
+				: operationsReadModelMessage(
+						locale,
+						'operations.readModel.responseProgress.badge.empty'
+					),
+		summary: operationsReadModelMessage(locale, 'operations.readModel.responseProgress.summary', {
+			started: startedResponses,
+			drafts: draftResponses,
+			submitted: submittedResponses
+		}),
+		guidance: localizedCollectionGuidance(workspace.summary.collectionGuidance, locale),
 		detailRows: [
-			{ label: 'Started responses', value: formatCount(startedResponses) },
-			{ label: 'Draft responses', value: formatCount(draftResponses) },
-			{ label: 'Submitted responses', value: formatCount(submittedResponses) },
 			{
-				label: 'Latest started',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.startedResponses'),
+				value: formatCount(startedResponses)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.draftResponses'),
+				value: formatCount(draftResponses)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.submittedResponses'),
+				value: formatCount(submittedResponses)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.latestStarted'),
 				value: formatCollectionDateTime(workspace.summary.latestResponseStartedAt)
 			},
 			{
-				label: 'Latest submitted',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.latestSubmitted'),
 				value: formatCollectionDateTime(workspace.summary.latestResponseSubmittedAt)
 			}
 		]
@@ -2019,38 +2133,55 @@ function toOperationsResponseProgressItem(
 
 function toOperationsScoreReadinessItem(
 	workspace: CampaignSeriesOperationsWorkspaceResponse,
-	scoreCoverage: CampaignSeriesScoreCoverageResponse
+	scoreCoverage: CampaignSeriesScoreCoverageResponse,
+	locale: AppLocale = 'en'
 ): OperationsCollectionOverviewItem {
 	const submittedResponses = scoreCoverage.submittedResponseCount;
 	const status = toOperationsScoreReadinessStatus(scoreCoverage);
 
 	return {
 		id: 'score_readiness',
-		label: 'Score and report readiness',
+		label: operationsReadModelMessage(locale, 'operations.readModel.scoreReadiness.label'),
 		status,
-		badgeLabel: toOperationsScoreReadinessBadgeLabel(scoreCoverage, status),
+		badgeLabel: toOperationsScoreReadinessBadgeLabel(scoreCoverage, status, locale),
 		summary:
 			submittedResponses > 0
-				? `${formatCount(scoreCoverage.scoredSubmittedResponseCount)} of ${formatCount(submittedResponses)} submitted responses scored`
-				: 'No submitted responses to score yet',
-		guidance: scoreCoverage.guidance,
+				? operationsReadModelMessage(
+						locale,
+						'operations.readModel.scoreReadiness.summary.withSubmissions',
+						{
+							scored: scoreCoverage.scoredSubmittedResponseCount,
+							submitted: submittedResponses
+						}
+					)
+				: operationsReadModelMessage(
+						locale,
+						'operations.readModel.scoreReadiness.summary.empty'
+					),
+		guidance: localizedScoreCoverageGuidance(scoreCoverage.guidance, scoreCoverage.status, locale),
 		detailRows: [
 			{
-				label: 'Report visibility',
-				value: humanizeValue(workspace.summary.reportVisibilityStatus)
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.reportVisibility'),
+				value: localizedReportVisibilityStatus(workspace.summary.reportVisibilityStatus, locale)
 			},
-			{ label: 'Score coverage', value: humanizeValue(scoreCoverage.status) },
-			{ label: 'Scored submitted', value: formatCount(scoreCoverage.scoredSubmittedResponseCount) },
 			{
-				label: 'Unscored submitted',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.scoreCoverage'),
+				value: localizedScoreCoverageStatusLabel(scoreCoverage.status, locale)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.scoredSubmitted'),
+				value: formatCount(scoreCoverage.scoredSubmittedResponseCount)
+			},
+			{
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.unscoredSubmitted'),
 				value: formatCount(scoreCoverage.unscoredSubmittedResponseCount)
 			},
 			{
-				label: 'Not configured',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.notConfigured'),
 				value: formatCount(scoreCoverage.notConfiguredSubmittedResponseCount)
 			},
 			{
-				label: 'Latest scoring activity',
+				label: operationsReadModelMessage(locale, 'operations.readModel.row.latestScoringActivity'),
 				value: formatCollectionDateTime(scoreCoverage.latestScoringActivityAt)
 			}
 		]
@@ -2084,41 +2215,182 @@ function toOperationsScoreReadinessStatus(
 
 function toOperationsScoreReadinessBadgeLabel(
 	scoreCoverage: CampaignSeriesScoreCoverageResponse,
-	status: ProductReadModelBadgeStatus
+	status: ProductReadModelBadgeStatus,
+	locale: AppLocale = 'en'
 ) {
 	if (scoreCoverage.status === 'complete') {
-		return 'Reports ready';
+		return operationsReadModelMessage(locale, 'operations.readModel.scoreReadiness.badge.ready');
 	}
 
 	if (scoreCoverage.status === 'no_submissions') {
-		return 'No submissions';
+		return operationsReadModelMessage(locale, 'operations.readModel.scoreReadiness.badge.empty');
 	}
 
 	if (status === 'not_configured') {
-		return 'Not configured';
+		return operationsReadModelMessage(
+			locale,
+			'operations.readModel.scoreReadiness.badge.notConfigured'
+		);
 	}
 
-	return sentenceCase(humanizeValue(scoreCoverage.status));
+	return sentenceCase(localizedScoreCoverageStatusLabel(scoreCoverage.status, locale));
 }
 
 function toRespondentAccessGuidance(
 	openLinkAssignments: number,
 	sentInvitations: number,
-	deliveryAttempts: number
+	deliveryAttempts: number,
+	locale: AppLocale = 'en'
 ) {
 	if (openLinkAssignments > 0 && (sentInvitations > 0 || deliveryAttempts > 0)) {
-		return 'Respondents can enter through shared links and sent emails.';
+		return operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.guidance.mixed');
 	}
 
 	if (openLinkAssignments > 0) {
-		return 'Respondents can enter through shared links.';
+		return operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.guidance.openLink');
 	}
 
 	if (sentInvitations > 0 || deliveryAttempts > 0) {
-		return 'Respondents can enter through sent emails.';
+		return operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.guidance.email');
 	}
 
-	return 'Prepare respondent access before collecting responses.';
+	return operationsReadModelMessage(locale, 'operations.readModel.respondentAccess.guidance.none');
+}
+
+function operationsReadModelMessage(
+	locale: AppLocale,
+	id: AppMessageId,
+	values: AppMessageValues = {}
+) {
+	return appMessage(locale, id, values);
+}
+
+function localizedCollectionGuidance(value: string, locale: AppLocale) {
+	switch (value) {
+		case 'Enough submitted responses exist for aggregate report visibility.':
+			return operationsReadModelMessage(
+				locale,
+				'operations.readModel.guidance.collection.readyForAggregateReport'
+			);
+		case 'Report visibility readiness is unknown because disclosure policy is missing.':
+			return operationsReadModelMessage(
+				locale,
+				'operations.readModel.guidance.collection.unknownDisclosure'
+			);
+		default:
+			return value;
+	}
+}
+
+function localizedScoreCoverageGuidance(
+	value: string,
+	status: string | null | undefined,
+	locale: AppLocale
+) {
+	switch (value) {
+		case 'All submitted responses have successful scoring activity.':
+			return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.complete');
+		case 'Some submitted responses still need scoring activity before score-dependent reports are complete.':
+			return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.partial');
+		case 'Submitted responses exist, but scoring is not configured for those campaigns.':
+			return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.notConfigured');
+		case 'No submitted responses are available for score coverage yet.':
+			return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.noSubmissions');
+		default:
+			if (status === 'complete') {
+				return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.complete');
+			}
+			if (status === 'partial') {
+				return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.partial');
+			}
+			if (status === 'not_configured') {
+				return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.notConfigured');
+			}
+			if (status === 'no_submissions') {
+				return operationsReadModelMessage(locale, 'operations.readModel.guidance.score.noSubmissions');
+			}
+			return value;
+	}
+}
+
+function localizedCollectionStatusLabel(value: string | null | undefined, locale: AppLocale) {
+	switch (value) {
+		case 'live':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.live');
+		case 'draft':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.draft');
+		case 'closed':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.closed');
+		default:
+			return value ? humanizeValue(value) : appMessage(locale, 'operations.status.reportVisibility.notAvailable');
+	}
+}
+
+function localizedScoreCoverageStatusLabel(value: string | null | undefined, locale: AppLocale) {
+	switch (value) {
+		case 'complete':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.complete');
+		case 'partial':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.partial');
+		case 'no_submissions':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.noSubmissions');
+		case 'not_configured':
+			return operationsReadModelMessage(locale, 'operations.readModel.status.notConfigured');
+		default:
+			return value ? humanizeValue(value) : appMessage(locale, 'operations.status.reportVisibility.notAvailable');
+	}
+}
+
+function localizedReportVisibilityStatus(value: string | null | undefined, locale: AppLocale) {
+	switch (value) {
+		case 'ready_for_aggregate_report':
+			return locale === 'en'
+				? humanizeValue(value)
+				: appMessage(locale, 'operations.status.reportVisibility.reportable');
+		case 'reportable':
+			return appMessage(locale, 'operations.status.reportVisibility.reportable');
+		case 'visible':
+			return appMessage(locale, 'operations.status.reportVisibility.visible');
+		case 'blocked':
+			return appMessage(locale, 'operations.status.reportVisibility.blocked');
+		case 'unknown_policy':
+			return appMessage(locale, 'operations.status.reportVisibility.unknownPolicy');
+		default:
+			return value ? humanizeValue(value) : appMessage(locale, 'operations.status.reportVisibility.notAvailable');
+	}
+}
+
+function localizedIdentityModeLabel(value: string, locale: AppLocale) {
+	if (locale !== 'hr-HR') {
+		return humanizeValue(value);
+	}
+
+	switch (value) {
+		case 'anonymous':
+			return 'anonimno';
+		case 'anonymous_longitudinal':
+			return 'anonimno ponovljeno';
+		case 'identified':
+			return 'identificirano';
+		default:
+			return humanizeValue(value);
+	}
+}
+
+function formatOpenLinkAccessCount(count: number, locale: AppLocale) {
+	if (locale === 'en') {
+		return formatAccessCount(count, 'respondent link');
+	}
+
+	return formatLocalizedCount(locale, count, 'openRespondentLink');
+}
+
+function formatSentEmailAccessCount(count: number, locale: AppLocale) {
+	if (locale === 'en') {
+		return formatAccessCount(count, 'sent email');
+	}
+
+	return formatLocalizedCount(locale, count, 'sentEmail');
 }
 
 function formatCollectionDateTime(value: string | null | undefined) {

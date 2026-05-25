@@ -1483,6 +1483,60 @@ describe('product view models', () => {
 		}
 	});
 
+	it('localizes operations collection read-model cards for Croatian app mode', () => {
+		const view = toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR');
+
+		expect(view.collectionMonitor.title).toBe('Praćenje odgovora');
+		expect(view.collectionMonitor.guidance).toBe(
+			'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
+		);
+		expect(view.collectionMonitor.summaryRows).toEqual([
+			{ label: 'Započeti odgovori', value: '36' },
+			{ label: 'Odgovori u tijeku', value: '5' },
+			{ label: 'Predani odgovori', value: '31' },
+			{ label: 'Zadnje započeto', value: '05. 05. 2026. 12:15' },
+			{ label: 'Zadnje predano', value: '05. 05. 2026. 12:10' }
+		]);
+
+		expect(view.collectionOverview[0]).toMatchObject({
+			id: 'collection_state',
+			label: 'Status prikupljanja',
+			badgeLabel: 'Aktivno',
+			summary: 'Wave 1: prikupljanje je aktivno.',
+			guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
+		});
+		expect(view.collectionOverview[1]).toMatchObject({
+			id: 'respondent_access',
+			label: 'Pristup ispitanika',
+			badgeLabel: 'Pristup je spreman',
+			summary: '1 otvorena poveznica za sudionike, 8 poslanih e-poruka',
+			guidance: 'Ispitanici mogu pristupiti preko podijeljene poveznice i poslanih e-poruka.'
+		});
+		expect(view.collectionOverview[2]).toMatchObject({
+			id: 'response_progress',
+			label: 'Napredak odgovora',
+			badgeLabel: 'Predano: 31 odgovor',
+			summary: 'Započeto: 36; u tijeku: 5; predano: 31.',
+			guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
+		});
+		expect(view.collectionOverview[3]).toMatchObject({
+			id: 'score_readiness',
+			label: 'Spremnost rezultata i izvještaja',
+			badgeLabel: 'Izvještaji su spremni',
+			summary: 'Bodovano je 31 od 31 predanih odgovora.',
+			guidance: 'Svi predani odgovori imaju uspješno bodovanje.'
+		});
+
+		expect(view.scoreCoverageMonitor.title).toBe('Pokrivenost bodovanja');
+		expect(view.scoreCoverageMonitor.guidance).toBe(
+			'Svi predani odgovori imaju uspješno bodovanje.'
+		);
+		expect(view.scoreCoverageMonitor.summaryRows).toContainEqual({
+			label: 'Zadnja aktivnost bodovanja',
+			value: '05. 05. 2026. 12:20'
+		});
+	});
+
 	it('maps not-configured operations score coverage without treating it as a failure', () => {
 		const view = toCampaignSeriesOperationsWorkspaceView({
 			...sampleOperationsWorkspace,

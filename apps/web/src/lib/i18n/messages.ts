@@ -23,6 +23,7 @@ type CountNounId =
 	| 'score'
 	| 'scoreMetadataField'
 	| 'scoreOutput'
+	| 'sentEmail'
 	| 'selection';
 
 type CountNounForms = Record<PluralCategory | 'other', string>;
@@ -582,7 +583,94 @@ const enMessages = {
 	'operations.suppression.source.providerDeliveryEvent': 'Provider delivery event',
 	'operations.suppression.source.tenantOperator': 'Workspace admin',
 	'operations.suppression.sourceCreatedAt': (values) =>
-		`${textValue(values, 'sourceLabel')} - Added ${textValue(values, 'createdAt')}`
+		`${textValue(values, 'sourceLabel')} - Added ${textValue(values, 'createdAt')}`,
+	'operations.readModel.collectionMonitor.title': 'Response monitor',
+	'operations.readModel.scoreCoverage.title': 'Score coverage',
+	'operations.readModel.collectionState.label': 'Collection status',
+	'operations.readModel.collectionState.emptyLabel': 'Collection state',
+	'operations.readModel.collectionState.blockedBadge': 'Blocked',
+	'operations.readModel.collectionState.noSelectedSummary':
+		'No selected campaign is collecting responses',
+	'operations.readModel.collectionState.noSelectedGuidance':
+		'Create and launch a campaign before collecting responses.',
+	'operations.readModel.collectionState.selectedSummary': (values) =>
+		`${textValue(values, 'campaignName')} is ${textValue(values, 'statusLabel')}`,
+	'operations.readModel.respondentAccess.label': 'Respondent access',
+	'operations.readModel.respondentAccess.badge.ready': 'Access ready',
+	'operations.readModel.respondentAccess.badge.pending': 'Preparing access',
+	'operations.readModel.respondentAccess.summary': (values) =>
+		`${textValue(values, 'openLinkSummary')}, ${textValue(values, 'sentEmailSummary')}`,
+	'operations.readModel.respondentAccess.guidance.mixed':
+		'Respondents can enter through shared links and sent emails.',
+	'operations.readModel.respondentAccess.guidance.openLink':
+		'Respondents can enter through shared links.',
+	'operations.readModel.respondentAccess.guidance.email':
+		'Respondents can enter through sent emails.',
+	'operations.readModel.respondentAccess.guidance.none':
+		'Prepare respondent access before collecting responses.',
+	'operations.readModel.responseProgress.label': 'Response progress',
+	'operations.readModel.responseProgress.badge.withSubmissions': (values) =>
+		`${numberValue(values, 'submitted')} submitted`,
+	'operations.readModel.responseProgress.badge.empty': 'No submissions',
+	'operations.readModel.responseProgress.summary': (values) =>
+		`${numberValue(values, 'started')} started, ${numberValue(values, 'drafts')} draft, ${numberValue(
+			values,
+			'submitted'
+		)} submitted`,
+	'operations.readModel.scoreReadiness.label': 'Score and report readiness',
+	'operations.readModel.scoreReadiness.badge.ready': 'Reports ready',
+	'operations.readModel.scoreReadiness.badge.empty': 'No submissions',
+	'operations.readModel.scoreReadiness.badge.notConfigured': 'Not configured',
+	'operations.readModel.scoreReadiness.summary.withSubmissions': (values) =>
+		`${numberValue(values, 'scored')} of ${numberValue(
+			values,
+			'submitted'
+		)} submitted responses scored`,
+	'operations.readModel.scoreReadiness.summary.empty': 'No submitted responses to score yet',
+	'operations.readModel.guidance.collection.readyForAggregateReport':
+		'Enough submitted responses exist for aggregate report visibility.',
+	'operations.readModel.guidance.collection.unknownDisclosure':
+		'Report visibility readiness is unknown because disclosure policy is missing.',
+	'operations.readModel.guidance.score.complete':
+		'All submitted responses have successful scoring activity.',
+	'operations.readModel.guidance.score.partial':
+		'Some submitted responses still need scoring activity before score-dependent reports are complete.',
+	'operations.readModel.guidance.score.notConfigured':
+		'Submitted responses exist, but scoring is not configured for those campaigns.',
+	'operations.readModel.guidance.score.noSubmissions':
+		'No submitted responses are available for score coverage yet.',
+	'operations.readModel.row.selectedWave': 'Selected wave',
+	'operations.readModel.row.status': 'Status',
+	'operations.readModel.row.collectionStarted': 'Collection started',
+	'operations.readModel.row.missingPrerequisites': 'Missing prerequisites',
+	'operations.readModel.row.identityMode': 'Identity mode',
+	'operations.readModel.row.respondentLinks': 'Respondent links',
+	'operations.readModel.row.queuedEmails': 'Queued emails',
+	'operations.readModel.row.sentEmails': 'Sent emails',
+	'operations.readModel.row.failedEmails': 'Failed emails',
+	'operations.readModel.row.suppressedEmails': 'Suppressed emails',
+	'operations.readModel.row.latestEmailActivity': 'Latest email activity',
+	'operations.readModel.row.startedResponses': 'Started responses',
+	'operations.readModel.row.draftResponses': 'Draft responses',
+	'operations.readModel.row.submittedResponses': 'Submitted responses',
+	'operations.readModel.row.latestStarted': 'Latest started',
+	'operations.readModel.row.latestSubmitted': 'Latest submitted',
+	'operations.readModel.row.reportVisibility': 'Report visibility',
+	'operations.readModel.row.scoreCoverage': 'Score coverage',
+	'operations.readModel.row.scoredSubmitted': 'Scored submitted',
+	'operations.readModel.row.unscoredSubmitted': 'Unscored submitted',
+	'operations.readModel.row.notConfigured': 'Not configured',
+	'operations.readModel.row.campaignsWithScoring': 'Campaigns with scoring',
+	'operations.readModel.row.campaignsWithoutScoring': 'Campaigns without scoring',
+	'operations.readModel.row.latestScoringActivity': 'Latest scoring activity',
+	'operations.readModel.value.missing': 'Missing',
+	'operations.readModel.status.live': 'live',
+	'operations.readModel.status.draft': 'draft',
+	'operations.readModel.status.closed': 'closed',
+	'operations.readModel.status.complete': 'complete',
+	'operations.readModel.status.partial': 'partial',
+	'operations.readModel.status.noSubmissions': 'no submissions',
+	'operations.readModel.status.notConfigured': 'not configured'
 } satisfies Record<string, AppMessageTemplate>;
 
 export type AppMessageId = keyof typeof enMessages;
@@ -992,7 +1080,94 @@ const hrMessages: AppMessageCatalog = {
 	'operations.suppression.source.providerDeliveryEvent': 'Događaj isporuke od pružatelja',
 	'operations.suppression.source.tenantOperator': 'Administrator radnog prostora',
 	'operations.suppression.sourceCreatedAt': (values) =>
-		`${textValue(values, 'sourceLabel')} - dodano ${textValue(values, 'createdAt')}`
+		`${textValue(values, 'sourceLabel')} - dodano ${textValue(values, 'createdAt')}`,
+	'operations.readModel.collectionMonitor.title': 'Praćenje odgovora',
+	'operations.readModel.scoreCoverage.title': 'Pokrivenost bodovanja',
+	'operations.readModel.collectionState.label': 'Status prikupljanja',
+	'operations.readModel.collectionState.emptyLabel': 'Stanje prikupljanja',
+	'operations.readModel.collectionState.blockedBadge': 'Blokirano',
+	'operations.readModel.collectionState.noSelectedSummary':
+		'Nema odabranog mjerenja za prikupljanje odgovora',
+	'operations.readModel.collectionState.noSelectedGuidance':
+		'Izradite i pokrenite mjerenje prije prikupljanja odgovora.',
+	'operations.readModel.collectionState.selectedSummary': (values) =>
+		`${textValue(values, 'campaignName')}: prikupljanje je ${textValue(
+			values,
+			'statusLabel'
+		)}.`,
+	'operations.readModel.respondentAccess.label': 'Pristup ispitanika',
+	'operations.readModel.respondentAccess.badge.ready': 'Pristup je spreman',
+	'operations.readModel.respondentAccess.badge.pending': 'Priprema pristupa',
+	'operations.readModel.respondentAccess.summary': (values) =>
+		`${textValue(values, 'openLinkSummary')}, ${textValue(values, 'sentEmailSummary')}`,
+	'operations.readModel.respondentAccess.guidance.mixed':
+		'Ispitanici mogu pristupiti preko podijeljene poveznice i poslanih e-poruka.',
+	'operations.readModel.respondentAccess.guidance.openLink':
+		'Ispitanici mogu pristupiti preko podijeljene poveznice.',
+	'operations.readModel.respondentAccess.guidance.email':
+		'Ispitanici mogu pristupiti preko poslanih e-poruka.',
+	'operations.readModel.respondentAccess.guidance.none':
+		'Pripremite pristup ispitanika prije prikupljanja odgovora.',
+	'operations.readModel.responseProgress.label': 'Napredak odgovora',
+	'operations.readModel.responseProgress.badge.withSubmissions': (values, locale) =>
+		`Predano: ${formatCount(locale, numberValue(values, 'submitted'), 'response')}`,
+	'operations.readModel.responseProgress.badge.empty': 'Nema predaja',
+	'operations.readModel.responseProgress.summary': (values, locale) =>
+		appMessage(locale, 'operations.status.responseActivityDetail', values),
+	'operations.readModel.scoreReadiness.label': 'Spremnost rezultata i izvještaja',
+	'operations.readModel.scoreReadiness.badge.ready': 'Izvještaji su spremni',
+	'operations.readModel.scoreReadiness.badge.empty': 'Nema predaja',
+	'operations.readModel.scoreReadiness.badge.notConfigured': 'Nije konfigurirano',
+	'operations.readModel.scoreReadiness.summary.withSubmissions': (values, locale) =>
+		`Bodovano je ${formatNumber(locale, numberValue(values, 'scored'))} od ${formatNumber(
+			locale,
+			numberValue(values, 'submitted')
+		)} predanih odgovora.`,
+	'operations.readModel.scoreReadiness.summary.empty': 'Nema predanih odgovora za bodovanje.',
+	'operations.readModel.guidance.collection.readyForAggregateReport':
+		'Ima dovoljno predanih odgovora za skupni prikaz rezultata.',
+	'operations.readModel.guidance.collection.unknownDisclosure':
+		'Spremnost prikaza rezultata nije poznata jer nedostaju pravila prikaza.',
+	'operations.readModel.guidance.score.complete':
+		'Svi predani odgovori imaju uspješno bodovanje.',
+	'operations.readModel.guidance.score.partial':
+		'Neki predani odgovori još trebaju bodovanje prije dovršetka izvještaja koji ovise o rezultatima.',
+	'operations.readModel.guidance.score.notConfigured':
+		'Predani odgovori postoje, ali bodovanje nije konfigurirano za ta mjerenja.',
+	'operations.readModel.guidance.score.noSubmissions':
+		'Još nema predanih odgovora za pokrivenost bodovanja.',
+	'operations.readModel.row.selectedWave': 'Odabrano mjerenje',
+	'operations.readModel.row.status': 'Status',
+	'operations.readModel.row.collectionStarted': 'Prikupljanje pokrenuto',
+	'operations.readModel.row.missingPrerequisites': 'Nedostajući preduvjeti',
+	'operations.readModel.row.identityMode': 'Način identiteta',
+	'operations.readModel.row.respondentLinks': 'Poveznice za ispitanike',
+	'operations.readModel.row.queuedEmails': 'E-poruke u redu',
+	'operations.readModel.row.sentEmails': 'Poslane e-poruke',
+	'operations.readModel.row.failedEmails': 'Neuspjele e-poruke',
+	'operations.readModel.row.suppressedEmails': 'Blokirane e-poruke',
+	'operations.readModel.row.latestEmailActivity': 'Zadnja aktivnost e-pošte',
+	'operations.readModel.row.startedResponses': 'Započeti odgovori',
+	'operations.readModel.row.draftResponses': 'Odgovori u tijeku',
+	'operations.readModel.row.submittedResponses': 'Predani odgovori',
+	'operations.readModel.row.latestStarted': 'Zadnje započeto',
+	'operations.readModel.row.latestSubmitted': 'Zadnje predano',
+	'operations.readModel.row.reportVisibility': 'Prikaz rezultata',
+	'operations.readModel.row.scoreCoverage': 'Pokrivenost bodovanja',
+	'operations.readModel.row.scoredSubmitted': 'Bodovani predani odgovori',
+	'operations.readModel.row.unscoredSubmitted': 'Nebodovani predani odgovori',
+	'operations.readModel.row.notConfigured': 'Nije konfigurirano',
+	'operations.readModel.row.campaignsWithScoring': 'Mjerenja s bodovanjem',
+	'operations.readModel.row.campaignsWithoutScoring': 'Mjerenja bez bodovanja',
+	'operations.readModel.row.latestScoringActivity': 'Zadnja aktivnost bodovanja',
+	'operations.readModel.value.missing': 'Nedostaje',
+	'operations.readModel.status.live': 'aktivno',
+	'operations.readModel.status.draft': 'nacrt',
+	'operations.readModel.status.closed': 'zatvoreno',
+	'operations.readModel.status.complete': 'dovršeno',
+	'operations.readModel.status.partial': 'djelomično',
+	'operations.readModel.status.noSubmissions': 'nema predaja',
+	'operations.readModel.status.notConfigured': 'nije konfigurirano'
 };
 
 const messageCatalogs: Record<AppLocale, AppMessageCatalog> = {
@@ -1020,6 +1195,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		score: { one: 'score', other: 'scores' },
 		scoreMetadataField: { one: 'score metadata field', other: 'score metadata fields' },
 		scoreOutput: { one: 'score output', other: 'score outputs' },
+		sentEmail: { one: 'sent email', other: 'sent emails' },
 		selection: { one: 'selection', other: 'selections' }
 	},
 	'hr-HR': {
@@ -1077,6 +1253,11 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 			other: 'metapodatkovnih polja rezultata'
 		},
 		scoreOutput: { one: 'izlaz rezultata', few: 'izlaza rezultata', other: 'izlaza rezultata' },
+		sentEmail: {
+			one: 'poslana e-poruka',
+			few: 'poslane e-poruke',
+			other: 'poslanih e-poruka'
+		},
 		selection: { one: 'odabir', few: 'odabira', other: 'odabira' }
 	}
 };
