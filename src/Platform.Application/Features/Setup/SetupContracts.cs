@@ -103,7 +103,17 @@ public sealed record CreateScoringRuleRequest(
     string Produces,
     string Compatibility = "{}");
 
-public sealed record CreateCampaignSeriesRequest(string Name);
+public sealed record CreateCampaignSeriesRequest(
+    string Name,
+    CreateCampaignSeriesStudyBriefRequest? StudyBrief = null);
+
+public sealed record CreateCampaignSeriesStudyBriefRequest(
+    string? Purpose = null,
+    string? Audience = null,
+    string? DesignType = null,
+    string? IntendedUse = null,
+    string? InterpretationBoundary = null,
+    string? OwnerNotes = null);
 
 public sealed record CreateCampaignRequest(
     Guid TemplateVersionId,

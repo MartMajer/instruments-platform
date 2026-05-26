@@ -1361,6 +1361,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "ck_campaign_series_sample_scenario",
                     "sample_scenario IS NULL OR sample_scenario IN ('mixed_lifecycle', 'longitudinal', 'setup', 'in_collection', 'completed', 'blocked')");
                 table.HasCheckConstraint(
+                    "ck_campaign_series_study_design_type",
+                    "study_design_type IS NULL OR study_design_type IN ('single_wave', 'repeated_group_trend', 'repeated_linked_change')");
+                table.HasCheckConstraint(
+                    "ck_campaign_series_study_intended_use",
+                    "study_intended_use IS NULL OR study_intended_use IN ('internal_review', 'research_analysis', 'client_report')");
+                table.HasCheckConstraint(
                     "ck_campaign_series_sample_consistency",
                     "(study_kind = 'own' AND sample_scenario IS NULL) OR (study_kind = 'sample' AND sample_scenario IS NOT NULL)");
             });
@@ -1377,6 +1383,24 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasDefaultValue(CampaignSeriesStudyKinds.Own)
                 .IsRequired();
             builder.Property(series => series.SampleScenario).HasColumnName("sample_scenario");
+            builder.Property(series => series.StudyPurpose)
+                .HasColumnName("study_purpose")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyPurposeMaxLength);
+            builder.Property(series => series.StudyAudience)
+                .HasColumnName("study_audience")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyAudienceMaxLength);
+            builder.Property(series => series.StudyDesignType)
+                .HasColumnName("study_design_type")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyDesignTypeMaxLength);
+            builder.Property(series => series.StudyIntendedUse)
+                .HasColumnName("study_intended_use")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyIntendedUseMaxLength);
+            builder.Property(series => series.StudyInterpretationBoundary)
+                .HasColumnName("study_interpretation_boundary")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyInterpretationBoundaryMaxLength);
+            builder.Property(series => series.StudyOwnerNotes)
+                .HasColumnName("study_owner_notes")
+                .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyOwnerNotesMaxLength);
             builder.Property(series => series.CodeSalt)
                 .HasColumnName("code_salt")
                 .HasColumnType("bytea")

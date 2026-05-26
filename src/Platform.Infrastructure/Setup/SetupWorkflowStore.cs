@@ -289,11 +289,18 @@ public sealed class SetupWorkflowStore(
         CampaignSeries series;
         try
         {
+            var brief = request.StudyBrief;
             series = new CampaignSeries(
                 PlatformIds.NewId(),
                 tenantId,
                 request.Name,
-                RandomNumberGenerator.GetBytes(32));
+                RandomNumberGenerator.GetBytes(32),
+                studyPurpose: brief?.Purpose,
+                studyAudience: brief?.Audience,
+                studyDesignType: brief?.DesignType,
+                studyIntendedUse: brief?.IntendedUse,
+                studyInterpretationBoundary: brief?.InterpretationBoundary,
+                studyOwnerNotes: brief?.OwnerNotes);
         }
         catch (ArgumentException exception)
         {

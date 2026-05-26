@@ -64,6 +64,29 @@ const enMessages = {
 	'overview.studyModel.title': 'What this study contains',
 	'overview.studyModel.description':
 		'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
+	'overview.studyBrief.label': 'Study brief',
+	'overview.studyBrief.badge.ready': 'Defined',
+	'overview.studyBrief.badge.pending': 'Needs brief',
+	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
+	'overview.studyBrief.summary.missing':
+		'The study purpose has not been captured yet.',
+	'overview.studyBrief.guidance.ready':
+		'Keep this brief aligned with Setup, collection, results, and export interpretation.',
+	'overview.studyBrief.guidance.missing':
+		'Add purpose, audience, design, intended use, and interpretation limits before sharing results.',
+	'overview.studyBrief.purpose': 'Purpose',
+	'overview.studyBrief.audience': 'Audience',
+	'overview.studyBrief.design': 'Design',
+	'overview.studyBrief.intendedUse': 'Intended use',
+	'overview.studyBrief.interpretationBoundary': 'Interpretation limits',
+	'overview.studyBrief.ownerNotes': 'Owner notes',
+	'overview.studyBrief.notSet': 'Not set',
+	'overview.studyBrief.design.singleWave': 'One collection round',
+	'overview.studyBrief.design.repeatedGroupTrend': 'Repeated group trend',
+	'overview.studyBrief.design.repeatedLinkedChange': 'Repeated same-person change',
+	'overview.studyBrief.intendedUse.internalReview': 'Internal review',
+	'overview.studyBrief.intendedUse.researchAnalysis': 'Research analysis',
+	'overview.studyBrief.intendedUse.clientReport': 'Client or stakeholder report',
 	'overview.studyModel.studyContainer.label': 'Study',
 	'overview.studyModel.studyContainer.badge': 'Saved',
 	'overview.studyModel.studyContainer.summary': (values) =>
@@ -1066,6 +1089,29 @@ const hrMessages: AppMessageCatalog = {
 	'overview.studyModel.title': 'Što ova studija sadrži',
 	'overview.studyModel.description':
 		'Studija je projektni spremnik. Izvor upitnika je samo početni materijal; upitnik je ono što ispitanici vide; mjerenja su krugovi prikupljanja; rezultati i izvozi koriste spremljene odgovore.',
+	'overview.studyBrief.label': 'Opis studije',
+	'overview.studyBrief.badge.ready': 'Definirano',
+	'overview.studyBrief.badge.pending': 'Treba opis',
+	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
+	'overview.studyBrief.summary.missing':
+		'Svrha studije još nije zabilježena.',
+	'overview.studyBrief.guidance.ready':
+		'Držite ovaj opis usklađen s postavljanjem, prikupljanjem, rezultatima i tumačenjem izvoza.',
+	'overview.studyBrief.guidance.missing':
+		'Dodajte svrhu, ciljanu skupinu, dizajn, namjenu i granice tumačenja prije dijeljenja rezultata.',
+	'overview.studyBrief.purpose': 'Svrha',
+	'overview.studyBrief.audience': 'Ciljana skupina',
+	'overview.studyBrief.design': 'Dizajn',
+	'overview.studyBrief.intendedUse': 'Namjena',
+	'overview.studyBrief.interpretationBoundary': 'Granice tumačenja',
+	'overview.studyBrief.ownerNotes': 'Bilješke vlasnika',
+	'overview.studyBrief.notSet': 'Nije postavljeno',
+	'overview.studyBrief.design.singleWave': 'Jedno prikupljanje',
+	'overview.studyBrief.design.repeatedGroupTrend': 'Ponavljani trend grupe',
+	'overview.studyBrief.design.repeatedLinkedChange': 'Promjena istih ispitanika',
+	'overview.studyBrief.intendedUse.internalReview': 'Interni pregled',
+	'overview.studyBrief.intendedUse.researchAnalysis': 'Istraživačka analiza',
+	'overview.studyBrief.intendedUse.clientReport': 'Izvještaj za klijenta ili dionike',
 	'overview.studyModel.studyContainer.label': 'Studija',
 	'overview.studyModel.studyContainer.badge': 'Spremljeno',
 	'overview.studyModel.studyContainer.summary': (values) =>

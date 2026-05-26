@@ -374,6 +374,30 @@ const en = {
 		studyModelSetupBody:
 			'Where you turn source material into the questionnaire, result outputs, recipient plan, and launch check.',
 		studyName: 'Study name',
+		studyBriefTitle: 'Study brief',
+		studyBriefBody:
+			'Capture the purpose, audience, design, intended use, and interpretation limits before Setup turns this into a questionnaire and collection plan.',
+		studyPurpose: 'Purpose',
+		studyPurposePlaceholder: 'What should this study help you decide or understand?',
+		studyAudience: 'Audience',
+		studyAudiencePlaceholder: 'Who should be invited or represented in this study?',
+		studyDesignType: 'Study design',
+		studyDesignTypeOptions: [
+			{ value: 'single_wave', label: 'One collection round' },
+			{ value: 'repeated_group_trend', label: 'Repeated group trend' },
+			{ value: 'repeated_linked_change', label: 'Repeated same-person change' }
+		],
+		studyIntendedUse: 'Intended use',
+		studyIntendedUseOptions: [
+			{ value: 'internal_review', label: 'Internal review' },
+			{ value: 'research_analysis', label: 'Research analysis' },
+			{ value: 'client_report', label: 'Client or stakeholder report' }
+		],
+		studyInterpretationBoundary: 'Interpretation limits',
+		studyInterpretationBoundaryPlaceholder:
+			'What should readers not conclude from these results?',
+		studyOwnerNotes: 'Owner notes',
+		studyOwnerNotesPlaceholder: 'Optional internal notes for the study team.',
 		continueSetup: 'Continue to guided setup',
 		creating: 'Creating...',
 		readOnlyAccess: 'Read-only access',
@@ -2094,6 +2118,7 @@ const en = {
 			retry: 'Retry surface',
 			readOnlyStateAria: 'Sample study read-only state',
 			ownershipKicker: 'Study ownership',
+			studyBriefKicker: 'Study intent',
 			readOnly: 'Read-only',
 			scoreCoverageUnavailable: 'Score coverage is not available.',
 			noMissingScores: 'No missing submitted scores to remediate.',
@@ -2567,7 +2592,30 @@ const hr: typeof en = {
 		studyModelSetupBody:
 			'Mjesto gdje izvorni materijal pretvarate u upitnik, izlaze rezultata, plan primatelja i provjeru pokretanja.',
 		studyName: 'Naziv studije',
-		continueSetup: 'Nastavi na vođeno postavljanje',
+		studyBriefTitle: 'Opis studije',
+		studyBriefBody:
+			'Zabilježite svrhu, ciljanu skupinu, dizajn, namjenu i granice tumačenja prije nego što Postavljanje to pretvori u upitnik i plan prikupljanja.',
+		studyPurpose: 'Svrha',
+		studyPurposePlaceholder: 'Koju odluku ili razumijevanje ova studija treba podržati?',
+		studyAudience: 'Ciljana skupina',
+		studyAudiencePlaceholder: 'Tko treba biti pozvan ili zastupljen u ovoj studiji?',
+		studyDesignType: 'Dizajn studije',
+		studyDesignTypeOptions: [
+			{ value: 'single_wave', label: 'Jedno prikupljanje' },
+			{ value: 'repeated_group_trend', label: 'Ponavljani trend grupe' },
+			{ value: 'repeated_linked_change', label: 'Promjena istih ispitanika' }
+		],
+		studyIntendedUse: 'Namjena',
+		studyIntendedUseOptions: [
+			{ value: 'internal_review', label: 'Interni pregled' },
+			{ value: 'research_analysis', label: 'Istraživačka analiza' },
+			{ value: 'client_report', label: 'Izvještaj za klijenta ili dionike' }
+		],
+		studyInterpretationBoundary: 'Granice tumačenja',
+		studyInterpretationBoundaryPlaceholder:
+			'Što čitatelji ne bi smjeli zaključiti iz ovih rezultata?',
+		studyOwnerNotes: 'Bilješke vlasnika',
+		studyOwnerNotesPlaceholder: 'Neobavezne interne bilješke za tim studije.',		continueSetup: 'Nastavi na vođeno postavljanje',
 		creating: 'Izrada...',
 		readOnlyAccess: 'Pristup samo za čitanje',
 		readOnlyBody: 'Izrada i promjena studija zahtijeva pristup za upravljanje postavljanjem.',
@@ -4292,6 +4340,7 @@ const hr: typeof en = {
 			retry: 'Pokušaj ponovno',
 			readOnlyStateAria: 'Stanje primjera studije samo za čitanje',
 			ownershipKicker: 'Vlasništvo studije',
+			studyBriefKicker: 'Namjera studije',
 			readOnly: 'Samo za čitanje',
 			scoreCoverageUnavailable: 'Pokrivenost bodovanja nije dostupna.',
 			noMissingScores: 'Nema predanih odgovora bez bodovanja za popravak.',

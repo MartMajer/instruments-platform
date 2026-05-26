@@ -107,7 +107,15 @@ public sealed class SampleStudySeeder(
             spec.Name,
             HashBytes($"{tenantId:N}:{spec.Key}:series-salt"),
             studyKind: CampaignSeriesStudyKinds.Sample,
-            sampleScenario: spec.SampleScenario);
+            sampleScenario: spec.SampleScenario,
+            studyPurpose: $"Read-only sample showing the {spec.Name} workflow from setup through results.",
+            studyAudience: "Synthetic respondents generated for product evaluation.",
+            studyDesignType: spec.SampleScenario == CampaignSeriesSampleScenarios.Longitudinal
+                ? CampaignSeriesStudyDesignTypes.RepeatedLinkedChange
+                : CampaignSeriesStudyDesignTypes.SingleWave,
+            studyIntendedUse: CampaignSeriesStudyIntendedUseTypes.InternalReview,
+            studyInterpretationBoundary: "Synthetic sample data only. Use it to learn the product flow, not as external evidence.",
+            studyOwnerNotes: "Generated sample study for workspace onboarding.");
         var template = SurveyTemplate.CreateTenant(
             PlatformIds.NewId(),
             tenantId,

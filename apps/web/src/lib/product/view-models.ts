@@ -11,6 +11,7 @@ import type {
 	CampaignSeriesScoreCoverageResponse,
 	CampaignSeriesSetupCampaignResponse,
 	CampaignSeriesSetupPolicyResponse,
+	CampaignSeriesStudyBriefResponse,
 	CampaignSeriesSetupWorkspaceResponse,
 	CampaignSeriesWavesComparisonResponse,
 	CampaignSeriesWavesWaveResponse,
@@ -107,7 +108,7 @@ export type ReportsResultsOverviewItem = {
 };
 
 export type SelectedSeriesStudyModelItem = {
-	id: 'study_container' | 'questionnaire_results' | 'collection_waves' | 'evidence_outputs';
+	id: 'study_brief' | 'study_container' | 'questionnaire_results' | 'collection_waves' | 'evidence_outputs';
 	label: string;
 	status: ProductReadModelBadgeStatus;
 	badgeLabel: string;
@@ -462,6 +463,7 @@ function toCampaignSeriesHubStudyModel(
 		title: appMessage(locale, 'overview.studyModel.title'),
 		description: appMessage(locale, 'overview.studyModel.description'),
 		items: [
+			toStudyBriefModelItem(hub.studyBrief, locale),
 			{
 				id: 'study_container',
 				label: appMessage(locale, 'overview.studyModel.studyContainer.label'),
@@ -549,6 +551,105 @@ function toCampaignSeriesHubStudyModel(
 			}
 		]
 	};
+}
+
+function toStudyBriefModelItem(
+	brief: CampaignSeriesStudyBriefResponse | null | undefined,
+	locale: AppLocale
+): SelectedSeriesStudyModelItem {
+	const hasBrief = hasStudyBrief(brief);
+	const purpose = brief?.purpose?.trim();
+	const rows: SelectedSeriesStudyModelItem['detailRows'] = [
+		{
+			label: appMessage(locale, 'overview.studyBrief.audience'),
+			value: brief?.audience?.trim() || appMessage(locale, 'overview.studyBrief.notSet')
+		},
+		{
+			label: appMessage(locale, 'overview.studyBrief.design'),
+			value: localizedStudyDesignType(brief?.designType, locale)
+		},
+		{
+			label: appMessage(locale, 'overview.studyBrief.intendedUse'),
+			value: localizedStudyIntendedUse(brief?.intendedUse, locale)
+		},
+		{
+			label: appMessage(locale, 'overview.studyBrief.interpretationBoundary'),
+			value: brief?.interpretationBoundary?.trim() || appMessage(locale, 'overview.studyBrief.notSet')
+		}
+	];
+
+	if (brief?.ownerNotes?.trim()) {
+		rows.push({
+			label: appMessage(locale, 'overview.studyBrief.ownerNotes'),
+			value: brief.ownerNotes.trim()
+		});
+	}
+
+	return {
+		id: 'study_brief',
+		label: appMessage(locale, 'overview.studyBrief.label'),
+		status: hasBrief ? 'ready' : 'pending',
+		badgeLabel: hasBrief
+			? appMessage(locale, 'overview.studyBrief.badge.ready')
+			: appMessage(locale, 'overview.studyBrief.badge.pending'),
+		summary: purpose
+			? appMessage(locale, 'overview.studyBrief.summary.ready', { purpose })
+			: appMessage(locale, 'overview.studyBrief.summary.missing'),
+		guidance: hasBrief
+			? appMessage(locale, 'overview.studyBrief.guidance.ready')
+			: appMessage(locale, 'overview.studyBrief.guidance.missing'),
+		detailRows: rows
+	};
+}
+
+function hasStudyBrief(brief: CampaignSeriesStudyBriefResponse | null | undefined) {
+	return Boolean(
+		brief?.purpose?.trim() ||
+			brief?.audience?.trim() ||
+			brief?.designType?.trim() ||
+			brief?.intendedUse?.trim() ||
+			brief?.interpretationBoundary?.trim() ||
+			brief?.ownerNotes?.trim()
+	);
+}
+
+function toStudyBriefContext(brief: CampaignSeriesStudyBriefResponse | null | undefined, locale: AppLocale) {
+	const item = toStudyBriefModelItem(brief, locale);
+
+	return {
+		title: item.label,
+		status: item.status,
+		badgeLabel: item.badgeLabel,
+		summary: item.summary,
+		guidance: item.guidance,
+		rows: item.detailRows
+	};
+}
+
+function localizedStudyDesignType(value: string | null | undefined, locale: AppLocale) {
+	switch (value) {
+		case 'single_wave':
+			return appMessage(locale, 'overview.studyBrief.design.singleWave');
+		case 'repeated_group_trend':
+			return appMessage(locale, 'overview.studyBrief.design.repeatedGroupTrend');
+		case 'repeated_linked_change':
+			return appMessage(locale, 'overview.studyBrief.design.repeatedLinkedChange');
+		default:
+			return value?.trim() ? humanizeValue(value) : appMessage(locale, 'overview.studyBrief.notSet');
+	}
+}
+
+function localizedStudyIntendedUse(value: string | null | undefined, locale: AppLocale) {
+	switch (value) {
+		case 'internal_review':
+			return appMessage(locale, 'overview.studyBrief.intendedUse.internalReview');
+		case 'research_analysis':
+			return appMessage(locale, 'overview.studyBrief.intendedUse.researchAnalysis');
+		case 'client_report':
+			return appMessage(locale, 'overview.studyBrief.intendedUse.clientReport');
+		default:
+			return value?.trim() ? humanizeValue(value) : appMessage(locale, 'overview.studyBrief.notSet');
+	}
 }
 
 function findHubLifecycleItem(
@@ -687,6 +788,7 @@ export function toCampaignSeriesSetupWorkspaceView(
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
+		studyBriefContext: toStudyBriefContext(workspace.series.studyBrief, locale),
 		surfaceLabel: appMessage(locale, 'readModel.surface.setup.label'),
 		surfaceEyebrow: appMessage(locale, 'readModel.surface.setup.eyebrow'),
 		surfaceDescription: appMessage(locale, 'readModel.surface.setup.description'),
@@ -764,6 +866,7 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
+		studyBriefContext: toStudyBriefContext(workspace.series.studyBrief, locale),
 		surfaceLabel: 'Collect responses',
 		surfaceEyebrow: 'Study collection',
 		surfaceDescription:
@@ -882,6 +985,7 @@ export function toCampaignSeriesReportsWorkspaceView(
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
+		studyBriefContext: toStudyBriefContext(workspace.series.studyBrief, locale),
 		surfaceLabel: 'Review results',
 		surfaceEyebrow: 'Study results',
 		surfaceDescription:
@@ -958,6 +1062,7 @@ export function toCampaignSeriesWavesWorkspaceView(
 		ownership,
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
+		studyBriefContext: toStudyBriefContext(workspace.series.studyBrief, locale),
 		surfaceLabel: 'Compare waves',
 		surfaceEyebrow: 'Wave comparison',
 		summaryRows: [

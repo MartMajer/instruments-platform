@@ -307,11 +307,21 @@ export type CampaignSeriesListResponse = {
 
 export type CampaignSeriesStudyKind = 'own' | 'sample' | string;
 
+export type CampaignSeriesStudyBriefResponse = {
+	purpose: string | null;
+	audience: string | null;
+	designType: string | null;
+	intendedUse: string | null;
+	interpretationBoundary: string | null;
+	ownerNotes: string | null;
+};
+
 export type CampaignSeriesOwnershipMetadata = {
 	studyKind: CampaignSeriesStudyKind;
 	isSample: boolean;
 	sampleScenario: string | null;
 	readOnlyReason: string | null;
+	studyBrief?: CampaignSeriesStudyBriefResponse | null;
 };
 
 export type CampaignSeriesPortfolioQuery = {

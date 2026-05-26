@@ -4,6 +4,12 @@ public sealed class CampaignSeries
 {
     public const int NameMaxLength = 256;
     public const int ArchiveReasonMaxLength = 256;
+    public const int StudyPurposeMaxLength = 1000;
+    public const int StudyAudienceMaxLength = 1000;
+    public const int StudyDesignTypeMaxLength = 64;
+    public const int StudyIntendedUseMaxLength = 64;
+    public const int StudyInterpretationBoundaryMaxLength = 1000;
+    public const int StudyOwnerNotesMaxLength = 2000;
 
     private CampaignSeries()
     {
@@ -18,7 +24,13 @@ public sealed class CampaignSeries
         Guid? ethicsApprovalId = null,
         DateOnly? retentionUntil = null,
         string studyKind = CampaignSeriesStudyKinds.Own,
-        string? sampleScenario = null)
+        string? sampleScenario = null,
+        string? studyPurpose = null,
+        string? studyAudience = null,
+        string? studyDesignType = null,
+        string? studyIntendedUse = null,
+        string? studyInterpretationBoundary = null,
+        string? studyOwnerNotes = null)
     {
         ArgumentNullException.ThrowIfNull(codeSalt);
         if (codeSalt.Length != 32)
@@ -34,6 +46,12 @@ public sealed class CampaignSeries
         RetentionUntil = retentionUntil;
         StudyKind = NormalizeStudyKind(studyKind);
         SampleScenario = NormalizeSampleScenario(StudyKind, sampleScenario);
+        StudyPurpose = NormalizeOptional(studyPurpose, StudyPurposeMaxLength);
+        StudyAudience = NormalizeOptional(studyAudience, StudyAudienceMaxLength);
+        StudyDesignType = NormalizeStudyDesignType(studyDesignType);
+        StudyIntendedUse = NormalizeStudyIntendedUse(studyIntendedUse);
+        StudyInterpretationBoundary = NormalizeOptional(studyInterpretationBoundary, StudyInterpretationBoundaryMaxLength);
+        StudyOwnerNotes = NormalizeOptional(studyOwnerNotes, StudyOwnerNotesMaxLength);
         CodeSalt = [.. codeSalt];
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
@@ -54,6 +72,18 @@ public sealed class CampaignSeries
     public string StudyKind { get; private set; } = CampaignSeriesStudyKinds.Own;
 
     public string? SampleScenario { get; private set; }
+
+    public string? StudyPurpose { get; private set; }
+
+    public string? StudyAudience { get; private set; }
+
+    public string? StudyDesignType { get; private set; }
+
+    public string? StudyIntendedUse { get; private set; }
+
+    public string? StudyInterpretationBoundary { get; private set; }
+
+    public string? StudyOwnerNotes { get; private set; }
 
     public byte[] CodeSalt { get; private set; } = [];
 
@@ -101,6 +131,26 @@ public sealed class CampaignSeries
         ArchivedByUserId = null;
         ArchiveReason = null;
         UpdatedAt = restoredAt;
+    }
+
+    public void UpdateStudyBrief(
+        string? purpose,
+        string? audience,
+        string? designType,
+        string? intendedUse,
+        string? interpretationBoundary,
+        string? ownerNotes,
+        DateTimeOffset updatedAt)
+    {
+        StudyPurpose = NormalizeOptional(purpose, StudyPurposeMaxLength);
+        StudyAudience = NormalizeOptional(audience, StudyAudienceMaxLength);
+        StudyDesignType = NormalizeStudyDesignType(designType);
+        StudyIntendedUse = NormalizeStudyIntendedUse(intendedUse);
+        StudyInterpretationBoundary = NormalizeOptional(
+            interpretationBoundary,
+            StudyInterpretationBoundaryMaxLength);
+        StudyOwnerNotes = NormalizeOptional(ownerNotes, StudyOwnerNotesMaxLength);
+        UpdatedAt = updatedAt;
     }
 
     private static string NormalizeRequired(string value, string parameterName)
@@ -167,6 +217,38 @@ public sealed class CampaignSeries
 
         return normalized;
     }
+
+    private static string? NormalizeStudyDesignType(string? value)
+    {
+        var normalized = value?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (!CampaignSeriesStudyDesignTypes.IsKnown(normalized))
+        {
+            throw new ArgumentException("Campaign series study design type is not supported.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeStudyIntendedUse(string? value)
+    {
+        var normalized = value?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (!CampaignSeriesStudyIntendedUseTypes.IsKnown(normalized))
+        {
+            throw new ArgumentException("Campaign series study intended use is not supported.", nameof(value));
+        }
+
+        return normalized;
+    }
 }
 
 public static class CampaignSeriesStudyKinds
@@ -189,4 +271,24 @@ public static class CampaignSeriesSampleScenarios
 
     public static bool IsKnown(string value) =>
         value is MixedLifecycle or Longitudinal or Setup or InCollection or Completed or Blocked;
+}
+
+public static class CampaignSeriesStudyDesignTypes
+{
+    public const string SingleWave = "single_wave";
+    public const string RepeatedGroupTrend = "repeated_group_trend";
+    public const string RepeatedLinkedChange = "repeated_linked_change";
+
+    public static bool IsKnown(string value) =>
+        value is SingleWave or RepeatedGroupTrend or RepeatedLinkedChange;
+}
+
+public static class CampaignSeriesStudyIntendedUseTypes
+{
+    public const string InternalReview = "internal_review";
+    public const string ResearchAnalysis = "research_analysis";
+    public const string ClientReport = "client_report";
+
+    public static bool IsKnown(string value) =>
+        value is InternalReview or ResearchAnalysis or ClientReport;
 }

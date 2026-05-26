@@ -87,6 +87,14 @@ public sealed record ExportArtifactLibrarySummaryResponse(
 public sealed record CampaignSeriesListResponse(
     IReadOnlyList<CampaignSeriesListItemResponse> Items);
 
+public sealed record CampaignSeriesStudyBriefResponse(
+    string? Purpose,
+    string? Audience,
+    string? DesignType,
+    string? IntendedUse,
+    string? InterpretationBoundary,
+    string? OwnerNotes);
+
 public sealed record CampaignSeriesPortfolioQuery(
     string? Search = null,
     string Status = CampaignSeriesPortfolioStatuses.All,
@@ -154,7 +162,8 @@ public sealed record CampaignSeriesListItemResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record RenameCampaignSeriesRequest(string Name);
 
@@ -208,7 +217,8 @@ public sealed record CampaignSeriesHubResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record CampaignSeriesHubTotalsResponse(
     int CampaignCount,
@@ -263,7 +273,8 @@ public sealed record CampaignSeriesSetupSeriesResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record CampaignSeriesSetupSummaryResponse(
     int CampaignCount,
@@ -341,7 +352,8 @@ public sealed record CampaignSeriesOperationsSeriesResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record CampaignSeriesOperationsSummaryResponse(
     int CampaignCount,
@@ -469,7 +481,8 @@ public sealed record CampaignSeriesReportsSeriesResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record CampaignSeriesReportsSummaryResponse(
     int CampaignCount,
@@ -707,7 +720,8 @@ public sealed record CampaignSeriesWavesSeriesResponse(
     string StudyKind = "own",
     bool IsSample = false,
     string? SampleScenario = null,
-    string? ReadOnlyReason = null);
+    string? ReadOnlyReason = null,
+    CampaignSeriesStudyBriefResponse? StudyBrief = null);
 
 public sealed record CampaignSeriesWavesSummaryResponse(
     int CampaignCount,

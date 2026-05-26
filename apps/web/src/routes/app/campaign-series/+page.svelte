@@ -24,6 +24,8 @@
 		defaultStudyBlueprintId,
 		getStudyBlueprintOption,
 		listStudyBlueprintOptions,
+		type StudyBriefDesignType,
+		type StudyBriefIntendedUse,
 		type StudyBlueprintId
 	} from '$lib/product/study-blueprint';
 	import { toCampaignSeriesListView, toProductApiErrorMessage } from '$lib/product/view-models';
@@ -55,6 +57,14 @@
 	let errorMessage = $state<string | null>(null);
 	let selectedBlueprintId = $state<StudyBlueprintId>(defaultStudyBlueprintId);
 	let newSeriesName = $state('');
+	let studyPurpose = $state('');
+	let studyAudience = $state('');
+	let studyDesignType = $state<StudyBriefDesignType>('single_wave');
+	let studyIntendedUse = $state<StudyBriefIntendedUse>('internal_review');
+	let studyInterpretationBoundary = $state('');
+	let studyOwnerNotes = $state('');
+	let studyBriefTouched = $state(false);
+	let lastBriefDefaultsBlueprintId = $state<StudyBlueprintId | null>(null);
 	let creatingSeries = $state(false);
 	let createSeriesError = $state<string | null>(null);
 	let renamingSeriesId = $state<string | null>(null);
@@ -81,6 +91,15 @@
 
 	$effect(() => {
 		void loadCampaignSeries(portfolioQuery);
+	});
+
+	$effect(() => {
+		if (lastBriefDefaultsBlueprintId === selectedBlueprint.id || studyBriefTouched) {
+			return;
+		}
+
+		applyStudyBriefDefaults();
+		lastBriefDefaultsBlueprintId = selectedBlueprint.id;
 	});
 
 	async function loadCampaignSeries(query: PortfolioQueryState = portfolioQuery) {
@@ -123,7 +142,17 @@
 		createSeriesError = null;
 
 		try {
-			const created = await setupApi.createCampaignSeries({ name });
+			const created = await setupApi.createCampaignSeries({
+				name,
+				studyBrief: {
+					purpose: trimmedOrNull(studyPurpose),
+					audience: trimmedOrNull(studyAudience),
+					designType: studyDesignType,
+					intendedUse: studyIntendedUse,
+					interpretationBoundary: trimmedOrNull(studyInterpretationBoundary),
+					ownerNotes: trimmedOrNull(studyOwnerNotes)
+				}
+			});
 			await goto(resolve(`/app/campaign-series/${created.id}/setup`));
 		} catch (error) {
 			createSeriesError = toProductApiErrorMessage(error, text.portfolio.createFailed);
@@ -277,6 +306,25 @@
 
 		return Object.keys(apiQuery).length > 0 ? apiQuery : undefined;
 	}
+
+	function applyStudyBriefDefaults() {
+		const defaults = selectedBlueprint.briefDefaults;
+		studyPurpose = defaults.purpose;
+		studyAudience = defaults.audience;
+		studyDesignType = defaults.designType;
+		studyIntendedUse = defaults.intendedUse;
+		studyInterpretationBoundary = defaults.interpretationBoundary;
+		studyOwnerNotes = defaults.ownerNotes;
+	}
+
+	function markStudyBriefTouched() {
+		studyBriefTouched = true;
+	}
+
+	function trimmedOrNull(value: string) {
+		const trimmed = value.trim();
+		return trimmed ? trimmed : null;
+	}
 </script>
 
 <SurfaceHeader
@@ -384,6 +432,88 @@
 								placeholder={studyNamePlaceholder}
 							/>
 						</label>
+
+						<section class="record-row" aria-label={text.portfolio.studyBriefTitle}>
+							<div class="record-row__header">
+								<div>
+									<p class="record-row__title">{text.portfolio.studyBriefTitle}</p>
+									<p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+										{text.portfolio.studyBriefBody}
+									</p>
+								</div>
+							</div>
+							<div class="record-grid mt-3">
+								<label class="field">
+									<span>{text.portfolio.studyPurpose}</span>
+									<textarea
+										bind:value={studyPurpose}
+										disabled={creatingSeries}
+										maxlength="1000"
+										rows="3"
+										placeholder={text.portfolio.studyPurposePlaceholder}
+										oninput={markStudyBriefTouched}
+									></textarea>
+								</label>
+								<label class="field">
+									<span>{text.portfolio.studyAudience}</span>
+									<textarea
+										bind:value={studyAudience}
+										disabled={creatingSeries}
+										maxlength="1000"
+										rows="3"
+										placeholder={text.portfolio.studyAudiencePlaceholder}
+										oninput={markStudyBriefTouched}
+									></textarea>
+								</label>
+								<label class="field">
+									<span>{text.portfolio.studyDesignType}</span>
+									<select
+										bind:value={studyDesignType}
+										disabled={creatingSeries}
+										onchange={markStudyBriefTouched}
+									>
+										{#each text.portfolio.studyDesignTypeOptions as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								</label>
+								<label class="field">
+									<span>{text.portfolio.studyIntendedUse}</span>
+									<select
+										bind:value={studyIntendedUse}
+										disabled={creatingSeries}
+										onchange={markStudyBriefTouched}
+									>
+										{#each text.portfolio.studyIntendedUseOptions as option}
+											<option value={option.value}>{option.label}</option>
+										{/each}
+									</select>
+								</label>
+								<label class="field">
+									<span>{text.portfolio.studyInterpretationBoundary}</span>
+									<textarea
+										bind:value={studyInterpretationBoundary}
+										disabled={creatingSeries}
+										maxlength="1000"
+										rows="3"
+										placeholder={text.portfolio.studyInterpretationBoundaryPlaceholder}
+										oninput={markStudyBriefTouched}
+									></textarea>
+								</label>
+								<label class="field">
+									<span>{text.portfolio.studyOwnerNotes}</span>
+									<textarea
+										bind:value={studyOwnerNotes}
+										disabled={creatingSeries}
+										maxlength="2000"
+										rows="3"
+										placeholder={text.portfolio.studyOwnerNotesPlaceholder}
+										oninput={markStudyBriefTouched}
+									></textarea>
+								</label>
+							</div>
+						</section>
+
 						<button type="submit" class="primary-button" disabled={creatingSeries}>
 							{#if creatingSeries}
 								<LoaderCircle size={17} aria-hidden="true" />

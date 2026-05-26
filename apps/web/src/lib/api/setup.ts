@@ -132,8 +132,18 @@ export type CreateScoringRuleRequest = {
 	compatibility: string;
 };
 
+export type CreateCampaignSeriesStudyBriefRequest = {
+	purpose?: string | null;
+	audience?: string | null;
+	designType?: string | null;
+	intendedUse?: string | null;
+	interpretationBoundary?: string | null;
+	ownerNotes?: string | null;
+};
+
 export type CreateCampaignSeriesRequest = {
 	name: string;
+	studyBrief?: CreateCampaignSeriesStudyBriefRequest | null;
 };
 
 export type CampaignSeriesTwoWaveProofResponse = {

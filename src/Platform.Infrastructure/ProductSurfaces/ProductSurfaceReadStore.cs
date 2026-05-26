@@ -796,7 +796,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -875,7 +881,8 @@ public sealed class ProductSurfaceReadStore(
             series.StudyKind,
             IsSampleSeries(series),
             series.SampleScenario,
-            GetReadOnlyReason(series));
+            GetReadOnlyReason(series),
+            CreateStudyBriefResponse(series));
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -903,7 +910,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -968,7 +981,8 @@ public sealed class ProductSurfaceReadStore(
                 series.StudyKind,
                 IsSampleSeries(series),
                 series.SampleScenario,
-                GetReadOnlyReason(series)),
+                GetReadOnlyReason(series),
+                CreateStudyBriefResponse(series)),
             new CampaignSeriesSetupSummaryResponse(
                 campaigns.Count,
                 campaigns.Count(campaign => campaign.Status == CampaignStatuses.Live),
@@ -1032,7 +1046,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -1125,7 +1145,8 @@ public sealed class ProductSurfaceReadStore(
                 series.StudyKind,
                 IsSampleSeries(series),
                 series.SampleScenario,
-                GetReadOnlyReason(series)),
+                GetReadOnlyReason(series),
+                CreateStudyBriefResponse(series)),
             new CampaignSeriesOperationsSummaryResponse(
                 campaignResponses.Length,
                 campaignResponses.Count(campaign => campaign.Status == CampaignStatuses.Live),
@@ -1182,7 +1203,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -1269,7 +1296,8 @@ public sealed class ProductSurfaceReadStore(
                 series.StudyKind,
                 IsSampleSeries(series),
                 series.SampleScenario,
-                GetReadOnlyReason(series)),
+                GetReadOnlyReason(series),
+                CreateStudyBriefResponse(series)),
             new CampaignSeriesReportsSummaryResponse(
                 campaignResponses.Length,
                 campaignResponses.Count(campaign => campaign.Status == CampaignStatuses.Live),
@@ -1327,7 +1355,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -1410,7 +1444,8 @@ public sealed class ProductSurfaceReadStore(
                 series.StudyKind,
                 IsSampleSeries(series),
                 series.SampleScenario,
-                GetReadOnlyReason(series)),
+                GetReadOnlyReason(series),
+                CreateStudyBriefResponse(series)),
             new CampaignSeriesWavesSummaryResponse(
                 waves.Length,
                 waves.Count(wave => wave.Status == CampaignStatuses.Live),
@@ -1859,7 +1894,13 @@ public sealed class ProductSurfaceReadStore(
                 entity.SampleScenario,
                 entity.ArchivedAt,
                 entity.ArchivedByUserId,
-                entity.ArchiveReason))
+                entity.ArchiveReason,
+                entity.StudyPurpose,
+                entity.StudyAudience,
+                entity.StudyDesignType,
+                entity.StudyIntendedUse,
+                entity.StudyInterpretationBoundary,
+                entity.StudyOwnerNotes))
             .ToListAsync(cancellationToken);
 
         if (series.Count == 0)
@@ -2957,7 +2998,8 @@ public sealed class ProductSurfaceReadStore(
             series.StudyKind,
             IsSampleSeries(series),
             series.SampleScenario,
-            GetReadOnlyReason(series));
+            GetReadOnlyReason(series),
+            CreateStudyBriefResponse(series));
     }
 
     private static DateTimeOffset? LatestActivity(CampaignSeriesListItemResponse item)
@@ -2975,6 +3017,27 @@ public sealed class ProductSurfaceReadStore(
         return IsSampleSeries(series)
             ? CampaignSeriesReadOnlyReasons.SampleStudy
             : null;
+    }
+
+    private static CampaignSeriesStudyBriefResponse? CreateStudyBriefResponse(CampaignSeriesRow series)
+    {
+        if (string.IsNullOrWhiteSpace(series.StudyPurpose) &&
+            string.IsNullOrWhiteSpace(series.StudyAudience) &&
+            string.IsNullOrWhiteSpace(series.StudyDesignType) &&
+            string.IsNullOrWhiteSpace(series.StudyIntendedUse) &&
+            string.IsNullOrWhiteSpace(series.StudyInterpretationBoundary) &&
+            string.IsNullOrWhiteSpace(series.StudyOwnerNotes))
+        {
+            return null;
+        }
+
+        return new CampaignSeriesStudyBriefResponse(
+            series.StudyPurpose,
+            series.StudyAudience,
+            series.StudyDesignType,
+            series.StudyIntendedUse,
+            series.StudyInterpretationBoundary,
+            series.StudyOwnerNotes);
     }
 
     private static string? NormalizeSearch(string? value)
@@ -4793,7 +4856,13 @@ public sealed class ProductSurfaceReadStore(
         string? SampleScenario,
         DateTimeOffset? ArchivedAt,
         Guid? ArchivedByUserId,
-        string? ArchiveReason);
+        string? ArchiveReason,
+        string? StudyPurpose = null,
+        string? StudyAudience = null,
+        string? StudyDesignType = null,
+        string? StudyIntendedUse = null,
+        string? StudyInterpretationBoundary = null,
+        string? StudyOwnerNotes = null);
 
     private sealed record TenantMemberAssignmentRow(
         Guid UserId,

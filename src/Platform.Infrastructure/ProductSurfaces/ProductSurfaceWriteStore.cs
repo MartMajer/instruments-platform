@@ -103,7 +103,13 @@ public sealed class ProductSurfaceWriteStore(
                 RandomNumberGenerator.GetBytes(32),
                 workspaceId: source.WorkspaceId,
                 ethicsApprovalId: source.EthicsApprovalId,
-                retentionUntil: source.RetentionUntil);
+                retentionUntil: source.RetentionUntil,
+                studyPurpose: source.StudyPurpose,
+                studyAudience: source.StudyAudience,
+                studyDesignType: source.StudyDesignType,
+                studyIntendedUse: source.StudyIntendedUse,
+                studyInterpretationBoundary: source.StudyInterpretationBoundary,
+                studyOwnerNotes: source.StudyOwnerNotes);
         }
         catch (ArgumentException exception)
         {

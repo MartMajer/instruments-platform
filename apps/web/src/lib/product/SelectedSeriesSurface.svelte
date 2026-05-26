@@ -423,6 +423,33 @@
 				</section>
 			{/if}
 
+			<section class="product-panel" aria-label={setupWorkspaceView.studyBriefContext.title}>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{copy.studyBriefKicker}</p>
+						<h2 class="product-title">{setupWorkspaceView.studyBriefContext.title}</h2>
+						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+							{setupWorkspaceView.studyBriefContext.summary}
+						</p>
+					</div>
+					<StatusBadge
+						status={setupWorkspaceView.studyBriefContext.status}
+						label={setupWorkspaceView.studyBriefContext.badgeLabel}
+					/>
+				</div>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					{setupWorkspaceView.studyBriefContext.guidance}
+				</p>
+				<dl class="record-grid">
+					{#each setupWorkspaceView.studyBriefContext.rows as row}
+						<div class="record-field">
+							<dt class="record-field__label">{row.label}</dt>
+							<dd class="record-field__value">{row.value}</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
+
 			{#if setupWorkspace}
 				<SelectedSeriesSetupWorkflow
 					workspace={setupWorkspace}
@@ -446,6 +473,33 @@
 					</div>
 				</section>
 			{/if}
+
+			<section class="product-panel" aria-label={operationsWorkspaceView.studyBriefContext.title}>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{copy.studyBriefKicker}</p>
+						<h2 class="product-title">{operationsWorkspaceView.studyBriefContext.title}</h2>
+						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+							{operationsWorkspaceView.studyBriefContext.summary}
+						</p>
+					</div>
+					<StatusBadge
+						status={operationsWorkspaceView.studyBriefContext.status}
+						label={operationsWorkspaceView.studyBriefContext.badgeLabel}
+					/>
+				</div>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					{operationsWorkspaceView.studyBriefContext.guidance}
+				</p>
+				<dl class="record-grid">
+					{#each operationsWorkspaceView.studyBriefContext.rows as row}
+						<div class="record-field">
+							<dt class="record-field__label">{row.label}</dt>
+							<dd class="record-field__value">{row.value}</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
 
 			{#if operationsWorkspace}
 				<SelectedSeriesOperationsWorkflow
@@ -652,6 +706,33 @@
 					</div>
 				</section>
 			{/if}
+
+			<section class="product-panel" aria-label={reportsWorkspaceView.studyBriefContext.title}>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{copy.studyBriefKicker}</p>
+						<h2 class="product-title">{reportsWorkspaceView.studyBriefContext.title}</h2>
+						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
+							{reportsWorkspaceView.studyBriefContext.summary}
+						</p>
+					</div>
+					<StatusBadge
+						status={reportsWorkspaceView.studyBriefContext.status}
+						label={reportsWorkspaceView.studyBriefContext.badgeLabel}
+					/>
+				</div>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					{reportsWorkspaceView.studyBriefContext.guidance}
+				</p>
+				<dl class="record-grid">
+					{#each reportsWorkspaceView.studyBriefContext.rows as row}
+						<div class="record-field">
+							<dt class="record-field__label">{row.label}</dt>
+							<dd class="record-field__value">{row.value}</dd>
+						</div>
+					{/each}
+				</dl>
+			</section>
 
 			{#if reportsWorkspace}
 				<SelectedSeriesReportsWorkflow
