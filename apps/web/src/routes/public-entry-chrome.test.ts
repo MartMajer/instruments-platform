@@ -41,8 +41,26 @@ describe('public entry chrome', () => {
 		expect(surfaceNav).toContain('isDisabled: !activeSeriesId');
 		expect(surfaceNav).toContain('aria-disabled={surface.isDisabled ?');
 		expect(surfaceNav).toContain('copy.descriptions.selectStudyFirst');
+		expect(surfaceNav).toContain('{#each section.surfaces as surface (surface.id)}');
+		expect(surfaceNav).not.toContain('{#each section.surfaces as surface (surface.href)}');
 		expect(surfaceNav).toContain('...utilitySections');
 		expect(surfaceNav).not.toContain(': null');
+	});
+
+	it('keeps mobile study navigation contextual and non-duplicative', () => {
+		expect(appShell).toContain('{#if isProductShell && activeSeriesId}');
+		expect(appShell).toContain('aria-label={surfaceCopy.sections.selectedStudy}');
+		expect(appShell).toContain("id: 'overview'");
+		expect(appShell).toContain("id: 'setup'");
+		expect(appShell).toContain("id: 'collect'");
+		expect(appShell).toContain("id: 'results'");
+		expect(appShell).toContain("id: 'waves'");
+		expect(appShell).not.toContain('class="app-mobile-bottom-nav__link"\n\t\t\t\t\t\taria-current={mobileMenuOpen');
+		expect(appCss).toMatch(/\.app-mobile-bottom-nav,[\s\S]*display:\s*none/);
+		expect(appCss).toMatch(
+			/@media[\s\S]*\.app-mobile-bottom-nav\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/
+		);
+		expect(appCss).not.toContain(".app-mobile-bottom-nav {\n\tdisplay: grid;\n\tgrid-template-columns");
 	});
 
 	it('offers locale switching without a visible mobile menu text button', () => {
