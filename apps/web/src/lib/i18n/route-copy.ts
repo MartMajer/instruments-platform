@@ -1,4 +1,4 @@
-import type { AppLocale } from './localization';
+﻿import type { AppLocale } from './localization';
 
 type LocaleDictionary<T> = Record<AppLocale, T>;
 
@@ -1542,12 +1542,12 @@ const en = {
 					description: 'Preview disclosure-safe result summaries for the selected wave.'
 				},
 				exportArtifact: {
-					title: 'Create report-summary export',
-					optionalTitle: 'Report-summary export optional',
+					title: 'Create results matrix export',
+					optionalTitle: 'Results matrix export optional',
 					description:
-						'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+						'Create the aggregate results matrix CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
 					optionalDescription:
-						'A response dataset already exists. A report-summary export is optional and not required before download.'
+						'A response dataset already exists. A results matrix export is optional and not required before download.'
 				},
 				responseExport: {
 					title: 'Create response export',
@@ -1561,22 +1561,22 @@ const en = {
 					responseDatasetTitle: 'Download response dataset CSV',
 					responseDatasetDescription:
 						'Download the analysis-ready response dataset CSV and codebook when it is ready.',
-					reportSummaryTitle: 'Download report-summary CSV',
+					reportSummaryTitle: 'Download results matrix CSV',
 					reportSummaryDescription:
-						'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+						'Download the aggregate results matrix CSV for group and measurement comparison. This is not row-level response data.'
 				}
 			},
 			disabled: {
 				createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
 				resolveReportPrerequisitesBeforeReviewingResults:
 					'Resolve report prerequisites before reviewing results.',
-				reviewResultsBeforeCreatingReportExport: 'Review results before creating a report export.',
+				reviewResultsBeforeCreatingReportExport: 'Review results before creating a results matrix export.',
 				resolveReportPrerequisitesBeforeCreatingReportExport:
-					'Resolve report prerequisites before creating a report export.',
-				reportExportCreatedThisSession: 'Report export was created in this session.',
+					'Resolve report prerequisites before creating a results matrix export.',
+				reportExportCreatedThisSession: 'Results matrix export was created in this session.',
 				responseDatasetAlreadyExistsReportOptional:
-					'Response dataset already exists; report-summary export is optional.',
-				reportSummaryExportAlreadyExists: 'Report-summary export already exists for this study.',
+					'Response dataset already exists; results matrix export is optional.',
+				reportSummaryExportAlreadyExists: 'Results matrix export already exists for this study.',
 				reviewResultsBeforeCreatingResponseExport: 'Review results before creating a response export.',
 				resolveReportPrerequisitesBeforeCreatingResponseExport:
 					'Resolve report prerequisites before creating a response export.',
@@ -1597,10 +1597,11 @@ const en = {
 					noVisibleScores:
 						'Use raw response export for internal analysis, or review result-output scoring, missing-answer rules, and disclosure.',
 					createExport:
-						'Create a response export for analysis, or create a report-summary file for internal review.',
+						'Create a response export for analysis, or create the results matrix for aggregate review.',
 					downloadDataset: 'Download the response dataset for analysis.',
+					downloadAggregate: 'Download the results matrix for aggregate review.',
 					documentInterpretation:
-						'Use the response dataset internally; document score meaning before sharing conclusions.',
+						'Use the Results export internally; document score meaning before sharing conclusions.',
 					preliminary: 'Use as preliminary internal data until collection is closed.'
 				}
 			},
@@ -1618,7 +1619,7 @@ const en = {
 				selectWavePendingDetail: 'Select a wave before preparing export files.',
 				reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
 				downloadResponseDatasetCsv: 'Download response dataset CSV',
-				downloadReportSummaryCsv: 'Download report-summary CSV'
+				downloadReportSummaryCsv: 'Download results matrix CSV'
 			},
 			component: {
 				state: {
@@ -1634,7 +1635,8 @@ const en = {
 					refreshFailed: 'Reports action saved, but the reports workspace refresh failed.',
 					actionFailed: 'Reports action failed.',
 					createWaveBeforeResults: 'Create or select a wave before reviewing results.',
-					createWaveBeforeReportExport: 'Create or select a wave before creating a report export.',
+					createWaveBeforeReportExport:
+						'Create or select a wave before creating a results matrix export.',
 					createStudyBeforeResponseExport:
 						'Create or select a study before creating a response export.',
 					createExportBeforeReview: 'Create or select an export file before reviewing it.',
@@ -1644,7 +1646,7 @@ const en = {
 				},
 				currentPurpose: {
 					responseDataset: 'Response dataset CSV and codebook',
-					reportSummary: 'Report-summary CSV, not analysis-ready response dataset'
+					reportSummary: 'Results matrix CSV, not row-level response data'
 				},
 				downloadAction: 'Download action',
 				reviewPathAria: 'Review and export path',
@@ -1664,10 +1666,10 @@ const en = {
 				suppressed: 'suppressed',
 				latestExport: 'Latest export',
 				exportCount: 'Export count',
-				reportExportResult: 'Report export result',
-				reportExport: 'Report export',
-				reportSummaryCsvCodebook: 'Report-summary CSV and codebook',
-				createReportSummaryExport: 'Create report-summary export',
+				reportExportResult: 'Results matrix export result',
+				reportExport: 'Results matrix export',
+				reportSummaryCsvCodebook: 'Results matrix CSV and codebook',
+				createReportSummaryExport: 'Create results matrix export',
 				exportFile: 'Export file',
 				series: 'Series',
 				latestResponseExport: 'Latest response export',
@@ -2063,6 +2065,34 @@ const en = {
 				reportReadinessPrerequisites: 'Report readiness prerequisites',
 				reportPreview: 'report preview',
 				reportStatus: 'Report status',
+				resultOutput: 'Result output',
+				resultOutputs: 'Result outputs',
+				resultMatrix: 'Results overview',
+				groupMatrix: 'Compare groups',
+				waveTrend: 'Compare measurement rounds',
+				groupBreakdown: 'Group breakdown',
+				waveBreakdown: 'Wave breakdown',
+				highlights: 'Result highlights',
+				highestMean: 'Highest result',
+				lowestMean: 'Lowest result',
+				largestWaveChange: 'Largest measurement change',
+				insights: 'What to notice',
+				change: 'Change',
+				fromPrevious: 'Change from previous',
+				fromFirst: 'Change from first',
+				baseline: 'Baseline',
+				group: 'Group',
+				groupType: 'Group type',
+				mean: 'Mean',
+				median: 'Median',
+				standardDeviation: 'Std. dev.',
+				range: 'Range',
+				scoreOutput: 'Score output',
+				resultName: 'Result',
+				sample: 'Responses',
+				missingness: 'Missingness',
+				noGroupBreakdown: 'No group comparison is available for this measurement round.',
+				noWaveBreakdown: 'No repeated measurement comparison is available yet.',
 				ready: 'Ready',
 				readyToRun: 'Ready to run',
 				resultsPreview: 'Results preview',
@@ -3759,16 +3789,16 @@ const hr: typeof en = {
 					description: 'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
 				},
 				exportArtifact: {
-					title: 'Izradi sažetak izvještaja',
-					optionalTitle: 'Sažetak izvještaja nije obavezan',
+					title: 'Izradi matricu rezultata',
+					optionalTitle: 'Matrica rezultata nije obavezna',
 					description:
-						'Izradite agregirani CSV rezultata i knjigu kodova. Izvan tima ga koristite tek nakon pregleda značenja i konačnosti.',
+						'Izradite agregiranu matricu rezultata i opis podataka. Izvan tima je koristite tek nakon pregleda značenja i konačnosti.',
 					optionalDescription:
-						'Skup odgovora već postoji. Sažetak izvještaja je neobavezan i nije potreban prije preuzimanja.'
+						'Skup odgovora već postoji. Matrica rezultata je neobavezna i nije potrebna prije preuzimanja.'
 				},
 				responseExport: {
 					title: 'Izradi izvoz odgovora',
-					description: 'Izradite redove odgovora i knjigu kodova spremne za analizu ove studije.'
+					description: 'Izradite redove odgovora i opis podataka spremne za analizu ove studije.'
 				},
 				fetchArtifact: {
 					title: 'Pregled datoteke izvoza',
@@ -3777,23 +3807,23 @@ const hr: typeof en = {
 				downloadCsv: {
 					responseDatasetTitle: 'Preuzmi CSV skupa odgovora',
 					responseDatasetDescription:
-						'Preuzmite CSV skupa odgovora i knjigu kodova kada su spremni za analizu.',
-					reportSummaryTitle: 'Preuzmi CSV sažetka izvještaja',
+						'Preuzmite CSV skupa odgovora i opis podataka kada su spremni za analizu.',
+					reportSummaryTitle: 'Preuzmi CSV matrice rezultata',
 					reportSummaryDescription:
-						'Preuzmite CSV sažetka izvještaja samo za interni pregled. To nije skup odgovora spreman za analizu.'
+						'Preuzmite agregiranu matricu rezultata za usporedbu grupa i mjerenja. To nisu retci pojedinačnih odgovora.'
 				}
 			},
 			disabled: {
 				createOrSelectWaveBeforeReviewingResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 				resolveReportPrerequisitesBeforeReviewingResults:
 					'Riješite preduvjete izvještavanja prije pregleda rezultata.',
-				reviewResultsBeforeCreatingReportExport: 'Pregledajte rezultate prije izrade sažetka izvještaja.',
+				reviewResultsBeforeCreatingReportExport: 'Pregledajte rezultate prije izrade matrice rezultata.',
 				resolveReportPrerequisitesBeforeCreatingReportExport:
-					'Riješite preduvjete izvještavanja prije izrade sažetka izvještaja.',
-				reportExportCreatedThisSession: 'Sažetak izvještaja izrađen je u ovoj sesiji.',
+					'Riješite preduvjete izvještavanja prije izrade matrice rezultata.',
+				reportExportCreatedThisSession: 'Matrica rezultata izrađena je u ovoj sesiji.',
 				responseDatasetAlreadyExistsReportOptional:
-					'Skup odgovora već postoji; sažetak izvještaja nije obavezan.',
-				reportSummaryExportAlreadyExists: 'Sažetak izvještaja već postoji za ovu studiju.',
+					'Skup odgovora već postoji; matrica rezultata nije obavezna.',
+				reportSummaryExportAlreadyExists: 'Matrica rezultata već postoji za ovu studiju.',
 				reviewResultsBeforeCreatingResponseExport: 'Pregledajte rezultate prije izrade izvoza odgovora.',
 				resolveReportPrerequisitesBeforeCreatingResponseExport:
 					'Riješite preduvjete izvještavanja prije izrade izvoza odgovora.',
@@ -3814,10 +3844,11 @@ const hr: typeof en = {
 					noVisibleScores:
 						'Koristite sirovi izvoz odgovora za internu analizu ili pregledajte bodovanje, pravila nedostajućih odgovora i pravila prikaza.',
 					createExport:
-						'Izradite izvoz odgovora za analizu ili datoteku sažetka izvještaja za interni pregled.',
+						'Izradite izvoz odgovora za analizu ili matricu rezultata za agregirani pregled.',
 					downloadDataset: 'Preuzmite skup odgovora za analizu.',
+					downloadAggregate: 'Preuzmite matricu rezultata za agregirani pregled.',
 					documentInterpretation:
-						'Skup odgovora koristite interno; dokumentirajte značenje rezultata prije dijeljenja zaključaka.',
+						'Izvoz rezultata koristite interno; dokumentirajte značenje rezultata prije dijeljenja zaključaka.',
 					preliminary: 'Koristite kao preliminarne interne podatke dok se prikupljanje ne zatvori.'
 				}
 			},
@@ -3833,9 +3864,9 @@ const hr: typeof en = {
 				createOrSelectWaveFirst: 'Prvo izradite ili odaberite mjerenje',
 				reviewExportFileFirst: 'Prvo pregledajte datoteku izvoza',
 				selectWavePendingDetail: 'Odaberite mjerenje prije pripreme datoteka izvoza.',
-				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i knjigu kodova.',
+				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i opis podataka.',
 				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
-				downloadReportSummaryCsv: 'Preuzmi CSV sažetka izvještaja'
+				downloadReportSummaryCsv: 'Preuzmi CSV matrice rezultata'
 			},
 			component: {
 				state: {
@@ -3853,7 +3884,7 @@ const hr: typeof en = {
 					actionFailed: 'Radnja nad rezultatima nije uspjela.',
 					createWaveBeforeResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 					createWaveBeforeReportExport:
-						'Izradite ili odaberite mjerenje prije izrade sažetka izvještaja.',
+						'Izradite ili odaberite mjerenje prije izrade matrice rezultata.',
 					createStudyBeforeResponseExport:
 						'Izradite ili odaberite studiju prije izrade izvoza odgovora.',
 					createExportBeforeReview: 'Izradite ili odaberite datoteku izvoza prije pregleda.',
@@ -3864,7 +3895,7 @@ const hr: typeof en = {
 				},
 				currentPurpose: {
 					responseDataset: 'CSV skupa odgovora i opis podataka',
-					reportSummary: 'CSV sažetka izvještaja, nije skup odgovora za analizu'
+					reportSummary: 'CSV matrice rezultata, nisu retci pojedinačnih odgovora'
 				},
 				downloadAction: 'Radnja preuzimanja',
 				reviewPathAria: 'Tijek pregleda i izvoza',
@@ -3884,10 +3915,10 @@ const hr: typeof en = {
 				suppressed: 'skriveno',
 				latestExport: 'Najnoviji izvoz',
 				exportCount: 'Broj izvoza',
-				reportExportResult: 'Rezultat izvoza sažetka',
-				reportExport: 'Izvoz sažetka',
-				reportSummaryCsvCodebook: 'CSV sažetka i opis podataka',
-				createReportSummaryExport: 'Izradi izvoz sažetka',
+				reportExportResult: 'Rezultat izvoza matrice',
+				reportExport: 'Izvoz matrice rezultata',
+				reportSummaryCsvCodebook: 'CSV matrice rezultata i opis podataka',
+				createReportSummaryExport: 'Izradi matricu rezultata',
 				exportFile: 'Datoteka izvoza',
 				series: 'Studija',
 				latestResponseExport: 'Najnoviji izvoz odgovora',
@@ -4284,6 +4315,34 @@ const hr: typeof en = {
 				reportReadinessPrerequisites: 'Preduvjeti spremnosti rezultata',
 				reportPreview: 'pregled rezultata',
 				reportStatus: 'Status rezultata',
+				resultOutput: 'Izlaz rezultata',
+				resultOutputs: 'Izlazi rezultata',
+				resultMatrix: 'Pregled rezultata',
+				groupMatrix: 'Usporedba grupa',
+				waveTrend: 'Usporedba mjerenja',
+				groupBreakdown: 'Pregled po grupama',
+				waveBreakdown: 'Pregled po mjerenjima',
+				highlights: 'Istaknuti rezultati',
+				highestMean: 'Najviši rezultat',
+				lowestMean: 'Najniži rezultat',
+				largestWaveChange: 'Najveća promjena mjerenja',
+				insights: 'Na što obratiti pažnju',
+				change: 'Promjena',
+				fromPrevious: 'Promjena od prethodnog',
+				fromFirst: 'Promjena od prvog',
+				baseline: 'Polazište',
+				group: 'Grupa',
+				groupType: 'Vrsta grupe',
+				mean: 'Prosjek',
+				median: 'Medijan',
+				standardDeviation: 'Std. odstupanje',
+				range: 'Raspon',
+				scoreOutput: 'Izlaz rezultata',
+				resultName: 'Rezultat',
+				sample: 'Odgovori',
+				missingness: 'Nedostajući odgovori',
+				noGroupBreakdown: 'Usporedba grupa nije dostupna za ovo mjerenje.',
+				noWaveBreakdown: 'Usporedba ponovljenih mjerenja još nije dostupna.',
 				ready: 'Spremno',
 				readyToRun: 'Spremno za pokretanje',
 				resultsPreview: 'Pregled rezultata',

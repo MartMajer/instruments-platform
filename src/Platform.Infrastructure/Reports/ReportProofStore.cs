@@ -102,21 +102,23 @@ public sealed class ReportProofStore(
                     row.session.SubmittedAt.HasValue,
                 cancellationToken);
 
-        var scoreRows = await db.Scores
-            .AsNoTracking()
-            .Where(score => score.CampaignId == campaignId)
-            .OrderBy(score => score.DimensionCode)
-            .ThenBy(score => score.ResponseSessionId)
-            .ThenByDescending(score => score.ComputedAt)
+        var scoreRows = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where score.CampaignId == campaignId &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                orderby score.DimensionCode, score.ResponseSessionId, score.ComputedAt descending, score.Id descending
+                select score)
             .ToListAsync(cancellationToken);
 
         var latestScores = scoreRows
             .GroupBy(score => new { score.ResponseSessionId, score.DimensionCode })
             .Select(group => group.First())
             .ToArray();
-        var disclosurePasses =
-            snapshot.ResponseIdentityMode == ResponseIdentityModes.Identified ||
-            submittedResponseCount >= disclosurePolicy.KMin;
         var scoreSummaries = latestScores
             .GroupBy(score => score.DimensionCode, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
@@ -124,7 +126,8 @@ public sealed class ReportProofStore(
                 group.Key,
                 group.ToArray(),
                 submittedResponseCount,
-                disclosurePasses,
+                snapshot.ResponseIdentityMode,
+                disclosurePolicy.KMin,
                 interpretationMetadata.Value))
             .ToArray();
 
@@ -180,9 +183,15 @@ public sealed class ReportProofStore(
         string dimensionCode,
         IReadOnlyList<Score> scores,
         int submittedResponseCount,
-        bool disclosurePasses,
+        string responseIdentityMode,
+        int disclosureKMin,
         ScoreInterpretationMetadata? interpretationMetadata)
     {
+        var disclosurePasses = ResultOutputDisclosurePasses(
+            responseIdentityMode,
+            disclosureKMin,
+            scores.Count);
+
         if (!disclosurePasses)
         {
             return new ReportScoreSummaryResponse(
@@ -191,6 +200,8 @@ public sealed class ReportProofStore(
                 submittedResponseCount,
                 ScoreCount: null,
                 Mean: null,
+                Median: null,
+                StandardDeviation: null,
                 Min: null,
                 Max: null,
                 SuppressionReason: InsufficientResponses);
@@ -198,6 +209,8 @@ public sealed class ReportProofStore(
 
         var values = scores.Select(score => score.Value).ToArray();
         var mean = Math.Round(values.Average(), 4, MidpointRounding.AwayFromZero);
+        var median = CalculateMedian(values);
+        var standardDeviation = CalculateStandardDeviation(values);
 
         return new ReportScoreSummaryResponse(
             dimensionCode,
@@ -205,6 +218,8 @@ public sealed class ReportProofStore(
             submittedResponseCount,
             values.Length,
             mean,
+            median,
+            standardDeviation,
             values.Min(),
             values.Max(),
             SuppressionReason: null,
@@ -212,6 +227,20 @@ public sealed class ReportProofStore(
             scores.Sum(score => score.NValid),
             scores.Sum(score => score.NExpected),
             SummarizeMissingPolicyStatus(scores.Select(score => score.MissingPolicyStatus)));
+    }
+
+    private static bool ResultOutputDisclosurePasses(
+        string responseIdentityMode,
+        int disclosureKMin,
+        int scoreCount)
+    {
+        if (scoreCount <= 0)
+        {
+            return false;
+        }
+
+        return responseIdentityMode == ResponseIdentityModes.Identified ||
+            scoreCount >= disclosureKMin;
     }
 
     private static string? SummarizeMissingPolicyStatus(IEnumerable<string> statuses)
@@ -228,5 +257,36 @@ public sealed class ReportProofStore(
             1 => distinctStatuses[0],
             _ => "mixed"
         };
+    }
+
+    private static decimal CalculateMedian(IReadOnlyCollection<decimal> values)
+    {
+        var ordered = values.OrderBy(value => value).ToArray();
+        if (ordered.Length == 0)
+        {
+            return 0;
+        }
+
+        var middle = ordered.Length / 2;
+        var median = ordered.Length % 2 == 1
+            ? ordered[middle]
+            : (ordered[middle - 1] + ordered[middle]) / 2;
+
+        return Math.Round(median, 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateStandardDeviation(IReadOnlyCollection<decimal> values)
+    {
+        if (values.Count <= 1)
+        {
+            return 0;
+        }
+
+        var mean = values.Average();
+        var variance = values
+            .Select(value => Math.Pow((double)(value - mean), 2))
+            .Average();
+
+        return Math.Round((decimal)Math.Sqrt(variance), 4, MidpointRounding.AwayFromZero);
     }
 }

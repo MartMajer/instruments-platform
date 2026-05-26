@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { ComponentProps } from 'svelte';
 import type StatusBadge from '../components/StatusBadge.svelte';
@@ -619,8 +619,10 @@ describe('product view models', () => {
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
 		expect(hubView.rows[0].label).toBe('Izrađeno');
 		expect(hubView.studyModel.title).toBe('Što ova studija sadrži');
-		expect(hubView.studyModel.items[0].label).toBe('Studija');
-		expect(hubView.studyModel.items[0].summary).toContain('To nije upitnik ni instrument.');
+		expect(hubView.studyModel.items[0].label).toBe('Opis studije');
+		expect(hubView.studyModel.items[0].summary).toContain('Svrha studije');
+		expect(hubView.studyModel.items[1].label).toBe('Studija');
+		expect(hubView.studyModel.items[1].summary).toContain('To nije upitnik ni instrument.');
 		expect(hubView.governanceRows[0]).toEqual({
 			label: 'Pristanak',
 			value: 'pregled',
@@ -1053,6 +1055,21 @@ describe('product view models', () => {
 				'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
 			items: [
 				{
+					id: 'study_brief',
+					label: 'Study brief',
+					status: 'pending',
+					badgeLabel: 'Needs brief',
+					summary: 'The study purpose has not been captured yet.',
+					guidance:
+						'Add purpose, audience, design, intended use, and interpretation limits before sharing results.',
+					detailRows: [
+						{ label: 'Audience', value: 'Not set' },
+						{ label: 'Design', value: 'Not set' },
+						{ label: 'Intended use', value: 'Not set' },
+						{ label: 'Interpretation limits', value: 'Not set' }
+					]
+				},
+				{
 					id: 'study_container',
 					label: 'Study',
 					status: 'ready',
@@ -1176,6 +1193,11 @@ describe('product view models', () => {
 		expect(view.studyModel.title).toBe('Što ova studija sadrži');
 		expect(view.studyModel.description).toContain('Studija je projektni spremnik');
 		expect(view.studyModel.items[0]).toMatchObject({
+			label: 'Opis studije',
+			badgeLabel: 'Treba opis',
+			summary: 'Svrha studije još nije zabilježena.'
+		});
+		expect(view.studyModel.items[1]).toMatchObject({
 			label: 'Studija',
 			badgeLabel: 'Spremljeno',
 			summary:
@@ -1183,12 +1205,12 @@ describe('product view models', () => {
 			guidance:
 				'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
 		});
-		expect(view.studyModel.items[2]).toMatchObject({
+		expect(view.studyModel.items[3]).toMatchObject({
 			label: 'Mjerenja prikupljanja',
 			badgeLabel: 'Aktivno',
 			summary: 'Mjerenja u studiji: 2 mjerenja; aktivno: 1.'
 		});
-		expect(view.studyModel.items[3]).toMatchObject({
+		expect(view.studyModel.items[4]).toMatchObject({
 			label: 'Dokazi i usporedba',
 			badgeLabel: 'Dokazi spremni',
 			summary: 'Zabilježeno: 31 odgovor, 28 rezultata i 3 izvozne datoteke.'
@@ -2691,11 +2713,11 @@ describe('product view models', () => {
 				badgeLabel: '1 downloadable',
 				summary: '1 export file is ready to download.',
 				guidance:
-					'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.',
+					'Use response dataset exports for analysis handoff. Use results matrix exports for aggregate review, group comparison, measurement comparison, or codebook checks.',
 				detailRows: [
 					{ label: 'Export files', value: '2' },
 					{ label: 'Downloadable', value: '1' },
-					{ label: 'Report-summary exports', value: '1' },
+					{ label: 'Results matrix exports', value: '1' },
 					{ label: 'Response datasets', value: '1' }
 				]
 			},
@@ -2717,11 +2739,11 @@ describe('product view models', () => {
 				label: 'File purpose',
 				status: 'ready',
 				badgeLabel: '2 purposes',
-				summary: 'Exports cover Report summary export and Response dataset export.',
+				summary: 'Exports cover Results matrix export and Response dataset export.',
 				guidance:
-					'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.',
+					'Choose results matrix exports for aggregate review; choose response dataset exports for analysis with the codebook.',
 				detailRows: [
-					{ label: 'Report summary exports', value: '1' },
+					{ label: 'Results matrix exports', value: '1' },
 					{ label: 'Response dataset exports', value: '1' }
 				]
 			},
@@ -2749,15 +2771,16 @@ describe('product view models', () => {
 			id: 'artifact-id-1',
 			title: 'baseline-report.csv',
 			subtitle: 'Baseline wave',
-			purposeLabel: 'Report summary export',
+			purposeLabel: 'Results matrix export',
 			finalityLabel: 'Closed wave',
-			nextUse: 'Use this export for report handoff, summary review, or codebook checks.',
+			nextUse:
+				'Use this export for aggregate results review, group comparison, measurement comparison, or codebook checks.',
 			status: 'ready',
 			statusLabel: 'Succeeded',
 			href: null,
 			rows: [
 				{ label: 'Study context', value: 'Campaign / Baseline wave' },
-				{ label: 'File type', value: 'Report summary CSV and codebook' },
+				{ label: 'File type', value: 'Results matrix CSV and codebook' },
 				{ label: 'Format', value: 'CSV codebook' },
 				{ label: 'Data finality', value: 'Closed wave' },
 				{ label: 'Rows', value: '12' },
@@ -2803,7 +2826,7 @@ describe('product view models', () => {
 				detailRows: [
 					{ label: 'Export files', value: '0' },
 					{ label: 'Downloadable', value: '0' },
-					{ label: 'Report-summary exports', value: '0' },
+					{ label: 'Results matrix exports', value: '0' },
 					{ label: 'Response datasets', value: '0' }
 				]
 			},
@@ -2826,9 +2849,9 @@ describe('product view models', () => {
 				badgeLabel: 'No files',
 				summary: 'No generated export purposes are available yet.',
 				guidance:
-					'Create report summary or response dataset exports from a study when results are ready.',
+					'Create results matrix or response dataset exports from a study when results are ready.',
 				detailRows: [
-					{ label: 'Report summary exports', value: '0' },
+					{ label: 'Results matrix exports', value: '0' },
 					{ label: 'Response dataset exports', value: '0' }
 				]
 			},
@@ -2971,11 +2994,11 @@ describe('product view models', () => {
 			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
-			'Izvozi pokrivaju izvoz sažetka izvještaja i izvoz skupa podataka odgovora.'
+			'Izvozi pokrivaju izvoz matrice rezultata i izvoz skupa podataka odgovora.'
 		);
 		expect(view.exportOverview[3].summary).toBe('Izvozne datoteke povezane su s Wave 1 i AA.');
 		expect(view.cards[0].nextUse).toBe(
-			'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere opisa podataka.'
+			'Koristite ovaj izvoz za agregirani pregled rezultata, usporedbu grupa, usporedbu mjerenja ili provjere opisa podataka.'
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
@@ -3864,3 +3887,6 @@ const sampleWaveComparison: CampaignSeriesWaveComparisonProofResponse = {
 		}
 	]
 };
+
+
+

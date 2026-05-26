@@ -222,26 +222,34 @@ public sealed class WaveComparisonProofStore(
             return [];
         }
 
-        var scoreRows = await db.Scores
-            .AsNoTracking()
-            .Where(score => responseSessionIds.Contains(score.ResponseSessionId))
-            .OrderBy(score => score.DimensionCode)
-            .ThenBy(score => score.ResponseSessionId)
-            .ThenByDescending(score => score.ComputedAt)
-            .Select(score => new ScoreRow(
-                score.ResponseSessionId,
-                score.CampaignId,
-                score.DimensionCode,
-                score.Value,
-                score.NValid,
-                score.NExpected,
-                score.MissingPolicyStatus,
-                score.ComputedAt))
+        var scoreRows = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where responseSessionIds.Contains(score.ResponseSessionId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                orderby score.DimensionCode, score.ResponseSessionId, score.ComputedAt descending, score.Id descending
+                select new ScoreRow(
+                    score.Id,
+                    score.ResponseSessionId,
+                    score.CampaignId,
+                    score.DimensionCode,
+                    score.Value,
+                    score.NValid,
+                    score.NExpected,
+                    score.MissingPolicyStatus,
+                    score.ComputedAt))
             .ToListAsync(cancellationToken);
 
         return scoreRows
             .GroupBy(score => new { score.ResponseSessionId, score.DimensionCode })
-            .Select(group => group.First())
+            .Select(group => group
+                .OrderByDescending(score => score.ComputedAt)
+                .ThenByDescending(score => score.ScoreId)
+                .First())
             .ToArray();
     }
 
@@ -486,6 +494,7 @@ public sealed class WaveComparisonProofStore(
         Guid ParticipantCodeId);
 
     private sealed record ScoreRow(
+        Guid ScoreId,
         Guid ResponseSessionId,
         Guid CampaignId,
         string DimensionCode,

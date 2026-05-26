@@ -231,6 +231,7 @@ public sealed class ReportPdfArtifactWorkerTests
 
         public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignReportProofExportAsync(Guid tenantId, Guid campaignId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResponseExportAsync(Guid tenantId, Guid campaignSeriesId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResultsMatrixExportAsync(Guid tenantId, Guid campaignSeriesId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesReportHtmlArtifactAsync(Guid tenantId, Guid campaignSeriesId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesReportPdfArtifactAsync(Guid tenantId, Guid campaignSeriesId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ReportProofExportArtifactResponse>> QueueCampaignSeriesReportPdfArtifactAsync(Guid tenantId, Guid campaignSeriesId, CancellationToken cancellationToken) => throw new NotSupportedException();

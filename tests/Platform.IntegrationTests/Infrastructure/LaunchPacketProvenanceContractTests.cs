@@ -247,4 +247,35 @@ public sealed class LaunchPacketProvenanceContractTests
             Assert.Equal("launch_packet_provenance", reportDisclosureMethod?.Invoke(null, [column]));
         }
     }
+
+    [Fact]
+    public void Aggregate_result_export_columns_suppress_small_cell_counts_and_values()
+    {
+        var reportDisclosureMethod = typeof(ReportProofExportStore).GetMethod(
+            "ColumnDisclosureTreatment",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var matrixDisclosureMethod = typeof(ReportProofExportStore).GetMethod(
+            "ResultsMatrixColumnDisclosureTreatment",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        foreach (var column in new[]
+                 {
+                     "submitted_response_count",
+                     "score_count",
+                     "n_valid_total",
+                     "n_expected_total",
+                     "missing_policy_status_summary",
+                     "mean",
+                     "median",
+                     "standard_deviation",
+                     "min",
+                     "max",
+                     "delta_from_previous_mean",
+                     "delta_from_first_mean"
+                 })
+        {
+            Assert.Equal("suppressed_when_report_proof_suppressed", reportDisclosureMethod?.Invoke(null, [column]));
+            Assert.Equal("suppressed_when_result_scope_suppressed", matrixDisclosureMethod?.Invoke(null, [column]));
+        }
+    }
 }

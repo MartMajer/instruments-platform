@@ -23,6 +23,37 @@ public sealed class SampleStudySeeder(
     SubmittedResponseScoreMaterializer scoreMaterializer) : ISampleStudySeeder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] SampleResultsMatrixColumns =
+    [
+        "result_scope",
+        "result_scope_label",
+        "campaign_series_id",
+        "selected_campaign_id",
+        "selected_campaign_name",
+        "campaign_id",
+        "campaign_name",
+        "campaign_status",
+        "campaign_data_finality",
+        "campaign_closed_at",
+        "group_type",
+        "group_name",
+        "dimension_code",
+        "disclosure",
+        "submitted_response_count",
+        "score_count",
+        "n_valid_total",
+        "n_expected_total",
+        "missing_policy_status_summary",
+        "mean",
+        "median",
+        "standard_deviation",
+        "min",
+        "max",
+        "delta_from_previous_mean",
+        "delta_from_first_mean",
+        "comparison_state",
+        "suppression_reason"
+    ];
 
     public async Task<Result<EnsureSampleStudiesResponse>> EnsureAsync(
         Guid tenantId,
@@ -77,6 +108,12 @@ public sealed class SampleStudySeeder(
             if (series is not null)
             {
                 await EnsureSeriesResponseExportAsync(
+                    tenantId,
+                    series.Id,
+                    spec,
+                    DateTimeOffset.UtcNow,
+                    cancellationToken);
+                await EnsureSeriesResultsMatrixExportAsync(
                     tenantId,
                     series.Id,
                     spec,
@@ -380,6 +417,36 @@ public sealed class SampleStudySeeder(
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task EnsureSeriesResultsMatrixExportAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        SampleStudySpec spec,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
+    {
+        var existingArtifacts = await db.ExportArtifacts
+            .Where(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                artifact.CampaignSeriesId == campaignSeriesId &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook)
+            .ToListAsync(cancellationToken);
+
+        if (existingArtifacts.Count == 1 && IsSampleResultsMatrixExport(existingArtifacts[0]))
+        {
+            return;
+        }
+
+        db.ExportArtifacts.RemoveRange(existingArtifacts);
+        db.ExportArtifacts.Add(await CreateSeriesResultsMatrixExportAsync(
+            tenantId,
+            campaignSeriesId,
+            spec,
+            completedAt,
+            cancellationToken));
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static IReadOnlyList<ParticipantCode> CreateParticipantCodes(
         Guid tenantId,
         Guid campaignSeriesId,
@@ -621,12 +688,223 @@ public sealed class SampleStudySeeder(
             completedAt);
     }
 
+    private async Task<ExportArtifact> CreateSeriesResultsMatrixExportAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        SampleStudySpec spec,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
+    {
+        var series = await db.CampaignSeries
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+        var campaigns = await db.Campaigns
+            .AsNoTracking()
+            .Where(campaign => campaign.CampaignSeriesId == campaignSeriesId)
+            .OrderBy(campaign => campaign.StartAt)
+            .ThenBy(campaign => campaign.Name)
+            .ThenBy(campaign => campaign.Id)
+            .Select(campaign => new SampleCampaignResultsMatrixRow(
+                campaign.Id,
+                campaign.Name,
+                campaign.Status,
+                campaign.StartAt,
+                campaign.ClosedAt))
+            .ToListAsync(cancellationToken);
+        var sessions = await (
+                from session in db.ResponseSessions.AsNoTracking()
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                join campaign in db.Campaigns.AsNoTracking()
+                    on assignment.CampaignId equals campaign.Id
+                where campaign.CampaignSeriesId == campaignSeriesId &&
+                    session.SubmittedAt.HasValue
+                select new SampleSessionExportRow(
+                    session.Id,
+                    campaign.Id,
+                    campaign.Name,
+                    campaign.StartAt,
+                    session.SubmittedAt!.Value,
+                    session.ParticipantCodeId))
+            .ToListAsync(cancellationToken);
+        var sessionIds = sessions.Select(session => session.Id).ToArray();
+        var scores = sessionIds.Length == 0
+            ? []
+            : await db.Scores
+                .AsNoTracking()
+                .Where(score =>
+                    sessionIds.Contains(score.ResponseSessionId) &&
+                    score.DimensionCode == "total")
+                .Select(score => new SampleScoreExportRow(
+                    score.ResponseSessionId,
+                    score.Value,
+                    score.ComputedAt))
+                .ToListAsync(cancellationToken);
+        var scoreBySession = scores
+            .GroupBy(score => score.SessionId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(score => score.ComputedAt)
+                    .ThenByDescending(score => score.Value)
+                    .First());
+        var sessionsByCampaign = sessions
+            .GroupBy(session => session.CampaignId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        var selectedCampaign = campaigns.LastOrDefault();
+        var lines = new List<string>
+        {
+            string.Join(",", SampleResultsMatrixColumns)
+        };
+
+        if (selectedCampaign is not null &&
+            sessionsByCampaign.TryGetValue(selectedCampaign.Id, out var selectedCampaignSessions))
+        {
+            var selectedValues = selectedCampaignSessions
+                .Where(session => scoreBySession.ContainsKey(session.Id))
+                .Select(session => scoreBySession[session.Id].Value)
+                .ToArray();
+
+            if (selectedValues.Length > 0)
+            {
+                var selectedMean = CalculateSampleMean(selectedValues);
+                lines.Add(CsvRow(
+                    "overall",
+                    selectedCampaign.Name,
+                    series.Id.ToString(),
+                    selectedCampaign.Id.ToString(),
+                    selectedCampaign.Name,
+                    selectedCampaign.Id.ToString(),
+                    selectedCampaign.Name,
+                    selectedCampaign.Status,
+                    selectedCampaign.ClosedAt.HasValue ? "closed_wave" : "preliminary_live",
+                    selectedCampaign.ClosedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    "total",
+                    "visible",
+                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
+                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
+                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
+                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
+                    "complete",
+                    FormatSampleDecimal(selectedMean),
+                    FormatSampleDecimal(CalculateSampleMedian(selectedValues)),
+                    FormatSampleDecimal(CalculateSampleStandardDeviation(selectedValues)),
+                    FormatSampleDecimal(selectedValues.Min()),
+                    FormatSampleDecimal(selectedValues.Max()),
+                    string.Empty,
+                    string.Empty,
+                    "selected",
+                    string.Empty));
+            }
+        }
+
+        decimal? firstMean = null;
+        decimal? previousMean = null;
+
+        foreach (var campaign in campaigns)
+        {
+            var values = sessionsByCampaign.TryGetValue(campaign.Id, out var campaignSessions)
+                ? campaignSessions
+                    .Where(session => scoreBySession.ContainsKey(session.Id))
+                    .Select(session => scoreBySession[session.Id].Value)
+                    .ToArray()
+                : [];
+            if (values.Length == 0)
+            {
+                continue;
+            }
+
+            var mean = CalculateSampleMean(values);
+            var comparisonState = firstMean.HasValue ? "compared" : "baseline";
+            var deltaFromPrevious = previousMean.HasValue
+                ? FormatSampleDecimal(mean - previousMean.Value)
+                : string.Empty;
+            var deltaFromFirst = firstMean.HasValue
+                ? FormatSampleDecimal(mean - firstMean.Value)
+                : "0";
+            firstMean ??= mean;
+            previousMean = mean;
+
+            lines.Add(CsvRow(
+                "wave",
+                campaign.Name,
+                series.Id.ToString(),
+                selectedCampaign?.Id.ToString() ?? string.Empty,
+                selectedCampaign?.Name ?? string.Empty,
+                campaign.Id.ToString(),
+                campaign.Name,
+                campaign.Status,
+                campaign.ClosedAt.HasValue ? "closed_wave" : "preliminary_live",
+                campaign.ClosedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
+                string.Empty,
+                string.Empty,
+                "total",
+                "visible",
+                values.Length.ToString(CultureInfo.InvariantCulture),
+                values.Length.ToString(CultureInfo.InvariantCulture),
+                values.Length.ToString(CultureInfo.InvariantCulture),
+                values.Length.ToString(CultureInfo.InvariantCulture),
+                "complete",
+                FormatSampleDecimal(mean),
+                FormatSampleDecimal(CalculateSampleMedian(values)),
+                FormatSampleDecimal(CalculateSampleStandardDeviation(values)),
+                FormatSampleDecimal(values.Min()),
+                FormatSampleDecimal(values.Max()),
+                deltaFromPrevious,
+                deltaFromFirst,
+                comparisonState,
+                string.Empty));
+        }
+
+        var content = string.Join("\n", lines);
+        var rowCount = Math.Max(0, lines.Count - 1);
+
+        return CreateInlineExport(
+            tenantId,
+            ExportArtifactTargetKinds.CampaignSeries,
+            campaignId: null,
+            campaignSeriesId: series.Id,
+            ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+            $"{spec.Key}-results-matrix.csv",
+            rowCount,
+            content,
+            metadataJson: JsonSerializer.Serialize(new
+            {
+                sampleStudy = true,
+                study = series.Name,
+                purpose = "sample_results_matrix",
+                rows = rowCount,
+                identityMode = spec.ResponseIdentityMode
+            }, JsonOptions),
+            codebookJson: JsonSerializer.Serialize(new
+            {
+                artifactType = ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+                rowCount,
+                rowShape = "one aggregate row for the selected sample output plus one row per sample measurement round",
+                resultScopes = new[] { "overall", "wave" },
+                columns = SampleResultsMatrixColumns.Select(column => new
+                {
+                    name = column,
+                    description = "Sample Results matrix column."
+                })
+            }, JsonOptions),
+            completedAt);
+    }
+
     private static bool IsRowLevelResponseExport(ExportArtifact artifact)
     {
         return artifact.Content?.StartsWith(
                 "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total",
                 StringComparison.Ordinal) == true &&
             artifact.MetadataJson.Contains("sample_response_rows", StringComparison.Ordinal);
+    }
+
+    private static bool IsSampleResultsMatrixExport(ExportArtifact artifact)
+    {
+        return artifact.Content?.StartsWith("result_scope,result_scope_label,campaign_series_id", StringComparison.Ordinal) == true &&
+            artifact.MetadataJson.Contains("sample_results_matrix", StringComparison.Ordinal);
     }
 
     private static ExportArtifact CreateInlineExport(
@@ -697,6 +975,47 @@ public sealed class SampleStudySeeder(
         {
             return value;
         }
+    }
+
+    private static decimal CalculateSampleMean(IReadOnlyCollection<decimal> values)
+    {
+        return Math.Round(values.Average(), 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateSampleMedian(IReadOnlyCollection<decimal> values)
+    {
+        var ordered = values.OrderBy(value => value).ToArray();
+        if (ordered.Length == 0)
+        {
+            return 0;
+        }
+
+        var middle = ordered.Length / 2;
+        var median = ordered.Length % 2 == 1
+            ? ordered[middle]
+            : (ordered[middle - 1] + ordered[middle]) / 2;
+
+        return Math.Round(median, 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateSampleStandardDeviation(IReadOnlyCollection<decimal> values)
+    {
+        if (values.Count <= 1)
+        {
+            return 0;
+        }
+
+        var mean = values.Average();
+        var variance = values
+            .Select(value => Math.Pow((double)(value - mean), 2))
+            .Average();
+
+        return Math.Round((decimal)Math.Sqrt(variance), 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static string FormatSampleDecimal(decimal value)
+    {
+        return value.ToString("0.####", CultureInfo.InvariantCulture);
     }
 
     private static string Slugify(string value)
@@ -803,6 +1122,13 @@ internal sealed record SampleCampaignExportRow(
     Guid TemplateVersionId,
     string Name,
     DateTimeOffset? StartAt);
+
+internal sealed record SampleCampaignResultsMatrixRow(
+    Guid Id,
+    string Name,
+    string Status,
+    DateTimeOffset? StartAt,
+    DateTimeOffset? ClosedAt);
 
 internal sealed record SampleQuestionExportRow(
     Guid Id,

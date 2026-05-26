@@ -129,6 +129,159 @@ describe('report widget data guards', () => {
 		).toBe(true);
 	});
 
+	it('accepts visual analytics entry data with aggregate matrices', () => {
+		expect(
+			isVisualAnalyticsEntryWidgetData({
+				selectedCampaignId: 'campaign-1',
+				visibleScoreCount: 115,
+				suppressedScoreCount: 5,
+				reportableCampaignCount: 2,
+				analytics: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'visible',
+					scoreOutputs: [
+						{
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							submittedResponseCount: 42,
+							scoreCount: 42,
+							mean: 4.2,
+							median: 4,
+							standardDeviation: 1.1,
+							min: 1,
+							max: 7,
+							nValidTotal: 126,
+							nExpectedTotal: 126,
+							missingPolicyStatusSummary: 'ok',
+							suppressionReason: null
+						}
+					],
+					groupRows: [
+						{
+							groupType: 'department',
+							groupName: 'Operations',
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							submittedResponseCount: 12,
+							scoreCount: 12,
+							mean: 4.5,
+							median: 4.5,
+							standardDeviation: 0.8,
+							min: 3,
+							max: 6,
+							suppressionReason: null
+						}
+					],
+					waveRows: [
+						{
+							campaignId: 'campaign-1',
+							campaignName: 'Wave 1',
+							campaignStatus: 'closed',
+							dataFinality: 'closed_wave',
+							closedAt: '2026-05-26T08:00:00Z',
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							submittedResponseCount: 42,
+							scoreCount: 42,
+							mean: 4.2,
+							median: 4,
+							standardDeviation: 1.1,
+							min: 1,
+							max: 7,
+							suppressionReason: null,
+							deltaFromPreviousMean: null,
+							deltaFromFirstMean: 0,
+							comparisonState: 'baseline'
+						}
+					],
+					insights: [
+						{
+							kind: 'score_outputs',
+							severity: 'ready',
+							title: '1 result output ready',
+							detail: 'Review aggregate statistics before sharing conclusions.'
+						}
+					]
+				}
+			})
+		).toBe(true);
+	});
+
+	it('rejects visual analytics entry data with malformed matrix rows', () => {
+		expect(
+			isVisualAnalyticsEntryWidgetData({
+				selectedCampaignId: 'campaign-1',
+				visibleScoreCount: 115,
+				suppressedScoreCount: 5,
+				reportableCampaignCount: 2,
+				analytics: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'visible',
+					scoreOutputs: [{ dimensionCode: 'workload' }],
+					groupRows: [],
+					waveRows: [],
+					insights: []
+				}
+			})
+		).toBe(false);
+	});
+
+	it('accepts suppressed visual analytics rows with null counts and score metadata', () => {
+		expect(
+			isVisualAnalyticsEntryWidgetData({
+				selectedCampaignId: 'campaign-1',
+				visibleScoreCount: 0,
+				suppressedScoreCount: 3,
+				reportableCampaignCount: 1,
+				analytics: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'suppressed',
+					scoreOutputs: [
+						{
+							dimensionCode: 'workload',
+							disclosure: 'suppressed',
+							submittedResponseCount: null,
+							scoreCount: null,
+							mean: null,
+							median: null,
+							standardDeviation: null,
+							min: null,
+							max: null,
+							nValidTotal: null,
+							nExpectedTotal: null,
+							missingPolicyStatusSummary: null,
+							suppressionReason: 'insufficient_responses'
+						}
+					],
+					groupRows: [
+						{
+							groupType: 'department',
+							groupName: 'Operations',
+							dimensionCode: 'workload',
+							disclosure: 'suppressed',
+							submittedResponseCount: null,
+							scoreCount: null,
+							mean: null,
+							median: null,
+							standardDeviation: null,
+							min: null,
+							max: null,
+							suppressionReason: 'insufficient_responses'
+						}
+					],
+					waveRows: [],
+					insights: []
+				}
+			})
+		).toBe(true);
+	});
+
 	it('accepts finality provenance summary data', () => {
 		expect(
 			isFinalityProvenanceWidgetData({

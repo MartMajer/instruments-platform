@@ -89,6 +89,8 @@ public sealed record ReportScoreSummaryResponse(
     int SubmittedResponseCount,
     int? ScoreCount,
     decimal? Mean,
+    decimal? Median,
+    decimal? StandardDeviation,
     decimal? Min,
     decimal? Max,
     string? SuppressionReason,

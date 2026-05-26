@@ -112,7 +112,8 @@ export function isVisualAnalyticsEntryWidgetData(
 		isNullableString(record.selectedCampaignId) &&
 		typeof record.visibleScoreCount === 'number' &&
 		typeof record.suppressedScoreCount === 'number' &&
-		typeof record.reportableCampaignCount === 'number'
+		typeof record.reportableCampaignCount === 'number' &&
+		isOptionalResultsAnalytics(record.analytics)
 	);
 }
 
@@ -195,4 +196,112 @@ function isOptionalNullableString(data: unknown): data is string | null | undefi
 
 function isNullableNumber(data: unknown): data is number | null {
 	return data === null || typeof data === 'number';
+}
+
+function isOptionalResultsAnalytics(data: unknown): boolean {
+	if (data === undefined || data === null) {
+		return true;
+	}
+
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		isNullableString(data.selectedCampaignId) &&
+		isNullableString(data.selectedCampaignName) &&
+		typeof data.disclosureKMin === 'number' &&
+		typeof data.disclosureState === 'string' &&
+		Array.isArray(data.scoreOutputs) &&
+		data.scoreOutputs.every(isResultsScoreOutputRow) &&
+		Array.isArray(data.groupRows) &&
+		data.groupRows.every(isResultsGroupMatrixRow) &&
+		Array.isArray(data.waveRows) &&
+		data.waveRows.every(isResultsWaveMatrixRow) &&
+		Array.isArray(data.insights) &&
+		data.insights.every(isResultsInsightRow)
+	);
+}
+
+function isResultsScoreOutputRow(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.dimensionCode === 'string' &&
+		typeof data.disclosure === 'string' &&
+		isNullableNumber(data.submittedResponseCount) &&
+		isNullableNumber(data.scoreCount) &&
+		isNullableNumber(data.mean) &&
+		isNullableNumber(data.median) &&
+		isNullableNumber(data.standardDeviation) &&
+		isNullableNumber(data.min) &&
+		isNullableNumber(data.max) &&
+		isNullableNumber(data.nValidTotal) &&
+		isNullableNumber(data.nExpectedTotal) &&
+		isNullableString(data.missingPolicyStatusSummary) &&
+		isNullableString(data.suppressionReason)
+	);
+}
+
+function isResultsGroupMatrixRow(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.groupType === 'string' &&
+		typeof data.groupName === 'string' &&
+		typeof data.dimensionCode === 'string' &&
+		typeof data.disclosure === 'string' &&
+		isNullableNumber(data.submittedResponseCount) &&
+		isNullableNumber(data.scoreCount) &&
+		isNullableNumber(data.mean) &&
+		isNullableNumber(data.median) &&
+		isNullableNumber(data.standardDeviation) &&
+		isNullableNumber(data.min) &&
+		isNullableNumber(data.max) &&
+		isNullableString(data.suppressionReason)
+	);
+}
+
+function isResultsWaveMatrixRow(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.campaignId === 'string' &&
+		typeof data.campaignName === 'string' &&
+		typeof data.campaignStatus === 'string' &&
+		typeof data.dataFinality === 'string' &&
+		isNullableString(data.closedAt) &&
+		typeof data.dimensionCode === 'string' &&
+		typeof data.disclosure === 'string' &&
+		isNullableNumber(data.submittedResponseCount) &&
+		isNullableNumber(data.scoreCount) &&
+		isNullableNumber(data.mean) &&
+		isNullableNumber(data.median) &&
+		isNullableNumber(data.standardDeviation) &&
+		isNullableNumber(data.min) &&
+		isNullableNumber(data.max) &&
+		isNullableString(data.suppressionReason) &&
+		isNullableNumber(data.deltaFromPreviousMean) &&
+		isNullableNumber(data.deltaFromFirstMean) &&
+		typeof data.comparisonState === 'string'
+	);
+}
+
+function isResultsInsightRow(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.kind === 'string' &&
+		typeof data.severity === 'string' &&
+		typeof data.title === 'string' &&
+		typeof data.detail === 'string'
+	);
 }

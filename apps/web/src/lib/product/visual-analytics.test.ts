@@ -44,6 +44,15 @@ describe('selected-series visual analytics view models', () => {
 		]);
 	});
 
+	it('does not render missing visible score counts as zero', () => {
+		const view = toReportVisualAnalyticsView({
+			...sampleReportProof,
+			scores: [{ ...sampleReportProof.scores[0], scoreCount: null }]
+		});
+
+		expect(view.points[0]?.meta[0]).toBe('scores not available');
+	});
+
 	it('maps visible compatible wave deltas into chart points', () => {
 		const view = toWaveVisualAnalyticsView(sampleWaveComparisonProof);
 

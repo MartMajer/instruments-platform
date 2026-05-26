@@ -4,6 +4,7 @@ public static class ExportArtifactTypes
 {
     public const string ReportProofCsvCodebook = "report_proof_csv_codebook";
     public const string CampaignSeriesResponseCsvCodebook = "campaign_series_response_csv_codebook";
+    public const string CampaignSeriesResultsMatrixCsvCodebook = "campaign_series_results_matrix_csv_codebook";
     public const string CampaignSeriesReportHtml = "campaign_series_report_html";
     public const string CampaignSeriesReportPdf = "campaign_series_report_pdf";
 
@@ -11,6 +12,7 @@ public static class ExportArtifactTypes
     {
         return value is ReportProofCsvCodebook
             or CampaignSeriesResponseCsvCodebook
+            or CampaignSeriesResultsMatrixCsvCodebook
             or CampaignSeriesReportHtml
             or CampaignSeriesReportPdf;
     }

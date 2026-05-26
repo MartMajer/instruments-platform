@@ -471,7 +471,8 @@ public sealed record CampaignSeriesReportsWorkspaceResponse(
     IReadOnlyList<CampaignSeriesReportsMissingPrerequisiteResponse> MissingPrerequisites,
     IReadOnlyList<CampaignSeriesReportsExportArtifactResponse> ExportArtifacts,
     IReadOnlyList<CampaignSeriesReportsCampaignResponse> Campaigns,
-    CampaignSeriesScoreCoverageResponse? ScoreCoverage = null);
+    CampaignSeriesScoreCoverageResponse? ScoreCoverage = null,
+    CampaignSeriesResultsAnalyticsResponse? ResultsAnalytics = null);
 
 public sealed record CampaignSeriesReportsSeriesResponse(
     Guid Id,
@@ -692,7 +693,73 @@ public sealed record VisualAnalyticsEntryWidgetDataResponse(
     Guid? SelectedCampaignId,
     int VisibleScoreCount,
     int SuppressedScoreCount,
-    int ReportableCampaignCount);
+    int ReportableCampaignCount,
+    CampaignSeriesResultsAnalyticsResponse? Analytics = null);
+
+public sealed record CampaignSeriesResultsAnalyticsResponse(
+    Guid? SelectedCampaignId,
+    string? SelectedCampaignName,
+    int DisclosureKMin,
+    string DisclosureState,
+    IReadOnlyList<CampaignSeriesResultsScoreOutputResponse> ScoreOutputs,
+    IReadOnlyList<CampaignSeriesResultsGroupMatrixRowResponse> GroupRows,
+    IReadOnlyList<CampaignSeriesResultsWaveMatrixRowResponse> WaveRows,
+    IReadOnlyList<CampaignSeriesResultsInsightResponse> Insights);
+
+public sealed record CampaignSeriesResultsScoreOutputResponse(
+    string DimensionCode,
+    string Disclosure,
+    int? SubmittedResponseCount,
+    int? ScoreCount,
+    decimal? Mean,
+    decimal? Median,
+    decimal? StandardDeviation,
+    decimal? Min,
+    decimal? Max,
+    int? NValidTotal,
+    int? NExpectedTotal,
+    string? MissingPolicyStatusSummary,
+    string? SuppressionReason);
+
+public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
+    string GroupType,
+    string GroupName,
+    string DimensionCode,
+    string Disclosure,
+    int? SubmittedResponseCount,
+    int? ScoreCount,
+    decimal? Mean,
+    decimal? Median,
+    decimal? StandardDeviation,
+    decimal? Min,
+    decimal? Max,
+    string? SuppressionReason);
+
+public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
+    Guid CampaignId,
+    string CampaignName,
+    string CampaignStatus,
+    string DataFinality,
+    DateTimeOffset? ClosedAt,
+    string DimensionCode,
+    string Disclosure,
+    int? SubmittedResponseCount,
+    int? ScoreCount,
+    decimal? Mean,
+    decimal? Median,
+    decimal? StandardDeviation,
+    decimal? Min,
+    decimal? Max,
+    string? SuppressionReason,
+    decimal? DeltaFromPreviousMean = null,
+    decimal? DeltaFromFirstMean = null,
+    string ComparisonState = "not_comparable");
+
+public sealed record CampaignSeriesResultsInsightResponse(
+    string Kind,
+    string Severity,
+    string Title,
+    string Detail);
 
 public sealed record FinalityProvenanceWidgetDataResponse(
     int PreliminaryLiveReportCount,

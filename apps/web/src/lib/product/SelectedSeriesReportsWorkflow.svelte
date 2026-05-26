@@ -74,46 +74,59 @@
 			(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
 		) ?? null
 	);
-	const latestReportExportArtifact = $derived(
+	const latestResultsMatrixExportArtifact = $derived(
+		workspace.exportArtifacts.find(
+			(artifact) => artifact.artifactType === 'campaign_series_results_matrix_csv_codebook'
+		) ?? null
+	);
+	const latestLegacyReportExportArtifact = $derived(
 		workspace.exportArtifacts.find((artifact) => artifact.artifactType === 'report_proof_csv_codebook') ??
 			null
+	);
+	const latestReportExportArtifact = $derived(
+		latestResultsMatrixExportArtifact ?? latestLegacyReportExportArtifact
 	);
 	const latestDownloadableExportArtifact = $derived(
 		workspace.exportArtifacts.find((artifact) => artifact.canDownload) ?? null
 	);
-	const latestResponseExportArtifactId = $derived(latestResponseExportArtifact?.id ?? null);
+	const preferredExportArtifact = $derived(
+		storedExportResult ??
+			responseExportResult ??
+			exportResult ??
+			latestReportExportArtifact ??
+			latestResponseExportArtifact ??
+			latestDownloadableExportArtifact ??
+			null
+	);
+	const preferredDownloadableExportArtifact = $derived(
+		(storedExportResult?.canDownload ? storedExportResult : null) ??
+			(responseExportResult?.canDownload ? responseExportResult : null) ??
+			(exportResult?.canDownload ? exportResult : null) ??
+			(latestResultsMatrixExportArtifact?.canDownload ? latestResultsMatrixExportArtifact : null) ??
+			(latestResponseExportArtifact?.canDownload ? latestResponseExportArtifact : null) ??
+			(latestLegacyReportExportArtifact?.canDownload ? latestLegacyReportExportArtifact : null) ??
+			latestDownloadableExportArtifact ??
+			null
+	);
 	const currentExportArtifactId = $derived(
-		storedExportResult?.id ??
-			responseExportResult?.id ??
-			exportResult?.id ??
-			latestResponseExportArtifactId ??
-			latestReportExportArtifact?.id ??
+		preferredExportArtifact?.id ??
 			selectedCampaign?.latestExportArtifactId ??
-			latestDownloadableExportArtifact?.id ??
 			null
 	);
 	const currentDownloadableExportArtifactId = $derived(
-		(storedExportResult?.canDownload ? storedExportResult.id : null) ??
-			(responseExportResult?.canDownload ? responseExportResult.id : null) ??
-			(exportResult?.canDownload ? exportResult.id : null) ??
-			latestDownloadableExportArtifact?.id ??
+		preferredDownloadableExportArtifact?.id ??
 			(selectedCampaign?.latestExportArtifactCanDownload
 				? selectedCampaign.latestExportArtifactId
 				: null) ??
 			null
 	);
 	const currentExportFileName = $derived(
-		storedExportResult?.fileName ??
-			responseExportResult?.fileName ??
-			exportResult?.fileName ??
-			latestResponseExportArtifact?.fileName ??
-			latestReportExportArtifact?.fileName ??
+		preferredExportArtifact?.fileName ??
 			selectedCampaign?.latestExportArtifactFileName ??
-			latestDownloadableExportArtifact?.fileName ??
 			null
 	);
 	const currentExportPurpose = $derived(
-		currentExportArtifactId === latestResponseExportArtifact?.id || responseExportResult?.id === currentExportArtifactId
+		preferredExportArtifact?.artifactType === 'campaign_series_response_csv_codebook'
 			? reportsUi.currentPurpose.responseDataset
 			: reportsUi.currentPurpose.reportSummary
 	);
@@ -195,7 +208,7 @@
 
 		const result = await runAction(
 			'exportArtifact',
-			() => setupApi.createCampaignReportProofExport(selectedCampaign.id),
+			() => setupApi.createCampaignSeriesResultsMatrixExport(workspace.series.id),
 			{ refreshAfter: true }
 		);
 
@@ -557,13 +570,13 @@
 							<dt class="record-field__label">{reportsUi.latestExport}</dt>
 							<dd class="record-field__value">
 								{exportResult?.fileName ??
-									selectedCampaign?.latestExportArtifactFileName ??
+									latestResultsMatrixExportArtifact?.fileName ??
 									reportsUi.notAvailable}
 							</dd>
 						</div>
 						<div class="record-field">
 							<dt class="record-field__label">{reportsUi.exportCount}</dt>
-							<dd class="record-field__value">{selectedCampaign?.exportArtifactCount ?? 0}</dd>
+							<dd class="record-field__value">{workspace.summary.exportArtifactCount}</dd>
 						</div>
 					</dl>
 					{#if exportResult}
@@ -579,7 +592,7 @@
 						label: reportsUi.createReportSummaryExport,
 						resultLabel: reportsUi.exportFile,
 						resultValue:
-							exportResult?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null,
+							exportResult?.fileName ?? latestResultsMatrixExportArtifact?.fileName ?? null,
 						onclick: createExportArtifact
 					})}
 				{:else if currentAction.id === 'responseExport'}
@@ -648,8 +661,8 @@
 							<dt class="record-field__label">{reportsUi.latestFile}</dt>
 							<dd class="record-field__value">
 								{downloadResult?.fileName ??
-									latestDownloadableExportArtifact?.fileName ??
-									selectedCampaign?.latestExportArtifactFileName ??
+									preferredDownloadableExportArtifact?.fileName ??
+									currentExportFileName ??
 									reportsUi.notAvailable}
 							</dd>
 						</div>
@@ -667,8 +680,8 @@
 						resultLabel: reportsUi.downloadedFile,
 						resultValue:
 							downloadResult?.fileName ??
-							latestDownloadableExportArtifact?.fileName ??
-							selectedCampaign?.latestExportArtifactFileName ??
+							preferredDownloadableExportArtifact?.fileName ??
+							currentExportFileName ??
 							null,
 						onclick: downloadCsv
 					})}

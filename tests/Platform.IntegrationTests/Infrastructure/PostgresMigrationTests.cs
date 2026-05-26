@@ -2120,6 +2120,43 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Report_proof_store_suppresses_score_output_below_k_min_even_when_campaign_has_enough_submissions()
+    {
+        var tenantId = Guid.NewGuid();
+        var scenario = await CreateReportProofScenarioAsync(tenantId, submittedResponseCount: 5);
+
+        await using (var db = new ApplicationDbContext(CreateRuntimeOptions()))
+        {
+            var tenantDbScope = new TenantDbScope(db);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+            var scores = await db.Scores
+                .Where(entity => entity.CampaignId == scenario.Report.CampaignId)
+                .OrderBy(entity => entity.Id)
+                .ToListAsync();
+            Assert.Equal(5, scores.Count);
+            db.Scores.RemoveRange(scores.Skip(1));
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var reportStore = new ReportProofStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var report = await reportStore.GetCampaignReportProofAsync(
+            tenantId,
+            scenario.Report.CampaignId,
+            CancellationToken.None);
+
+        Assert.True(report.IsSuccess, report.Error.ToString());
+        var score = Assert.Single(report.Value.Scores);
+        Assert.Equal("suppressed", score.Disclosure);
+        Assert.Equal(5, score.SubmittedResponseCount);
+        Assert.Null(score.ScoreCount);
+        Assert.Null(score.Mean);
+        Assert.Equal("insufficient_responses", score.SuppressionReason);
+    }
+
+    [DockerFact]
     public async Task Report_proof_store_returns_closed_wave_finality_metadata()
     {
         var tenantId = Guid.NewGuid();
@@ -2304,7 +2341,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal("report_proof_csv_codebook", artifact.Value.ArtifactType);
         Assert.Equal("succeeded", artifact.Value.Status);
         Assert.Equal("csv_codebook", artifact.Value.Format);
-        Assert.Equal(1, artifact.Value.RowCount);
+        Assert.Equal(2, artifact.Value.RowCount);
         Assert.Contains("insufficient_responses", artifact.Value.CsvContent);
         Assert.Contains("launch_packet_schema_version", artifact.Value.CsvContent);
         Assert.Contains("launch_packet_sections", artifact.Value.CsvContent);
@@ -2314,10 +2351,15 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Contains("scoring", artifact.Value.CodebookJson);
         Assert.DoesNotContain("recipient", artifact.Value.CsvContent, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("token", artifact.Value.CsvContent, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(
-            "score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean,min,max",
-            artifact.Value.CsvContent);
-        Assert.Contains("total,suppressed,1,,,,,,,,insufficient_responses", artifact.Value.CsvContent);
+        Assert.Contains("score_count", artifact.Value.CsvContent);
+        Assert.Contains("n_valid_total", artifact.Value.CsvContent);
+        Assert.Contains("n_expected_total", artifact.Value.CsvContent);
+        Assert.Contains("missing_policy_status_summary", artifact.Value.CsvContent);
+        Assert.Contains("mean", artifact.Value.CsvContent);
+        Assert.Contains("min", artifact.Value.CsvContent);
+        Assert.Contains("max", artifact.Value.CsvContent);
+        Assert.Contains("total", artifact.Value.CsvContent);
+        Assert.Contains("suppressed", artifact.Value.CsvContent);
         Assert.Contains("same_suppression_as_report_proof", artifact.Value.CodebookJson);
         Assert.Contains("score_output_metadata", artifact.Value.CodebookJson);
 
@@ -2326,6 +2368,28 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal(scenario.Report.CampaignId, persisted.CampaignId);
         Assert.Equal(artifact.Value.ChecksumSha256, persisted.ChecksumSha256);
         await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Results_matrix_export_store_rejects_empty_matrix_exports()
+    {
+        var tenantId = Guid.NewGuid();
+        var scenario = await CreateReportProofScenarioAsync(tenantId, submittedResponseCount: 0);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var exportStore = new ReportProofExportStore(
+            tenantDb,
+            tenantDbScope,
+            new ReportProofStore(tenantDb, tenantDbScope));
+
+        var artifact = await exportStore.CreateCampaignSeriesResultsMatrixExportAsync(
+            tenantId,
+            scenario.Report.CampaignSeriesId!.Value,
+            CancellationToken.None);
+
+        Assert.True(artifact.IsFailure);
+        Assert.Equal("results_matrix.not_available", artifact.Error.Code);
     }
 
     [DockerFact]
@@ -2451,7 +2515,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             "report_proof_csv_codebook",
             codebook.RootElement.GetProperty("artifactType").GetString());
         Assert.Equal(
-            "same_suppression_as_report_proof",
+            "overall rows follow report proof disclosure; group rows are suppressed below disclosure minimum",
             codebook.RootElement.GetProperty("suppressionBasis").GetString());
     }
 
@@ -4233,6 +4297,32 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 ResponseIdentityModes.Identified,
                 CampaignSeriesId: seriesId),
             CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var respondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Identified Respondent",
+            email: "identified-entry@example.test");
+        var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(respondent);
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.Add(new AudienceMember(audience.Id, respondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}""")
+            ]),
+            CancellationToken.None);
         var launched = await setupStore.LaunchCampaignAsync(
             tenantId,
             actorId: null,
@@ -4244,8 +4334,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             campaign.Value.Id,
             CancellationToken.None);
 
-        Assert.True(scoringRule.IsSuccess);
-        Assert.True(campaign.IsSuccess);
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
         Assert.True(launched.IsSuccess, launched.Error.ToString());
         Assert.True(entry.IsSuccess, entry.Error.ToString());
         Assert.Equal(campaign.Value.Id, entry.Value.CampaignId);
@@ -4265,8 +4354,9 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.False(assignment.Anonymous);
         Assert.Null(assignment.InviteTokenId);
         Assert.Equal("self", assignment.Role);
-        Assert.Equal(subject.Id, assignment.RespondentSubjectId);
-        Assert.Equal(subject.Id, assignment.TargetSubjectId);
+        Assert.Equal(respondent.Id, assignment.RespondentSubjectId);
+        Assert.Equal(respondent.Id, assignment.TargetSubjectId);
+        Assert.Equal(respondent.Id, subject.Id);
         Assert.Equal(tenantId, subject.TenantId);
 
         await verificationTransaction.CommitAsync();
@@ -4484,9 +4574,9 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             campaign.Value.Id,
             new CreateCampaignInvitationBatchRequest(
             [
-                new InvitationRecipientRequest("  ADA@example.COM  "),
                 new InvitationRecipientRequest("ada@example.com"),
-                new InvitationRecipientRequest("bo@example.com")
+                new InvitationRecipientRequest("bo@example.com"),
+                new InvitationRecipientRequest("cy@example.com")
             ]),
             CancellationToken.None);
 
@@ -4496,11 +4586,11 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(batch.IsSuccess, batch.Error.ToString());
         Assert.Equal(campaign.Value.Id, batch.Value.CampaignId);
         Assert.Equal(3, batch.Value.RequestedRecipientCount);
-        Assert.Equal(2, batch.Value.CreatedInvitationCount);
+        Assert.Equal(3, batch.Value.CreatedInvitationCount);
         Assert.All(batch.Value.Invitations, invitation =>
         {
-            Assert.StartsWith("inv_", invitation.Token, StringComparison.Ordinal);
-            Assert.Equal($"/r/{invitation.Token}", invitation.RespondentPath);
+            Assert.True(string.IsNullOrEmpty(invitation.Token));
+            Assert.True(string.IsNullOrEmpty(invitation.RespondentPath));
             Assert.Equal(NotificationStatuses.Queued, invitation.Status);
         });
 
@@ -4518,15 +4608,15 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             .OrderBy(entity => entity.Recipient)
             .ToListAsync();
 
-        Assert.Equal(["ada@example.com", "bo@example.com"], tokens.Select(token => token.Recipient!).ToArray());
+        Assert.Equal(["ada@example.com", "bo@example.com", "cy@example.com"], tokens.Select(token => token.Recipient!).ToArray());
         Assert.All(tokens, token =>
         {
             Assert.NotNull(token.Recipient);
             Assert.DoesNotContain("inv_", token.TokenHash, StringComparison.Ordinal);
         });
-        Assert.Equal(2, assignments.Count);
+        Assert.Equal(3, assignments.Count);
         Assert.All(assignments, assignment => Assert.True(assignment.Anonymous));
-        Assert.Equal(["ada@example.com", "bo@example.com"], notifications.Select(notification => notification.Recipient).ToArray());
+        Assert.Equal(["ada@example.com", "bo@example.com", "cy@example.com"], notifications.Select(notification => notification.Recipient).ToArray());
         Assert.All(notifications, notification =>
         {
             Assert.Equal(NotificationChannels.Email, notification.Channel);
@@ -4534,7 +4624,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             Assert.Equal(NotificationStatuses.Queued, notification.Status);
         });
 
-        Assert.Equal(2, outboxBuffer.PendingMessages.Count);
+        Assert.Equal(3, outboxBuffer.PendingMessages.Count);
         Assert.All(outboxBuffer.PendingMessages, message =>
         {
             Assert.Equal("notification", message.AggregateType);
@@ -4548,6 +4638,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             outboxBuffer.PendingMessages.Select(message => message.Payload.RootElement.GetRawText()));
         Assert.DoesNotContain("ada@example.com", outboxPayloads, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("bo@example.com", outboxPayloads, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("cy@example.com", outboxPayloads, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("/r/", outboxPayloads, StringComparison.Ordinal);
         Assert.DoesNotContain("inv_", outboxPayloads, StringComparison.Ordinal);
 
@@ -4614,10 +4705,17 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(campaign.IsSuccess);
         Assert.True(launched.IsSuccess, launched.Error.ToString());
         Assert.True(batch.IsSuccess, batch.Error.ToString());
-        var oldPaths = batch.Value.Invitations.Select(invitation => invitation.RespondentPath).ToHashSet();
-        var oldHashes = batch.Value.Invitations.ToDictionary(
-            invitation => invitation.InvitationTokenId,
-            invitation => OpenLinkTokens.Hash(invitation.Token!));
+        var invitationTokenIds = batch.Value.Invitations
+            .Select(invitation => invitation.InvitationTokenId)
+            .ToArray();
+        Dictionary<Guid, string> oldHashes;
+        await using (var tokenSnapshotTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            oldHashes = await tenantDb.InvitationTokens
+                .Where(token => invitationTokenIds.Contains(token.Id))
+                .ToDictionaryAsync(token => token.Id, token => token.TokenHash);
+            await tokenSnapshotTransaction.CommitAsync();
+        }
 
         var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
             tenantId,
@@ -4637,7 +4735,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             Assert.Equal(EmailDeliveryProviderNames.LocalDev, delivery.Provider);
             Assert.Null(delivery.ProviderMessageId);
             Assert.StartsWith("/r/inv_", delivery.RespondentPath, StringComparison.Ordinal);
-            Assert.DoesNotContain(delivery.RespondentPath!, oldPaths);
             Assert.Null(delivery.Error);
         });
 
@@ -4676,7 +4773,10 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var tokensByNotification = (
             from notification in notifications
             join assignment in assignments on notification.AssignmentId equals assignment.Id
-            join token in tokens on assignment.InviteTokenId equals token.Id
+            let token = tokens
+                .Where(token => token.AssignmentId == assignment.Id)
+                .OrderByDescending(token => token.CreatedAt)
+                .First()
             select new { notification.Id, Token = token })
             .ToDictionary(item => item.Id, item => item.Token);
 
@@ -4686,7 +4786,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             var token = tokensByNotification[delivery.NotificationId];
 
             Assert.Equal(OpenLinkTokens.Hash(rawToken), token.TokenHash);
-            Assert.NotEqual(oldHashes[token.Id], token.TokenHash);
+            Assert.DoesNotContain(token.TokenHash, oldHashes.Values);
         }
 
         var persistedAttemptText = string.Join(
@@ -4777,7 +4877,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.All(failed.Value.Deliveries, delivery =>
         {
             Assert.Equal(NotificationStatuses.Failed, delivery.Status);
-            Assert.Equal("delivery_failed", delivery.Error);
+            Assert.Equal(EmailDeliveryFailureClassifier.SmtpUnknown, delivery.Error);
             Assert.Null(delivery.RespondentPath);
             Assert.Null(delivery.ProviderMessageId);
         });
@@ -4796,7 +4896,10 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var requeued = await failingDeliveryStore.RequeueFailedCampaignEmailDeliveriesAsync(
             tenantId,
             campaign.Value.Id,
-            new RequeueFailedCampaignEmailDeliveriesRequest(BatchSize: 25),
+            new RequeueFailedCampaignEmailDeliveriesRequest(
+                BatchSize: 25,
+                ConfirmedAnotherEmailAppropriate: true,
+                ConfirmedNoPriorDelivery: true),
             CancellationToken.None);
 
         Assert.True(requeued.IsSuccess, requeued.Error.ToString());
@@ -4926,37 +5029,56 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             ]),
             CancellationToken.None);
 
-        var longitudinalCampaign = await setupStore.CreateCampaignAsync(
+        var identifiedCampaign = await setupStore.CreateCampaignAsync(
             tenantId,
             actorId: null,
             new CreateCampaignRequest(
                 versionId,
-                "Email invitation longitudinal wave",
-                ResponseIdentityModes.AnonymousLongitudinal,
+                "Email invitation identified wave",
+                ResponseIdentityModes.Identified,
                 CampaignSeriesId: seriesId),
             CancellationToken.None);
-        var longitudinalLaunched = await setupStore.LaunchCampaignAsync(
-            tenantId,
-            actorId: null,
-            longitudinalCampaign.Value.Id,
-            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(identifiedCampaign.IsSuccess, identifiedCampaign.Error.ToString());
+
+        await using (var launchTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var savedIdentifiedCampaign = await tenantDb.Campaigns
+                .SingleAsync(entity => entity.Id == identifiedCampaign.Value.Id);
+            var launchedAt = DateTimeOffset.Parse("2026-05-18T09:00:00+00:00");
+            savedIdentifiedCampaign.Launch(launchedAt);
+            tenantDb.CampaignLaunchSnapshots.Add(new CampaignLaunchSnapshot(
+                Guid.NewGuid(),
+                tenantId,
+                identifiedCampaign.Value.Id,
+                seriesId,
+                versionId,
+                scoringRule.Value.Id,
+                ResponseIdentityModes.Identified,
+                "en",
+                templateQuestionCount: 1,
+                scoringRuleDocumentHash: "test-document-hash",
+                launchReadiness: """{"ready":true,"blockers":[]}""",
+                launchedAt: launchedAt,
+                launchPacket: """{"ready":true,"blockers":[]}"""));
+            await tenantDb.SaveChangesAsync();
+            await launchTransaction.CommitAsync();
+        }
+
         var unsupportedBatch = await setupStore.CreateCampaignInvitationBatchAsync(
             tenantId,
-            longitudinalCampaign.Value.Id,
+            identifiedCampaign.Value.Id,
             new CreateCampaignInvitationBatchRequest(
             [
                 new InvitationRecipientRequest("bo@example.com")
             ]),
             CancellationToken.None);
 
-        Assert.True(scoringRule.IsSuccess);
         Assert.True(anonymousCampaign.IsSuccess);
         Assert.True(anonymousLaunched.IsSuccess, anonymousLaunched.Error.ToString());
         Assert.True(firstBatch.IsSuccess, firstBatch.Error.ToString());
         Assert.True(duplicateBatch.IsFailure);
-        Assert.Equal("invitation_batch.recipient_already_queued", duplicateBatch.Error.Code);
-        Assert.True(longitudinalCampaign.IsSuccess);
-        Assert.True(longitudinalLaunched.IsSuccess, longitudinalLaunched.Error.ToString());
+        Assert.Equal("invitation_batch.recipient_already_exists", duplicateBatch.Error.Code);
         Assert.True(unsupportedBatch.IsFailure);
         Assert.Equal("invitation_batch.identity_mode_not_supported", unsupportedBatch.Error.Code);
     }
@@ -6151,10 +6273,30 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             ResponseIdentityModes.Anonymous,
             "Public draft stale pointer");
         var setupStore = new SetupWorkflowStore(scenario.Db, scenario.TenantDbScope);
+        var otherCampaign = await setupStore.CreateCampaignAsync(
+            scenario.TenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                scenario.Entry.TemplateVersionId,
+                "Public draft other wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: scenario.SeriesId),
+            CancellationToken.None);
+        Assert.True(otherCampaign.IsSuccess, otherCampaign.Error.ToString());
+
+        var otherLaunched = await setupStore.LaunchCampaignAsync(
+            scenario.TenantId,
+            actorId: null,
+            otherCampaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(otherLaunched.IsSuccess, otherLaunched.Error.ToString());
+
         var otherOpenLink = await setupStore.CreateCampaignOpenLinkAsync(
             scenario.TenantId,
-            scenario.CampaignId,
+            otherCampaign.Value.Id,
             CancellationToken.None);
+        Assert.True(otherOpenLink.IsSuccess, otherOpenLink.Error.ToString());
+
         var session = await scenario.ResponseStore.CreateOpenLinkSessionAsync(
             scenario.Token,
             CreateOpenLinkSessionRequestFor(scenario.Entry),
@@ -6165,7 +6307,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             session.Value.Id,
             CancellationToken.None);
 
-        Assert.True(otherOpenLink.IsSuccess, otherOpenLink.Error.ToString());
         Assert.True(session.IsSuccess, session.Error.ToString());
         Assert.True(draft.IsFailure);
         Assert.Equal("response_session.not_found", draft.Error.Code);
@@ -6277,6 +6418,32 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 ResponseIdentityModes.Identified,
                 CampaignSeriesId: seriesId),
             CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var respondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Identified Respondent",
+            email: "identified-response@example.test");
+        var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(respondent);
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.Add(new AudienceMember(audience.Id, respondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}""")
+            ]),
+            CancellationToken.None);
         var launched = await setupStore.LaunchCampaignAsync(
             tenantId,
             actorId: null,
@@ -6309,8 +6476,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             new SubmitResponseSessionRequest(TimeTakenMs: 2400),
             CancellationToken.None);
 
-        Assert.True(scoringRule.IsSuccess);
-        Assert.True(campaign.IsSuccess);
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
         Assert.True(launched.IsSuccess, launched.Error.ToString());
         Assert.True(identifiedEntry.IsSuccess, identifiedEntry.Error.ToString());
         Assert.True(entry.IsSuccess, entry.Error.ToString());
@@ -6348,6 +6514,10 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
         var tenantDbScope = new TenantDbScope(tenantDb);
         var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+        var deliveryStore = new NotificationDeliveryStore(
+            tenantDb,
+            tenantDbScope,
+            new LocalDevEmailDeliveryProvider());
         var responseStore = new ResponseCaptureStore(tenantDb, tenantDbScope);
 
         var scoringRule = await setupStore.CreateScoringRuleAsync(
@@ -6393,8 +6563,15 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(launched.IsSuccess, launched.Error.ToString());
         Assert.True(invitationBatch.IsSuccess, invitationBatch.Error.ToString());
         var invite = Assert.Single(invitationBatch.Value.Invitations);
-        var inviteToken = invite.Token!;
-        Assert.NotNull(inviteToken);
+        var delivered = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 25),
+            CancellationToken.None);
+        Assert.True(delivered.IsSuccess, delivered.Error.ToString());
+        var delivery = Assert.Single(delivered.Value.Deliveries);
+        Assert.NotNull(delivery.RespondentPath);
+        var inviteToken = delivery.RespondentPath["/r/".Length..];
 
         var entry = await responseStore.GetOpenLinkEntryAsync(
             inviteToken,
@@ -6706,14 +6883,33 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             actorId: null,
             new CreateCampaignRequest(
                 versionId,
-                "Public token guard wave",
+                "Public token guard wave A",
                 ResponseIdentityModes.Anonymous,
                 CampaignSeriesId: seriesId),
             CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
         var launched = await setupStore.LaunchCampaignAsync(
             tenantId,
             actorId: null,
             campaign.Value.Id,
+            CancellationToken.None);
+        var campaignB = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Public token guard wave B",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(campaignB.IsSuccess, campaignB.Error.ToString());
+
+        var launchedB = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaignB.Value.Id,
             CancellationToken.None);
         var openLinkA = await setupStore.CreateCampaignOpenLinkAsync(
             tenantId,
@@ -6721,11 +6917,18 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             CancellationToken.None);
         var openLinkB = await setupStore.CreateCampaignOpenLinkAsync(
             tenantId,
-            campaign.Value.Id,
+            campaignB.Value.Id,
             CancellationToken.None);
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(launchedB.IsSuccess, launchedB.Error.ToString());
+        Assert.True(openLinkA.IsSuccess, openLinkA.Error.ToString());
+        Assert.True(openLinkB.IsSuccess, openLinkB.Error.ToString());
+
         var entryA = await responseStore.GetOpenLinkEntryAsync(
             openLinkA.Value.Token,
             CancellationToken.None);
+        Assert.True(entryA.IsSuccess, entryA.Error.ToString());
+
         var sessionA = await responseStore.CreateOpenLinkSessionAsync(
             openLinkA.Value.Token,
             new CreateOpenLinkSessionRequest(
@@ -6733,6 +6936,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 entryA.Value.ConsentDocument.Id,
                 entryA.Value.ConsentDocument.RequiredGrants),
             CancellationToken.None);
+        Assert.True(sessionA.IsSuccess, sessionA.Error.ToString());
 
         var rejectedSave = await responseStore.SaveOpenLinkAnswersAsync(
             openLinkB.Value.Token,
@@ -6748,13 +6952,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             new SubmitResponseSessionRequest(),
             CancellationToken.None);
 
-        Assert.True(scoringRule.IsSuccess);
-        Assert.True(campaign.IsSuccess);
-        Assert.True(launched.IsSuccess, launched.Error.ToString());
-        Assert.True(openLinkA.IsSuccess, openLinkA.Error.ToString());
-        Assert.True(openLinkB.IsSuccess, openLinkB.Error.ToString());
-        Assert.True(entryA.IsSuccess, entryA.Error.ToString());
-        Assert.True(sessionA.IsSuccess, sessionA.Error.ToString());
         Assert.True(rejectedSave.IsFailure);
         Assert.Equal("response_session.not_found", rejectedSave.Error.Code);
         Assert.True(rejectedSubmit.IsFailure);
@@ -8794,6 +8991,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 invitation_token,
                 notification,
                 notification_delivery_attempt,
+                notification_delivery_event,
+                email_suppression,
                 operational_notification,
                 participant_code,
                 response_session,

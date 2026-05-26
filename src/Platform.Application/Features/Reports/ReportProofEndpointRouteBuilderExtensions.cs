@@ -31,6 +31,12 @@ public static class ReportProofEndpointRouteBuilderExtensions
             .WithName("CreateCampaignSeriesResponseExport")
             .WithTags("Reports");
 
+        app.MapPost("/campaign-series/{campaignSeriesId:guid}/results-matrix-exports", CreateCampaignSeriesResultsMatrixExport)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("CreateCampaignSeriesResultsMatrixExport")
+            .WithTags("Reports");
+
         app.MapPost("/campaign-series/{campaignSeriesId:guid}/report-html-artifacts", CreateCampaignSeriesReportHtmlArtifact)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -157,6 +163,18 @@ public static class ReportProofEndpointRouteBuilderExtensions
     {
         var result = await sender.Send(
             new CreateCampaignSeriesResponseExportCommand(campaignSeriesId),
+            cancellationToken);
+
+        return ReportProofHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CreateCampaignSeriesResultsMatrixExport(
+        Guid campaignSeriesId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new CreateCampaignSeriesResultsMatrixExportCommand(campaignSeriesId),
             cancellationToken);
 
         return ReportProofHttpResults.ToOk(result);

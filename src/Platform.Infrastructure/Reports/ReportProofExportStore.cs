@@ -71,6 +71,13 @@ public sealed class ReportProofExportStore(
         "disclosure_policy_version",
         "disclosure_k_min",
         "suppression_strategy",
+        "result_scope",
+        "result_scope_label",
+        "group_type",
+        "result_scope_campaign_id",
+        "result_scope_campaign_status",
+        "result_scope_data_finality",
+        "result_scope_closed_at",
         "dimension_code",
         "disclosure",
         "submitted_response_count",
@@ -79,8 +86,13 @@ public sealed class ReportProofExportStore(
         "n_expected_total",
         "missing_policy_status_summary",
         "mean",
+        "median",
+        "standard_deviation",
         "min",
         "max",
+        "delta_from_previous_mean",
+        "delta_from_first_mean",
+        "comparison_state",
         "suppression_reason",
         "interpretation_band_code",
         "interpretation_label",
@@ -89,6 +101,38 @@ public sealed class ReportProofExportStore(
         "interpretation_provenance",
         "interpretation_validated",
         "interpretation_official"
+    ];
+
+    private static readonly string[] ResultsMatrixCsvColumns =
+    [
+        "result_scope",
+        "result_scope_label",
+        "campaign_series_id",
+        "selected_campaign_id",
+        "selected_campaign_name",
+        "campaign_id",
+        "campaign_name",
+        "campaign_status",
+        "campaign_data_finality",
+        "campaign_closed_at",
+        "group_type",
+        "group_name",
+        "dimension_code",
+        "disclosure",
+        "submitted_response_count",
+        "score_count",
+        "n_valid_total",
+        "n_expected_total",
+        "missing_policy_status_summary",
+        "mean",
+        "median",
+        "standard_deviation",
+        "min",
+        "max",
+        "delta_from_previous_mean",
+        "delta_from_first_mean",
+        "comparison_state",
+        "suppression_reason"
     ];
 
     private static readonly string[] ResponseExportBaseColumns =
@@ -164,12 +208,18 @@ public sealed class ReportProofExportStore(
             return Result.Failure<ReportProofExportArtifactResponse>(report.Error);
         }
 
+        var analytics = await LoadReportSummaryAnalyticsAsync(
+            tenantId,
+            report.Value.CampaignSeriesId,
+            campaignId,
+            cancellationToken);
         var generatedAt = DateTimeOffset.UtcNow;
-        var csvContent = BuildCsv(report.Value);
+        var csvContent = BuildCsv(report.Value, analytics);
         var csvBytes = Encoding.UTF8.GetBytes(csvContent);
+        var rowCount = CountReportSummaryRows(report.Value, analytics);
         var checksum = Convert.ToHexString(SHA256.HashData(csvBytes)).ToLowerInvariant();
-        var codebookJson = BuildCodebookJson(report.Value, generatedAt, csvBytes.Length, checksum);
-        var metadataJson = BuildMetadataJson(report.Value, generatedAt, csvBytes.Length, checksum);
+        var codebookJson = BuildCodebookJson(report.Value, generatedAt, csvBytes.Length, checksum, rowCount);
+        var metadataJson = BuildMetadataJson(report.Value, generatedAt, csvBytes.Length, checksum, rowCount);
         var artifact = new ExportArtifact(
             PlatformIds.NewId(),
             tenantId,
@@ -181,7 +231,7 @@ public sealed class ReportProofExportStore(
             ExportArtifactFormats.CsvCodebook,
             $"campaign-{report.Value.CampaignId}-report-proof.csv",
             "text/csv",
-            report.Value.Scores.Count,
+            rowCount,
             csvBytes.Length,
             checksum,
             metadataJson,
@@ -207,6 +257,14 @@ public sealed class ReportProofExportStore(
         CancellationToken cancellationToken)
     {
         return CreateCampaignSeriesResponseExportCoreAsync(tenantId, campaignSeriesId, cancellationToken);
+    }
+
+    public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResultsMatrixExportAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        CancellationToken cancellationToken)
+    {
+        return CreateCampaignSeriesResultsMatrixExportCoreAsync(tenantId, campaignSeriesId, cancellationToken);
     }
 
     public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesReportHtmlArtifactAsync(
@@ -375,6 +433,82 @@ public sealed class ReportProofExportStore(
             artifact.ChecksumSha256,
             signedUrl.Value.Url,
             signedUrl.Value.ExpiresAt));
+    }
+
+    private async Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResultsMatrixExportCoreAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        CancellationToken cancellationToken)
+    {
+        var workspace = await _productSurfaceReadStore.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            campaignSeriesId,
+            cancellationToken);
+
+        if (workspace.IsFailure)
+        {
+            return Result.Failure<ReportProofExportArtifactResponse>(workspace.Error);
+        }
+
+        var analytics = workspace.Value.ResultsAnalytics;
+        if (analytics is null)
+        {
+            return Result.Failure<ReportProofExportArtifactResponse>(ResultsMatrixNotAvailable());
+        }
+
+        var rowCount = CountResultsMatrixRows(analytics);
+        if (rowCount == 0)
+        {
+            return Result.Failure<ReportProofExportArtifactResponse>(ResultsMatrixNotAvailable());
+        }
+
+        var generatedAt = DateTimeOffset.UtcNow;
+        var csvContent = BuildResultsMatrixCsv(workspace.Value, analytics);
+        var csvBytes = Encoding.UTF8.GetBytes(csvContent);
+        var checksum = Convert.ToHexString(SHA256.HashData(csvBytes)).ToLowerInvariant();
+        var codebookJson = BuildResultsMatrixCodebookJson(
+            workspace.Value,
+            analytics,
+            generatedAt,
+            csvBytes.Length,
+            checksum,
+            rowCount);
+        var metadataJson = BuildResultsMatrixMetadataJson(
+            workspace.Value,
+            analytics,
+            generatedAt,
+            csvBytes.Length,
+            checksum,
+            rowCount);
+        var artifact = new ExportArtifact(
+            PlatformIds.NewId(),
+            tenantId,
+            ExportArtifactTargetKinds.CampaignSeries,
+            campaignId: null,
+            campaignSeriesId: workspace.Value.Series.Id,
+            artifactType: ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+            status: ExportArtifactStatuses.Succeeded,
+            format: ExportArtifactFormats.CsvCodebook,
+            fileName: $"campaign-series-{workspace.Value.Series.Id}-results-matrix.csv",
+            contentType: "text/csv",
+            rowCount: rowCount,
+            byteSize: csvBytes.Length,
+            checksumSha256: checksum,
+            metadataJson: metadataJson,
+            content: csvContent,
+            codebookJson: codebookJson,
+            createdAt: generatedAt,
+            completedAt: generatedAt);
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        db.ExportArtifacts.Add(artifact);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToResponse(artifact));
     }
 
     private async Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesReportHtmlArtifactCoreAsync(
@@ -984,7 +1118,43 @@ public sealed class ReportProofExportStore(
             })));
     }
 
-    private static string BuildCsv(CampaignReportProofResponse report)
+    private async Task<CampaignSeriesResultsAnalyticsResponse?> LoadReportSummaryAnalyticsAsync(
+        Guid tenantId,
+        Guid? campaignSeriesId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        if (!campaignSeriesId.HasValue)
+        {
+            return null;
+        }
+
+        var workspace = await _productSurfaceReadStore.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            campaignSeriesId.Value,
+            cancellationToken);
+
+        if (workspace.IsFailure)
+        {
+            return null;
+        }
+
+        var analytics = workspace.Value.ResultsAnalytics;
+        return analytics?.SelectedCampaignId == campaignId ? analytics : null;
+    }
+
+    private static int CountReportSummaryRows(
+        CampaignReportProofResponse report,
+        CampaignSeriesResultsAnalyticsResponse? analytics)
+    {
+        return report.Scores.Count +
+            (analytics?.GroupRows.Count ?? 0) +
+            (analytics?.WaveRows.Count ?? 0);
+    }
+
+    private static string BuildCsv(
+        CampaignReportProofResponse report,
+        CampaignSeriesResultsAnalyticsResponse? analytics = null)
     {
         var builder = new StringBuilder();
         builder.AppendJoin(',', CsvColumns);
@@ -992,53 +1162,189 @@ public sealed class ReportProofExportStore(
 
         foreach (var score in report.Scores)
         {
-            builder.AppendJoin(
-                ',',
-                Escape(report.CampaignId.ToString()),
-                Escape(report.CampaignSeriesId?.ToString()),
-                Escape(report.CampaignName),
-                Escape(report.CampaignStatus),
-                Escape(report.ClosedAt?.ToString("O", CultureInfo.InvariantCulture)),
-                Escape(report.DataFinality),
-                Escape(report.ProofStatus),
-                Escape(report.InterpretationStatus),
-                Escape(report.LaunchSnapshot.Id.ToString()),
-                report.LaunchSnapshot.LaunchPacket.SchemaVersion.ToString(CultureInfo.InvariantCulture),
-                Escape(LaunchPacketProvenanceProjection.FormatSections(report.LaunchSnapshot.LaunchPacket)),
-                Escape(report.LaunchSnapshot.LaunchPacket.Source),
-                Escape(report.LaunchSnapshot.TemplateVersionId.ToString()),
-                Escape(report.LaunchSnapshot.ScoringRuleId.ToString()),
-                Escape(report.LaunchSnapshot.ScoringRuleDocumentHash),
-                Escape(report.LaunchSnapshot.ConsentDocumentId?.ToString()),
-                Escape(report.LaunchSnapshot.RetentionPolicyId?.ToString()),
-                Escape(report.LaunchSnapshot.DisclosurePolicyId?.ToString()),
-                Escape(report.LaunchSnapshot.ResponseIdentityMode),
-                Escape(report.LaunchSnapshot.LaunchedAt.ToString("O", CultureInfo.InvariantCulture)),
-                Escape(report.DisclosurePolicy.Version),
-                report.DisclosurePolicy.KMin.ToString(CultureInfo.InvariantCulture),
-                Escape(report.DisclosurePolicy.SuppressionStrategy),
-                Escape(score.DimensionCode),
-                Escape(score.Disclosure),
-                score.SubmittedResponseCount.ToString(CultureInfo.InvariantCulture),
-                FormatNullableInt(score.ScoreCount),
-                FormatNullableInt(score.NValidTotal),
-                FormatNullableInt(score.NExpectedTotal),
-                Escape(score.MissingPolicyStatusSummary),
-                FormatNullableDecimal(score.Mean),
-                FormatNullableDecimal(score.Min),
-                FormatNullableDecimal(score.Max),
-                Escape(score.SuppressionReason),
-                Escape(score.Interpretation?.BandCode),
-                Escape(score.Interpretation?.Label),
-                Escape(score.Interpretation?.Status),
-                Escape(score.Interpretation?.Source),
-                Escape(score.Interpretation?.Provenance),
-                FormatNullableBoolean(score.Interpretation?.IsValidated),
-                FormatNullableBoolean(score.Interpretation?.IsOfficial));
-            builder.Append("\r\n");
+            AppendReportSummaryCsvRow(
+                builder,
+                report,
+                "overall",
+                report.CampaignName,
+                groupType: null,
+                report.CampaignId,
+                report.CampaignStatus,
+                report.DataFinality,
+                report.ClosedAt,
+                score.DimensionCode,
+                score.Disclosure,
+                score.SubmittedResponseCount,
+                score.ScoreCount,
+                score.NValidTotal,
+                score.NExpectedTotal,
+                score.MissingPolicyStatusSummary,
+                score.Mean,
+                score.Median,
+                score.StandardDeviation,
+                score.Min,
+                score.Max,
+                deltaFromPreviousMean: null,
+                deltaFromFirstMean: null,
+                comparisonState: "selected_scope",
+                score.SuppressionReason,
+                score.Interpretation);
+        }
+
+        if (analytics is not null)
+        {
+            foreach (var groupRow in analytics.GroupRows)
+            {
+                AppendReportSummaryCsvRow(
+                    builder,
+                    report,
+                    "group",
+                    groupRow.GroupName,
+                    groupRow.GroupType,
+                    report.CampaignId,
+                    report.CampaignStatus,
+                    report.DataFinality,
+                    report.ClosedAt,
+                    groupRow.DimensionCode,
+                    groupRow.Disclosure,
+                    groupRow.SubmittedResponseCount,
+                    groupRow.ScoreCount,
+                    nValidTotal: null,
+                    nExpectedTotal: null,
+                    missingPolicyStatusSummary: null,
+                    groupRow.Mean,
+                    groupRow.Median,
+                    groupRow.StandardDeviation,
+                    groupRow.Min,
+                    groupRow.Max,
+                    deltaFromPreviousMean: null,
+                    deltaFromFirstMean: null,
+                    comparisonState: "selected_scope",
+                    groupRow.SuppressionReason,
+                    interpretation: null);
+            }
+
+            foreach (var waveRow in analytics.WaveRows)
+            {
+                AppendReportSummaryCsvRow(
+                    builder,
+                    report,
+                    "wave",
+                    waveRow.CampaignName,
+                    groupType: null,
+                    waveRow.CampaignId,
+                    waveRow.CampaignStatus,
+                    waveRow.DataFinality,
+                    waveRow.ClosedAt,
+                    waveRow.DimensionCode,
+                    waveRow.Disclosure,
+                    waveRow.SubmittedResponseCount,
+                    waveRow.ScoreCount,
+                    nValidTotal: null,
+                    nExpectedTotal: null,
+                    missingPolicyStatusSummary: null,
+                    waveRow.Mean,
+                    waveRow.Median,
+                    waveRow.StandardDeviation,
+                    waveRow.Min,
+                    waveRow.Max,
+                    waveRow.DeltaFromPreviousMean,
+                    waveRow.DeltaFromFirstMean,
+                    waveRow.ComparisonState,
+                    waveRow.SuppressionReason,
+                    interpretation: null);
+            }
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendReportSummaryCsvRow(
+        StringBuilder builder,
+        CampaignReportProofResponse report,
+        string resultScope,
+        string resultScopeLabel,
+        string? groupType,
+        Guid resultScopeCampaignId,
+        string resultScopeCampaignStatus,
+        string resultScopeDataFinality,
+        DateTimeOffset? resultScopeClosedAt,
+        string dimensionCode,
+        string disclosure,
+        int? submittedResponseCount,
+        int? scoreCount,
+        int? nValidTotal,
+        int? nExpectedTotal,
+        string? missingPolicyStatusSummary,
+        decimal? mean,
+        decimal? median,
+        decimal? standardDeviation,
+        decimal? min,
+        decimal? max,
+        decimal? deltaFromPreviousMean,
+        decimal? deltaFromFirstMean,
+        string? comparisonState,
+        string? suppressionReason,
+        ScoreInterpretationResponse? interpretation)
+    {
+        var resultScopeSuppressed = ResultScopeSuppressed(disclosure);
+
+        builder.AppendJoin(
+            ',',
+            Escape(report.CampaignId.ToString()),
+            Escape(report.CampaignSeriesId?.ToString()),
+            Escape(report.CampaignName),
+            Escape(report.CampaignStatus),
+            Escape(report.ClosedAt?.ToString("O", CultureInfo.InvariantCulture)),
+            Escape(report.DataFinality),
+            Escape(report.ProofStatus),
+            Escape(report.InterpretationStatus),
+            Escape(report.LaunchSnapshot.Id.ToString()),
+            report.LaunchSnapshot.LaunchPacket.SchemaVersion.ToString(CultureInfo.InvariantCulture),
+            Escape(LaunchPacketProvenanceProjection.FormatSections(report.LaunchSnapshot.LaunchPacket)),
+            Escape(report.LaunchSnapshot.LaunchPacket.Source),
+            Escape(report.LaunchSnapshot.TemplateVersionId.ToString()),
+            Escape(report.LaunchSnapshot.ScoringRuleId.ToString()),
+            Escape(report.LaunchSnapshot.ScoringRuleDocumentHash),
+            Escape(report.LaunchSnapshot.ConsentDocumentId?.ToString()),
+            Escape(report.LaunchSnapshot.RetentionPolicyId?.ToString()),
+            Escape(report.LaunchSnapshot.DisclosurePolicyId?.ToString()),
+            Escape(report.LaunchSnapshot.ResponseIdentityMode),
+            Escape(report.LaunchSnapshot.LaunchedAt.ToString("O", CultureInfo.InvariantCulture)),
+            Escape(report.DisclosurePolicy.Version),
+            report.DisclosurePolicy.KMin.ToString(CultureInfo.InvariantCulture),
+            Escape(report.DisclosurePolicy.SuppressionStrategy),
+            Escape(resultScope),
+            Escape(resultScopeLabel),
+            Escape(groupType),
+            Escape(resultScopeCampaignId.ToString()),
+            Escape(resultScopeCampaignStatus),
+            Escape(resultScopeDataFinality),
+            Escape(resultScopeClosedAt?.ToString("O", CultureInfo.InvariantCulture)),
+            Escape(dimensionCode),
+            Escape(disclosure),
+            FormatNullableInt(submittedResponseCount, resultScopeSuppressed),
+            FormatNullableInt(scoreCount, resultScopeSuppressed),
+            FormatNullableInt(nValidTotal, resultScopeSuppressed),
+            FormatNullableInt(nExpectedTotal, resultScopeSuppressed),
+            Escape(resultScopeSuppressed ? null : missingPolicyStatusSummary),
+            FormatNullableDecimal(mean, resultScopeSuppressed),
+            FormatNullableDecimal(median, resultScopeSuppressed),
+            FormatNullableDecimal(standardDeviation, resultScopeSuppressed),
+            FormatNullableDecimal(min, resultScopeSuppressed),
+            FormatNullableDecimal(max, resultScopeSuppressed),
+            FormatNullableDecimal(deltaFromPreviousMean, resultScopeSuppressed),
+            FormatNullableDecimal(deltaFromFirstMean, resultScopeSuppressed),
+            Escape(comparisonState),
+            Escape(suppressionReason),
+            Escape(resultScopeSuppressed ? null : interpretation?.BandCode),
+            Escape(resultScopeSuppressed ? null : interpretation?.Label),
+            Escape(resultScopeSuppressed ? null : interpretation?.Status),
+            Escape(resultScopeSuppressed ? null : interpretation?.Source),
+            Escape(resultScopeSuppressed ? null : interpretation?.Provenance),
+            FormatNullableBoolean(resultScopeSuppressed ? null : interpretation?.IsValidated),
+            FormatNullableBoolean(resultScopeSuppressed ? null : interpretation?.IsOfficial));
+        builder.Append("\r\n");
     }
 
     private async Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResponseExportCoreAsync(
@@ -1332,24 +1638,33 @@ public sealed class ReportProofExportStore(
             return [];
         }
 
-        var scoreRows = await db.Scores
-            .AsNoTracking()
-            .Where(entity => sessionIds.Contains(entity.ResponseSessionId))
-            .OrderBy(entity => entity.DimensionCode)
-            .ThenBy(entity => entity.ResponseSessionId)
-            .ThenByDescending(entity => entity.ComputedAt)
-            .Select(entity => new ResponseExportScoreMetadataRow(
-                entity.ResponseSessionId,
-                entity.DimensionCode,
-                entity.NValid,
-                entity.NExpected,
-                entity.MissingPolicyStatus,
-                entity.ComputedAt))
+        var scoreRows = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where sessionIds.Contains(score.ResponseSessionId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                orderby score.DimensionCode, score.ResponseSessionId, score.ComputedAt descending, score.Id descending
+                select new ResponseExportScoreMetadataRow(
+                    score.Id,
+                    score.ResponseSessionId,
+                    score.DimensionCode,
+                    score.Value,
+                    score.NValid,
+                    score.NExpected,
+                    score.MissingPolicyStatus,
+                    score.ComputedAt))
             .ToListAsync(cancellationToken);
 
         return scoreRows
             .GroupBy(score => new { score.SessionId, score.DimensionCode })
-            .Select(group => group.First())
+            .Select(group => group
+                .OrderByDescending(score => score.ComputedAt)
+                .ThenByDescending(score => score.ScoreId)
+                .First())
             .ToArray();
     }
 
@@ -1539,6 +1854,10 @@ public sealed class ReportProofExportStore(
             }
 
             columns.Add(new ResponseExportScoreMetadataColumnRow(
+                $"score_{token}_value",
+                dimension,
+                "value"));
+            columns.Add(new ResponseExportScoreMetadataColumnRow(
                 $"score_{token}_n_valid",
                 dimension,
                 "n_valid"));
@@ -1586,6 +1905,7 @@ public sealed class ReportProofExportStore(
     {
         return metadataKind switch
         {
+            "value" => score.Value.ToString(CultureInfo.InvariantCulture),
             "n_valid" => score.NValid.ToString(CultureInfo.InvariantCulture),
             "n_expected" => score.NExpected.ToString(CultureInfo.InvariantCulture),
             "missing_policy_status" => score.MissingPolicyStatus,
@@ -1876,7 +2196,7 @@ public sealed class ReportProofExportStore(
                 source = "score_output_metadata",
                 dimensionCode = scoreMetadataColumn.DimensionCode,
                 metadataKind = scoreMetadataColumn.MetadataKind,
-                measurementLevel = scoreMetadataColumn.MetadataKind is "n_valid" or "n_expected"
+                measurementLevel = scoreMetadataColumn.MetadataKind is "value" or "n_valid" or "n_expected"
                     ? "scale"
                     : "nominal",
                 disclosureTreatment = "per_submitted_response_score_metadata"
@@ -2155,7 +2475,8 @@ public sealed class ReportProofExportStore(
         CampaignReportProofResponse report,
         DateTimeOffset generatedAt,
         long byteSize,
-        string checksum)
+        string checksum,
+        int rowCount)
     {
         return JsonSerializer.Serialize(
             new
@@ -2170,7 +2491,9 @@ public sealed class ReportProofExportStore(
                 campaignStatus = report.CampaignStatus,
                 campaignClosedAt = report.ClosedAt,
                 dataFinality = report.DataFinality,
-                rowCount = report.Scores.Count,
+                rowCount,
+                rowShape = "one row per visible or suppressed result scope and score output",
+                resultScopes = new[] { "overall", "group", "wave" },
                 byteSize,
                 checksumSha256 = checksum
             },
@@ -2181,7 +2504,8 @@ public sealed class ReportProofExportStore(
         CampaignReportProofResponse report,
         DateTimeOffset generatedAt,
         long byteSize,
-        string checksum)
+        string checksum,
+        int rowCount)
     {
         return JsonSerializer.Serialize(
             new
@@ -2198,10 +2522,29 @@ public sealed class ReportProofExportStore(
                 dataFinality = report.DataFinality,
                 launchSnapshot = report.LaunchSnapshot,
                 disclosurePolicy = report.DisclosurePolicy,
-                rowCount = report.Scores.Count,
+                rowCount,
                 byteSize,
                 checksumSha256 = checksum,
-                suppressionBasis = "same_suppression_as_report_proof",
+                suppressionBasis = "overall rows follow report proof disclosure; group rows are suppressed below disclosure minimum",
+                rowShape = "one row per result scope and score output",
+                resultScopes = new[]
+                {
+                    new
+                    {
+                        scope = "overall",
+                        meaning = "selected campaign aggregate"
+                    },
+                    new
+                    {
+                        scope = "group",
+                        meaning = "selected campaign aggregate for a directory group when disclosure allows"
+                    },
+                    new
+                    {
+                        scope = "wave",
+                        meaning = "campaign-series wave aggregate with previous and baseline mean deltas when comparable"
+                    }
+                },
                 dataFinalityLabels = new
                 {
                     preliminaryLive = PreliminaryLiveDataFinality,
@@ -2474,6 +2817,368 @@ public sealed class ReportProofExportStore(
             JsonOptions);
     }
 
+    private static string BuildResultsMatrixCsv(
+        CampaignSeriesReportsWorkspaceResponse workspace,
+        CampaignSeriesResultsAnalyticsResponse analytics)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine(string.Join(",", ResultsMatrixCsvColumns));
+
+        var selectedCampaign = workspace.SelectedCampaign;
+        var selectedCampaignId = analytics.SelectedCampaignId ?? selectedCampaign?.Id;
+        var selectedCampaignName = analytics.SelectedCampaignName ?? selectedCampaign?.Name;
+
+        foreach (var row in analytics.ScoreOutputs)
+        {
+            AppendResultsMatrixCsvRow(
+                builder,
+                resultScope: "overall",
+                resultScopeLabel: selectedCampaignName ?? "Selected measurement",
+                campaignSeriesId: workspace.Series.Id,
+                selectedCampaignId: selectedCampaignId,
+                selectedCampaignName: selectedCampaignName,
+                campaignId: selectedCampaignId,
+                campaignName: selectedCampaignName,
+                campaignStatus: selectedCampaign?.Status,
+                campaignDataFinality: selectedCampaign?.DataFinality,
+                campaignClosedAt: selectedCampaign?.ClosedAt,
+                groupType: null,
+                groupName: null,
+                dimensionCode: row.DimensionCode,
+                disclosure: row.Disclosure,
+                submittedResponseCount: row.SubmittedResponseCount,
+                scoreCount: row.ScoreCount,
+                nValidTotal: row.NValidTotal,
+                nExpectedTotal: row.NExpectedTotal,
+                missingPolicyStatusSummary: row.MissingPolicyStatusSummary,
+                mean: row.Mean,
+                median: row.Median,
+                standardDeviation: row.StandardDeviation,
+                min: row.Min,
+                max: row.Max,
+                deltaFromPreviousMean: null,
+                deltaFromFirstMean: null,
+                comparisonState: "selected",
+                suppressionReason: row.SuppressionReason);
+        }
+
+        foreach (var row in analytics.GroupRows)
+        {
+            AppendResultsMatrixCsvRow(
+                builder,
+                resultScope: "group",
+                resultScopeLabel: row.GroupName,
+                campaignSeriesId: workspace.Series.Id,
+                selectedCampaignId: selectedCampaignId,
+                selectedCampaignName: selectedCampaignName,
+                campaignId: selectedCampaignId,
+                campaignName: selectedCampaignName,
+                campaignStatus: selectedCampaign?.Status,
+                campaignDataFinality: selectedCampaign?.DataFinality,
+                campaignClosedAt: selectedCampaign?.ClosedAt,
+                groupType: row.GroupType,
+                groupName: row.GroupName,
+                dimensionCode: row.DimensionCode,
+                disclosure: row.Disclosure,
+                submittedResponseCount: row.SubmittedResponseCount,
+                scoreCount: row.ScoreCount,
+                nValidTotal: null,
+                nExpectedTotal: null,
+                missingPolicyStatusSummary: null,
+                mean: row.Mean,
+                median: row.Median,
+                standardDeviation: row.StandardDeviation,
+                min: row.Min,
+                max: row.Max,
+                deltaFromPreviousMean: null,
+                deltaFromFirstMean: null,
+                comparisonState: "selected_group",
+                suppressionReason: row.SuppressionReason);
+        }
+
+        foreach (var row in analytics.WaveRows)
+        {
+            AppendResultsMatrixCsvRow(
+                builder,
+                resultScope: "wave",
+                resultScopeLabel: row.CampaignName,
+                campaignSeriesId: workspace.Series.Id,
+                selectedCampaignId: selectedCampaignId,
+                selectedCampaignName: selectedCampaignName,
+                campaignId: row.CampaignId,
+                campaignName: row.CampaignName,
+                campaignStatus: row.CampaignStatus,
+                campaignDataFinality: row.DataFinality,
+                campaignClosedAt: row.ClosedAt,
+                groupType: null,
+                groupName: null,
+                dimensionCode: row.DimensionCode,
+                disclosure: row.Disclosure,
+                submittedResponseCount: row.SubmittedResponseCount,
+                scoreCount: row.ScoreCount,
+                nValidTotal: null,
+                nExpectedTotal: null,
+                missingPolicyStatusSummary: null,
+                mean: row.Mean,
+                median: row.Median,
+                standardDeviation: row.StandardDeviation,
+                min: row.Min,
+                max: row.Max,
+                deltaFromPreviousMean: row.DeltaFromPreviousMean,
+                deltaFromFirstMean: row.DeltaFromFirstMean,
+                comparisonState: row.ComparisonState,
+                suppressionReason: row.SuppressionReason);
+        }
+
+        return builder.ToString();
+    }
+
+    private static int CountResultsMatrixRows(CampaignSeriesResultsAnalyticsResponse analytics)
+    {
+        return analytics.ScoreOutputs.Count + analytics.GroupRows.Count + analytics.WaveRows.Count;
+    }
+
+    private static string BuildResultsMatrixCodebookJson(
+        CampaignSeriesReportsWorkspaceResponse workspace,
+        CampaignSeriesResultsAnalyticsResponse analytics,
+        DateTimeOffset generatedAt,
+        long byteSize,
+        string checksum,
+        int rowCount)
+    {
+        return JsonSerializer.Serialize(
+            new
+            {
+                artifactType = ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+                format = ExportArtifactFormats.CsvCodebook,
+                sourceProjection = "campaign_series_results_analytics",
+                rowShape = "one aggregate row per selected result output, selected-wave group result, or measurement-round result",
+                rowCount,
+                generatedAt,
+                byteSize,
+                checksumSha256 = checksum,
+                campaignSeries = new
+                {
+                    workspace.Series.Id,
+                    workspace.Series.Name,
+                    workspace.Series.StudyKind,
+                    workspace.Series.IsSample,
+                    workspace.Series.SampleScenario
+                },
+                selectedCampaign = new
+                {
+                    Id = analytics.SelectedCampaignId,
+                    Name = analytics.SelectedCampaignName
+                },
+                disclosure = new
+                {
+                    analytics.DisclosureKMin,
+                    analytics.DisclosureState
+                },
+                resultScopes = new[]
+                {
+                    new
+                    {
+                        code = "overall",
+                        description = "Selected measurement aggregate result output."
+                    },
+                    new
+                    {
+                        code = "group",
+                        description = "Selected measurement aggregate result output split by directory group."
+                    },
+                    new
+                    {
+                        code = "wave",
+                        description = "Measurement-round aggregate result output for comparison across waves."
+                    }
+                },
+                columns = ResultsMatrixCsvColumns.Select(CreateResultsMatrixColumnDefinition).ToArray(),
+                excludedIdentifiers = ResponseExportExcludedIdentifiers
+            },
+            JsonOptions);
+    }
+
+    private static string BuildResultsMatrixMetadataJson(
+        CampaignSeriesReportsWorkspaceResponse workspace,
+        CampaignSeriesResultsAnalyticsResponse analytics,
+        DateTimeOffset generatedAt,
+        long byteSize,
+        string checksum,
+        int rowCount)
+    {
+        return JsonSerializer.Serialize(
+            new
+            {
+                artifactType = ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+                format = ExportArtifactFormats.CsvCodebook,
+                sourceProjection = "campaign_series_results_analytics",
+                rowCount,
+                byteSize,
+                checksumSha256 = checksum,
+                generatedAt,
+                campaignSeries = new
+                {
+                    workspace.Series.Id,
+                    workspace.Series.Name,
+                    workspace.Series.StudyKind,
+                    workspace.Series.IsSample,
+                    workspace.Series.SampleScenario
+                },
+                selectedCampaign = new
+                {
+                    Id = analytics.SelectedCampaignId,
+                    Name = analytics.SelectedCampaignName
+                },
+                summary = new
+                {
+                    OutputRowCount = analytics.ScoreOutputs.Count,
+                    GroupRowCount = analytics.GroupRows.Count,
+                    WaveRowCount = analytics.WaveRows.Count,
+                    analytics.DisclosureKMin,
+                    analytics.DisclosureState
+                }
+            },
+            JsonOptions);
+    }
+
+    private static void AppendResultsMatrixCsvRow(
+        StringBuilder builder,
+        string resultScope,
+        string resultScopeLabel,
+        Guid campaignSeriesId,
+        Guid? selectedCampaignId,
+        string? selectedCampaignName,
+        Guid? campaignId,
+        string? campaignName,
+        string? campaignStatus,
+        string? campaignDataFinality,
+        DateTimeOffset? campaignClosedAt,
+        string? groupType,
+        string? groupName,
+        string dimensionCode,
+        string disclosure,
+        int? submittedResponseCount,
+        int? scoreCount,
+        int? nValidTotal,
+        int? nExpectedTotal,
+        string? missingPolicyStatusSummary,
+        decimal? mean,
+        decimal? median,
+        decimal? standardDeviation,
+        decimal? min,
+        decimal? max,
+        decimal? deltaFromPreviousMean,
+        decimal? deltaFromFirstMean,
+        string? comparisonState,
+        string? suppressionReason)
+    {
+        var resultScopeSuppressed = ResultScopeSuppressed(disclosure);
+
+        AppendResultsMatrixCsvValues(
+            builder,
+            [
+                resultScope,
+                resultScopeLabel,
+                campaignSeriesId.ToString(),
+                selectedCampaignId?.ToString(),
+                selectedCampaignName,
+                campaignId?.ToString(),
+                campaignName,
+                campaignStatus,
+                campaignDataFinality,
+                FormatResultsMatrixDate(campaignClosedAt),
+                groupType,
+                groupName,
+                dimensionCode,
+                disclosure,
+                FormatNullableInt(submittedResponseCount, resultScopeSuppressed),
+                FormatNullableInt(scoreCount, resultScopeSuppressed),
+                FormatNullableInt(nValidTotal, resultScopeSuppressed),
+                FormatNullableInt(nExpectedTotal, resultScopeSuppressed),
+                resultScopeSuppressed ? null : missingPolicyStatusSummary,
+                FormatNullableDecimal(mean, resultScopeSuppressed),
+                FormatNullableDecimal(median, resultScopeSuppressed),
+                FormatNullableDecimal(standardDeviation, resultScopeSuppressed),
+                FormatNullableDecimal(min, resultScopeSuppressed),
+                FormatNullableDecimal(max, resultScopeSuppressed),
+                FormatNullableDecimal(deltaFromPreviousMean, resultScopeSuppressed),
+                FormatNullableDecimal(deltaFromFirstMean, resultScopeSuppressed),
+                comparisonState,
+                suppressionReason
+            ]);
+    }
+
+    private static void AppendResultsMatrixCsvValues(StringBuilder builder, IEnumerable<string?> values)
+    {
+        builder.AppendLine(string.Join(",", values.Select(Escape)));
+    }
+
+    private static string FormatResultsMatrixDate(DateTimeOffset? value)
+    {
+        return value.HasValue ? value.Value.ToString("O", CultureInfo.InvariantCulture) : string.Empty;
+    }
+
+    private static object CreateResultsMatrixColumnDefinition(string column)
+    {
+        return new
+        {
+            name = column,
+            label = column.Replace('_', ' '),
+            source = ResultsMatrixColumnSource(column),
+            measurementLevel = ResultsMatrixColumnMeasurementLevel(column),
+            disclosureTreatment = ResultsMatrixColumnDisclosureTreatment(column)
+        };
+    }
+
+    private static string ResultsMatrixColumnSource(string column)
+    {
+        return column switch
+        {
+            "result_scope" or "result_scope_label" or "group_type" or "group_name" =>
+                "aggregate_result_scope",
+            "campaign_series_id" or "selected_campaign_id" or "selected_campaign_name" or
+                "campaign_id" or "campaign_name" or "campaign_status" or
+                "campaign_data_finality" or "campaign_closed_at" =>
+                "campaign_series_reports_workspace",
+            "dimension_code" or "disclosure" or "submitted_response_count" or "score_count" or
+                "n_valid_total" or "n_expected_total" or "missing_policy_status_summary" or
+                "mean" or "median" or "standard_deviation" or "min" or "max" or
+                "delta_from_previous_mean" or "delta_from_first_mean" or "comparison_state" or
+                "suppression_reason" =>
+                "campaign_series_results_analytics",
+            _ => "results_matrix_export"
+        };
+    }
+
+    private static string ResultsMatrixColumnMeasurementLevel(string column)
+    {
+        return column switch
+        {
+            "submitted_response_count" or "score_count" or "n_valid_total" or "n_expected_total" or
+                "mean" or "median" or "standard_deviation" or "min" or "max" or
+                "delta_from_previous_mean" or "delta_from_first_mean" =>
+                "scale",
+            _ => "nominal"
+        };
+    }
+
+    private static string ResultsMatrixColumnDisclosureTreatment(string column)
+    {
+        return column switch
+        {
+            "submitted_response_count" or "mean" or "median" or "standard_deviation" or "min" or "max" or
+                "delta_from_previous_mean" or "delta_from_first_mean" or "score_count" or
+                "n_valid_total" or "n_expected_total" or "missing_policy_status_summary" =>
+                "suppressed_when_result_scope_suppressed",
+            "suppression_reason" or "disclosure" =>
+                "same_suppression_as_result_scope",
+            "campaign_series_id" or "selected_campaign_id" or "campaign_id" =>
+                "internal_workspace_record_identifier",
+            _ => "aggregate_metadata_no_raw_respondent_identifier"
+        };
+    }
+
     private static object CreateColumnDefinition(string column)
     {
         return new
@@ -2617,6 +3322,13 @@ public sealed class ReportProofExportStore(
             "Export artifact is not processable by this worker.");
     }
 
+    private static Error ResultsMatrixNotAvailable()
+    {
+        return Error.Conflict(
+            "results_matrix.not_available",
+            "Results matrix export is not available for this study yet.");
+    }
+
     private static Error ArtifactNotQueued()
     {
         return Error.Conflict(
@@ -2648,8 +3360,15 @@ public sealed class ReportProofExportStore(
         return column switch
         {
             "campaign_closed_at" or "campaign_data_finality" => "campaign_lifecycle",
+            "result_scope" or "result_scope_label" or "group_type" =>
+                "result_scope",
+            "result_scope_campaign_id" or "result_scope_campaign_status" or
+                "result_scope_data_finality" or "result_scope_closed_at" =>
+                "result_scope_campaign_lifecycle",
             "dimension_code" or "disclosure" or "submitted_response_count" or
-                "score_count" or "mean" or "min" or "max" or "suppression_reason"
+                "score_count" or "mean" or "median" or "standard_deviation" or "min" or "max" or
+                "delta_from_previous_mean" or "delta_from_first_mean" or "comparison_state" or
+                "suppression_reason"
                 => "report_proof_score_summary",
             "n_valid_total" or "n_expected_total" or "missing_policy_status_summary"
                 => "score_output_metadata",
@@ -2669,8 +3388,9 @@ public sealed class ReportProofExportStore(
     {
         return column switch
         {
-            "submitted_response_count" or "score_count" or "mean" or "min" or "max" or
-                "n_valid_total" or "n_expected_total" or "disclosure_k_min"
+            "submitted_response_count" or "score_count" or "mean" or "median" or
+                "standard_deviation" or "min" or "max" or "delta_from_previous_mean" or
+                "delta_from_first_mean" or "n_valid_total" or "n_expected_total" or "disclosure_k_min"
                 => "scale",
             _ => "nominal"
         };
@@ -2685,11 +3405,16 @@ public sealed class ReportProofExportStore(
 
         return column switch
         {
-            "score_count" or "n_valid_total" or "n_expected_total" or
-                "missing_policy_status_summary" or "mean" or "min" or "max" =>
+            "submitted_response_count" or "score_count" or "n_valid_total" or "n_expected_total" or
+                "missing_policy_status_summary" or "mean" or "median" or "standard_deviation" or
+                "min" or "max" or "delta_from_previous_mean" or "delta_from_first_mean" =>
                 "suppressed_when_report_proof_suppressed",
-            "submitted_response_count" or "suppression_reason" or "disclosure" =>
+            "suppression_reason" or "disclosure" =>
                 "same_suppression_as_report_proof",
+            "result_scope" or "result_scope_label" or "group_type" or "result_scope_campaign_id" or
+                "result_scope_campaign_status" or "result_scope_data_finality" or
+                "result_scope_closed_at" or "comparison_state" =>
+                "scope_metadata_only_no_raw_respondent_identifier",
             "launch_packet_schema_version" or "launch_packet_sections" or "launch_packet_source" =>
                 "launch_packet_provenance",
             _ => "provenance"
@@ -2701,19 +3426,28 @@ public sealed class ReportProofExportStore(
         return column.StartsWith("interpretation_", StringComparison.Ordinal);
     }
 
-    private static string FormatNullableDecimal(decimal? value)
+    private static bool ResultScopeSuppressed(string disclosure)
     {
-        return value.HasValue ? value.Value.ToString("0.####", CultureInfo.InvariantCulture) : string.Empty;
+        return !string.Equals(disclosure, "visible", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FormatNullableBoolean(bool? value)
+    private static string FormatNullableDecimal(decimal? value, bool resultScopeSuppressed = false)
     {
-        return value.HasValue ? value.Value.ToString().ToLowerInvariant() : string.Empty;
+        return !resultScopeSuppressed && value.HasValue
+            ? value.Value.ToString("0.####", CultureInfo.InvariantCulture)
+            : string.Empty;
     }
 
-    private static string FormatNullableInt(int? value)
+    private static string FormatNullableBoolean(bool? value, bool resultScopeSuppressed = false)
     {
-        return value.HasValue ? value.Value.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        return !resultScopeSuppressed && value.HasValue ? value.Value.ToString().ToLowerInvariant() : string.Empty;
+    }
+
+    private static string FormatNullableInt(int? value, bool resultScopeSuppressed = false)
+    {
+        return !resultScopeSuppressed && value.HasValue
+            ? value.Value.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
     }
 
     private static string Escape(string? value)
@@ -2808,8 +3542,10 @@ public sealed class ReportProofExportStore(
         string Label);
 
     private sealed record ResponseExportScoreMetadataRow(
+        Guid ScoreId,
         Guid SessionId,
         string DimensionCode,
+        decimal Value,
         int NValid,
         int NExpected,
         string MissingPolicyStatus,

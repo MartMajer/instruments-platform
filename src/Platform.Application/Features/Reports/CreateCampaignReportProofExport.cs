@@ -61,6 +61,34 @@ public sealed class CreateCampaignSeriesResponseExportHandler(
     }
 }
 
+public sealed record CreateCampaignSeriesResultsMatrixExportCommand(Guid CampaignSeriesId)
+    : IRequest<Result<ReportProofExportArtifactResponse>>;
+
+public sealed class CreateCampaignSeriesResultsMatrixExportValidator
+    : AbstractValidator<CreateCampaignSeriesResultsMatrixExportCommand>
+{
+    public CreateCampaignSeriesResultsMatrixExportValidator()
+    {
+        RuleFor(command => command.CampaignSeriesId).NotEmpty();
+    }
+}
+
+public sealed class CreateCampaignSeriesResultsMatrixExportHandler(
+    ICurrentTenant currentTenant,
+    IReportProofExportStore store)
+    : IRequestHandler<CreateCampaignSeriesResultsMatrixExportCommand, Result<ReportProofExportArtifactResponse>>
+{
+    public Task<Result<ReportProofExportArtifactResponse>> Handle(
+        CreateCampaignSeriesResultsMatrixExportCommand command,
+        CancellationToken cancellationToken)
+    {
+        return store.CreateCampaignSeriesResultsMatrixExportAsync(
+            currentTenant.TenantId,
+            command.CampaignSeriesId,
+            cancellationToken);
+    }
+}
+
 public sealed record CreateCampaignSeriesReportHtmlArtifactCommand(Guid CampaignSeriesId)
     : IRequest<Result<ReportProofExportArtifactResponse>>;
 

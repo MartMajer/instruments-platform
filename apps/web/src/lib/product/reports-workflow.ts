@@ -222,6 +222,7 @@ export type SelectedSeriesReportsWorkflowCopy = {
 			noVisibleScores: string;
 			createExport: string;
 			downloadDataset: string;
+			downloadAggregate: string;
 			documentInterpretation: string;
 			preliminary: string;
 		};
@@ -265,12 +266,12 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 			description: 'Preview disclosure-safe result summaries for the selected wave.'
 		},
 		exportArtifact: {
-			title: 'Create report-summary export',
-			optionalTitle: 'Report-summary export optional',
+			title: 'Create results matrix export',
+			optionalTitle: 'Results matrix export optional',
 			description:
-				'Create the aggregate results CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
+				'Create the aggregate results matrix CSV and codebook. Use it outside the team only after interpretation and finality are ready.',
 			optionalDescription:
-				'A response dataset already exists. A report-summary export is optional and not required before download.'
+				'A response dataset already exists. A results matrix export is optional and not required before download.'
 		},
 		responseExport: {
 			title: 'Create response export',
@@ -284,22 +285,22 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 			responseDatasetTitle: 'Download response dataset CSV',
 			responseDatasetDescription:
 				'Download the analysis-ready response dataset CSV and codebook when it is ready.',
-			reportSummaryTitle: 'Download report-summary CSV',
+			reportSummaryTitle: 'Download results matrix CSV',
 			reportSummaryDescription:
-				'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+				'Download the aggregate results matrix CSV for group and measurement comparison. This is not row-level response data.'
 		}
 	},
 	disabled: {
 		createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
 		resolveReportPrerequisitesBeforeReviewingResults:
 			'Resolve report prerequisites before reviewing results.',
-		reviewResultsBeforeCreatingReportExport: 'Review results before creating a report export.',
+		reviewResultsBeforeCreatingReportExport: 'Review results before creating a results matrix export.',
 		resolveReportPrerequisitesBeforeCreatingReportExport:
-			'Resolve report prerequisites before creating a report export.',
-		reportExportCreatedThisSession: 'Report export was created in this session.',
+			'Resolve report prerequisites before creating a results matrix export.',
+		reportExportCreatedThisSession: 'Results matrix export was created in this session.',
 		responseDatasetAlreadyExistsReportOptional:
-			'Response dataset already exists; report-summary export is optional.',
-		reportSummaryExportAlreadyExists: 'Report-summary export already exists for this study.',
+			'Response dataset already exists; results matrix export is optional.',
+		reportSummaryExportAlreadyExists: 'Results matrix export already exists for this study.',
 		reviewResultsBeforeCreatingResponseExport: 'Review results before creating a response export.',
 		resolveReportPrerequisitesBeforeCreatingResponseExport:
 			'Resolve report prerequisites before creating a response export.',
@@ -320,10 +321,11 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 			noVisibleScores:
 				'Use raw response export for internal analysis, or review result-output scoring, missing-answer rules, and disclosure.',
 			createExport:
-				'Create a response export for analysis, or create a report-summary file for internal review.',
+				'Create a response export for analysis, or create the results matrix for aggregate review.',
 			downloadDataset: 'Download the response dataset for analysis.',
+			downloadAggregate: 'Download the results matrix for aggregate review.',
 			documentInterpretation:
-				'Use the response dataset internally; document score meaning before sharing conclusions.',
+				'Use the Results export internally; document score meaning before sharing conclusions.',
 			preliminary: 'Use as preliminary internal data until collection is closed.'
 		}
 	},
@@ -341,7 +343,7 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 		selectWavePendingDetail: 'Select a wave before preparing export files.',
 		reviewFilePendingDetail: 'Review the export file to inspect its CSV and codebook contents.',
 		downloadResponseDatasetCsv: 'Download response dataset CSV',
-		downloadReportSummaryCsv: 'Download report-summary CSV'
+		downloadReportSummaryCsv: 'Download results matrix CSV'
 	}
 };
 
@@ -355,8 +357,11 @@ export function toSelectedSeriesReportsWorkflowActions(
 	const hasCampaign = Boolean(selectedCampaign);
 	const reportable = selectedCampaign?.reportStatus === 'proof_only';
 	const reportProofViewed = Boolean(localState.reportProofViewed);
-	const hasRegistryReportExport = workspace.exportArtifacts.some(
-		(artifact) => artifact.artifactType === 'report_proof_csv_codebook'
+	const hasRegistryAggregateExport = workspace.exportArtifacts.some((artifact) =>
+		isAggregateResultsExport(artifact.artifactType)
+	);
+	const hasRegistryReportExport = workspace.exportArtifacts.some((artifact) =>
+		isResultsMatrixExport(artifact.artifactType)
 	);
 	const hasExistingResponseExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
@@ -371,17 +376,23 @@ export function toSelectedSeriesReportsWorkflowActions(
 	const latestExportDownloadable = Boolean(
 		selectedCampaign?.latestExportArtifactId && selectedCampaign.latestExportArtifactCanDownload
 	);
-	const hasExistingReportExport =
-		hasRegistryReportExport ||
-		(Boolean(selectedCampaign?.latestExportArtifactId) && !hasExistingResponseExport);
+	const hasExistingReportExport = hasRegistryReportExport;
 	const exportCreated = Boolean(localState.exportCreated);
 	const responseExportCreated = Boolean(localState.responseExportCreated);
 	const hasResponseExport = hasExistingResponseExport || responseExportCreated;
-	const downloadIsResponseDataset = hasResponseExport;
+	const hasResultsMatrixExport = hasExistingReportExport || exportCreated;
+	const downloadIsResponseDataset =
+		responseExportCreated || (hasResponseExport && !hasResultsMatrixExport);
+	const hasReadableReportExport =
+		hasRegistryAggregateExport ||
+		(Boolean(selectedCampaign?.latestExportArtifactId) && !hasExistingResponseExport);
 	const resultsReviewed =
-		reportProofViewed || hasExistingReportExport || exportCreated || hasResponseExport;
+		reportProofViewed || hasReadableReportExport || exportCreated || hasResponseExport;
 	const hasExport =
-		Boolean(selectedCampaign?.latestExportArtifactId) || exportCreated || hasResponseExport;
+		Boolean(selectedCampaign?.latestExportArtifactId) ||
+		hasRegistryAggregateExport ||
+		exportCreated ||
+		hasResponseExport;
 	const hasDownloadableExport =
 		latestExportDownloadable ||
 		hasDownloadableRegistryExport ||
@@ -403,27 +414,21 @@ export function toSelectedSeriesReportsWorkflowActions(
 		{
 			id: 'exportArtifact',
 			step: copy.stepNumber(2),
-			title: hasResponseExport
-				? actionCopy.exportArtifact.optionalTitle
-				: actionCopy.exportArtifact.title,
-			description: hasResponseExport
-				? actionCopy.exportArtifact.optionalDescription
-				: actionCopy.exportArtifact.description,
+			title: actionCopy.exportArtifact.title,
+			description: actionCopy.exportArtifact.description,
 			status: toExportStatus(
 				hasCampaign,
 				reportable,
 				resultsReviewed,
-				hasExistingReportExport || exportCreated || hasResponseExport
+				hasExistingReportExport || exportCreated
 			),
-			available:
-				reportable && resultsReviewed && !exportCreated && !hasExistingReportExport && !hasResponseExport,
+			available: reportable && resultsReviewed && !exportCreated && !hasExistingReportExport,
 			disabledReason: toExportDisabledReason(
 				hasCampaign,
 				reportable,
 				resultsReviewed,
 				exportCreated,
 				hasExistingReportExport,
-				hasResponseExport,
 				copy
 			)
 		},
@@ -693,17 +698,17 @@ export function toSelectedSeriesResultsPacketReview(
 ): SelectedSeriesResultsPacketReview {
 	const campaign = workspace.selectedCampaign;
 	const hasCampaign = Boolean(campaign);
-	const hasResponseDataset = hasResponseDatasetExport(workspace, localState);
-	const hasDownloadableExport = hasAnyDownloadableExport(workspace, localState);
+	const responseDatasetReady = hasDownloadableResponseDatasetExport(workspace, localState);
+	const resultsMatrixReady = hasDownloadableResultsMatrixExport(workspace, localState);
 	const submittedResponses = campaign?.submittedResponseCount ?? 0;
 	const visibleScores = campaign?.visibleScoreCount ?? 0;
 	const hasResponses = submittedResponses > 0;
 	const hasVisibleScores = visibleScores > 0;
 	const interpretationReviewed = isInterpretationValidated(campaign?.interpretationStatus);
 	const collectionClosed = isCollectionClosed(campaign?.status);
-	const responseDatasetReady = hasResponseDataset && hasDownloadableExport;
+	const reviewExportReady = responseDatasetReady || resultsMatrixReady;
 	const controlledSharingReady =
-		hasVisibleScores && responseDatasetReady && interpretationReviewed && collectionClosed;
+		hasVisibleScores && reviewExportReady && interpretationReviewed && collectionClosed;
 	const items: SelectedSeriesResultsPacketReviewItem[] = [
 		toResponsesPacketItem(campaign?.submittedResponseCount ?? null),
 		toScoresPacketItem(campaign?.submittedResponseCount ?? null, campaign?.visibleScoreCount ?? null),
@@ -713,6 +718,7 @@ export function toSelectedSeriesResultsPacketReview(
 			hasResponses,
 			hasVisibleScores,
 			responseDatasetReady,
+			resultsMatrixReady,
 			interpretationReviewed,
 			collectionClosed
 		})
@@ -733,6 +739,7 @@ export function toSelectedSeriesResultsPacketReview(
 			hasResponses,
 			hasVisibleScores,
 			responseDatasetReady,
+			resultsMatrixReady,
 			controlledSharingReady,
 			interpretationReviewed,
 			collectionClosed
@@ -806,7 +813,7 @@ export function toSelectedSeriesExportPreview(
 	const codebook = parseExportCodebook(artifact.codebookJson);
 	const artifactType = codebook.artifactType ?? artifact.artifactType;
 	const responseDataset = artifactType === 'campaign_series_response_csv_codebook';
-	const reportSummary = artifactType === 'report_proof_csv_codebook';
+	const reportSummary = isAggregateResultsExport(artifactType);
 	const items: SelectedSeriesExportPreviewItem[] = [
 		toExportFilePurposeItem(artifact, responseDataset, reportSummary),
 		toExportRowShapeItem(artifact, codebook, responseDataset, reportSummary),
@@ -820,7 +827,7 @@ export function toSelectedSeriesExportPreview(
 	return {
 		title: copy.exportPreview.title,
 		description: copy.exportPreview.description,
-		status: responseDataset && artifact.canDownload ? 'ready' : artifact.canDownload ? 'pending' : 'blocked',
+		status: artifact.canDownload ? 'ready' : 'blocked',
 		downloadLabel: responseDataset
 			? copy.exportPreview.downloadResponseDatasetCsv
 			: copy.exportPreview.downloadReportSummaryCsv,
@@ -834,8 +841,11 @@ export function toSelectedSeriesReportsPath(
 	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesReportsPath {
 	const actions = toSelectedSeriesReportsWorkflowActions(workspace, localState, copy);
-	const hasRegistryReportExport = workspace.exportArtifacts.some(
-		(artifact) => artifact.artifactType === 'report_proof_csv_codebook'
+	const hasRegistryAggregateExport = workspace.exportArtifacts.some(
+		(artifact) => isAggregateResultsExport(artifact.artifactType)
+	);
+	const hasRegistryReportExport = workspace.exportArtifacts.some((artifact) =>
+		isResultsMatrixExport(artifact.artifactType)
 	);
 	const hasExistingResponseExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
@@ -851,10 +861,11 @@ export function toSelectedSeriesReportsPath(
 		workspace.selectedCampaign?.latestExportArtifactId &&
 			workspace.selectedCampaign.latestExportArtifactCanDownload
 	);
-	const hasExistingReportExport =
-		hasRegistryReportExport ||
+	const hasReadableReportExport =
+		hasRegistryAggregateExport ||
 		(Boolean(workspace.selectedCampaign?.latestExportArtifactId) && !hasExistingResponseExport);
-	const hasPersistedExport = hasExistingReportExport || hasExistingResponseExport;
+	const hasExistingReportExport = hasRegistryReportExport;
+	const hasPersistedExport = hasReadableReportExport || hasExistingResponseExport;
 	const hasPersistedDownloadableExport = latestExportDownloadable || hasDownloadableRegistryExport;
 	const hasPersistedDownloadableResponseExport =
 		hasDownloadableResponseExport ||
@@ -862,9 +873,7 @@ export function toSelectedSeriesReportsPath(
 	const resultsReviewed = Boolean(localState.reportProofViewed || hasPersistedExport);
 	const doneByActionId: Record<SelectedSeriesReportsWorkflowActionId, boolean> = {
 		reportProof: resultsReviewed,
-		exportArtifact: Boolean(
-			localState.exportCreated || hasExistingReportExport || hasExistingResponseExport
-		),
+		exportArtifact: Boolean(localState.exportCreated || hasExistingReportExport),
 		responseExport: Boolean(localState.responseExportCreated || hasExistingResponseExport),
 		fetchArtifact: Boolean(localState.artifactFetched || hasPersistedDownloadableResponseExport),
 		downloadCsv: Boolean(localState.csvDownloaded)
@@ -991,7 +1000,6 @@ function toExportDisabledReason(
 	reportProofViewed: boolean,
 	exportCreated: boolean,
 	hasExistingReportExport: boolean,
-	hasResponseExport: boolean,
 	copy: SelectedSeriesReportsWorkflowCopy
 ) {
 	if (!hasCampaign) {
@@ -1004,10 +1012,6 @@ function toExportDisabledReason(
 
 	if (exportCreated) {
 		return copy.disabled.reportExportCreatedThisSession;
-	}
-
-	if (hasResponseExport) {
-		return copy.disabled.responseDatasetAlreadyExistsReportOptional;
 	}
 
 	if (hasExistingReportExport) {
@@ -1086,6 +1090,32 @@ function hasAnyDownloadableExport(
 			localState.responseExportCreated ||
 			workspace.selectedCampaign?.latestExportArtifactCanDownload ||
 			workspace.exportArtifacts.some((artifact) => artifact.canDownload)
+	);
+}
+
+function hasDownloadableResponseDatasetExport(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState
+) {
+	return Boolean(
+		localState.responseExportCreated ||
+			workspace.exportArtifacts.some(
+				(artifact) =>
+					artifact.artifactType === 'campaign_series_response_csv_codebook' &&
+					artifact.canDownload
+			)
+	);
+}
+
+function hasDownloadableResultsMatrixExport(
+	workspace: CampaignSeriesReportsWorkspaceResponse,
+	localState: SelectedSeriesReportsWorkflowLocalState
+) {
+	return Boolean(
+		localState.exportCreated ||
+			workspace.exportArtifacts.some(
+				(artifact) => isResultsMatrixExport(artifact.artifactType) && artifact.canDownload
+			)
 	);
 }
 
@@ -1179,7 +1209,21 @@ function toExportFilesPacketItem(
 		};
 	}
 
-	if (hasResponseDatasetExport(workspace, localState) && hasAnyDownloadableExport(workspace, localState)) {
+	const responseDatasetReady = hasDownloadableResponseDatasetExport(workspace, localState);
+	const resultsMatrixReady = hasDownloadableResultsMatrixExport(workspace, localState);
+
+	if (responseDatasetReady && resultsMatrixReady) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'ready',
+			summary: 'Results files ready',
+			detail:
+				'Use the response dataset for row-level analysis and the results matrix for aggregate, group, and measurement comparison.'
+		};
+	}
+
+	if (responseDatasetReady) {
 		return {
 			id: 'export_files',
 			label: 'Export files',
@@ -1189,14 +1233,25 @@ function toExportFilesPacketItem(
 		};
 	}
 
+	if (resultsMatrixReady) {
+		return {
+			id: 'export_files',
+			label: 'Export files',
+			status: 'ready',
+			summary: 'Results matrix file ready for aggregate review',
+			detail:
+				'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.'
+		};
+	}
+
 	if (hasAnyDownloadableExport(workspace, localState)) {
 		return {
 			id: 'export_files',
 			label: 'Export files',
 			status: 'pending',
-			summary: 'Report-summary file ready for internal review',
+			summary: 'Export file ready for review',
 			detail:
-				'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.'
+				'A downloadable export exists, but create the current results matrix or response dataset before treating it as the Results handoff file.'
 		};
 	}
 
@@ -1216,7 +1271,7 @@ function toExportFilesPacketItem(
 		status: resultsReady ? 'pending' : 'blocked',
 		summary: resultsReady ? 'Create response export' : 'Export blocked',
 		detail: resultsReady
-			? 'Create the response dataset for analysis, or create the report-summary file for internal review.'
+			? 'Create the response dataset for analysis, or create the results matrix for aggregate review.'
 			: 'Results must be ready before export files can be created.'
 	};
 }
@@ -1226,6 +1281,7 @@ function toUseStatusPacketItem(options: {
 	hasResponses: boolean;
 	hasVisibleScores: boolean;
 	responseDatasetReady: boolean;
+	resultsMatrixReady: boolean;
 	interpretationReviewed: boolean;
 	collectionClosed: boolean;
 }): SelectedSeriesResultsPacketReviewItem {
@@ -1261,7 +1317,7 @@ function toUseStatusPacketItem(options: {
 	}
 
 	if (
-		options.responseDatasetReady &&
+		(options.responseDatasetReady || options.resultsMatrixReady) &&
 		options.interpretationReviewed &&
 		options.collectionClosed
 	) {
@@ -1271,7 +1327,7 @@ function toUseStatusPacketItem(options: {
 			status: 'ready',
 			summary: 'Ready for controlled sharing',
 			detail:
-				'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.'
+				'Visible scores, reviewed interpretation, closed collection, and a current Results export are in place. Keep disclosure and study-method notes with anything shared.'
 		};
 	}
 
@@ -1594,10 +1650,10 @@ function toExportFilePurposeItem(
 		return {
 			id: 'file_purpose',
 			label: 'File purpose',
-			status: 'pending',
-			summary: 'Report-summary CSV, not row-level response data',
+			status: 'ready',
+			summary: 'Results matrix CSV, not row-level response data',
 			detail:
-				'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.'
+				'Use this for scoped aggregate review. Overall, group, and wave rows stay aggregate-only; create a response dataset when you need submitted-response rows.'
 		};
 	}
 
@@ -1630,17 +1686,21 @@ function toExportRowShapeItem(
 	}
 
 	if (reportSummary) {
+		const hasResultScope = codebook.columns.some((column) => column.name === 'result_scope');
 		return {
 			id: 'row_shape',
 			label: 'Row shape',
 			status: 'ready',
-			summary: `${rowCount} ${pluralize(
-				rowCount,
-				'row',
-				'rows'
-			)}; one row per visible or suppressed score output`,
-			detail:
-				'Each row summarizes one score output for the selected wave, not one respondent.'
+			summary: hasResultScope
+				? `${rowCount} ${pluralize(rowCount, 'row', 'rows')}; scoped aggregate rows`
+				: `${rowCount} ${pluralize(
+						rowCount,
+						'row',
+						'rows'
+					)}; one row per visible or suppressed score output`,
+			detail: hasResultScope
+				? 'Rows can represent overall, group, or wave result scopes. Use result_scope and result_scope_label before interpreting each row.'
+				: 'Each row summarizes one score output for the selected wave, not one respondent.'
 		};
 	}
 
@@ -1678,13 +1738,27 @@ function toExportWaveFieldsItem(
 	}
 
 	if (reportSummary) {
+		const hasScopedWaveFields = codebook.columns.some((column) =>
+			[
+				'campaign_id',
+				'campaign_data_finality',
+				'campaign_closed_at',
+				'result_scope_campaign_id',
+				'result_scope_data_finality',
+				'delta_from_previous_mean',
+				'delta_from_first_mean'
+			].includes(column.name)
+		);
 		return {
 			id: 'wave_fields',
 			label: 'Wave fields',
 			status: 'ready',
-			summary: 'Selected-wave lifecycle fields included',
-			detail:
-				'The report-summary file describes the selected wave and its finality, not every wave in the study.'
+			summary: hasScopedWaveFields
+				? 'Scoped wave comparison fields included'
+				: 'Selected-wave lifecycle fields included',
+			detail: hasScopedWaveFields
+				? 'Wave-scope rows include campaign lifecycle and previous/first mean deltas where comparable. Overall and group rows remain aggregate summaries.'
+				: 'The aggregate file describes result scopes and their finality. Use row scope before comparing measurements.'
 		};
 	}
 
@@ -1707,9 +1781,9 @@ function toExportTrajectoryKeysItem(
 			id: 'trajectory_keys',
 			label: 'Repeat-response keys',
 			status: 'not_available',
-			summary: 'No repeat-response keys in report-summary export',
+			summary: 'No repeat-response keys in results matrix export',
 			detail:
-				'Report-summary exports are aggregate files and do not include respondent repeat-response rows.'
+				'Results matrix exports are aggregate files and do not include respondent repeat-response rows.'
 		};
 	}
 
@@ -1774,13 +1848,17 @@ function toExportVariablesValuesItem(
 	}
 
 	if (reportSummary) {
+		const hasResultScope = columns.includes('result_scope');
 		return {
 			id: 'variables_values',
 			label: 'Variables and values',
 			status: 'ready',
-			summary: `${columns.length} report-summary columns`,
-			detail:
-				'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.'
+			summary: hasResultScope
+				? `${columns.length} results matrix columns with scoped result rows`
+				: `${columns.length} results matrix columns`,
+			detail: hasResultScope
+				? 'Columns describe aggregate result scope, score output, disclosure, finality, comparison deltas, score metadata, and tenant-defined interpretation fields.'
+				: 'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.'
 		};
 	}
 
@@ -1826,7 +1904,7 @@ function toExportMissingnessItem(
 				? 'Score missingness fields included'
 				: 'Score missingness fields not detected',
 			detail:
-				'Report-summary missingness describes valid/expected score contributions, not respondent-level skipped answers.'
+				'Results matrix missingness describes valid/expected score contributions, not respondent-level skipped answers.'
 		};
 	}
 
@@ -1876,7 +1954,7 @@ function toExportScoreOutputsItem(
 				? 'Score outputs listed in dimension_code'
 				: 'Score output column not detected',
 			detail:
-				'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.'
+				'Use result_scope with dimension_code, score_count, disclosure, and comparison-delta fields to understand aggregate score rows.'
 		};
 	}
 
@@ -1904,6 +1982,16 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Response dataset ready': 'results.packet.responseDatasetReady.summary',
 	'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.':
 		'results.packet.responseDatasetReady.detail',
+	'Results files ready': 'results.packet.resultsFilesReady.summary',
+	'Use the response dataset for row-level analysis and the results matrix for aggregate, group, and measurement comparison.':
+		'results.packet.resultsFilesReady.detail',
+	'Results matrix file ready for aggregate review':
+		'results.packet.resultsMatrixReady.summary',
+	'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.':
+		'results.packet.resultsMatrixReady.detail',
+	'Export file ready for review': 'results.packet.currentExportNeeded.summary',
+	'A downloadable export exists, but create the current results matrix or response dataset before treating it as the Results handoff file.':
+		'results.packet.currentExportNeeded.detail',
 	'Internal review only': 'results.packet.internalReviewOnly.summary',
 	'Use these results inside the workspace while export, interpretation, or collection status still needs review.':
 		'results.packet.internalReviewOnly.detail',
@@ -1915,7 +2003,7 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Do not present scored results yet. Use raw responses internally or fix scoring, missing-answer rules, and disclosure.':
 		'results.packet.rawResponsesOnly.detail',
 	'Ready for controlled sharing': 'results.packet.controlledSharing.summary',
-	'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.':
+	'Visible scores, reviewed interpretation, closed collection, and a current Results export are in place. Keep disclosure and study-method notes with anything shared.':
 		'results.packet.controlledSharing.detail',
 
 	'Score outputs': 'results.method.outputs.label',
@@ -1959,26 +2047,33 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Response dataset CSV and codebook': 'results.export.responseDataset.summary',
 	'Use this for row-level analysis. Keep method, disclosure, and interpretation notes with the file.':
 		'results.export.responseDataset.detail',
-	'Report-summary CSV, not row-level response data': 'results.export.reportSummary.summary',
+	'Results matrix CSV, not row-level response data': 'results.export.reportSummary.summary',
 	'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.':
 		'results.export.reportSummary.detail',
+	'Use this for scoped aggregate review. Overall, group, and wave rows stay aggregate-only; create a response dataset when you need submitted-response rows.':
+		'results.export.reportSummary.scoped.detail',
 	'Review this file type before using it outside the workspace.': 'results.export.unknownFile.detail',
 	'Each row represents one submitted response session in this study export.':
 		'results.export.rowShape.responseRows.detail',
 	'Each row summarizes one score output for the selected wave, not one respondent.':
 		'results.export.rowShape.scoreRows.detail',
+	'Rows can represent overall, group, or wave result scopes. Use result_scope and result_scope_label before interpreting each row.':
+		'results.export.rowShape.scopedRows.detail',
 	'Review the codebook before interpreting row meaning.':
 		'results.export.rowShape.generic.detail',
 	'Wave fields included': 'results.export.waveFields.included.summary',
 	'Selected-wave lifecycle fields included': 'results.export.waveFields.reportSummary.summary',
-	'The report-summary file describes the selected wave and its finality, not every wave in the study.':
+	'The aggregate file describes result scopes and their finality. Use row scope before comparing measurements.':
 		'results.export.waveFields.reportSummary.detail',
+	'Scoped wave comparison fields included': 'results.export.waveFields.scoped.summary',
+	'Wave-scope rows include campaign lifecycle and previous/first mean deltas where comparable. Overall and group rows remain aggregate summaries.':
+		'results.export.waveFields.scoped.detail',
 	'Wave fields not detected': 'results.export.waveFields.notDetected.summary',
 	'Review the codebook column list before using wave-level grouping.':
 		'results.export.waveFields.grouping.detail',
-	'No repeat-response keys in report-summary export':
+	'No repeat-response keys in results matrix export':
 		'results.export.trajectoryKeys.reportSummary.summary',
-	'Report-summary exports are aggregate files and do not include respondent repeat-response rows.':
+	'Results matrix exports are aggregate files and do not include respondent repeat-response rows.':
 		'results.export.trajectoryKeys.reportSummary.detail',
 	'Artifact-local repeat-response keys included': 'results.export.trajectoryKeys.included.summary',
 	'No repeat-response key column detected': 'results.export.trajectoryKeys.noColumn.summary',
@@ -1989,6 +2084,8 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 		'results.export.variables.responseDataset.detail',
 	'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.':
 		'results.export.variables.reportSummary.detail',
+	'Columns describe aggregate result scope, score output, disclosure, finality, comparison deltas, score metadata, and tenant-defined interpretation fields.':
+		'results.export.variables.reportSummaryScoped.detail',
 	'Review the codebook before using column values.': 'results.export.variables.codebook.detail',
 	'Missing-answer codes documented': 'results.export.missingness.codesDocumented.summary',
 	'Missing-answer codes not detected': 'results.export.missingness.codesNotDetected.summary',
@@ -1997,7 +2094,7 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Score missingness fields included': 'results.export.missingness.scoreFields.summary',
 	'Score missingness fields not detected':
 		'results.export.missingness.scoreFieldsNotDetected.summary',
-	'Report-summary missingness describes valid/expected score contributions, not respondent-level skipped answers.':
+	'Results matrix missingness describes valid/expected score contributions, not respondent-level skipped answers.':
 		'results.export.missingness.reportSummary.detail',
 	'Missingness fields included': 'results.export.missingness.fields.summary',
 	'Missingness fields not detected': 'results.export.missingness.fieldsNotDetected.summary',
@@ -2009,6 +2106,8 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Score output column not detected': 'results.export.scoreOutputs.noColumn.summary',
 	'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.':
 		'results.export.scoreOutputs.dimensionCode.detail',
+	'Use result_scope with dimension_code, score_count, disclosure, and comparison-delta fields to understand aggregate score rows.':
+		'results.export.scoreOutputs.scoped.detail',
 	'Score outputs not detected': 'results.export.scoreOutputs.notDetected.summary',
 	'Review score output fields before interpretation.': 'results.export.scoreOutputs.review.detail'
 };
@@ -2081,6 +2180,13 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 		});
 	}
 
+	const rowShapeScopedMatch = value.match(/^(\d+) rows?; scoped aggregate rows$/);
+	if (rowShapeScopedMatch) {
+		return appMessage(locale, 'results.export.rowShape.scopedRows', {
+			count: Number(rowShapeScopedMatch[1])
+		});
+	}
+
 	const rowCountMatch = value.match(/^(\d+) rows?$/);
 	if (rowCountMatch) {
 		return appMessage(locale, 'results.export.rowShape.rows', {
@@ -2107,10 +2213,19 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 		});
 	}
 
-	const reportSummaryColumnsMatch = value.match(/^(\d+) report-summary columns$/);
+	const reportSummaryColumnsMatch = value.match(/^(\d+) results matrix columns$/);
 	if (reportSummaryColumnsMatch) {
 		return appMessage(locale, 'results.export.variables.reportSummaryColumns', {
 			count: Number(reportSummaryColumnsMatch[1])
+		});
+	}
+
+	const reportSummaryScopedColumnsMatch = value.match(
+		/^(\d+) results matrix columns with scoped result rows$/
+	);
+	if (reportSummaryScopedColumnsMatch) {
+		return appMessage(locale, 'results.export.variables.reportSummaryScopedColumns', {
+			count: Number(reportSummaryScopedColumnsMatch[1])
 		});
 	}
 
@@ -2287,11 +2402,22 @@ function hasResponseDatasetExport(
 	);
 }
 
+function isResultsMatrixExport(artifactType: string | null | undefined) {
+	return artifactType === 'campaign_series_results_matrix_csv_codebook';
+}
+
+function isAggregateResultsExport(artifactType: string | null | undefined) {
+	return (
+		isResultsMatrixExport(artifactType) || artifactType === 'report_proof_csv_codebook'
+	);
+}
+
 function toResultsPacketPrimaryAction(options: {
 	hasCampaign: boolean;
 	hasResponses: boolean;
 	hasVisibleScores: boolean;
 	responseDatasetReady: boolean;
+	resultsMatrixReady: boolean;
 	controlledSharingReady: boolean;
 	interpretationReviewed: boolean;
 	collectionClosed: boolean;
@@ -2308,12 +2434,14 @@ function toResultsPacketPrimaryAction(options: {
 		return copy.packetReview.primaryAction.noVisibleScores;
 	}
 
-	if (!options.responseDatasetReady) {
+	if (!options.responseDatasetReady && !options.resultsMatrixReady) {
 		return copy.packetReview.primaryAction.createExport;
 	}
 
 	if (options.controlledSharingReady) {
-		return copy.packetReview.primaryAction.downloadDataset;
+		return options.responseDatasetReady
+			? copy.packetReview.primaryAction.downloadDataset
+			: copy.packetReview.primaryAction.downloadAggregate;
 	}
 
 	if (!options.interpretationReviewed) {
@@ -2324,7 +2452,9 @@ function toResultsPacketPrimaryAction(options: {
 		return copy.packetReview.primaryAction.preliminary;
 	}
 
-	return copy.packetReview.primaryAction.downloadDataset;
+	return options.responseDatasetReady
+		? copy.packetReview.primaryAction.downloadDataset
+		: copy.packetReview.primaryAction.downloadAggregate;
 }
 
 function toHandoffNextAction(
@@ -2337,7 +2467,7 @@ function toHandoffNextAction(
 	const finalityOpen = finalityLane.status !== 'ready';
 
 	if (interpretationOpen && exportOpen) {
-		return 'Review interpretation limits before sharing; keep the current report-summary export internal.';
+		return 'Review interpretation limits before sharing; keep the current aggregate export internal.';
 	}
 
 	if (interpretationOpen) {

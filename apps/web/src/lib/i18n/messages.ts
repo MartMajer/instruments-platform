@@ -1,4 +1,4 @@
-import type { AppLocale } from './localization';
+﻿import type { AppLocale } from './localization';
 
 export type AppMessageValues = Record<string, number | string | null | undefined>;
 
@@ -162,9 +162,9 @@ const enMessages = {
 	'exports.library.row.downloadable': 'Downloadable',
 	'exports.library.row.failed': 'Failed',
 	'exports.library.row.pending': 'Pending',
-	'exports.library.row.reportSummaryExports': 'Report summary exports',
+	'exports.library.row.reportSummaryExports': 'Results matrix exports',
 	'exports.library.row.responseDatasetExports': 'Response dataset exports',
-	'exports.library.row.reportSummaryDownloads': 'Report-summary exports',
+	'exports.library.row.reportSummaryDownloads': 'Results matrix exports',
 	'exports.library.row.responseDatasets': 'Response datasets',
 	'exports.library.row.campaignFiles': 'Campaign files',
 	'exports.library.row.studyFiles': 'Study files',
@@ -187,9 +187,9 @@ const enMessages = {
 		} ready to download.`,
 	'exports.library.readyDownloads.summary.empty': 'No export files are ready to download yet.',
 	'exports.library.readyDownloads.guidance.withDataset':
-		'Use response dataset exports for analysis handoff. Use report-summary exports for review packets, client summaries, or codebook checks.',
+		'Use response dataset exports for analysis handoff. Use results matrix exports for aggregate review, group comparison, measurement comparison, or codebook checks.',
 	'exports.library.readyDownloads.guidance.reportOnly':
-		'Report-summary files are downloadable for review packets, client summaries, or codebook checks. No analysis-ready response dataset is available yet.',
+		'Results matrix files are downloadable for aggregate review, group comparison, measurement comparison, or codebook checks. No analysis-ready response dataset is available yet.',
 	'exports.library.readyDownloads.guidance.empty':
 		'Create an export from a study results page after results are available.',
 	'exports.library.attention.label': 'Needs attention',
@@ -221,9 +221,9 @@ const enMessages = {
 		`Exports cover ${textValue(values, 'purposeLabels')}.`,
 	'exports.library.purpose.summary.empty': 'No generated export purposes are available yet.',
 	'exports.library.purpose.guidance.ready':
-		'Choose report summary exports for result handoff; choose response dataset exports for analysis with the codebook.',
+		'Choose results matrix exports for aggregate review; choose response dataset exports for analysis with the codebook.',
 	'exports.library.purpose.guidance.empty':
-		'Create report summary or response dataset exports from a study when results are ready.',
+		'Create results matrix or response dataset exports from a study when results are ready.',
 	'exports.library.context.label': 'Study context and next use',
 	'exports.library.context.badge.ready': (values, locale) =>
 		`${formatNumber(locale, numberValue(values, 'count'))} ${
@@ -237,9 +237,9 @@ const enMessages = {
 		'Open the source study or report context when you need to understand how an export file was generated.',
 	'exports.library.context.guidance.empty':
 		'Generated export files will link back to their study or report context when that context is available.',
-	'exports.library.purpose.reportSummary.label': 'Report summary export',
+	'exports.library.purpose.reportSummary.label': 'Results matrix export',
 	'exports.library.purpose.reportSummary.nextUse':
-		'Use this export for report handoff, summary review, or codebook checks.',
+		'Use this export for aggregate results review, group comparison, measurement comparison, or codebook checks.',
 	'exports.library.purpose.responseDataset.label': 'Response dataset export',
 	'exports.library.purpose.responseDataset.nextUse':
 		'Use this export for response-level analysis with the generated codebook.',
@@ -248,7 +248,7 @@ const enMessages = {
 	'exports.library.context.campaignSeries': (values) =>
 		`Campaign series / ${textValue(values, 'label')}`,
 	'exports.library.context.campaign': (values) => `Campaign / ${textValue(values, 'label')}`,
-	'exports.library.fileType.reportSummary': 'Report summary CSV and codebook',
+	'exports.library.fileType.reportSummary': 'Results matrix CSV and codebook',
 	'exports.library.fileType.responseDataset': 'Response dataset CSV and codebook',
 	'exports.library.fileFormat.csvCodebook': 'CSV codebook',
 	'exports.library.finality.closedWave': 'Closed wave',
@@ -424,6 +424,15 @@ const enMessages = {
 	'results.packet.responseDatasetReady.summary': 'Response dataset ready',
 	'results.packet.responseDatasetReady.detail':
 		'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.',
+	'results.packet.resultsFilesReady.summary': 'Results files ready',
+	'results.packet.resultsFilesReady.detail':
+		'Use the response dataset for row-level analysis and the results matrix for aggregate, group, and measurement comparison.',
+	'results.packet.resultsMatrixReady.summary': 'Results matrix file ready for aggregate review',
+	'results.packet.resultsMatrixReady.detail':
+		'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.',
+	'results.packet.currentExportNeeded.summary': 'Export file ready for review',
+	'results.packet.currentExportNeeded.detail':
+		'A downloadable export exists, but create the current results matrix or response dataset before treating it as the Results handoff file.',
 	'results.packet.internalReviewOnly.summary': 'Internal review only',
 	'results.packet.internalReviewOnly.detail':
 		'Use these results inside the workspace while export, interpretation, or collection status still needs review.',
@@ -436,7 +445,7 @@ const enMessages = {
 		'Do not present scored results yet. Use raw responses internally or fix scoring, missing-answer rules, and disclosure.',
 	'results.packet.controlledSharing.summary': 'Ready for controlled sharing',
 	'results.packet.controlledSharing.detail':
-		'Response dataset, visible scores, reviewed interpretation, and closed collection are in place. Keep disclosure and study-method notes with anything shared.',
+		'Visible scores, reviewed interpretation, closed collection, and a current Results export are in place. Keep disclosure and study-method notes with anything shared.',
 
 	'results.method.outputs.label': 'Score outputs',
 	'results.method.coverage.label': 'Response coverage',
@@ -515,9 +524,11 @@ const enMessages = {
 	'results.export.responseDataset.summary': 'Response dataset CSV and codebook',
 	'results.export.responseDataset.detail':
 		'Use this for row-level analysis. Keep method, disclosure, and interpretation notes with the file.',
-	'results.export.reportSummary.summary': 'Report-summary CSV, not row-level response data',
+	'results.export.reportSummary.summary': 'Results matrix CSV, not row-level response data',
 	'results.export.reportSummary.detail':
 		'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.',
+	'results.export.reportSummary.scoped.detail':
+		'Use this for scoped aggregate review. Overall, group, and wave rows stay aggregate-only; create a response dataset when you need submitted-response rows.',
 	'results.export.unknownFile.detail': 'Review this file type before using it outside the workspace.',
 	'results.export.rowShape.responseRows': (values, locale) =>
 		`${formatCount(locale, numberValue(values, 'count'), 'row')}; ${
@@ -535,6 +546,12 @@ const enMessages = {
 		}`,
 	'results.export.rowShape.scoreRows.detail':
 		'Each row summarizes one score output for the selected wave, not one respondent.',
+	'results.export.rowShape.scopedRows': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'row')}; ${
+			locale === 'hr-HR' ? 'agregirani redci po opsegu rezultata' : 'scoped aggregate rows'
+		}`,
+	'results.export.rowShape.scopedRows.detail':
+		'Rows can represent overall, group, or wave result scopes. Use result_scope and result_scope_label before interpreting each row.',
 	'results.export.rowShape.rows': (values, locale) =>
 		formatCount(locale, numberValue(values, 'count'), 'row'),
 	'results.export.rowShape.generic.detail': 'Review the codebook before interpreting row meaning.',
@@ -553,14 +570,17 @@ const enMessages = {
 				)}`,
 	'results.export.waveFields.reportSummary.summary': 'Selected-wave lifecycle fields included',
 	'results.export.waveFields.reportSummary.detail':
-		'The report-summary file describes the selected wave and its finality, not every wave in the study.',
+		'The aggregate file describes result scopes and their finality. Use row scope before comparing measurements.',
+	'results.export.waveFields.scoped.summary': 'Scoped wave comparison fields included',
+	'results.export.waveFields.scoped.detail':
+		'Wave-scope rows include campaign lifecycle and previous/first mean deltas where comparable. Overall and group rows remain aggregate summaries.',
 	'results.export.waveFields.notDetected.summary': 'Wave fields not detected',
 	'results.export.waveFields.grouping.detail':
 		'Review the codebook column list before using wave-level grouping.',
 	'results.export.trajectoryKeys.reportSummary.summary':
-		'No repeat-response keys in report-summary export',
+		'No repeat-response keys in results matrix export',
 	'results.export.trajectoryKeys.reportSummary.detail':
-		'Report-summary exports are aggregate files and do not include respondent repeat-response rows.',
+		'Results matrix exports are aggregate files and do not include respondent repeat-response rows.',
 	'results.export.trajectoryKeys.included.summary': 'Artifact-local repeat-response keys included',
 	'results.export.trajectoryKeys.policy.detail': (values, locale) =>
 		locale === 'hr-HR'
@@ -598,6 +618,12 @@ const enMessages = {
 		formatCount(locale, numberValue(values, 'count'), 'reportSummaryColumn'),
 	'results.export.variables.reportSummary.detail':
 		'Columns describe aggregate score output, disclosure, finality, score metadata, and tenant-defined interpretation fields.',
+	'results.export.variables.reportSummaryScopedColumns': (values, locale) =>
+		locale === 'hr-HR'
+			? `${formatCount(locale, numberValue(values, 'count'), 'reportSummaryColumn')} s redcima opsega rezultata`
+			: `${formatCount(locale, numberValue(values, 'count'), 'reportSummaryColumn')} with scoped result rows`,
+	'results.export.variables.reportSummaryScoped.detail':
+		'Columns describe aggregate result scope, score output, disclosure, finality, comparison deltas, score metadata, and tenant-defined interpretation fields.',
 	'results.export.variables.columnsDetected': (values, locale) =>
 		locale === 'hr-HR'
 			? `Otkriveno ${formatCount(locale, numberValue(values, 'count'), 'column')}`
@@ -612,7 +638,7 @@ const enMessages = {
 	'results.export.missingness.scoreFieldsNotDetected.summary':
 		'Score missingness fields not detected',
 	'results.export.missingness.reportSummary.detail':
-		'Report-summary missingness describes valid/expected score contributions, not respondent-level skipped answers.',
+		'Results matrix missingness describes valid/expected score contributions, not respondent-level skipped answers.',
 	'results.export.missingness.fields.summary': 'Missingness fields included',
 	'results.export.missingness.fieldsNotDetected.summary': 'Missingness fields not detected',
 	'results.export.missingness.review.detail': 'Review missingness fields before analysis.',
@@ -628,6 +654,8 @@ const enMessages = {
 	'results.export.scoreOutputs.noColumn.summary': 'Score output column not detected',
 	'results.export.scoreOutputs.dimensionCode.detail':
 		'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.',
+	'results.export.scoreOutputs.scoped.detail':
+		'Use result_scope with dimension_code, score_count, disclosure, and comparison-delta fields to understand aggregate score rows.',
 	'results.export.scoreOutputs.notDetected.summary': 'Score outputs not detected',
 	'results.export.scoreOutputs.review.detail': 'Review score output fields before interpretation.',
 
@@ -1187,9 +1215,9 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.row.downloadable': 'Dostupno za preuzimanje',
 	'exports.library.row.failed': 'Neuspjelo',
 	'exports.library.row.pending': 'Na čekanju',
-	'exports.library.row.reportSummaryExports': 'Izvozi sažetka izvještaja',
+	'exports.library.row.reportSummaryExports': 'Izvozi matrice rezultata',
 	'exports.library.row.responseDatasetExports': 'Izvozi skupa podataka odgovora',
-	'exports.library.row.reportSummaryDownloads': 'Izvozi sažetka izvještaja',
+	'exports.library.row.reportSummaryDownloads': 'Izvozi matrice rezultata',
 	'exports.library.row.responseDatasets': 'Skupovi podataka odgovora',
 	'exports.library.row.campaignFiles': 'Datoteke mjerenja',
 	'exports.library.row.studyFiles': 'Datoteke studije',
@@ -1215,9 +1243,9 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.readyDownloads.summary.empty':
 		'Još nema izvoznih datoteka spremnih za preuzimanje.',
 	'exports.library.readyDownloads.guidance.withDataset':
-		'Koristite izvoze skupa podataka odgovora za analizu. Izvoze sažetka izvještaja koristite za pregledne pakete, sažetke za klijente ili provjere opisa podataka.',
+		'Koristite izvoze skupa podataka odgovora za analizu. Matricu rezultata koristite za agregirani pregled, usporedbu grupa, usporedbu mjerenja ili provjere opisa podataka.',
 	'exports.library.readyDownloads.guidance.reportOnly':
-		'Sažeci izvještaja dostupni su za pregledne pakete, sažetke za klijente ili provjere opisa podataka. Skup odgovora za analizu još nije dostupan.',
+		'Matrice rezultata dostupne su za agregirani pregled, usporedbu grupa, usporedbu mjerenja ili provjere opisa podataka. Skup odgovora za analizu još nije dostupan.',
 	'exports.library.readyDownloads.guidance.empty':
 		'Izradite izvoz sa stranice rezultata studije nakon što rezultati budu dostupni.',
 	'exports.library.attention.label': 'Treba pažnju',
@@ -1250,9 +1278,9 @@ const hrMessages: AppMessageCatalog = {
 		`Izvozi pokrivaju ${textValue(values, 'purposeLabels')}.`,
 	'exports.library.purpose.summary.empty': 'Još nema namjena izrađenih izvoznih datoteka.',
 	'exports.library.purpose.guidance.ready':
-		'Izvoze sažetka izvještaja odaberite za predaju rezultata; izvoze skupa odgovora za analizu uz opis podataka.',
+		'Matricu rezultata odaberite za agregirani pregled; izvoze skupa odgovora za analizu uz opis podataka.',
 	'exports.library.purpose.guidance.empty':
-		'Izradite sažetak izvještaja ili skup odgovora iz studije kada rezultati budu spremni.',
+		'Izradite matricu rezultata ili skup odgovora iz studije kada rezultati budu spremni.',
 	'exports.library.context.label': 'Kontekst studije i sljedeća upotreba',
 	'exports.library.context.badge.ready': (values, locale) =>
 		`${formatNumber(locale, numberValue(values, 'count'))} izvora`,
@@ -1265,9 +1293,9 @@ const hrMessages: AppMessageCatalog = {
 		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvoz izrađen.',
 	'exports.library.context.guidance.empty':
 		'Izrađene izvozne datoteke povezat će se sa studijom ili kontekstom izvještaja kada taj kontekst bude dostupan.',
-	'exports.library.purpose.reportSummary.label': 'Izvoz sažetka izvještaja',
+	'exports.library.purpose.reportSummary.label': 'Izvoz matrice rezultata',
 	'exports.library.purpose.reportSummary.nextUse':
-		'Koristite ovaj izvoz za predaju izvještaja, pregled sažetka ili provjere opisa podataka.',
+		'Koristite ovaj izvoz za agregirani pregled rezultata, usporedbu grupa, usporedbu mjerenja ili provjere opisa podataka.',
 	'exports.library.purpose.responseDataset.label': 'Izvoz skupa podataka odgovora',
 	'exports.library.purpose.responseDataset.nextUse':
 		'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.',
@@ -1276,7 +1304,7 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.context.campaignSeries': (values) =>
 		`Studija / ${textValue(values, 'label')}`,
 	'exports.library.context.campaign': (values) => `Mjerenje / ${textValue(values, 'label')}`,
-	'exports.library.fileType.reportSummary': 'CSV i opis podataka sažetka izvještaja',
+	'exports.library.fileType.reportSummary': 'CSV i opis podataka matrice rezultata',
 	'exports.library.fileType.responseDataset': 'CSV i opis podataka skupa odgovora',
 	'exports.library.fileFormat.csvCodebook': 'CSV opis podataka',
 	'exports.library.finality.closedWave': 'Zatvoreno mjerenje',
@@ -1447,7 +1475,16 @@ const hrMessages: AppMessageCatalog = {
 		'Izračunati rezultati vidljivi su za interni pregled. Uz svaku izvezenu analizu zadržite značenje rezultata i bilješke o metodi.',
 	'results.packet.responseDatasetReady.summary': 'Skup odgovora je spreman',
 	'results.packet.responseDatasetReady.detail':
-		'Ovaj CSV i knjigu kodova koristite za analizu. Uz datoteku zadržite bilješke o metodi i tumačenju.',
+		'Ovaj CSV i opis podataka koristite za analizu. Uz datoteku zadržite bilješke o metodi i tumačenju.',
+	'results.packet.resultsFilesReady.summary': 'Datoteke rezultata su spremne',
+	'results.packet.resultsFilesReady.detail':
+		'Skup odgovora koristite za analizu po retku, a matricu rezultata za agregirani pregled, pregled po grupama i usporedbu mjerenja.',
+	'results.packet.resultsMatrixReady.summary': 'Matrica rezultata je spremna za agregirani pregled',
+	'results.packet.resultsMatrixReady.detail':
+		'Ova datoteka sažima agregirane rezultate. Izradite skup odgovora kada trebate analizu po retku.',
+	'results.packet.currentExportNeeded.summary': 'Datoteka izvoza je spremna za pregled',
+	'results.packet.currentExportNeeded.detail':
+		'Postoji datoteka za preuzimanje, ali izradite trenutačnu matricu rezultata ili skup odgovora prije nego je koristite kao završnu datoteku rezultata.',
 	'results.packet.internalReviewOnly.summary': 'Samo interni pregled',
 	'results.packet.internalReviewOnly.detail':
 		'Ove rezultate koristite unutar radnog prostora dok izvoz, tumačenje ili status prikupljanja još trebaju pregled.',
@@ -1460,7 +1497,7 @@ const hrMessages: AppMessageCatalog = {
 		'Još nemojte predstavljati izračunate rezultate. Sirove odgovore koristite interno ili popravite bodovanje, pravila nedostajućih odgovora i pravila prikaza.',
 	'results.packet.controlledSharing.summary': 'Spremno za kontrolirano dijeljenje',
 	'results.packet.controlledSharing.detail':
-		'Skup odgovora, vidljivi rezultati, pregledano tumačenje i zatvoreno prikupljanje su spremni. Uz sve što dijelite zadržite pravila prikaza i bilješke o metodi studije.',
+		'Vidljivi rezultati, pregledano tumačenje, zatvoreno prikupljanje i trenutačni izvoz rezultata su spremni. Uz sve što dijelite zadržite pravila prikaza i bilješke o metodi studije.',
 
 	'results.method.outputs.label': 'Izlazi rezultata',
 	'results.method.coverage.label': 'Pokrivenost odgovora',
@@ -1506,29 +1543,38 @@ const hrMessages: AppMessageCatalog = {
 	'results.export.responseDataset.summary': 'CSV skup odgovora i opis podataka',
 	'results.export.responseDataset.detail':
 		'Koristite ovo za analizu na razini redaka. Uz datoteku zadržite bilješke o metodi, pravilima prikaza i tumačenju.',
-	'results.export.reportSummary.summary': 'CSV sažetka izvještaja, ne podaci odgovora po retku',
+	'results.export.reportSummary.summary': 'CSV matrice rezultata, ne podaci odgovora po retku',
 	'results.export.reportSummary.detail':
 		'Koristite ovo za interni agregirani pregled. Izradite skup odgovora kada trebate retke predanih odgovora.',
+	'results.export.reportSummary.scoped.detail':
+		'Koristite ovo za agregirani pregled po opsegu. Redci za ukupni pregled, grupe i mjerenja ostaju agregirani; izradite skup odgovora kada trebate retke predanih odgovora.',
 	'results.export.unknownFile.detail':
 		'Pregledajte ovu vrstu datoteke prije korištenja izvan radnog prostora.',
 	'results.export.rowShape.responseRows.detail':
 		'Svaki redak predstavlja jednu predanu sesiju odgovora u ovom izvozu studije.',
 	'results.export.rowShape.scoreRows.detail':
 		'Svaki redak sažima jedan izlaz rezultata za odabrano mjerenje, a ne jednog ispitanika.',
+	'results.export.rowShape.scopedRows': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'row')}; agregirani redci po opsegu rezultata`,
+	'results.export.rowShape.scopedRows.detail':
+		'Redci mogu predstavljati ukupni, grupni ili mjerni opseg rezultata. Prije tumačenja svakog retka koristite result_scope i result_scope_label.',
 	'results.export.rowShape.generic.detail':
-		'Pregledajte knjigu kodova prije tumačenja značenja redaka.',
+		'Pregledajte opis podataka prije tumačenja značenja redaka.',
 	'results.export.waveFields.included.summary': 'Polja mjerenja su uključena',
 	'results.export.waveFields.reportSummary.summary':
 		'Uključena su polja životnog ciklusa odabranog mjerenja',
 	'results.export.waveFields.reportSummary.detail':
-		'Datoteka sažetka izvještaja opisuje odabrano mjerenje i njegovu finalnost, ne svako mjerenje u studiji.',
+		'Agregirana datoteka opisuje opsege rezultata i njihovu finalnost. Prije usporedbe mjerenja koristite opseg retka.',
+	'results.export.waveFields.scoped.summary': 'Uključena su polja usporedbe mjerenja po opsegu',
+	'results.export.waveFields.scoped.detail':
+		'Redci opsega mjerenja uključuju životni ciklus mjerenja i promjenu prosjeka od prethodnog/prvog mjerenja kada je usporedba moguća. Ukupni i grupni redci ostaju agregirani sažeci.',
 	'results.export.waveFields.notDetected.summary': 'Polja mjerenja nisu otkrivena',
 	'results.export.waveFields.grouping.detail':
-		'Pregledajte popis stupaca u knjizi kodova prije grupiranja po mjerenju.',
+		'Pregledajte popis stupaca u opisu podataka prije grupiranja po mjerenju.',
 	'results.export.trajectoryKeys.reportSummary.summary':
-		'Nema ključeva praćenja u izvozu sažetka izvještaja',
+		'Nema ključeva praćenja u izvozu matrice rezultata',
 	'results.export.trajectoryKeys.reportSummary.detail':
-		'Izvozi sažetka izvještaja su agregirane datoteke i ne uključuju retke praćenja ispitanika.',
+		'Izvozi matrice rezultata su agregirane datoteke i ne uključuju retke praćenja ispitanika.',
 	'results.export.trajectoryKeys.included.summary':
 		'Uključeni su lokalni ključevi praćenja za ovu datoteku',
 	'results.export.trajectoryKeys.noColumn.summary':
@@ -1537,23 +1583,27 @@ const hrMessages: AppMessageCatalog = {
 	'results.export.trajectoryKeys.usage.detail':
 		'Polja praćenja koristite samo kada postoji anonimno s ponovljenim sudjelovanjem povezivanje i kada pravila prikaza to dopuštaju.',
 	'results.export.variables.responseDataset.detail':
-		'Stupci pitanja uključuju metapodatke knjige kodova kao što su vrsta pitanja, kodovi nedostajućih vrijednosti, sidrišta ljestvice, oznake vrijednosti i ograničenja odgovora kada su dostupni.',
+		'Stupci pitanja uključuju metapodatke opisa podataka kao što su vrsta pitanja, kodovi nedostajućih vrijednosti, sidrišta ljestvice, oznake vrijednosti i ograničenja odgovora kada su dostupni.',
 	'results.export.variables.reportSummary.detail':
 		'Stupci opisuju agregirani izlaz rezultata, pravila prikaza, finalnost, metapodatke rezultata i polja tumačenja definirana u radnom prostoru.',
+	'results.export.variables.reportSummaryScopedColumns': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'count'), 'reportSummaryColumn')} s redcima opsega rezultata`,
+	'results.export.variables.reportSummaryScoped.detail':
+		'Stupci opisuju opseg agregiranog rezultata, izlaz rezultata, pravila prikaza, finalnost, usporedne promjene, metapodatke rezultata i polja tumačenja definirana u radnom prostoru.',
 	'results.export.variables.codebook.detail':
-		'Pregledajte knjigu kodova prije korištenja vrijednosti stupaca.',
+		'Pregledajte opis podataka prije korištenja vrijednosti stupaca.',
 	'results.export.missingness.codesDocumented.summary':
 		'Kodovi nedostajućih odgovora su dokumentirani',
 	'results.export.missingness.codesNotDetected.summary':
 		'Kodovi nedostajućih odgovora nisu otkriveni',
 	'results.export.missingness.responseDataset.detail':
-		'Prije tretiranja praznih vrijednosti kao stvarnih odgovora koristite polja postupanja s nedostajućim vrijednostima i kodove nedostajućih odgovora iz knjige kodova.',
+		'Prije tretiranja praznih vrijednosti kao stvarnih odgovora koristite polja postupanja s nedostajućim vrijednostima i kodove nedostajućih odgovora iz opisa podataka.',
 	'results.export.missingness.scoreFields.summary':
 		'Uključena su polja nedostajućih vrijednosti rezultata',
 	'results.export.missingness.scoreFieldsNotDetected.summary':
 		'Polja nedostajućih vrijednosti rezultata nisu otkrivena',
 	'results.export.missingness.reportSummary.detail':
-		'Nedostajuće vrijednosti u sažetku izvještaja opisuju važeće/očekivane doprinose rezultatu, a ne preskočene odgovore na razini ispitanika.',
+		'Nedostajuće vrijednosti u matrici rezultata opisuju važeće/očekivane doprinose rezultatu, a ne preskočene odgovore na razini ispitanika.',
 	'results.export.missingness.fields.summary':
 		'Uključena su polja nedostajućih vrijednosti',
 	'results.export.missingness.fieldsNotDetected.summary':
@@ -1569,6 +1619,8 @@ const hrMessages: AppMessageCatalog = {
 	'results.export.scoreOutputs.noColumn.summary': 'Stupac izlaza rezultata nije otkriven',
 	'results.export.scoreOutputs.dimensionCode.detail':
 		'Koristite dimension_code sa score_count i poljima prikaza za razumijevanje agregiranih redaka rezultata.',
+	'results.export.scoreOutputs.scoped.detail':
+		'Koristite result_scope s dimension_code, score_count, pravilima prikaza i poljima usporedne promjene za razumijevanje agregiranih redaka rezultata.',
 	'results.export.scoreOutputs.notDetected.summary': 'Izlazi rezultata nisu otkriveni',
 	'results.export.scoreOutputs.review.detail':
 		'Pregledajte polja izlaza rezultata prije tumačenja.'
@@ -1950,7 +2002,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		purpose: { one: 'purpose', other: 'purposes' },
 		question: { one: 'question', other: 'questions' },
 		recipient: { one: 'recipient', other: 'recipients' },
-		reportSummaryColumn: { one: 'report-summary column', other: 'report-summary columns' },
+		reportSummaryColumn: { one: 'results matrix column', other: 'results matrix columns' },
 		response: { one: 'response', other: 'responses' },
 		row: { one: 'row', other: 'rows' },
 		score: { one: 'score', other: 'scores' },
@@ -2007,9 +2059,9 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		question: { one: 'pitanje', few: 'pitanja', other: 'pitanja' },
 		recipient: { one: 'primatelj', few: 'primatelja', other: 'primatelja' },
 		reportSummaryColumn: {
-			one: 'stupac sažetka izvještaja',
-			few: 'stupca sažetka izvještaja',
-			other: 'stupaca sažetka izvještaja'
+			one: 'stupac matrice rezultata',
+			few: 'stupca matrice rezultata',
+			other: 'stupaca matrice rezultata'
 		},
 		response: { one: 'odgovor', few: 'odgovora', other: 'odgovora' },
 		row: { one: 'redak', few: 'retka', other: 'redaka' },

@@ -14,6 +14,11 @@ public interface IReportProofExportStore
         Guid campaignSeriesId,
         CancellationToken cancellationToken);
 
+    Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResultsMatrixExportAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        CancellationToken cancellationToken);
+
     Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesReportHtmlArtifactAsync(
         Guid tenantId,
         Guid campaignSeriesId,

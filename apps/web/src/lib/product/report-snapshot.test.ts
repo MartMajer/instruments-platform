@@ -160,7 +160,7 @@ describe('selected-series report snapshot model', () => {
 				title: 'report-proof.csv',
 				badgeStatus: 'ready',
 				badgeLabel: 'succeeded',
-				meta: ['report summary CSV and codebook', 'csv codebook', '12 rows', '512 bytes'],
+				meta: ['results matrix CSV and codebook', 'csv codebook', '12 rows', '512 bytes'],
 				rows: [
 					{ label: 'Export record', value: 'export-artifact-id', mono: true },
 					{ label: 'Study context', value: 'Live wave' },

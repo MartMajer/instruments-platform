@@ -62,7 +62,7 @@ const visualAnalyticsCopy = {
 		excludedFromChartLabel: 'Excluded from chart',
 		chartValuesAria: (title: string) => `${title} chart values`,
 		excludedRowsAria: (title: string) => `${title} excluded rows`,
-		scores: (count: number) => `scores ${count}`,
+		scores: (count: string) => `scores ${count}`,
 		submitted: (count: number) => `submitted ${count}`,
 		range: (range: string) => `range ${range}`,
 		baseline: (value: string) => `baseline ${value}`,
@@ -91,7 +91,7 @@ const visualAnalyticsCopy = {
 		excludedFromChartLabel: 'Isključeno iz grafa',
 		chartValuesAria: (title: string) => `${title} vrijednosti grafa`,
 		excludedRowsAria: (title: string) => `${title} isključeni redci`,
-		scores: (count: number) => `rezultati ${count}`,
+		scores: (count: string) => `rezultati ${count}`,
 		submitted: (count: number) => `predano ${count}`,
 		range: (range: string) => `raspon ${range}`,
 		baseline: (value: string) => `početno ${value}`,
@@ -120,7 +120,7 @@ const visualAnalyticsCopy = {
 	excludedFromChartLabel: string;
 	chartValuesAria: (title: string) => string;
 	excludedRowsAria: (title: string) => string;
-	scores: (count: number) => string;
+	scores: (count: string) => string;
 	submitted: (count: number) => string;
 	range: (range: string) => string;
 	baseline: (value: string) => string;
@@ -169,7 +169,7 @@ export function toReportVisualAnalyticsView(
 				secondaryValue: null,
 				secondaryDisplay: null,
 				meta: [
-					copy.scores(score.scoreCount ?? 0),
+					copy.scores(formatNullableCount(score.scoreCount, copy.notAvailable)),
 					copy.submitted(score.submittedResponseCount),
 					copy.range(formatNullableRange(score.min, score.max, copy.notAvailable))
 				]
@@ -298,6 +298,10 @@ function formatNullableRange(min: number | null, max: number | null, fallback: s
 
 function formatNullableNumber(value: number | null, fallback: string) {
 	return value === null ? fallback : formatNumber(value);
+}
+
+function formatNullableCount(value: number | null | undefined, fallback: string) {
+	return value === null || value === undefined ? fallback : value.toString();
 }
 
 function formatNumber(value: number) {

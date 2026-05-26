@@ -50,6 +50,8 @@ public sealed class ReportProofEndpointTests(WebApplicationFactory<Program> fact
                     SubmittedResponseCount: 5,
                     ScoreCount: 5,
                     Mean: 3.2m,
+                    Median: 3.2m,
+                    StandardDeviation: 0.8m,
                     Min: 2m,
                     Max: 4m,
                     SuppressionReason: null,
@@ -618,6 +620,63 @@ public sealed class ReportProofEndpointTests(WebApplicationFactory<Program> fact
     }
 
     [Fact]
+    public async Task Campaign_series_results_matrix_export_endpoint_returns_aggregate_artifact()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        var seriesId = Guid.NewGuid();
+        var artifact = new ReportProofExportArtifactResponse(
+            Id: Guid.NewGuid(),
+            TargetKind: "campaign_series",
+            TargetId: seriesId,
+            TargetLabel: "Campaign series",
+            CampaignId: null,
+            CampaignSeriesId: seriesId,
+            ArtifactType: "campaign_series_results_matrix_csv_codebook",
+            Status: "succeeded",
+            Format: "csv_codebook",
+            FileName: $"campaign-series-{seriesId}-results-matrix.csv",
+            ContentType: "text/csv",
+            RowCount: 3,
+            ByteSize: 512,
+            ChecksumSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            CreatedAt: DateTimeOffset.Parse("2026-05-26T12:00:00+00:00"),
+            CompletedAt: DateTimeOffset.Parse("2026-05-26T12:00:00+00:00"),
+            CsvContent: "result_scope,dimension_code,mean\r\noverall,workload,4.2\r\n",
+            CodebookJson: """{"artifactType":"campaign_series_results_matrix_csv_codebook","columns":[]}""",
+            CanDownload: true);
+        using var client = CreateClient(
+            new FakeReportProofStore(
+                campaignId,
+                Result.Failure<CampaignReportProofResponse>(
+                    Error.NotFound("campaign.not_found", "Campaign was not found."))),
+            new FakeReportProofExportStore(
+                campaignId,
+                Result.Failure<ReportProofExportArtifactResponse>(
+                    Error.NotFound("campaign.not_found", "Campaign was not found.")),
+                expectedResultsMatrixExportSeriesId: seriesId,
+                resultsMatrixExportResult: Result.Success(artifact)));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaign-series/{seriesId}/results-matrix-exports",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ReportProofExportArtifactResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("campaign_series_results_matrix_csv_codebook", payload.ArtifactType);
+        Assert.Equal("campaign_series", payload.TargetKind);
+        Assert.Equal(seriesId, payload.TargetId);
+        Assert.Null(payload.CampaignId);
+        Assert.Equal(seriesId, payload.CampaignSeriesId);
+        Assert.True(payload.CanDownload);
+        Assert.DoesNotContain("response_session", payload.CsvContent, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("token", payload.CsvContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Export_artifact_endpoint_returns_stored_artifact()
     {
         var tenantId = Guid.NewGuid();
@@ -1029,6 +1088,8 @@ public sealed class ReportProofEndpointTests(WebApplicationFactory<Program> fact
         Result<ExportArtifactSignedDownloadUrlResponse>? signedDownloadUrlResult = null,
         Guid? expectedResponseExportSeriesId = null,
         Result<ReportProofExportArtifactResponse>? responseExportResult = null,
+        Guid? expectedResultsMatrixExportSeriesId = null,
+        Result<ReportProofExportArtifactResponse>? resultsMatrixExportResult = null,
         Guid? expectedReportHtmlSeriesId = null,
         Result<ReportProofExportArtifactResponse>? reportHtmlResult = null,
         Guid? expectedReportPdfSeriesId = null,
@@ -1053,6 +1114,19 @@ public sealed class ReportProofEndpointTests(WebApplicationFactory<Program> fact
 
             return Task.FromResult(
                 responseExportResult ??
+                Result.Failure<ReportProofExportArtifactResponse>(
+                    Error.NotFound("campaign_series.not_found", "Campaign series was not found.")));
+        }
+
+        public Task<Result<ReportProofExportArtifactResponse>> CreateCampaignSeriesResultsMatrixExportAsync(
+            Guid tenantId,
+            Guid campaignSeriesId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(expectedResultsMatrixExportSeriesId, campaignSeriesId);
+
+            return Task.FromResult(
+                resultsMatrixExportResult ??
                 Result.Failure<ReportProofExportArtifactResponse>(
                     Error.NotFound("campaign_series.not_found", "Campaign series was not found.")));
         }

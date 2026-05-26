@@ -3851,6 +3851,7 @@ function toExportArtifactSourceContext(targetKind: string, targetLabel: string, 
 
 function toExportArtifactFileType(artifactType: string, locale: AppLocale) {
 	switch (artifactType) {
+		case 'campaign_series_results_matrix_csv_codebook':
 		case 'report_proof_csv_codebook':
 			return appMessage(locale, 'exports.library.fileType.reportSummary');
 		case 'campaign_series_response_csv_codebook':
@@ -3871,6 +3872,7 @@ function toExportArtifactFileFormat(format: string, locale: AppLocale) {
 
 function toExportArtifactPurpose(artifactType: string, locale: AppLocale) {
 	switch (artifactType) {
+		case 'campaign_series_results_matrix_csv_codebook':
 		case 'report_proof_csv_codebook':
 			return {
 				kind: 'report_summary',
@@ -3967,7 +3969,11 @@ function humanizeValue(value: string) {
 	}
 
 	if (value === 'report_proof_csv_codebook') {
-		return 'report summary CSV and codebook';
+		return 'results matrix CSV and codebook';
+	}
+
+	if (value === 'campaign_series_results_matrix_csv_codebook') {
+		return 'results matrix CSV and codebook';
 	}
 
 	if (value === 'campaign_series_response_csv_codebook') {
@@ -3975,7 +3981,7 @@ function humanizeValue(value: string) {
 	}
 
 	if (value === 'campaign_report_proof') {
-		return 'report summary CSV';
+		return 'results preview CSV';
 	}
 
 	return value.replace(/[_-]+/g, ' ');

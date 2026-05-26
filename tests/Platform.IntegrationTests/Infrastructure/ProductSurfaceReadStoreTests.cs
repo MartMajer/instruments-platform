@@ -97,7 +97,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 4);
         Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.Scores.CountAsync(score => score.TenantId == tenantId, CancellationToken.None) > 0);
-        Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 6);
+        Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 9);
         var responseExports = await db.ExportArtifacts
             .Where(artifact =>
                 artifact.TenantId == tenantId &&
@@ -114,6 +114,23 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             Assert.Contains("q01", artifact.Content);
             Assert.Contains("sample_response_rows", artifact.MetadataJson);
             Assert.Contains("question_code", artifact.CodebookJson);
+        });
+        var matrixExports = await db.ExportArtifacts
+            .Where(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook)
+            .ToListAsync(CancellationToken.None);
+        Assert.Equal(3, matrixExports.Count);
+        Assert.All(matrixExports, artifact =>
+        {
+            Assert.True(artifact.RowCount >= 1);
+            Assert.NotNull(artifact.Content);
+            Assert.StartsWith("result_scope,result_scope_label,campaign_series_id", artifact.Content);
+            Assert.Contains("overall", artifact.Content);
+            Assert.Contains("wave", artifact.Content);
+            Assert.Contains("sample_results_matrix", artifact.MetadataJson);
+            Assert.Contains("campaign_series_results_matrix_csv_codebook", artifact.CodebookJson);
         });
         await inspection.CommitAsync();
     }
@@ -2737,7 +2754,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
-    public async Task Campaign_series_reports_workspace_counts_all_exports_when_registry_is_limited()
+    public async Task Campaign_series_reports_workspace_returns_all_series_exports_for_results_workflow()
     {
         var tenantId = Guid.NewGuid();
         var migratorOptions = CreateMigratorOptions();
@@ -2776,9 +2793,9 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess, result.Error.ToString());
         Assert.Equal(12, result.Value.Summary.ExportArtifactCount);
-        Assert.Equal(10, result.Value.ExportArtifacts.Count);
+        Assert.Equal(12, result.Value.ExportArtifacts.Count);
         Assert.Equal("responses-11.csv", result.Value.ExportArtifacts[0].FileName);
-        Assert.Equal("responses-02.csv", result.Value.ExportArtifacts[^1].FileName);
+        Assert.Equal("responses-00.csv", result.Value.ExportArtifacts[^1].FileName);
     }
 
     [DockerFact]
@@ -2834,6 +2851,281 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(0, result.Value.SelectedCampaign.VisibleScoreCount);
         Assert.Equal(1, result.Value.SelectedCampaign.SuppressedScoreCount);
         Assert.Equal("export_artifact.missing", Assert.Single(result.Value.MissingPrerequisites).Code);
+    }
+
+    [DockerFact]
+    public async Task Campaign_series_reports_workspace_suppresses_sparse_score_outputs()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-reports-sparse-output");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Sparse output reports series");
+        var scoringRule = await SeedScoringRuleAsync(runtimeOptions, tenantId, template.TemplateVersionId);
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Sparse output wave",
+            status: CampaignStatuses.Live);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            campaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:00:00+00:00"),
+            configured: true);
+
+        for (var index = 0; index < 5; index++)
+        {
+            var session = await SeedSubmittedResponseAsync(
+                runtimeOptions,
+                tenantId,
+                campaign.Id,
+                template.QuestionId,
+                submittedAt: DateTimeOffset.Parse("2026-05-06T10:00:00+00:00").AddMinutes(index));
+
+            if (index == 0)
+            {
+                await SeedScoreAsync(runtimeOptions, tenantId, campaign.Id, session.Id, scoringRule.Id);
+            }
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.NotNull(result.Value.SelectedCampaign);
+        Assert.Equal(5, result.Value.SelectedCampaign.SubmittedResponseCount);
+        Assert.Equal(1, result.Value.SelectedCampaign.ScoreCount);
+        Assert.Equal(0, result.Value.SelectedCampaign.VisibleScoreCount);
+        Assert.Equal(1, result.Value.SelectedCampaign.SuppressedScoreCount);
+        Assert.Equal("suppressed", result.Value.SelectedCampaign.DisclosureState);
+
+        var output = Assert.Single(result.Value.ResultsAnalytics!.ScoreOutputs);
+        Assert.Equal("suppressed", output.Disclosure);
+        Assert.Null(output.SubmittedResponseCount);
+        Assert.Null(output.ScoreCount);
+        Assert.Null(output.Mean);
+        Assert.Equal("insufficient_responses", output.SuppressionReason);
+    }
+
+    [DockerFact]
+    public async Task Campaign_series_reports_workspace_deduplicates_group_memberships_for_results_matrix()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-reports-group-dedup");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Group dedup reports series");
+        var scoringRule = await SeedScoringRuleAsync(runtimeOptions, tenantId, template.TemplateVersionId);
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Group dedup wave",
+            status: CampaignStatuses.Live,
+            responseIdentityMode: ResponseIdentityModes.Identified);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            campaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:00:00+00:00"),
+            configured: true);
+        var primaryGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Research");
+        var duplicateNameGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Research");
+
+        for (var index = 0; index < 5; index++)
+        {
+            var subject = await SeedSubjectAsync(
+                runtimeOptions,
+                tenantId,
+                $"Researcher {index}",
+                $"researcher-{index}@example.test",
+                $"researcher-{index:00}");
+            await SeedSubjectMembershipAsync(runtimeOptions, tenantId, subject.Id, primaryGroup.Id, SubjectGroupRoles.Member);
+            if (index == 0)
+            {
+                await SeedSubjectMembershipAsync(
+                    runtimeOptions,
+                    tenantId,
+                    subject.Id,
+                    duplicateNameGroup.Id,
+                    SubjectGroupRoles.Member);
+            }
+
+            var session = await SeedSubmittedIdentifiedResponseAsync(
+                runtimeOptions,
+                tenantId,
+                campaign.Id,
+                template.QuestionId,
+                subject.Id,
+                submittedAt: DateTimeOffset.Parse("2026-05-06T10:00:00+00:00").AddMinutes(index));
+            await SeedScoreAsync(runtimeOptions, tenantId, campaign.Id, session.Id, scoringRule.Id);
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var groupRow = Assert.Single(result.Value.ResultsAnalytics!.GroupRows);
+        Assert.Equal("visible", groupRow.Disclosure);
+        Assert.Equal(5, groupRow.ScoreCount);
+        Assert.Equal(5, groupRow.SubmittedResponseCount);
+    }
+
+    [DockerFact]
+    public async Task Campaign_series_reports_workspace_ignores_unsubmitted_scores()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-reports-draft-score");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Draft score reports series");
+        var scoringRule = await SeedScoringRuleAsync(runtimeOptions, tenantId, template.TemplateVersionId);
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Draft score wave",
+            status: CampaignStatuses.Live);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            campaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:00:00+00:00"),
+            configured: true);
+        var draftSession = await SeedDraftResponseAsync(
+            runtimeOptions,
+            tenantId,
+            campaign.Id,
+            DateTimeOffset.Parse("2026-05-06T10:00:00+00:00"));
+        await SeedScoreAsync(runtimeOptions, tenantId, campaign.Id, draftSession.Id, scoringRule.Id);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.NotNull(result.Value.SelectedCampaign);
+        Assert.Equal(0, result.Value.SelectedCampaign.SubmittedResponseCount);
+        Assert.Equal(0, result.Value.SelectedCampaign.ScoreCount);
+        Assert.Equal(0, result.Value.Summary.ScoreCount);
+        Assert.Equal("pending", result.Value.SelectedCampaign.DisclosureState);
+        Assert.Equal("blocked", result.Value.SelectedCampaign.ReportStatus);
+        Assert.Empty(result.Value.ResultsAnalytics!.ScoreOutputs);
+    }
+
+    [DockerFact]
+    public async Task Campaign_series_reports_workspace_ignores_scores_with_mismatched_assignment_campaign()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-reports-mismatched-score");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Mismatched score reports series");
+        var scoringRule = await SeedScoringRuleAsync(runtimeOptions, tenantId, template.TemplateVersionId);
+        var sourceCampaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Source wave",
+            status: CampaignStatuses.Live);
+        var mismatchedCampaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Mismatched wave",
+            status: CampaignStatuses.Live);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            sourceCampaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:00:00+00:00"),
+            configured: true);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            mismatchedCampaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:05:00+00:00"),
+            configured: true);
+        var sourceSession = await SeedSubmittedResponseAsync(
+            runtimeOptions,
+            tenantId,
+            sourceCampaign.Id,
+            template.QuestionId,
+            submittedAt: DateTimeOffset.Parse("2026-05-06T10:00:00+00:00"));
+        await SeedScoreAsync(
+            runtimeOptions,
+            tenantId,
+            sourceCampaign.Id,
+            sourceSession.Id,
+            scoringRule.Id);
+        await using (var ownerDb = new ApplicationDbContext(migratorOptions))
+        {
+            await ownerDb.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                UPDATE invitation_token
+                SET campaign_id = {mismatchedCampaign.Id}
+                WHERE id = (
+                    SELECT invite_token_id
+                    FROM assignment
+                    WHERE id = {sourceSession.AssignmentId}
+                      AND tenant_id = {tenantId}
+                )
+                  AND tenant_id = {tenantId};
+
+                UPDATE assignment
+                SET campaign_id = {mismatchedCampaign.Id}
+                WHERE id = {sourceSession.AssignmentId}
+                  AND tenant_id = {tenantId}
+                """);
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(0, result.Value.Summary.ScoreCount);
+        Assert.All(result.Value.Campaigns, campaign => Assert.Equal(0, campaign.ScoreCount));
+        Assert.Empty(result.Value.ResultsAnalytics!.ScoreOutputs);
     }
 
     [DockerFact]
@@ -2948,7 +3240,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.DoesNotContain("error", storeSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ip_hash", storeSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("user_agent_hash", storeSql, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("value", storeSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("FROM answer", storeSql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("JOIN answer", storeSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("content", storeSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("codebook_json", storeSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("scoring_rule_document_hash", storeSql, StringComparison.OrdinalIgnoreCase);
@@ -4003,6 +4296,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 invitation_token,
                 notification,
                 notification_delivery_attempt,
+                notification_delivery_event,
+                email_suppression,
                 participant_code,
                 response_session,
                 answer,
@@ -4545,6 +4840,50 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         return session;
     }
 
+    private static async Task<ResponseSession> SeedSubmittedIdentifiedResponseAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        Guid tenantId,
+        Guid campaignId,
+        Guid questionId,
+        Guid respondentSubjectId,
+        DateTimeOffset submittedAt)
+    {
+        var assignment = Assignment.CreateIdentified(
+            Guid.NewGuid(),
+            tenantId,
+            campaignId,
+            "self",
+            respondentSubjectId,
+            targetSubjectId: respondentSubjectId);
+        var session = new ResponseSession(
+            Guid.NewGuid(),
+            tenantId,
+            assignment.Id,
+            "en",
+            participantCodeId: null,
+            startedAt: submittedAt.AddMinutes(-5),
+            ipHash: null,
+            userAgentHash: null);
+        session.Submit(submittedAt, timeTakenMs: 1200);
+        var answer = new Answer(
+            Guid.NewGuid(),
+            tenantId,
+            session.Id,
+            questionId,
+            $"\"{SensitiveAnswerValue}\"");
+
+        await using var db = new ApplicationDbContext(options);
+        var tenantDbScope = new TenantDbScope(db);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        db.Assignments.Add(assignment);
+        db.ResponseSessions.Add(session);
+        db.Answers.Add(answer);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return session;
+    }
+
     private static async Task CloseCampaignAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
@@ -4682,6 +5021,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var createdAt = createdAtOverride ?? DateTimeOffset.Parse("2026-05-06T12:00:00+00:00");
         var succeeded = status == ExportArtifactStatuses.Succeeded;
         var targetKind = artifactType is ExportArtifactTypes.CampaignSeriesResponseCsvCodebook
+            or ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook
             or ExportArtifactTypes.CampaignSeriesReportHtml
             or ExportArtifactTypes.CampaignSeriesReportPdf
             ? ExportArtifactTargetKinds.CampaignSeries

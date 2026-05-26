@@ -1231,7 +1231,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "format IN ('csv_codebook','html','pdf')");
                 table.HasCheckConstraint(
                     "ck_export_artifact_type",
-                    "artifact_type IN ('report_proof_csv_codebook','campaign_series_response_csv_codebook','campaign_series_report_html','campaign_series_report_pdf')");
+                    "artifact_type IN ('report_proof_csv_codebook','campaign_series_response_csv_codebook','campaign_series_results_matrix_csv_codebook','campaign_series_report_html','campaign_series_report_pdf')");
                 table.HasCheckConstraint(
                     "ck_export_artifact_target_kind",
                     "target_kind IN ('campaign','campaign_series')");

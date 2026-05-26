@@ -247,7 +247,8 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			proof_only: 'preview'
 		},
 		exportFileTypeLabels: {
-			report_proof_csv_codebook: 'report summary CSV and codebook',
+			report_proof_csv_codebook: 'results matrix CSV and codebook',
+			campaign_series_results_matrix_csv_codebook: 'results matrix CSV and codebook',
 			campaign_series_response_csv_codebook: 'response dataset CSV and codebook'
 		},
 		artifactStatusLabels: {
@@ -283,7 +284,7 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			exportFilesTitle: 'Export files',
 			exportFileAriaPrefix: 'Export file',
 			noStoredExportsTitle: 'No stored export files yet',
-			noStoredExportsMessage: 'Create a report export before downloading a file.',
+			noStoredExportsMessage: 'Create an export file before downloading.',
 			loadingSnapshot: 'Loading snapshot',
 			refreshSnapshot: 'Refresh report snapshot',
 			loading: 'Loading',
@@ -294,7 +295,7 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			aggregateReportSnapshotAria: 'Aggregate report snapshot',
 			reportPreviewKicker: 'Report preview',
 			previewLabel: 'Preview',
-			preliminarySummaryAria: 'Preliminary report summary',
+			preliminarySummaryAria: 'Preliminary results summary',
 			preliminarySummaryKicker: 'Preliminary summary',
 			reportScoreRowsAria: 'Report score rows',
 			reportScoreAriaPrefix: 'Report score',
@@ -384,7 +385,8 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			failed: 'neuspjelo'
 		},
 		exportFileTypeLabels: {
-			report_proof_csv_codebook: 'CSV i opis podataka sa sažetkom izvještaja',
+			report_proof_csv_codebook: 'CSV i opis podataka matrice rezultata',
+			campaign_series_results_matrix_csv_codebook: 'CSV i opis podataka matrice rezultata',
 			campaign_series_response_csv_codebook: 'CSV i opis podataka s odgovorima'
 		},
 		artifactStatusLabels: {
@@ -421,7 +423,7 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			exportFilesTitle: 'Izvozne datoteke',
 			exportFileAriaPrefix: 'Izvozna datoteka',
 			noStoredExportsTitle: 'Još nema spremljenih izvoznih datoteka',
-			noStoredExportsMessage: 'Izradite izvoz izvještaja prije preuzimanja datoteke.',
+			noStoredExportsMessage: 'Izradite izvoznu datoteku prije preuzimanja.',
 			loadingSnapshot: 'Učitavanje pregleda',
 			refreshSnapshot: 'Osvježi pregled izvještaja',
 			loading: 'Učitavanje',
@@ -432,8 +434,8 @@ const reportSnapshotCopies: Record<AppLocale, SelectedSeriesReportSnapshotCopy> 
 			aggregateReportSnapshotAria: 'Sažeti pregled izvještaja',
 			reportPreviewKicker: 'Pregled izvještaja',
 			previewLabel: 'Pregled',
-			preliminarySummaryAria: 'Preliminarni sažetak izvještaja',
-			preliminarySummaryKicker: 'Preliminarni sažetak',
+			preliminarySummaryAria: 'Preliminarni pregled rezultata',
+			preliminarySummaryKicker: 'Preliminarni pregled',
 			reportScoreRowsAria: 'Redci rezultata izvještaja',
 			reportScoreAriaPrefix: 'Rezultat izvještaja',
 			meanLabel: 'prosjek',

@@ -164,6 +164,7 @@ public sealed class ProductSurfaceReadStore(
                 artifact.DeletedAt == null &&
                 (artifact.ArtifactType == ExportArtifactTypes.ReportProofCsvCodebook ||
                     artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook ||
+                    artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook ||
                     artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesReportHtml ||
                     artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesReportPdf));
 
@@ -1262,7 +1263,7 @@ public sealed class ProductSurfaceReadStore(
                 scoringRuleIdsByTemplate,
                 submittedCounts.GetValueOrDefault(campaign.Id),
                 scoreCoverageAggregates.GetValueOrDefault(campaign.Id)));
-        var scoreCounts = await LoadScoreCountsByCampaignAsync(campaignIds, cancellationToken);
+        var scoreOutputCounts = await LoadScoreOutputCountsByCampaignAsync(campaignIds, cancellationToken);
         var exportArtifactCounts = await LoadExportArtifactCountsByCampaignAsync(campaignIds, cancellationToken);
         var latestExportArtifacts = await LoadLatestExportArtifactsByCampaignAsync(campaignIds, cancellationToken);
         var reportExportArtifactCount = await LoadReportExportArtifactCountAsync(
@@ -1275,7 +1276,7 @@ public sealed class ProductSurfaceReadStore(
                 launchDetails.GetValueOrDefault(campaign.Id),
                 disclosurePolicies,
                 submittedCounts.GetValueOrDefault(campaign.Id),
-                scoreCounts.GetValueOrDefault(campaign.Id),
+                scoreOutputCounts.GetValueOrDefault(campaign.Id),
                 exportArtifactCounts.GetValueOrDefault(campaign.Id),
                 latestExportArtifacts.GetValueOrDefault(campaign.Id)))
             .ToArray();
@@ -1287,6 +1288,12 @@ public sealed class ProductSurfaceReadStore(
             cancellationToken);
         var selectedCampaign = SelectReportsCampaign(campaignResponses);
         var missingPrerequisites = CreateReportsMissingPrerequisites(campaignResponses);
+        var resultsAnalytics = await LoadCampaignSeriesResultsAnalyticsAsync(
+            tenantId,
+            series.Id,
+            campaignResponses,
+            selectedCampaign,
+            cancellationToken);
         var response = new CampaignSeriesReportsWorkspaceResponse(
             new CampaignSeriesReportsSeriesResponse(
                 series.Id,
@@ -1314,7 +1321,8 @@ public sealed class ProductSurfaceReadStore(
             missingPrerequisites,
             exportArtifactRegistry,
             campaignResponses,
-            ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()));
+            ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()),
+            resultsAnalytics);
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -1332,6 +1340,562 @@ public sealed class ProductSurfaceReadStore(
         return workspace.IsSuccess
             ? Result.Success(ToReportsWidgetManifest(workspace.Value, canManageSetup))
             : Result.Failure<CampaignSeriesReportsWidgetManifestResponse>(workspace.Error);
+    }
+
+    private async Task<CampaignSeriesResultsAnalyticsResponse?> LoadCampaignSeriesResultsAnalyticsAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        IReadOnlyList<CampaignSeriesReportsCampaignResponse> campaigns,
+        CampaignSeriesReportsCampaignResponse? selectedCampaign,
+        CancellationToken cancellationToken)
+    {
+        if (selectedCampaign is null || campaigns.Count == 0)
+        {
+            return null;
+        }
+
+        var campaignById = campaigns.ToDictionary(campaign => campaign.Id);
+        var campaignIds = campaignById.Keys.ToArray();
+        var rawScores = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                join campaign in db.Campaigns.AsNoTracking()
+                    on score.CampaignId equals campaign.Id
+                where score.TenantId == tenantId &&
+                    campaign.CampaignSeriesId == campaignSeriesId &&
+                    campaignIds.Contains(score.CampaignId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                select new ResultsScoreObservationRow(
+                    score.Id,
+                    score.CampaignId,
+                    score.ResponseSessionId,
+                    score.DimensionCode,
+                    score.Value,
+                    score.NValid,
+                    score.NExpected,
+                    score.MissingPolicyStatus,
+                    score.ComputedAt,
+                    session.SubmittedAt!.Value,
+                    assignment.TargetSubjectId,
+                    assignment.RespondentSubjectId))
+            .ToListAsync(cancellationToken);
+
+        var latestScores = rawScores
+            .GroupBy(score => new { score.ResponseSessionId, score.DimensionCode })
+            .Select(group => group
+                .OrderByDescending(score => score.ComputedAt)
+                .ThenByDescending(score => score.ScoreId)
+                .First())
+            .ToArray();
+        var selectedScores = latestScores
+            .Where(score => score.CampaignId == selectedCampaign.Id)
+            .ToArray();
+        var selectedOutputRows = selectedScores
+            .GroupBy(score => score.DimensionCode, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => CreateResultsScoreOutputResponse(
+                group.Key,
+                group.ToArray(),
+                selectedCampaign.SubmittedResponseCount,
+                IsCampaignResultVisible(selectedCampaign, group.Count()),
+                DetermineResultsSuppressionReason(selectedCampaign, group.Count())))
+            .ToArray();
+        var groupRows = await CreateResultsGroupMatrixRowsAsync(
+            tenantId,
+            selectedCampaign,
+            selectedScores,
+            cancellationToken);
+        var waveRows = AddResultsWaveComparisons(latestScores
+            .GroupBy(score => new { score.CampaignId, score.DimensionCode })
+            .Where(group => campaignById.ContainsKey(group.Key.CampaignId))
+            .OrderBy(group => campaignById[group.Key.CampaignId].LatestLaunchAt ?? DateTimeOffset.MaxValue)
+            .ThenBy(group => campaignById[group.Key.CampaignId].Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Key.DimensionCode, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var campaign = campaignById[group.Key.CampaignId];
+                return CreateResultsWaveMatrixRowResponse(
+                    campaign,
+                    group.Key.DimensionCode,
+                    group.ToArray());
+            })
+            .ToArray());
+
+        return new CampaignSeriesResultsAnalyticsResponse(
+            selectedCampaign.Id,
+            selectedCampaign.Name,
+            selectedCampaign.DisclosureKMin ?? 0,
+            selectedCampaign.DisclosureState,
+            selectedOutputRows,
+            groupRows,
+            waveRows,
+            CreateResultsInsights(selectedCampaign, selectedOutputRows, groupRows, waveRows));
+    }
+
+    private async Task<CampaignSeriesResultsGroupMatrixRowResponse[]> CreateResultsGroupMatrixRowsAsync(
+        Guid tenantId,
+        CampaignSeriesReportsCampaignResponse selectedCampaign,
+        IReadOnlyList<ResultsScoreObservationRow> selectedScores,
+        CancellationToken cancellationToken)
+    {
+        var subjectIds = selectedScores
+            .Select(score => score.TargetSubjectId ?? score.RespondentSubjectId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+
+        if (subjectIds.Length == 0)
+        {
+            return [];
+        }
+
+        var memberships = await (
+                from membership in db.SubjectMemberships.AsNoTracking()
+                join subject in db.Subjects.AsNoTracking()
+                    on membership.SubjectId equals subject.Id
+                join subjectGroup in db.SubjectGroups.AsNoTracking()
+                    on membership.GroupId equals subjectGroup.Id
+                where subjectIds.Contains(membership.SubjectId) &&
+                    subject.TenantId == tenantId &&
+                    subjectGroup.TenantId == tenantId &&
+                    subject.DeletedAt == null &&
+                    subjectGroup.DeletedAt == null
+                select new ResultsSubjectGroupMembershipRow(
+                    membership.SubjectId,
+                    subjectGroup.Type,
+                    subjectGroup.Name,
+                    membership.ValidFrom,
+                    membership.ValidTo))
+            .ToListAsync(cancellationToken);
+
+        var membershipsBySubject = memberships
+            .GroupBy(membership => membership.SubjectId)
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        var joinedRows = new List<ResultsGroupedScoreObservationRow>();
+
+        foreach (var score in selectedScores)
+        {
+            var subjectId = score.TargetSubjectId ?? score.RespondentSubjectId;
+            if (!subjectId.HasValue ||
+                !membershipsBySubject.TryGetValue(subjectId.Value, out var subjectMemberships))
+            {
+                continue;
+            }
+
+            var submittedDate = DateOnly.FromDateTime(score.SubmittedAt.UtcDateTime);
+            var applicableMemberships = subjectMemberships
+                .Where(membership => MembershipAppliesOn(membership, submittedDate))
+                .GroupBy(membership => new { membership.GroupType, membership.GroupName })
+                .Select(group => group.First());
+            foreach (var membership in applicableMemberships)
+            {
+                joinedRows.Add(new ResultsGroupedScoreObservationRow(
+                    membership.GroupType,
+                    membership.GroupName,
+                    score.DimensionCode,
+                    score.Value,
+                    score.NValid,
+                    score.NExpected,
+                    score.MissingPolicyStatus));
+            }
+        }
+
+        return joinedRows
+            .GroupBy(row => new { row.GroupType, row.GroupName, row.DimensionCode })
+            .OrderBy(group => group.Key.GroupType, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Key.GroupName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Key.DimensionCode, StringComparer.Ordinal)
+            .Select(group => CreateResultsGroupMatrixRowResponse(
+                selectedCampaign,
+                group.Key.GroupType,
+                group.Key.GroupName,
+                group.Key.DimensionCode,
+                group.ToArray()))
+            .ToArray();
+    }
+
+    private static CampaignSeriesResultsScoreOutputResponse CreateResultsScoreOutputResponse(
+        string dimensionCode,
+        IReadOnlyList<ResultsScoreObservationRow> scores,
+        int submittedResponseCount,
+        bool visible,
+        string? suppressionReason)
+    {
+        var values = scores.Select(score => score.Value).ToArray();
+        if (!visible || values.Length == 0)
+        {
+            return new CampaignSeriesResultsScoreOutputResponse(
+                dimensionCode,
+                "suppressed",
+                SubmittedResponseCount: null,
+                ScoreCount: null,
+                Mean: null,
+                Median: null,
+                StandardDeviation: null,
+                Min: null,
+                Max: null,
+                NValidTotal: null,
+                NExpectedTotal: null,
+                MissingPolicyStatusSummary: null,
+                suppressionReason ?? "not_reportable");
+        }
+
+        return new CampaignSeriesResultsScoreOutputResponse(
+            dimensionCode,
+            "visible",
+            submittedResponseCount,
+            values.Length,
+            CalculateResultsMean(values),
+            CalculateResultsMedian(values),
+            CalculateResultsStandardDeviation(values),
+            values.Min(),
+            values.Max(),
+            scores.Sum(score => score.NValid),
+            scores.Sum(score => score.NExpected),
+            SummarizeResultMissingPolicyStatuses(scores.Select(score => score.MissingPolicyStatus)),
+            SuppressionReason: null);
+    }
+
+    private static CampaignSeriesResultsGroupMatrixRowResponse CreateResultsGroupMatrixRowResponse(
+        CampaignSeriesReportsCampaignResponse selectedCampaign,
+        string groupType,
+        string groupName,
+        string dimensionCode,
+        IReadOnlyList<ResultsGroupedScoreObservationRow> scores)
+    {
+        var values = scores.Select(score => score.Value).ToArray();
+        var visible = selectedCampaign.DisclosureKMin.HasValue &&
+            values.Length >= selectedCampaign.DisclosureKMin.Value;
+
+        if (!visible || values.Length == 0)
+        {
+            return new CampaignSeriesResultsGroupMatrixRowResponse(
+                groupType,
+                groupName,
+                dimensionCode,
+                "suppressed",
+                SubmittedResponseCount: null,
+                ScoreCount: null,
+                Mean: null,
+                Median: null,
+                StandardDeviation: null,
+                Min: null,
+                Max: null,
+                SuppressionReason: selectedCampaign.DisclosureKMin.HasValue
+                    ? "insufficient_responses"
+                    : "disclosure_policy_missing");
+        }
+
+        return new CampaignSeriesResultsGroupMatrixRowResponse(
+            groupType,
+            groupName,
+            dimensionCode,
+            "visible",
+            values.Length,
+            values.Length,
+            CalculateResultsMean(values),
+            CalculateResultsMedian(values),
+            CalculateResultsStandardDeviation(values),
+            values.Min(),
+            values.Max(),
+            SuppressionReason: null);
+    }
+
+    private static CampaignSeriesResultsWaveMatrixRowResponse CreateResultsWaveMatrixRowResponse(
+        CampaignSeriesReportsCampaignResponse campaign,
+        string dimensionCode,
+        IReadOnlyList<ResultsScoreObservationRow> scores)
+    {
+        var values = scores.Select(score => score.Value).ToArray();
+        var visible = IsCampaignResultVisible(campaign, values.Length);
+
+        if (!visible)
+        {
+            return new CampaignSeriesResultsWaveMatrixRowResponse(
+                campaign.Id,
+                campaign.Name,
+                campaign.Status,
+                campaign.DataFinality,
+                campaign.ClosedAt,
+                dimensionCode,
+                "suppressed",
+                SubmittedResponseCount: null,
+                ScoreCount: null,
+                Mean: null,
+                Median: null,
+                StandardDeviation: null,
+                Min: null,
+                Max: null,
+                SuppressionReason: DetermineResultsSuppressionReason(campaign, values.Length));
+        }
+
+        return new CampaignSeriesResultsWaveMatrixRowResponse(
+            campaign.Id,
+            campaign.Name,
+            campaign.Status,
+            campaign.DataFinality,
+            campaign.ClosedAt,
+            dimensionCode,
+            "visible",
+            campaign.SubmittedResponseCount,
+            values.Length,
+            CalculateResultsMean(values),
+            CalculateResultsMedian(values),
+            CalculateResultsStandardDeviation(values),
+            values.Min(),
+            values.Max(),
+            SuppressionReason: null);
+    }
+
+    private static CampaignSeriesResultsWaveMatrixRowResponse[] AddResultsWaveComparisons(
+        IReadOnlyList<CampaignSeriesResultsWaveMatrixRowResponse> rows)
+    {
+        var comparedRows = new List<CampaignSeriesResultsWaveMatrixRowResponse>();
+
+        foreach (var dimensionRows in rows.GroupBy(row => row.DimensionCode, StringComparer.Ordinal))
+        {
+            CampaignSeriesResultsWaveMatrixRowResponse? firstVisible = null;
+            CampaignSeriesResultsWaveMatrixRowResponse? previousVisible = null;
+
+            foreach (var row in dimensionRows)
+            {
+                if (row.Disclosure != "visible" || !row.Mean.HasValue)
+                {
+                    comparedRows.Add(row with { ComparisonState = "not_comparable" });
+                    continue;
+                }
+
+                if (firstVisible is null)
+                {
+                    firstVisible = row;
+                    previousVisible = row;
+                    comparedRows.Add(row with
+                    {
+                        DeltaFromPreviousMean = null,
+                        DeltaFromFirstMean = 0,
+                        ComparisonState = "baseline"
+                    });
+                    continue;
+                }
+
+                var previousVisibleMean = previousVisible?.Mean;
+                var firstVisibleMean = firstVisible.Mean;
+
+                comparedRows.Add(row with
+                {
+                    DeltaFromPreviousMean = previousVisibleMean.HasValue
+                        ? RoundResultsDelta(row.Mean.Value - previousVisibleMean.Value)
+                        : null,
+                    DeltaFromFirstMean = firstVisibleMean.HasValue
+                        ? RoundResultsDelta(row.Mean.Value - firstVisibleMean.Value)
+                        : null,
+                    ComparisonState = "compared"
+                });
+                previousVisible = row;
+            }
+        }
+
+        return comparedRows.ToArray();
+    }
+
+    private static decimal RoundResultsDelta(decimal value)
+    {
+        return Math.Round(value, 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static CampaignSeriesResultsInsightResponse[] CreateResultsInsights(
+        CampaignSeriesReportsCampaignResponse selectedCampaign,
+        IReadOnlyList<CampaignSeriesResultsScoreOutputResponse> outputRows,
+        IReadOnlyList<CampaignSeriesResultsGroupMatrixRowResponse> groupRows,
+        IReadOnlyList<CampaignSeriesResultsWaveMatrixRowResponse> waveRows)
+    {
+        var insights = new List<CampaignSeriesResultsInsightResponse>();
+
+        var visibleOutputCount = outputRows.Count(row =>
+            row.Disclosure == "visible" &&
+            row.Mean.HasValue &&
+            row.ScoreCount.HasValue &&
+            row.ScoreCount.Value > 0);
+
+        if (outputRows.Count == 0)
+        {
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "score_outputs",
+                "blocked",
+                "No result outputs yet",
+                "Run scoring for submitted responses before interpreting results."));
+        }
+        else if (visibleOutputCount == 0)
+        {
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "score_outputs",
+                "pending",
+                "Results hidden by disclosure",
+                "Submitted responses may exist, but aggregate result values are hidden until disclosure and scoring requirements are met."));
+        }
+        else
+        {
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "score_outputs",
+                "ready",
+                $"{visibleOutputCount} visible result output{PluralSuffix(visibleOutputCount)} ready",
+                "Review mean, median, spread, range, and missing-answer coverage before sharing conclusions."));
+        }
+
+        if (groupRows.Count == 0)
+        {
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "groups",
+                "pending",
+                "No group comparison yet",
+                "Group comparisons need recipient subjects with directory group membership on the selected wave."));
+        }
+        else if (groupRows.Any(row => row.Disclosure == "suppressed"))
+        {
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "groups",
+                "pending",
+                "Some groups are hidden",
+                $"Rows under the disclosure minimum of {selectedCampaign.DisclosureKMin ?? 0} responses are hidden."));
+        }
+        else
+        {
+            var visibleGroupCount = groupRows
+                .Where(row => row.Disclosure == "visible")
+                .Select(row => new { row.GroupType, row.GroupName })
+                .Distinct()
+                .Count();
+            insights.Add(new CampaignSeriesResultsInsightResponse(
+                "groups",
+                "ready",
+                $"{visibleGroupCount} group comparison{PluralSuffix(visibleGroupCount)} ready",
+                "Review group rows as aggregate comparisons only; do not use them to identify respondents."));
+        }
+
+        var comparableWaveCount = waveRows
+            .Where(row => row.Disclosure == "visible" && row.ComparisonState is "baseline" or "compared")
+            .GroupBy(row => row.DimensionCode, StringComparer.Ordinal)
+            .Where(group => group.Any(row => row.ComparisonState == "compared"))
+            .Select(group => group.Select(row => row.CampaignId).Distinct().Count())
+            .DefaultIfEmpty(0)
+            .Max();
+        insights.Add(comparableWaveCount >= 2
+            ? new CampaignSeriesResultsInsightResponse(
+                "waves",
+                "ready",
+                $"{comparableWaveCount} measurements can be compared",
+                "Use wave rows for change-over-time review. Treat live measurements as preliminary.")
+            : new CampaignSeriesResultsInsightResponse(
+                "waves",
+                "pending",
+                "Wave comparison not ready",
+                "At least two measurements need visible score rows before change-over-time comparisons are useful."));
+
+        return insights.ToArray();
+    }
+
+    private static bool IsCampaignResultVisible(CampaignSeriesReportsCampaignResponse campaign, int scoreCount)
+    {
+        if (scoreCount <= 0)
+        {
+            return false;
+        }
+
+        if (campaign.ResponseIdentityMode == ResponseIdentityModes.Identified)
+        {
+            return true;
+        }
+
+        return campaign.DisclosureKMin.HasValue &&
+            scoreCount >= campaign.DisclosureKMin.Value;
+    }
+
+    private static string? DetermineResultsSuppressionReason(
+        CampaignSeriesReportsCampaignResponse campaign,
+        int scoreCount)
+    {
+        if (scoreCount == 0)
+        {
+            return "no_scores";
+        }
+
+        if (!campaign.DisclosureKMin.HasValue)
+        {
+            return "disclosure_policy_missing";
+        }
+
+        if (campaign.ResponseIdentityMode == ResponseIdentityModes.Identified)
+        {
+            return null;
+        }
+
+        return scoreCount < campaign.DisclosureKMin.Value
+            ? "insufficient_responses"
+            : null;
+    }
+
+    private static bool MembershipAppliesOn(
+        ResultsSubjectGroupMembershipRow membership,
+        DateOnly submittedDate)
+    {
+        return (!membership.ValidFrom.HasValue || membership.ValidFrom.Value <= submittedDate) &&
+            (!membership.ValidTo.HasValue || membership.ValidTo.Value >= submittedDate);
+    }
+
+    private static decimal CalculateResultsMean(IReadOnlyCollection<decimal> values)
+    {
+        return Math.Round(values.Average(), 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateResultsMedian(IReadOnlyCollection<decimal> values)
+    {
+        var ordered = values.OrderBy(value => value).ToArray();
+        if (ordered.Length == 0)
+        {
+            return 0;
+        }
+
+        var middle = ordered.Length / 2;
+        var median = ordered.Length % 2 == 1
+            ? ordered[middle]
+            : (ordered[middle - 1] + ordered[middle]) / 2;
+
+        return Math.Round(median, 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateResultsStandardDeviation(IReadOnlyCollection<decimal> values)
+    {
+        if (values.Count <= 1)
+        {
+            return 0;
+        }
+
+        var mean = values.Average();
+        var variance = values
+            .Select(value => Math.Pow((double)(value - mean), 2))
+            .Average();
+
+        return Math.Round((decimal)Math.Sqrt(variance), 4, MidpointRounding.AwayFromZero);
+    }
+
+    private static string SummarizeResultMissingPolicyStatuses(IEnumerable<string> statuses)
+    {
+        var distinctStatuses = statuses
+            .Where(status => !string.IsNullOrWhiteSpace(status))
+            .Distinct(StringComparer.Ordinal)
+            .Take(2)
+            .ToArray();
+
+        return distinctStatuses.Length switch
+        {
+            0 => "not_available",
+            1 => distinctStatuses[0],
+            _ => "mixed"
+        };
     }
 
     public async Task<Result<CampaignSeriesWavesWorkspaceResponse>> GetCampaignSeriesWavesWorkspaceAsync(
@@ -2113,7 +2677,8 @@ public sealed class ProductSurfaceReadStore(
                 workspace.SelectedCampaign?.Id,
                 workspace.Summary.VisibleScoreCount,
                 workspace.Summary.SuppressedScoreCount,
-                workspace.Summary.ReportableCampaignCount),
+                workspace.Summary.ReportableCampaignCount,
+                workspace.ResultsAnalytics),
             selectedCampaignIsReportable
                 ? new ReportWidgetDataSourceResponse($"/campaigns/{workspace.SelectedCampaign!.Id}/report-proof", "GET")
                 : null,
@@ -2169,6 +2734,7 @@ public sealed class ProductSurfaceReadStore(
         {
             ExportArtifactTypes.ReportProofCsvCodebook => IsReportableDataFinality(artifact.DataFinality),
             ExportArtifactTypes.CampaignSeriesResponseCsvCodebook => true,
+            ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook => true,
             ExportArtifactTypes.CampaignSeriesReportHtml => true,
             ExportArtifactTypes.CampaignSeriesReportPdf => true,
             _ => false
@@ -2516,16 +3082,83 @@ public sealed class ProductSurfaceReadStore(
             return new Dictionary<Guid, int>();
         }
 
-        var counts = await db.Scores
-            .AsNoTracking()
-            .Where(entity => campaignIds.Contains(entity.CampaignId))
-            .GroupBy(entity => entity.CampaignId)
-            .Select(group => new CampaignCountRow(
-                group.Key,
-                group.Count()))
+        var counts = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where campaignIds.Contains(score.CampaignId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                select new CampaignScoreOutputObservationRow(
+                    score.Id,
+                    score.CampaignId,
+                    score.ResponseSessionId,
+                    score.DimensionCode,
+                    score.ComputedAt))
             .ToListAsync(cancellationToken);
 
-        return counts.ToDictionary(row => row.CampaignId, row => row.Count);
+        var latestCounts = counts
+            .GroupBy(row => new { row.CampaignId, row.ResponseSessionId, row.DimensionCode })
+            .Select(group => group
+                .OrderByDescending(row => row.ComputedAt)
+                .ThenByDescending(row => row.ScoreId)
+                .First())
+            .GroupBy(score => score.CampaignId)
+            .Select(group => new CampaignCountRow(
+                group.Key,
+                group.Count()));
+
+        return latestCounts.ToDictionary(row => row.CampaignId, row => row.Count);
+    }
+
+    private async Task<Dictionary<Guid, CampaignScoreOutputCountsRow>> LoadScoreOutputCountsByCampaignAsync(
+        Guid[] campaignIds,
+        CancellationToken cancellationToken)
+    {
+        if (campaignIds.Length == 0)
+        {
+            return new Dictionary<Guid, CampaignScoreOutputCountsRow>();
+        }
+
+        var scoreRows = await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where campaignIds.Contains(score.CampaignId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                select new CampaignScoreOutputObservationRow(
+                    score.Id,
+                    score.CampaignId,
+                    score.ResponseSessionId,
+                    score.DimensionCode,
+                    score.ComputedAt))
+            .ToListAsync(cancellationToken);
+
+        var latestScoreRows = scoreRows
+            .GroupBy(row => new { row.CampaignId, row.ResponseSessionId, row.DimensionCode })
+            .Select(group => group
+                .OrderByDescending(row => row.ComputedAt)
+                .ThenByDescending(row => row.ScoreId)
+                .First())
+            .GroupBy(row => new { row.CampaignId, row.DimensionCode })
+            .Select(group => new CampaignScoreOutputCountRow(
+                group.Key.CampaignId,
+                group.Key.DimensionCode,
+                group.Count()));
+
+        return latestScoreRows
+            .GroupBy(row => row.CampaignId)
+            .ToDictionary(
+                group => group.Key,
+                group => new CampaignScoreOutputCountsRow(
+                    group.Key,
+                    group.Sum(row => row.ScoreCount),
+                    group.Select(row => row.ScoreCount).ToArray()));
     }
 
     private async Task<Dictionary<Guid, int>> LoadExportArtifactCountsByCampaignAsync(
@@ -2682,13 +3315,19 @@ public sealed class ProductSurfaceReadStore(
             return Array.Empty<WaveScoreDimensionRow>();
         }
 
-        return await db.Scores
-            .AsNoTracking()
-            .Where(entity => campaignIds.Contains(entity.CampaignId))
-            .Select(entity => new WaveScoreDimensionRow(
-                entity.ResponseSessionId,
-                entity.CampaignId,
-                entity.DimensionCode))
+        return await (
+                from score in db.Scores.AsNoTracking()
+                join session in db.ResponseSessions.AsNoTracking()
+                    on score.ResponseSessionId equals session.Id
+                join assignment in db.Assignments.AsNoTracking()
+                    on session.AssignmentId equals assignment.Id
+                where campaignIds.Contains(score.CampaignId) &&
+                    assignment.CampaignId == score.CampaignId &&
+                    session.SubmittedAt.HasValue
+                select new WaveScoreDimensionRow(
+                    score.ResponseSessionId,
+                    score.CampaignId,
+                    score.DimensionCode))
             .Distinct()
             .ToArrayAsync(cancellationToken);
     }
@@ -2708,7 +3347,6 @@ public sealed class ProductSurfaceReadStore(
                 entity.CampaignId.HasValue &&
                 campaignIds.Contains(entity.CampaignId.Value) &&
                 (entity.ArtifactType == ExportArtifactTypes.ReportProofCsvCodebook ||
-                    entity.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesReportHtml))
             .Select(entity => new CampaignReportExportArtifactRow(
                 entity.CampaignId!.Value,
@@ -2752,6 +3390,7 @@ public sealed class ProductSurfaceReadStore(
                         entity.CampaignSeriesId == campaignSeriesId)) &&
                 (entity.ArtifactType == ExportArtifactTypes.ReportProofCsvCodebook ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook ||
+                    entity.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesReportHtml ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesReportPdf),
                 cancellationToken);
@@ -2779,6 +3418,7 @@ public sealed class ProductSurfaceReadStore(
                         entity.CampaignSeriesId == campaignSeriesId)) &&
                 (entity.ArtifactType == ExportArtifactTypes.ReportProofCsvCodebook ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook ||
+                    entity.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesReportHtml ||
                     entity.ArtifactType == ExportArtifactTypes.CampaignSeriesReportPdf))
             .OrderByDescending(entity => entity.CreatedAt)
@@ -2806,7 +3446,6 @@ public sealed class ProductSurfaceReadStore(
                     entity.ChecksumSha256 != null &&
                     (entity.StorageKind == ExportArtifactStorageKinds.InlineText ||
                         (entity.StorageKind == ExportArtifactStorageKinds.ExternalObject && entity.StorageKey != null))))
-            .Take(10)
             .ToListAsync(cancellationToken);
 
         return artifacts
@@ -3753,10 +4392,11 @@ public sealed class ProductSurfaceReadStore(
         CampaignReportLaunchDetailRow? launchDetail,
         IReadOnlyDictionary<Guid, CampaignReportDisclosurePolicyRow> disclosurePolicies,
         int submittedResponseCount,
-        int scoreCount,
+        CampaignScoreOutputCountsRow? scoreOutputCounts,
         int exportArtifactCount,
         CampaignReportExportArtifactRow? latestExportArtifact)
     {
+        var scoreCount = scoreOutputCounts?.ScoreCount ?? 0;
         var disclosurePolicy = launchDetail?.DisclosurePolicyId is Guid disclosurePolicyId
             ? disclosurePolicies.GetValueOrDefault(disclosurePolicyId)
             : null;
@@ -3764,7 +4404,15 @@ public sealed class ProductSurfaceReadStore(
             launchDetail,
             disclosurePolicy,
             submittedResponseCount,
-            scoreCount);
+            scoreOutputCounts);
+        var visibleScoreCount = DetermineVisibleReportScoreCount(
+            launchDetail,
+            disclosurePolicy,
+            scoreOutputCounts);
+        var suppressedScoreCount = DetermineSuppressedReportScoreCount(
+            launchDetail,
+            disclosurePolicy,
+            scoreOutputCounts);
         var reportStatus = (disclosureState is "visible" or "suppressed") && scoreCount > 0
             ? "proof_only"
             : "blocked";
@@ -3788,8 +4436,8 @@ public sealed class ProductSurfaceReadStore(
             submittedResponseCount,
             scoreCount,
             exportArtifactCount,
-            disclosureState == "visible" ? scoreCount : 0,
-            disclosureState == "suppressed" ? scoreCount : 0,
+            visibleScoreCount,
+            suppressedScoreCount,
             disclosureState,
             disclosurePolicy?.KMin,
             reportStatus,
@@ -3838,7 +4486,7 @@ public sealed class ProductSurfaceReadStore(
         CampaignReportLaunchDetailRow? launchDetail,
         CampaignReportDisclosurePolicyRow? disclosurePolicy,
         int submittedResponseCount,
-        int scoreCount)
+        CampaignScoreOutputCountsRow? scoreOutputCounts)
     {
         if (launchDetail is null)
         {
@@ -3850,6 +4498,7 @@ public sealed class ProductSurfaceReadStore(
             return "not_configured";
         }
 
+        var scoreCount = scoreOutputCounts?.ScoreCount ?? 0;
         if (submittedResponseCount == 0 || scoreCount == 0)
         {
             return "pending";
@@ -3860,9 +4509,53 @@ public sealed class ProductSurfaceReadStore(
             return "visible";
         }
 
-        return submittedResponseCount >= disclosurePolicy.KMin
+        return scoreOutputCounts!.DimensionScoreCounts.Any(count => count >= disclosurePolicy.KMin)
             ? "visible"
             : "suppressed";
+    }
+
+    private static int DetermineVisibleReportScoreCount(
+        CampaignReportLaunchDetailRow? launchDetail,
+        CampaignReportDisclosurePolicyRow? disclosurePolicy,
+        CampaignScoreOutputCountsRow? scoreOutputCounts)
+    {
+        if (launchDetail is null ||
+            scoreOutputCounts is null ||
+            scoreOutputCounts.ScoreCount == 0 ||
+            !launchDetail.DisclosurePolicyId.HasValue ||
+            disclosurePolicy is null)
+        {
+            return 0;
+        }
+
+        if (launchDetail.ResponseIdentityMode == ResponseIdentityModes.Identified)
+        {
+            return scoreOutputCounts.ScoreCount;
+        }
+
+        return scoreOutputCounts.DimensionScoreCounts
+            .Where(count => count >= disclosurePolicy.KMin)
+            .Sum();
+    }
+
+    private static int DetermineSuppressedReportScoreCount(
+        CampaignReportLaunchDetailRow? launchDetail,
+        CampaignReportDisclosurePolicyRow? disclosurePolicy,
+        CampaignScoreOutputCountsRow? scoreOutputCounts)
+    {
+        if (launchDetail is null ||
+            scoreOutputCounts is null ||
+            scoreOutputCounts.ScoreCount == 0 ||
+            !launchDetail.DisclosurePolicyId.HasValue ||
+            disclosurePolicy is null ||
+            launchDetail.ResponseIdentityMode == ResponseIdentityModes.Identified)
+        {
+            return 0;
+        }
+
+        return scoreOutputCounts.DimensionScoreCounts
+            .Where(count => count < disclosurePolicy.KMin)
+            .Sum();
     }
 
     private static CampaignSeriesReportsCampaignResponse? SelectReportsCampaign(
@@ -4706,6 +5399,23 @@ public sealed class ProductSurfaceReadStore(
         int ScoredSubmittedResponseCount,
         DateTimeOffset? LatestScoringActivityAt);
 
+    private sealed record CampaignScoreOutputObservationRow(
+        Guid ScoreId,
+        Guid CampaignId,
+        Guid ResponseSessionId,
+        string DimensionCode,
+        DateTimeOffset ComputedAt);
+
+    private sealed record CampaignScoreOutputCountRow(
+        Guid CampaignId,
+        string DimensionCode,
+        int ScoreCount);
+
+    private sealed record CampaignScoreOutputCountsRow(
+        Guid CampaignId,
+        int ScoreCount,
+        IReadOnlyList<int> DimensionScoreCounts);
+
     private sealed record SeriesCampaignAggregateRow(
         Guid CampaignSeriesId,
         int CampaignCount,
@@ -4846,6 +5556,36 @@ public sealed class ProductSurfaceReadStore(
         Guid ResponseSessionId,
         Guid CampaignId,
         string DimensionCode);
+
+    private sealed record ResultsScoreObservationRow(
+        Guid ScoreId,
+        Guid CampaignId,
+        Guid ResponseSessionId,
+        string DimensionCode,
+        decimal Value,
+        int NValid,
+        int NExpected,
+        string MissingPolicyStatus,
+        DateTimeOffset ComputedAt,
+        DateTimeOffset SubmittedAt,
+        Guid? TargetSubjectId,
+        Guid? RespondentSubjectId);
+
+    private sealed record ResultsSubjectGroupMembershipRow(
+        Guid SubjectId,
+        string GroupType,
+        string GroupName,
+        DateOnly? ValidFrom,
+        DateOnly? ValidTo);
+
+    private sealed record ResultsGroupedScoreObservationRow(
+        string GroupType,
+        string GroupName,
+        string DimensionCode,
+        decimal Value,
+        int NValid,
+        int NExpected,
+        string MissingPolicyStatus);
 
     private sealed record CampaignSeriesRow(
         Guid Id,

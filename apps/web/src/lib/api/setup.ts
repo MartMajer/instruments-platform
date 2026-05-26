@@ -714,6 +714,8 @@ export type ReportScoreSummaryResponse = {
 	nExpectedTotal?: number | null;
 	missingPolicyStatusSummary?: string | null;
 	mean: number | null;
+	median?: number | null;
+	standardDeviation?: number | null;
 	min: number | null;
 	max: number | null;
 	suppressionReason: string | null;
@@ -1024,6 +1026,12 @@ export function createSetupApi(client: ApiClient) {
 		createCampaignSeriesResponseExport(campaignSeriesId: string) {
 			return client.request<ReportProofExportArtifactResponse>(
 				`/campaign-series/${campaignSeriesId}/response-exports`,
+				jsonPost({})
+			);
+		},
+		createCampaignSeriesResultsMatrixExport(campaignSeriesId: string) {
+			return client.request<ReportProofExportArtifactResponse>(
+				`/campaign-series/${campaignSeriesId}/results-matrix-exports`,
 				jsonPost({})
 			);
 		},

@@ -668,6 +668,7 @@ export type CampaignSeriesReportsWorkspaceResponse = {
 	exportArtifacts: CampaignSeriesReportsExportArtifactResponse[];
 	campaigns: CampaignSeriesReportsCampaignResponse[];
 	scoreCoverage?: CampaignSeriesScoreCoverageResponse | null;
+	resultsAnalytics?: CampaignSeriesResultsAnalyticsResponse | null;
 };
 
 export type ReportWidgetState = 'ready' | 'empty' | 'blocked' | 'failed' | 'unsupported';
@@ -757,6 +758,77 @@ export type VisualAnalyticsEntryWidgetData = {
 	visibleScoreCount: number;
 	suppressedScoreCount: number;
 	reportableCampaignCount: number;
+	analytics?: CampaignSeriesResultsAnalyticsResponse | null;
+};
+
+export type CampaignSeriesResultsAnalyticsResponse = {
+	selectedCampaignId: string | null;
+	selectedCampaignName: string | null;
+	disclosureKMin: number;
+	disclosureState: string;
+	scoreOutputs: CampaignSeriesResultsScoreOutputResponse[];
+	groupRows: CampaignSeriesResultsGroupMatrixRowResponse[];
+	waveRows: CampaignSeriesResultsWaveMatrixRowResponse[];
+	insights: CampaignSeriesResultsInsightResponse[];
+};
+
+export type CampaignSeriesResultsScoreOutputResponse = {
+	dimensionCode: string;
+	disclosure: string;
+	submittedResponseCount: number | null;
+	scoreCount: number | null;
+	mean: number | null;
+	median: number | null;
+	standardDeviation: number | null;
+	min: number | null;
+	max: number | null;
+	nValidTotal: number | null;
+	nExpectedTotal: number | null;
+	missingPolicyStatusSummary: string | null;
+	suppressionReason: string | null;
+};
+
+export type CampaignSeriesResultsGroupMatrixRowResponse = {
+	groupType: string;
+	groupName: string;
+	dimensionCode: string;
+	disclosure: string;
+	submittedResponseCount: number | null;
+	scoreCount: number | null;
+	mean: number | null;
+	median: number | null;
+	standardDeviation: number | null;
+	min: number | null;
+	max: number | null;
+	suppressionReason: string | null;
+};
+
+export type CampaignSeriesResultsWaveMatrixRowResponse = {
+	campaignId: string;
+	campaignName: string;
+	campaignStatus: string;
+	dataFinality: string;
+	closedAt: string | null;
+	dimensionCode: string;
+	disclosure: string;
+	submittedResponseCount: number | null;
+	scoreCount: number | null;
+	mean: number | null;
+	median: number | null;
+	standardDeviation: number | null;
+	min: number | null;
+	max: number | null;
+	suppressionReason: string | null;
+	deltaFromPreviousMean: number | null;
+	deltaFromFirstMean: number | null;
+	comparisonState: string;
+};
+
+export type CampaignSeriesResultsInsightResponse = {
+	kind: string;
+	severity: string;
+	title: string;
+	detail: string;
 };
 
 export type FinalityProvenanceWidgetData = {

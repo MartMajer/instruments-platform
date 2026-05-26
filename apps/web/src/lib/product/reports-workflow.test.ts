@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 import type { CampaignReportProofResponse, ReportProofExportArtifactResponse } from '$lib/api/setup';
 import {
@@ -27,7 +27,7 @@ describe('selected-series reports workflow model', () => {
 				id: 'exportArtifact',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Review results before creating a report export.'
+				disabledReason: 'Review results before creating a results matrix export.'
 			}),
 			expect.objectContaining({
 				id: 'responseExport',
@@ -84,7 +84,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason: 'Review results before creating a report export.'
+			disabledReason: 'Review results before creating a results matrix export.'
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'blocked',
@@ -107,7 +107,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Report-summary export already exists for this study.'
+			disabledReason: 'Results matrix export already exists for this study.'
 		});
 		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
 			status: 'pending',
@@ -136,7 +136,15 @@ describe('selected-series reports workflow model', () => {
 				latestExportArtifactFailedAt: '2026-05-05T09:00:02Z',
 				latestExportArtifactFailureReasonCode: 'renderer.failed',
 				latestExportArtifactCanDownload: false
-			}
+			},
+			exportArtifacts: reportableWorkspaceWithExport.exportArtifacts.map((artifact) => ({
+				...artifact,
+				status: 'failed',
+				completedAt: null,
+				failedAt: '2026-05-05T09:00:02Z',
+				failureReasonCode: 'renderer.failed',
+				canDownload: false
+			}))
 		};
 		const actions = toSelectedSeriesReportsWorkflowActions(workspace);
 
@@ -168,7 +176,7 @@ describe('selected-series reports workflow model', () => {
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
 			status: 'ready',
 			available: false,
-			disabledReason: 'Report export was created in this session.'
+			disabledReason: 'Results matrix export was created in this session.'
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'ready',
@@ -189,9 +197,9 @@ describe('selected-series reports workflow model', () => {
 		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithResponseExport);
 
 		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
-			status: 'ready',
-			available: false,
-			disabledReason: 'Response dataset already exists; report-summary export is optional.'
+			status: 'pending',
+			available: true,
+			disabledReason: null
 		});
 		expect(actions.find((action) => action.id === 'responseExport')).toMatchObject({
 			status: 'ready',
@@ -210,7 +218,7 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
-	it('selects response export before download when only a report-summary export exists', () => {
+	it('selects response export before download when only a results matrix export exists', () => {
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithExport);
 
 		expect(path.currentActionId).toBe('responseExport');
@@ -225,23 +233,59 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
-	it('skips report-summary export as optional when a response dataset already exists', () => {
+	it('still asks for a results matrix when only a response dataset exists', () => {
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseExport);
 
-		expect(path.currentActionId).toBe('downloadCsv');
+		expect(path.currentActionId).toBe('exportArtifact');
 		expect(path.steps.find((step) => step.id === 'reportProof')).toMatchObject({
 			pathState: 'done'
 		});
 		expect(path.steps.find((step) => step.id === 'exportArtifact')).toMatchObject({
-			pathState: 'done'
+			pathState: 'current'
 		});
 		expect(path.steps.find((step) => step.id === 'responseExport')).toMatchObject({
 			pathState: 'done'
 		});
 		expect(path.currentAction).toMatchObject({
-			id: 'downloadCsv',
-			title: 'Download response dataset CSV',
+			id: 'exportArtifact',
+			title: 'Create results matrix export',
 			available: true
+		});
+	});
+
+	it('prefers the results matrix as the persisted Results download when both export files exist', () => {
+		const actions = toSelectedSeriesReportsWorkflowActions(
+			reportableWorkspaceWithResponseAndMatrixExports
+		);
+
+		expect(actions.find((action) => action.id === 'downloadCsv')).toMatchObject({
+			title: 'Download results matrix CSV',
+			description:
+				'Download the aggregate results matrix CSV for group and measurement comparison. This is not row-level response data.'
+		});
+	});
+
+	it('keeps legacy report exports readable while still asking for a results matrix', () => {
+		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithLegacyReportExport);
+		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithLegacyReportExport);
+
+		expect(actions.find((action) => action.id === 'reportProof')).toMatchObject({
+			status: 'ready',
+			available: true
+		});
+		expect(actions.find((action) => action.id === 'exportArtifact')).toMatchObject({
+			status: 'pending',
+			available: true,
+			disabledReason: null
+		});
+		expect(actions.find((action) => action.id === 'fetchArtifact')).toMatchObject({
+			status: 'pending',
+			available: true,
+			disabledReason: null
+		});
+		expect(path.currentActionId).toBe('exportArtifact');
+		expect(path.steps.find((step) => step.id === 'exportArtifact')).toMatchObject({
+			pathState: 'current'
 		});
 	});
 
@@ -333,7 +377,7 @@ describe('selected-series reports workflow model', () => {
 			guidance:
 				'Use these results for internal review only. Review interpretation, create the export file, and resolve finality before sharing outside the team.',
 			nextAction:
-				'Review interpretation limits before sharing; keep the current report-summary export internal.'
+				'Review interpretation limits before sharing; keep the current aggregate export internal.'
 		});
 		expect(handoffStatus.lanes).toEqual([
 			expect.objectContaining({
@@ -380,15 +424,15 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
-	it('labels report-summary downloads as not analysis-ready when no response export exists', () => {
+	it('labels results matrix downloads as not analysis-ready when no response export exists', () => {
 		const downloadAction = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithExport).find(
 			(action) => action.id === 'downloadCsv'
 		);
 
 		expect(downloadAction).toMatchObject({
-			title: 'Download report-summary CSV',
+			title: 'Download results matrix CSV',
 			description:
-				'Download the report-summary CSV for review packets only. This is not an analysis-ready response dataset.'
+				'Download the aggregate results matrix CSV for group and measurement comparison. This is not row-level response data.'
 		});
 	});
 
@@ -415,7 +459,7 @@ describe('selected-series reports workflow model', () => {
 			title: 'Can these results be used?',
 			status: 'pending',
 			primaryAction:
-				'Create a response export for analysis, or create a report-summary file for internal review.'
+				'Create a response export for analysis, or create the results matrix for aggregate review.'
 		});
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
@@ -522,6 +566,62 @@ describe('selected-series reports workflow model', () => {
 				id: 'use_status',
 				status: 'ready',
 				summary: 'Ready for controlled sharing'
+			})
+		);
+	});
+
+	it('allows a closed validated results matrix to satisfy aggregate handoff readiness', () => {
+		const packet = toSelectedSeriesResultsPacketReview({
+			...reportableWorkspaceWithExport,
+			selectedCampaign: {
+				...reportableWorkspaceWithExport.selectedCampaign!,
+				status: 'closed',
+				interpretationStatus: 'validated_interpretation'
+			}
+		});
+
+		expect(packet).toMatchObject({
+			title: 'Can these results be used?',
+			status: 'ready',
+			primaryAction: 'Download the results matrix for aggregate review.'
+		});
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'export_files',
+				status: 'ready',
+				summary: 'Results matrix file ready for aggregate review'
+			})
+		);
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'use_status',
+				status: 'ready',
+				summary: 'Ready for controlled sharing'
+			})
+		);
+	});
+
+	it('does not treat a legacy aggregate export as the current Results handoff file', () => {
+		const packet = toSelectedSeriesResultsPacketReview({
+			...reportableWorkspaceWithLegacyReportExport,
+			selectedCampaign: {
+				...reportableWorkspaceWithLegacyReportExport.selectedCampaign!,
+				status: 'closed',
+				interpretationStatus: 'validated_interpretation'
+			}
+		});
+
+		expect(packet).toMatchObject({
+			title: 'Can these results be used?',
+			status: 'pending',
+			primaryAction:
+				'Create a response export for analysis, or create the results matrix for aggregate review.'
+		});
+		expect(packet.items).toContainEqual(
+			expect.objectContaining({
+				id: 'export_files',
+				status: 'pending',
+				summary: 'Export file ready for review'
 			})
 		);
 	});
@@ -634,7 +734,7 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'variables_values',
 				status: 'ready',
-				summary: '2 answer variables, 2 score metadata fields, 1 answer metadata field, 7 columns total'
+				summary: '2 answer variables, 3 score metadata fields, 1 answer metadata field, 8 columns total'
 			})
 		);
 		expect(preview.items.find((item) => item.id === 'variables_values')?.detail).toContain(
@@ -656,7 +756,7 @@ describe('selected-series reports workflow model', () => {
 		);
 	});
 
-	it('previews a report-summary export as aggregate-only and not analysis-ready', () => {
+	it('previews a results matrix export as aggregate-only and not analysis-ready', () => {
 		const preview = toSelectedSeriesExportPreview(
 			reportableWorkspaceWithExport,
 			reportSummaryExportArtifact
@@ -664,28 +764,42 @@ describe('selected-series reports workflow model', () => {
 
 		expect(preview).toMatchObject({
 			title: 'What is in this export?',
-			status: 'pending',
-			downloadLabel: 'Download report-summary CSV'
+			status: 'ready',
+			downloadLabel: 'Download results matrix CSV'
 		});
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'file_purpose',
-				status: 'pending',
-				summary: 'Report-summary CSV, not row-level response data'
+				status: 'ready',
+				summary: 'Results matrix CSV, not row-level response data'
 			})
 		);
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'row_shape',
 				status: 'ready',
-				summary: '2 rows; one row per visible or suppressed score output'
+				summary: '4 rows; scoped aggregate rows'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'wave_fields',
+				status: 'ready',
+				summary: 'Scoped wave comparison fields included'
+			})
+		);
+		expect(preview.items).toContainEqual(
+			expect.objectContaining({
+				id: 'variables_values',
+				status: 'ready',
+				summary: '28 results matrix columns with scoped result rows'
 			})
 		);
 		expect(preview.items).toContainEqual(
 			expect.objectContaining({
 				id: 'trajectory_keys',
 				status: 'not_available',
-				summary: 'No repeat-response keys in report-summary export'
+				summary: 'No repeat-response keys in results matrix export'
 			})
 		);
 		expect(preview.items).toContainEqual(
@@ -738,7 +852,7 @@ describe('selected-series reports workflow model', () => {
 		});
 		expect(packet).toMatchObject({
 			title: 'Mogu li se ovi rezultati koristiti?',
-			primaryAction: 'Izradite izvoz odgovora za analizu ili datoteku sažetka izvještaja za interni pregled.'
+			primaryAction: 'Izradite izvoz odgovora za analizu ili matricu rezultata za agregirani pregled.'
 		});
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
@@ -938,7 +1052,80 @@ const reportableWorkspaceWithExport: CampaignSeriesReportsWorkspaceResponse = {
 		latestExportArtifactDeletedAt: null,
 		latestExportArtifactFailureReasonCode: null,
 		latestExportArtifactCanDownload: true
-	}
+	},
+	exportArtifacts: [
+		{
+			id: 'export-artifact-id',
+			targetKind: 'campaign_series',
+			targetId: 'series-id',
+			targetLabel: 'Quarterly burnout pulse',
+			campaignId: null,
+			campaignName: null,
+			artifactType: 'campaign_series_results_matrix_csv_codebook',
+			status: 'succeeded',
+			format: 'csv_codebook',
+			fileName: 'campaign-series-results-matrix.csv',
+			rowCount: 4,
+			byteSize: 1536,
+			checksumSha256: 'results-matrix-checksum-sha256',
+			createdAt: '2026-05-05T09:00:00Z',
+			completedAt: '2026-05-05T09:00:03Z',
+			startedAt: null,
+			failedAt: null,
+			expiresAt: null,
+			deletedAt: null,
+			failureReasonCode: null,
+			canDownload: true
+		}
+	]
+};
+
+const reportableWorkspaceWithLegacyReportExport: CampaignSeriesReportsWorkspaceResponse = {
+	...reportableWorkspace,
+	summary: {
+		...reportableWorkspace.summary,
+		exportArtifactCount: 1
+	},
+	selectedCampaign: {
+		...reportableWorkspace.selectedCampaign!,
+		exportArtifactCount: 1,
+		latestExportArtifactId: 'legacy-report-export-artifact-id',
+		latestExportArtifactFileName: 'report-proof.csv',
+		latestExportArtifactStatus: 'succeeded',
+		latestExportArtifactCreatedAt: '2026-05-05T09:00:00Z',
+		latestExportArtifactCompletedAt: '2026-05-05T09:00:03Z',
+		latestExportArtifactStartedAt: null,
+		latestExportArtifactFailedAt: null,
+		latestExportArtifactExpiresAt: null,
+		latestExportArtifactDeletedAt: null,
+		latestExportArtifactFailureReasonCode: null,
+		latestExportArtifactCanDownload: true
+	},
+	exportArtifacts: [
+		{
+			id: 'legacy-report-export-artifact-id',
+			targetKind: 'campaign',
+			targetId: 'campaign-id',
+			targetLabel: 'Wave 1',
+			campaignId: 'campaign-id',
+			campaignName: 'Wave 1',
+			artifactType: 'report_proof_csv_codebook',
+			status: 'succeeded',
+			format: 'csv_codebook',
+			fileName: 'report-proof.csv',
+			rowCount: 4,
+			byteSize: 1536,
+			checksumSha256: 'legacy-report-checksum-sha256',
+			createdAt: '2026-05-05T09:00:00Z',
+			completedAt: '2026-05-05T09:00:03Z',
+			startedAt: null,
+			failedAt: null,
+			expiresAt: null,
+			deletedAt: null,
+			failureReasonCode: null,
+			canDownload: true
+		}
+	]
 };
 
 const reportableWorkspaceWithResponseExport: CampaignSeriesReportsWorkspaceResponse = {
@@ -986,6 +1173,33 @@ const reportableWorkspaceWithResponseExport: CampaignSeriesReportsWorkspaceRespo
 			failureReasonCode: null,
 			canDownload: true
 		}
+	]
+};
+
+const reportableWorkspaceWithResponseAndMatrixExports: CampaignSeriesReportsWorkspaceResponse = {
+	...reportableWorkspaceWithResponseExport,
+	summary: {
+		...reportableWorkspaceWithResponseExport.summary,
+		exportArtifactCount: 2
+	},
+	selectedCampaign: {
+		...reportableWorkspaceWithResponseExport.selectedCampaign!,
+		exportArtifactCount: 2,
+		latestExportArtifactId: 'export-artifact-id',
+		latestExportArtifactFileName: 'campaign-series-results-matrix.csv',
+		latestExportArtifactStatus: 'succeeded',
+		latestExportArtifactCreatedAt: '2026-05-05T09:12:00Z',
+		latestExportArtifactCompletedAt: '2026-05-05T09:12:03Z',
+		latestExportArtifactStartedAt: null,
+		latestExportArtifactFailedAt: null,
+		latestExportArtifactExpiresAt: null,
+		latestExportArtifactDeletedAt: null,
+		latestExportArtifactFailureReasonCode: null,
+		latestExportArtifactCanDownload: true
+	},
+	exportArtifacts: [
+		reportableWorkspaceWithExport.exportArtifacts[0],
+		reportableWorkspaceWithResponseExport.exportArtifacts[0]
 	]
 };
 
@@ -1076,7 +1290,7 @@ const responseExportArtifact: ReportProofExportArtifactResponse = {
 	failureReasonCode: null,
 	canDownload: true,
 	csvContent:
-		'response_row_id,trajectory_id,wave_label,answer_posture,answer_recovery,posture_strain_n_valid,posture_strain_missing_policy_status\n1,t1,Wave 1,4,2,2,complete',
+		'response_row_id,trajectory_id,wave_label,answer_posture,answer_recovery,posture_strain_value,posture_strain_n_valid,posture_strain_missing_policy_status\n1,t1,Wave 1,4,2,6.7,2,complete',
 	codebookJson: JSON.stringify({
 		artifactType: 'campaign_series_response_csv_codebook',
 		format: 'csv_codebook',
@@ -1114,6 +1328,12 @@ const responseExportArtifact: ReportProofExportArtifactResponse = {
 				}
 			},
 			{
+				name: 'posture_strain_value',
+				source: 'score_output_metadata',
+				dimensionCode: 'posture_strain',
+				metadataKind: 'value'
+			},
+			{
 				name: 'posture_strain_n_valid',
 				source: 'score_output_metadata',
 				dimensionCode: 'posture_strain',
@@ -1132,30 +1352,57 @@ const responseExportArtifact: ReportProofExportArtifactResponse = {
 const reportSummaryExportArtifact: ReportProofExportArtifactResponse = {
 	...responseExportArtifact,
 	id: 'report-export-artifact-id',
-	targetKind: 'campaign',
-	targetId: 'campaign-id',
-	targetLabel: 'Wave 1',
-	campaignId: 'campaign-id',
+	targetKind: 'campaign_series',
+	targetId: 'series-id',
+	targetLabel: 'Quarterly burnout pulse',
+	campaignId: null,
 	campaignSeriesId: 'series-id',
-	artifactType: 'report_proof_csv_codebook',
-	fileName: 'report-proof.csv',
-	rowCount: 2,
+	artifactType: 'campaign_series_results_matrix_csv_codebook',
+	fileName: 'campaign-series-results-matrix.csv',
+	rowCount: 4,
 	csvContent:
-		'dimension_code,score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean\nposture_strain,10,10,12,partial,6.7\nrecovery_control,12,12,12,complete,3.2',
+		'result_scope,result_scope_label,campaign_series_id,selected_campaign_id,selected_campaign_name,campaign_id,campaign_name,campaign_status,campaign_data_finality,campaign_closed_at,group_type,group_name,dimension_code,disclosure,submitted_response_count,score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean,median,standard_deviation,min,max,delta_from_previous_mean,delta_from_first_mean,comparison_state,suppression_reason\n' +
+		'overall,Wave 1,series-id,campaign-id,Wave 1,campaign-id,Wave 1,closed,closed_wave,2026-05-05T09:00:00Z,,,posture_strain,visible,10,10,10,12,partial,6.7,6.5,1.1,4,7,,,selected,\n' +
+		'group,Operations,series-id,campaign-id,Wave 1,campaign-id,Wave 1,closed,closed_wave,2026-05-05T09:00:00Z,department,Operations,posture_strain,visible,7,7,,,,6.9,7,0.8,5,7,,,selected_group,\n' +
+		'wave,Wave 1,series-id,campaign-id,Wave 1,campaign-id,Wave 1,closed,closed_wave,2026-05-05T09:00:00Z,,,posture_strain,visible,10,10,,,,6.7,6.5,1.1,4,7,,0,baseline,\n' +
+		'wave,Wave 2,series-id,campaign-id,Wave 1,campaign-2-id,Wave 2,closed,closed_wave,2026-06-05T09:00:00Z,,,posture_strain,visible,11,11,,,,6.2,6,1,3,7,-0.5,-0.5,compared,',
 	codebookJson: JSON.stringify({
-		artifactType: 'report_proof_csv_codebook',
+		artifactType: 'campaign_series_results_matrix_csv_codebook',
 		format: 'csv_codebook',
-		rowCount: 2,
+		rowCount: 4,
 		dataFinality: 'preliminary_live',
 		excludedIdentifiers: ['tenant_id'],
 		columns: [
+			{ name: 'result_scope', source: 'result_scope' },
+			{ name: 'result_scope_label', source: 'result_scope' },
+			{ name: 'campaign_series_id', source: 'campaign_series_reports_workspace' },
+			{ name: 'selected_campaign_id', source: 'campaign_series_reports_workspace' },
+			{ name: 'selected_campaign_name', source: 'campaign_series_reports_workspace' },
+			{ name: 'campaign_id', source: 'campaign_series_reports_workspace' },
+			{ name: 'campaign_name', source: 'campaign_series_reports_workspace' },
+			{ name: 'campaign_status', source: 'campaign_series_reports_workspace' },
+			{ name: 'campaign_data_finality', source: 'campaign_series_reports_workspace' },
+			{ name: 'campaign_closed_at', source: 'campaign_series_reports_workspace' },
+			{ name: 'group_type', source: 'result_scope' },
+			{ name: 'group_name', source: 'result_scope' },
 			{ name: 'dimension_code', source: 'report_proof_score_summary' },
+			{ name: 'disclosure', source: 'campaign_series_results_analytics' },
+			{ name: 'submitted_response_count', source: 'campaign_series_results_analytics' },
 			{ name: 'score_count', source: 'report_proof_score_summary' },
 			{ name: 'n_valid_total', source: 'score_output_metadata' },
 			{ name: 'n_expected_total', source: 'score_output_metadata' },
 			{ name: 'missing_policy_status_summary', source: 'score_output_metadata' },
-			{ name: 'mean', source: 'report_proof_score_summary' }
+			{ name: 'mean', source: 'report_proof_score_summary' },
+			{ name: 'median', source: 'report_proof_score_summary' },
+			{ name: 'standard_deviation', source: 'report_proof_score_summary' },
+			{ name: 'min', source: 'report_proof_score_summary' },
+			{ name: 'max', source: 'report_proof_score_summary' },
+			{ name: 'delta_from_previous_mean', source: 'report_proof_score_summary' },
+			{ name: 'delta_from_first_mean', source: 'report_proof_score_summary' },
+			{ name: 'comparison_state', source: 'report_proof_score_summary' },
+			{ name: 'suppression_reason', source: 'campaign_series_results_analytics' }
 		]
 	})
 };
+
 
