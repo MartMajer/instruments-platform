@@ -60,6 +60,15 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		highestMean: 'Highest result',
 		lowestMean: 'Lowest result',
 		largestWaveChange: 'Largest measurement change',
+		resultBarChart: 'Result score chart',
+		groupBarChart: 'Group comparison chart',
+		measurementTrendChart: 'Measurement trend chart',
+		dashboardNotes: 'Dashboard notes',
+		measurement: 'Measurement',
+		metric_visible_outputs: 'Visible result outputs',
+		metric_hidden_outputs: 'Hidden outputs',
+		metric_group_rows: 'Visible group rows',
+		metric_compared_measurements: 'Compared measurements',
 		insights: 'What to notice',
 		change: 'Change',
 		fromPrevious: 'Change from previous',
@@ -77,6 +86,9 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		missingness: 'Missingness',
 		noGroupBreakdown: 'No group comparison is available for this measurement round.',
 		noWaveBreakdown: 'No repeated measurement comparison is available yet.',
+		noResultBars: 'No visible result chart values are available yet.',
+		noGroupBars: 'No group comparison chart is available yet.',
+		noWaveTrendPoints: 'No measurement trend chart is available yet.',
 		ready: 'Ready',
 		readyToRun: 'Ready to run',
 		resultsPreview: 'Results preview',
@@ -102,6 +114,8 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		visible: 'Visible',
 		visibleScores: 'Visible scores',
 		visualAnalyticsDataUnavailable: 'Visual analytics entry data is unavailable.'
+		,
+		resultsDashboardDataUnavailable: 'Results dashboard data is unavailable.'
 	},
 	codeLabels: {
 		proof_only: 'preview'

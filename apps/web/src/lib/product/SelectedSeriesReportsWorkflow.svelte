@@ -396,6 +396,12 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
+	<ReportWidgetsSection
+		manifest={widgetManifest}
+		warning={widgetWarning}
+		embedded={true}
+	/>
+
 	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
 		<div class="questionnaire-blueprint-review__header">
 			<div>
@@ -549,11 +555,6 @@
 							</dd>
 						</div>
 					</dl>
-					<ReportWidgetsSection
-						manifest={widgetManifest}
-						warning={widgetWarning}
-						embedded={true}
-					/>
 					{#if reportProofResult}
 						{@render ReportProofResult()}
 					{/if}

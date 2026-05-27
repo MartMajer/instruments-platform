@@ -2916,6 +2916,12 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Null(output.ScoreCount);
         Assert.Null(output.Mean);
         Assert.Equal("insufficient_responses", output.SuppressionReason);
+        Assert.NotNull(result.Value.ResultsDashboard);
+        var dashboardBar = Assert.Single(result.Value.ResultsDashboard!.OutputBars);
+        Assert.Equal("suppressed", dashboardBar.Disclosure);
+        Assert.Null(dashboardBar.Value);
+        Assert.Null(dashboardBar.Count);
+        Assert.Equal("insufficient_responses", dashboardBar.SuppressionReason);
     }
 
     [DockerFact]
@@ -3297,20 +3303,23 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             scoringRule.Id,
             DateTimeOffset.Parse("2026-05-15T09:00:00+00:00"),
             configured: true);
-        var session = await SeedSubmittedResponseAsync(
-            runtimeOptions,
-            tenantId,
-            campaign.Id,
-            template.QuestionId,
-            submittedAt: DateTimeOffset.Parse("2026-05-15T10:00:00+00:00"),
-            includeSensitiveValues: true);
-        await SeedScoreAsync(
-            runtimeOptions,
-            tenantId,
-            campaign.Id,
-            session.Id,
-            scoringRule.Id,
-            ranAt: DateTimeOffset.Parse("2026-05-15T11:00:00+00:00"));
+        for (var index = 0; index < 5; index++)
+        {
+            var session = await SeedSubmittedResponseAsync(
+                runtimeOptions,
+                tenantId,
+                campaign.Id,
+                template.QuestionId,
+                submittedAt: DateTimeOffset.Parse("2026-05-15T10:00:00+00:00").AddMinutes(index),
+                includeSensitiveValues: index == 0);
+            await SeedScoreAsync(
+                runtimeOptions,
+                tenantId,
+                campaign.Id,
+                session.Id,
+                scoringRule.Id,
+                ranAt: DateTimeOffset.Parse("2026-05-15T11:00:00+00:00").AddMinutes(index));
+        }
         await SeedExportArtifactAsync(runtimeOptions, tenantId, campaign.Id, series.Id);
         await SeedEmailInvitationAsync(
             runtimeOptions,
@@ -3336,6 +3345,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal("dashboard-grid/v1", result.Value.Layout.Kind);
         Assert.Equal(
             [
+                "results-dashboard",
                 "report-readiness-summary",
                 "score-coverage-summary",
                 "selected-campaign-report-state",
@@ -3346,6 +3356,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             result.Value.Widgets.Select(widget => widget.Id).ToArray());
         Assert.Equal(
             [
+                "results-dashboard/v1",
                 "report-readiness-summary/v1",
                 "score-coverage-summary/v1",
                 "selected-campaign-report-state/v1",
@@ -3354,6 +3365,17 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 "finality-provenance-summary/v1"
             ],
             result.Value.Widgets.Select(widget => widget.Kind).ToArray());
+        var dashboardWidget = result.Value.Widgets.Single(widget => widget.Id == "results-dashboard");
+        Assert.Equal("ready", dashboardWidget.State);
+        var dashboardData = Assert.IsType<ResultsDashboardWidgetDataResponse>(dashboardWidget.Data);
+        Assert.Equal(campaign.Id, dashboardData.Dashboard.SelectedCampaignId);
+        var outputBar = Assert.Single(dashboardData.Dashboard.OutputBars);
+        Assert.Equal("visible", outputBar.Disclosure);
+        Assert.Equal(4.2m, outputBar.Value);
+        Assert.Equal(5, outputBar.Count);
+        Assert.DoesNotContain(
+            dashboardData.Dashboard.OutputBars,
+            bar => bar.Disclosure != "visible" && (bar.Value.HasValue || bar.Count.HasValue));
         Assert.Contains(
             result.Value.Widgets.SelectMany(widget => widget.Actions),
             action => action.Id == "create-aggregate-export");
@@ -3363,7 +3385,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(0, readinessData.MissingPrerequisiteCount);
         var scoreCoverageWidget = result.Value.Widgets.Single(widget => widget.Id == "score-coverage-summary");
         var scoreCoverageData = Assert.IsType<ScoreCoverageWidgetDataResponse>(scoreCoverageWidget.Data);
-        Assert.Equal(1, scoreCoverageData.SubmittedResponseCount);
+        Assert.Equal(5, scoreCoverageData.SubmittedResponseCount);
         Assert.Equal("complete", scoreCoverageData.Status);
         var selectedCampaignWidget = result.Value.Widgets.Single(widget => widget.Id == "selected-campaign-report-state");
         var selectedCampaignData = Assert.IsType<SelectedCampaignReportStateWidgetDataResponse>(

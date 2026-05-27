@@ -472,7 +472,8 @@ public sealed record CampaignSeriesReportsWorkspaceResponse(
     IReadOnlyList<CampaignSeriesReportsExportArtifactResponse> ExportArtifacts,
     IReadOnlyList<CampaignSeriesReportsCampaignResponse> Campaigns,
     CampaignSeriesScoreCoverageResponse? ScoreCoverage = null,
-    CampaignSeriesResultsAnalyticsResponse? ResultsAnalytics = null);
+    CampaignSeriesResultsAnalyticsResponse? ResultsAnalytics = null,
+    CampaignSeriesResultsDashboardResponse? ResultsDashboard = null);
 
 public sealed record CampaignSeriesReportsSeriesResponse(
     Guid Id,
@@ -695,6 +696,56 @@ public sealed record VisualAnalyticsEntryWidgetDataResponse(
     int SuppressedScoreCount,
     int ReportableCampaignCount,
     CampaignSeriesResultsAnalyticsResponse? Analytics = null);
+
+public sealed record ResultsDashboardWidgetDataResponse(
+    CampaignSeriesResultsDashboardResponse Dashboard);
+
+public sealed record CampaignSeriesResultsDashboardResponse(
+    Guid? SelectedCampaignId,
+    string? SelectedCampaignName,
+    int DisclosureKMin,
+    string DisclosureState,
+    IReadOnlyList<ResultsDashboardMetricResponse> Metrics,
+    IReadOnlyList<ResultsDashboardBarResponse> OutputBars,
+    IReadOnlyList<ResultsDashboardBarResponse> GroupBars,
+    IReadOnlyList<ResultsDashboardPointResponse> WaveTrendPoints,
+    IReadOnlyList<ResultsDashboardNoteResponse> Notes);
+
+public sealed record ResultsDashboardMetricResponse(
+    string Id,
+    decimal? Value,
+    string Unit,
+    string? Detail,
+    string Tone);
+
+public sealed record ResultsDashboardBarResponse(
+    string Id,
+    string Label,
+    string DimensionCode,
+    string Disclosure,
+    decimal? Value,
+    int? Count,
+    string? Detail,
+    string? SuppressionReason);
+
+public sealed record ResultsDashboardPointResponse(
+    string Id,
+    Guid CampaignId,
+    string CampaignName,
+    string DimensionCode,
+    string Disclosure,
+    decimal? Value,
+    decimal? DeltaFromPrevious,
+    string ComparisonState,
+    string DataFinality,
+    int? Count,
+    string? SuppressionReason);
+
+public sealed record ResultsDashboardNoteResponse(
+    string Kind,
+    string Severity,
+    string Title,
+    string Detail);
 
 public sealed record CampaignSeriesResultsAnalyticsResponse(
     Guid? SelectedCampaignId,

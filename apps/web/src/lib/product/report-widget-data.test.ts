@@ -3,6 +3,7 @@ import {
 	isExportArtifactRegistryWidgetData,
 	isFinalityProvenanceWidgetData,
 	isReportReadinessSummaryWidgetData,
+	isResultsDashboardWidgetData,
 	isSelectedCampaignReportStateWidgetData,
 	isVisualAnalyticsEntryWidgetData
 } from './widgets/report-widget-data';
@@ -127,6 +128,103 @@ describe('report widget data guards', () => {
 				reportableCampaignCount: 1
 			})
 		).toBe(true);
+	});
+
+	it('accepts disclosure-safe results dashboard widget data', () => {
+		expect(
+			isResultsDashboardWidgetData({
+				dashboard: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'visible',
+					metrics: [
+						{
+							id: 'visible_outputs',
+							value: 2,
+							unit: 'count',
+							detail: null,
+							tone: 'ready'
+						}
+					],
+					outputBars: [
+						{
+							id: 'output:workload',
+							label: 'workload',
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							value: 4.2,
+							count: 42,
+							detail: 'median 4.1',
+							suppressionReason: null
+						},
+						{
+							id: 'output:recovery',
+							label: 'recovery',
+							dimensionCode: 'recovery',
+							disclosure: 'suppressed',
+							value: null,
+							count: null,
+							detail: null,
+							suppressionReason: 'insufficient_responses'
+						}
+					],
+					groupBars: [],
+					waveTrendPoints: [
+						{
+							id: 'wave:campaign-1:workload',
+							campaignId: 'campaign-1',
+							campaignName: 'Wave 1',
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							value: 4.2,
+							deltaFromPrevious: null,
+							comparisonState: 'baseline',
+							dataFinality: 'closed_wave',
+							count: 42,
+							suppressionReason: null
+						}
+					],
+					notes: [
+						{
+							kind: 'score_outputs',
+							severity: 'ready',
+							title: '2 visible outputs',
+							detail: 'Review before sharing.'
+						}
+					]
+				}
+			})
+		).toBe(true);
+	});
+
+	it('rejects dashboard widget data that exposes suppressed values', () => {
+		expect(
+			isResultsDashboardWidgetData({
+				dashboard: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'suppressed',
+					metrics: [],
+					outputBars: [
+						{
+							id: 'output:workload',
+							label: 'workload',
+							dimensionCode: 'workload',
+							disclosure: 'suppressed',
+							value: 4.2,
+							count: 1,
+							detail: null,
+							suppressionReason: 'insufficient_responses'
+						}
+					],
+					groupBars: [],
+					waveTrendPoints: [],
+					notes: []
+				}
+			})
+		).toBe(false);
 	});
 
 	it('accepts visual analytics entry data with aggregate matrices', () => {

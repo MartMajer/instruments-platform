@@ -265,6 +265,18 @@ describe('selected-series reports workflow model', () => {
 		});
 	});
 
+	it('requires persisted export content to be reviewed before download', () => {
+		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithResponseAndMatrixExports);
+
+		expect(path.currentActionId).toBe('fetchArtifact');
+		expect(path.steps.find((step) => step.id === 'fetchArtifact')).toMatchObject({
+			pathState: 'current'
+		});
+		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
+			pathState: 'blocked'
+		});
+	});
+
 	it('keeps legacy report exports readable while still asking for a results matrix', () => {
 		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithLegacyReportExport);
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithLegacyReportExport);

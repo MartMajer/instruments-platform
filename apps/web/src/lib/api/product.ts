@@ -669,6 +669,7 @@ export type CampaignSeriesReportsWorkspaceResponse = {
 	campaigns: CampaignSeriesReportsCampaignResponse[];
 	scoreCoverage?: CampaignSeriesScoreCoverageResponse | null;
 	resultsAnalytics?: CampaignSeriesResultsAnalyticsResponse | null;
+	resultsDashboard?: CampaignSeriesResultsDashboardResponse | null;
 };
 
 export type ReportWidgetState = 'ready' | 'empty' | 'blocked' | 'failed' | 'unsupported';
@@ -761,6 +762,62 @@ export type VisualAnalyticsEntryWidgetData = {
 	analytics?: CampaignSeriesResultsAnalyticsResponse | null;
 };
 
+export type ResultsDashboardWidgetData = {
+	dashboard: CampaignSeriesResultsDashboardResponse;
+};
+
+export type CampaignSeriesResultsDashboardResponse = {
+	selectedCampaignId: string | null;
+	selectedCampaignName: string | null;
+	disclosureKMin: number;
+	disclosureState: string;
+	metrics: ResultsDashboardMetricResponse[];
+	outputBars: ResultsDashboardBarResponse[];
+	groupBars: ResultsDashboardBarResponse[];
+	waveTrendPoints: ResultsDashboardPointResponse[];
+	notes: ResultsDashboardNoteResponse[];
+};
+
+export type ResultsDashboardMetricResponse = {
+	id: string;
+	value: number | null;
+	unit: string;
+	detail: string | null;
+	tone: string;
+};
+
+export type ResultsDashboardBarResponse = {
+	id: string;
+	label: string;
+	dimensionCode: string;
+	disclosure: string;
+	value: number | null;
+	count: number | null;
+	detail: string | null;
+	suppressionReason: string | null;
+};
+
+export type ResultsDashboardPointResponse = {
+	id: string;
+	campaignId: string;
+	campaignName: string;
+	dimensionCode: string;
+	disclosure: string;
+	value: number | null;
+	deltaFromPrevious: number | null;
+	comparisonState: string;
+	dataFinality: string;
+	count: number | null;
+	suppressionReason: string | null;
+};
+
+export type ResultsDashboardNoteResponse = {
+	kind: string;
+	severity: string;
+	title: string;
+	detail: string;
+};
+
 export type CampaignSeriesResultsAnalyticsResponse = {
 	selectedCampaignId: string | null;
 	selectedCampaignName: string | null;
@@ -847,6 +904,7 @@ export type ReportWidgetData =
 	| SelectedCampaignReportStateWidgetData
 	| ExportArtifactRegistryWidgetData
 	| VisualAnalyticsEntryWidgetData
+	| ResultsDashboardWidgetData
 	| FinalityProvenanceWidgetData
 	| Record<string, unknown>;
 
@@ -863,6 +921,7 @@ export type ReportWidgetBase<TKind extends string, TData extends ReportWidgetDat
 };
 
 export type KnownReportWidget =
+	| ReportWidgetBase<'results-dashboard/v1', ResultsDashboardWidgetData>
 	| ReportWidgetBase<'report-readiness-summary/v1', ReportReadinessSummaryWidgetData>
 	| ReportWidgetBase<'score-coverage-summary/v1', ScoreCoverageSummaryWidgetData>
 	| ReportWidgetBase<'selected-campaign-report-state/v1', SelectedCampaignReportStateWidgetData>

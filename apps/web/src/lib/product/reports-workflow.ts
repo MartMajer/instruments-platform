@@ -850,32 +850,17 @@ export function toSelectedSeriesReportsPath(
 	const hasExistingResponseExport = workspace.exportArtifacts.some(
 		(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
 	);
-	const hasDownloadableRegistryExport = workspace.exportArtifacts.some(
-		(artifact) => artifact.canDownload
-	);
-	const hasDownloadableResponseExport = workspace.exportArtifacts.some(
-		(artifact) =>
-			artifact.artifactType === 'campaign_series_response_csv_codebook' && artifact.canDownload
-	);
-	const latestExportDownloadable = Boolean(
-		workspace.selectedCampaign?.latestExportArtifactId &&
-			workspace.selectedCampaign.latestExportArtifactCanDownload
-	);
 	const hasReadableReportExport =
 		hasRegistryAggregateExport ||
 		(Boolean(workspace.selectedCampaign?.latestExportArtifactId) && !hasExistingResponseExport);
 	const hasExistingReportExport = hasRegistryReportExport;
 	const hasPersistedExport = hasReadableReportExport || hasExistingResponseExport;
-	const hasPersistedDownloadableExport = latestExportDownloadable || hasDownloadableRegistryExport;
-	const hasPersistedDownloadableResponseExport =
-		hasDownloadableResponseExport ||
-		(hasExistingResponseExport && latestExportDownloadable);
 	const resultsReviewed = Boolean(localState.reportProofViewed || hasPersistedExport);
 	const doneByActionId: Record<SelectedSeriesReportsWorkflowActionId, boolean> = {
 		reportProof: resultsReviewed,
 		exportArtifact: Boolean(localState.exportCreated || hasExistingReportExport),
 		responseExport: Boolean(localState.responseExportCreated || hasExistingResponseExport),
-		fetchArtifact: Boolean(localState.artifactFetched || hasPersistedDownloadableResponseExport),
+		fetchArtifact: Boolean(localState.artifactFetched),
 		downloadCsv: Boolean(localState.csvDownloaded)
 	};
 	const currentAction =

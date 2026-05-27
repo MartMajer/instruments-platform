@@ -3,6 +3,7 @@ import type {
 	ExportArtifactRegistryWidgetData,
 	FinalityProvenanceWidgetData,
 	ReportReadinessSummaryWidgetData,
+	ResultsDashboardWidgetData,
 	ReportWidgetData,
 	ScoreCoverageSummaryWidgetData,
 	SelectedCampaignReportStateWidgetData,
@@ -114,6 +115,37 @@ export function isVisualAnalyticsEntryWidgetData(
 		typeof record.suppressedScoreCount === 'number' &&
 		typeof record.reportableCampaignCount === 'number' &&
 		isOptionalResultsAnalytics(record.analytics)
+	);
+}
+
+export function isResultsDashboardWidgetData(
+	data: ReportWidgetData | null
+): data is ResultsDashboardWidgetData {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	const record = data as Record<string, unknown>;
+	if (!isRecord(record.dashboard)) {
+		return false;
+	}
+
+	const dashboard = record.dashboard as Record<string, unknown>;
+	return (
+		isNullableString(dashboard.selectedCampaignId) &&
+		isNullableString(dashboard.selectedCampaignName) &&
+		typeof dashboard.disclosureKMin === 'number' &&
+		typeof dashboard.disclosureState === 'string' &&
+		Array.isArray(dashboard.metrics) &&
+		dashboard.metrics.every(isResultsDashboardMetric) &&
+		Array.isArray(dashboard.outputBars) &&
+		dashboard.outputBars.every(isResultsDashboardBar) &&
+		Array.isArray(dashboard.groupBars) &&
+		dashboard.groupBars.every(isResultsDashboardBar) &&
+		Array.isArray(dashboard.waveTrendPoints) &&
+		dashboard.waveTrendPoints.every(isResultsDashboardPoint) &&
+		Array.isArray(dashboard.notes) &&
+		dashboard.notes.every(isResultsDashboardNote)
 	);
 }
 
@@ -294,6 +326,79 @@ function isResultsWaveMatrixRow(data: unknown): boolean {
 }
 
 function isResultsInsightRow(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.kind === 'string' &&
+		typeof data.severity === 'string' &&
+		typeof data.title === 'string' &&
+		typeof data.detail === 'string'
+	);
+}
+
+function isResultsDashboardMetric(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	return (
+		typeof data.id === 'string' &&
+		isNullableNumber(data.value) &&
+		typeof data.unit === 'string' &&
+		isNullableString(data.detail) &&
+		typeof data.tone === 'string'
+	);
+}
+
+function isResultsDashboardBar(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	const suppressedHasHiddenFields =
+		data.disclosure !== 'visible' && (data.value !== null || data.count !== null);
+
+	return (
+		typeof data.id === 'string' &&
+		typeof data.label === 'string' &&
+		typeof data.dimensionCode === 'string' &&
+		typeof data.disclosure === 'string' &&
+		isNullableNumber(data.value) &&
+		isNullableNumber(data.count) &&
+		isNullableString(data.detail) &&
+		isNullableString(data.suppressionReason) &&
+		!suppressedHasHiddenFields
+	);
+}
+
+function isResultsDashboardPoint(data: unknown): boolean {
+	if (!isRecord(data)) {
+		return false;
+	}
+
+	const suppressedHasHiddenFields =
+		data.disclosure !== 'visible' &&
+		(data.value !== null || data.deltaFromPrevious !== null || data.count !== null);
+
+	return (
+		typeof data.id === 'string' &&
+		typeof data.campaignId === 'string' &&
+		typeof data.campaignName === 'string' &&
+		typeof data.dimensionCode === 'string' &&
+		typeof data.disclosure === 'string' &&
+		isNullableNumber(data.value) &&
+		isNullableNumber(data.deltaFromPrevious) &&
+		typeof data.comparisonState === 'string' &&
+		typeof data.dataFinality === 'string' &&
+		isNullableNumber(data.count) &&
+		isNullableString(data.suppressionReason) &&
+		!suppressedHasHiddenFields
+	);
+}
+
+function isResultsDashboardNote(data: unknown): boolean {
 	if (!isRecord(data)) {
 		return false;
 	}

@@ -1294,6 +1294,7 @@ public sealed class ProductSurfaceReadStore(
             campaignResponses,
             selectedCampaign,
             cancellationToken);
+        var resultsDashboard = CreateResultsDashboard(resultsAnalytics);
         var response = new CampaignSeriesReportsWorkspaceResponse(
             new CampaignSeriesReportsSeriesResponse(
                 series.Id,
@@ -1322,7 +1323,8 @@ public sealed class ProductSurfaceReadStore(
             exportArtifactRegistry,
             campaignResponses,
             ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()),
-            resultsAnalytics);
+            resultsAnalytics,
+            resultsDashboard);
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -1796,6 +1798,123 @@ public sealed class ProductSurfaceReadStore(
                 "At least two measurements need visible score rows before change-over-time comparisons are useful."));
 
         return insights.ToArray();
+    }
+
+    private static CampaignSeriesResultsDashboardResponse? CreateResultsDashboard(
+        CampaignSeriesResultsAnalyticsResponse? analytics)
+    {
+        if (analytics is null)
+        {
+            return null;
+        }
+
+        var outputBars = analytics.ScoreOutputs
+            .OrderByDescending(row => row.Disclosure == "visible")
+            .ThenByDescending(row => row.Mean ?? decimal.MinValue)
+            .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
+            .Select(row => new ResultsDashboardBarResponse(
+                $"output:{row.DimensionCode}",
+                row.DimensionCode,
+                row.DimensionCode,
+                row.Disclosure,
+                row.Disclosure == "visible" ? row.Mean : null,
+                row.Disclosure == "visible" ? row.ScoreCount : null,
+                row.Disclosure == "visible"
+                    ? $"median {FormatResultsDashboardDecimal(row.Median)}, range {FormatResultsDashboardDecimal(row.Min)}-{FormatResultsDashboardDecimal(row.Max)}"
+                    : null,
+                row.Disclosure == "visible" ? null : row.SuppressionReason))
+            .ToArray();
+
+        var groupBars = analytics.GroupRows
+            .OrderByDescending(row => row.Disclosure == "visible")
+            .ThenBy(row => row.GroupType, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.GroupName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
+            .Take(24)
+            .Select(row => new ResultsDashboardBarResponse(
+                $"group:{row.GroupType}:{row.GroupName}:{row.DimensionCode}",
+                row.GroupName,
+                row.DimensionCode,
+                row.Disclosure,
+                row.Disclosure == "visible" ? row.Mean : null,
+                row.Disclosure == "visible" ? row.ScoreCount : null,
+                row.GroupType,
+                row.Disclosure == "visible" ? null : row.SuppressionReason))
+            .ToArray();
+
+        var waveTrendPoints = analytics.WaveRows
+            .OrderBy(row => row.CampaignName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
+            .Take(48)
+            .Select(row => new ResultsDashboardPointResponse(
+                $"wave:{row.CampaignId}:{row.DimensionCode}",
+                row.CampaignId,
+                row.CampaignName,
+                row.DimensionCode,
+                row.Disclosure,
+                row.Disclosure == "visible" ? row.Mean : null,
+                row.Disclosure == "visible" ? row.DeltaFromPreviousMean : null,
+                row.ComparisonState,
+                row.DataFinality,
+                row.Disclosure == "visible" ? row.ScoreCount : null,
+                row.Disclosure == "visible" ? null : row.SuppressionReason))
+            .ToArray();
+
+        var visibleOutputCount = analytics.ScoreOutputs.Count(row =>
+            row.Disclosure == "visible" &&
+            row.Mean.HasValue);
+        var suppressedOutputCount = analytics.ScoreOutputs.Count(row => row.Disclosure != "visible");
+        var visibleGroupRowCount = analytics.GroupRows.Count(row =>
+            row.Disclosure == "visible" &&
+            row.Mean.HasValue);
+        var comparableWaveCount = analytics.WaveRows
+            .Where(row => row.Disclosure == "visible" && row.ComparisonState is "baseline" or "compared")
+            .Select(row => row.CampaignId)
+            .Distinct()
+            .Count();
+
+        return new CampaignSeriesResultsDashboardResponse(
+            analytics.SelectedCampaignId,
+            analytics.SelectedCampaignName,
+            analytics.DisclosureKMin,
+            analytics.DisclosureState,
+            [
+                new ResultsDashboardMetricResponse(
+                    "visible_outputs",
+                    visibleOutputCount,
+                    "count",
+                    visibleOutputCount == 0 ? "No visible aggregate result values yet." : null,
+                    visibleOutputCount > 0 ? "ready" : "pending"),
+                new ResultsDashboardMetricResponse(
+                    "hidden_outputs",
+                    suppressedOutputCount,
+                    "count",
+                    suppressedOutputCount > 0 ? "Hidden by disclosure or missing score requirements." : null,
+                    suppressedOutputCount > 0 ? "attention" : "ready"),
+                new ResultsDashboardMetricResponse(
+                    "group_rows",
+                    visibleGroupRowCount,
+                    "count",
+                    visibleGroupRowCount == 0 ? "Add directory groups or more responses for group comparison." : null,
+                    visibleGroupRowCount > 0 ? "ready" : "pending"),
+                new ResultsDashboardMetricResponse(
+                    "compared_measurements",
+                    comparableWaveCount,
+                    "count",
+                    comparableWaveCount < 2 ? "At least two visible measurements are needed for change over time." : null,
+                    comparableWaveCount >= 2 ? "ready" : "pending")
+            ],
+            outputBars,
+            groupBars,
+            waveTrendPoints,
+            analytics.Insights
+                .Select(row => new ResultsDashboardNoteResponse(row.Kind, row.Severity, row.Title, row.Detail))
+                .ToArray());
+    }
+
+    private static string FormatResultsDashboardDecimal(decimal? value)
+    {
+        return value.HasValue ? value.Value.ToString("0.##", CultureInfo.InvariantCulture) : "n/a";
     }
 
     private static bool IsCampaignResultVisible(CampaignSeriesReportsCampaignResponse campaign, int scoreCount)
@@ -2532,6 +2651,26 @@ public sealed class ProductSurfaceReadStore(
             IsReportableCampaign(workspace.SelectedCampaign);
         var widgets = new List<ReportWidgetResponse>
         {
+            new(
+                "results-dashboard",
+                "results-dashboard/v1",
+                "Results dashboard",
+                "full",
+                workspace.ResultsDashboard is null || !selectedCampaignIsReportable
+                    ? "blocked"
+                    : workspace.ResultsDashboard.OutputBars.Any(row => row.Value.HasValue)
+                        ? "ready"
+                        : "empty",
+                workspace.ResultsDashboard is null || !selectedCampaignIsReportable
+                    ? "Select a reportable measurement before reviewing the Results dashboard."
+                    : workspace.ResultsDashboard.OutputBars.Any(row => row.Value.HasValue)
+                        ? null
+                        : "Results exist, but chart values are not visible yet.",
+                workspace.ResultsDashboard is null
+                    ? null
+                    : new ResultsDashboardWidgetDataResponse(workspace.ResultsDashboard),
+                DataSource: null,
+                Actions: []),
             new(
                 "report-readiness-summary",
                 "report-readiness-summary/v1",

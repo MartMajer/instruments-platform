@@ -3,6 +3,7 @@ import { getReportWidgetComponent } from './widgets/report-widget-registry';
 import ExportArtifactRegistryWidget from './widgets/ExportArtifactRegistryWidget.svelte';
 import FinalityProvenanceSummaryWidget from './widgets/FinalityProvenanceSummaryWidget.svelte';
 import ReportReadinessSummaryWidget from './widgets/ReportReadinessSummaryWidget.svelte';
+import ResultsDashboardWidget from './widgets/ResultsDashboardWidget.svelte';
 import ScoreCoverageSummaryWidget from './widgets/ScoreCoverageSummaryWidget.svelte';
 import SelectedCampaignReportStateWidget from './widgets/SelectedCampaignReportStateWidget.svelte';
 import UnsupportedReportWidget from './widgets/UnsupportedReportWidget.svelte';
@@ -10,6 +11,7 @@ import VisualAnalyticsEntryWidget from './widgets/VisualAnalyticsEntryWidget.sve
 
 describe('report widget registry', () => {
 	it('resolves known report widget kinds', () => {
+		expect(getReportWidgetComponent('results-dashboard/v1')).toBe(ResultsDashboardWidget);
 		expect(getReportWidgetComponent('report-readiness-summary/v1')).toBe(
 			ReportReadinessSummaryWidget
 		);

@@ -4,6 +4,7 @@ import type { ReportWidgetFormatCopy } from './report-widget-format';
 import ExportArtifactRegistryWidget from './ExportArtifactRegistryWidget.svelte';
 import FinalityProvenanceSummaryWidget from './FinalityProvenanceSummaryWidget.svelte';
 import ReportReadinessSummaryWidget from './ReportReadinessSummaryWidget.svelte';
+import ResultsDashboardWidget from './ResultsDashboardWidget.svelte';
 import ScoreCoverageSummaryWidget from './ScoreCoverageSummaryWidget.svelte';
 import SelectedCampaignReportStateWidget from './SelectedCampaignReportStateWidget.svelte';
 import UnsupportedReportWidget from './UnsupportedReportWidget.svelte';
@@ -15,6 +16,7 @@ export type ReportWidgetComponent = Component<{
 }>;
 
 const registry: Record<string, ReportWidgetComponent> = {
+	'results-dashboard/v1': ResultsDashboardWidget,
 	'report-readiness-summary/v1': ReportReadinessSummaryWidget,
 	'score-coverage-summary/v1': ScoreCoverageSummaryWidget,
 	'selected-campaign-report-state/v1': SelectedCampaignReportStateWidget,
