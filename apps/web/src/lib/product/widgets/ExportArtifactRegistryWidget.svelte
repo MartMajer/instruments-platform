@@ -16,6 +16,38 @@
 	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
 
 	const data = $derived(isExportArtifactRegistryWidgetData(widget.data) ? widget.data : null);
+
+	function artifactUseLabel(artifactType: string) {
+		switch (artifactType) {
+			case 'campaign_series_results_matrix_csv_codebook':
+				return formatWidgetLabel('dashboardMatrixExport', copy);
+			case 'campaign_series_response_csv_codebook':
+				return formatWidgetLabel('rowLevelResponseExport', copy);
+			case 'report_proof_csv_codebook':
+				return formatWidgetLabel('singleMeasurementReportExport', copy);
+			case 'campaign_series_report_html':
+			case 'campaign_series_report_pdf':
+				return formatWidgetLabel('reportPacketExport', copy);
+			default:
+				return formatCodeLabel(artifactType, copy);
+		}
+	}
+
+	function artifactUseGuidance(artifactType: string) {
+		switch (artifactType) {
+			case 'campaign_series_results_matrix_csv_codebook':
+				return formatWidgetLabel('dashboardMatrixExportGuidance', copy);
+			case 'campaign_series_response_csv_codebook':
+				return formatWidgetLabel('rowLevelResponseExportGuidance', copy);
+			case 'report_proof_csv_codebook':
+				return formatWidgetLabel('singleMeasurementReportExportGuidance', copy);
+			case 'campaign_series_report_html':
+			case 'campaign_series_report_pdf':
+				return formatWidgetLabel('reportPacketExportGuidance', copy);
+			default:
+				return formatWidgetLabel('exportUseUnknownGuidance', copy);
+		}
+	}
 </script>
 
 <ReportWidgetShell {widget} {copy}>
@@ -32,6 +64,27 @@
 		</dl>
 
 		{#if data.artifacts.length > 0}
+			<div class="record-row" aria-label={formatWidgetLabel('exportUseGuide', copy)}>
+				<div class="record-row__header">
+					<div>
+						<p class="record-row__title">{formatWidgetLabel('exportUseGuide', copy)}</p>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{formatWidgetLabel('exportUseGuideDescription', copy)}
+						</p>
+					</div>
+				</div>
+				<dl class="record-grid">
+					<div class="record-field">
+						<dt class="record-field__label">{formatWidgetLabel('dashboardMatrixExport', copy)}</dt>
+						<dd class="record-field__value">{formatWidgetLabel('dashboardMatrixExportGuidance', copy)}</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">{formatWidgetLabel('rowLevelResponseExport', copy)}</dt>
+						<dd class="record-field__value">{formatWidgetLabel('rowLevelResponseExportGuidance', copy)}</dd>
+					</div>
+				</dl>
+			</div>
+
 			<div class="record-list" aria-label={formatWidgetLabel('exportFiles', copy)}>
 				{#each data.artifacts as artifact (artifact.id)}
 					<div class="record-row">
@@ -39,13 +92,17 @@
 							<div>
 								<p class="record-row__title">{artifact.fileName}</p>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									{artifact.targetLabel} / {formatCodeLabel(artifact.format, copy)}
+									{artifactUseLabel(artifact.artifactType)} / {artifact.targetLabel} / {formatCodeLabel(artifact.format, copy)}
 								</p>
 							</div>
 							<StatusBadge status="neutral" label={formatCodeLabel(artifact.status, copy)} />
 						</div>
 
 						<dl class="record-grid">
+							<div class="record-field">
+								<dt class="record-field__label">{formatWidgetLabel('bestUse', copy)}</dt>
+								<dd class="record-field__value">{artifactUseGuidance(artifact.artifactType)}</dd>
+							</div>
 							<div class="record-field">
 								<dt class="record-field__label">{formatWidgetLabel('rows', copy)}</dt>
 								<dd class="record-field__value">{artifact.rowCount}</dd>
