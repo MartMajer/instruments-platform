@@ -61,17 +61,17 @@ const enMessages = {
 	'overview.lifecycle.waves.label': 'Compare waves',
 	'overview.lifecycle.waves.description':
 		'Create follow-up waves and compare results across collection rounds.',
-	'overview.studyModel.title': 'What this study contains',
+	'overview.studyModel.title': 'Study overview',
 	'overview.studyModel.description':
-		'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
-	'overview.studyBrief.label': 'Study brief',
+		'A short orientation for the selected study. Use Setup, Collection, Results, and Waves for detailed work.',
+	'overview.studyBrief.label': 'Study context',
 	'overview.studyBrief.badge.ready': 'Defined',
 	'overview.studyBrief.badge.pending': 'Needs brief',
 	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
 	'overview.studyBrief.summary.missing':
 		'The study purpose has not been captured yet.',
 	'overview.studyBrief.guidance.ready':
-		'Keep this brief aligned with Setup, collection, results, and export interpretation.',
+		'Use this to keep the study purpose and result interpretation aligned.',
 	'overview.studyBrief.guidance.missing':
 		'Add purpose, audience, design, intended use, and interpretation limits before sharing results.',
 	'overview.studyBrief.purpose': 'Purpose',
@@ -130,8 +130,44 @@ const enMessages = {
 		)} export files are recorded.`,
 	'overview.studyModel.evidenceOutputs.guidance':
 		'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+	'overview.studyModel.currentState.label': 'Current state',
+	'overview.studyModel.currentState.badge.live': 'Collection live',
+	'overview.studyModel.currentState.badge.ready': 'Results available',
+	'overview.studyModel.currentState.badge.pending': 'Prepared',
+	'overview.studyModel.currentState.badge.notAvailable': 'Not started',
+	'overview.studyModel.currentState.summary': (values, locale) =>
+		`Collection rounds: ${formatNumber(locale, numberValue(values, 'waveCount'))}; collected responses: ${formatNumber(
+			locale,
+			numberValue(values, 'submittedCount')
+		)}; export files: ${formatNumber(locale, numberValue(values, 'exportCount'))}.`,
+	'overview.studyModel.currentState.guidance.collecting':
+		'Collection is open. Use Collection to monitor response progress, then Results when the round closes.',
+	'overview.studyModel.currentState.guidance.resultsReady':
+		'Responses or exports exist. Use Results for evidence review and Exports for analysis handoff.',
+	'overview.studyModel.currentState.guidance.prepared':
+		'At least one collection round exists. Use Collection to open access and monitor responses.',
+	'overview.studyModel.currentState.guidance.setup':
+		'Finish Setup before opening collection or reviewing results.',
+	'overview.studyModel.nextAction.label': 'Recommended next move',
+	'overview.studyModel.nextAction.badge.setup': 'Finish setup',
+	'overview.studyModel.nextAction.badge.collect': 'Go to collection',
+	'overview.studyModel.nextAction.badge.results': 'Review results',
+	'overview.studyModel.nextAction.summary.setup':
+		'Open Setup to finish the questionnaire, result outputs, recipients, and launch rules.',
+	'overview.studyModel.nextAction.summary.collect':
+		'Open Collection to manage access, invitations, and response progress.',
+	'overview.studyModel.nextAction.summary.results':
+		'Open Results to review charts, evidence, exports, and interpretation limits.',
+	'overview.studyModel.nextAction.guidance.setup':
+		'Setup is where you change what respondents answer and how answers become result outputs.',
+	'overview.studyModel.nextAction.guidance.collect':
+		'Collection is where you start the round, share access, and watch response progress.',
+	'overview.studyModel.nextAction.guidance.results':
+		'Results is where you inspect evidence. Use Waves only when you need change-over-time comparison.',
 	'overview.row.waves': 'Waves',
 	'overview.row.liveWaves': 'Live waves',
+	'overview.row.collectionRounds': 'Collection rounds',
+	'overview.row.collectedResponses': 'Collected responses',
 	'overview.row.submittedResponses': 'Submitted responses',
 	'overview.row.scores': 'Scores',
 	'overview.row.exportFiles': 'Export files',
@@ -1114,17 +1150,17 @@ const hrMessages: AppMessageCatalog = {
 	'overview.lifecycle.waves.label': 'Usporedba mjerenja',
 	'overview.lifecycle.waves.description':
 		'Izradite sljedeća mjerenja i usporedite rezultate između krugova prikupljanja.',
-	'overview.studyModel.title': 'Što ova studija sadrži',
+	'overview.studyModel.title': 'Pregled studije',
 	'overview.studyModel.description':
-		'Studija je projektni spremnik. Izvor upitnika je samo početni materijal; upitnik je ono što ispitanici vide; mjerenja su krugovi prikupljanja; rezultati i izvozi koriste spremljene odgovore.',
-	'overview.studyBrief.label': 'Opis studije',
-	'overview.studyBrief.badge.ready': 'Definirano',
+		'Kratak orijentir za odabranu studiju. Za detalje koristite Postavljanje, Prikupljanje, Rezultate i Krugove prikupljanja.',
+	'overview.studyBrief.label': 'Sažetak studije',
+	'overview.studyBrief.badge.ready': 'Postavljeno',
 	'overview.studyBrief.badge.pending': 'Treba opis',
 	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
 	'overview.studyBrief.summary.missing':
 		'Svrha studije još nije zabilježena.',
 	'overview.studyBrief.guidance.ready':
-		'Držite ovaj opis usklađen s postavljanjem, prikupljanjem, rezultatima i tumačenjem izvoza.',
+		'Služi za usklađivanje svrhe studije i tumačenja rezultata.',
 	'overview.studyBrief.guidance.missing':
 		'Dodajte svrhu, ciljanu skupinu, dizajn, namjenu i granice tumačenja prije dijeljenja rezultata.',
 	'overview.studyBrief.purpose': 'Svrha',
@@ -1183,10 +1219,46 @@ const hrMessages: AppMessageCatalog = {
 		)}.`,
 	'overview.studyModel.evidenceOutputs.guidance':
 		'Koristite Rezultate za trenutne dokaze, Mjerenja za ponovljene krugove prikupljanja i Izvoze za predaju analize.',
-	'overview.row.waves': 'Mjerenja',
-	'overview.row.liveWaves': 'Aktivna mjerenja',
-	'overview.row.submittedResponses': 'Predani odgovori',
-	'overview.row.scores': 'Rezultati',
+	'overview.studyModel.currentState.label': 'Trenutno stanje',
+	'overview.studyModel.currentState.badge.live': 'Prikupljanje traje',
+	'overview.studyModel.currentState.badge.ready': 'Rezultati dostupni',
+	'overview.studyModel.currentState.badge.pending': 'Pripremljeno',
+	'overview.studyModel.currentState.badge.notAvailable': 'Nije započeto',
+	'overview.studyModel.currentState.summary': (values, locale) =>
+		`Krugovi prikupljanja: ${formatNumber(locale, numberValue(values, 'waveCount'))}; prikupljeni odgovori: ${formatNumber(
+			locale,
+			numberValue(values, 'submittedCount')
+		)}; izvozne datoteke: ${formatNumber(locale, numberValue(values, 'exportCount'))}.`,
+	'overview.studyModel.currentState.guidance.collecting':
+		'Prikupljanje je otvoreno. Koristite Prikupljanje za praćenje odgovora, a zatim Rezultate nakon zatvaranja kruga.',
+	'overview.studyModel.currentState.guidance.resultsReady':
+		'Odgovori ili izvozi postoje. Koristite Rezultate za pregled nalaza i Izvoze za predaju analize.',
+	'overview.studyModel.currentState.guidance.prepared':
+		'Postoji barem jedan krug prikupljanja. Koristite Prikupljanje za otvaranje pristupa i praćenje odgovora.',
+	'overview.studyModel.currentState.guidance.setup':
+		'Dovršite Postavljanje prije otvaranja prikupljanja ili pregleda rezultata.',
+	'overview.studyModel.nextAction.label': 'Preporučeni sljedeći korak',
+	'overview.studyModel.nextAction.badge.setup': 'Dovršite postavljanje',
+	'overview.studyModel.nextAction.badge.collect': 'Otvorite prikupljanje',
+	'overview.studyModel.nextAction.badge.results': 'Pregledajte rezultate',
+	'overview.studyModel.nextAction.summary.setup':
+		'Otvorite Postavljanje za dovršetak upitnika, izlaza rezultata, primatelja i pravila pokretanja.',
+	'overview.studyModel.nextAction.summary.collect':
+		'Otvorite Prikupljanje za pristup, pozivnice i tijek odgovaranja.',
+	'overview.studyModel.nextAction.summary.results':
+		'Otvorite Rezultate za grafikone, nalaze, izvoze i granice tumačenja.',
+	'overview.studyModel.nextAction.guidance.setup':
+		'U Postavljanju mijenjate što ispitanici odgovaraju i kako odgovori postaju rezultati.',
+	'overview.studyModel.nextAction.guidance.collect':
+		'U Prikupljanju pokrećete krug, dijelite pristup i pratite tijek odgovora.',
+	'overview.studyModel.nextAction.guidance.results':
+		'U Rezultatima pregledavate nalaze. Krugove prikupljanja koristite samo za usporedbu promjene kroz vrijeme.',
+	'overview.row.waves': 'Krugovi prikupljanja',
+	'overview.row.liveWaves': 'Aktivni krugovi',
+	'overview.row.collectionRounds': 'Krugovi prikupljanja',
+	'overview.row.collectedResponses': 'Prikupljeni odgovori',
+	'overview.row.submittedResponses': 'Prikupljeni odgovori',
+	'overview.row.scores': 'Izračunati rezultati',
 	'overview.row.exportFiles': 'Datoteke izvoza',
 	'overview.row.identityMode': 'Način identiteta',
 	'overview.row.locale': 'Jezik',

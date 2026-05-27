@@ -455,102 +455,163 @@ function toCampaignSeriesHubStudyModel(
 	hub: CampaignSeriesHubResponse,
 	locale: AppLocale
 ): SelectedSeriesStudyModel {
-	const setupLifecycle = findHubLifecycleItem(hub, 'setup');
-	const operationsLifecycle = findHubLifecycleItem(hub, 'operations');
-	const studyName = hub.name.trim() || appMessage(locale, 'overview.untitledStudy');
-
 	return {
 		title: appMessage(locale, 'overview.studyModel.title'),
 		description: appMessage(locale, 'overview.studyModel.description'),
 		items: [
 			toStudyBriefModelItem(hub.studyBrief, locale),
+			toStudyCurrentStateModelItem(hub, locale),
+			toStudyNextActionModelItem(hub, locale)
+		]
+	};
+}
+
+function toStudyCurrentStateModelItem(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): SelectedSeriesStudyModelItem {
+	return {
+		id: 'current_state',
+		label: appMessage(locale, 'overview.studyModel.currentState.label'),
+		status: toStudyCurrentStateStatus(hub),
+		badgeLabel: toStudyCurrentStateBadgeLabel(hub, locale),
+		summary: appMessage(locale, 'overview.studyModel.currentState.summary', {
+			waveCount: hub.totals.campaignCount,
+			submittedCount: hub.totals.submittedResponseCount,
+			exportCount: hub.totals.exportArtifactCount
+		}),
+		guidance: toStudyCurrentStateGuidance(hub, locale),
+		detailRows: [
 			{
-				id: 'study_container',
-				label: appMessage(locale, 'overview.studyModel.studyContainer.label'),
-				status: 'ready',
-				badgeLabel: appMessage(locale, 'overview.studyModel.studyContainer.badge'),
-				summary: appMessage(locale, 'overview.studyModel.studyContainer.summary', { studyName }),
-				guidance: appMessage(locale, 'overview.studyModel.studyContainer.guidance'),
-				detailRows: [
-					{
-						label: appMessage(locale, 'overview.row.waves'),
-						value: formatCount(hub.totals.campaignCount)
-					},
-					{
-						label: appMessage(locale, 'overview.row.liveWaves'),
-						value: formatCount(hub.totals.liveCampaignCount)
-					},
-					{
-						label: appMessage(locale, 'overview.row.submittedResponses'),
-						value: formatCount(hub.totals.submittedResponseCount)
-					},
-					{
-						label: appMessage(locale, 'overview.row.exportFiles'),
-						value: formatCount(hub.totals.exportArtifactCount)
-					}
-				]
+				label: appMessage(locale, 'overview.row.collectionRounds'),
+				value: formatCount(hub.totals.campaignCount)
 			},
 			{
-				id: 'questionnaire_results',
-				label: appMessage(locale, 'overview.studyModel.questionnaireResults.label'),
-				status: setupLifecycle ? toProductReadModelBadgeStatus(setupLifecycle.status) : 'pending',
-				badgeLabel: setupLifecycle
-					? toModelBadgeLabel(toProductReadModelBadgeStatus(setupLifecycle.status), locale)
-					: appMessage(locale, 'overview.badge.pending'),
-				summary: appMessage(locale, 'overview.studyModel.questionnaireResults.summary'),
-				guidance:
-					locale === 'en' && setupLifecycle?.guidance
-						? setupLifecycle.guidance
-						: appMessage(locale, 'overview.studyModel.questionnaireResults.guidance'),
-				detailRows: [
-					toGovernanceRow('overview.governance.consent', hub.governance.consentStatus, locale),
-					toGovernanceRow('overview.governance.retention', hub.governance.retentionStatus, locale),
-					toGovernanceRow('overview.governance.disclosure', hub.governance.disclosureStatus, locale),
-					toGovernanceRow('overview.governance.scoring', hub.governance.scoringStatus, locale)
-				]
+				label: appMessage(locale, 'overview.row.collectedResponses'),
+				value: formatCount(hub.totals.submittedResponseCount)
 			},
 			{
-				id: 'collection_waves',
-				label: appMessage(locale, 'overview.studyModel.collectionWaves.label'),
-				status: toCollectionWavesModelStatus(hub),
-				badgeLabel: toCollectionWavesModelBadgeLabel(hub, locale),
-				summary: toCollectionWavesModelSummary(hub, locale),
-				guidance:
-					locale === 'en' && operationsLifecycle?.guidance
-						? operationsLifecycle.guidance
-						: appMessage(locale, 'overview.studyModel.collectionWaves.guidance'),
-				detailRows: [
-					{
-						label: appMessage(locale, 'overview.row.waves'),
-						value: formatCount(hub.totals.campaignCount)
-					},
-					{
-						label: appMessage(locale, 'overview.row.liveWaves'),
-						value: formatCount(hub.totals.liveCampaignCount)
-					}
-				]
-			},
-			{
-				id: 'evidence_outputs',
-				label: appMessage(locale, 'overview.studyModel.evidenceOutputs.label'),
-				status: toEvidenceOutputsModelStatus(hub),
-				badgeLabel: toEvidenceOutputsModelBadgeLabel(hub, locale),
-				summary: toEvidenceOutputsModelSummary(hub, locale),
-				guidance: appMessage(locale, 'overview.studyModel.evidenceOutputs.guidance'),
-				detailRows: [
-					{
-						label: appMessage(locale, 'overview.row.submittedResponses'),
-						value: formatCount(hub.totals.submittedResponseCount)
-					},
-					{ label: appMessage(locale, 'overview.row.scores'), value: formatCount(hub.totals.scoreCount) },
-					{
-						label: appMessage(locale, 'overview.row.exportFiles'),
-						value: formatCount(hub.totals.exportArtifactCount)
-					}
-				]
+				label: appMessage(locale, 'overview.row.exportFiles'),
+				value: formatCount(hub.totals.exportArtifactCount)
 			}
 		]
 	};
+}
+
+function toStudyCurrentStateStatus(hub: CampaignSeriesHubResponse): ProductReadModelBadgeStatus {
+	if (hub.totals.liveCampaignCount > 0) {
+		return 'live';
+	}
+
+	if (hub.totals.submittedResponseCount > 0 || hub.totals.exportArtifactCount > 0) {
+		return 'ready';
+	}
+
+	if (hub.totals.campaignCount > 0) {
+		return 'pending';
+	}
+
+	return 'not_available';
+}
+
+function toStudyCurrentStateBadgeLabel(hub: CampaignSeriesHubResponse, locale: AppLocale): string {
+	if (hub.totals.liveCampaignCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.badge.live');
+	}
+
+	if (hub.totals.submittedResponseCount > 0 || hub.totals.exportArtifactCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.badge.ready');
+	}
+
+	if (hub.totals.campaignCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.badge.pending');
+	}
+
+	return appMessage(locale, 'overview.studyModel.currentState.badge.notAvailable');
+}
+
+function toStudyCurrentStateGuidance(hub: CampaignSeriesHubResponse, locale: AppLocale): string {
+	if (hub.totals.liveCampaignCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.guidance.collecting');
+	}
+
+	if (hub.totals.submittedResponseCount > 0 || hub.totals.exportArtifactCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.guidance.resultsReady');
+	}
+
+	if (hub.totals.campaignCount > 0) {
+		return appMessage(locale, 'overview.studyModel.currentState.guidance.prepared');
+	}
+
+	return appMessage(locale, 'overview.studyModel.currentState.guidance.setup');
+}
+
+function toStudyNextActionModelItem(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): SelectedSeriesStudyModelItem {
+	const nextAction = toStudyNextAction(hub);
+	const status =
+		nextAction === 'collect' && hub.totals.liveCampaignCount > 0
+			? 'live'
+			: nextAction === 'setup'
+				? 'pending'
+				: 'ready';
+
+	return {
+		id: 'next_action',
+		label: appMessage(locale, 'overview.studyModel.nextAction.label'),
+		status,
+		badgeLabel: toStudyNextActionBadgeLabel(nextAction, locale),
+		summary: toStudyNextActionSummary(nextAction, locale),
+		guidance: toStudyNextActionGuidance(nextAction, locale),
+		detailRows: []
+	};
+}
+
+function toStudyNextAction(hub: CampaignSeriesHubResponse): 'setup' | 'collect' | 'results' {
+	if (hub.totals.submittedResponseCount > 0 || hub.totals.scoreCount > 0 || hub.totals.exportArtifactCount > 0) {
+		return 'results';
+	}
+
+	if (hub.totals.campaignCount > 0 || hub.totals.liveCampaignCount > 0) {
+		return 'collect';
+	}
+
+	return 'setup';
+}
+
+function toStudyNextActionBadgeLabel(nextAction: 'setup' | 'collect' | 'results', locale: AppLocale): string {
+	switch (nextAction) {
+		case 'setup':
+			return appMessage(locale, 'overview.studyModel.nextAction.badge.setup');
+		case 'collect':
+			return appMessage(locale, 'overview.studyModel.nextAction.badge.collect');
+		case 'results':
+			return appMessage(locale, 'overview.studyModel.nextAction.badge.results');
+	}
+}
+
+function toStudyNextActionSummary(nextAction: 'setup' | 'collect' | 'results', locale: AppLocale): string {
+	switch (nextAction) {
+		case 'setup':
+			return appMessage(locale, 'overview.studyModel.nextAction.summary.setup');
+		case 'collect':
+			return appMessage(locale, 'overview.studyModel.nextAction.summary.collect');
+		case 'results':
+			return appMessage(locale, 'overview.studyModel.nextAction.summary.results');
+	}
+}
+
+function toStudyNextActionGuidance(nextAction: 'setup' | 'collect' | 'results', locale: AppLocale): string {
+	switch (nextAction) {
+		case 'setup':
+			return appMessage(locale, 'overview.studyModel.nextAction.guidance.setup');
+		case 'collect':
+			return appMessage(locale, 'overview.studyModel.nextAction.guidance.collect');
+		case 'results':
+			return appMessage(locale, 'overview.studyModel.nextAction.guidance.results');
+	}
 }
 
 function toStudyBriefModelItem(
@@ -571,19 +632,8 @@ function toStudyBriefModelItem(
 		{
 			label: appMessage(locale, 'overview.studyBrief.intendedUse'),
 			value: localizedStudyIntendedUse(brief?.intendedUse, locale)
-		},
-		{
-			label: appMessage(locale, 'overview.studyBrief.interpretationBoundary'),
-			value: brief?.interpretationBoundary?.trim() || appMessage(locale, 'overview.studyBrief.notSet')
 		}
 	];
-
-	if (brief?.ownerNotes?.trim()) {
-		rows.push({
-			label: appMessage(locale, 'overview.studyBrief.ownerNotes'),
-			value: brief.ownerNotes.trim()
-		});
-	}
 
 	return {
 		id: 'study_brief',

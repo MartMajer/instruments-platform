@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import type { ComponentProps } from 'svelte';
 import type StatusBadge from '../components/StatusBadge.svelte';
@@ -287,12 +287,12 @@ describe('product view models', () => {
 		expect(empty.emptyState).toEqual({
 			title: 'Još nema studija',
 			message:
-				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.'
+				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za ucenje.'
 		});
 		expect(empty.statusOptions.map((option) => option.label)).toEqual([
 			'Sva spremnost',
 			'Nije postavljeno',
-			'Na čekanju',
+			'Na cekanju',
 			'Pregled'
 		]);
 		expect(empty.studySections.map((section) => section.title)).toEqual([
@@ -407,11 +407,11 @@ describe('product view models', () => {
 			'Regija',
 			'Zadani jezik',
 			'Status',
-			'Izrađeno',
+			'Izradeno',
 			'Ažurirano'
 		]);
 		expect(settingsView.metricRows.map((row) => row.label)).toContain('Studije');
-		expect(settingsView.metricRows.map((row) => row.label)).toContain('Članovi radnog prostora');
+		expect(settingsView.metricRows.map((row) => row.label)).toContain('Clanovi radnog prostora');
 
 		const instruments = toInstrumentLibraryView(
 			[
@@ -608,7 +608,7 @@ describe('product view models', () => {
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
 			{ value: 'not_configured', label: 'Nije postavljeno' },
-			{ value: 'pending', label: 'Na čekanju' },
+			{ value: 'pending', label: 'Na cekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
 		expect(listView.items[0].rows).toContainEqual({ label: 'Mjerenja', value: '2' });
@@ -617,12 +617,12 @@ describe('product view models', () => {
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
-		expect(hubView.rows[0].label).toBe('Izrađeno');
-		expect(hubView.studyModel.title).toBe('Što ova studija sadrži');
-		expect(hubView.studyModel.items[0].label).toBe('Opis studije');
+		expect(hubView.rows[0].label).toBe('Izradeno');
+		expect(hubView.studyModel.title).toBe('Pregled studije');
+		expect(hubView.studyModel.items[0].label).toBe('Sažetak studije');
 		expect(hubView.studyModel.items[0].summary).toContain('Svrha studije');
-		expect(hubView.studyModel.items[1].label).toBe('Studija');
-		expect(hubView.studyModel.items[1].summary).toContain('To nije upitnik ni instrument.');
+		expect(hubView.studyModel.items[1].label).toBe('Trenutno stanje');
+		expect(hubView.studyModel.items[1].summary).toContain('Krugovi prikupljanja');
 		expect(hubView.governanceRows[0]).toEqual({
 			label: 'Pristanak',
 			value: 'pregled',
@@ -630,13 +630,13 @@ describe('product view models', () => {
 		});
 		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
 		expect(hubView.campaignRows[0].rows).toContainEqual({
-			label: 'Način identiteta',
+			label: 'Nacin identiteta',
 			value: 'anonimno s ponovljenim sudjelovanjem'
 		});
 
 		expect(setupView.surfaceLabel).toBe('Priprema studije');
 		expect(setupView.summaryRows).toContainEqual({
-			label: 'Nedostajući preduvjeti',
+			label: 'Nedostajuci preduvjeti',
 			value: '1'
 		});
 	});
@@ -1050,13 +1050,13 @@ describe('product view models', () => {
 		expect(view.surfaceTitle).toBe('Study overview');
 		expect(view.referenceTitle).toBe('Study reference');
 		expect(view.studyModel).toEqual({
-			title: 'What this study contains',
+			title: 'Study overview',
 			description:
-				'A study is the project container. A questionnaire source is only starting material; the questionnaire is what respondents answer; waves are collection rounds; results and exports use the saved answers.',
+				'A short orientation for the selected study. Use Setup, Collection, Results, and Waves for detailed work.',
 			items: [
 				{
 					id: 'study_brief',
-					label: 'Study brief',
+					label: 'Study context',
 					status: 'pending',
 					badgeLabel: 'Needs brief',
 					summary: 'The study purpose has not been captured yet.',
@@ -1065,70 +1065,36 @@ describe('product view models', () => {
 					detailRows: [
 						{ label: 'Audience', value: 'Not set' },
 						{ label: 'Design', value: 'Not set' },
-						{ label: 'Intended use', value: 'Not set' },
-						{ label: 'Interpretation limits', value: 'Not set' }
+						{ label: 'Intended use', value: 'Not set' }
 					]
 				},
 				{
-					id: 'study_container',
-					label: 'Study',
-					status: 'ready',
-					badgeLabel: 'Saved',
-					summary:
-						'Quarterly burnout pulse holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.',
-					guidance:
-						'Open Setup when you need to change what respondents answer or how results are prepared.',
-					detailRows: [
-						{ label: 'Waves', value: '2' },
-						{ label: 'Live waves', value: '1' },
-						{ label: 'Submitted responses', value: '31' },
-						{ label: 'Export files', value: '3' }
-					]
-				},
-				{
-					id: 'questionnaire_results',
-					label: 'Questionnaire and result outputs',
-					status: 'ready',
-					badgeLabel: 'Ready',
-					summary:
-						'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
-					guidance: 'Governance prerequisites are configured for this series.',
-					detailRows: [
-						{ label: 'Consent', value: 'preview', status: 'proof_only' },
-						{ label: 'Retention', value: 'preview', status: 'proof_only' },
-						{ label: 'Disclosure', value: 'pending', status: 'pending' },
-						{ label: 'Scoring', value: 'not configured', status: 'not_configured' }
-					]
-				},
-				{
-					id: 'collection_waves',
-					label: 'Collection waves',
+					id: 'current_state',
+					label: 'Current state',
 					status: 'live',
-					badgeLabel: 'Live',
-					summary: '2 collection waves exist; 1 is live.',
-					guidance: 'Collection is live, but no submitted responses are available yet.',
+					badgeLabel: 'Collection live',
+					summary: 'Collection rounds: 2; collected responses: 31; export files: 3.',
+					guidance:
+						'Collection is open. Use Collection to monitor response progress, then Results when the round closes.',
 					detailRows: [
-						{ label: 'Waves', value: '2' },
-						{ label: 'Live waves', value: '1' }
+						{ label: 'Collection rounds', value: '2' },
+						{ label: 'Collected responses', value: '31' },
+						{ label: 'Export files', value: '3' }
 					]
 				},
 				{
-					id: 'evidence_outputs',
-					label: 'Evidence and comparison',
+					id: 'next_action',
+					label: 'Recommended next move',
 					status: 'ready',
-					badgeLabel: 'Evidence ready',
-					summary: '31 submitted responses, 28 scores, and 3 export files are recorded.',
+					badgeLabel: 'Review results',
+					summary: 'Open Results to review charts, evidence, exports, and interpretation limits.',
 					guidance:
-						'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
-					detailRows: [
-						{ label: 'Submitted responses', value: '31' },
-						{ label: 'Scores', value: '28' },
-						{ label: 'Export files', value: '3' }
-					]
+						'Results is where you inspect evidence. Use Waves only when you need change-over-time comparison.',
+					detailRows: []
 				}
 			]
 		});
-		expect(view.lifecycleMap.title).toBe('Study lifecycle');
+
 		expect(view.lifecycleMap.items).toEqual([
 			{
 				id: 'setup',
@@ -1190,34 +1156,26 @@ describe('product view models', () => {
 
 		expect(view.surfaceTitle).toBe('Pregled studije');
 		expect(view.referenceTitle).toBe('Referenca studije');
-		expect(view.studyModel.title).toBe('Što ova studija sadrži');
-		expect(view.studyModel.description).toContain('Studija je projektni spremnik');
+		expect(view.studyModel.title).toBe('Pregled studije');
+		expect(view.studyModel.description).toContain('Kratak orijentir');
 		expect(view.studyModel.items[0]).toMatchObject({
-			label: 'Opis studije',
+			label: 'Sažetak studije',
 			badgeLabel: 'Treba opis',
 			summary: 'Svrha studije još nije zabilježena.'
 		});
 		expect(view.studyModel.items[1]).toMatchObject({
-			label: 'Studija',
-			badgeLabel: 'Spremljeno',
-			summary:
-				'Quarterly burnout pulse sadrži postavljanje, mjerenja, rezultate i izvoze. To nije upitnik ni instrument.',
-			guidance:
-				'Otvorite Postavljanje kada trebate promijeniti što ispitanici odgovaraju ili kako se rezultati pripremaju.'
+			label: 'Trenutno stanje',
+			badgeLabel: 'Prikupljanje traje',
+			summary: 'Krugovi prikupljanja: 2; prikupljeni odgovori: 31; izvozne datoteke: 3.'
 		});
-		expect(view.studyModel.items[3]).toMatchObject({
-			label: 'Mjerenja prikupljanja',
-			badgeLabel: 'Aktivno',
-			summary: 'Mjerenja u studiji: 2 mjerenja; aktivno: 1.'
-		});
-		expect(view.studyModel.items[4]).toMatchObject({
-			label: 'Dokazi i usporedba',
-			badgeLabel: 'Dokazi spremni',
-			summary: 'Zabilježeno: 31 odgovor, 28 rezultata i 3 izvozne datoteke.'
+		expect(view.studyModel.items[2]).toMatchObject({
+			label: 'Preporučeni sljedeći korak',
+			badgeLabel: 'Pregledajte rezultate',
+			summary: 'Otvorite Rezultate za grafikone, nalaze, izvoze i granice tumačenja.'
 		});
 		expect(view.lifecycleMap).toMatchObject({
 			title: 'Životni ciklus studije',
-			description: 'Prođite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
+			description: 'Prodite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
 		});
 		expect(view.lifecycleMap.items[0]).toMatchObject({
 			label: 'Priprema',
@@ -1712,15 +1670,15 @@ describe('product view models', () => {
 	it('localizes operations collection read-model cards for Croatian app mode', () => {
 		const view = toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR');
 
-		expect(view.collectionMonitor.title).toBe('Praćenje odgovora');
+		expect(view.collectionMonitor.title).toBe('Pracenje odgovora');
 		expect(view.collectionMonitor.guidance).toBe(
 			'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
 		);
 		expect(view.collectionMonitor.summaryRows).toEqual([
-			{ label: 'Započeti odgovori', value: '36' },
+			{ label: 'Zapoceti odgovori', value: '36' },
 			{ label: 'Odgovori u tijeku', value: '5' },
 			{ label: 'Predani odgovori', value: '31' },
-			{ label: 'Zadnje započeto', value: '05. 05. 2026. 12:15' },
+			{ label: 'Zadnje zapoceto', value: '05. 05. 2026. 12:15' },
 			{ label: 'Zadnje predano', value: '05. 05. 2026. 12:10' }
 		]);
 
@@ -1742,7 +1700,7 @@ describe('product view models', () => {
 			id: 'response_progress',
 			label: 'Napredak odgovora',
 			badgeLabel: 'Predano: 31 odgovor',
-			summary: 'Započeto: 36; u tijeku: 5; predano: 31.',
+			summary: 'Zapoceto: 36; u tijeku: 5; predano: 31.',
 			guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
 		});
 		expect(view.collectionOverview[3]).toMatchObject({
@@ -2991,7 +2949,7 @@ describe('product view models', () => {
 			'Koristite izvoze skupa podataka odgovora za analizu.'
 		);
 		expect(view.exportOverview[1].summary).toBe(
-			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
+			'Nema neuspjelih izvoznih datoteka ni datoteka na cekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
 			'Izvozi pokrivaju izvoz matrice rezultata i izvoz skupa podataka odgovora.'
@@ -3002,7 +2960,7 @@ describe('product view models', () => {
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.'
+			'Koristite ovaj izvoz za analizu na razini odgovora s izradenim opisom podataka.'
 		);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});

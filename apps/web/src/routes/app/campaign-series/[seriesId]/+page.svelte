@@ -265,45 +265,6 @@
 						{/each}
 					</div>
 				</div>
-
-				<div
-					role="group"
-					aria-label={hubView.lifecycleMap.title}
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">{copy.lifecycle}</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							{hubView.lifecycleMap.title}
-						</h3>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{hubView.lifecycleMap.description}
-						</p>
-					</div>
-
-					<div class="selected-lifecycle-list">
-						{#each hubView.lifecycleMap.items as item}
-							<article aria-label={item.label} class="selected-lifecycle-row">
-								<div class="selected-lifecycle-row__body">
-									<div class="record-row__header">
-										<h4 class="record-row__title">{item.label}</h4>
-										<StatusBadge status={item.status} />
-									</div>
-									<p class="text-sm leading-6 text-[var(--color-text)]">{item.description}</p>
-									<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.guidance}</p>
-								</div>
-								<div class="selected-lifecycle-row__action">
-									<a
-										class="secondary-button"
-										href={resolve(`/app/campaign-series/${seriesId}/${item.route}`)}
-									>
-										{item.actionLabel}
-									</a>
-								</div>
-							</article>
-						{/each}
-					</div>
-				</div>
 			</section>
 
 			<section class="product-panel" aria-label={hubView.referenceTitle}>
@@ -347,31 +308,6 @@
 						</dl>
 					</details>
 				{/if}
-
-				<div
-					role="group"
-					aria-label={copy.governanceAria}
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">{copy.governance}</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.policyScoring}</h3>
-					</div>
-					<div class="record-list">
-						{#each hubView.governanceRows as row}
-							<article class="record-row" aria-label={row.label}>
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{row.label}</p>
-										<p class="mt-2 text-sm text-[var(--color-text)]">{row.value}</p>
-									</div>
-									<StatusBadge status={row.status} />
-								</div>
-							</article>
-						{/each}
-					</div>
-				</div>
-
 				<div
 					role="group"
 					aria-label={copy.campaignsAria}
