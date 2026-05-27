@@ -42,21 +42,36 @@
 		}));
 	}
 
-	function pointLeft(index: number, total: number) {
-		return total <= 1 ? '50%' : `${(index / (total - 1)) * 100}%`;
+	function pointX(index: number, total: number) {
+		return total <= 1 ? 50 : (index / (total - 1)) * 100;
 	}
 
-	function pointBottom(point: ResultsDashboardPointResponse) {
+	function pointY(point: ResultsDashboardPointResponse) {
 		if (point.disclosure !== 'visible' || point.value === null) {
-			return '0%';
+			return 92;
 		}
 
 		const spread = maxValue - minValue;
 		if (spread <= 0) {
-			return '50%';
+			return 50;
 		}
 
-		return `${((point.value - minValue) / spread) * 82 + 9}%`;
+		return 91 - ((point.value - minValue) / spread) * 82;
+	}
+
+	function visiblePointCount(rows: ResultsDashboardPointResponse[]) {
+		return rows.filter((point) => point.disclosure === 'visible' && point.value !== null).length;
+	}
+
+	function polylinePoints(rows: ResultsDashboardPointResponse[]) {
+		return rows
+			.map((point, index) =>
+				point.disclosure === 'visible' && point.value !== null
+					? `${pointX(index, rows.length)},${pointY(point)}`
+					: null
+			)
+			.filter(Boolean)
+			.join(' ');
 	}
 
 	function formatPointValue(point: ResultsDashboardPointResponse) {
@@ -97,13 +112,33 @@
 					</span>
 				</div>
 				<div class="results-trend-chart__plot" aria-hidden="true">
-					{#each group.points as point, index (point.id)}
-						<span
-							class="results-trend-chart__dot"
-							data-disclosure={point.disclosure}
-							style={`left: ${pointLeft(index, group.points.length)}; bottom: ${pointBottom(point)}`}
-						></span>
-					{/each}
+					<svg class="results-trend-chart__svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+						{#if visiblePointCount(group.points) > 1}
+							<polyline class="results-trend-chart__line" points={polylinePoints(group.points)} />
+						{/if}
+						{#each group.points as point, index (point.id)}
+							{#if point.disclosure === 'visible' && point.value !== null}
+								<circle
+									class="results-trend-chart__point"
+									cx={pointX(index, group.points.length)}
+									cy={pointY(point)}
+									r="2.8"
+								>
+									<title>{point.campaignName}: {formatPointValue(point)}</title>
+								</circle>
+							{:else}
+								<line
+									class="results-trend-chart__suppressed"
+									x1={pointX(index, group.points.length)}
+									x2={pointX(index, group.points.length)}
+									y1="84"
+									y2="94"
+								>
+									<title>{point.campaignName}: {formatPointValue(point)}</title>
+								</line>
+							{/if}
+						{/each}
+					</svg>
 				</div>
 				<div class="results-trend-chart__legend">
 					{#each group.points as point (point.id)}

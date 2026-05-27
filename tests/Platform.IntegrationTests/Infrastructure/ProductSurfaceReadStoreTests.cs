@@ -94,7 +94,9 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         });
 
         await using var inspection = await tenantDbScope.BeginTransactionAsync(tenantId);
-        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 4);
+        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 8);
+        Assert.True(await db.Subjects.CountAsync(subject => subject.TenantId == tenantId, CancellationToken.None) > 0);
+        Assert.True(await db.SubjectGroups.CountAsync(group => group.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.Scores.CountAsync(score => score.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 9);
@@ -109,11 +111,13 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             Assert.True(artifact.RowCount > 20);
             Assert.NotNull(artifact.Content);
             Assert.StartsWith(
-                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total",
+                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_output_code,score_value",
                 artifact.Content);
             Assert.Contains("q01", artifact.Content);
+            Assert.DoesNotContain("score_total", artifact.Content);
             Assert.Contains("sample_response_rows", artifact.MetadataJson);
             Assert.Contains("question_code", artifact.CodebookJson);
+            Assert.Contains("score_output_code", artifact.CodebookJson);
         });
         var matrixExports = await db.ExportArtifacts
             .Where(artifact =>
@@ -124,15 +128,34 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(3, matrixExports.Count);
         Assert.All(matrixExports, artifact =>
         {
-            Assert.True(artifact.RowCount >= 1);
+            Assert.True(artifact.RowCount >= 8);
             Assert.NotNull(artifact.Content);
             Assert.StartsWith("result_scope,result_scope_label,campaign_series_id", artifact.Content);
             Assert.Contains("overall", artifact.Content);
             Assert.Contains("wave", artifact.Content);
+            Assert.Contains("visible", artifact.Content);
             Assert.Contains("sample_results_matrix", artifact.MetadataJson);
             Assert.Contains("campaign_series_results_matrix_csv_codebook", artifact.CodebookJson);
         });
+        Assert.Contains(matrixExports, artifact => artifact.Content?.Contains("\"group\"", StringComparison.Ordinal) == true);
+        Assert.Contains(matrixExports, artifact => artifact.Content?.Contains("workload_manageability", StringComparison.Ordinal) == true);
         await inspection.CommitAsync();
+
+        var groupSample = overview.StudyCollections.SampleStudies.Single(sample =>
+            sample.Name == "Ergonomics risk and workstation fit");
+        var reportsWorkspace = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            groupSample.Id,
+            CancellationToken.None);
+
+        Assert.True(reportsWorkspace.IsSuccess, reportsWorkspace.Error.ToString());
+        Assert.NotNull(reportsWorkspace.Value.ResultsDashboard);
+        var dashboard = reportsWorkspace.Value.ResultsDashboard!;
+        Assert.True(dashboard.OutputBars.Count >= 4);
+        Assert.True(dashboard.GroupBars.Count >= 12);
+        Assert.Contains(dashboard.GroupBars, bar => bar.Disclosure == "visible" && bar.Value.HasValue);
+        Assert.Contains(dashboard.GroupBars, bar => bar.Disclosure == "suppressed" && bar.Value is null);
+        Assert.True(dashboard.WaveTrendPoints.Count >= 8);
     }
 
     [DockerFact]

@@ -1961,12 +1961,44 @@ a {
 .results-trend-chart__plot {
 	position: relative;
 	min-height: 7rem;
+	overflow: hidden;
 	border: 1px solid var(--color-border);
 	background:
 		linear-gradient(color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px),
 		linear-gradient(90deg, color-mix(in srgb, var(--color-border) 55%, transparent) 1px, transparent 1px),
 		var(--color-surface-muted);
 	background-size: 100% 33%, 25% 100%, auto;
+}
+
+.results-trend-chart__svg {
+	position: absolute;
+	inset: 0.35rem;
+	width: calc(100% - 0.7rem);
+	height: calc(100% - 0.7rem);
+	overflow: visible;
+}
+
+.results-trend-chart__line {
+	fill: none;
+	stroke: color-mix(in srgb, var(--color-accent-strong) 82%, var(--color-text));
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 2.25;
+	vector-effect: non-scaling-stroke;
+}
+
+.results-trend-chart__point {
+	fill: var(--color-accent-strong);
+	stroke: var(--color-surface);
+	stroke-width: 1.75;
+	vector-effect: non-scaling-stroke;
+}
+
+.results-trend-chart__suppressed {
+	stroke: var(--color-text-muted);
+	stroke-linecap: round;
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
 }
 
 .results-trend-chart__dot {
@@ -1977,7 +2009,7 @@ a {
 	border-radius: 999px;
 	background: var(--color-accent-strong);
 	box-shadow: 0 0 0 1px var(--color-border);
-	transform: translate(-50%, 50%);
+	transform: translate(-50%, -50%);
 }
 
 .results-trend-chart__dot[data-disclosure='suppressed'] {

@@ -9,6 +9,7 @@ using Platform.Domain.Consent;
 using Platform.Domain.Reports;
 using Platform.Domain.Responses;
 using Platform.Domain.Scoring;
+using Platform.Domain.Subjects;
 using Platform.Domain.Templates;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Scoring;
@@ -23,6 +24,7 @@ public sealed class SampleStudySeeder(
     SubmittedResponseScoreMaterializer scoreMaterializer) : ISampleStudySeeder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const int SampleDisclosureKMin = 5;
     private static readonly string[] SampleResultsMatrixColumns =
     [
         "result_scope",
@@ -74,15 +76,27 @@ public sealed class SampleStudySeeder(
                 series.StudyKind == CampaignSeriesStudyKinds.Sample)
             .Select(series => new ExistingSampleSeries(series.Id, series.Name))
             .ToListAsync(cancellationToken);
-        var existingSampleNameSet = existingSampleSeries
-            .Select(series => series.Name)
+        var currentSampleNameSet = SampleStudySpecs.All
+            .Select(spec => spec.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var staleSeries in existingSampleSeries.Where(series => !currentSampleNameSet.Contains(series.Name)))
+        {
+            await DeleteSampleStudyAsync(tenantId, staleSeries.Id, cancellationToken);
+        }
 
         foreach (var spec in SampleStudySpecs.All)
         {
-            if (existingSampleNameSet.Contains(spec.Name))
+            var existingSeries = existingSampleSeries.SingleOrDefault(series =>
+                string.Equals(series.Name, spec.Name, StringComparison.OrdinalIgnoreCase));
+            if (existingSeries is not null)
             {
-                continue;
+                if (await IsSampleStudyCurrentAsync(tenantId, existingSeries.Id, spec, cancellationToken))
+                {
+                    continue;
+                }
+
+                await DeleteSampleStudyAsync(tenantId, existingSeries.Id, cancellationToken);
             }
 
             var seriesId = await CreateSampleStudyAsync(
@@ -131,6 +145,256 @@ public sealed class SampleStudySeeder(
             createdSeriesIds));
     }
 
+    private async Task<bool> IsSampleStudyCurrentAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        SampleStudySpec spec,
+        CancellationToken cancellationToken)
+    {
+        var campaignCount = await db.Campaigns
+            .AsNoTracking()
+            .CountAsync(campaign => campaign.TenantId == tenantId && campaign.CampaignSeriesId == campaignSeriesId, cancellationToken);
+        if (campaignCount < spec.Waves.Count)
+        {
+            return false;
+        }
+
+        var expectedScoreCodes = spec.Scores
+            .Select(score => score.Code)
+            .ToHashSet(StringComparer.Ordinal);
+        var scoreCodes = await (
+                from score in db.Scores.AsNoTracking()
+                join campaign in db.Campaigns.AsNoTracking()
+                    on score.CampaignId equals campaign.Id
+                where score.TenantId == tenantId &&
+                    campaign.CampaignSeriesId == campaignSeriesId
+                select score.DimensionCode)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        if (!expectedScoreCodes.IsSubsetOf(scoreCodes))
+        {
+            return false;
+        }
+
+        var campaignSeriesMarker = campaignSeriesId.ToString();
+        var groupAttributes = await db.SubjectGroups
+            .AsNoTracking()
+            .Where(group => group.TenantId == tenantId)
+            .Select(group => group.Attributes)
+            .ToListAsync(cancellationToken);
+        var groupCount = groupAttributes.Count(attributes =>
+            attributes.Contains(campaignSeriesMarker, StringComparison.Ordinal));
+        if (groupCount < spec.Groups.Count)
+        {
+            return false;
+        }
+
+        var responseExport = await db.ExportArtifacts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                artifact.CampaignSeriesId == campaignSeriesId &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook,
+                cancellationToken);
+        var matrixExport = await db.ExportArtifacts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(artifact =>
+                artifact.TenantId == tenantId &&
+                artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
+                artifact.CampaignSeriesId == campaignSeriesId &&
+                artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
+                cancellationToken);
+
+        return responseExport is not null &&
+            IsRowLevelResponseExport(responseExport) &&
+            matrixExport is not null &&
+            IsSampleResultsMatrixExport(matrixExport);
+    }
+
+    private async Task DeleteSampleStudyAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        CancellationToken cancellationToken)
+    {
+        var series = await db.CampaignSeries
+            .SingleOrDefaultAsync(entity =>
+                entity.TenantId == tenantId &&
+                entity.Id == campaignSeriesId &&
+                entity.StudyKind == CampaignSeriesStudyKinds.Sample,
+                cancellationToken);
+        if (series is null)
+        {
+            return;
+        }
+
+        var campaigns = await db.Campaigns
+            .Where(campaign => campaign.TenantId == tenantId && campaign.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken);
+        var campaignIds = campaigns.Select(campaign => campaign.Id).ToArray();
+        var templateVersionIds = campaigns
+            .Select(campaign => campaign.TemplateVersionId)
+            .Distinct()
+            .ToArray();
+        var templateIds = templateVersionIds.Length == 0
+            ? []
+            : await db.TemplateVersions
+                .AsNoTracking()
+                .Where(version => templateVersionIds.Contains(version.Id))
+                .Select(version => version.TemplateId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+        var assignmentIds = campaignIds.Length == 0
+            ? []
+            : await db.Assignments
+                .AsNoTracking()
+                .Where(assignment => campaignIds.Contains(assignment.CampaignId))
+                .Select(assignment => assignment.Id)
+                .ToListAsync(cancellationToken);
+        var sessionIds = assignmentIds.Count == 0
+            ? []
+            : await db.ResponseSessions
+                .AsNoTracking()
+                .Where(session => assignmentIds.Contains(session.AssignmentId))
+                .Select(session => session.Id)
+                .ToListAsync(cancellationToken);
+        var scoreRunIds = sessionIds.Count == 0
+            ? []
+            : await db.ScoreRuns
+                .AsNoTracking()
+                .Where(run => sessionIds.Contains(run.ResponseSessionId))
+                .Select(run => run.Id)
+                .ToListAsync(cancellationToken);
+        var campaignSeriesMarker = campaignSeriesId.ToString();
+        var subjectRows = await db.Subjects
+            .AsNoTracking()
+            .Where(subject => subject.TenantId == tenantId)
+            .Select(subject => new { subject.Id, subject.Attributes })
+            .ToListAsync(cancellationToken);
+        var subjectIds = subjectRows
+            .Where(subject => subject.Attributes.Contains(campaignSeriesMarker, StringComparison.Ordinal))
+            .Select(subject => subject.Id)
+            .ToList();
+        var groupRows = await db.SubjectGroups
+            .AsNoTracking()
+            .Where(group => group.TenantId == tenantId)
+            .Select(group => new { group.Id, group.Attributes })
+            .ToListAsync(cancellationToken);
+        var groupIds = groupRows
+            .Where(group => group.Attributes.Contains(campaignSeriesMarker, StringComparison.Ordinal))
+            .Select(group => group.Id)
+            .ToList();
+
+        if (sessionIds.Count > 0)
+        {
+            db.Answers.RemoveRange(await db.Answers
+                .Where(answer => sessionIds.Contains(answer.SessionId))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (scoreRunIds.Count > 0)
+        {
+            db.Scores.RemoveRange(await db.Scores
+                .Where(score => scoreRunIds.Contains(score.ScoreRunId))
+                .ToListAsync(cancellationToken));
+            db.ScoreRuns.RemoveRange(await db.ScoreRuns
+                .Where(run => scoreRunIds.Contains(run.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (sessionIds.Count > 0)
+        {
+            db.ResponseSessions.RemoveRange(await db.ResponseSessions
+                .Where(session => sessionIds.Contains(session.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (campaignIds.Length > 0)
+        {
+            db.InvitationTokens.RemoveRange(await db.InvitationTokens
+                .Where(token => campaignIds.Contains(token.CampaignId))
+                .ToListAsync(cancellationToken));
+            db.Assignments.RemoveRange(await db.Assignments
+                .Where(assignment => campaignIds.Contains(assignment.CampaignId))
+                .ToListAsync(cancellationToken));
+            db.CampaignLaunchSnapshots.RemoveRange(await db.CampaignLaunchSnapshots
+                .Where(snapshot => campaignIds.Contains(snapshot.CampaignId))
+                .ToListAsync(cancellationToken));
+            db.ExportArtifacts.RemoveRange(await db.ExportArtifacts
+                .Where(artifact =>
+                    artifact.TenantId == tenantId &&
+                    (artifact.CampaignSeriesId == campaignSeriesId ||
+                        artifact.CampaignId.HasValue && campaignIds.Contains(artifact.CampaignId.Value)))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (subjectIds.Count > 0 || groupIds.Count > 0)
+        {
+            db.SubjectMemberships.RemoveRange(await db.SubjectMemberships
+                .Where(membership =>
+                    subjectIds.Contains(membership.SubjectId) ||
+                    groupIds.Contains(membership.GroupId))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (subjectIds.Count > 0)
+        {
+            db.Subjects.RemoveRange(await db.Subjects
+                .Where(subject => subjectIds.Contains(subject.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (groupIds.Count > 0)
+        {
+            db.SubjectGroups.RemoveRange(await db.SubjectGroups
+                .Where(group => groupIds.Contains(group.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        db.ParticipantCodes.RemoveRange(await db.ParticipantCodes
+            .Where(code => code.TenantId == tenantId && code.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken));
+        db.ConsentDocuments.RemoveRange(await db.ConsentDocuments
+            .Where(document => document.TenantId == tenantId && document.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken));
+        db.RetentionPolicies.RemoveRange(await db.RetentionPolicies
+            .Where(policy => policy.TenantId == tenantId && policy.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken));
+        db.DisclosurePolicies.RemoveRange(await db.DisclosurePolicies
+            .Where(policy => policy.TenantId == tenantId && policy.CampaignSeriesId == campaignSeriesId)
+            .ToListAsync(cancellationToken));
+        db.Campaigns.RemoveRange(campaigns);
+
+        if (templateVersionIds.Length > 0)
+        {
+            db.ScoringRules.RemoveRange(await db.ScoringRules
+                .Where(rule => templateVersionIds.Contains(rule.TemplateVersionId))
+                .ToListAsync(cancellationToken));
+            db.TemplateQuestions.RemoveRange(await db.TemplateQuestions
+                .Where(question => templateVersionIds.Contains(question.TemplateVersionId))
+                .ToListAsync(cancellationToken));
+            db.QuestionScales.RemoveRange(await db.QuestionScales
+                .Where(scale => templateVersionIds.Contains(scale.TemplateVersionId))
+                .ToListAsync(cancellationToken));
+            db.TemplateSections.RemoveRange(await db.TemplateSections
+                .Where(section => templateVersionIds.Contains(section.TemplateVersionId))
+                .ToListAsync(cancellationToken));
+            db.TemplateVersions.RemoveRange(await db.TemplateVersions
+                .Where(version => templateVersionIds.Contains(version.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        if (templateIds.Count > 0)
+        {
+            db.SurveyTemplates.RemoveRange(await db.SurveyTemplates
+                .Where(template => templateIds.Contains(template.Id))
+                .ToListAsync(cancellationToken));
+        }
+
+        db.CampaignSeries.Remove(series);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<Guid> CreateSampleStudyAsync(
         Guid tenantId,
         Guid actorUserId,
@@ -147,9 +411,7 @@ public sealed class SampleStudySeeder(
             sampleScenario: spec.SampleScenario,
             studyPurpose: $"Read-only sample showing the {spec.Name} workflow from setup through results.",
             studyAudience: "Synthetic respondents generated for product evaluation.",
-            studyDesignType: spec.SampleScenario == CampaignSeriesSampleScenarios.Longitudinal
-                ? CampaignSeriesStudyDesignTypes.RepeatedLinkedChange
-                : CampaignSeriesStudyDesignTypes.SingleWave,
+            studyDesignType: spec.StudyDesignType,
             studyIntendedUse: CampaignSeriesStudyIntendedUseTypes.InternalReview,
             studyInterpretationBoundary: "Synthetic sample data only. Use it to learn the product flow, not as external evidence.",
             studyOwnerNotes: "Generated sample study for workspace onboarding.");
@@ -198,15 +460,12 @@ public sealed class SampleStudySeeder(
 
         var scoringDocument = JsonSerializer.Serialize(new
         {
-            operations = new[]
+            operations = spec.Scores.Select(score => new
             {
-                new
-                {
-                    op = "mean",
-                    items = spec.Questions.Select(question => question.Code).ToArray(),
-                    output = "total"
-                }
-            }
+                op = "mean",
+                items = score.QuestionCodes.ToArray(),
+                output = score.Code
+            }).ToArray()
         }, JsonOptions);
         var scoringRule = ScoringRule.CreateDraft(
             PlatformIds.NewId(),
@@ -217,8 +476,16 @@ public sealed class SampleStudySeeder(
             "1.0.0",
             Sha256Hex(scoringDocument),
             scoringDocument,
-            """{"scores":["total"]}""",
-            """{"sample_study":true,"interpretation":"Synthetic sample score. Higher values indicate better self-reported conditions for this sample only."}""");
+            JsonSerializer.Serialize(new
+            {
+                scores = spec.Scores.Select(score => score.Code).ToArray()
+            }, JsonOptions),
+            JsonSerializer.Serialize(new
+            {
+                sample_study = true,
+                interpretation = "Synthetic sample result outputs. Higher values indicate better self-reported conditions for this sample only.",
+                outputs = spec.Scores.Select(score => new { score.Code, score.Label }).ToArray()
+            }, JsonOptions));
         scoringRule.Publish(actorUserId, baseTime.AddDays(1).AddMinutes(5));
 
         var consent = new ConsentDocument(
@@ -263,6 +530,12 @@ public sealed class SampleStudySeeder(
         db.ConsentDocuments.Add(consent);
         db.RetentionPolicies.Add(retention);
         db.DisclosurePolicies.Add(disclosure);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var directory = CreateSampleDirectory(tenantId, series.Id, spec);
+        db.SubjectGroups.AddRange(directory.Groups);
+        db.Subjects.AddRange(directory.Subjects);
+        db.SubjectMemberships.AddRange(directory.Memberships);
         await db.SaveChangesAsync(cancellationToken);
 
         var sessions = new List<ResponseSession>();
@@ -314,19 +587,29 @@ public sealed class SampleStudySeeder(
 
             for (var respondentIndex = 0; respondentIndex < spec.RespondentCount; respondentIndex++)
             {
-                var token = new InvitationToken(
-                    PlatformIds.NewId(),
-                    tenantId,
-                    campaign.Id,
-                    Sha256Hex($"{tenantId:N}:{spec.Key}:{waveIndex}:{respondentIndex}:token"),
-                    InvitationTokenChannels.OpenLink,
-                    expiresAt: closedAt.AddDays(30));
-                var assignment = Assignment.CreateAnonymous(
-                    PlatformIds.NewId(),
-                    tenantId,
-                    campaign.Id,
-                    "respondent",
-                    token.Id);
+                var respondent = directory.Respondents[respondentIndex];
+                InvitationToken? token = null;
+                var assignment = spec.ResponseIdentityMode == ResponseIdentityModes.Identified
+                    ? Assignment.CreateIdentified(
+                        PlatformIds.NewId(),
+                        tenantId,
+                        campaign.Id,
+                        "respondent",
+                        respondent.SubjectId,
+                        targetSubjectId: respondent.SubjectId)
+                    : Assignment.CreateAnonymous(
+                        PlatformIds.NewId(),
+                        tenantId,
+                        campaign.Id,
+                        "respondent",
+                        (token = new InvitationToken(
+                            PlatformIds.NewId(),
+                            tenantId,
+                            campaign.Id,
+                            Sha256Hex($"{tenantId:N}:{spec.Key}:{waveIndex}:{respondentIndex}:token"),
+                            InvitationTokenChannels.OpenLink,
+                            expiresAt: closedAt.AddDays(30))).Id,
+                        targetSubjectId: respondent.SubjectId);
                 var participantCodeId = participantCodes.Count == 0
                     ? (Guid?)null
                     : participantCodes[respondentIndex].Id;
@@ -338,19 +621,36 @@ public sealed class SampleStudySeeder(
                     participantCodeId,
                     startedAt: launchedAt.AddHours(2).AddMinutes(respondentIndex));
                 var answers = questions
-                    .Select((question, questionIndex) => new Answer(
-                        PlatformIds.NewId(),
-                        tenantId,
-                        session.Id,
-                        question.Id,
-                        JsonSerializer.Serialize(CreateAnswerValue(wave.TargetMean, respondentIndex, questionIndex, waveIndex)),
-                        answeredAt: session.StartedAt?.AddMinutes(1 + questionIndex)))
+                    .Select((question, questionIndex) =>
+                    {
+                        var questionSpec = spec.Questions[questionIndex];
+                        var targetMean = wave.TargetMeans.TryGetValue(questionSpec.ScoreCode, out var configuredMean)
+                            ? configuredMean
+                            : wave.TargetMeans.Values.DefaultIfEmpty(4.0).Average();
+
+                        return new Answer(
+                            PlatformIds.NewId(),
+                            tenantId,
+                            session.Id,
+                            question.Id,
+                            JsonSerializer.Serialize(CreateAnswerValue(
+                                targetMean,
+                                respondentIndex,
+                                questionIndex,
+                                waveIndex,
+                                respondent.GroupOffset)),
+                            answeredAt: session.StartedAt?.AddMinutes(1 + questionIndex));
+                    })
                     .ToArray();
                 session.Submit(
                     launchedAt.AddHours(2).AddMinutes(respondentIndex + 6),
                     timeTakenMs: 120_000 + (respondentIndex * 1_000));
 
-                db.InvitationTokens.Add(token);
+                if (token is not null)
+                {
+                    db.InvitationTokens.Add(token);
+                }
+
                 db.Assignments.Add(assignment);
                 db.ResponseSessions.Add(session);
                 db.Answers.AddRange(answers);
@@ -467,14 +767,77 @@ public sealed class SampleStudySeeder(
             .ToArray();
     }
 
+    private static SampleDirectory CreateSampleDirectory(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        SampleStudySpec spec)
+    {
+        var groups = spec.Groups
+            .Select(group => new SampleDirectoryGroup(
+                group,
+                new SubjectGroup(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    group.Type,
+                    group.Name,
+                    attributes: JsonSerializer.Serialize(new
+                    {
+                        sample_study = true,
+                        campaign_series_id = campaignSeriesId,
+                        scenario = spec.SampleScenario
+                    }, JsonOptions))))
+            .ToArray();
+        var groupByName = groups.ToDictionary(group => group.Spec.Name, StringComparer.Ordinal);
+        var subjects = new List<Subject>();
+        var memberships = new List<SubjectMembership>();
+        var respondents = new List<SampleRespondentProfile>();
+        var respondentIndex = 0;
+
+        foreach (var group in spec.Groups)
+        {
+            var directoryGroup = groupByName[group.Name];
+            for (var index = 0; index < group.RespondentCount; index++)
+            {
+                respondentIndex++;
+                var subjectId = PlatformIds.NewId();
+                var subject = new Subject(
+                    subjectId,
+                    tenantId,
+                    externalId: $"sample-{spec.Key}-{respondentIndex:0000}",
+                    displayName: $"Sample respondent {respondentIndex:0000}",
+                    attributes: JsonSerializer.Serialize(new
+                    {
+                        sample_study = true,
+                        campaign_series_id = campaignSeriesId,
+                        group = group.Name
+                    }, JsonOptions));
+
+                subjects.Add(subject);
+                memberships.Add(new SubjectMembership(subjectId, directoryGroup.Entity.Id, SubjectGroupRoles.Member));
+                respondents.Add(new SampleRespondentProfile(
+                    subjectId,
+                    group.Type,
+                    group.Name,
+                    group.MeanOffset));
+            }
+        }
+
+        return new SampleDirectory(
+            subjects,
+            groups.Select(group => group.Entity).ToArray(),
+            memberships,
+            respondents);
+    }
+
     private static int CreateAnswerValue(
         double targetMean,
         int respondentIndex,
         int questionIndex,
-        int waveIndex)
+        int waveIndex,
+        double groupOffset)
     {
-        var offset = ((respondentIndex * 7) + (questionIndex * 3) + waveIndex) % 5 - 2;
-        var value = (int)Math.Round(targetMean + (offset * 0.35), MidpointRounding.AwayFromZero);
+        var offset = ((respondentIndex * 7) + (questionIndex * 3) + waveIndex) % 7 - 3;
+        var value = (int)Math.Round(targetMean + groupOffset + (offset * 0.22), MidpointRounding.AwayFromZero);
 
         return Math.Clamp(value, 1, 7);
     }
@@ -489,8 +852,8 @@ public sealed class SampleStudySeeder(
     {
         var content = string.Join(
             "\n",
-            "study,wave,responses,target_mean,status",
-            CsvRow(series.Name, wave.Name, spec.RespondentCount.ToString(), wave.TargetMean.ToString("0.0"), "closed"));
+            "study,wave,responses,target_outputs,status",
+            CsvRow(series.Name, wave.Name, spec.RespondentCount.ToString(), FormatWaveTargets(wave), "closed"));
 
         return CreateInlineExport(
             tenantId,
@@ -510,7 +873,7 @@ public sealed class SampleStudySeeder(
             }, JsonOptions),
             codebookJson: JsonSerializer.Serialize(new
             {
-                columns = new[] { "study", "wave", "responses", "target_mean", "status" }
+                columns = new[] { "study", "wave", "responses", "target_outputs", "status" }
             }, JsonOptions),
             completedAt);
     }
@@ -567,7 +930,8 @@ public sealed class SampleStudySeeder(
                     campaign.Name,
                     campaign.StartAt,
                     session.SubmittedAt!.Value,
-                    session.ParticipantCodeId))
+                    session.ParticipantCodeId,
+                    assignment.TargetSubjectId ?? assignment.RespondentSubjectId))
             .ToListAsync(cancellationToken);
         var orderedSessions = sessions
             .OrderBy(session => session.WaveStartAt ?? DateTimeOffset.MinValue)
@@ -590,19 +954,18 @@ public sealed class SampleStudySeeder(
             ? []
             : await db.Scores
                 .AsNoTracking()
-                .Where(score =>
-                    sessionIds.Contains(score.ResponseSessionId) &&
-                    score.DimensionCode == "total")
+                .Where(score => sessionIds.Contains(score.ResponseSessionId))
                 .Select(score => new SampleScoreExportRow(
                     score.ResponseSessionId,
+                    score.DimensionCode,
                     score.Value,
                     score.ComputedAt))
                 .ToListAsync(cancellationToken);
         var answersBySessionAndQuestion = answers.ToDictionary(
             answer => (answer.SessionId, answer.QuestionId),
             answer => answer);
-        var scoreBySession = scores
-            .GroupBy(score => score.SessionId)
+        var scoreBySessionAndDimension = scores
+            .GroupBy(score => (score.SessionId, score.DimensionCode))
             .ToDictionary(
                 group => group.Key,
                 group => group
@@ -618,7 +981,7 @@ public sealed class SampleStudySeeder(
             .ToDictionary(item => item.Id, item => item.Key);
         var lines = new List<string>
         {
-            "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total"
+            "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_output_code,score_value"
         };
 
         for (var sessionIndex = 0; sessionIndex < orderedSessions.Count; sessionIndex++)
@@ -629,12 +992,14 @@ public sealed class SampleStudySeeder(
                 trajectoryKeys.TryGetValue(session.ParticipantCodeId.Value, out var key)
                     ? key
                     : string.Empty;
-            var scoreTotal = scoreBySession.TryGetValue(session.Id, out var score)
-                ? score.Value.ToString("0.####", CultureInfo.InvariantCulture)
-                : string.Empty;
-
             foreach (var question in questions)
             {
+                var questionSpec = spec.Questions.SingleOrDefault(item =>
+                    string.Equals(item.Code, question.Code, StringComparison.OrdinalIgnoreCase));
+                var scoreOutputCode = questionSpec?.ScoreCode ?? string.Empty;
+                var scoreValue = scoreBySessionAndDimension.TryGetValue((session.Id, scoreOutputCode), out var score)
+                    ? score.Value.ToString("0.####", CultureInfo.InvariantCulture)
+                    : string.Empty;
                 answersBySessionAndQuestion.TryGetValue((session.Id, question.Id), out var answer);
                 lines.Add(CsvRow(
                     series.Name,
@@ -645,7 +1010,8 @@ public sealed class SampleStudySeeder(
                     question.Code,
                     question.Text,
                     NormalizeAnswerValue(answer?.Value),
-                    scoreTotal));
+                    scoreOutputCode,
+                    scoreValue));
             }
         }
 
@@ -682,7 +1048,8 @@ public sealed class SampleStudySeeder(
                     new { name = "question_code", description = "Question variable code." },
                     new { name = "question_text", description = "Question wording shown to respondents." },
                     new { name = "answer_value", description = "Submitted answer value." },
-                    new { name = "score_total", description = "Simple total mean score for the response." }
+                    new { name = "score_output_code", description = "Result output linked to this question row." },
+                    new { name = "score_value", description = "Synthetic score value for the linked result output." }
                 }
             }, JsonOptions),
             completedAt);
@@ -725,23 +1092,23 @@ public sealed class SampleStudySeeder(
                     campaign.Name,
                     campaign.StartAt,
                     session.SubmittedAt!.Value,
-                    session.ParticipantCodeId))
+                    session.ParticipantCodeId,
+                    assignment.TargetSubjectId ?? assignment.RespondentSubjectId))
             .ToListAsync(cancellationToken);
         var sessionIds = sessions.Select(session => session.Id).ToArray();
         var scores = sessionIds.Length == 0
             ? []
             : await db.Scores
                 .AsNoTracking()
-                .Where(score =>
-                    sessionIds.Contains(score.ResponseSessionId) &&
-                    score.DimensionCode == "total")
+                .Where(score => sessionIds.Contains(score.ResponseSessionId))
                 .Select(score => new SampleScoreExportRow(
                     score.ResponseSessionId,
+                    score.DimensionCode,
                     score.Value,
                     score.ComputedAt))
                 .ToListAsync(cancellationToken);
-        var scoreBySession = scores
-            .GroupBy(score => score.SessionId)
+        var scoreBySessionAndDimension = scores
+            .GroupBy(score => (score.SessionId, score.DimensionCode))
             .ToDictionary(
                 group => group.Key,
                 group => group
@@ -760,102 +1127,148 @@ public sealed class SampleStudySeeder(
         if (selectedCampaign is not null &&
             sessionsByCampaign.TryGetValue(selectedCampaign.Id, out var selectedCampaignSessions))
         {
-            var selectedValues = selectedCampaignSessions
-                .Where(session => scoreBySession.ContainsKey(session.Id))
-                .Select(session => scoreBySession[session.Id].Value)
-                .ToArray();
-
-            if (selectedValues.Length > 0)
+            foreach (var scoreSpec in spec.Scores)
             {
-                var selectedMean = CalculateSampleMean(selectedValues);
-                lines.Add(CsvRow(
+                var selectedValues = GetScoreValues(
+                    selectedCampaignSessions,
+                    scoreSpec.Code,
+                    scoreBySessionAndDimension);
+                if (selectedValues.Length == 0)
+                {
+                    continue;
+                }
+
+                AddSampleResultsMatrixRow(
+                    lines,
+                    series,
+                    selectedCampaign,
+                    selectedCampaign,
                     "overall",
                     selectedCampaign.Name,
-                    series.Id.ToString(),
-                    selectedCampaign.Id.ToString(),
-                    selectedCampaign.Name,
-                    selectedCampaign.Id.ToString(),
-                    selectedCampaign.Name,
-                    selectedCampaign.Status,
-                    selectedCampaign.ClosedAt.HasValue ? "closed_wave" : "preliminary_live",
-                    selectedCampaign.ClosedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
                     string.Empty,
                     string.Empty,
-                    "total",
-                    "visible",
-                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
-                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
-                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
-                    selectedValues.Length.ToString(CultureInfo.InvariantCulture),
-                    "complete",
-                    FormatSampleDecimal(selectedMean),
-                    FormatSampleDecimal(CalculateSampleMedian(selectedValues)),
-                    FormatSampleDecimal(CalculateSampleStandardDeviation(selectedValues)),
-                    FormatSampleDecimal(selectedValues.Min()),
-                    FormatSampleDecimal(selectedValues.Max()),
+                    scoreSpec.Code,
+                    selectedValues,
+                    visible: selectedValues.Length >= SampleDisclosureKMin,
                     string.Empty,
                     string.Empty,
                     "selected",
-                    string.Empty));
+                    selectedValues.Length >= SampleDisclosureKMin ? string.Empty : "insufficient_responses");
+            }
+
+            var subjectIds = selectedCampaignSessions
+                .Select(session => session.SubjectId)
+                .OfType<Guid>()
+                .Distinct()
+                .ToArray();
+            var memberships = subjectIds.Length == 0
+                ? []
+                : await (
+                        from membership in db.SubjectMemberships.AsNoTracking()
+                        join subjectGroup in db.SubjectGroups.AsNoTracking()
+                            on membership.GroupId equals subjectGroup.Id
+                        where subjectIds.Contains(membership.SubjectId) &&
+                            subjectGroup.TenantId == tenantId &&
+                            subjectGroup.DeletedAt == null
+                        select new SampleSubjectGroupMembershipExportRow(
+                            membership.SubjectId,
+                            subjectGroup.Type,
+                            subjectGroup.Name))
+                    .ToListAsync(cancellationToken);
+            var membershipsBySubject = memberships
+                .GroupBy(membership => membership.SubjectId)
+                .ToDictionary(group => group.Key, group => group.ToArray());
+
+            foreach (var scoreSpec in spec.Scores)
+            {
+                var groupRows = selectedCampaignSessions
+                    .SelectMany(session =>
+                    {
+                        if (!session.SubjectId.HasValue ||
+                            !membershipsBySubject.TryGetValue(session.SubjectId.Value, out var subjectMemberships) ||
+                            !scoreBySessionAndDimension.TryGetValue((session.Id, scoreSpec.Code), out var score))
+                        {
+                            return Enumerable.Empty<SampleGroupScoreExportRow>();
+                        }
+
+                        return subjectMemberships
+                            .GroupBy(membership => new { membership.GroupType, membership.GroupName })
+                            .Select(group => new SampleGroupScoreExportRow(
+                                group.Key.GroupType,
+                                group.Key.GroupName,
+                                score.Value));
+                    })
+                    .GroupBy(row => new { row.GroupType, row.GroupName })
+                    .OrderBy(group => group.Key.GroupType, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(group => group.Key.GroupName, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var group in groupRows)
+                {
+                    var values = group.Select(row => row.Value).ToArray();
+                    AddSampleResultsMatrixRow(
+                        lines,
+                        series,
+                        selectedCampaign,
+                        selectedCampaign,
+                        "group",
+                        group.Key.GroupName,
+                        group.Key.GroupType,
+                        group.Key.GroupName,
+                        scoreSpec.Code,
+                        values,
+                        visible: values.Length >= SampleDisclosureKMin,
+                        string.Empty,
+                        string.Empty,
+                        "selected",
+                        values.Length >= SampleDisclosureKMin ? string.Empty : "insufficient_responses");
+                }
             }
         }
 
-        decimal? firstMean = null;
-        decimal? previousMean = null;
-
-        foreach (var campaign in campaigns)
+        foreach (var scoreSpec in spec.Scores)
         {
-            var values = sessionsByCampaign.TryGetValue(campaign.Id, out var campaignSessions)
-                ? campaignSessions
-                    .Where(session => scoreBySession.ContainsKey(session.Id))
-                    .Select(session => scoreBySession[session.Id].Value)
-                    .ToArray()
-                : [];
-            if (values.Length == 0)
+            decimal? firstMean = null;
+            decimal? previousMean = null;
+
+            foreach (var campaign in campaigns)
             {
-                continue;
+                var values = sessionsByCampaign.TryGetValue(campaign.Id, out var campaignSessions)
+                    ? GetScoreValues(campaignSessions, scoreSpec.Code, scoreBySessionAndDimension)
+                    : [];
+                if (values.Length == 0)
+                {
+                    continue;
+                }
+
+                var visible = values.Length >= SampleDisclosureKMin;
+                var mean = visible ? CalculateSampleMean(values) : (decimal?)null;
+                var comparisonState = firstMean.HasValue ? "compared" : "baseline";
+                var deltaFromPrevious = mean.HasValue && previousMean.HasValue
+                    ? FormatSampleDecimal(mean.Value - previousMean.Value)
+                    : string.Empty;
+                var deltaFromFirst = mean.HasValue && firstMean.HasValue
+                    ? FormatSampleDecimal(mean.Value - firstMean.Value)
+                    : mean.HasValue ? "0" : string.Empty;
+                firstMean ??= mean;
+                previousMean = mean ?? previousMean;
+
+                AddSampleResultsMatrixRow(
+                    lines,
+                    series,
+                    selectedCampaign,
+                    campaign,
+                    "wave",
+                    campaign.Name,
+                    string.Empty,
+                    string.Empty,
+                    scoreSpec.Code,
+                    values,
+                    visible,
+                    deltaFromPrevious,
+                    deltaFromFirst,
+                    comparisonState,
+                    visible ? string.Empty : "insufficient_responses");
             }
-
-            var mean = CalculateSampleMean(values);
-            var comparisonState = firstMean.HasValue ? "compared" : "baseline";
-            var deltaFromPrevious = previousMean.HasValue
-                ? FormatSampleDecimal(mean - previousMean.Value)
-                : string.Empty;
-            var deltaFromFirst = firstMean.HasValue
-                ? FormatSampleDecimal(mean - firstMean.Value)
-                : "0";
-            firstMean ??= mean;
-            previousMean = mean;
-
-            lines.Add(CsvRow(
-                "wave",
-                campaign.Name,
-                series.Id.ToString(),
-                selectedCampaign?.Id.ToString() ?? string.Empty,
-                selectedCampaign?.Name ?? string.Empty,
-                campaign.Id.ToString(),
-                campaign.Name,
-                campaign.Status,
-                campaign.ClosedAt.HasValue ? "closed_wave" : "preliminary_live",
-                campaign.ClosedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
-                string.Empty,
-                string.Empty,
-                "total",
-                "visible",
-                values.Length.ToString(CultureInfo.InvariantCulture),
-                values.Length.ToString(CultureInfo.InvariantCulture),
-                values.Length.ToString(CultureInfo.InvariantCulture),
-                values.Length.ToString(CultureInfo.InvariantCulture),
-                "complete",
-                FormatSampleDecimal(mean),
-                FormatSampleDecimal(CalculateSampleMedian(values)),
-                FormatSampleDecimal(CalculateSampleStandardDeviation(values)),
-                FormatSampleDecimal(values.Min()),
-                FormatSampleDecimal(values.Max()),
-                deltaFromPrevious,
-                deltaFromFirst,
-                comparisonState,
-                string.Empty));
         }
 
         var content = string.Join("\n", lines);
@@ -882,8 +1295,8 @@ public sealed class SampleStudySeeder(
             {
                 artifactType = ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook,
                 rowCount,
-                rowShape = "one aggregate row for the selected sample output plus one row per sample measurement round",
-                resultScopes = new[] { "overall", "wave" },
+                rowShape = "aggregate rows by selected output, collection round, and directory group when available",
+                resultScopes = new[] { "overall", "wave", "group" },
                 columns = SampleResultsMatrixColumns.Select(column => new
                 {
                     name = column,
@@ -893,10 +1306,72 @@ public sealed class SampleStudySeeder(
             completedAt);
     }
 
+    private static decimal[] GetScoreValues(
+        IReadOnlyList<SampleSessionExportRow> sessions,
+        string dimensionCode,
+        IReadOnlyDictionary<(Guid SessionId, string DimensionCode), SampleScoreExportRow> scoresBySessionAndDimension)
+    {
+        return sessions
+            .Where(session => scoresBySessionAndDimension.ContainsKey((session.Id, dimensionCode)))
+            .Select(session => scoresBySessionAndDimension[(session.Id, dimensionCode)].Value)
+            .ToArray();
+    }
+
+    private static void AddSampleResultsMatrixRow(
+        List<string> lines,
+        CampaignSeries series,
+        SampleCampaignResultsMatrixRow? selectedCampaign,
+        SampleCampaignResultsMatrixRow campaign,
+        string resultScope,
+        string resultScopeLabel,
+        string groupType,
+        string groupName,
+        string dimensionCode,
+        IReadOnlyCollection<decimal> values,
+        bool visible,
+        string deltaFromPreviousMean,
+        string deltaFromFirstMean,
+        string comparisonState,
+        string suppressionReason)
+    {
+        var valueArray = values.ToArray();
+        var showValues = visible && valueArray.Length > 0;
+
+        lines.Add(CsvRow(
+            resultScope,
+            resultScopeLabel,
+            series.Id.ToString(),
+            selectedCampaign?.Id.ToString() ?? string.Empty,
+            selectedCampaign?.Name ?? string.Empty,
+            campaign.Id.ToString(),
+            campaign.Name,
+            campaign.Status,
+            campaign.ClosedAt.HasValue ? "closed_wave" : "preliminary_live",
+            campaign.ClosedAt?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty,
+            groupType,
+            groupName,
+            dimensionCode,
+            showValues ? "visible" : "suppressed",
+            showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
+            showValues ? "complete" : string.Empty,
+            showValues ? FormatSampleDecimal(CalculateSampleMean(valueArray)) : string.Empty,
+            showValues ? FormatSampleDecimal(CalculateSampleMedian(valueArray)) : string.Empty,
+            showValues ? FormatSampleDecimal(CalculateSampleStandardDeviation(valueArray)) : string.Empty,
+            showValues ? FormatSampleDecimal(valueArray.Min()) : string.Empty,
+            showValues ? FormatSampleDecimal(valueArray.Max()) : string.Empty,
+            showValues ? deltaFromPreviousMean : string.Empty,
+            showValues ? deltaFromFirstMean : string.Empty,
+            comparisonState,
+            showValues ? string.Empty : suppressionReason));
+    }
+
     private static bool IsRowLevelResponseExport(ExportArtifact artifact)
     {
         return artifact.Content?.StartsWith(
-                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_total",
+                "study,wave,response_key,trajectory_key,submitted_at,question_code,question_text,answer_value,score_output_code,score_value",
                 StringComparison.Ordinal) == true &&
             artifact.MetadataJson.Contains("sample_response_rows", StringComparison.Ordinal);
     }
@@ -1018,6 +1493,15 @@ public sealed class SampleStudySeeder(
         return value.ToString("0.####", CultureInfo.InvariantCulture);
     }
 
+    private static string FormatWaveTargets(SampleWaveSpec wave)
+    {
+        return string.Join(
+            "; ",
+            wave.TargetMeans
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => $"{item.Key}={item.Value.ToString("0.0", CultureInfo.InvariantCulture)}"));
+    }
+
     private static string Slugify(string value)
     {
         var builder = new StringBuilder(value.Length);
@@ -1046,56 +1530,176 @@ internal static class SampleStudySpecs
     [
         new(
             "workload-recovery",
-            "Workload and recovery pulse",
-            "Read-only sample showing two closed collection rounds and response-linked change review.",
+            "Workload recovery after staffing change",
+            "Read-only sample showing four closed collection rounds after a workload intervention.",
             "Workload and recovery",
             CampaignSeriesSampleScenarios.Longitudinal,
             ResponseIdentityModes.AnonymousLongitudinal,
-            RespondentCount: 24,
+            CampaignSeriesStudyDesignTypes.RepeatedLinkedChange,
             [
-                new("q01", "I can recover enough between demanding work periods."),
-                new("q02", "My current workload feels manageable."),
-                new("q03", "I have enough control over how I pace my work."),
-                new("q04", "My team has practical support when workload increases.")
+                new(SubjectGroupTypes.Team, "Operations", 9, -0.25),
+                new(SubjectGroupTypes.Team, "Field service", 7, -0.45),
+                new(SubjectGroupTypes.Team, "Support desk", 8, 0.15),
+                new(SubjectGroupTypes.Team, "Night shift", 4, -0.7)
             ],
             [
-                new("Wave 1 baseline", 4.6),
-                new("Wave 2 follow-up", 5.6)
+                new("workload_manageability", "Workload manageability", ["q01", "q02"]),
+                new("recovery_capacity", "Recovery capacity", ["q03", "q04"]),
+                new("role_clarity", "Role clarity", ["q05", "q06"]),
+                new("support_access", "Support access", ["q07", "q08"])
+            ],
+            [
+                new("q01", "workload_manageability", "I can complete priority work within the available time."),
+                new("q02", "workload_manageability", "Unexpected work can be handled without constant overtime."),
+                new("q03", "recovery_capacity", "I can recover enough between demanding work periods."),
+                new("q04", "recovery_capacity", "Breaks and time away from work are realistic during busy weeks."),
+                new("q05", "role_clarity", "I know which tasks matter most when everything feels urgent."),
+                new("q06", "role_clarity", "Responsibilities are clear enough to avoid duplicated effort."),
+                new("q07", "support_access", "My team has practical support when workload increases."),
+                new("q08", "support_access", "It is easy to ask for help before workload becomes unmanageable.")
+            ],
+            [
+                new("Baseline before staffing change", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 3.8,
+                    ["recovery_capacity"] = 3.5,
+                    ["role_clarity"] = 4.1,
+                    ["support_access"] = 3.9
+                }),
+                new("Peak workload week", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 3.2,
+                    ["recovery_capacity"] = 3.1,
+                    ["role_clarity"] = 3.9,
+                    ["support_access"] = 3.5
+                }),
+                new("After staffing change", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 4.6,
+                    ["recovery_capacity"] = 4.2,
+                    ["role_clarity"] = 4.7,
+                    ["support_access"] = 4.5
+                }),
+                new("Follow-up review", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 5.2,
+                    ["recovery_capacity"] = 4.9,
+                    ["role_clarity"] = 5.1,
+                    ["support_access"] = 5.0
+                })
             ]),
         new(
             "ergonomics-risk",
-            "Ergonomics risk review",
-            "Read-only sample showing a closed workplace ergonomics review with report exports.",
+            "Ergonomics risk and workstation fit",
+            "Read-only sample showing workstation changes, directory groups, and hidden small-group cells.",
             "Ergonomics conditions",
             CampaignSeriesSampleScenarios.Completed,
-            ResponseIdentityModes.Anonymous,
-            RespondentCount: 18,
+            ResponseIdentityModes.Identified,
+            CampaignSeriesStudyDesignTypes.RepeatedGroupTrend,
             [
-                new("q01", "My workstation supports a comfortable working posture."),
-                new("q02", "Tools and equipment are adjusted to the task."),
-                new("q03", "Repetitive or awkward movements are kept under control."),
-                new("q04", "I know how to report and resolve ergonomics concerns.")
+                new(SubjectGroupTypes.Department, "Assembly line", 9, -0.55),
+                new(SubjectGroupTypes.Department, "Office workstations", 7, 0.2),
+                new(SubjectGroupTypes.Department, "Logistics", 6, -0.15),
+                new(SubjectGroupTypes.Department, "Prototype lab", 4, -0.8)
             ],
             [
-                new("Wave 1 review", 5.2)
+                new("posture_support", "Posture support", ["q01", "q02"]),
+                new("equipment_fit", "Equipment fit", ["q03", "q04"]),
+                new("repetitive_load_control", "Repetitive load control", ["q05", "q06"]),
+                new("reporting_confidence", "Reporting confidence", ["q07", "q08"])
+            ],
+            [
+                new("q01", "posture_support", "My workstation supports a comfortable working posture."),
+                new("q02", "posture_support", "I can adjust my working position during the day."),
+                new("q03", "equipment_fit", "Tools and equipment are adjusted to the task."),
+                new("q04", "equipment_fit", "Shared equipment is available in a condition that supports safe work."),
+                new("q05", "repetitive_load_control", "Repetitive or awkward movements are kept under control."),
+                new("q06", "repetitive_load_control", "Tasks are rotated or redesigned before discomfort builds up."),
+                new("q07", "reporting_confidence", "I know how to report and resolve ergonomics concerns."),
+                new("q08", "reporting_confidence", "Reported ergonomics concerns receive a timely response.")
+            ],
+            [
+                new("Initial workstation review", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 4.0,
+                    ["equipment_fit"] = 3.7,
+                    ["repetitive_load_control"] = 3.4,
+                    ["reporting_confidence"] = 4.1
+                }),
+                new("After equipment adjustment", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 4.9,
+                    ["equipment_fit"] = 5.1,
+                    ["repetitive_load_control"] = 4.2,
+                    ["reporting_confidence"] = 4.6
+                }),
+                new("Follow-up workstation review", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 5.5,
+                    ["equipment_fit"] = 5.6,
+                    ["repetitive_load_control"] = 4.9,
+                    ["reporting_confidence"] = 5.1
+                })
             ]),
         new(
             "student-wellbeing",
-            "Student wellbeing and study load",
-            "Read-only sample showing repeated study-load measurement without identifying respondents.",
-            "Study load and support",
+            "Student wellbeing and assessment load",
+            "Read-only sample showing repeated anonymous participation across a study term.",
+            "Study load and recovery",
             CampaignSeriesSampleScenarios.Longitudinal,
             ResponseIdentityModes.AnonymousLongitudinal,
-            RespondentCount: 22,
+            CampaignSeriesStudyDesignTypes.RepeatedLinkedChange,
             [
-                new("q01", "I can keep up with the expected study workload."),
-                new("q02", "I know where to get support when study pressure rises."),
-                new("q03", "Assessment timing feels manageable across my courses."),
-                new("q04", "I have enough recovery time during the study week.")
+                new(SubjectGroupTypes.Cohort, "First-year students", 10, -0.2),
+                new(SubjectGroupTypes.Cohort, "Final-year students", 8, -0.45),
+                new(SubjectGroupTypes.Cohort, "Part-time students", 7, 0.1),
+                new(SubjectGroupTypes.Cohort, "Small seminar group", 4, -0.65)
             ],
             [
-                new("Wave 1 midpoint", 4.2),
-                new("Wave 2 follow-up", 5.1)
+                new("study_load_manageability", "Study load manageability", ["q01", "q02"]),
+                new("support_access", "Support access", ["q03", "q04"]),
+                new("assessment_clarity", "Assessment clarity", ["q05", "q06"]),
+                new("recovery_time", "Recovery time", ["q07", "q08"])
+            ],
+            [
+                new("q01", "study_load_manageability", "I can keep up with the expected study workload."),
+                new("q02", "study_load_manageability", "Weekly study demands feel realistic alongside other responsibilities."),
+                new("q03", "support_access", "I know where to get support when study pressure rises."),
+                new("q04", "support_access", "Support is available early enough to prevent problems from escalating."),
+                new("q05", "assessment_clarity", "Assessment expectations are clear before I start the work."),
+                new("q06", "assessment_clarity", "Assessment timing feels manageable across my courses."),
+                new("q07", "recovery_time", "I have enough recovery time during the study week."),
+                new("q08", "recovery_time", "I can disconnect from study tasks without falling behind.")
+            ],
+            [
+                new("Term start", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 5.2,
+                    ["support_access"] = 4.7,
+                    ["assessment_clarity"] = 4.8,
+                    ["recovery_time"] = 4.6
+                }),
+                new("Midterm pressure", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 4.5,
+                    ["support_access"] = 4.3,
+                    ["assessment_clarity"] = 4.2,
+                    ["recovery_time"] = 4.0
+                }),
+                new("Exam week", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 3.4,
+                    ["support_access"] = 3.8,
+                    ["assessment_clarity"] = 3.2,
+                    ["recovery_time"] = 3.3
+                }),
+                new("Post-exam recovery", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 4.8,
+                    ["support_access"] = 4.5,
+                    ["assessment_clarity"] = 4.4,
+                    ["recovery_time"] = 4.2
+                })
             ])
     ];
 }
@@ -1107,15 +1711,49 @@ internal sealed record SampleStudySpec(
     string SectionTitle,
     string SampleScenario,
     string ResponseIdentityMode,
-    int RespondentCount,
+    string StudyDesignType,
+    IReadOnlyList<SampleGroupSpec> Groups,
+    IReadOnlyList<SampleScoreSpec> Scores,
     IReadOnlyList<SampleQuestionSpec> Questions,
-    IReadOnlyList<SampleWaveSpec> Waves);
+    IReadOnlyList<SampleWaveSpec> Waves)
+{
+    public int RespondentCount => Groups.Sum(group => group.RespondentCount);
+}
 
-internal sealed record SampleQuestionSpec(string Code, string Text);
+internal sealed record SampleGroupSpec(
+    string Type,
+    string Name,
+    int RespondentCount,
+    double MeanOffset);
 
-internal sealed record SampleWaveSpec(string Name, double TargetMean);
+internal sealed record SampleScoreSpec(
+    string Code,
+    string Label,
+    IReadOnlyList<string> QuestionCodes);
+
+internal sealed record SampleQuestionSpec(string Code, string ScoreCode, string Text);
+
+internal sealed record SampleWaveSpec(
+    string Name,
+    IReadOnlyDictionary<string, double> TargetMeans);
 
 internal sealed record ExistingSampleSeries(Guid Id, string Name);
+
+internal sealed record SampleDirectory(
+    IReadOnlyList<Subject> Subjects,
+    IReadOnlyList<SubjectGroup> Groups,
+    IReadOnlyList<SubjectMembership> Memberships,
+    IReadOnlyList<SampleRespondentProfile> Respondents);
+
+internal sealed record SampleDirectoryGroup(
+    SampleGroupSpec Spec,
+    SubjectGroup Entity);
+
+internal sealed record SampleRespondentProfile(
+    Guid SubjectId,
+    string GroupType,
+    string GroupName,
+    double GroupOffset);
 
 internal sealed record SampleCampaignExportRow(
     Guid Id,
@@ -1142,7 +1780,8 @@ internal sealed record SampleSessionExportRow(
     string WaveName,
     DateTimeOffset? WaveStartAt,
     DateTimeOffset SubmittedAt,
-    Guid? ParticipantCodeId);
+    Guid? ParticipantCodeId,
+    Guid? SubjectId);
 
 internal sealed record SampleAnswerExportRow(
     Guid SessionId,
@@ -1151,5 +1790,16 @@ internal sealed record SampleAnswerExportRow(
 
 internal sealed record SampleScoreExportRow(
     Guid SessionId,
+    string DimensionCode,
     decimal Value,
     DateTimeOffset ComputedAt);
+
+internal sealed record SampleSubjectGroupMembershipExportRow(
+    Guid SubjectId,
+    string GroupType,
+    string GroupName);
+
+internal sealed record SampleGroupScoreExportRow(
+    string GroupType,
+    string GroupName,
+    decimal Value);
