@@ -108,7 +108,14 @@ export type ReportsResultsOverviewItem = {
 };
 
 export type SelectedSeriesStudyModelItem = {
-	id: 'study_brief' | 'study_container' | 'questionnaire_results' | 'collection_waves' | 'evidence_outputs';
+	id:
+		| 'study_brief'
+		| 'study_container'
+		| 'questionnaire_results'
+		| 'collection_waves'
+		| 'evidence_outputs'
+		| 'current_state'
+		| 'next_action';
 	label: string;
 	status: ProductReadModelBadgeStatus;
 	badgeLabel: string;
