@@ -626,11 +626,11 @@ function toStudyBriefModelItem(
 	locale: AppLocale
 ): SelectedSeriesStudyModelItem {
 	const hasBrief = hasStudyBrief(brief);
-	const purpose = brief?.purpose?.trim();
+	const purpose = localizedStudyBriefText(brief?.purpose, locale);
 	const rows: SelectedSeriesStudyModelItem['detailRows'] = [
 		{
 			label: appMessage(locale, 'overview.studyBrief.audience'),
-			value: brief?.audience?.trim() || appMessage(locale, 'overview.studyBrief.notSet')
+			value: localizedStudyBriefText(brief?.audience, locale) || appMessage(locale, 'overview.studyBrief.notSet')
 		},
 		{
 			label: appMessage(locale, 'overview.studyBrief.design'),
@@ -669,6 +669,45 @@ function hasStudyBrief(brief: CampaignSeriesStudyBriefResponse | null | undefine
 			brief?.ownerNotes?.trim()
 	);
 }
+
+function localizedStudyBriefText(value: string | null | undefined, locale: AppLocale) {
+	const text = value?.trim();
+	if (!text || locale !== 'hr-HR') {
+		return text;
+	}
+
+	return (
+		croatianStudyBriefDefaultText[text] ??
+		text
+	);
+}
+
+const croatianStudyBriefDefaultText: Record<string, string> = {
+	'Define a custom study question and the decision this study should support.':
+		'Definirajte vlastito istraživačko pitanje i odluku koju rezultati trebaju podržati.',
+	'Participants selected by the workspace team for this study.':
+		'Sudionici koje tim radnog prostora odabere za ovu studiju.',
+	'Use results as custom-study evidence with method notes; do not present them as externally validated norms unless separately reviewed.':
+		'Koristite rezultate kao dokaz prilagođene studije s metodološkim bilješkama; nemojte ih prikazivati kao vanjski validirane norme bez zasebnog pregleda.',
+	'Run a short check-in to understand current group conditions and decide what needs follow-up.':
+		'Provedite kratku provjeru kako biste razumjeli trenutno stanje grupe i odlučili što treba pratiti.',
+	'A team, department, class, or cohort invited to one short collection round.':
+		'Tim, odjel, razred ili kohorta pozvana u jedno kratko prikupljanje.',
+	'Use results for internal review and follow-up planning. Avoid individual-level conclusions.':
+		'Koristite rezultate za interni pregled i planiranje praćenja. Izbjegavajte zaključke o pojedincima.',
+	'Measure change between an initial collection round and a later collection round.':
+		'Mjerite promjenu između početnog i naknadnog prikupljanja.',
+	'The same respondent group repeated across collection rounds where possible.':
+		'Ista grupa ispitanika kroz ponovljena prikupljanja gdje je to moguće.',
+	'Compare change only where the questionnaire, scoring, and same-person comparison setup remain comparable.':
+		'Uspoređujte promjenu samo kada upitnik, bodovanje i postavke ponovljenog sudjelovanja ostanu usporedivi.',
+	'Assess task exposure, strain, recovery, and practical follow-up needs.':
+		'Procijenite radnu izloženost, opterećenje, oporavak i praktične potrebe za praćenje.',
+	'Workers or teams selected for the workplace health or ergonomics review.':
+		'Radnici ili timovi odabrani za pregled rada i ergonomije.',
+	'Use results as practical review input. Keep method limits and follow-up context with any stakeholder summary.':
+		'Koristite rezultate kao ulaz za praktični pregled. Uz svaki sažetak za dionike zadržite metodološke granice i kontekst praćenja.'
+};
 
 function toStudyBriefContext(brief: CampaignSeriesStudyBriefResponse | null | undefined, locale: AppLocale) {
 	const item = toStudyBriefModelItem(brief, locale);

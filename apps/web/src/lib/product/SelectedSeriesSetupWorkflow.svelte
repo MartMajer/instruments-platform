@@ -236,6 +236,7 @@
 	let testRecipientState = $state<StepState>('idle');
 	let testRecipientError = $state<string | null>(null);
 	let testRecipientResult = $state<CreateCampaignTestRecipientsResponse | null>(null);
+	let autoReadinessCheckFingerprint = $state<string | null>(null);
 
 	const workspaceView = $derived(toCampaignSeriesSetupWorkspaceView(workspace, appLocale));
 	const localState = $derived({
@@ -351,6 +352,19 @@
 				(previewExternalEmailReview.validRecipientCount > 0 &&
 					!previewExternalEmailReview.hasBlockingIssues))
 	);
+	const readinessAutoCheckFingerprint = $derived(
+		selectedCampaignId
+			? [
+					selectedCampaignId,
+					selectedTemplateVersionId ?? '',
+					localState.scoringRuleId ?? '',
+					savedRuleState,
+					savedRuleResult?.rules
+						.map((rule) => `${rule.id}:${rule.ordinal}:${rule.assignmentPairCount}`)
+						.join(',')
+				].join('|')
+			: null
+	);
 
 	$effect(() => {
 		if (!activeActionInitialized && currentActionId) {
@@ -359,6 +373,22 @@
 		} else if (!canSelectSetupAction(activeActionId)) {
 			activeActionId = currentActionId;
 		}
+	});
+
+	$effect(() => {
+		if (
+			activeActionIdForView !== 'readiness' ||
+			!selectedCampaignId ||
+			!readinessAutoCheckFingerprint ||
+			actionStates.readiness === 'submitting' ||
+			savedRuleState === 'submitting' ||
+			autoReadinessCheckFingerprint === readinessAutoCheckFingerprint
+		) {
+			return;
+		}
+
+		autoReadinessCheckFingerprint = readinessAutoCheckFingerprint;
+		void checkLaunchReadiness();
 	});
 
 	$effect(() => {
@@ -1931,6 +1961,7 @@
 		'Results setup': 'Postavljanje rezultata',
 		'Result calculation': 'Izračun rezultata',
 		Result: 'Rezultat',
+		'Total score': 'Ukupni rezultat',
 		'Result outputs ready': 'Izlazi rezultata spremni',
 		Outputs: 'Izlazi',
 		'Unique scored questions': 'Jedinstvena bodovana pitanja',
@@ -1961,7 +1992,9 @@
 		'Edit result names, export codes, scoring audit, and technical checks.':
 			'Uredite nazive rezultata, kodove izvoza, provjeru bodovanja i dodatne provjere.',
 		'Result options': 'Opcije rezultata',
-		'Question selection': 'Odabir pitanja',
+		'Question selection': 'Pitanja koja ulaze u rezultat',
+		'Unchecked questions stay in the questionnaire, but do not affect this result calculation.':
+			'Neoznačena pitanja ostaju u upitniku, ali ne utječu na izračun ovog rezultata.',
 		'Reverse scored': 'Obrnuto bodovano',
 		'Scoring plan preview': 'Pregled plana bodovanja',
 		'Reverse-scoring review': 'Pregled obrnutog bodovanja',
@@ -3065,7 +3098,9 @@
 								<div class="record-field">
 									<p class="record-field__label">{setupUi('Outputs')}</p>
 									<p class="record-field__value">
-										{scoreOutputs.map((output) => output.name.trim() || output.code).join(', ')}
+										{scoreOutputs
+											.map((output) => setupUi(output.name.trim() || output.code))
+											.join(', ')}
 									</p>
 								</div>
 								<div class="record-field">
@@ -3096,10 +3131,9 @@
 											<div>
 												<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
 												<h5 class="record-row__title">
-													{output.name.trim() || `${setupUi('Result')} ${outputIndex + 1}`}
+													{setupUi(output.name.trim()) || `${setupUi('Result')} ${outputIndex + 1}`}
 												</h5>
 												<p class="setup-current-task__title">
-													{output.includedQuestionCodes.length}
 													{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
 												</p>
 											</div>
@@ -3161,6 +3195,11 @@
 
 										<div class="record-row">
 											<h6 class="record-row__title">{setupUi('Question selection')}</h6>
+											<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+												{setupUi(
+													'Unchecked questions stay in the questionnaire, but do not affect this result calculation.'
+												)}
+											</p>
 											{#if scoreableQuestionRows.length}
 												<div class="grid gap-2">
 													{#each scoreableQuestionRows as question (question.code)}
@@ -3220,7 +3259,7 @@
 										{#each resultsBlueprintReview.items as item (item.id)}
 											<div class="questionnaire-blueprint-review__item" data-state={item.status}>
 												<p class="record-field__label">{setupUi(item.label)}</p>
-												<p class="record-field__value">{setupUi(item.detail)}</p>
+												<p class="record-field__value">{setupUi(item.detail).replace('Total score', setupUi('Total score'))}</p>
 											</div>
 										{/each}
 									</div>
@@ -3298,7 +3337,7 @@
 											{#each scorePlanSummaries as summary (summary.localId)}
 												<div class="record-field">
 													<p class="record-field__label">{summary.code}</p>
-													<p class="record-field__value">{summary.name}</p>
+													<p class="record-field__value">{setupUi(summary.name)}</p>
 													<p class="text-sm text-[var(--color-text-muted)]">
 														{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
 														{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
@@ -3327,7 +3366,9 @@
 												{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
 											</p>
 											<p class="text-sm text-[var(--color-text-muted)]">
-												{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels.join(', ') ||
+												{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels
+													.map((label) => setupUi(label))
+													.join(', ') ||
 													setupUi('no result outputs yet')}.
 											</p>
 										</div>
@@ -3382,25 +3423,12 @@
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'readiness'}
-					<div class="record-row">
-						<div class="record-row__header">
-							<div>
-								<p class="record-field__label">{setupUi('Final check')}</p>
-								<h5 class="record-row__title">
-									{currentLaunchState().collectionButtonAvailable
-										? setupUi('Ready to collect')
-										: setupUi('Check before collection')}
-								</h5>
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{currentLaunchState().nextActionLabel}
-								</p>
-							</div>
-							<StatusBadge
-								status={currentLaunchState().collectionButtonAvailable ? 'ready' : 'neutral'}
-								label={currentLaunchState().collectionButtonAvailable ? setupUi('Ready') : setupUi('Check')}
-							/>
-						</div>
-					</div>
+					{#if actionStates.readiness === 'submitting'}
+						<p class="result-line">
+							<span>{setupUi('Final check')}</span>
+							<span>{stepLabel(actionStates.readiness)}</span>
+						</p>
+					{/if}
 					{#if readinessResult?.issues.length}
 						<ul class="grid gap-2" aria-label={setupUi('Setup issues')}>
 							{#each readinessResult.issues as issue}
@@ -3410,16 +3438,17 @@
 							{/each}
 						</ul>
 					{/if}
-					<p class="result-line">
-						<span>{setupUi('Next action')}</span>
-						<span>{currentLaunchState().nextActionLabel}</span>
-					</p>
-					{@render ActionFooter({
-						id: 'readiness',
-						label: setupUi('Run launch check'),
-						icon: 'search',
-						onclick: checkLaunchReadiness
-					})}
+					{#if actionErrors.readiness}
+						<p class="error-line" role="alert">{actionErrors.readiness}</p>
+					{/if}
+					{#if currentLaunchState().collectionButtonAvailable}
+						<div class="action-row">
+							<button type="button" class="primary-button" onclick={openLaunchSurface}>
+								<Send size={16} aria-hidden="true" />
+								<span>{currentLaunchState().collectionButtonLabel}</span>
+							</button>
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</section>
@@ -3835,7 +3864,11 @@
 					</ul>
 				{/if}
 
-				<div class="grid gap-2">
+				<details class="record-row" open={previewResult.rows.length > 0 && previewResult.rows.length <= 25}>
+					<summary class="record-row__title">
+						{setupUi('Preview rows')} ({formatCount(previewResult.rows.length)})
+					</summary>
+					<div class="mt-3 grid max-h-80 gap-2 overflow-y-auto pr-2">
 					{#if previewResult.rows.length === 0}
 					<p class="text-sm text-[var(--color-text-muted)]">{setupUi('No people to show yet.')}</p>
 					{:else}
@@ -3853,7 +3886,8 @@
 							</div>
 						{/each}
 					{/if}
-				</div>
+					</div>
+				</details>
 			{/if}
 		</section>
 
