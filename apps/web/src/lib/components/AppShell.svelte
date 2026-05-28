@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { env } from '$env/dynamic/public';
+	import type { Snippet } from 'svelte';
 	import {
 		ClipboardCheck,
 		FileStack,
@@ -19,7 +20,7 @@
 	import { appShellCopy, surfaceNavCopy } from '$lib/i18n/ui-copy';
 	import { setupStages } from '$lib/setup/stages';
 
-	let { children } = $props();
+	let { children, account }: { children: Snippet; account?: Snippet } = $props();
 	let mobileMenuOpen = $state(false);
 
 	const stageIcons = [LibraryBig, FileStack, Gauge, Send, ClipboardCheck];
@@ -163,7 +164,14 @@
 				<LocaleSwitcher compact />
 
 				{#if isProductShell}
-					<SurfaceNav />
+					<div class="app-sidebar__body">
+						<SurfaceNav />
+					</div>
+					{#if account}
+						<div class="app-sidebar__account" aria-label={copy.aria.workspacePosture}>
+							{@render account()}
+						</div>
+					{/if}
 				{:else}
 					<nav class="mt-5" aria-label={copy.aria.setupStages}>
 						<ol class="grid gap-2">
@@ -225,13 +233,20 @@
 
 				{#if mobileMenuOpen}
 					<div class="app-mobile-menu" role="dialog" aria-label={copy.aria.workspaceMenu}>
+						{#if account}
+							<div class="app-mobile-menu__account">
+								{@render account()}
+							</div>
+						{/if}
 						<SurfaceNav />
 						<nav class="app-mobile-menu__section" aria-label={copy.aria.moreWorkspaceRoutes}>
 							<p class="app-mobile-menu__heading">{copy.nav.more}</p>
 							<LocaleSwitcher compact />
-							<a class="app-mobile-menu__link app-mobile-menu__link--muted" href={logoutUrl}>
-								<span>{copy.actions.signOut}</span>
-							</a>
+							{#if !account}
+								<a class="app-mobile-menu__link app-mobile-menu__link--muted" href={logoutUrl}>
+									<span>{copy.actions.signOut}</span>
+								</a>
+							{/if}
 						</nav>
 					</div>
 				{/if}

@@ -266,7 +266,40 @@
 
 		return `${workspaceLogoutUrl.pathname}${workspaceLogoutUrl.search}${workspaceLogoutUrl.hash}`;
 	}
+
+	function accountInitials(label: string) {
+		const localPart = label.split('@')[0] ?? label;
+		const parts = localPart.split(/[._+\-\s]+/).filter(Boolean);
+		const first = parts[0]?.[0] ?? label[0] ?? '?';
+		const second = parts.length > 1 ? parts[1]?.[0] : parts[0]?.[1];
+
+		return `${first}${second ?? ''}`.toUpperCase();
+	}
 </script>
+
+{#snippet accountControl()}
+	{#if sessionProfile}
+		<details class="app-account-menu" aria-label={copy.access.signedInWorkspaceAccount}>
+			<summary class="app-account-menu__summary">
+				<span class="app-account-menu__avatar" aria-hidden="true">
+					{accountInitials(sessionProfile.accountLabel)}
+				</span>
+				<span class="app-account-menu__identity">
+					<span>{sessionProfile.accountLabel}</span>
+					<small>{sessionProfile.permissionSummary}</small>
+				</span>
+			</summary>
+			<div class="app-account-menu__panel">
+				<p class="app-account-menu__eyebrow">{copy.access.signedInAs}</p>
+				<p class="app-account-menu__email">{sessionProfile.accountLabel}</p>
+				<p class="app-account-menu__access">{sessionProfile.permissionSummary}</p>
+				<a class="secondary-button app-account-menu__signout" href={workspaceLogoutUrl}>
+					{shellCopy.actions.signOut}
+				</a>
+			</div>
+		</details>
+	{/if}
+{/snippet}
 
 <svelte:head>
 	<title>{copy.head.title}</title>
@@ -289,7 +322,7 @@
 		</section>
 	</main>
 {:else if authState === 'authenticated' && authSession}
-	<AppShell>
+	<AppShell account={accountControl}>
 		<div class="grid gap-6">
 			{#if authSession.emailVerificationRequired === true}
 				<div class="email-verification-reminder" role="status" aria-label={copy.access.emailVerificationRequired}>
@@ -302,37 +335,6 @@
 					</div>
 				</div>
 			{/if}
-
-			<section class="setup-callout" aria-label={copy.access.signedInWorkspaceAccount}>
-				{#if sessionProfile}
-					<div class="session-callout__header">
-						<div>
-							<p class="setup-callout__key">{copy.access.signedInAs}</p>
-							<p class="setup-callout__value">{sessionProfile.accountLabel}</p>
-							<p class="setup-callout__note">{sessionProfile.permissionSummary}</p>
-						</div>
-						<a class="secondary-button" href={workspaceLogoutUrl}>{shellCopy.actions.signOut}</a>
-					</div>
-					<div class="session-callout__badges" aria-label={copy.access.workspaceAccess}>
-						{#each sessionProfile.permissionBadges as badge}
-							<span class="status-badge" data-status="ready">{badge}</span>
-						{/each}
-					</div>
-					{#if sessionProfile.technicalRows.length > 0}
-						<details class="session-callout__details" aria-label={copy.access.sessionTechnicalDetails}>
-							<summary>{copy.access.technicalDetails}</summary>
-							<dl class="session-callout__technical-list">
-								{#each sessionProfile.technicalRows as row}
-									<div class="session-callout__technical-row">
-										<dt>{row.label}</dt>
-										<dd>{row.value}</dd>
-									</div>
-								{/each}
-							</dl>
-						</details>
-					{/if}
-				{/if}
-			</section>
 
 			{@render children()}
 		</div>
