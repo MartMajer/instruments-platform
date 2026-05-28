@@ -1945,11 +1945,6 @@
 		'Launch plan': 'Plan pokretanja',
 		'Measurement name': 'Naziv mjerenja',
 		'Respondent language': 'Jezik ispitanika',
-		'Follow-up measurement': 'Sljedeće mjerenje',
-		'New measurement in this study': 'Novo mjerenje u ovoj studiji',
-		'Choose recipients for this measurement before continuing.':
-			'Odaberite primatelje za ovo mjerenje prije nastavka.',
-		'Choose who can answer before continuing.': 'Odaberite tko može odgovarati prije nastavka.',
 		'Launch checklist': 'Kontrolna lista pokretanja',
 		'Final check': 'Završna provjera',
 		'Ready to collect': 'Spremno za prikupljanje',
@@ -3298,46 +3293,7 @@
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'campaign'}
-					{#if workspace.summary.campaignCount > 0 && activeStep.pathState !== 'done'}
-						<div class="record-row">
-							<div class="record-row__header">
-								<div>
-									<p class="record-field__label">{setupUi('Follow-up measurement')}</p>
-									<h5 class="record-row__title">{setupUi('New measurement in this study')}</h5>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('Choose recipients for this measurement before continuing.')}
-									</p>
-								</div>
-								<StatusBadge status="neutral" label={setupUi('Next')} />
-							</div>
-						</div>
-					{/if}
-					{#if activeStep.pathState === 'done'}
-						{#if workspace.summary.campaignCount > 1}
-							<div class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupUi('Follow-up measurement')}</p>
-										<h5 class="record-row__title">{setupUi('New measurement in this study')}</h5>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupUi('Choose recipients for this measurement before continuing.')}
-										</p>
-									</div>
-									<StatusBadge status="neutral" label={setupUi('Next')} />
-								</div>
-							</div>
-						{/if}
-						<div class="record-row">
-							<p class="record-field__label">{setupUi('Measurement ready')}</p>
-							<h5 class="record-row__title">{selectedCampaignLabel}</h5>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{responseModeLabel(campaignForm.responseIdentityMode)} - {campaignForm.defaultLocale}
-							</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{setupUi('Choose who can answer before continuing.')}
-							</p>
-						</div>
-					{:else}
+					{#if activeStep.pathState !== 'done'}
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
 								<span>{setupUi('Measurement name')}</span>
