@@ -1989,8 +1989,6 @@
 		'Previous wave': 'Prethodno mjerenje',
 		'Recipient selection is locked': 'Odabir primatelja je zaključan',
 		'Preview recipients, then save the selection': 'Pregledajte primatelje, zatim spremite odabir',
-		'Use Directory groups for recurring populations. Use all active Directory people only when the wave is truly for everyone. Use one-off email list for ad hoc recipients you do not want to manage in Directory. Save recipients before launch so Collection can create private respondent links and send email.':
-			'Koristite grupe iz imenika za ponavljajuće populacije. Sve aktivne osobe koristite samo kada je mjerenje stvarno za sve. Jednokratni popis email adresa koristite za ad hoc primatelje koje ne želite voditi u imeniku. Spremite primatelje prije pokretanja kako bi Prikupljanje moglo izraditi privatne poveznice i poslati email.',
 		'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.':
 			'Odabir primatelja još nije spremljen. Najprije pregledajte primatelje, zatim spremite pregledani odabir prije pokretanja.',
 		'Saved for launch': 'Spremljeno za pokretanje',
@@ -2009,6 +2007,7 @@
 		'Create test recipients': 'Izradi testne primatelje',
 		'Test cohort saved': 'Testna skupina spremljena',
 		'Send invitations to': 'Pošalji pozivnice za',
+		'How to choose': 'Kako odabrati',
 		'Campaign-local recipients': 'Primatelji samo za ovo mjerenje',
 		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
 		ready: 'spremno',
@@ -3396,11 +3395,6 @@
 						{setupUi('Preview recipients, then save the selection')}
 					</h4>
 					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">
-						{setupUi(
-							'Use Directory groups for recurring populations. Use all active Directory people only when the wave is truly for everyone. Use one-off email list for ad hoc recipients you do not want to manage in Directory. Save recipients before launch so Collection can create private respondent links and send email.'
-						)}
-					</p>
 				</div>
 				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
 			</div>
@@ -3417,30 +3411,6 @@
 					)}
 				</p>
 			{/if}
-
-			<div class="record-grid">
-				<div class="record-field">
-					<p class="record-field__label">{setupUi('Reusable population')}</p>
-					<p class="record-field__value">{setupUi('Directory groups')}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">
-						Best for departments, cohorts, classes, and repeated waves.
-					</p>
-				</div>
-				<div class="record-field">
-					<p class="record-field__label">{setupUi('One-off population')}</p>
-					<p class="record-field__value">{setupUi('Email import')}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">
-						Best for a temporary list copied from a collaborator or spreadsheet export.
-					</p>
-				</div>
-				<div class="record-field">
-					<p class="record-field__label">{setupUi('Open participation')}</p>
-					<p class="record-field__value">{setupUi('Open link in Collection')}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">
-						Best when anyone with the link may answer and no invite-only list is needed.
-					</p>
-				</div>
-			</div>
 
 			<div class="record-row">
 				<div class="record-row__header">
@@ -3516,6 +3486,45 @@
 						{audienceRuleHelp(previewRuleKind)}
 					</span>
 				</label>
+				<details
+					class="rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text-muted)] lg:col-span-2"
+				>
+					<summary class="cursor-pointer font-semibold text-[var(--color-text-strong)]">
+						{setupUi('How to choose')}
+					</summary>
+					<div class="mt-3 grid gap-3 md:grid-cols-2">
+						<div>
+							<p class="font-semibold text-[var(--color-text-strong)]">
+								{audienceRuleLabel('all_in_group')}
+							</p>
+							<p>{audienceRuleHelp('all_in_group')}</p>
+						</div>
+						<div>
+							<p class="font-semibold text-[var(--color-text-strong)]">
+								{audienceRuleLabel('self')}
+							</p>
+							<p>{audienceRuleHelp('self')}</p>
+						</div>
+						<div>
+							<p class="font-semibold text-[var(--color-text-strong)]">
+								{audienceRuleLabel('manager_of_target')}
+							</p>
+							<p>{audienceRuleHelp('manager_of_target')}</p>
+						</div>
+						<div>
+							<p class="font-semibold text-[var(--color-text-strong)]">
+								{audienceRuleLabel('reports_of_target')}
+							</p>
+							<p>{audienceRuleHelp('reports_of_target')}</p>
+						</div>
+						<div>
+							<p class="font-semibold text-[var(--color-text-strong)]">
+								{audienceRuleLabel('external_emails')}
+							</p>
+							<p>{audienceRuleHelp('external_emails')}</p>
+						</div>
+					</div>
+				</details>
 
 				{#if previewUsesExternalEmails}
 					<div class="record-row lg:col-span-2">
