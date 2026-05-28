@@ -1946,6 +1946,10 @@
 		'Measurement name': 'Naziv mjerenja',
 		'Respondent language': 'Jezik ispitanika',
 		'Launch checklist': 'Kontrolna lista pokretanja',
+		'Final check': 'Završna provjera',
+		'Ready to collect': 'Spremno za prikupljanje',
+		'Check before collection': 'Provjera prije prikupljanja',
+		Check: 'Provjera',
 		Questionnaire: 'Upitnik',
 		'Measurement': 'Mjerenje',
 		'Create measurement first': 'Najprije izradite mjerenje',
@@ -1973,7 +1977,7 @@
 			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
 		Status: 'Status',
 		'Recipient selection': 'Odabir primatelja',
-		'Launch checklist issues': 'Problemi kontrolne liste pokretanja',
+		'Setup issues': 'Problemi postavljanja',
 		'Every saved Directory recipient needs an email address before invite-only collection can start.':
 			'Svaki spremljeni primatelj iz Imenika mora imati email adresu prije nego što može početi prikupljanje samo preko pozivnica.',
 		'Save at least one recipient selection before launch, and make sure it resolves to active people.':
@@ -3357,42 +3361,26 @@
 					{/if}
 				{:else if activeActionIdForView === 'readiness'}
 					<div class="record-row">
-						<h5 class="record-row__title">{setupUi('Launch checklist')}</h5>
-						<div class="record-grid">
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Questionnaire')}</p>
-								<p class="record-field__value">
-									{selectedTemplateVersionId
-										? setupUi('Ready')
-										: setupUi('Save questionnaire first')}
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">{setupUi('Final check')}</p>
+								<h5 class="record-row__title">
+									{currentLaunchState().collectionButtonAvailable
+										? setupUi('Ready to collect')
+										: setupUi('Check before collection')}
+								</h5>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{currentLaunchState().nextActionLabel}
 								</p>
 							</div>
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Results setup')}</p>
-								<p class="record-field__value">
-									{localState.scoringRuleId ?? workspace.scoring?.id
-										? setupUi('Ready')
-										: setupUi('Save results setup first')}
-								</p>
-							</div>
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Measurement')}</p>
-								<p class="record-field__value">
-									{selectedCampaignId ? selectedCampaignLabel : setupUi('Create measurement first')}
-								</p>
-							</div>
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Status')}</p>
-								<p class="record-field__value">{readinessLabel()}</p>
-							</div>
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Recipient selection')}</p>
-								<p class="record-field__value">{currentLaunchState().recipientSummary}</p>
-							</div>
+							<StatusBadge
+								status={currentLaunchState().collectionButtonAvailable ? 'ready' : 'neutral'}
+								label={currentLaunchState().collectionButtonAvailable ? setupUi('Ready') : setupUi('Check')}
+							/>
 						</div>
 					</div>
 					{#if readinessResult?.issues.length}
-						<ul class="grid gap-2" aria-label={setupUi('Launch checklist issues')}>
+						<ul class="grid gap-2" aria-label={setupUi('Setup issues')}>
 							{#each readinessResult.issues as issue}
 								<li class="text-sm text-[var(--color-text-muted)]">
 									{launchIssueLabel(issue)}
@@ -3411,24 +3399,6 @@
 						onclick: checkLaunchReadiness
 					})}
 				{/if}
-			</div>
-			<div class="action-row">
-				<button
-					type="button"
-					class="secondary-button"
-					disabled={!canGoPrevious}
-					onclick={goToPreviousSetupAction}
-				>
-					Previous step
-				</button>
-				<button
-					type="button"
-					class="secondary-button"
-					disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
-					onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
-				>
-					{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : setupUi('Next step')}
-				</button>
 			</div>
 		</section>
 
@@ -3902,6 +3872,25 @@
 			{/if}
 		</section>
 		{/if}
+
+		<div class="action-row setup-step-navigation">
+			<button
+				type="button"
+				class="secondary-button"
+				disabled={!canGoPrevious}
+				onclick={goToPreviousSetupAction}
+			>
+				{setupUi('Previous step')}
+			</button>
+			<button
+				type="button"
+				class="secondary-button"
+				disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
+				onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
+			>
+				{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : setupUi('Next step')}
+			</button>
+		</div>
 
 		{#if assignmentResult?.assignmentCount || assignmentError}
 		<section class="record-row setup-current-task" aria-labelledby="prepared-invitation-roster-heading">

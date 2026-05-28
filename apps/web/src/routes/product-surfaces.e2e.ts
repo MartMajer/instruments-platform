@@ -4684,7 +4684,7 @@ test('setup action hierarchy starts editable studies on the current setup task',
 	const preparation = setup.getByRole('region', { name: 'Study preparation' });
 	const actions = setup.getByRole('group', { name: 'Preparation actions' });
 	const currentTask = actions.getByRole('region', {
-		name: /Build questionnaire|Review results setup|Measurement and recipients|Launch check/
+		name: /Build questionnaire|Review results setup|Measurement and recipients|Ready to collect/
 	});
 	const setupPath = actions.getByRole('list', { name: 'Setup path' });
 

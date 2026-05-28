@@ -908,9 +908,8 @@ const en = {
 					description: 'Create the collection round, choose how people answer, and save the recipient selection.'
 				},
 				readiness: {
-					title: 'Launch check',
-					description:
-						'Check the questionnaire, result outputs, measurement, recipients, and policies before collection starts.'
+					title: 'Ready to collect',
+					description: 'Run one final check, then open Collection to share access.'
 				}
 			},
 			disabled: {
@@ -929,13 +928,13 @@ const en = {
 				createWaveFirstStatus: 'Create measurement first',
 				createWaveFirstNext: 'Create and save the measurement before checking launch.',
 				runLaunchCheckFirst: 'Run launch check first',
-				launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
-				launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
+				launchPassedSaveRecipients: 'Save recipients to continue',
+				launchPassedChooseAccess: 'Ready: choose public link or save recipients',
 				saveRecipientsForIdentified:
-					'Save recipients below before launch so Collection can create identified access.',
+					'Save recipients above before launch so Collection can create identified access.',
 				openCollectionOrSaveRecipients:
-					'Open Collection to launch with a public link, or save recipients below before launch.',
-				launchPassedWithRecipients: 'Launch check passed with saved recipients',
+					'Open Collection to launch with a public link, or save recipients above before launch.',
+				launchPassedWithRecipients: 'Ready with saved recipients',
 				openCollectionStartSavedRecipients:
 					'Open Collection to start the measurement and send the saved recipients.',
 				openCollectionLaunch: 'Open Collection launch',
@@ -948,10 +947,10 @@ const en = {
 					`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
 						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 					} ready.`,
-				noSavedIdentified: 'No saved recipients yet; save recipients before launching access for invited people only.',
+				noSavedIdentified: 'No saved recipients yet; save recipients above before launching access for invited people only.',
 				noSavedLongitudinal:
-					'No saved recipients; save recipients for invited-only access, or use a public link and let respondents enter their repeat code.',
-				noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
+					'No saved recipients; save recipients above for invited-only access, or use a public link and let respondents enter their repeat code.',
+				noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients above.'
 			},
 			launchPlan: {
 				title: 'Launch plan',
@@ -981,7 +980,7 @@ const en = {
 					'No saved recipients yet. You can still launch anonymous collection with a public link.',
 				saveRecipientsBeforeIdentifiedLaunch:
 					'Save recipients before opening Collection for identified launch.',
-				launchPassedOpenCollection: 'Launch check passed; open Collection to start the measurement.',
+				launchPassedOpenCollection: 'Ready; open Collection to start the measurement.',
 				runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 			},
 			designMap: {
@@ -3196,9 +3195,8 @@ const hr: typeof en = {
 					description: 'Izradite krug prikupljanja, odaberite kako ljudi odgovaraju i spremite odabir primatelja.'
 				},
 				readiness: {
-					title: 'Provjera pokretanja',
-					description:
-						'Provjerite upitnik, postavljanje rezultata, mjerenje, primatelje i pravila prije početka prikupljanja.'
+					title: 'Spremno za prikupljanje',
+					description: 'Pokrenite završnu provjeru, zatim otvorite Prikupljanje za dijeljenje pristupa.'
 				}
 			},
 			disabled: {
@@ -3217,13 +3215,13 @@ const hr: typeof en = {
 				createWaveFirstStatus: 'Prvo izradite mjerenje',
 				createWaveFirstNext: 'Izradite i spremite mjerenje prije provjere pokretanja.',
 				runLaunchCheckFirst: 'Prvo pokrenite provjeru',
-				launchPassedSaveRecipients: 'Provjera je prošla; spremite primatelje za identificirani pristup',
-				launchPassedChooseAccess: 'Provjera je prošla; odaberite javnu poveznicu ili spremite primatelje',
+				launchPassedSaveRecipients: 'Spremite primatelje za nastavak',
+				launchPassedChooseAccess: 'Spremno: javna poveznica ili spremljeni primatelji',
 				saveRecipientsForIdentified:
-					'Spremite primatelje ispod prije pokretanja kako bi Prikupljanje moglo izraditi identificirani pristup.',
+					'Spremite primatelje iznad prije pokretanja kako bi Prikupljanje moglo izraditi identificirani pristup.',
 				openCollectionOrSaveRecipients:
-					'Otvorite Prikupljanje za pokretanje javnom poveznicom ili spremite primatelje ispod prije pokretanja.',
-				launchPassedWithRecipients: 'Provjera je prošla sa spremljenim primateljima',
+					'Otvorite Prikupljanje za pokretanje javnom poveznicom ili spremite primatelje iznad prije pokretanja.',
+				launchPassedWithRecipients: 'Spremno sa spremljenim primateljima',
 				openCollectionStartSavedRecipients:
 					'Otvorite Prikupljanje za pokretanje mjerenja i slanje spremljenim primateljima.',
 				openCollectionLaunch: 'Otvori pokretanje u Prikupljanju',
@@ -3236,10 +3234,10 @@ const hr: typeof en = {
 					`${selectionCount} ${selectionCount === 1 ? 'odabir spremljen' : 'odabira spremljeno'}, ${pairCount} ${
 						pairCount === 1 ? 'pozivni par spreman' : 'pozivnih parova spremno'
 					}.`,
-				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih prije pokretanja samo za pozvane.',
+				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih iznad prije pokretanja samo za pozvane.',
 				noSavedLongitudinal:
-					'Nema spremljenih primatelja; spremite primatelje za pristup samo za pozvane ili upotrijebite javnu poveznicu i neka sudionici unesu svoj ponovni kod.',
-				noSavedAnonymous: 'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje ispod.'
+					'Nema spremljenih primatelja; spremite primatelje iznad za pristup samo za pozvane ili upotrijebite javnu poveznicu i neka sudionici unesu svoj ponovni kod.',
+				noSavedAnonymous: 'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje iznad.'
 			},
 			launchPlan: {
 				title: 'Plan pokretanja',
@@ -3269,7 +3267,7 @@ const hr: typeof en = {
 					'Nema spremljenih primatelja. Anonimno prikupljanje još možete pokrenuti javnom poveznicom.',
 				saveRecipientsBeforeIdentifiedLaunch:
 					'Spremite primatelje prije otvaranja Prikupljanja za identificirano pokretanje.',
-				launchPassedOpenCollection: 'Provjera je prošla; otvorite Prikupljanje za pokretanje mjerenja.',
+				launchPassedOpenCollection: 'Spremno; otvorite Prikupljanje za pokretanje mjerenja.',
 				runLaunchCheckBeforeCollection: 'Pokrenite provjeru prije otvaranja Prikupljanja.'
 			},
 			designMap: {

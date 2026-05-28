@@ -262,9 +262,8 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 				'Create the collection round, choose how people answer, and save the recipient selection.'
 		},
 		readiness: {
-			title: 'Launch check',
-			description:
-				'Check the questionnaire, result outputs, measurement, recipients, and policies before collection starts.'
+			title: 'Ready to collect',
+			description: 'Run one final check, then open Collection to share access.'
 		}
 	},
 	disabled: {
@@ -283,13 +282,13 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		createWaveFirstStatus: 'Create measurement first',
 		createWaveFirstNext: 'Create and save the measurement before checking launch.',
 		runLaunchCheckFirst: 'Run launch check first',
-		launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
-		launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
+		launchPassedSaveRecipients: 'Save recipients to continue',
+		launchPassedChooseAccess: 'Ready: choose public link or save recipients',
 		saveRecipientsForIdentified:
-			'Save recipients below before launch so Collection can create identified access.',
+			'Save recipients above before launch so Collection can create identified access.',
 		openCollectionOrSaveRecipients:
-			'Open Collection to launch with a public link, or save recipients below before launch.',
-		launchPassedWithRecipients: 'Launch check passed with saved recipients',
+			'Open Collection to launch with a public link, or save recipients above before launch.',
+		launchPassedWithRecipients: 'Ready with saved recipients',
 		openCollectionStartSavedRecipients:
 			'Open Collection to start the measurement and send the saved recipients.',
 		openCollectionLaunch: 'Open Collection launch',
@@ -302,10 +301,10 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 			`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
 				pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 			} ready.`,
-		noSavedIdentified: 'No saved recipients yet; save recipients before launching access for invited people only.',
+		noSavedIdentified: 'No saved recipients yet; save recipients above before launching access for invited people only.',
 		noSavedLongitudinal:
-			'No saved recipients; save recipients for invited-only access, or use a public link and let respondents enter their repeat code.',
-		noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
+			'No saved recipients; save recipients above for invited-only access, or use a public link and let respondents enter their repeat code.',
+		noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients above.'
 	},
 	launchPlan: {
 		title: 'Launch plan',
@@ -334,7 +333,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 			'No saved recipients yet. You can still launch anonymous collection with a public link.',
 		saveRecipientsBeforeIdentifiedLaunch:
 			'Save recipients before opening Collection for identified launch.',
-		launchPassedOpenCollection: 'Launch check passed; open Collection to start the measurement.',
+		launchPassedOpenCollection: 'Ready; open Collection to start the measurement.',
 		runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 	},
 	designMap: {

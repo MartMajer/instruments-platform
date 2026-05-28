@@ -169,12 +169,12 @@ describe('selected-series setup workflow model', () => {
 		);
 
 		expect(launchState).toEqual({
-			statusLabel: 'Launch check passed; choose public link or save recipients',
+			statusLabel: 'Ready: choose public link or save recipients',
 			nextActionLabel:
-				'Open Collection to launch with a public link, or save recipients below before launch.',
+				'Open Collection to launch with a public link, or save recipients above before launch.',
 			collectionButtonLabel: 'Open Collection launch',
 			collectionButtonAvailable: true,
-			recipientSummary: 'No saved recipients; launch with a public link or save recipients below.'
+			recipientSummary: 'No saved recipients; launch with a public link or save recipients above.'
 		});
 	});
 
@@ -197,7 +197,7 @@ describe('selected-series setup workflow model', () => {
 			}
 		);
 
-		expect(launchState.statusLabel).toBe('Launch check passed with saved recipients');
+		expect(launchState.statusLabel).toBe('Ready with saved recipients');
 		expect(launchState.recipientSummary).toBe('1 selection saved, 2 invitation pairs ready.');
 		expect(launchState.nextActionLabel).toBe(
 			'Open Collection to start the measurement and send the saved recipients.'
