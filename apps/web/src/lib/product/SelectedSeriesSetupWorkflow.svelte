@@ -1955,7 +1955,14 @@
 		'Add a rating scale, recommendation scale, or number question before saving results.':
 			'Dodajte ljestvicu procjene, ljestvicu preporuke ili brojčano pitanje prije spremanja rezultata.',
 		'Add result output': 'Dodaj izlaz rezultata',
+		'Add another result': 'Dodaj dodatni rezultat',
 		'Collected but not scored': 'Prikupljeno bez bodovanja',
+		'Advanced result setup': 'Napredno postavljanje rezultata',
+		'Edit result names, export codes, scoring audit, and technical checks.':
+			'Uredite nazive rezultata, kodove izvoza, provjeru bodovanja i dodatne provjere.',
+		'Result options': 'Opcije rezultata',
+		'Question selection': 'Odabir pitanja',
+		'Reverse scored': 'Obrnuto bodovano',
 		'Scoring plan preview': 'Pregled plana bodovanja',
 		'Reverse-scoring review': 'Pregled obrnutog bodovanja',
 		'question is': 'pitanje je',
@@ -3068,15 +3075,6 @@
 							</div>
 						</div>
 					{:else}
-						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Result calculation')}</h5>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{setupUi(
-									'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.'
-								)}
-							</p>
-						</div>
-
 						<div class="grid gap-4">
 							{#if scoreOutputs.length === 0}
 								<div class="empty-panel">
@@ -3092,14 +3090,132 @@
 									</button>
 								</div>
 							{:else}
-								<div class="record-row">
-									<div class="record-row__header">
-										<div>
-											<p class="record-field__label">{setupUi('Result outputs plan')}</p>
-											<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
+								{#each scoreOutputs as output, outputIndex (output.localId)}
+									<div class="record-row">
+										<div class="setup-current-task__header">
+											<div>
+												<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
+												<h5 class="record-row__title">
+													{output.name.trim() || `${setupUi('Result')} ${outputIndex + 1}`}
+												</h5>
+												<p class="setup-current-task__title">
+													{output.includedQuestionCodes.length}
+													{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
+												</p>
+											</div>
+											{#if scoreOutputs.length > 1}
+												<button
+													type="button"
+													class="secondary-button"
+													onclick={() => deleteScoreOutput(output.localId)}
+												>
+													<Trash2 size={16} aria-hidden="true" />
+													<span>{setupUi('Remove result')}</span>
+												</button>
+											{/if}
 										</div>
-										<StatusBadge status="neutral" label={setupUi('Result outputs plan')} />
+
+										<div class="record-grid">
+											<label class="field">
+												<span>{setupUi('Calculation')}</span>
+												<select
+													value={output.calculation}
+													onchange={(event) =>
+														updateScoreOutput(output.localId, {
+															calculation: event.currentTarget.value as ScoreCalculation
+														})}
+												>
+													<option value="mean">{setupUi('Average selected answers')}</option>
+													<option value="sum">{setupUi('Sum selected answers')}</option>
+												</select>
+											</label>
+											<label class="field">
+												<span>{setupUi('Missing answers')}</span>
+												<select
+													value={output.missingStrategy}
+													onchange={(event) =>
+														updateScoreOutput(output.localId, {
+															missingStrategy: event.currentTarget.value as ScoreMissingStrategy
+														})}
+												>
+													<option value="require_all">{setupUi('Require every selected answer')}</option>
+													<option value="min_valid_count">{setupUi('Allow a score after enough answers')}</option>
+												</select>
+											</label>
+											{#if output.missingStrategy === 'min_valid_count'}
+												<label class="field">
+													<span>{setupUi('Minimum answered')}</span>
+													<input
+														type="number"
+														min="1"
+														max={Math.max(1, output.includedQuestionCodes.length)}
+														value={output.minValidCount}
+														oninput={(event) =>
+															updateScoreOutput(output.localId, {
+																minValidCount: parseScoreMinValidCount(event.currentTarget.value)
+															})}
+													/>
+												</label>
+											{/if}
+										</div>
+
+										<div class="record-row">
+											<h6 class="record-row__title">{setupUi('Question selection')}</h6>
+											{#if scoreableQuestionRows.length}
+												<div class="grid gap-2">
+													{#each scoreableQuestionRows as question (question.code)}
+														<div class="record-field">
+															<label class="checkbox-field">
+																<input
+																	type="checkbox"
+																	checked={output.includedQuestionCodes.includes(question.code)}
+																	onchange={(event) =>
+																		toggleScoreQuestion(
+																			output.localId,
+																			question.code,
+																			event.currentTarget.checked
+																		)}
+																/>
+																<span>{question.textDefault.trim() || question.code}</span>
+															</label>
+															<p class="text-sm text-[var(--color-text-muted)]">
+																{questionPreviewDetail(question)}
+																{#if question.reverseCoded}
+																	<span class="font-semibold"> · {setupUi('Reverse scored')}</span>
+																{/if}
+															</p>
+														</div>
+													{/each}
+												</div>
+											{:else}
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{setupUi(
+														'Add a rating scale, recommendation scale, or number question before saving results.'
+													)}
+												</p>
+											{/if}
+										</div>
 									</div>
+								{/each}
+							{/if}
+						</div>
+
+						{#if scoreOutputs.length > 0}
+							<details class="record-row">
+								<summary class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Advanced result setup')}</p>
+										<h5 class="record-row__title">{setupUi('Result outputs plan')}</h5>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi(
+												'Edit result names, export codes, scoring audit, and technical checks.'
+											)}
+										</p>
+									</div>
+									<StatusBadge status="neutral" label={setupUi('Advanced result setup')} />
+								</summary>
+
+								<div class="mt-4 grid gap-4">
 									<div class="questionnaire-blueprint-review">
 										{#each resultsBlueprintReview.items as item (item.id)}
 											<div class="questionnaire-blueprint-review__item" data-state={item.status}>
@@ -3108,201 +3224,116 @@
 											</div>
 										{/each}
 									</div>
-								</div>
-							{/if}
-							{#each scoreOutputs as output, outputIndex (output.localId)}
-								<div class="record-row">
-									<div class="setup-current-task__header">
-										<div>
-											<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
-											<h5 class="record-row__title">
-												{output.name.trim() || `${setupUi('Result')} ${outputIndex + 1}`}
-											</h5>
-											<p class="setup-current-task__title">
-												{output.includedQuestionCodes.length}
-												{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
-											</p>
+
+									{#each scoreOutputs as output, outputIndex (output.localId)}
+										<div class="record-row">
+											<div class="record-row__header">
+												<div>
+													<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
+													<h5 class="record-row__title">{setupUi('Result options')}</h5>
+												</div>
+												{#if scoreOutputs.length > 1}
+													<button
+														type="button"
+														class="secondary-button"
+														onclick={() => deleteScoreOutput(output.localId)}
+													>
+														<Trash2 size={16} aria-hidden="true" />
+														<span>{setupUi('Remove result')}</span>
+													</button>
+												{/if}
+											</div>
+											<div class="grid gap-4 lg:grid-cols-2">
+												<label class="field">
+													<span>{setupUi('Result name')}</span>
+													<input
+														value={output.name}
+														oninput={(event) =>
+															updateScoreOutput(output.localId, { name: event.currentTarget.value })}
+													/>
+												</label>
+												<label class="field">
+													<span>{setupUi('Result code')}</span>
+													<input
+														value={output.code}
+														oninput={(event) =>
+															updateScoreOutput(output.localId, { code: event.currentTarget.value })}
+													/>
+													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+														{setupUi('Used as the report/export dimension code.')}
+													</span>
+												</label>
+											</div>
 										</div>
-										{#if scoreOutputs.length > 1}
-											<button
-												type="button"
-												class="secondary-button"
-												onclick={() => deleteScoreOutput(output.localId)}
-											>
-												<Trash2 size={16} aria-hidden="true" />
-												<span>{setupUi('Remove result')}</span>
-											</button>
-										{/if}
+									{/each}
+
+									<div class="action-row">
+										<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
+											<Plus size={16} aria-hidden="true" />
+											<span>{setupUi('Add another result')}</span>
+										</button>
 									</div>
 
-									<div class="grid gap-4 lg:grid-cols-2">
-										<label class="field">
-											<span>{setupUi('Result name')}</span>
-											<input
-												value={output.name}
-												oninput={(event) =>
-													updateScoreOutput(output.localId, { name: event.currentTarget.value })}
-											/>
-										</label>
-										<label class="field">
-											<span>{setupUi('Result code')}</span>
-											<input
-												value={output.code}
-												oninput={(event) =>
-													updateScoreOutput(output.localId, { code: event.currentTarget.value })}
-											/>
-											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-												{setupUi('Used as the report/export dimension code.')}
-											</span>
-										</label>
-										<label class="field">
-											<span>{setupUi('Calculation')}</span>
-											<select
-												value={output.calculation}
-												onchange={(event) =>
-													updateScoreOutput(output.localId, {
-														calculation: event.currentTarget.value as ScoreCalculation
-													})}
-											>
-												<option value="mean">{setupUi('Average selected answers')}</option>
-												<option value="sum">{setupUi('Sum selected answers')}</option>
-											</select>
-										</label>
-										<label class="field">
-											<span>{setupUi('Missing answers')}</span>
-											<select
-												value={output.missingStrategy}
-												onchange={(event) =>
-													updateScoreOutput(output.localId, {
-														missingStrategy: event.currentTarget.value as ScoreMissingStrategy
-													})}
-											>
-												<option value="require_all">{setupUi('Require every selected answer')}</option>
-												<option value="min_valid_count">{setupUi('Allow a score after enough answers')}</option>
-											</select>
-										</label>
-										{#if output.missingStrategy === 'min_valid_count'}
-											<label class="field">
-												<span>{setupUi('Minimum answered')}</span>
-												<input
-													type="number"
-													min="1"
-													max={Math.max(1, output.includedQuestionCodes.length)}
-													value={output.minValidCount}
-													oninput={(event) =>
-														updateScoreOutput(output.localId, {
-															minValidCount: parseScoreMinValidCount(event.currentTarget.value)
-														})}
-												/>
-											</label>
-										{/if}
-									</div>
-
-									<div class="record-row">
-										<h6 class="record-row__title">{setupUi('Questions in this result')}</h6>
-										{#if scoreableQuestionRows.length}
+									{#if collectedContextSummaries.length}
+										<div class="record-row">
+											<h5 class="record-row__title">{setupUi('Collected but not scored')}</h5>
 											<div class="grid gap-2">
-												{#each scoreableQuestionRows as question (question.code)}
+												{#each collectedContextSummaries as question (question.code)}
 													<div class="record-field">
-														<label class="checkbox-field">
-															<input
-																type="checkbox"
-																checked={output.includedQuestionCodes.includes(question.code)}
-																onchange={(event) =>
-																	toggleScoreQuestion(
-																		output.localId,
-																		question.code,
-																		event.currentTarget.checked
-																	)}
-															/>
-															<span>{question.textDefault.trim() || question.code}</span>
-														</label>
-														<p class="text-sm text-[var(--color-text-muted)]">
-															{questionPreviewDetail(question)}
+														<p class="record-field__label">
+															{question.dimensionLabel} - {question.typeLabel}
 														</p>
-														<p class="text-sm text-[var(--color-text-muted)]">
-															{setupUi(questionScoringDetail(question).label)}.
-															{setupUi(questionScoringDetail(question).detail)}
+														<p class="record-field__value">
+															{question.text}
 														</p>
 													</div>
 												{/each}
 											</div>
-										{:else}
-											<p class="text-sm text-[var(--color-text-muted)]">
-												Add a rating scale, recommendation scale, or number question before saving results.
-											</p>
-										{/if}
+										</div>
+									{/if}
+
+									<div class="record-row">
+										<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
+										<div class="grid gap-2">
+											{#each scorePlanSummaries as summary (summary.localId)}
+												<div class="record-field">
+													<p class="record-field__label">{summary.code}</p>
+													<p class="record-field__value">{summary.name}</p>
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
+														{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
+													</p>
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
+														{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
+													</p>
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{scoreOutputMissingDataDetail(summary.localId)}
+													</p>
+												</div>
+											{/each}
+										</div>
 									</div>
-								</div>
-							{/each}
-						</div>
 
-						{#if scoreOutputs.length > 0}
-							<div class="action-row">
-								<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
-									<Plus size={16} aria-hidden="true" />
-									<span>{setupUi('Add result output')}</span>
-								</button>
-							</div>
-						{/if}
-
-						{#if collectedContextSummaries.length}
-							<div class="record-row">
-								<h5 class="record-row__title">{setupUi('Collected but not scored')}</h5>
-								<div class="grid gap-2">
-									{#each collectedContextSummaries as question (question.code)}
-										<div class="record-field">
-											<p class="record-field__label">{question.dimensionLabel} - {question.typeLabel}</p>
-											<p class="record-field__value">
-												{question.text}
+									{#if reverseScoringReview.reverseScoredQuestionCount > 0}
+										<div class="record-row">
+											<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{reverseScoringReview.reverseScoredQuestionCount}
+												{reverseScoringReview.reverseScoredQuestionCount === 1
+													? setupUi('question is')
+													: setupUi('questions are')}
+												{setupUi('reversed before scoring')}:
+												{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
+											</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels.join(', ') ||
+													setupUi('no result outputs yet')}.
 											</p>
 										</div>
-									{/each}
+									{/if}
 								</div>
-							</div>
-						{/if}
-
-						{#if scoreOutputs.length > 0}
-							<div class="record-row">
-								<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
-								<div class="grid gap-2">
-									{#each scorePlanSummaries as summary (summary.localId)}
-										<div class="record-field">
-											<p class="record-field__label">{summary.code}</p>
-											<p class="record-field__value">{summary.name}</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
-												{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
-											</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
-												{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
-											</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{scoreOutputMissingDataDetail(summary.localId)}
-											</p>
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-
-						{#if scoreOutputs.length > 0 && reverseScoringReview.reverseScoredQuestionCount > 0}
-							<div class="record-row">
-								<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{reverseScoringReview.reverseScoredQuestionCount}
-									{reverseScoringReview.reverseScoredQuestionCount === 1
-										? setupUi('question is')
-										: setupUi('questions are')}
-									{setupUi('reversed before scoring')}:
-									{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
-								</p>
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels.join(', ') ||
-										setupUi('no result outputs yet')}.
-								</p>
-							</div>
+							</details>
 						{/if}
 
 						{#if scoreOutputs.length > 0 && scoreOutputErrors.length > 0}
