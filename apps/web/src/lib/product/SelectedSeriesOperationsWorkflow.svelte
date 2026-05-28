@@ -1209,63 +1209,36 @@
 				{operationsBodyCopy.progressBody}
 			</p>
 		</div>
-		<div class="grid justify-items-end gap-2">
-			<StatusBadge status={collectionStatus.overallStatus} label={collectionStatus.overallLabel} />
-			<p class="text-xs font-semibold text-[var(--color-text-muted)]">
-				{operationsBodyCopy.stepsComplete(operationsPath.completedCount, operationsPath.totalCount)}
-			</p>
-		</div>
 	</div>
 
 	{#if refreshWarning}
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
-	<article class="score-result-panel report-proof-panel" role="region" aria-label={operationsBodyCopy.statusKicker}>
-		<div class="score-result-panel__header">
-			<div>
-				<p class="product-kicker">{operationsBodyCopy.statusKicker}</p>
-				<h4 class="record-row__title">{collectionStatus.headline}</h4>
-				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-					{collectionStatus.guidance}
-				</p>
-			</div>
-			<StatusBadge status={collectionStatus.overallStatus} label={collectionStatus.overallLabel} />
-		</div>
-		<dl class="record-grid">
-			{#each collectionStatus.lanes as lane (lane.id)}
-				<div class="record-field">
-					<dt class="record-field__label">{lane.label}</dt>
-					<dd class="record-field__value">{lane.title}</dd>
-					<dd class="text-sm text-[var(--color-text-muted)]">{lane.detail}</dd>
+	<div class="grid gap-3">
+		<p class="record-field__label">
+			{operationsBodyCopy.stepsComplete(operationsPath.completedCount, operationsPath.totalCount)}
+		</p>
+		<div class="setup-path" role="list" aria-label={operationsBodyCopy.pathAriaLabel}>
+			{#each operationsPath.steps as action, index (action.id)}
+				<div role="listitem">
+					<button
+						type="button"
+						class="setup-path__item"
+						data-state={displayedPathState(action)}
+						aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
+						onclick={() => selectAction(action.id)}
+					>
+						<span class="setup-path__marker">{index + 1}</span>
+						<span class="setup-path__content">
+							<span class="setup-path__title">{action.title}</span>
+							<span class="setup-path__description">{action.description}</span>
+						</span>
+						<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
+					</button>
 				</div>
 			{/each}
-		</dl>
-		<p class="result-line">
-			<span>{operationsBodyCopy.nextAction}</span>
-			<span>{collectionStatus.nextAction}</span>
-		</p>
-	</article>
-
-	<div class="setup-path" role="list" aria-label={operationsBodyCopy.pathAriaLabel}>
-		{#each operationsPath.steps as action, index (action.id)}
-			<div role="listitem">
-				<button
-					type="button"
-					class="setup-path__item"
-					data-state={displayedPathState(action)}
-					aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
-					onclick={() => selectAction(action.id)}
-				>
-					<span class="setup-path__marker">{index + 1}</span>
-					<span class="setup-path__content">
-						<span class="setup-path__title">{action.title}</span>
-						<span class="setup-path__description">{action.description}</span>
-					</span>
-					<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
-				</button>
-			</div>
-		{/each}
+		</div>
 	</div>
 
 	{#if !canManageSetup}

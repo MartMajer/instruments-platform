@@ -3773,7 +3773,7 @@
 			</div>
 
 			<div class="action-row">
-				<button type="button" class="primary-button" disabled={!canRunPreview} onclick={previewRespondentRule}>
+				<button type="button" class="secondary-button" disabled={!canRunPreview} onclick={previewRespondentRule}>
 					{#if previewState === 'submitting'}
 						<LoaderCircle size={17} aria-hidden="true" />
 					{:else}
@@ -3937,7 +3937,7 @@
 			</button>
 			<button
 				type="button"
-				class="secondary-button"
+				class={activeActionIdForView === 'readiness' ? 'primary-button' : 'secondary-button'}
 				disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
 				onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
 			>
