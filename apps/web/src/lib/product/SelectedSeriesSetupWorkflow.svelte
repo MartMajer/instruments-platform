@@ -32,9 +32,7 @@
 		defaultCampaignWaveName,
 		selectSetupCampaignId,
 		selectSetupTemplateVersionId,
-		toSelectedSeriesSetupLaunchPlan,
 		toSelectedSeriesSetupLaunchState,
-		toSelectedSeriesSetupDesignMap,
 		toSelectedSeriesSetupPath,
 		toSelectedSeriesSetupPathStepDisplay,
 		toSelectedSeriesSetupWaveContext,
@@ -241,9 +239,6 @@
 		campaignId: campaignResult?.id ?? null
 	});
 	const setupPath = $derived(toSelectedSeriesSetupPath(workspace, localState, setupWorkflowCopy));
-	const setupDesignMap = $derived(
-		toSelectedSeriesSetupDesignMap(workspace, localState, setupWorkflowCopy)
-	);
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('template');
@@ -321,15 +316,6 @@
 		scoreableQuestionRows.filter((row) =>
 			scoreOutputs.some((output) => output.includedQuestionCodes.includes(row.code))
 		)
-	);
-	const launchPlan = $derived(
-		toSelectedSeriesSetupLaunchPlan(workspace, localState, {
-			responseIdentityMode: selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode,
-			savedRecipientSelectionCount: savedRuleResult?.rules.length ?? 0,
-			savedRecipientPairCount: assignmentResult?.assignmentCount ?? 0,
-			readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
-			waveName: selectedCampaignId ? selectedCampaignLabel : campaignForm.name
-		}, setupWorkflowCopy)
 	);
 	const waveContext = $derived(toSelectedSeriesSetupWaveContext(workspace, localState, setupWorkflowCopy));
 	const previewRequiresTarget = $derived(
@@ -1307,32 +1293,6 @@
 		);
 	}
 
-	function designMapStatusLabel(status: string) {
-		if (status === 'ready') {
-			return setupBodyCopy.status.ready;
-		}
-
-		if (status === 'blocked') {
-			return setupUi('Blocked');
-		}
-
-		if (status === 'pending') {
-			return setupUi('Needs attention');
-		}
-
-		return setupUi(status);
-	}
-
-	function activeSetupStepEyebrow(): string {
-		return activeStep.id === currentActionId
-			? setupBodyCopy.currentSetupStep
-			: setupBodyCopy.selectedSetupStep;
-	}
-
-	function activeSetupStepLabel() {
-		return setupPathStepDisplay(activeStep).label;
-	}
-
 	function defaultPreviewRole(kind: PreviewRuleKind) {
 		if (kind === 'all_in_group') {
 			return 'group_member';
@@ -2216,39 +2176,15 @@
 			{@render SetupPath()}
 		</div>
 
-		<section class="record-row" aria-labelledby="study-design-map-heading">
-			<div class="record-row__header">
-				<div>
-					<p class="record-field__label">{setupUi('Study structure')}</p>
-					<h4 id="study-design-map-heading" class="record-row__title">{setupDesignMap.title}</h4>
-					<p class="text-sm text-[var(--color-text-muted)]">{setupDesignMap.summary}</p>
-				</div>
-			</div>
-			<div class="record-grid">
-				{#each setupDesignMap.items as item (item.id)}
-					<div class="record-field">
-						<div class="record-row__header">
-							<p class="record-field__label">{item.label}</p>
-							<StatusBadge status={item.status} label={designMapStatusLabel(item.status)} />
-						</div>
-						<p class="text-sm text-[var(--color-text-muted)]">{item.detail}</p>
-					</div>
-				{/each}
-			</div>
-		</section>
-
 		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
 			<div class="setup-current-task__header">
 				<div>
-					<p class="record-field__label">{activeSetupStepEyebrow()}</p>
 					<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
-					<p class="setup-current-task__title">{activeSetupStepLabel()}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
 				</div>
-				<StatusBadge
-					status={activeStep.status}
-					label={activeStep.pathState === 'done' ? setupBodyCopy.status.done : undefined}
-				/>
+				{#if activeStep.pathState === 'done'}
+					<StatusBadge status={activeStep.status} label={setupBodyCopy.status.done} />
+				{/if}
 			</div>
 			{#if activeStep.disabledReason}
 				<p class="text-sm text-[var(--color-text-muted)]">{activeStep.disabledReason}</p>
@@ -3329,21 +3265,23 @@
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'campaign'}
-					<div class="record-row">
-						<div class="record-row__header">
-							<div>
-								<p class="record-field__label">{setupUi('Measurement context')}</p>
-								<h5 class="record-row__title">{setupUi(waveContext.title)}</h5>
-								<p class="text-sm text-[var(--color-text-muted)]">{waveContext.summary}</p>
+					{#if workspace.summary.campaignCount > 0 || activeStep.pathState === 'done'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">{setupUi('Measurement context')}</p>
+									<h5 class="record-row__title">{setupUi(waveContext.title)}</h5>
+									<p class="text-sm text-[var(--color-text-muted)]">{waveContext.summary}</p>
+								</div>
+								<StatusBadge status={waveContext.status} label={waveContext.label} />
 							</div>
-							<StatusBadge status={waveContext.status} label={waveContext.label} />
+							<ul class="grid gap-2" aria-label={setupUi('Measurement setup guidance')}>
+								{#each waveContext.guidance as guidance}
+									<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
+								{/each}
+							</ul>
 						</div>
-						<ul class="grid gap-2" aria-label={setupUi('Measurement setup guidance')}>
-							{#each waveContext.guidance as guidance}
-								<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
-							{/each}
-						</ul>
-					</div>
+					{/if}
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
 							<h5 class="record-row__title">{setupUi('Measurement ready')}</h5>
@@ -3365,24 +3303,6 @@
 							</div>
 						</div>
 					{:else}
-						<div class="record-row">
-							<div class="record-row__header">
-								<div>
-									<p class="record-field__label">{setupUi('Launch plan')}</p>
-									<h5 class="record-row__title">{setupUi(launchPlan.label)}</h5>
-									<p class="text-sm text-[var(--color-text-muted)]">{launchPlan.summary}</p>
-								</div>
-								<StatusBadge status="neutral" label="Measurement plan" />
-							</div>
-							<div class="questionnaire-blueprint-review">
-								{#each launchPlan.items as item (item.id)}
-									<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-										<p class="record-field__label">{item.label}</p>
-										<p class="record-field__value">{item.detail}</p>
-									</div>
-								{/each}
-							</div>
-						</div>
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
 								<span>{setupUi('Measurement name')}</span>
