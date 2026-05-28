@@ -163,7 +163,7 @@
 		validityLabel: 'tenant_provided',
 		licenseType: 'unknown'
 	});
-	let templateName = $state('Study questionnaire');
+	let templateName = $state('');
 	let questionnaireLocale = $state('en');
 	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
@@ -246,7 +246,7 @@
 	);
 	const workflowActions = $derived(setupPath.steps);
 	const currentActionId = $derived(setupPath.currentActionId);
-	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('instrument');
+	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('template');
 	let activeActionInitialized = $state(false);
 	const activeActionIdForView = $derived(activeActionInitialized ? activeActionId : currentActionId);
 	const activeStep = $derived(
@@ -370,6 +370,12 @@
 	});
 
 	$effect(() => {
+		if (!templateName.trim()) {
+			templateName = workspace.template?.templateName ?? `${workspace.series.name} questionnaire`;
+		}
+	});
+
+	$effect(() => {
 		if (!campaignNameInitialized) {
 			campaignForm.name = defaultCampaignWaveName(workspace, setupWorkflowCopy);
 			campaignNameInitialized = true;
@@ -422,9 +428,10 @@
 		}
 
 		syncGeneratedScoringIfPristine(templateQuestionRows);
-		const result = await runAction('template', () =>
-			setupApi.createTemplateVersion(buildTemplateRequest())
-		);
+		const result = await runAction('template', async () => {
+			const instrumentId = await ensureQuestionnaireSourceId();
+			return setupApi.createTemplateVersion(buildTemplateRequest(instrumentId));
+		});
 
 		if (result) {
 			templateResult = result;
@@ -673,6 +680,17 @@
 		}
 	}
 
+	async function ensureQuestionnaireSourceId() {
+		const existingInstrumentId = instrumentResult?.id ?? workspace.template?.instrumentId ?? null;
+		if (existingInstrumentId) {
+			return existingInstrumentId;
+		}
+
+		const result = await setupApi.createPrivateInstrumentImport(instrumentForm);
+		instrumentResult = result;
+		return result.id;
+	}
+
 	async function createTestRecipients() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
@@ -799,12 +817,12 @@
 		}
 	}
 
-	function buildTemplateRequest(): CreateTemplateVersionRequest {
+	function buildTemplateRequest(instrumentId: string | null = null): CreateTemplateVersionRequest {
 		return {
 			templateName,
 			semver: '1.0.0',
 			defaultLocale: questionnaireLocale,
-			instrumentId: instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
+			instrumentId: instrumentId ?? instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
 			sections: questionDimensionSummaries.map((dimension, index) => ({
 				ordinal: index + 1,
 				code: dimension.code,
@@ -1176,31 +1194,34 @@
 	}
 
 	function addScoreOutput() {
-		scoreOutputs = appendScoreOutputRow(scoreOutputs, templateQuestionRows);
-		syncGeneratedScoringIfPristine(templateQuestionRows);
+		const nextOutputs = appendScoreOutputRow(scoreOutputs, templateQuestionRows);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
 	}
 
 	function deleteScoreOutput(localId: string) {
-		scoreOutputs = removeScoreOutputRow(scoreOutputs, localId);
-		syncGeneratedScoringIfPristine(templateQuestionRows);
+		const nextOutputs = removeScoreOutputRow(scoreOutputs, localId);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
 	}
 
 	function updateScoreOutput(localId: string, patch: Partial<ScoreOutputAuthoringRow>) {
-		scoreOutputs = scoreOutputs.map((output) =>
+		const nextOutputs = scoreOutputs.map((output) =>
 			output.localId === localId ? { ...output, ...patch } : output
 		);
-		const firstOutput = scoreOutputs[0];
+		scoreOutputs = nextOutputs;
+		const firstOutput = nextOutputs[0];
 		const ruleKey = firstOutput ? `custom.${scoreCodeFromName(firstOutput.code || firstOutput.name)}` : 'custom.total';
 		scoringForm = {
 			...scoringForm,
 			ruleKey,
-			produces: buildDefaultProduces(scoreOutputs)
+			produces: buildDefaultProduces(nextOutputs)
 		};
-		syncGeneratedScoringIfPristine(templateQuestionRows, ruleKey);
+		syncGeneratedScoringIfPristine(templateQuestionRows, ruleKey, nextOutputs);
 	}
 
 	function toggleScoreQuestion(outputLocalId: string, code: string, checked: boolean) {
-		scoreOutputs = scoreOutputs.map((output) =>
+		const nextOutputs = scoreOutputs.map((output) =>
 			output.localId === outputLocalId
 				? {
 						...output,
@@ -1210,7 +1231,8 @@
 					}
 				: output
 		);
-		syncGeneratedScoringIfPristine(templateQuestionRows);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
 	}
 
 	function parseScoreMinValidCount(value: string) {
@@ -1245,7 +1267,8 @@
 
 	function syncGeneratedScoringIfPristine(
 		rows: TemplateQuestionAuthoringRow[],
-		ruleKey = scoringForm.ruleKey
+		ruleKey = scoringForm.ruleKey,
+		outputs: ScoreOutputAuthoringRow[] = scoreOutputs
 	) {
 		if (scoringDocumentManuallyEdited) {
 			return;
@@ -1254,8 +1277,8 @@
 		scoringForm = {
 			...scoringForm,
 			ruleKey,
-			document: buildDefaultScoringDocument(ruleKey, rows),
-			produces: buildDefaultProduces(scoreOutputs)
+			document: buildDefaultScoringDocument(ruleKey, rows, outputs),
+			produces: buildDefaultProduces(outputs)
 		};
 	}
 
@@ -1514,9 +1537,10 @@
 
 	function buildDefaultScoringDocument(
 		ruleId: string,
-		rows: TemplateQuestionAuthoringRow[] = templateQuestionRows
+		rows: TemplateQuestionAuthoringRow[] = templateQuestionRows,
+		outputs: ScoreOutputAuthoringRow[] = scoreOutputs
 	) {
-		return buildScoringDocument(ruleId, rows, scoreOutputs);
+		return buildScoringDocument(ruleId, rows, outputs);
 	}
 
 	function buildDefaultProduces(outputs: ScoreOutputAuthoringRow[] = scoreOutputs) {
@@ -2273,10 +2297,6 @@
 						</div>
 					{:else}
 						<div class="grid gap-4 lg:grid-cols-2">
-							<label class="field">
-								<span>{setupUi('Questionnaire name')}</span>
-								<input bind:value={templateName} />
-							</label>
 							<label class="field">
 								<span>{setupUi('Language')}</span>
 								<select bind:value={questionnaireLocale}>
@@ -3230,7 +3250,7 @@
 						</div>
 
 						<div class="action-row">
-							<button type="button" class="secondary-button" onclick={addScoreOutput}>
+							<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
 								<Plus size={16} aria-hidden="true" />
 								<span>{setupUi('Add result output')}</span>
 							</button>

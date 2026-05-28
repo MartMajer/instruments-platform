@@ -16,14 +16,14 @@ import {
 
 describe('selected-series setup workflow model', () => {
 	it('names the next collection wave from the existing campaign count', () => {
-		expect(defaultCampaignWaveName(emptyWorkspace)).toBe('Wave 1');
-		expect(defaultCampaignWaveName(configuredWorkspace)).toBe('Wave 2');
+		expect(defaultCampaignWaveName(emptyWorkspace)).toBe('Measurement 1');
+		expect(defaultCampaignWaveName(configuredWorkspace)).toBe('Measurement 2');
 		expect(
 			defaultCampaignWaveName({
 				...configuredWorkspace,
 				summary: { ...configuredWorkspace.summary, campaignCount: 4 }
 			})
-		).toBe('Wave 5');
+		).toBe('Measurement 5');
 	});
 
 	it('keeps empty setup actions explicit about missing prerequisites', () => {
@@ -31,16 +31,10 @@ describe('selected-series setup workflow model', () => {
 
 		expect(actions).toEqual([
 			expect.objectContaining({
-				id: 'instrument',
-				status: 'pending',
-				available: true,
-				disabledReason: null
-			}),
-			expect.objectContaining({
 				id: 'template',
 				status: 'blocked',
 				available: true,
-				disabledReason: 'Choose the questionnaire source first.'
+				disabledReason: null
 			}),
 			expect.objectContaining({
 				id: 'scoring',
@@ -58,7 +52,7 @@ describe('selected-series setup workflow model', () => {
 				id: 'readiness',
 				status: 'not_available',
 				available: false,
-				disabledReason: 'Create the collection wave first.'
+				disabledReason: 'Create the measurement first.'
 			})
 		]);
 	});
@@ -124,11 +118,10 @@ describe('selected-series setup workflow model', () => {
 		expect(actions.find((action) => action.id === 'readiness')).toMatchObject({
 			status: 'not_available',
 			available: false,
-			disabledReason: 'Create the collection wave first.'
+			disabledReason: 'Create the measurement first.'
 		});
 		expect(path.currentActionId).toBe('campaign');
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'instrument', state: 'done' },
 			{ id: 'template', state: 'done' },
 			{ id: 'scoring', state: 'done' },
 			{ id: 'campaign', state: 'current' },
@@ -149,10 +142,7 @@ describe('selected-series setup workflow model', () => {
 			'local-template-version-id'
 		);
 		expect(selectSetupCampaignId(configuredWorkspace, localState)).toBe('local-campaign-id');
-		expect(actions.find((action) => action.id === 'instrument')).toMatchObject({
-			status: 'ready',
-			available: true
-		});
+		expect(actions.find((action) => action.id === 'instrument')).toBeUndefined();
 		expect(actions.find((action) => action.id === 'scoring')).toMatchObject({
 			status: 'ready',
 			available: true
@@ -210,7 +200,7 @@ describe('selected-series setup workflow model', () => {
 		expect(launchState.statusLabel).toBe('Launch check passed with saved recipients');
 		expect(launchState.recipientSummary).toBe('1 selection saved, 2 invitation pairs ready.');
 		expect(launchState.nextActionLabel).toBe(
-			'Open Collection to start the wave and send the saved recipients.'
+			'Open Collection to start the measurement and send the saved recipients.'
 		);
 	});
 
@@ -229,13 +219,13 @@ describe('selected-series setup workflow model', () => {
 		expect(plan).toEqual({
 			title: 'Launch plan',
 			label: 'Wave 1',
-			summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
+			summary: 'Prepare the measurement, response mode, recipients, and Collection handoff before launch.',
 			items: [
 				{
 					id: 'wave',
-					label: 'Wave',
+					label: 'Measurement',
 					status: 'ready',
-					detail: 'Wave 1 is the draft wave for this study.'
+					detail: 'Wave 1 is the draft measurement for this study.'
 				},
 				{
 					id: 'response_mode',
@@ -265,14 +255,8 @@ describe('selected-series setup workflow model', () => {
 		expect(design).toEqual({
 			title: 'How this study is built',
 			summary:
-				'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
+				'Study is the project container. The questionnaire defines what people answer; result outputs interpret answers; measurements collect responses.',
 			items: [
-				{
-					id: 'source',
-					label: 'Questionnaire source',
-					status: 'ready',
-					detail: 'Source material is ready for this questionnaire.'
-				},
 				{
 					id: 'questionnaire',
 					label: 'Questionnaire',
@@ -287,9 +271,9 @@ describe('selected-series setup workflow model', () => {
 				},
 				{
 					id: 'waves',
-					label: 'Collection waves',
+					label: 'Measurements',
 					status: 'pending',
-					detail: '1 wave is prepared as draft; launch readiness still needs attention.'
+					detail: '1 draft measurement is prepared; launch readiness still needs attention.'
 				}
 			]
 		});
@@ -300,12 +284,12 @@ describe('selected-series setup workflow model', () => {
 
 		expect(context).toMatchObject({
 			title: 'Prepare Wave 1 for collection',
-			label: 'Current draft wave',
+			label: 'Current draft measurement',
 			status: 'pending',
-			summary: 'Use this step to finish the current draft wave before opening Collection.'
+			summary: 'Use this step to finish the current draft measurement before opening Collection.'
 		});
 		expect(context.guidance).toContain(
-			'Recipient selection belongs to Wave 1 until this wave is launched.'
+			'Recipient selection belongs to Wave 1 until this measurement is launched.'
 		);
 	});
 
@@ -334,15 +318,17 @@ describe('selected-series setup workflow model', () => {
 		const context = toSelectedSeriesSetupWaveContext(closedWorkspace);
 
 		expect(context).toMatchObject({
-			title: 'Review Wave 1 before preparing Wave 2',
-			label: 'Future wave setup',
+			title: 'Review Wave 1 before preparing Measurement 2',
+			label: 'Future measurement setup',
 			status: 'pending',
 			summary:
-				'Wave 1 is already closed. Create Wave 2 only when the next collection round is intentional.'
+				'Wave 1 is already closed. Create Measurement 2 only when the next collection round is intentional.'
 		});
-		expect(context.guidance).toContain('Open Results to review or export Wave 1 before creating Wave 2.');
 		expect(context.guidance).toContain(
-			'Recipient selection in this step will belong to the new draft wave, not to Wave 1.'
+			'Open Results to review or export Wave 1 before creating Measurement 2.'
+		);
+		expect(context.guidance).toContain(
+			'Recipient selection in this step will belong to the new draft measurement, not to Wave 1.'
 		);
 	});
 
@@ -368,28 +354,22 @@ describe('selected-series setup workflow model', () => {
 		});
 	});
 
-	it('selects instrument import as the current task for an empty setup workspace', () => {
+	it('starts empty setup on the questionnaire task', () => {
 		const path = toSelectedSeriesSetupPath(emptyWorkspace);
 
-		expect(path.currentActionId).toBe('instrument');
+		expect(path.currentActionId).toBe('template');
 		expect(path.completedCount).toBe(0);
 		expect(path.steps[0]).toMatchObject({
-			title: 'Questionnaire source',
-			description:
-				'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
+			title: 'Build questionnaire',
+			description: 'Edit the questions, answer formats, and dimensions respondents will answer.'
 		});
 		expect(path.steps[1]).toMatchObject({
-			title: 'Questionnaire',
-			description: 'Build the saved question set respondents will answer for this study.'
-		});
-		expect(path.steps[2]).toMatchObject({
-			title: 'Result outputs',
+			title: 'Prepare result outputs',
 			description:
-				'Choose which questionnaire answers become result outputs and how missing answers are handled.'
+				'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
 		});
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'instrument', state: 'current' },
-			{ id: 'template', state: 'blocked' },
+			{ id: 'template', state: 'current' },
 			{ id: 'scoring', state: 'blocked' },
 			{ id: 'campaign', state: 'blocked' },
 			{ id: 'readiness', state: 'blocked' }
@@ -405,9 +385,8 @@ describe('selected-series setup workflow model', () => {
 		});
 
 		expect(path.currentActionId).toBe('readiness');
-		expect(path.completedCount).toBe(4);
+		expect(path.completedCount).toBe(3);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'instrument', state: 'done' },
 			{ id: 'template', state: 'done' },
 			{ id: 'scoring', state: 'done' },
 			{ id: 'campaign', state: 'done' },
@@ -419,10 +398,8 @@ describe('selected-series setup workflow model', () => {
 		const path = toSelectedSeriesSetupPath(configuredWorkspace);
 
 		expect(path.currentActionId).toBe('readiness');
-		expect(path.completedCount).toBe(4);
-		expect(path.steps.find((step) => step.id === 'instrument')).toMatchObject({
-			pathState: 'done'
-		});
+		expect(path.completedCount).toBe(3);
+		expect(path.steps.find((step) => step.id === 'instrument')).toBeUndefined();
 	});
 
 	it('separates the viewed setup step from the next unfinished setup step', () => {
@@ -462,14 +439,12 @@ describe('selected-series setup workflow model', () => {
 		expect(defaultCampaignWaveName(emptyWorkspace, copy)).toBe('Mjerenje 1');
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
-			title: 'Izvor upitnika',
-			description:
-				'Odaberite višekratni ili uvezeni izvorni materijal. On pokreće upitnik, ali nije studija ni završni upitnik.'
+			title: 'Izrada upitnika',
+			description: 'Uredite pitanja, formate odgovora i dimenzije na koje sudionici odgovaraju.'
 		});
-		expect(path.steps[1]?.disabledReason).toBe('Prvo odaberite izvor upitnika.');
 		expect(toSelectedSeriesSetupPathStepDisplay(path.steps[0]!, path.currentActionId, 'template', copy)).toEqual({
-			label: 'Sljedeće',
-			state: 'next'
+			label: 'Trenutno',
+			state: 'current'
 		});
 		expect(plan).toMatchObject({
 			title: 'Plan pokretanja',

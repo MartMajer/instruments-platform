@@ -986,7 +986,7 @@ const en = {
 			designMap: {
 				title: 'How this study is built',
 				summary:
-					'Study is the project container. The starting source seeds the questionnaire; result outputs interpret answers; measurements collect responses.',
+					'Study is the project container. The questionnaire defines what people answer; result outputs interpret answers; measurements collect responses.',
 				source: 'Starting source',
 				questionnaire: 'Questionnaire',
 				results: 'Result outputs',
@@ -3273,7 +3273,7 @@ const hr: typeof en = {
 			designMap: {
 				title: 'Kako je ova studija sastavljena',
 				summary:
-					'Studija je projektni spremnik. Početni izvor daje temelj upitniku; rezultati tumače odgovore; mjerenja prikupljaju odgovore.',
+					'Studija je projektni spremnik. Upitnik definira na što ljudi odgovaraju; rezultati tumače odgovore; mjerenja prikupljaju odgovore.',
 				source: 'Početni izvor',
 				questionnaire: 'Upitnik',
 				results: 'Rezultati',

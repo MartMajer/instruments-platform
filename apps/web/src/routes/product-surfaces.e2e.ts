@@ -4683,18 +4683,17 @@ test('setup action hierarchy starts editable studies on the current setup task',
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
 	const preparation = setup.getByRole('region', { name: 'Study preparation' });
 	const actions = setup.getByRole('group', { name: 'Preparation actions' });
-	const currentTask = actions.getByRole('region', { name: 'Current setup task' });
+	const currentTask = actions.getByRole('region', {
+		name: /Build questionnaire|Prepare result outputs|Measurement and recipients|Launch check/
+	});
 	const setupPath = actions.getByRole('list', { name: 'Setup path' });
-	const generatedDefaults = actions.getByText('Generated setup defaults', { exact: true });
 
 	await expect(preparation).toBeVisible();
 	await expect(actions).toBeVisible();
 	await expect(currentTask).toBeVisible();
 	await expect(setupPath).toBeVisible();
-	await expect(generatedDefaults).toBeVisible();
 	await expectElementBefore(preparation, actions);
 	await expectElementBefore(currentTask, setupPath);
-	await expectElementBefore(currentTask, generatedDefaults);
 });
 
 test('setup policy review details are visible in the setup workspace', async ({ page }) => {
@@ -4781,16 +4780,14 @@ test('setup workflow exposes one current setup task for an empty series', async 
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study setup progress' });
-	await expect(workflow.getByRole('heading', { name: 'Current setup task' })).toBeVisible();
-	await expect(workflow.getByRole('region', { name: 'Current setup task' })).toContainText(
-		'Instrument import'
+	await expect(workflow.getByRole('region', { name: 'Build questionnaire' })).toContainText(
+		'Questionnaire'
 	);
-	await expect(workflow.getByRole('button', { name: 'Create instrument import' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Save questionnaire' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Create instrument import' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Save questionnaire' })).toBeVisible();
 	await expect(workflow.getByRole('button', { name: 'Save result outputs' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Create wave draft' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toHaveCount(0);
-	await expect(workflow.getByText('Generated setup defaults', { exact: true })).toBeVisible();
 });
 
 test('setup template authoring edits question rows and generated scoring defaults', async ({
@@ -4874,7 +4871,6 @@ test('setup template authoring edits question rows and generated scoring default
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study setup progress' });
-	await workflow.getByRole('button', { name: 'Save instrument' }).click();
 	await expect(workflow).toContainText('Questionnaire');
 
 	const questionRows = workflow.locator('.question-row');
@@ -4886,7 +4882,7 @@ test('setup template authoring edits question rows and generated scoring default
 		.nth(3)
 		.getByLabel('Question text')
 		.fill('I can recover focus after a difficult interruption.');
-	await questionRows.nth(3).getByLabel('Reverse scored', { exact: true }).check();
+	await questionRows.nth(3).getByLabel('Reverse score this question', { exact: true }).check();
 	await questionRows.nth(1).getByRole('button', { name: 'Remove' }).click();
 
 	await workflow.getByRole('button', { name: 'Save questionnaire' }).click();
@@ -4920,16 +4916,14 @@ test('setup template authoring edits question rows and generated scoring default
 
 	await expect(workflow).toContainText('Result outputs');
 	await workflow.getByRole('button', { name: 'Add result output' }).click();
-	const recoveryOutput = workflow
-		.getByText('Result 2', { exact: true })
-		.locator('xpath=ancestor::div[contains(@class, "record-row")][1]');
-	await recoveryOutput.getByLabel('Result name').fill('Recovery');
-	await recoveryOutput.getByLabel('Result code').fill('recovery');
-	await recoveryOutput.getByLabel('Calculation').selectOption('sum');
-	await recoveryOutput.getByLabel('Missing answers').selectOption('min_valid_count');
-	await recoveryOutput.getByLabel('Minimum answered').fill('1');
-	await recoveryOutput.getByLabel('After work, I need time to recover mentally.').uncheck();
-	await recoveryOutput.getByLabel('I can usually regain focus after a short break.').uncheck();
+	await expect(workflow.getByText('Result 1', { exact: true })).toBeVisible();
+	await workflow.getByLabel('Result name').fill('Recovery');
+	await workflow.getByLabel('Result code').fill('recovery');
+	await workflow.getByLabel('Calculation').selectOption('sum');
+	await workflow.getByLabel('Missing answers').selectOption('min_valid_count');
+	await workflow.getByLabel('Minimum answered').fill('1');
+	await workflow.getByLabel('Write the first question for this study.').uncheck();
+	await workflow.getByLabel('I can recover focus after a difficult interruption.').check();
 
 	await workflow.getByRole('button', { name: 'Save results setup' }).click();
 	await expect.poll(() => scoringBodies).toHaveLength(1);
@@ -4938,27 +4932,22 @@ test('setup template authoring edits question rows and generated scoring default
 		nodes: Array<{ id: string; op: string; explicit_reverse_items?: string[]; missing_data?: unknown }>;
 		outputs: Array<{ code: string; node: string }>;
 	};
-	expect(submittedScoringDocument.inputs.find((input) => input.id === 'total_items')?.items).toEqual([
-		'q01',
-		'q03',
-		'q04'
-	]);
 	expect(submittedScoringDocument.inputs.find((input) => input.id === 'recovery_items')?.items).toEqual([
 		'q04'
 	]);
 	expect(
-		submittedScoringDocument.nodes.find((node) => node.id === 'total_scored_answers')?.explicit_reverse_items
-	).toEqual(['q03', 'q04']);
+		submittedScoringDocument.nodes.find((node) => node.id === 'recovery_scored_answers')
+			?.explicit_reverse_items
+	).toEqual(['q04']);
 	expect(submittedScoringDocument.nodes.find((node) => node.id === 'recovery_score')).toMatchObject({
 		op: 'sum',
 		missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
 	});
 	expect(submittedScoringDocument.outputs).toEqual([
-		{ code: 'total', node: 'total_score' },
 		{ code: 'recovery', node: 'recovery_score' }
 	]);
-	expect(submittedScoringDocument.outputs.map((output) => output.code)).toEqual(['total', 'recovery']);
-	expect(JSON.parse(scoringBodies[0].produces)).toEqual({ scores: ['total', 'recovery'] });
+	expect(submittedScoringDocument.outputs.map((output) => output.code)).toEqual(['recovery']);
+	expect(JSON.parse(scoringBodies[0].produces)).toEqual({ scores: ['recovery'] });
 });
 
 test('setup workflow previews respondent-rule audience from the selected campaign', async ({

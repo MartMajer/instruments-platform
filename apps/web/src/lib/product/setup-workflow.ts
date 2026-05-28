@@ -340,7 +340,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 	designMap: {
 		title: 'How this study is built',
 		summary:
-			'Study is the project container. The starting source seeds the questionnaire; result outputs interpret answers; measurements collect responses.',
+			'Study is the project container. The questionnaire defines what people answer; result outputs interpret answers; measurements collect responses.',
 		source: 'Starting source',
 		questionnaire: 'Questionnaire',
 		results: 'Result outputs',
@@ -416,32 +416,22 @@ export function toSelectedSeriesSetupWorkflowActions(
 ): SelectedSeriesSetupWorkflowAction[] {
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
-	const instrumentConfigured = Boolean(localState.instrumentId ?? workspace.template?.instrumentId);
 	const scoringConfigured = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
 	const campaignConfigured = Boolean(campaignId);
 
 	return [
 		{
-			id: 'instrument',
-			step: copy.stepNumber(1),
-			title: copy.steps.instrument.title,
-			description: copy.steps.instrument.description,
-			status: instrumentConfigured ? 'ready' : 'pending',
-			available: true,
-			disabledReason: null
-		},
-		{
 			id: 'template',
-			step: copy.stepNumber(2),
+			step: copy.stepNumber(1),
 			title: copy.steps.template.title,
 			description: copy.steps.template.description,
 			status: templateVersionId ? 'ready' : 'blocked',
 			available: true,
-			disabledReason: instrumentConfigured ? null : copy.disabled.confirmInstrument
+			disabledReason: null
 		},
 		{
 			id: 'scoring',
-			step: copy.stepNumber(3),
+			step: copy.stepNumber(2),
 			title: copy.steps.scoring.title,
 			description: copy.steps.scoring.description,
 			status: scoringConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
@@ -450,7 +440,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 		},
 		{
 			id: 'campaign',
-			step: copy.stepNumber(4),
+			step: copy.stepNumber(3),
 			title: copy.steps.campaign.title,
 			description: copy.steps.campaign.description,
 			status: campaignConfigured ? 'ready' : templateVersionId ? 'blocked' : 'blocked',
@@ -459,7 +449,7 @@ export function toSelectedSeriesSetupWorkflowActions(
 		},
 		{
 			id: 'readiness',
-			step: copy.stepNumber(5),
+			step: copy.stepNumber(4),
 			title: copy.steps.readiness.title,
 			description: copy.steps.readiness.description,
 			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
@@ -595,7 +585,6 @@ export function toSelectedSeriesSetupDesignMap(
 	copy: SelectedSeriesSetupWorkflowCopy = defaultSelectedSeriesSetupWorkflowCopy
 ): SelectedSeriesSetupDesignMap {
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
-	const sourceReady = Boolean(localState.instrumentId ?? workspace.template?.instrumentId ?? templateVersionId);
 	const questionnaireReady = Boolean(templateVersionId);
 	const resultsReady = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
 	const waveStatus = summarizeWaveDesignStatus(workspace, localState, copy);
@@ -604,12 +593,6 @@ export function toSelectedSeriesSetupDesignMap(
 		title: copy.designMap.title,
 		summary: copy.designMap.summary,
 		items: [
-			{
-				id: 'source',
-				label: copy.designMap.source,
-				status: sourceReady ? 'ready' : 'pending',
-				detail: sourceReady ? copy.designMap.sourceReady : copy.designMap.sourceMissing
-			},
 			{
 				id: 'questionnaire',
 				label: copy.designMap.questionnaire,

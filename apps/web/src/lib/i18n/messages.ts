@@ -881,7 +881,7 @@ const enMessages = {
 			'invitationPair'
 		)} ready.`,
 	'setup.launchPlan.waveDraftReady': (values) =>
-		`${textValue(values, 'waveName')} is the draft wave for this study.`,
+		`${textValue(values, 'waveName')} is the draft measurement for this study.`,
 	'setup.launchPlan.waveWillBeCreated': (values) =>
 		`${textValue(values, 'waveName')} will be created when you save this step.`,
 	'setup.launchPlan.savedRecipientDetail': (values, locale) =>
@@ -899,9 +899,11 @@ const enMessages = {
 	'setup.designMap.resultsReady': (values) =>
 		`Result outputs are saved as ${textValue(values, 'ruleKey')}.`,
 	'setup.designMap.draftWaveNeedsReadiness': (values, locale) =>
-		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
+		`${formatNumber(locale, numberValue(values, 'count'))} draft ${
+			numberValue(values, 'count') === 1 ? 'measurement' : 'measurements'
+		} ${
 			numberValue(values, 'count') === 1 ? 'is' : 'are'
-		} prepared as draft; launch readiness still needs attention.`,
+		} prepared; launch readiness still needs attention.`,
 	'setup.designMap.waveReady': (values, locale) =>
 		`${formatCount(locale, numberValue(values, 'count'), 'measurement')} ${
 			numberValue(values, 'count') === 1 ? 'is' : 'are'
@@ -917,7 +919,7 @@ const enMessages = {
 	'setup.waveContext.prepareForCollection': (values) =>
 		`Prepare ${textValue(values, 'waveName')} for collection`,
 	'setup.waveContext.followUpDraftSummary': (values) =>
-		`${textValue(values, 'waveName')} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+		`${textValue(values, 'waveName')} is a draft follow-up measurement. Use it only when the next collection round is intentional.`,
 	'setup.waveContext.closedOneWaveSummary': (values) =>
 		`${textValue(values, 'previousWaveName')} is already ${textValue(
 			values,
@@ -927,16 +929,16 @@ const enMessages = {
 		`${formatCount(locale, numberValue(values, 'existingWaveCount'), 'measurement')} already exist. Create ${textValue(
 			values,
 			'nextWaveName'
-		)} only after the current wave results have been reviewed.`,
+		)} only after the current measurement results have been reviewed.`,
 	'setup.waveContext.recipientBelongsUntilLaunch': (values) =>
-		`Recipient selection belongs to ${textValue(values, 'waveName')} until this wave is launched.`,
+		`Recipient selection belongs to ${textValue(values, 'waveName')} until this measurement is launched.`,
 	'setup.waveContext.reviewBeforePreparing': (values) =>
 		`Review ${textValue(values, 'previousWaveName')} before preparing ${textValue(
 			values,
 			'nextWaveName'
 		)}`,
 	'setup.waveContext.reviewExistingBeforePreparing': (values) =>
-		`Review existing waves before preparing ${textValue(values, 'nextWaveName')}`,
+		`Review existing measurements before preparing ${textValue(values, 'nextWaveName')}`,
 	'setup.waveContext.openResultsBeforeCreating': (values) =>
 		`Open Results to review or export ${textValue(values, 'reviewTarget')} before creating ${textValue(
 			values,
@@ -945,7 +947,7 @@ const enMessages = {
 	'setup.waveContext.createOnlyWhenIntentional': (values) =>
 		`Create ${textValue(values, 'nextWaveName')} only when the next collection round is intentional.`,
 	'setup.waveContext.recipientBelongsToNewDraft': (values) =>
-		`Recipient selection in this step will belong to the new draft wave, not to ${textValue(
+		`Recipient selection in this step will belong to the new draft measurement, not to ${textValue(
 			values,
 			'previousLabel'
 		)}.`,
@@ -2069,7 +2071,7 @@ const countNouns: Record<AppLocale, Record<CountNounId, Partial<CountNounForms>>
 		exportFile: { one: 'export file', other: 'export files' },
 		invitationPair: { one: 'invitation pair', other: 'invitation pairs' },
 		linkedPair: { one: 'linked pair', other: 'linked pairs' },
-		measurement: { one: 'wave', other: 'waves' },
+		measurement: { one: 'measurement', other: 'measurements' },
 		openRespondentLink: { one: 'open respondent link', other: 'open respondent links' },
 		purpose: { one: 'purpose', other: 'purposes' },
 		question: { one: 'question', other: 'questions' },
