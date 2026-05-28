@@ -2273,6 +2273,7 @@
 			{@render SetupPath()}
 		</div>
 
+		{#if activeActionIdForView !== 'readiness'}
 		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
 			<div class="setup-current-task__header">
 				<div>
@@ -3422,36 +3423,25 @@
 							onclick: createCampaignDraft
 						})}
 					{/if}
-				{:else if activeActionIdForView === 'readiness'}
-					{#if actionStates.readiness === 'submitting'}
-						<p class="result-line">
-							<span>{setupUi('Final check')}</span>
-							<span>{stepLabel(actionStates.readiness)}</span>
-						</p>
-					{/if}
-					{#if readinessResult?.issues.length}
-						<ul class="grid gap-2" aria-label={setupUi('Setup issues')}>
-							{#each readinessResult.issues as issue}
-								<li class="text-sm text-[var(--color-text-muted)]">
-									{launchIssueLabel(issue)}
-								</li>
-							{/each}
-						</ul>
-					{/if}
-					{#if actionErrors.readiness}
-						<p class="error-line" role="alert">{actionErrors.readiness}</p>
-					{/if}
-					{#if currentLaunchState().collectionButtonAvailable}
-						<div class="action-row">
-							<button type="button" class="primary-button" onclick={openLaunchSurface}>
-								<Send size={16} aria-hidden="true" />
-								<span>{currentLaunchState().collectionButtonLabel}</span>
-							</button>
-						</div>
-					{/if}
 				{/if}
 			</div>
 		</section>
+		{:else if readinessResult?.issues.length || actionErrors.readiness}
+			<section class="record-row setup-current-task" aria-label={setupUi('Setup issues')}>
+				{#if readinessResult?.issues.length}
+					<ul class="grid gap-2" aria-label={setupUi('Setup issues')}>
+						{#each readinessResult.issues as issue}
+							<li class="text-sm text-[var(--color-text-muted)]">
+								{launchIssueLabel(issue)}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				{#if actionErrors.readiness}
+					<p class="error-line" role="alert">{actionErrors.readiness}</p>
+				{/if}
+			</section>
+		{/if}
 
 		{#if refreshWarning}
 			<p class="error-line">{refreshWarning}</p>

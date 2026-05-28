@@ -215,7 +215,7 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 		alreadyLive: 'Collection is already live.',
 		startedThisSession: 'Collection was started in this session.',
 		runPrelaunchAndSetup:
-			'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.',
+			'Finish setup before starting collection.',
 		onlyLiveClosable: 'Only a live collection wave can be closed.'
 	},
 	status: {
@@ -239,7 +239,7 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 		liveTitle: 'Live: accepting responses',
 		liveDetail: 'Respondents can still submit. Results remain preliminary until collection closes.',
 		draftTitle: 'Draft: not collecting yet',
-		draftDetail: 'Run the pre-launch check, then start collection.',
+		draftDetail: 'Start collection when setup is ready.',
 		submittedTitle: (submitted) => `${submitted} submitted`,
 		responseActivityDetail: (started, drafts, submitted) =>
 			`${started} started, ${drafts} in progress, ${submitted} submitted.`,
@@ -269,8 +269,8 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 		liveNextNoResponses: 'Share respondent access and wait for submitted responses.',
 		draftOverallLabel: 'Draft',
 		draftHeadline: 'Draft: collection has not started',
-		draftGuidance: 'Run the pre-launch check before sharing respondent access.',
-		draftNextAction: 'Run the pre-launch check.',
+		draftGuidance: 'Start collection, then share respondent access.',
+		draftNextAction: 'Start collection.',
 		identifiedAccessTitle: 'Identified access prepared',
 		inviteOnlyAccessTitle: 'Invite-only access prepared',
 		openLinkAccessTitle: 'Open-link access prepared',
@@ -421,19 +421,8 @@ export function toSelectedSeriesOperationsWorkflowActions(
 
 	return [
 		{
-			id: 'readiness',
-			step: copy.stepNumber(1),
-			title: copy.actions.readiness.title,
-			description: copy.actions.readiness.description,
-			status: !hasCampaign ? 'not_available' : readinessReady ? 'ready' : 'pending',
-			available: hasCampaign,
-			disabledReason: hasCampaign
-				? null
-				: copy.disabled.createWaveBeforeReadiness
-		},
-		{
 			id: 'launch',
-			step: copy.stepNumber(2),
+			step: copy.stepNumber(1),
 			title: copy.actions.launch.title,
 			description: copy.actions.launch.description,
 			status: toLaunchStatus(hasCampaign, isLive, closed, launched, localState),
@@ -442,7 +431,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		},
 		{
 			id: 'openLink',
-			step: copy.stepNumber(3),
+			step: copy.stepNumber(2),
 			title: copy.actions.openLink.title,
 			description: copy.actions.openLink.description,
 			status: !hasCampaign
@@ -461,7 +450,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		},
 		{
 			id: 'monitor',
-			step: copy.stepNumber(4),
+			step: copy.stepNumber(3),
 			title: copy.actions.monitor.title,
 			description: copy.actions.monitor.description,
 			status: !hasCampaign
@@ -478,7 +467,7 @@ export function toSelectedSeriesOperationsWorkflowActions(
 		},
 		{
 			id: 'close',
-			step: copy.stepNumber(5),
+			step: copy.stepNumber(4),
 			title: copy.actions.close.title,
 			description: copy.actions.close.description,
 			status: !hasCampaign ? 'not_available' : closed ? 'closed' : closeable ? 'pending' : 'blocked',

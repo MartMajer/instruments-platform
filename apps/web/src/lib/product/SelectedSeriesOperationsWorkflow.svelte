@@ -110,6 +110,7 @@
 	let closeResult = $state<CampaignCloseStateResponse | null>(null);
 	let refreshWarning = $state<string | null>(null);
 	let activeActionId = $state<SelectedSeriesOperationsWorkflowActionId | null>(null);
+	let autoReadinessCampaignId = $state<string | null>(null);
 	let actionStates = $state<Record<SelectedSeriesOperationsWorkflowActionId, StepState>>({
 		readiness: 'idle',
 		launch: 'idle',
@@ -244,6 +245,16 @@
 		workspace.summary.latestResponseSubmittedAt ?? workspace.summary.latestResponseStartedAt ?? null
 	);
 	const latestProviderEventAt = $derived(selectedCampaign?.latestProviderEventAt ?? null);
+	const shouldAutoCheckReadiness = $derived(
+		Boolean(
+			selectedCampaign &&
+				selectedCampaign.status === 'draft' &&
+				!selectedCampaign.latestLaunchAt &&
+				!selectedCampaign.latestLaunchSnapshotId &&
+				!readinessResult &&
+				actionStates.readiness !== 'submitting'
+		)
+	);
 	const setupHref = $derived(`/app/campaign-series/${workspace.series.id}/setup`);
 	const resultsHref = $derived(`/app/campaign-series/${workspace.series.id}/reports`);
 	const readinessIssueGuidance = $derived(
@@ -251,6 +262,15 @@
 			? readinessResult.issues.map(toReadinessIssueGuidance)
 			: []
 	);
+
+	$effect(() => {
+		if (!selectedCampaign || !shouldAutoCheckReadiness || autoReadinessCampaignId === selectedCampaign.id) {
+			return;
+		}
+
+		autoReadinessCampaignId = selectedCampaign.id;
+		void checkLaunchReadiness();
+	});
 
 	async function checkLaunchReadiness() {
 		if (!selectedCampaign) {
@@ -1268,71 +1288,7 @@
 			{/if}
 
 			<div class="setup-current-task__body">
-				{#if activeAction.id === 'readiness'}
-					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
-						Use this before opening collection. The check confirms that the questionnaire, scoring,
-						recipients, and policy setup can support responses and reporting.
-					</p>
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{operationsBodyCopy.common.collectionWave}</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? operationsBodyCopy.common.missing}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{operationsBodyCopy.common.setupCheck}</dt>
-							<dd class="record-field__value">
-								{readinessResult ? (readinessResult.ready ? operationsBodyCopy.common.ready : operationsBodyCopy.common.blocked) : operationsBodyCopy.common.notChecked}
-							</dd>
-						</div>
-					</dl>
-					{#if readinessResult?.issues.length}
-						<div class="record-row" aria-label={operationsBodyCopy.readiness.issuesAria}>
-							<h5 class="record-row__title">
-								{readinessResult.ready ? operationsBodyCopy.readiness.warningsTitle : operationsBodyCopy.readiness.blockersTitle}
-							</h5>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{readinessResult.ready
-									? operationsBodyCopy.readiness.warningsBody
-									: operationsBodyCopy.readiness.blockersBody}
-							</p>
-							<ul class="grid gap-2">
-								{#each readinessIssueGuidance as guidance}
-									<li class="grid gap-1 text-sm">
-										<span class="font-semibold text-[var(--color-text)]">
-											{guidance.title}
-											<span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-												{guidance.severity === 'blocker' ? operationsBodyCopy.readiness.blocking : operationsBodyCopy.readiness.warning}
-											</span>
-										</span>
-										<span class="text-[var(--color-text-muted)]">{guidance.detail}</span>
-									</li>
-								{/each}
-							</ul>
-							<div class="flex flex-wrap items-center gap-3">
-								<a class="secondary-button" href={setupHref}>{operationsBodyCopy.readiness.openSetup}</a>
-								<span class="text-xs font-semibold text-[var(--color-text-muted)]">
-									{operationsBodyCopy.readiness.returnAndCheck}
-								</span>
-							</div>
-						</div>
-					{:else if readinessResult && !readinessResult.ready}
-						<div class="record-row" aria-label="Readiness blocked">
-							<h5 class="record-row__title">{operationsBodyCopy.readiness.blockedTitle}</h5>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								The check did not return itemized blockers. Open Setup, review incomplete steps,
-								save changes, then run this check again.
-							</p>
-							<a class="secondary-button" href={setupHref}>{operationsBodyCopy.readiness.openSetup}</a>
-						</div>
-					{/if}
-					{@render ActionFooter({
-						id: 'readiness',
-						label: operationsBodyCopy.readiness.runCheck,
-						resultLabel: operationsBodyCopy.common.setupCheck,
-						resultValue: readinessResult ? (readinessResult.ready ? operationsBodyCopy.common.ready : operationsBodyCopy.common.blocked) : null,
-						onclick: checkLaunchReadiness
-					})}
-				{:else if activeAction.id === 'launch'}
+				{#if activeAction.id === 'launch'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 						{operationsBodyCopy.launch.body}
 					</p>

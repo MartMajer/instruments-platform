@@ -1433,8 +1433,7 @@ const en = {
 				waveClosed: 'This collection wave is closed.',
 				alreadyLive: 'Collection is already live.',
 				startedThisSession: 'Collection was started in this session.',
-				runPrelaunchAndSetup:
-					'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.',
+				runPrelaunchAndSetup: 'Finish setup before starting collection.',
 				onlyLiveClosable: 'Only a live collection wave can be closed.'
 			},
 			status: {
@@ -1458,7 +1457,7 @@ const en = {
 				liveTitle: 'Live: accepting responses',
 				liveDetail: 'Respondents can still submit. Results remain preliminary until collection closes.',
 				draftTitle: 'Draft: not collecting yet',
-				draftDetail: 'Run the pre-launch check, then start collection.',
+				draftDetail: 'Start collection when setup is ready.',
 				submittedTitle: (submitted: string) => `${submitted} submitted`,
 				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
 					`${started} started, ${drafts} in progress, ${submitted} submitted.`,
@@ -1488,8 +1487,8 @@ const en = {
 				liveNextNoResponses: 'Share respondent access and wait for submitted responses.',
 				draftOverallLabel: 'Draft',
 				draftHeadline: 'Draft: collection has not started',
-				draftGuidance: 'Run the pre-launch check before sharing respondent access.',
-				draftNextAction: 'Run the pre-launch check.',
+				draftGuidance: 'Start collection, then share respondent access.',
+				draftNextAction: 'Start collection.',
 				identifiedAccessTitle: 'Identified access prepared',
 				inviteOnlyAccessTitle: 'Invite-only access prepared',
 				openLinkAccessTitle: 'Open-link access prepared',
@@ -3721,8 +3720,7 @@ const hr: typeof en = {
 				waveClosed: 'Ovo mjerenje je zatvoren.',
 				alreadyLive: 'Prikupljanje je već aktivno.',
 				startedThisSession: 'Prikupljanje je pokrenuto u ovoj sesiji.',
-				runPrelaunchAndSetup:
-					'Pokrenite provjeru prije pokretanja. Ako kaže Blokirano, otvorite Postavljanje i dovršite navedene stavke.',
+				runPrelaunchAndSetup: 'Dovršite postavljanje prije pokretanja prikupljanja.',
 				onlyLiveClosable: 'Zatvoriti se može samo aktivan mjerenje.'
 			},
 			status: {
@@ -3746,7 +3744,7 @@ const hr: typeof en = {
 				liveTitle: 'Aktivno: prihvaća odgovore',
 				liveDetail: 'Sudionici još mogu predati odgovore. Rezultati ostaju preliminarni dok se prikupljanje ne zatvori.',
 				draftTitle: 'Nacrt: još ne prikuplja',
-				draftDetail: 'Pokrenite provjeru prije pokretanja, zatim pokrenite prikupljanje.',
+				draftDetail: 'Pokrenite prikupljanje kada je postavljanje spremno.',
 				submittedTitle: (submitted: string) => `${submitted} predano`,
 				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
 					`${started} započeto, ${drafts} u tijeku, ${submitted} predano.`,
@@ -3775,8 +3773,8 @@ const hr: typeof en = {
 				liveNextNoResponses: 'Podijelite pristup sudionicima i pričekajte predane odgovore.',
 				draftOverallLabel: 'Nacrt',
 				draftHeadline: 'Nacrt: prikupljanje nije pokrenuto',
-				draftGuidance: 'Pokrenite provjeru prije pokretanja prije dijeljenja pristupa sudionicima.',
-				draftNextAction: 'Pokrenite provjeru prije pokretanja.',
+				draftGuidance: 'Pokrenite prikupljanje, zatim podijelite pristup sudionicima.',
+				draftNextAction: 'Pokrenite prikupljanje.',
 				identifiedAccessTitle: 'Identificirani pristup pripremljen',
 				inviteOnlyAccessTitle: 'Invite-only pristup pripremljen',
 				openLinkAccessTitle: 'Otvorena poveznica pripremljena',
