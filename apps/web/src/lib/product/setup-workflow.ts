@@ -252,9 +252,9 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 				'Edit the questions, answer formats, and dimensions respondents will answer.'
 		},
 		scoring: {
-			title: 'Prepare result outputs',
+			title: 'Review results setup',
 			description:
-				'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
+				'Review the result calculation prepared from the questionnaire. Adjust questions, missing answers, or add subscales only when needed.'
 		},
 		campaign: {
 			title: 'Measurement and recipients',

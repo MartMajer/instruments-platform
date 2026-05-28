@@ -845,10 +845,11 @@ const en = {
 				}
 			},
 			scoring: {
-				resultsTitle: 'Result outputs',
-				resultsBody: 'Define the scores and export columns this questionnaire should produce.',
+				resultsTitle: 'Results setup',
+				resultsBody:
+					'The app prepared a result from the questionnaire. Review which questions it uses, add extra results only when needed, then save.',
 				saveResults: 'Save results setup',
-				errorsLabel: 'Result output errors'
+				errorsLabel: 'Results setup errors'
 			},
 			wave: {
 				responseMode: {
@@ -898,9 +899,9 @@ const en = {
 					description: 'Edit the questions, answer formats, and dimensions respondents will answer.'
 				},
 				scoring: {
-					title: 'Prepare result outputs',
+					title: 'Review results setup',
 					description:
-						'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
+						'Review the result calculation prepared from the questionnaire. Adjust questions, missing answers, or add subscales only when needed.'
 				},
 				campaign: {
 					title: 'Measurement and recipients',
@@ -3132,8 +3133,9 @@ const hr: typeof en = {
 				}
 			},
 			scoring: {
-				resultsTitle: 'Izlazi rezultata',
-				resultsBody: 'Definirajte bodove i izvozne stupce koje ovaj upitnik treba proizvesti.',
+				resultsTitle: 'Postavljanje rezultata',
+				resultsBody:
+					'Aplikacija je pripremila rezultat iz upitnika. Provjerite koja pitanja koristi, dodajte dodatne rezultate samo ako trebaju, zatim spremite.',
 				saveResults: 'Spremi postavljanje rezultata',
 				errorsLabel: 'Pogreške postavljanja rezultata'
 			},
@@ -3185,9 +3187,9 @@ const hr: typeof en = {
 					description: 'Uredite pitanja, formate odgovora i dimenzije na koje sudionici odgovaraju.'
 				},
 				scoring: {
-					title: 'Priprema rezultata',
+					title: 'Pregled postavljanja rezultata',
 					description:
-						'Odaberite koji odgovori postaju rezultati, sažeci ili stupci izvoza te kako se obrađuju nedostajući odgovori.'
+						'Provjerite rezultat pripremljen iz upitnika. Po potrebi prilagodite pitanja, nedostajuće odgovore ili dodatne rezultate.'
 				},
 				campaign: {
 					title: 'Mjerenje i primatelji',

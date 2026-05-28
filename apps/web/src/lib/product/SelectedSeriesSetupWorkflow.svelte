@@ -1724,7 +1724,7 @@
 
 		if (issue.code.includes('scoring')) {
 			return setupUi(
-				issue.message.replace('Scoring rule', 'Result outputs').replace('scoring rule', 'result outputs')
+				issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup')
 			);
 		}
 
@@ -1891,12 +1891,17 @@
 		'This question cannot be rendered by the current respondent runtime.':
 			'Ovo pitanje trenutačni prikaz za ispitanike ne može prikazati.',
 		'Result outputs': 'Izlazi rezultata',
+		'Results setup': 'Postavljanje rezultata',
+		'Result calculation': 'Izračun rezultata',
 		Result: 'Rezultat',
 		'Result outputs ready': 'Izlazi rezultata spremni',
 		Outputs: 'Izlazi',
 		'Unique scored questions': 'Jedinstvena bodovana pitanja',
 		'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.':
 			'Izradite jedan ukupni rezultat ili više dimenzija/podljestvica. Svaki izlaz bira vlastita pitanja, izračun i pravilo za nedostajuće odgovore.',
+		'No result outputs yet': 'Još nema izlaza rezultata',
+		'Add a result output, choose the questions it uses, then save the results setup.':
+			'Dodajte izlaz rezultata, odaberite pitanja koja koristi, zatim spremite postavljanje rezultata.',
 		'Result outputs plan': 'Plan izlaza rezultata',
 		'Remove result': 'Ukloni rezultat',
 		'Result name': 'Naziv rezultata',
@@ -3015,7 +3020,7 @@
 							<h5 class="record-row__title">{setupUi('Result outputs ready')}</h5>
 							<div class="record-grid">
 								<div class="record-field">
-									<p class="record-field__label">{setupUi('Result outputs')}</p>
+									<p class="record-field__label">{setupUi('Results setup')}</p>
 									<p class="record-field__value">{scoreOutputs.length}</p>
 								</div>
 								<div class="record-field">
@@ -3032,7 +3037,7 @@
 						</div>
 					{:else}
 						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Result outputs')}</h5>
+							<h5 class="record-row__title">{setupUi('Result calculation')}</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{setupUi(
 									'Create one total score or several dimensions/subscales. Each output chooses its own questions, calculation, and missing-answer rule.'
@@ -3041,23 +3046,38 @@
 						</div>
 
 						<div class="grid gap-4">
-							<div class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupUi('Result outputs plan')}</p>
-										<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
-									</div>
-									<StatusBadge status="neutral" label={setupUi('Result outputs plan')} />
+							{#if scoreOutputs.length === 0}
+								<div class="empty-panel">
+									<p class="record-row__title">{setupUi('No result outputs yet')}</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{setupUi(
+											'Add a result output, choose the questions it uses, then save the results setup.'
+										)}
+									</p>
+									<button type="button" class="primary-button" onclick={() => addScoreOutput()}>
+										<Plus size={16} aria-hidden="true" />
+										<span>{setupUi('Add result output')}</span>
+									</button>
 								</div>
-								<div class="questionnaire-blueprint-review">
-									{#each resultsBlueprintReview.items as item (item.id)}
-										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-											<p class="record-field__label">{setupUi(item.label)}</p>
-											<p class="record-field__value">{setupUi(item.detail)}</p>
+							{:else}
+								<div class="record-row">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupUi('Result outputs plan')}</p>
+											<h5 class="record-row__title">{setupUi(resultsBlueprintReview.label)}</h5>
 										</div>
-									{/each}
+										<StatusBadge status="neutral" label={setupUi('Result outputs plan')} />
+									</div>
+									<div class="questionnaire-blueprint-review">
+										{#each resultsBlueprintReview.items as item (item.id)}
+											<div class="questionnaire-blueprint-review__item" data-state={item.status}>
+												<p class="record-field__label">{setupUi(item.label)}</p>
+												<p class="record-field__value">{setupUi(item.detail)}</p>
+											</div>
+										{/each}
+									</div>
 								</div>
-							</div>
+							{/if}
 							{#each scoreOutputs as output, outputIndex (output.localId)}
 								<div class="record-row">
 									<div class="setup-current-task__header">
@@ -3185,12 +3205,14 @@
 							{/each}
 						</div>
 
-						<div class="action-row">
-							<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
-								<Plus size={16} aria-hidden="true" />
-								<span>{setupUi('Add result output')}</span>
-							</button>
-						</div>
+						{#if scoreOutputs.length > 0}
+							<div class="action-row">
+								<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
+									<Plus size={16} aria-hidden="true" />
+									<span>{setupUi('Add result output')}</span>
+								</button>
+							</div>
+						{/if}
 
 						{#if collectedContextSummaries.length}
 							<div class="record-row">
@@ -3208,30 +3230,32 @@
 							</div>
 						{/if}
 
-						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
-							<div class="grid gap-2">
-								{#each scorePlanSummaries as summary (summary.localId)}
-									<div class="record-field">
-										<p class="record-field__label">{summary.code}</p>
-										<p class="record-field__value">{summary.name}</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
-											{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
-										</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
-											{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
-										</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{scoreOutputMissingDataDetail(summary.localId)}
-										</p>
-									</div>
-								{/each}
+						{#if scoreOutputs.length > 0}
+							<div class="record-row">
+								<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
+								<div class="grid gap-2">
+									{#each scorePlanSummaries as summary (summary.localId)}
+										<div class="record-field">
+											<p class="record-field__label">{summary.code}</p>
+											<p class="record-field__value">{summary.name}</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
+												{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
+											</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
+												{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
+											</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{scoreOutputMissingDataDetail(summary.localId)}
+											</p>
+										</div>
+									{/each}
+								</div>
 							</div>
-						</div>
+						{/if}
 
-						{#if reverseScoringReview.reverseScoredQuestionCount > 0}
+						{#if scoreOutputs.length > 0 && reverseScoringReview.reverseScoredQuestionCount > 0}
 							<div class="record-row">
 								<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
 								<p class="text-sm text-[var(--color-text-muted)]">
@@ -3249,7 +3273,7 @@
 							</div>
 						{/if}
 
-						{#if scoreOutputErrors.length > 0}
+						{#if scoreOutputs.length > 0 && scoreOutputErrors.length > 0}
 							<ul class="grid gap-1" aria-label={setupBodyCopy.scoring.errorsLabel}>
 								{#each scoreOutputErrors as error}
 									<li class="error-line">{error}</li>
@@ -3344,7 +3368,7 @@
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">{setupUi('Result outputs')}</p>
+								<p class="record-field__label">{setupUi('Results setup')}</p>
 								<p class="record-field__value">
 									{localState.scoringRuleId ?? workspace.scoring?.id
 										? setupUi('Ready')

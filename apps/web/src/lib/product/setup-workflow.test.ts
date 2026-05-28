@@ -363,11 +363,11 @@ describe('selected-series setup workflow model', () => {
 			title: 'Build questionnaire',
 			description: 'Edit the questions, answer formats, and dimensions respondents will answer.'
 		});
-		expect(path.steps[1]).toMatchObject({
-			title: 'Prepare result outputs',
-			description:
-				'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
-		});
+	expect(path.steps[1]).toMatchObject({
+		title: 'Review results setup',
+		description:
+			'Review the result calculation prepared from the questionnaire. Adjust questions, missing answers, or add subscales only when needed.'
+	});
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'template', state: 'current' },
 			{ id: 'scoring', state: 'blocked' },

@@ -4684,7 +4684,7 @@ test('setup action hierarchy starts editable studies on the current setup task',
 	const preparation = setup.getByRole('region', { name: 'Study preparation' });
 	const actions = setup.getByRole('group', { name: 'Preparation actions' });
 	const currentTask = actions.getByRole('region', {
-		name: /Build questionnaire|Prepare result outputs|Measurement and recipients|Launch check/
+		name: /Build questionnaire|Review results setup|Measurement and recipients|Launch check/
 	});
 	const setupPath = actions.getByRole('list', { name: 'Setup path' });
 
@@ -4914,15 +4914,15 @@ test('setup template authoring edits question rows and generated scoring default
 	});
 	expect(templateBodies[0].questions.map((question) => question.code)).not.toContain('q02');
 
-	await expect(workflow).toContainText('Result outputs');
-	await workflow.getByRole('button', { name: 'Add result output' }).click();
-	await expect(workflow.getByText('Result 1', { exact: true })).toBeVisible();
+	await expect(workflow).toContainText('Review results setup');
+	await expect(workflow.getByRole('heading', { name: 'Total score' })).toBeVisible();
 	await workflow.getByLabel('Result name').fill('Recovery');
 	await workflow.getByLabel('Result code').fill('recovery');
 	await workflow.getByLabel('Calculation').selectOption('sum');
 	await workflow.getByLabel('Missing answers').selectOption('min_valid_count');
 	await workflow.getByLabel('Minimum answered').fill('1');
 	await workflow.getByLabel('Write the first question for this study.').uncheck();
+	await workflow.getByLabel('Write the third question for this study.').uncheck();
 	await workflow.getByLabel('I can recover focus after a difficult interruption.').check();
 
 	await workflow.getByRole('button', { name: 'Save results setup' }).click();

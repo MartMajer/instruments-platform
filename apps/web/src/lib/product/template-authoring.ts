@@ -716,6 +716,11 @@ export function buildMeanScoringDocument(
 export function createDefaultScoreOutputRows(
 	rows: TemplateQuestionAuthoringRow[]
 ): ScoreOutputAuthoringRow[] {
+	const includedQuestionCodes = rows.filter(isMeanScoreEligible).map((row) => row.code);
+	if (includedQuestionCodes.length === 0) {
+		return [];
+	}
+
 	return [
 		{
 			localId: createScoreOutputLocalId(),
@@ -724,7 +729,7 @@ export function createDefaultScoreOutputRows(
 			calculation: 'mean',
 			missingStrategy: 'require_all',
 			minValidCount: 1,
-			includedQuestionCodes: rows.filter(isMeanScoreEligible).map((row) => row.code)
+			includedQuestionCodes
 		}
 	];
 }
@@ -737,7 +742,7 @@ export function createScoreOutputRowsForStudyPreset(
 		return createOshErgonomicsScoreOutputRows(rows);
 	}
 
-	return [];
+	return createDefaultScoreOutputRows(rows);
 }
 
 function createOshErgonomicsScoreOutputRows(
@@ -831,6 +836,10 @@ export function syncScoreOutputQuestionCodes(
 ): ScoreOutputAuthoringRow[] {
 	const eligibleCodes = rows.filter(isMeanScoreEligible).map((row) => row.code);
 	const eligibleCodeSet = new Set(eligibleCodes.map((code) => code.trim().toLowerCase()));
+
+	if (outputs.length === 0) {
+		return createDefaultScoreOutputRows(rows);
+	}
 
 	return outputs.map((output, index) => {
 		const retainedCodes = output.includedQuestionCodes.filter((code) =>
@@ -2620,7 +2629,7 @@ export function createScoreOutputRowsForQuestionnairePalette(
 	rows: TemplateQuestionAuthoringRow[]
 ): ScoreOutputAuthoringRow[] {
 	if (paletteId === 'blank') {
-		return createScoreOutputRowsForStudyPreset('blank', rows);
+		return createDefaultScoreOutputRows(rows);
 	}
 
 	if (paletteId === 'osh_ergonomics') {

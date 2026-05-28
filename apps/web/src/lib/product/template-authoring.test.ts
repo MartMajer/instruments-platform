@@ -8,7 +8,9 @@ import {
 	buildMeanScoringDocument,
 	createDefaultScoreOutputRows,
 	createDefaultTemplateQuestionRows,
+	createScoreOutputRowsForQuestionnairePalette,
 	createScoreOutputRowsForStudyPreset,
+	createTemplateQuestionRowsForQuestionnairePalette,
 	createTemplateQuestionRowsForStudyPreset,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
@@ -112,10 +114,25 @@ describe('template authoring helpers', () => {
 		expect(combinedText).not.toMatch(/OLBI|COPSOQ|MBI|PHQ-9|UWES|\bnorms?\b|\bbenchmarks?\b/i);
 	});
 
-	it('does not invent a default score for blank custom studies', () => {
+	it('creates a default result setup for blank custom studies', () => {
 		const rows = createTemplateQuestionRowsForStudyPreset('blank');
 
-		expect(createScoreOutputRowsForStudyPreset('blank', rows)).toEqual([]);
+		expect(createScoreOutputRowsForStudyPreset('blank', rows)).toEqual([
+			expect.objectContaining({
+				name: 'Total score',
+				code: 'total',
+				includedQuestionCodes: ['q01', 'q02', 'q03']
+			})
+		]);
+
+		const paletteRows = createTemplateQuestionRowsForQuestionnairePalette('blank');
+		expect(createScoreOutputRowsForQuestionnairePalette('blank', paletteRows)).toEqual([
+			expect.objectContaining({
+				name: 'Total score',
+				code: 'total',
+				includedQuestionCodes: ['q01', 'q02', 'q03']
+			})
+		]);
 	});
 
 	it('creates separate OSH ergonomics result outputs instead of a mixed total score', () => {
