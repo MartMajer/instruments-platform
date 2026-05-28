@@ -8136,9 +8136,11 @@ img.app-mobile-topbar__mark {
 	white-space: nowrap;
 }
 
-.app-shell--product .app-sidebar {
-	display: flex;
-	flex-direction: column;
+@media (min-width: 1024px) {
+	.app-shell--product .app-sidebar {
+		display: flex;
+		flex-direction: column;
+	}
 }
 
 .app-sidebar__body {
