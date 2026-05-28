@@ -1811,6 +1811,10 @@
 		Selected: 'Odabrano',
 		'Use this set': 'Koristi ovaj predložak',
 		'Edit question': 'Uredi pitanje',
+		'Open questionnaire summary': 'Otvori sažetak upitnika',
+		'Open questionnaire check': 'Otvori provjeru upitnika',
+		'Open study dimensions': 'Otvori dimenzije studije',
+		'How respondents will see this': 'Kako će pitanja izgledati ispitaniku',
 		'Suggested results': 'Predloženi rezultati',
 		'Custom result': 'Prilagođeni rezultat',
 		'Workload strain': 'Radno opterećenje',
@@ -2308,19 +2312,19 @@
 								</div>
 								<StatusBadge status="neutral" label={setupUi('Customizable')} />
 							</div>
-							<div class="record-grid">
+							<div class="grid gap-3 xl:grid-cols-2">
 								{#each questionnairePaletteOptions as preset (preset.id)}
 									<button
 										type="button"
-										class="record-field cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
+										class="record-field min-w-0 cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
 										aria-pressed={selectedQuestionnairePalette === preset.id}
 										style={selectedQuestionnairePalette === preset.id
 											? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
 											: undefined}
 										onclick={() => applyQuestionnairePalette(preset.id)}
 									>
-										<div class="flex items-start justify-between gap-3">
-											<div>
+										<div class="flex min-w-0 items-start justify-between gap-3">
+											<div class="min-w-0">
 												<p class="record-field__label">
 													{preset.category} - {setupQuestionCount(preset.questionCount)}
 												</p>
@@ -2329,7 +2333,7 @@
 											{#if selectedQuestionnairePalette === preset.id}
 												<span class="step-pill shrink-0" data-state="current">{setupUi('Selected')}</span>
 											{:else}
-												<span class="shrink-0 text-xs font-semibold text-[var(--color-accent)]">
+												<span class="shrink-0 whitespace-nowrap text-xs font-semibold text-[var(--color-accent)]">
 													{setupUi('Use this set')}
 												</span>
 											{/if}
@@ -2344,27 +2348,31 @@
 							</div>
 						</div>
 						<div class="mt-4 grid gap-4">
-							<div class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupBodyCopy.questionnaire.authoringSummary}</p>
-										<h5 class="record-row__title">{setupUi(authoringReadiness.label)}</h5>
+							<details class="record-row">
+								<summary class="cursor-pointer">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupBodyCopy.questionnaire.authoringSummary}</p>
+											<h5 class="record-row__title">{setupUi('Open questionnaire summary')}</h5>
+										</div>
+										<StatusBadge status="neutral" label={setupQuestionCount(authoringReadiness.questionCount)} />
 									</div>
-									<StatusBadge status="neutral" label={setupQuestionCount(authoringReadiness.questionCount)} />
-								</div>
+								</summary>
 								<p class="text-sm text-[var(--color-text-muted)]">
 									{setupContextQuestionSummary(authoringReadiness.contextQuestionCount)}
 									{reverseScoredCountLabel(authoringReadiness.reverseScoredQuestionCount)}.
 								</p>
-							</div>
-							<div class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupBodyCopy.questionnaire.blueprintTitle}</p>
-										<h5 class="record-row__title">{setupUi(questionnaireBlueprintReview.label)}</h5>
+							</details>
+							<details class="record-row">
+								<summary class="cursor-pointer">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupBodyCopy.questionnaire.blueprintTitle}</p>
+											<h5 class="record-row__title">{setupUi('Open questionnaire check')}</h5>
+										</div>
+										<StatusBadge status="neutral" label={setupUi(questionnaireBlueprintReview.label)} />
 									</div>
-									<StatusBadge status="neutral" label={setupUi('Design review')} />
-								</div>
+								</summary>
 								<div class="questionnaire-blueprint-review">
 									{#each questionnaireBlueprintReview.items as item (item.id)}
 										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
@@ -2373,15 +2381,17 @@
 										</div>
 									{/each}
 								</div>
-							</div>
-							<div class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupBodyCopy.questionnaire.studyDimensions}</p>
-										<h5 class="record-row__title">{setupUi('What this questionnaire measures')}</h5>
+							</details>
+							<details class="record-row">
+								<summary class="cursor-pointer">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupBodyCopy.questionnaire.studyDimensions}</p>
+											<h5 class="record-row__title">{setupUi('Open study dimensions')}</h5>
+										</div>
+										<StatusBadge status="neutral" label={setupDimensionCount(questionDimensionSummaries.length)} />
 									</div>
-									<StatusBadge status="neutral" label={setupDimensionCount(questionDimensionSummaries.length)} />
-								</div>
+								</summary>
 								<div class="record-grid">
 									{#each questionDimensionSummaries as dimension (dimension.code)}
 										<div class="record-field">
@@ -2393,7 +2403,7 @@
 										</div>
 									{/each}
 								</div>
-							</div>
+							</details>
 							{#each templateQuestionRows as question, index (question.ordinal)}
 								<div class="question-row">
 									<button
@@ -2925,17 +2935,19 @@
 								<span>{setupBodyCopy.questionnaire.addQuestion}</span>
 							</button>
 						</div>
-						<div class="record-row">
-							<div class="record-row__header">
-								<div>
-									<p class="record-field__label">{setupUi('Respondent preview')}</p>
-									<h5 class="record-row__title">{setupUi(respondentPreviewContract.label)}</h5>
+						<details class="record-row">
+							<summary class="cursor-pointer">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Respondent preview')}</p>
+										<h5 class="record-row__title">{setupUi('How respondents will see this')}</h5>
+									</div>
+									<StatusBadge
+										status={respondentPreviewContract.unsupportedCount > 0 ? 'blocked' : 'neutral'}
+										label={setupQuestionCount(respondentPreviewContract.questionCount)}
+									/>
 								</div>
-								<StatusBadge
-									status={respondentPreviewContract.unsupportedCount > 0 ? 'blocked' : 'neutral'}
-									label={setupQuestionCount(respondentPreviewContract.questionCount)}
-								/>
-							</div>
+							</summary>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{respondentPreviewContract.detail}
 							</p>
@@ -3078,7 +3090,7 @@
 									</div>
 								{/each}
 							</div>
-						</div>
+						</details>
 						{#if templateQuestionErrors.length > 0}
 							<ul class="grid gap-1" aria-label={setupBodyCopy.questionnaire.errorsLabel}>
 								{#each templateQuestionErrors as error}
