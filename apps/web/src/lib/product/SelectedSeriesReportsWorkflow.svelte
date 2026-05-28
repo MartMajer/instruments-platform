@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { page } from '$app/state';
 	import { env } from '$env/dynamic/public';
 	import { Download, FileSearch, LoaderCircle, Send } from 'lucide-svelte';
@@ -19,8 +19,6 @@
 		toSelectedSeriesExportPreview,
 		toSelectedSeriesScoreMethodReview,
 		toSelectedSeriesResultsPacketReview,
-		toSelectedSeriesReportsPath,
-		type SelectedSeriesReportsPathStepState,
 		type SelectedSeriesReportsWorkflowActionId
 	} from './reports-workflow';
 	import { createSetupApiFromEnv } from './route-state';
@@ -137,7 +135,6 @@
 		artifactFetched: Boolean(storedExportResult),
 		csvDownloaded: Boolean(downloadResult)
 	});
-	const reportsPath = $derived(toSelectedSeriesReportsPath(workspace, localState, reportsWorkflowCopy));
 	const packetReview = $derived(
 		toSelectedSeriesResultsPacketReview(workspace, localState, reportsWorkflowCopy)
 	);
@@ -148,9 +145,28 @@
 	const exportPreview = $derived(
 		toSelectedSeriesExportPreview(workspace, exportPreviewArtifact, reportsWorkflowCopy)
 	);
-	const workflowActions = $derived(reportsPath.steps);
-	const currentAction = $derived(reportsPath.currentAction);
-	const wavesHref = $derived(`/app/campaign-series/${workspace.series.id}/waves`);
+	const canReviewResults = $derived(
+		canManageSetup && Boolean(selectedCampaign) && actionStates.reportProof !== 'submitting'
+	);
+	const canCreateResultsMatrixExport = $derived(
+		canManageSetup && Boolean(selectedCampaign) && actionStates.exportArtifact !== 'submitting'
+	);
+	const canCreateResponseExport = $derived(
+		canManageSetup && Boolean(workspace.series.id) && actionStates.responseExport !== 'submitting'
+	);
+	const canReviewExportFile = $derived(
+		canManageSetup && Boolean(currentExportArtifactId) && actionStates.fetchArtifact !== 'submitting'
+	);
+	const canDownloadCsv = $derived(
+		canManageSetup &&
+			Boolean(currentDownloadableExportArtifactId) &&
+			actionStates.downloadCsv !== 'submitting'
+	);
+	const downloadCsvTitle = $derived(
+		preferredDownloadableExportArtifact?.artifactType === 'campaign_series_response_csv_codebook'
+			? reportsWorkflowCopy.actions.downloadCsv.responseDatasetTitle
+			: reportsWorkflowCopy.actions.downloadCsv.reportSummaryTitle
+	);
 
 	function scoreInterpretationMeta(
 		interpretation:
@@ -311,43 +327,6 @@
 		}
 	}
 
-	function workflowAction(id: SelectedSeriesReportsWorkflowActionId) {
-		return workflowActions.find((action) => action.id === id) ?? workflowActions[0];
-	}
-
-	function isActionDisabled(id: SelectedSeriesReportsWorkflowActionId) {
-		const action = workflowAction(id);
-		return !action.available || actionStates[id] === 'submitting';
-	}
-
-	function stepLabel(state: StepState) {
-		if (state === 'submitting') {
-			return reportsUi.state.working;
-		}
-
-		if (state === 'succeeded') {
-			return reportsUi.state.saved;
-		}
-
-		if (state === 'failed') {
-			return reportsUi.state.failed;
-		}
-
-		return reportsUi.state.ready;
-	}
-
-	function pathStateLabel(state: SelectedSeriesReportsPathStepState) {
-		if (state === 'done') {
-			return reportsUi.state.done;
-		}
-
-		if (state === 'current') {
-			return reportsUi.state.current;
-		}
-
-		return reportsUi.state.blocked;
-	}
-
 	function formatNullableScoreValue(value: number | null) {
 		return value === null ? reportsUi.suppressed : value.toFixed(2);
 	}
@@ -401,47 +380,177 @@
 		warning={widgetWarning}
 		embedded={true}
 	/>
-
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
-		<div class="questionnaire-blueprint-review__header">
-			<div>
-				<p class="product-kicker">{reportsWorkflowCopy.surface.useDecisionLabel}</p>
-				<h4 class="setup-current-task__title">{packetReview.title}</h4>
-				<p class="text-sm text-[var(--color-text-muted)]">{packetReview.description}</p>
-			</div>
+	<article class="overview-command-card" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
+		<div>
+			<p class="product-kicker">{reportsWorkflowCopy.surface.useDecisionLabel}</p>
+			<h4 class="setup-current-task__title">{packetReview.title}</h4>
+			<p class="text-sm text-[var(--color-text-muted)]">{packetReview.primaryAction}</p>
+		</div>
+		<div class="action-row">
 			<StatusBadge status={packetReview.status} />
-		</div>
-		<div class="questionnaire-blueprint-review__grid">
-			{#each packetReview.items as item (item.id)}
-				<section
-					class="questionnaire-blueprint-review__item"
-					data-state={item.status}
-					aria-label={item.label}
+			{#if canManageSetup}
+				<button
+					type="button"
+					class="primary-button"
+					disabled={!canReviewResults}
+					onclick={viewReportProof}
 				>
-					<div class="questionnaire-blueprint-review__item-header">
-						<p class="record-field__label">{item.label}</p>
-						<StatusBadge status={item.status} />
-					</div>
-					<p class="record-row__title">{item.summary}</p>
-					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
-				</section>
-			{/each}
+					{#if actionStates.reportProof === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<FileSearch size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsWorkflowCopy.actions.reportProof.title}</span>
+				</button>
+			{/if}
 		</div>
-		<p class="result-line">
-			<span>{reportsWorkflowCopy.surface.nextActionLabel}</span>
-			<span>{packetReview.primaryAction}</span>
-		</p>
 	</article>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.scoreMethodReviewAria}>
-		<div class="questionnaire-blueprint-review__header">
+	{#if actionErrors.reportProof}
+		<p class="error-line">{actionErrors.reportProof}</p>
+	{/if}
+	{#if reportProofResult}
+		{@render ReportProofResult()}
+	{/if}
+
+	<article class="record-row" role="region" aria-label={reportsWorkflowCopy.surface.exportPreviewAria}>
+		<div class="record-row__header">
 			<div>
-				<p class="product-kicker">{reportsWorkflowCopy.surface.scoreMethodLabel}</p>
-				<h4 class="setup-current-task__title">{methodReview.title}</h4>
-				<p class="text-sm text-[var(--color-text-muted)]">{methodReview.description}</p>
+				<span>{reportsWorkflowCopy.surface.exportPreviewLabel}</span>
+				<strong>{currentExportPurpose}</strong>
 			</div>
-			<StatusBadge status={methodReview.status} />
+			<StatusBadge
+				status={preferredDownloadableExportArtifact ? 'ready' : preferredExportArtifact ? 'pending' : 'not_available'}
+				label={preferredDownloadableExportArtifact
+					? reportsUi.downloadable
+					: preferredExportArtifact
+						? reportsUi.notReady
+						: reportsUi.notAvailable}
+			/>
 		</div>
+		<dl class="record-grid">
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.reportExportResult}</dt>
+				<dd class="record-field__value">
+					{exportResult?.fileName ??
+						latestResultsMatrixExportArtifact?.fileName ??
+						reportsUi.notAvailable}
+				</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.responseExportResult}</dt>
+				<dd class="record-field__value">
+					{responseExportResult?.fileName ??
+						latestResponseExportArtifact?.fileName ??
+						reportsUi.notAvailable}
+				</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
+				<dd class="record-field__value">
+					{currentDownloadableExportArtifactId ? reportsUi.downloadable : exportPreview.downloadLabel}
+				</dd>
+			</div>
+		</dl>
+
+		{#if canManageSetup}
+			<div class="action-row">
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canCreateResultsMatrixExport}
+					onclick={createExportArtifact}
+				>
+					{#if actionStates.exportArtifact === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<Send size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsUi.createReportSummaryExport}</span>
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canCreateResponseExport}
+					onclick={createResponseExportArtifact}
+				>
+					{#if actionStates.responseExport === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<Send size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsUi.createResponseExport}</span>
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canReviewExportFile}
+					onclick={fetchStoredArtifact}
+				>
+					{#if actionStates.fetchArtifact === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<FileSearch size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsWorkflowCopy.actions.fetchArtifact.title}</span>
+				</button>
+				<button
+					type="button"
+					class={canDownloadCsv ? 'primary-button' : 'secondary-button'}
+					disabled={!canDownloadCsv}
+					onclick={downloadCsv}
+				>
+					{#if actionStates.downloadCsv === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<Download size={17} aria-hidden="true" />
+					{/if}
+					<span>{downloadCsvTitle}</span>
+				</button>
+			</div>
+			{#if actionErrors.exportArtifact}
+				<p class="error-line">{actionErrors.exportArtifact}</p>
+			{/if}
+			{#if actionErrors.responseExport}
+				<p class="error-line">{actionErrors.responseExport}</p>
+			{/if}
+			{#if actionErrors.fetchArtifact}
+				<p class="error-line">{actionErrors.fetchArtifact}</p>
+			{/if}
+			{#if actionErrors.downloadCsv}
+				<p class="error-line">{actionErrors.downloadCsv}</p>
+			{/if}
+		{/if}
+
+		{#if exportResult}
+			{@render ExportArtifactResult({
+				result: exportResult,
+				ariaLabel: reportsUi.reportExportResult,
+				kicker: reportsUi.reportExport,
+				title: reportsUi.reportSummaryCsvCodebook
+			})}
+		{/if}
+		{#if responseExportResult}
+			{@render ExportArtifactResult({
+				result: responseExportResult,
+				ariaLabel: reportsUi.responseExportResult,
+				kicker: reportsUi.responseExport,
+				title: reportsUi.responseCsvCodebook
+			})}
+		{/if}
+		{#if storedExportResult}
+			{@render StoredArtifactResult()}
+		{/if}
+		{#if downloadResult}
+			{@render CsvDownloadResult()}
+		{/if}
+	</article>
+
+	<details class="record-row">
+		<summary class="record-row__header">
+			<span>{reportsWorkflowCopy.surface.scoreMethodLabel}</span>
+			<StatusBadge status={methodReview.status} />
+		</summary>
 		<div class="questionnaire-blueprint-review__grid">
 			{#each methodReview.items as item (item.id)}
 				<section
@@ -458,17 +567,13 @@
 				</section>
 			{/each}
 		</div>
-	</article>
+	</details>
 
-	<article class="questionnaire-blueprint-review questionnaire-blueprint-review--section" role="region" aria-label={reportsWorkflowCopy.surface.exportPreviewAria}>
-		<div class="questionnaire-blueprint-review__header">
-			<div>
-				<p class="product-kicker">{reportsWorkflowCopy.surface.exportPreviewLabel}</p>
-				<h4 class="setup-current-task__title">{exportPreview.title}</h4>
-				<p class="text-sm text-[var(--color-text-muted)]">{exportPreview.description}</p>
-			</div>
+	<details class="record-row">
+		<summary class="record-row__header">
+			<span>{exportPreview.title}</span>
 			<StatusBadge status={exportPreview.status} />
-		</div>
+		</summary>
 		<div class="questionnaire-blueprint-review__grid">
 			{#each exportPreview.items as item (item.id)}
 				<section
@@ -486,211 +591,17 @@
 			{/each}
 		</div>
 		<p class="result-line">
-		<span>{reportsUi.downloadAction}</span>
-		<span>{exportPreview.downloadLabel}</span>
-	</p>
-	</article>
-
-	<div class="setup-path" role="list" aria-label={reportsUi.reviewPathAria}>
-		{#each reportsPath.steps as action, index (action.id)}
-			<div
-				class="setup-path__item"
-				data-state={action.pathState}
-				role="listitem"
-				aria-current={action.pathState === 'current' ? 'step' : undefined}
-			>
-				<span class="setup-path__marker" aria-hidden="true">{index + 1}</span>
-				<div class="setup-path__content">
-					<p class="setup-path__title">{action.title}</p>
-					<p class="setup-path__description">{action.description}</p>
-				</div>
-				<span class="setup-path__state">{pathStateLabel(action.pathState)}</span>
-			</div>
-		{/each}
-	</div>
+			<span>{reportsUi.downloadAction}</span>
+			<span>{exportPreview.downloadLabel}</span>
+		</p>
+	</details>
 
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
 			<strong class="record-row__title">{reportsUi.readOnlyTitle}</strong>
 			<span>{reportsUi.readOnlyBody}</span>
 		</p>
-	{:else}
-		<article class="record-row setup-current-task" role="region" aria-label={reportsUi.currentTaskAria}>
-			<div class="setup-current-task__header">
-				<div>
-					<p class="record-field__label">
-						{reportsUi.taskProgress(reportsPath.completedCount, reportsPath.totalCount)}
-					</p>
-					<h4 class="setup-current-task__title">{reportsUi.currentTaskTitle}</h4>
-					<p class="record-row__title">{currentAction.title}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">{currentAction.description}</p>
-				</div>
-				<StatusBadge status={currentAction.status} />
-			</div>
-			{#if currentAction.disabledReason}
-				<p class="text-sm text-[var(--color-text-muted)]">{currentAction.disabledReason}</p>
-			{/if}
-
-			<div class="setup-current-task__body">
-				{#if currentAction.id === 'reportProof'}
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.selectedWave}</dt>
-							<dd class="record-field__value">{selectedCampaign?.name ?? reportsUi.missing}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.previewStatus}</dt>
-							<dd class="record-field__value">
-								{selectedCampaign?.reportStatus === 'proof_only'
-									? reportsUi.readyForReview
-									: reportsUi.finishSetupFirst}
-							</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.interpretation}</dt>
-							<dd class="record-field__value">
-								{humanize(
-									reportProofResult?.interpretationStatus ?? selectedCampaign?.interpretationStatus
-								)}
-							</dd>
-						</div>
-					</dl>
-					{#if reportProofResult}
-						{@render ReportProofResult()}
-					{/if}
-					{@render ActionFooter({
-						id: 'reportProof',
-						label: reportsWorkflowCopy.actions.reportProof.title,
-						resultLabel: reportsWorkflowCopy.surface.exportPreviewLabel,
-						resultValue: reportProofResult ? reportsUi.state.ready : null,
-						onclick: viewReportProof
-					})}
-				{:else if currentAction.id === 'exportArtifact'}
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.latestExport}</dt>
-							<dd class="record-field__value">
-								{exportResult?.fileName ??
-									latestResultsMatrixExportArtifact?.fileName ??
-									reportsUi.notAvailable}
-							</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.exportCount}</dt>
-							<dd class="record-field__value">{workspace.summary.exportArtifactCount}</dd>
-						</div>
-					</dl>
-					{#if exportResult}
-						{@render ExportArtifactResult({
-							result: exportResult,
-							ariaLabel: reportsUi.reportExportResult,
-							kicker: reportsUi.reportExport,
-							title: reportsUi.reportSummaryCsvCodebook
-						})}
-					{/if}
-					{@render ActionFooter({
-						id: 'exportArtifact',
-						label: reportsUi.createReportSummaryExport,
-						resultLabel: reportsUi.exportFile,
-						resultValue:
-							exportResult?.fileName ?? latestResultsMatrixExportArtifact?.fileName ?? null,
-						onclick: createExportArtifact
-					})}
-				{:else if currentAction.id === 'responseExport'}
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.series}</dt>
-							<dd class="record-field__value">{workspace.series.name}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.latestResponseExport}</dt>
-							<dd class="record-field__value">
-								{responseExportResult?.fileName ??
-									latestResponseExportArtifact?.fileName ??
-									reportsUi.notAvailable}
-							</dd>
-						</div>
-					</dl>
-					{#if responseExportResult}
-						{@render ExportArtifactResult({
-							result: responseExportResult,
-							ariaLabel: reportsUi.responseExportResult,
-							kicker: reportsUi.responseExport,
-							title: reportsUi.responseCsvCodebook
-						})}
-					{/if}
-					{@render ActionFooter({
-						id: 'responseExport',
-						label: reportsUi.createResponseExport,
-						resultLabel: reportsUi.responseFile,
-						resultValue:
-							responseExportResult?.fileName ?? latestResponseExportArtifact?.fileName ?? null,
-						onclick: createResponseExportArtifact
-					})}
-				{:else if currentAction.id === 'fetchArtifact'}
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.exportFile}</dt>
-							<dd class="record-field__value">{currentExportFileName ?? reportsUi.notAvailable}</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
-							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? reportsUi.downloadable : reportsUi.notReady}
-							</dd>
-						</div>
-					</dl>
-					{#if storedExportResult}
-						{@render StoredArtifactResult()}
-					{/if}
-					{@render ActionFooter({
-						id: 'fetchArtifact',
-						label: reportsWorkflowCopy.actions.fetchArtifact.title,
-						resultLabel: reportsUi.reviewedFile,
-						resultValue: storedExportResult?.fileName ?? currentExportFileName,
-						onclick: fetchStoredArtifact
-					})}
-				{:else}
-					<dl class="record-grid">
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
-							<dd class="record-field__value">
-								{currentDownloadableExportArtifactId ? reportsUi.downloadable : reportsUi.notReady}
-							</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.latestFile}</dt>
-							<dd class="record-field__value">
-								{downloadResult?.fileName ??
-									preferredDownloadableExportArtifact?.fileName ??
-									currentExportFileName ??
-									reportsUi.notAvailable}
-							</dd>
-						</div>
-						<div class="record-field">
-							<dt class="record-field__label">{reportsUi.filePurpose}</dt>
-							<dd class="record-field__value">{currentExportPurpose}</dd>
-						</div>
-					</dl>
-					{#if downloadResult}
-						{@render CsvDownloadResult()}
-					{/if}
-					{@render ActionFooter({
-						id: 'downloadCsv',
-						label: currentAction.title,
-						resultLabel: reportsUi.downloadedFile,
-						resultValue:
-							downloadResult?.fileName ??
-							preferredDownloadableExportArtifact?.fileName ??
-							currentExportFileName ??
-							null,
-						onclick: downloadCsv
-					})}
-				{/if}
-			</div>
-		</article>
-	{/if}
-</section>
+	{/if}</section>
 
 {#snippet ReportProofResult()}
 	{#if reportProofResult}
@@ -819,49 +730,6 @@
 	{/if}
 {/snippet}
 
-{#snippet ActionFooter({
-	id,
-	label,
-	resultLabel,
-	resultValue,
-	onclick
-}: {
-	id: SelectedSeriesReportsWorkflowActionId;
-	label: string;
-	resultLabel: string;
-	resultValue: string | null | undefined;
-	onclick: () => void | Promise<void>;
-})}
-	<div class="action-row">
-		<button
-			type="button"
-			class="primary-button"
-			disabled={isActionDisabled(id)}
-			title={workflowAction(id).disabledReason ?? undefined}
-			{onclick}
-		>
-			{#if actionStates[id] === 'submitting'}
-				<LoaderCircle size={17} aria-hidden="true" />
-			{:else if id === 'reportProof' || id === 'fetchArtifact'}
-				<FileSearch size={17} aria-hidden="true" />
-			{:else if id === 'downloadCsv'}
-				<Download size={17} aria-hidden="true" />
-			{:else}
-				<Send size={17} aria-hidden="true" />
-			{/if}
-			<span>{label}</span>
-		</button>
-		<p class="step-pill" data-state={actionStates[id]}>{stepLabel(actionStates[id])}</p>
-		{@render ResultLine({ label: resultLabel, value: resultValue })}
-		{#if id === 'downloadCsv'}
-			<a class="secondary-button" href={wavesHref}>{reportsUi.goToWaves}</a>
-		{/if}
-	</div>
-	{#if actionErrors[id]}
-		<p class="error-line">{actionErrors[id]}</p>
-	{/if}
-{/snippet}
-
 {#snippet ResultLine({ label, value }: { label: string; value: string | null | undefined })}
 	{#if value}
 		<p class="result-line">
@@ -870,3 +738,5 @@
 		</p>
 	{/if}
 {/snippet}
+
+
