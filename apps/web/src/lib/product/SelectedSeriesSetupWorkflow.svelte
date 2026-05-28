@@ -1662,8 +1662,20 @@
 	}
 
 	function audienceRuleLabel(rule: PreviewRuleKind): string {
-		if (rule === 'manager_of_target' || rule === 'reports_of_target') {
-			return setupBodyCopy.recipients.audienceRules.managerLabel;
+		if (rule === 'all_in_group') {
+			return setupUi('Everyone in selected groups');
+		}
+
+		if (rule === 'self') {
+			return setupUi('Saved people answer for themselves');
+		}
+
+		if (rule === 'manager_of_target') {
+			return setupUi('Managers of selected people');
+		}
+
+		if (rule === 'reports_of_target') {
+			return setupUi('Team members of selected managers');
 		}
 
 		if (rule === 'external_emails') {
@@ -1674,8 +1686,22 @@
 	}
 
 	function audienceRuleHelp(rule: PreviewRuleKind): string {
-		if (rule === 'manager_of_target' || rule === 'reports_of_target') {
-			return setupBodyCopy.recipients.audienceRules.managerHelp;
+		if (rule === 'all_in_group') {
+			return setupUi('Invite active people from the selected Directory groups.');
+		}
+
+		if (rule === 'self') {
+			return setupUi('Invite the saved people directly. Each person gets one private invitation.');
+		}
+
+		if (rule === 'manager_of_target') {
+			return setupUi(
+				"Invite each selected person's manager to answer for that reporting relationship."
+			);
+		}
+
+		if (rule === 'reports_of_target') {
+			return setupUi('Invite people who report to the selected managers.');
 		}
 
 		if (rule === 'external_emails') {
@@ -2008,6 +2034,18 @@
 		'Test cohort saved': 'Testna skupina spremljena',
 		'Send invitations to': 'Pošalji pozivnice za',
 		'How to choose': 'Kako odabrati',
+		'Everyone in selected groups': 'Svi u odabranim grupama',
+		'Invite active people from the selected Directory groups.':
+			'Pozovite aktivne osobe iz odabranih grupa Imenika.',
+		'Saved people answer for themselves': 'Spremljene osobe odgovaraju za sebe',
+		'Invite the saved people directly. Each person gets one private invitation.':
+			'Pozovite spremljene osobe izravno. Svaka osoba dobiva jednu privatnu pozivnicu.',
+		'Managers of selected people': 'Voditelji odabranih osoba',
+		"Invite each selected person's manager to answer for that reporting relationship.":
+			'Pozovite voditelja svake odabrane osobe da odgovori za taj odnos.',
+		'Team members of selected managers': 'Članovi timova odabranih voditelja',
+		'Invite people who report to the selected managers.':
+			'Pozovite osobe koje rade pod odabranim voditeljima.',
 		'Campaign-local recipients': 'Primatelji samo za ovo mjerenje',
 		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
 		ready: 'spremno',
@@ -3482,9 +3520,6 @@
 						<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
 						<option value="external_emails">{audienceRuleLabel('external_emails')}</option>
 					</select>
-					<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-						{audienceRuleHelp(previewRuleKind)}
-					</span>
 				</label>
 				<details
 					class="rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text-muted)] lg:col-span-2"
