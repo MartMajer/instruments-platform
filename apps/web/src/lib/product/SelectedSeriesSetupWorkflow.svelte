@@ -1811,9 +1811,6 @@
 		Selected: 'Odabrano',
 		'Use this set': 'Koristi ovaj predložak',
 		'Edit question': 'Uredi pitanje',
-		'Open questionnaire summary': 'Otvori sažetak upitnika',
-		'Open questionnaire check': 'Otvori provjeru upitnika',
-		'Open study dimensions': 'Otvori dimenzije studije',
 		'How respondents will see this': 'Kako će pitanja izgledati ispitaniku',
 		'Suggested results': 'Predloženi rezultati',
 		'Custom result': 'Prilagođeni rezultat',
@@ -2348,62 +2345,6 @@
 							</div>
 						</div>
 						<div class="mt-4 grid gap-4">
-							<details class="record-row">
-								<summary class="cursor-pointer">
-									<div class="record-row__header">
-										<div>
-											<p class="record-field__label">{setupBodyCopy.questionnaire.authoringSummary}</p>
-											<h5 class="record-row__title">{setupUi('Open questionnaire summary')}</h5>
-										</div>
-										<StatusBadge status="neutral" label={setupQuestionCount(authoringReadiness.questionCount)} />
-									</div>
-								</summary>
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{setupContextQuestionSummary(authoringReadiness.contextQuestionCount)}
-									{reverseScoredCountLabel(authoringReadiness.reverseScoredQuestionCount)}.
-								</p>
-							</details>
-							<details class="record-row">
-								<summary class="cursor-pointer">
-									<div class="record-row__header">
-										<div>
-											<p class="record-field__label">{setupBodyCopy.questionnaire.blueprintTitle}</p>
-											<h5 class="record-row__title">{setupUi('Open questionnaire check')}</h5>
-										</div>
-										<StatusBadge status="neutral" label={setupUi(questionnaireBlueprintReview.label)} />
-									</div>
-								</summary>
-								<div class="questionnaire-blueprint-review">
-									{#each questionnaireBlueprintReview.items as item (item.id)}
-										<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-											<p class="record-field__label">{setupUi(item.label)}</p>
-											<p class="record-field__value">{setupUi(item.detail)}</p>
-										</div>
-									{/each}
-								</div>
-							</details>
-							<details class="record-row">
-								<summary class="cursor-pointer">
-									<div class="record-row__header">
-										<div>
-											<p class="record-field__label">{setupBodyCopy.questionnaire.studyDimensions}</p>
-											<h5 class="record-row__title">{setupUi('Open study dimensions')}</h5>
-										</div>
-										<StatusBadge status="neutral" label={setupDimensionCount(questionDimensionSummaries.length)} />
-									</div>
-								</summary>
-								<div class="record-grid">
-									{#each questionDimensionSummaries as dimension (dimension.code)}
-										<div class="record-field">
-											<p class="record-field__label">{dimension.code}</p>
-											<p class="record-field__value">{dimension.label}</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{setupQuestionCount(dimension.questionCount)}
-											</p>
-										</div>
-									{/each}
-								</div>
-							</details>
 							{#each templateQuestionRows as question, index (question.ordinal)}
 								<div class="question-row">
 									<button
