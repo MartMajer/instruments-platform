@@ -165,6 +165,7 @@
 	let questionnaireLocale = $state('en');
 	let sectionTitle = $state('Questions');
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
+	let expandedQuestionCode = $state(initialTemplateQuestionRows[0]?.code ?? '');
 	let scoreOutputs = $state<ScoreOutputAuthoringRow[]>(initialScoreOutputs);
 
 	function applyQuestionnairePalette(paletteId: QuestionnairePaletteId) {
@@ -173,6 +174,7 @@
 
 		selectedQuestionnairePalette = paletteId;
 		templateQuestionRows = nextRows;
+		expandedQuestionCode = nextRows[0]?.code ?? '';
 		scoreOutputs = nextOutputs;
 		scoringForm.document = buildScoringDocument(scoringForm.ruleKey, nextRows, nextOutputs);
 		scoringForm.produces = buildScoreProduces(nextOutputs);
@@ -180,6 +182,10 @@
 		scoringResult = null;
 		campaignResult = null;
 		readinessResult = null;
+	}
+
+	function toggleQuestionRow(questionCode: string) {
+		expandedQuestionCode = expandedQuestionCode === questionCode ? '' : questionCode;
 	}
 	let scoringDocumentManuallyEdited = $state(false);
 	let scoringForm = $state({
@@ -281,7 +287,7 @@
 						? 'Odabrano mjerenje'
 						: 'Measurement selected'
 					: appLocale === 'hr-HR'
-						? 'Nije odabrano uređivo mjerenje'
+						? 'Nije odabrano mjerenje koje se može mijenjati'
 						: 'No editable draft measurement selected'
 	);
 	const lockedSelectedCampaign = $derived(
@@ -1798,9 +1804,13 @@
 		English: 'Engleski',
 		Croatian: 'Hrvatski',
 		'Questionnaire palette': 'Paleta upitnika',
-		'Choose an editable question set': 'Odaberite uređivi skup pitanja',
-		'Start blank, or load original editable starter items that match the study you are building. These are not marketed as validated named instruments; review and edit before launch.':
-			'Krenite od praznog upitnika ili učitajte izvorne uređive početne stavke koje odgovaraju studiji koju gradite. Ne predstavljaju se kao validirani imenovani instrumenti; pregledajte ih i uredite prije pokretanja.',
+		'Choose a questionnaire starter': 'Odaberite početni predložak upitnika',
+		'Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.':
+			'Počnite prazno ili učitajte predložak koji odgovara studiji koju gradite. Pregledajte i prilagodite pitanja prije pokretanja.',
+		Customizable: 'Prilagodljivo',
+		Selected: 'Odabrano',
+		'Use this set': 'Koristi ovaj predložak',
+		'Edit question': 'Uredi pitanje',
 		'Suggested results': 'Predloženi rezultati',
 		'Custom result': 'Prilagođeni rezultat',
 		'Workload strain': 'Radno opterećenje',
@@ -2293,23 +2303,37 @@
 									<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
 									<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('Start blank, or load original editable starter items that match the study you are building. These are not marketed as validated named instruments; review and edit before launch.')}
+										{setupUi('Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.')}
 									</p>
 								</div>
-								<StatusBadge status="neutral" label={setupUi('Editable')} />
+								<StatusBadge status="neutral" label={setupUi('Customizable')} />
 							</div>
 							<div class="record-grid">
 								{#each questionnairePaletteOptions as preset (preset.id)}
 									<button
 										type="button"
-										class="record-field text-left"
+										class="record-field cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
 										aria-pressed={selectedQuestionnairePalette === preset.id}
+										style={selectedQuestionnairePalette === preset.id
+											? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
+											: undefined}
 										onclick={() => applyQuestionnairePalette(preset.id)}
 									>
-										<p class="record-field__label">
-											{preset.category} - {setupQuestionCount(preset.questionCount)}
-										</p>
-										<p class="record-field__value">{preset.label}</p>
+										<div class="flex items-start justify-between gap-3">
+											<div>
+												<p class="record-field__label">
+													{preset.category} - {setupQuestionCount(preset.questionCount)}
+												</p>
+												<p class="record-field__value">{preset.label}</p>
+											</div>
+											{#if selectedQuestionnairePalette === preset.id}
+												<span class="step-pill shrink-0" data-state="current">{setupUi('Selected')}</span>
+											{:else}
+												<span class="shrink-0 text-xs font-semibold text-[var(--color-accent)]">
+													{setupUi('Use this set')}
+												</span>
+											{/if}
+										</div>
 										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
 										<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
 										<p class="mt-2 text-xs text-[var(--color-text-muted)]">
@@ -2372,7 +2396,13 @@
 							</div>
 							{#each templateQuestionRows as question, index (question.ordinal)}
 								<div class="question-row">
-									<div class="record-row__header">
+									<button
+										type="button"
+										class="w-full cursor-pointer text-left"
+										aria-expanded={expandedQuestionCode === question.code}
+										onclick={() => toggleQuestionRow(question.code)}
+									>
+										<div class="record-row__header">
 										<div>
 											<p class="record-field__label">{setupUi(`Question ${index + 1}`)}</p>
 											<h5 class="record-row__title">
@@ -2386,14 +2416,21 @@
 												{questionAuthoringSummary(question.code)?.resultUsageLabel ?? questionResultUsage(question)}
 											</p>
 										</div>
-										<StatusBadge
-											status="neutral"
-											label={isScaleQuestion(question)
-												? `${question.scaleMin}-${question.scaleMax} ${setupUi('Rating scale').toLowerCase()}`
-												: questionTypeLabel(question.type)}
-										/>
-									</div>
-									<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
+										<div class="flex items-center gap-2">
+											<StatusBadge
+												status="neutral"
+												label={isScaleQuestion(question)
+													? `${question.scaleMin}-${question.scaleMax} ${setupUi('Rating scale').toLowerCase()}`
+													: questionTypeLabel(question.type)}
+											/>
+											<span class="text-xs font-semibold text-[var(--color-accent)]">
+												{setupUi('Edit question')}
+											</span>
+										</div>
+										</div>
+									</button>
+									{#if expandedQuestionCode === question.code}
+									<div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
 										<label class="field">
 											<span>{setupBodyCopy.questionnaire.questionText}</span>
 											<textarea
@@ -2878,6 +2915,7 @@
 											{questionResultUsage(question)}
 										</p>
 									</div>
+									{/if}
 								</div>
 							{/each}
 						</div>

@@ -764,7 +764,7 @@ const en = {
 				working: 'Working'
 			},
 			questionnaire: {
-				paletteTitle: 'Choose an editable question set',
+				paletteTitle: 'Choose a questionnaire starter',
 				paletteBody:
 					'Start from a structured questionnaire set, then edit questions, response formats, and result outputs for this study.',
 				addQuestion: 'Add question',
@@ -780,54 +780,54 @@ const en = {
 					blank: {
 						label: 'Blank questionnaire',
 						category: 'Custom',
-						summary: 'Start with empty editable questions and build the instrument yourself.',
+						summary: 'Start with empty questions and build the instrument yourself.',
 						detail: 'Use this when the study does not match a prepared workplace-health template.'
 					},
 					workload_recovery: {
 						label: 'Workload and recovery pulse',
 						category: 'Workplace health',
-						summary: 'A short editable set for workload pressure, recovery need, and recovery capacity.',
+						summary: 'A short set for workload pressure, recovery need, and recovery capacity.',
 						detail: 'Useful for first occupational-health or ergonomics studies.'
 					},
 					osh_ergonomics: {
 						label: 'OSH / ergonomics',
-						category: 'Original editable starter',
-						summary: 'Original editable workplace-risk items for posture, repetition, discomfort, and recovery.',
+						category: 'Original starter',
+						summary: 'Original workplace-risk items for posture, repetition, discomfort, and recovery.',
 						detail: 'Useful for occupational-safety discovery work. Not a validated named instrument by itself.'
 					},
 					office_ergonomics: {
 						label: 'Office ergonomics',
 						category: 'Persona starter',
 						summary:
-							'Original editable office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
+							'Original office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
 						detail: 'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.'
 					},
 					academic_workload: {
 						label: 'Academic workload',
 						category: 'Persona starter',
 						summary:
-							'Original editable items for teaching/research load, admin pressure, supervision clarity, and recovery.',
+							'Original items for teaching/research load, admin pressure, supervision clarity, and recovery.',
 						detail: 'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.'
 					},
 					team_climate: {
 						label: 'Team climate pulse',
-						category: 'Original editable starter',
+						category: 'Original starter',
 						summary:
-							'Original editable items for role clarity, support, communication, fairness, and psychological safety.',
+							'Original items for role clarity, support, communication, fairness, and psychological safety.',
 						detail: 'A compact team-health pulse for repeated waves or a one-off internal review.'
 					},
 					healthcare_staff_strain: {
 						label: 'Healthcare staff strain',
 						category: 'Persona starter',
 						summary:
-							'Original editable items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
+							'Original items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
 						detail:
 							'Useful for owner-controlled rehearsal and future hospital discovery without clinical or diagnostic claims.'
 					},
 					burnout_risk: {
 						label: 'Burnout risk screen',
 						category: 'Workplace health',
-						summary: 'A compact editable screen for exhaustion, disengagement, and recovery signals.',
+						summary: 'A compact screen for exhaustion, disengagement, and recovery signals.',
 						detail: 'Keeps wording generic and avoids marketing a named proprietary scale.'
 					},
 					ergonomics_baseline: {
@@ -2525,7 +2525,7 @@ const hr: typeof en = {
 		yourStudies: 'Vaše studije',
 		openPortfolio: 'Otvori Studije',
 		noStudiesYet: 'Još nema stvarnih studija',
-		noStudiesYetBody: 'Vaše uređive studije pojavit će se ovdje nakon izrade.',
+			noStudiesYetBody: 'Vaše prilagodljive studije pojavit će se ovdje nakon izrade.',
 		workspaceOverview: 'Pregled radnog prostora',
 		sampleDemo: {
 			eyebrow: 'Primjeri za pregled',
@@ -3051,7 +3051,7 @@ const hr: typeof en = {
 				working: 'U tijeku'
 			},
 			questionnaire: {
-				paletteTitle: 'Odaberite uređivi skup pitanja',
+				paletteTitle: 'Odaberite početni predložak upitnika',
 				paletteBody:
 					'Krenite od strukturiranog skupa pitanja, zatim uredite pitanja, formate odgovora i izlaze rezultata za ovu studiju.',
 				addQuestion: 'Dodaj pitanje',
@@ -3067,54 +3067,54 @@ const hr: typeof en = {
 					blank: {
 						label: 'Prazan upitnik',
 						category: 'Prilagođeno',
-						summary: 'Počnite s praznim uređivim pitanjima i sami izgradite instrument.',
+						summary: 'Počnite s praznim pitanjima i sami izgradite instrument.',
 						detail: 'Koristite kada studija ne odgovara pripremljenom predlošku zdravlja na radu.'
 					},
 					workload_recovery: {
 						label: 'Opterećenje i oporavak',
 						category: 'Zdravlje na radu',
-						summary: 'Kratak uređivi skup za radni pritisak, potrebu za oporavkom i kapacitet oporavka.',
+						summary: 'Kratak skup za radni pritisak, potrebu za oporavkom i kapacitet oporavka.',
 						detail: 'Korisno za prve studije medicine rada ili ergonomije.'
 					},
 					osh_ergonomics: {
 						label: 'Zaštita na radu i ergonomija',
-						category: 'Izvorni uređivi početni skup',
-						summary: 'Izvorne uređive stavke za držanje, ponavljanje, nelagodu i oporavak.',
+						category: 'Izvorni početni predložak',
+						summary: 'Izvorne stavke za držanje, ponavljanje, nelagodu i oporavak.',
 						detail: 'Korisno za početno istraživanje zaštite na radu. Nije validirani imenovani instrument.'
 					},
 					office_ergonomics: {
 						label: 'Uredska ergonomija',
 						category: 'Početni skup za personu',
 						summary:
-							'Izvorne uređive stavke za prilagodbu radnog mjesta, naprezanje zbog ekrana, ulazne uređaje i prekide.',
+							'Izvorne stavke za prilagodbu radnog mjesta, naprezanje zbog ekrana, ulazne uređaje i prekide.',
 						detail: 'Za hibridne ili uredske timove gdje su ergonomija i uvjeti fokusa važni.'
 					},
 					academic_workload: {
 						label: 'Akademsko opterećenje',
 						category: 'Početni skup za personu',
 						summary:
-							'Izvorne uređive stavke za nastavno/istraživačko opterećenje, administraciju, jasnoću očekivanja i oporavak.',
+							'Izvorne stavke za nastavno/istraživačko opterećenje, administraciju, jasnoću očekivanja i oporavak.',
 						detail: 'Korisno za profesorske studije i provjere opterećenja odjela. Tumačenje zadržite specifično za studiju.'
 					},
 					team_climate: {
 						label: 'Puls timske klime',
-						category: 'Izvorni uređivi početni skup',
+						category: 'Izvorni početni predložak',
 						summary:
-							'Izvorne uređive stavke za jasnoću uloga, podršku, komunikaciju, pravednost i psihološku sigurnost.',
+							'Izvorne stavke za jasnoću uloga, podršku, komunikaciju, pravednost i psihološku sigurnost.',
 						detail: 'Kompaktan puls zdravlja tima za ponovljena mjerenja ili jednokratni interni pregled.'
 					},
 					healthcare_staff_strain: {
 						label: 'Opterećenje zdravstvenog osoblja',
 						category: 'Početni skup za personu',
 						summary:
-							'Izvorne uređive stavke za umor nakon smjene, emocionalno opterećenje, manjak osoblja, primopredaju i oporavak.',
+							'Izvorne stavke za umor nakon smjene, emocionalno opterećenje, manjak osoblja, primopredaju i oporavak.',
 						detail:
 							'Korisno za vlasničku probu i buduće bolničko istraživanje bez kliničkih ili dijagnostičkih tvrdnji.'
 					},
 					burnout_risk: {
 						label: 'Rizik iscrpljenosti',
 						category: 'Zdravlje na radu',
-						summary: 'Kompaktan uređivi pregled iscrpljenosti, distanciranja i signala oporavka.',
+						summary: 'Kompaktan pregled iscrpljenosti, distanciranja i signala oporavka.',
 						detail: 'Zadržava generičan tekst i ne promovira imenovanu vlasničku skalu.'
 					},
 					ergonomics_baseline: {
@@ -3126,7 +3126,7 @@ const hr: typeof en = {
 					psychosocial_safety: {
 						label: 'Psihosocijalna sigurnost',
 						category: 'Organizacijska klima',
-						summary: 'Uređiva pitanja o podršci, jasnoći, pravednosti opterećenja i psihološkoj sigurnosti.',
+						summary: 'Pitanja o podršci, jasnoći, pravednosti opterećenja i psihološkoj sigurnosti.',
 						detail: 'Namijenjeno za interno poboljšanje, ne za vanjsku dijagnostiku.'
 					}
 				}

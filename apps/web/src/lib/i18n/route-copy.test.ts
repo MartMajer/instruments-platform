@@ -150,20 +150,20 @@ describe('localized route body copy', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy.setupBody;
 
 		expect(copy.progressTitle).toBe('Napredak postavljanja studije');
-		expect(copy.questionnaire.paletteTitle).toBe('Odaberite uređivi skup pitanja');
+		expect(copy.questionnaire.paletteTitle).toBe('Odaberite početni predložak upitnika');
 		expect(copy.questionnaire.blueprintTitle).toBe('Provjera upitnika');
 		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');
-		expect(copy.scoring.resultsTitle).toBe('Izlazi rezultata');
+		expect(copy.scoring.resultsTitle).toBe('Postavljanje rezultata');
 		expect(copy.wave.responseMode.anonymousLongitudinalLabel).toBe(
-			'Anonimno s ponovljenim sudjelovanjem'
+			'Usporedba iste osobe, anoniman izvještaj'
 		);
 		expect(copy.recipients.audienceRules.externalEmailsLabel).toBe('Jednokratni uvoz e-pošte');
 	});
 	it('keeps English study setup language explicit about source, questionnaire, and starting points', () => {
 		const copy = routePageCopy('en');
 
-		expect(copy.portfolio.startBlueprint).toBe('Choose how to start the study');
-		expect(copy.portfolio.studyModelTitle).toBe('Study, source, and questionnaire');
+		expect(copy.portfolio.startBlueprint).toBe('Choose a starting point');
+		expect(copy.portfolio.studyModelTitle).toBe('How the pieces fit');
 		expect(copy.portfolio.studyModelStudyBody).toContain('study container');
 		expect(copy.portfolio.studyModelStartingPointBody).toContain('Provides source material');
 		expect(copy.instruments.description).toBe(

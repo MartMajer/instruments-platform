@@ -4878,11 +4878,13 @@ test('setup template authoring edits question rows and generated scoring default
 	await workflow.getByRole('button', { name: 'Add question' }).click();
 	await expect(questionRows).toHaveCount(4);
 
+	await questionRows.nth(3).getByRole('button').first().click();
 	await questionRows
 		.nth(3)
 		.getByLabel('Question text')
 		.fill('I can recover focus after a difficult interruption.');
 	await questionRows.nth(3).getByLabel('Reverse score this question', { exact: true }).check();
+	await questionRows.nth(1).getByRole('button').first().click();
 	await questionRows.nth(1).getByRole('button', { name: 'Remove' }).click();
 
 	await workflow.getByRole('button', { name: 'Save questionnaire' }).click();

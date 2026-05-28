@@ -182,7 +182,7 @@ const croatianGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView>
 		...croatianChrome,
 		title: 'Odaberite pravu studiju',
 		summary: 'Usporedite ogledne i vlastite studije prema stanju životnog ciklusa prije dubljih ruta.',
-		inspectFirst: 'Pregledajte Ogledne studije za primjere i Vaše studije za uredivi rad.',
+		inspectFirst: 'Pregledajte Ogledne studije za primjere i Vaše studije za vlastiti rad.',
 		whenItMatters: 'Koristite ovo kada odlučujete što pripremiti, prikupiti, pregledati, arhivirati ili vratiti.',
 		nextMove: 'Otvorite studiju ili izradite vlastitu studiju kada imate pristup postavljanju.'
 	},
