@@ -284,10 +284,10 @@
 				: selectedCampaignId
 					? appLocale === 'hr-HR'
 						? 'Odabrano mjerenje'
-						: 'Collection wave selected'
+						: 'Measurement selected'
 					: appLocale === 'hr-HR'
 						? 'Nije odabrano uređivo mjerenje'
-						: 'No editable collection wave selected'
+						: 'No editable draft measurement selected'
 	);
 	const lockedSelectedCampaign = $derived(
 		workspace.selectedCampaign && workspace.selectedCampaign.id !== selectedCampaignId
@@ -508,7 +508,7 @@
 		if (!campaignId) {
 			actionErrors = {
 				...actionErrors,
-				readiness: setupUi('Create the collection wave first.')
+				readiness: setupUi('Create the measurement first.')
 			};
 			return;
 		}
@@ -551,7 +551,7 @@
 		}
 
 		if (!campaignId) {
-			previewError = setupUi('Create the collection wave first.');
+			previewError = setupUi('Create the measurement first.');
 			return;
 		}
 
@@ -635,7 +635,7 @@
 	async function saveCurrentRespondentRule() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
-			savedRuleError = setupUi('Create the collection wave first.');
+			savedRuleError = setupUi('Create the measurement first.');
 			return;
 		}
 
@@ -676,7 +676,7 @@
 	async function createTestRecipients() {
 		const campaignId = selectedCampaignId;
 		if (!campaignId) {
-			testRecipientError = setupUi('Create the collection wave first.');
+			testRecipientError = setupUi('Create the measurement first.');
 			return;
 		}
 
@@ -749,7 +749,7 @@
 		}
 
 		if (previewExternalEmailReview.recipients.some((item) => item.email === recipient.email)) {
-			previewManualRecipientError = setupUi('This recipient is already in the wave list.');
+			previewManualRecipientError = setupUi('This recipient is already in the measurement list.');
 			return;
 		}
 
@@ -1731,7 +1731,7 @@
 
 	function launchIssueLabel(issue: { code: string; message: string }) {
 		if (issue.code.includes('campaign')) {
-			return setupUi(issue.message.replace('campaign', 'collection wave'));
+			return setupUi(issue.message.replace('campaign', 'measurement'));
 		}
 
 		if (issue.code.includes('template')) {
@@ -1753,7 +1753,7 @@
 		}
 
 		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
-			return setupUi('Specific email lists are available for anonymous invite-only or repeat-participation waves only.');
+			return setupUi('Specific email lists are available for anonymous invite-only or same-person repeat measurements only.');
 		}
 
 		return setupUi(issue.message);
@@ -1777,11 +1777,11 @@
 			'Radnje postavljanja zahtijevaju pristup za upravljanje postavljanjem.',
 		Done: 'Dovršeno',
 		Editable: 'Uredivo',
-		'Questionnaire source ready': 'Izvor upitnika spreman',
-		'The questionnaire source is saved. Continue to the questionnaire.':
-			'Izvor upitnika je spremljen. Nastavite na upitnik.',
-		'Questionnaire source name': 'Naziv izvora upitnika',
-		'Save questionnaire source': 'Spremi izvor upitnika',
+		'Starting source ready': 'Početni izvor spreman',
+		'The starting source is saved. Continue to the questionnaire.':
+			'Početni izvor je spremljen. Nastavite na upitnik.',
+		'Starting source name': 'Naziv početnog izvora',
+		'Save starting source': 'Spremi početni izvor',
 		'Questionnaire ready': 'Upitnik spreman',
 		'Questionnaire name': 'Naziv upitnika',
 		Language: 'Jezik',
@@ -1941,24 +1941,26 @@
 		'no result outputs yet': 'još nema izlaza rezultata',
 		'Save questionnaire': 'Spremi upitnik',
 		'Save results setup': 'Spremi postavljanje rezultata',
-		'Save collection wave': 'Spremi mjerenje',
+		'Save measurement': 'Spremi mjerenje',
 		'Run launch check': 'Pokreni provjeru za pokretanje',
 		Ready: 'Spremno',
 		Yes: 'Da',
 		No: 'Ne',
 		'Save questionnaire first': 'Najprije spremite upitnik',
 		'Save results setup first': 'Najprije spremite postavljanje rezultata',
-		'Collection wave ready': 'Mjerenje prikupljanja spreman',
-		'Wave context': 'Kontekst mjerenja',
-		'Wave setup guidance': 'Upute za postavljanje mjerenja',
+		'Measurement ready': 'Mjerenje spremno',
+		'Measurement context': 'Kontekst mjerenja',
+		'Measurement setup guidance': 'Upute za postavljanje mjerenja',
 		Wave: 'Mjerenje',
 		'Response mode': 'Način odgovaranja',
 		'Launch plan': 'Plan pokretanja',
-		'Wave name': 'Naziv mjerenja',
+		'Measurement name': 'Naziv mjerenja',
 		'Respondent language': 'Jezik ispitanika',
 		'Launch checklist': 'Kontrolna lista pokretanja',
 		Questionnaire: 'Upitnik',
-		'Collection wave': 'Mjerenje prikupljanja',
+		'Measurement': 'Mjerenje',
+		'Create measurement first': 'Najprije izradite mjerenje',
+		'Create the measurement first.': 'Najprije izradite mjerenje.',
 		'Create collection wave first': 'Najprije izradite mjerenje',
 		'Create the collection wave first.': 'Najprije izradite mjerenje.',
 		'Save the questionnaire first.': 'Najprije spremite upitnik.',
@@ -1977,7 +1979,7 @@
 			'Testni primatelji su spremljeni, ali se ovaj prikaz postavljanja nije mogao osvježiti.',
 		'Recipient file could not be read.': 'Datoteka primatelja nije se mogla pročitati.',
 		'Enter one valid email address.': 'Unesite jednu valjanu email adresu.',
-		'This recipient is already in the wave list.': 'Ovaj primatelj već je na popisu mjerenja.',
+		'This recipient is already in the measurement list.': 'Ovaj primatelj već je na popisu za mjerenje.',
 		'Setup action saved, but the setup workspace refresh failed.':
 			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
 		Status: 'Status',
@@ -1987,8 +1989,8 @@
 			'Svaki spremljeni primatelj iz Imenika mora imati email adresu prije nego što može početi prikupljanje samo preko pozivnica.',
 		'Save at least one recipient selection before launch, and make sure it resolves to active people.':
 			'Spremite barem jedan odabir primatelja prije pokretanja i provjerite da odabir pronalazi aktivne osobe.',
-		'Specific email lists are available for anonymous invite-only or repeat-participation waves only.':
-			'Posebni popisi email adresa dostupni su samo za anonimna mjerenja s pozivnicom ili ponovljenim sudjelovanjem.',
+		'Specific email lists are available for anonymous invite-only or same-person repeat measurements only.':
+			'Posebni popisi email adresa dostupni su samo za anonimna mjerenja samo za pozvane ili usporedbu iste osobe.',
 		'Next action': 'Sljedeći korak',
 		'Next step': 'Sljedeći korak',
 		'Previous wave': 'Prethodno mjerenje',
@@ -2006,8 +2008,8 @@
 		'Open participation': 'Otvoreno sudjelovanje',
 		'Open link in Collection': 'Otvorena poveznica u Prikupljanju',
 		'Demo/test data': 'Demo/testni podaci',
-		'Create test recipients for this wave': 'Izradi testne primatelje za ovo mjerenje',
-		"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this wave's recipient selection.":
+		'Create test recipients for this measurement': 'Izradi testne primatelje za ovo mjerenje',
+		"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this measurement's recipient selection.":
 			'Koristite ovo u stagingu ili demo prikazima kada trebate realistične primatelje bez uvoza stvarnog imenika. Izrađuje označenu testnu skupinu i sprema je kao odabir primatelja za ovo mjerenje.',
 		'Group name': 'Naziv grupe',
 		People: 'Osobe',
@@ -2026,20 +2028,20 @@
 		'Import recipients': 'Uvezi primatelje',
 		'Review or paste source list': 'Pregledajte ili zalijepite izvorni popis',
 		'Recipient source': 'Izvor primatelja',
-		'Use this when this wave has a one-time recipient list. For repeated waves or reusable cohorts, import people and groups in Directory instead. Limit:':
+		'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:':
 			'Koristite ovo kada ovo mjerenje ima jednokratni popis primatelja. Za ponavljajuće mjerenja ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Imenik. Ograničenje:',
 		'recipients per wave update.': 'primatelja po ažuriranju mjerenja.',
 		'Keep valid only': 'Zadrži samo valjane',
 		'Clear list': 'Očisti popis',
 		'Directory group': 'Grupa iz imenika',
 		'No groups available': 'Nema dostupnih grupa',
-		'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this wave only.':
+		'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.':
 			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Imeniku ili prijeđite na jednokratni uvoz email adresa samo za ovo mjerenje.',
 		'Focus person': 'Fokus osoba',
 		'Directory people': 'Osobe iz imenika',
 		'active people loaded': 'aktivnih osoba učitano',
 		'No active people loaded yet': 'Još nema učitanih aktivnih osoba',
-		'This selection is broad. Use a Directory group when the wave should only reach a department, cohort, class, or location.':
+		'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.':
 			'Ovaj odabir je širok. Koristite grupu iz imenika kada mjerenje treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
 		'Preview rows': 'Redci pregleda',
 		'Preview recipients': 'Pregledaj primatelje',
@@ -2080,8 +2082,8 @@
 		invitation: 'pozivnica',
 		invitations: 'pozivnica',
 		Locked: 'Zaključano',
-		'This wave is already locked. Recipient selection can only be changed before launch. Save the next collection wave first, then choose recipients for that draft.':
-			'Ovo mjerenje je već zaključan. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeće mjerenje, zatim odaberite primatelje za taj nacrt.',
+		'This measurement is already locked. Recipient selection can only be changed before launch. Save the next draft measurement first, then choose recipients for that draft.':
+			'Ovo mjerenje je već zaključano. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeći nacrt mjerenja, zatim odaberite primatelje za taj nacrt.',
 		'Open Directory': 'Otvori imenik',
 		'Setup path': 'Put postavljanja',
 		'Number entry': 'Brojčani unos',
@@ -2234,9 +2236,9 @@
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">{setupUi('Questionnaire source ready')}</h5>
+									<h5 class="record-row__title">{setupUi('Starting source ready')}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('The questionnaire source is saved. Continue to the questionnaire.')}
+										{setupUi('The starting source is saved. Continue to the questionnaire.')}
 									</p>
 								</div>
 								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
@@ -2245,13 +2247,13 @@
 					{:else}
 						<div class="grid gap-4">
 							<label class="field lg:col-span-2">
-								<span>{setupUi('Questionnaire source name')}</span>
+								<span>{setupUi('Starting source name')}</span>
 								<input bind:value={instrumentForm.fullName} />
 							</label>
 						</div>
 						{@render ActionFooter({
 							id: 'instrument',
-							label: setupUi('Save questionnaire source'),
+							label: setupUi('Save starting source'),
 							icon: 'plus',
 							onclick: createInstrumentImport
 						})}
@@ -3310,13 +3312,13 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
-								<p class="record-field__label">{setupUi('Wave context')}</p>
+								<p class="record-field__label">{setupUi('Measurement context')}</p>
 								<h5 class="record-row__title">{setupUi(waveContext.title)}</h5>
 								<p class="text-sm text-[var(--color-text-muted)]">{waveContext.summary}</p>
 							</div>
 							<StatusBadge status={waveContext.status} label={waveContext.label} />
 						</div>
-						<ul class="grid gap-2" aria-label={setupUi('Wave setup guidance')}>
+						<ul class="grid gap-2" aria-label={setupUi('Measurement setup guidance')}>
 							{#each waveContext.guidance as guidance}
 								<li class="text-sm text-[var(--color-text-muted)]">{guidance}</li>
 							{/each}
@@ -3324,7 +3326,7 @@
 					</div>
 					{#if activeStep.pathState === 'done'}
 						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Collection wave ready')}</h5>
+							<h5 class="record-row__title">{setupUi('Measurement ready')}</h5>
 							<div class="record-grid">
 								<div class="record-field">
 									<p class="record-field__label">{setupUi('Wave')}</p>
@@ -3350,7 +3352,7 @@
 									<h5 class="record-row__title">{setupUi(launchPlan.label)}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">{launchPlan.summary}</p>
 								</div>
-								<StatusBadge status="neutral" label="Wave plan" />
+								<StatusBadge status="neutral" label="Measurement plan" />
 							</div>
 							<div class="questionnaire-blueprint-review">
 								{#each launchPlan.items as item (item.id)}
@@ -3363,7 +3365,7 @@
 						</div>
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
-								<span>{setupUi('Wave name')}</span>
+								<span>{setupUi('Measurement name')}</span>
 								<input bind:value={campaignForm.name} />
 							</label>
 							<label class="field">
@@ -3384,7 +3386,7 @@
 						</div>
 						{@render ActionFooter({
 							id: 'campaign',
-							label: setupUi('Save collection wave'),
+							label: setupUi('Save measurement'),
 							icon: 'send',
 							onclick: createCampaignDraft
 						})}
@@ -3410,9 +3412,9 @@
 								</p>
 							</div>
 							<div class="record-field">
-								<p class="record-field__label">{setupUi('Collection wave')}</p>
+								<p class="record-field__label">{setupUi('Measurement')}</p>
 								<p class="record-field__value">
-									{selectedCampaignId ? selectedCampaignLabel : setupUi('Create collection wave first')}
+									{selectedCampaignId ? selectedCampaignLabel : setupUi('Create measurement first')}
 								</p>
 							</div>
 							<div class="record-field">
@@ -3479,7 +3481,7 @@
 					<p class="setup-current-task__title">{lockedSelectedCampaign.name}</p>
 					<p class="text-sm text-[var(--color-text-muted)]">
 						{setupUi(
-							'This wave is already locked. Recipient selection can only be changed before launch. Save the next collection wave first, then choose recipients for that draft.'
+							'This measurement is already locked. Recipient selection can only be changed before launch. Save the next draft measurement first, then choose recipients for that draft.'
 						)}
 					</p>
 				</div>
@@ -3547,10 +3549,10 @@
 				<div class="record-row__header">
 					<div>
 						<p class="record-field__label">{setupUi('Demo/test data')}</p>
-						<h5 class="record-row__title">{setupUi('Create test recipients for this wave')}</h5>
+						<h5 class="record-row__title">{setupUi('Create test recipients for this measurement')}</h5>
 						<p class="text-sm text-[var(--color-text-muted)]">
 							{setupUi(
-								"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this wave's recipient selection."
+								"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this measurement's recipient selection."
 							)}
 						</p>
 					</div>
@@ -3676,7 +3678,7 @@
 							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 								Use a class list, cohort list, HR export, or spreadsheet with an email column
 								{setupUi(
-									'Use this when this wave has a one-time recipient list. For repeated waves or reusable cohorts, import people and groups in Directory instead. Limit:'
+									'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:'
 								)}
 								{formatCount(maxRecipientImportRecipients)} {setupUi('recipients per wave update.')}
 							</span>
@@ -3730,7 +3732,7 @@
 							<p class="record-field__value">{setupUi('No groups available')}</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{setupUi(
-									'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this wave only.'
+									'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.'
 								)}
 							</p>
 							<a class="secondary-button mt-3" href="/app/directory">{setupUi('Open Directory')}</a>
@@ -3770,7 +3772,7 @@
 						</p>
 						<p class="text-sm text-[var(--color-text-muted)]">
 							{setupUi(
-								'This selection is broad. Use a Directory group when the wave should only reach a department, cohort, class, or location.'
+								'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.'
 							)}
 						</p>
 					</div>

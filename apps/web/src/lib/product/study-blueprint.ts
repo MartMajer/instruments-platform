@@ -48,10 +48,10 @@ export const defaultStudyBlueprintId: StudyBlueprintId = 'custom_research_study'
 const studyBlueprintOptions: StudyBlueprintOption[] = [
 	{
 		id: 'custom_research_study',
-		eyebrow: 'Start from blank structure',
-		title: 'Custom research study',
-		summary: 'Use this when you want to define your own constructs, questions, and result outputs.',
-		bestFor: 'Academic projects, internal research, and custom workplace studies.',
+		eyebrow: 'Blank study',
+		title: 'Build from scratch',
+		summary: 'Start with an empty study when you want to define your own topics, questions, and result outputs.',
+		bestFor: 'Academic projects, internal research, and custom organization studies.',
 		namePlaceholder: 'e.g. Workload and recovery study',
 		highlights: ['Define constructs', 'Write custom questions', 'Choose result outputs'],
 		briefDefaults: {
@@ -63,7 +63,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 				'Use results as custom-study evidence with method notes; do not present them as externally validated norms unless separately reviewed.',
 			ownerNotes: ''
 		},
-		nextStepsTitle: 'You will build the study from your research idea',
+		nextStepsTitle: 'Next you will turn the idea into a questionnaire',
 		nextSteps: [
 			{
 				label: 'Purpose',
@@ -81,10 +81,10 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	},
 	{
 		id: 'team_pulse',
-		eyebrow: 'Quick workplace check-in',
-		title: 'Team pulse',
-		summary: 'Use this when you want a short recurring check-in for a team, department, or cohort.',
-		bestFor: 'Short workplace pulses, class check-ins, and lightweight repeated feedback.',
+		eyebrow: 'Short check-in',
+		title: 'Team check-in',
+		summary: 'Start with a compact study for a team, department, class, or cohort.',
+		bestFor: 'Short internal check-ins, class reviews, and lightweight repeated feedback.',
 		namePlaceholder: 'e.g. Q3 team pulse',
 		highlights: ['Short questionnaire', 'Anonymous-friendly collection', 'Fast results review'],
 		briefDefaults: {
@@ -96,7 +96,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 				'Use results for internal review and follow-up planning. Avoid individual-level conclusions.',
 			ownerNotes: ''
 		},
-		nextStepsTitle: 'You will keep the study short and easy to repeat',
+		nextStepsTitle: 'Next you will keep the questionnaire short and repeatable',
 		nextSteps: [
 			{
 				label: 'Scope',
@@ -108,36 +108,36 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 			},
 			{
 				label: 'Recipients',
-				description: 'Choose the people or groups for this wave before launching collection.'
+				description: 'Choose the people or groups for this measurement before launching collection.'
 			}
 		]
 	},
 	{
 		id: 'repeated_wave',
-		eyebrow: 'Measure change over time',
-		title: 'Repeated-wave study',
-		summary: 'Use this when the same study should run again later and comparison matters.',
-		bestFor: 'Baseline/follow-up studies, intervention checks, and recurring cohort measurement.',
+		eyebrow: 'Compare measurements',
+		title: 'Repeated measurement study',
+		summary: 'Start here when you want to run the same study again later and compare change over time.',
+		bestFor: 'Baseline and later checks, intervention reviews, and recurring cohort measurement.',
 		namePlaceholder: 'e.g. Follow-up wellbeing study',
-		highlights: ['Wave planning', 'Repeat participation', 'Comparison-ready setup'],
+		highlights: ['Measurement planning', 'Repeat participation', 'Comparison-ready setup'],
 		briefDefaults: {
-			purpose: 'Measure change between a baseline and follow-up collection round.',
+			purpose: 'Measure change between an initial collection round and a later collection round.',
 			audience: 'The same respondent group repeated across collection rounds where possible.',
 			designType: 'repeated_linked_change',
 			intendedUse: 'research_analysis',
 			interpretationBoundary:
-				'Compare change only where the questionnaire, scoring, and repeat-participation setup remain comparable.',
+				'Compare change only where the questionnaire, scoring, and same-person comparison setup remain comparable.',
 			ownerNotes: ''
 		},
-		nextStepsTitle: 'You will prepare the first wave with follow-up in mind',
+		nextStepsTitle: 'Next you will prepare the first measurement with comparison in mind',
 		nextSteps: [
 			{
-				label: 'Wave plan',
-				description: 'Start with Wave 1 and keep the setup ready for a later comparison wave.'
+				label: 'Measurement plan',
+				description: 'Start with Measurement 1 and keep the setup ready for a later comparison.'
 			},
 			{
 				label: 'Linking mode',
-				description: 'Use repeat-participation setup when the same respondent should be compared over time.'
+				description: 'Use same-person comparison setup when the same respondent should be compared over time.'
 			},
 			{
 				label: 'Results',
@@ -147,23 +147,23 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	},
 	{
 		id: 'osh_ergonomics_study',
-		eyebrow: 'Workplace risk and ergonomics',
-		title: 'OSH / ergonomics study',
+		eyebrow: 'Work and ergonomics',
+		title: 'Workplace health review',
 		summary:
-			'Use this when you need a practical workplace study with task exposure, discomfort, recovery, and intervention follow-up.',
-		bestFor: 'OSH consultants, ergonomics reviews, and workplace wellbeing checks.',
+			'Start with a practical study covering task exposure, discomfort, recovery, and follow-up actions.',
+		bestFor: 'Ergonomics reviews, occupational-health work, and wellbeing checks.',
 		namePlaceholder: 'e.g. Warehouse strain and recovery pulse',
 		highlights: ['Mixed answer formats', 'Dimension-based results', 'Recipient groups'],
 		briefDefaults: {
-			purpose: 'Assess workplace exposure, strain, recovery, and practical follow-up needs.',
-			audience: 'Workers or teams selected for the OSH or ergonomics review.',
+			purpose: 'Assess task exposure, strain, recovery, and practical follow-up needs.',
+			audience: 'Workers or teams selected for the workplace health or ergonomics review.',
 			designType: 'repeated_group_trend',
 			intendedUse: 'client_report',
 			interpretationBoundary:
-				'Use results as a practical workplace review input. Keep method limits and follow-up context with any client-facing summary.',
+				'Use results as practical review input. Keep method limits and follow-up context with any stakeholder summary.',
 			ownerNotes: ''
 		},
-		nextStepsTitle: 'You will adapt a practical workplace-risk starter',
+		nextStepsTitle: 'Next you will adapt a practical work-and-ergonomics starter',
 		nextSteps: [
 			{
 				label: 'Task exposure',
@@ -171,7 +171,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 			},
 			{
 				label: 'Questionnaire',
-				description: 'Review the starter questionnaire and adjust wording to the workplace.'
+				description: 'Review the starter questionnaire and adjust wording to the organization.'
 			},
 			{
 				label: 'Results',
@@ -208,10 +208,10 @@ function copyStudyBlueprintOption(option: StudyBlueprintOption): StudyBlueprintO
 
 const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption, 'id'>> = {
 	custom_research_study: {
-		eyebrow: 'Počnite od prazne strukture',
-		title: 'Prilagođena istraživačka studija',
-		summary: 'Koristite ovo kada želite definirati vlastite konstrukte, pitanja i izlazne rezultate.',
-		bestFor: 'Akademski projekti, interna istraživanja i prilagođene workplace studije.',
+		eyebrow: 'Prazna studija',
+		title: 'Izradite od početka',
+		summary: 'Počnite s praznom studijom kada želite sami definirati teme, pitanja i rezultate.',
+		bestFor: 'Akademski projekti, interna istraživanja i prilagođene organizacijske studije.',
 		namePlaceholder: 'npr. Studija opterećenja i oporavka',
 		highlights: ['Definirajte konstrukte', 'Napišite prilagođena pitanja', 'Odaberite rezultate'],
 		briefDefaults: {
@@ -222,7 +222,7 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 			interpretationBoundary:
 				'Koristite rezultate kao dokaz prilagođene studije s metodološkim bilješkama; nemojte ih prikazivati kao vanjski validirane norme bez zasebnog pregleda.',
 			ownerNotes: ''
-		},		nextStepsTitle: 'Izgradit ćete studiju iz svoje istraživačke ideje',
+		},		nextStepsTitle: 'Zatim ćete ideju pretvoriti u upitnik',
 		nextSteps: [
 			{
 				label: 'Svrha',
@@ -239,10 +239,10 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 		]
 	},
 	team_pulse: {
-		eyebrow: 'Brza provjera tima',
-		title: 'Timski puls',
-		summary: 'Koristite ovo za kratku ponavljajuću provjeru tima, odjela ili kohorte.',
-		bestFor: 'Kratki workplace pulsevi, provjere razreda i lagane ponavljajuće povratne informacije.',
+		eyebrow: 'Kratka provjera',
+		title: 'Provjera tima',
+		summary: 'Počnite s kompaktnom studijom za tim, odjel, razred ili kohortu.',
+		bestFor: 'Kratke interne provjere, provjere razreda i lagane ponavljajuće povratne informacije.',
 		namePlaceholder: 'npr. Timski puls Q3',
 		highlights: ['Kratki upitnik', 'Pogodno za anonimno prikupljanje', 'Brz pregled rezultata'],
 		briefDefaults: {
@@ -253,7 +253,7 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 			interpretationBoundary:
 				'Koristite rezultate za interni pregled i planiranje praćenja. Izbjegavajte zaključke o pojedincima.',
 			ownerNotes: ''
-		},		nextStepsTitle: 'Zadržat ćete studiju kratkom i lako ponovljivom',
+		},		nextStepsTitle: 'Zatim ćete upitnik zadržati kratkim i lako ponovljivim',
 		nextSteps: [
 			{ label: 'Opseg', description: 'Definirajte grupu i mali skup tema koje puls treba pokriti.' },
 			{ label: 'Pitanja', description: 'Izradite kompaktan upitnik koji se može brzo ispuniti.' },
@@ -261,10 +261,10 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 		]
 	},
 	repeated_wave: {
-		eyebrow: 'Mjerite promjenu kroz vrijeme',
+		eyebrow: 'Usporedite mjerenja',
 		title: 'Studija s ponovljenim mjerenjima',
-		summary: 'Koristite ovo kada se ista studija treba ponoviti kasnije i usporedba je važna.',
-		bestFor: 'Bazne i follow-up studije, provjere intervencija i ponavljajuća mjerenja kohorte.',
+		summary: 'Počnite ovdje kada istu studiju želite ponoviti kasnije i usporediti promjenu kroz vrijeme.',
+		bestFor: 'Početna i kasnija mjerenja, provjere intervencija i ponavljajuća mjerenja kohorte.',
 		namePlaceholder: 'npr. Follow-up studija dobrobiti',
 		highlights: ['Planiranje mjerenja', 'Ponavljano sudjelovanje', 'Postavljanje spremno za usporedbu'],
 		briefDefaults: {
@@ -275,30 +275,30 @@ const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption,
 			interpretationBoundary:
 				'Uspoređujte promjenu samo kada upitnik, bodovanje i postavke ponovljenog sudjelovanja ostanu usporedivi.',
 			ownerNotes: ''
-		},		nextStepsTitle: 'Pripremit ćete prvo mjerenje s follow-upom na umu',
+		},		nextStepsTitle: 'Zatim ćete prvo mjerenje pripremiti s usporedbom na umu',
 		nextSteps: [
-			{ label: 'Plan mjerenja', description: 'Počnite s prvim mjerenjem i zadržite postavke spremne za kasniju usporedbu.' },
+			{ label: 'Plan mjerenja', description: 'Počnite s Mjerenjem 1 i zadržite postavke spremne za kasniju usporedbu.' },
 			{ label: 'Način povezivanja', description: 'Koristite postavku ponavljanog sudjelovanja kada se isti sudionik uspoređuje kroz vrijeme.' },
 			{ label: 'Rezultati', description: 'Pregledajte trendove grupa i promjenu istih sudionika kada ima dovoljno podataka.' }
 		]
 	},
 	osh_ergonomics_study: {
-		eyebrow: 'Rizici rada i ergonomija',
-		title: 'Studija zaštite na radu / ergonomije',
+		eyebrow: 'Rad i ergonomija',
+		title: 'Pregled rada i ergonomije',
 		summary:
-			'Koristite ovo za praktičnu workplace studiju s izloženošću zadacima, nelagodom, oporavkom i follow-upom intervencija.',
-		bestFor: 'OSH konzultanti, ergonomske procjene i provjere dobrobiti na radnom mjestu.',
+			'Počnite s praktičnom studijom o izloženosti zadacima, nelagodi, oporavku i daljnjim koracima.',
+		bestFor: 'Ergonomske procjene, zaštitu zdravlja na radu i provjere dobrobiti.',
 		namePlaceholder: 'npr. Puls opterećenja i oporavka u skladištu',
 		highlights: ['Mješoviti formati odgovora', 'Rezultati po dimenzijama', 'Grupe primatelja'],
 		briefDefaults: {
 			purpose: 'Procijenite radnu izloženost, opterećenje, oporavak i praktične potrebe za praćenje.',
-			audience: 'Radnici ili timovi odabrani za pregled zaštite na radu ili ergonomije.',
+			audience: 'Radnici ili timovi odabrani za pregled rada i ergonomije.',
 			designType: 'repeated_group_trend',
 			intendedUse: 'client_report',
 			interpretationBoundary:
-				'Koristite rezultate kao ulaz za praktični pregled radnog mjesta. Uz svaki sažetak za klijenta zadržite metodološke granice i kontekst praćenja.',
+				'Koristite rezultate kao ulaz za praktični pregled. Uz svaki sažetak za dionike zadržite metodološke granice i kontekst praćenja.',
 			ownerNotes: ''
-		},		nextStepsTitle: 'Prilagodit ćete praktični početni model workplace rizika',
+		},		nextStepsTitle: 'Zatim ćete prilagoditi praktični početni model rada i ergonomije',
 		nextSteps: [
 			{ label: 'Izloženost zadacima', description: 'Mapirajte izloženost zadacima i grupe primatelja.' },
 			{ label: 'Upitnik', description: 'Pregledajte početni upitnik i prilagodite formulacije radnom mjestu.' },

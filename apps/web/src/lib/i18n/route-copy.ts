@@ -358,10 +358,10 @@ const en = {
 		loading: 'Loading studies',
 		errorTitle: 'Studies unavailable',
 		retry: 'Retry studies',
-		guidedDesign: 'Guided study design',
-		startBlueprint: 'Choose how to start the study',
-		selectedStartingPoint: 'Selected starting point',
-		studyModelTitle: 'Study, source, and questionnaire',
+		guidedDesign: 'Create study',
+		startBlueprint: 'Choose a starting point',
+		selectedStartingPoint: 'What happens next',
+		studyModelTitle: 'How the pieces fit',
 		studyModelBody:
 			'This creates the study first. The starting point only provides source material for Setup; you still edit the questionnaire, result outputs, recipients, and waves before launch.',
 		studyModelStudy: 'Study',
@@ -374,18 +374,18 @@ const en = {
 		studyModelSetupBody:
 			'Where you turn source material into the questionnaire, result outputs, recipient plan, and launch check.',
 		studyName: 'Study name',
-		studyBriefTitle: 'Study brief',
+		studyBriefTitle: 'Optional study brief',
 		studyBriefBody:
-			'Capture the purpose, audience, design, intended use, and interpretation limits before Setup turns this into a questionnaire and collection plan.',
+			'Defaults are filled from the starting point. Adjust them now if you know the purpose, audience, or limits; otherwise continue and refine later.',
 		studyPurpose: 'Purpose',
 		studyPurposePlaceholder: 'What should this study help you decide or understand?',
 		studyAudience: 'Audience',
 		studyAudiencePlaceholder: 'Who should be invited or represented in this study?',
 		studyDesignType: 'Study design',
 		studyDesignTypeOptions: [
-			{ value: 'single_wave', label: 'One collection round' },
+			{ value: 'single_wave', label: 'One measurement' },
 			{ value: 'repeated_group_trend', label: 'Repeated group trend' },
-			{ value: 'repeated_linked_change', label: 'Repeated same-person change' }
+			{ value: 'repeated_linked_change', label: 'Same-person change over time' }
 		],
 		studyIntendedUse: 'Intended use',
 		studyIntendedUseOptions: [
@@ -398,7 +398,7 @@ const en = {
 			'What should readers not conclude from these results?',
 		studyOwnerNotes: 'Owner notes',
 		studyOwnerNotesPlaceholder: 'Optional internal notes for the study team.',
-		continueSetup: 'Continue to guided setup',
+		continueSetup: 'Create study and open setup',
 		creating: 'Creating...',
 		readOnlyAccess: 'Read-only access',
 		readOnlyBody: 'Creating and changing studies requires setup management access.',
@@ -746,7 +746,7 @@ const en = {
 			progressKicker: 'Study setup',
 			progressTitle: 'Study setup progress',
 			progressBody:
-				'Study is the project. Setup turns source material into the questionnaire, result outputs, Wave 1 recipients, and the launch check.',
+				'Study is the project. Setup turns the starting point into a questionnaire, result outputs, Measurement 1 recipients, and the launch check.',
 			readOnlyTitle: 'Read-only access',
 			readOnlyBody: 'Setup workflow actions require setup management access.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -853,11 +853,11 @@ const en = {
 			wave: {
 				responseMode: {
 					anonymousLabel: 'Anonymous',
-					anonymousLongitudinalLabel: 'Anonymous with repeated participation',
+					anonymousLongitudinalLabel: 'Same-person comparison, anonymous reports',
 					identifiedLabel: 'Identified',
 					anonymousHelp: 'Responses are not linked back to a known person in reporting.',
 					anonymousLongitudinalHelp:
-						'Respondents remain anonymous in reporting, but repeated waves can be linked for change over time.',
+						'Respondents stay anonymous in reporting, but the same person can be compared across measurements using a repeat code.',
 					identifiedHelp: 'Responses can be connected to known respondents for operational follow-up.'
 				}
 			},
@@ -868,7 +868,7 @@ const en = {
 					externalEmailsLabel: 'One-time email import',
 					selfHelp: 'One saved recipient creates one invitation.',
 					managerHelp: 'Managers receive invitations for the people in their reporting scope.',
-					externalEmailsHelp: 'Paste external email addresses for this wave without adding them to the directory.'
+					externalEmailsHelp: 'Paste external email addresses for this measurement without adding them to the directory.'
 				},
 				roles: {
 					respondent: 'Respondent',
@@ -877,7 +877,7 @@ const en = {
 				},
 				warnings: {
 					audienceMissing:
-						'Campaign audience has no active members; preview uses all active tenant subjects.',
+						'The selected audience has no active people; preview uses all active people in the workspace.',
 					empty: 'Preview did not resolve any respondents.',
 					truncated: 'Preview is truncated.'
 				}
@@ -886,36 +886,36 @@ const en = {
 		setupWorkflow: {
 			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
-			defaultWaveName: (number: number) => `Wave ${number}`,
+			defaultWaveName: (number: number) => `Measurement ${number}`,
 			steps: {
 				instrument: {
-					title: 'Questionnaire source',
+					title: 'Starting source',
 					description:
-						'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
+						'Confirm the source that seeds the questionnaire. Most teams can save it and continue; audit details stay in the record.'
 				},
 				template: {
-					title: 'Questionnaire',
-					description: 'Build the saved question set respondents will answer for this study.'
+					title: 'Build questionnaire',
+					description: 'Edit the questions, answer formats, and dimensions respondents will answer.'
 				},
 				scoring: {
-					title: 'Result outputs',
+					title: 'Prepare result outputs',
 					description:
-						'Choose which questionnaire answers become result outputs and how missing answers are handled.'
+						'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
 				},
 				campaign: {
-					title: 'Wave and recipients',
-					description: 'Prepare the collection round, response mode, and recipients for this study.'
+					title: 'Measurement and recipients',
+					description: 'Create the collection round, choose how people answer, and save the recipient selection.'
 				},
 				readiness: {
 					title: 'Launch check',
 					description:
-						'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.'
+						'Check the questionnaire, result outputs, measurement, recipients, and policies before collection starts.'
 				}
 			},
 			disabled: {
-				confirmInstrument: 'Choose the questionnaire source first.',
+				confirmInstrument: 'Confirm the starting source first.',
 				saveQuestionnaire: 'Save the questionnaire first.',
-				createCollectionWave: 'Create the collection wave first.'
+				createCollectionWave: 'Create the measurement first.'
 			},
 			pathDisplay: {
 				done: 'Done',
@@ -925,8 +925,8 @@ const en = {
 				blocked: 'Blocked'
 			},
 			launchState: {
-				createWaveFirstStatus: 'Create collection wave first',
-				createWaveFirstNext: 'Create and save the collection wave before checking launch.',
+				createWaveFirstStatus: 'Create measurement first',
+				createWaveFirstNext: 'Create and save the measurement before checking launch.',
 				runLaunchCheckFirst: 'Run launch check first',
 				launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
 				launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
@@ -936,7 +936,7 @@ const en = {
 					'Open Collection to launch with a public link, or save recipients below before launch.',
 				launchPassedWithRecipients: 'Launch check passed with saved recipients',
 				openCollectionStartSavedRecipients:
-					'Open Collection to start the wave and send the saved recipients.',
+					'Open Collection to start the measurement and send the saved recipients.',
 				openCollectionLaunch: 'Open Collection launch',
 				runLaunchCheck: 'Run launch check',
 				needsAttention: 'Needs attention',
@@ -947,77 +947,77 @@ const en = {
 					`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
 						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 					} ready.`,
-				noSavedIdentified: 'No saved recipients yet; save recipients before invite-only launch.',
+				noSavedIdentified: 'No saved recipients yet; save recipients before launching access for invited people only.',
 				noSavedLongitudinal:
-					'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.',
+					'No saved recipients; save recipients for invited-only access, or use a public link and let respondents enter their repeat code.',
 				noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
 			},
 			launchPlan: {
 				title: 'Launch plan',
-				summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
-				draftWave: 'Draft wave',
-				wave: 'Wave',
+				summary: 'Prepare the measurement, response mode, recipients, and Collection handoff before launch.',
+				draftWave: 'Draft measurement',
+				wave: 'Measurement',
 				responseMode: 'Response mode',
 				recipients: 'Recipients',
 				collectionHandoff: 'Collection handoff',
-				waveDraftReady: (waveName: string) => `${waveName} is the draft wave for this study.`,
+				waveDraftReady: (waveName: string) => `${waveName} is the draft measurement for this study.`,
 				waveWillBeCreated: (waveName: string) =>
 					`${waveName} will be created when you save this step.`,
 				identifiedModeDetail:
 					'Identified collection requires saved recipients so each respondent can receive assigned access.',
 				longitudinalModeDetail:
-					'Repeat-participation collection can use public access or saved recipients; respondents use their own repeat code for comparison.',
+					'Same-person comparison can use public access or saved recipients; respondents use their own repeat code for comparison.',
 				anonymousModeDetail: 'Anonymous collection can use a public link or saved email recipients.',
-				chooseModeDetail: 'Choose how respondents should enter this wave.',
+				chooseModeDetail: 'Choose how respondents should enter this measurement.',
 				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
 					`${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
 						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 					}.`,
 				identifiedNeedsRecipients: 'Identified collection needs saved recipients before launch.',
 				longitudinalNoRecipients:
-					'No saved recipients yet. You can use a public link, or save recipients for invite-only repeat participation.',
+					'No saved recipients yet. You can use a public link, or save recipients for invited-only same-person comparison.',
 				anonymousNoRecipients:
 					'No saved recipients yet. You can still launch anonymous collection with a public link.',
 				saveRecipientsBeforeIdentifiedLaunch:
 					'Save recipients before opening Collection for identified launch.',
-				launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
+				launchPassedOpenCollection: 'Launch check passed; open Collection to start the measurement.',
 				runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 			},
 			designMap: {
 				title: 'How this study is built',
 				summary:
-					'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
-				source: 'Questionnaire source',
+					'Study is the project container. The starting source seeds the questionnaire; result outputs interpret answers; measurements collect responses.',
+				source: 'Starting source',
 				questionnaire: 'Questionnaire',
 				results: 'Result outputs',
-				waves: 'Collection waves',
-				sourceReady: 'Source material is ready for this questionnaire.',
-				sourceMissing: 'Choose reusable or imported source material before saving the questionnaire.',
+				waves: 'Measurements',
+				sourceReady: 'The starting source is ready for this questionnaire.',
+				sourceMissing: 'Confirm a starting source before saving the questionnaire.',
 				questionnaireSaved: (name: string, questionCount: number) =>
 					`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
 				questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
 				resultsReady: (ruleKey: string) => `Result outputs are saved as ${ruleKey}.`,
 				resultsMissing: 'Choose which questionnaire answers become result outputs.',
-				noWaves: 'No collection wave exists yet.',
+				noWaves: 'No measurement exists yet.',
 				draftWaveNeedsReadiness: (count: number) =>
-					`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,
+					`${count} draft ${count === 1 ? 'measurement is' : 'measurements are'} prepared; launch readiness still needs attention.`,
 				waveReady: (count: number) =>
-					`${count} draft ${count === 1 ? 'wave is' : 'waves are'} ready for Collection.`,
+					`${count} draft ${count === 1 ? 'measurement is' : 'measurements are'} ready for Collection.`,
 				liveWave: (count: number) =>
-					`${count} ${count === 1 ? 'wave is' : 'waves are'} collecting responses.`,
+					`${count} ${count === 1 ? 'measurement is' : 'measurements are'} collecting responses.`,
 				closedWave: (count: number) =>
-					`${count} ${count === 1 ? 'wave has' : 'waves have'} closed data for Results review.`
+					`${count} ${count === 1 ? 'measurement has' : 'measurements have'} closed data for Results review.`
 			},
 			waveContext: {
 				prepareForCollection: (waveName: string) => `Prepare ${waveName} for collection`,
-				firstWaveSetup: 'First wave setup',
-				currentDraftWave: 'Current draft wave',
-				followUpDraftWave: 'Follow-up draft wave',
-				futureWaveSetup: 'Future wave setup',
-				firstWaveSummary: 'Use this step to create the first collection wave and decide who can answer.',
-				currentDraftSummary: 'Use this step to finish the current draft wave before opening Collection.',
+				firstWaveSetup: 'First measurement setup',
+				currentDraftWave: 'Current draft measurement',
+				followUpDraftWave: 'Next draft measurement',
+				futureWaveSetup: 'Future measurement setup',
+				firstWaveSummary: 'Use this step to create the first measurement and decide who can answer.',
+				currentDraftSummary: 'Use this step to finish the current draft measurement before opening Collection.',
 				followUpDraftSummary: (waveName: string) =>
-					`${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+					`${waveName} is a draft follow-up measurement. Use it only when the next collection round is intentional.`,
 				closedOneWaveSummary: (
 					previousWaveName: string,
 					previousWaveStatus: string,
@@ -1025,26 +1025,26 @@ const en = {
 				) =>
 					`${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`,
 				multipleWaveSummary: (existingWaveCount: number, nextWaveName: string) =>
-					`${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
+					`${existingWaveCount} measurements already exist. Create ${nextWaveName} only after the current measurement results have been reviewed.`,
 				createFirstAfterSetup:
-					'Create Wave 1 only after the questionnaire and results setup are saved.',
+					'Create Measurement 1 only after the questionnaire and result outputs are saved.',
 				recipientBelongsUntilLaunch: (waveName: string) =>
-					`Recipient selection belongs to ${waveName} until this wave is launched.`,
+					`Recipient selection belongs to ${waveName} until this measurement is launched.`,
 				reviewResultsBeforeFollowup:
 					'Review the previous wave in Results before treating this as a follow-up collection.',
 				doNotAssumeRecipients:
-					'Do not assume recipients are unchanged; save the intended people or group for this wave.',
+					'Do not assume recipients are unchanged; save the intended people or group for this measurement.',
 				reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) =>
 					`Review ${previousWaveName} before preparing ${nextWaveName}`,
 				reviewExistingBeforePreparing: (nextWaveName: string) =>
-					`Review existing waves before preparing ${nextWaveName}`,
+					`Review existing measurements before preparing ${nextWaveName}`,
 				openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) =>
 					`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
 				createOnlyWhenIntentional: (nextWaveName: string) =>
 					`Create ${nextWaveName} only when the next collection round is intentional.`,
 				recipientBelongsToNewDraft: (previousLabel: string) =>
-					`Recipient selection in this step will belong to the new draft wave, not to ${previousLabel}.`,
-				previousWaves: 'the previous waves'
+					`Recipient selection in this step will belong to the new draft measurement, not to ${previousLabel}.`,
+				previousWaves: 'the previous measurements'
 			},
 			misc: {
 				notEditable: 'not editable',
@@ -2645,10 +2645,10 @@ const hr: typeof en = {
 		loading: 'Učitavanje studija',
 		errorTitle: 'Studije nisu dostupne',
 		retry: 'Pokušaj studije ponovno',
-		guidedDesign: 'Vođeni dizajn studije',
-		startBlueprint: 'Odaberite kako započeti studiju',
-		selectedStartingPoint: 'Odabrana početna točka',
-		studyModelTitle: 'Studija, izvor i upitnik',
+		guidedDesign: 'Izrada studije',
+		startBlueprint: 'Odaberite početni model',
+		selectedStartingPoint: 'Što slijedi',
+		studyModelTitle: 'Kako se dijelovi uklapaju',
 		studyModelBody:
 			'Prvo se izrađuje studija. Početna točka samo daje izvorni materijal za Postavljanje; upitnik, izlaze rezultata, primatelje i mjerenja i dalje uređujete prije pokretanja.',
 		studyModelStudy: 'Studija',
@@ -2661,18 +2661,18 @@ const hr: typeof en = {
 		studyModelSetupBody:
 			'Mjesto gdje izvorni materijal pretvarate u upitnik, izlaze rezultata, plan primatelja i provjeru pokretanja.',
 		studyName: 'Naziv studije',
-		studyBriefTitle: 'Opis studije',
+		studyBriefTitle: 'Neobavezni opis studije',
 		studyBriefBody:
-			'Zabilježite svrhu, ciljanu skupinu, dizajn, namjenu i granice tumačenja prije nego što Postavljanje to pretvori u upitnik i plan prikupljanja.',
+			'Polja su unaprijed popunjena iz odabranog početnog modela. Prilagodite ih sada ako znate svrhu, ciljanu skupinu ili granice; inače nastavite i doradite kasnije.',
 		studyPurpose: 'Svrha',
 		studyPurposePlaceholder: 'Koju odluku ili razumijevanje ova studija treba podržati?',
 		studyAudience: 'Ciljana skupina',
 		studyAudiencePlaceholder: 'Tko treba biti pozvan ili zastupljen u ovoj studiji?',
 		studyDesignType: 'Dizajn studije',
 		studyDesignTypeOptions: [
-			{ value: 'single_wave', label: 'Jedno prikupljanje' },
+			{ value: 'single_wave', label: 'Jedno mjerenje' },
 			{ value: 'repeated_group_trend', label: 'Ponavljani trend grupe' },
-			{ value: 'repeated_linked_change', label: 'Promjena istih ispitanika' }
+			{ value: 'repeated_linked_change', label: 'Promjena istih osoba kroz vrijeme' }
 		],
 		studyIntendedUse: 'Namjena',
 		studyIntendedUseOptions: [
@@ -2684,7 +2684,8 @@ const hr: typeof en = {
 		studyInterpretationBoundaryPlaceholder:
 			'Što čitatelji ne bi smjeli zaključiti iz ovih rezultata?',
 		studyOwnerNotes: 'Bilješke vlasnika',
-		studyOwnerNotesPlaceholder: 'Neobavezne interne bilješke za tim studije.',		continueSetup: 'Nastavi na vođeno postavljanje',
+		studyOwnerNotesPlaceholder: 'Neobavezne interne bilješke za tim studije.',
+		continueSetup: 'Izradi studiju i otvori postavljanje',
 		creating: 'Izrada...',
 		readOnlyAccess: 'Pristup samo za čitanje',
 		readOnlyBody: 'Izrada i promjena studija zahtijeva pristup za upravljanje postavljanjem.',
@@ -3032,7 +3033,7 @@ const hr: typeof en = {
 			progressKicker: 'Postavljanje studije',
 			progressTitle: 'Napredak postavljanja studije',
 			progressBody:
-				'Studija je projekt. Postavljanje pretvara izvorni materijal u upitnik, izlaze rezultata, primatelje za Mjerenje 1 i provjeru pokretanja.',
+				'Studija je projekt. Postavljanje pretvara početni model u upitnik, rezultate, primatelje za Mjerenje 1 i provjeru pokretanja.',
 			readOnlyTitle: 'Pristup samo za čitanje',
 			readOnlyBody: 'Radnje postavljanja zahtijevaju pravo za upravljanje postavljanjem.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -3139,11 +3140,11 @@ const hr: typeof en = {
 			wave: {
 				responseMode: {
 					anonymousLabel: 'Anonimno',
-					anonymousLongitudinalLabel: 'Anonimno s ponovljenim sudjelovanjem',
+					anonymousLongitudinalLabel: 'Usporedba iste osobe, anoniman izvještaj',
 					identifiedLabel: 'Identificirano',
 					anonymousHelp: 'Odgovori se u izvještaju ne povezuju s poznatom osobom.',
 					anonymousLongitudinalHelp:
-						'Ispitanici ostaju anonimni u izvještaju, ali se ponovljena mjerenja mogu povezati za promjenu kroz vrijeme.',
+						'Ispitanici ostaju anonimni u izvještaju, ali se ista osoba može usporediti kroz mjerenja pomoću ponovnog koda.',
 					identifiedHelp: 'Odgovori se mogu povezati s poznatim ispitanicima za operativno praćenje.'
 				}
 			},
@@ -3163,7 +3164,7 @@ const hr: typeof en = {
 				},
 				warnings: {
 					audienceMissing:
-						'Publika kampanje nema aktivnih članova; pregled koristi sve aktivne osobe tenant prostora.',
+						'Odabrana publika nema aktivnih osoba; pregled koristi sve aktivne osobe u radnom prostoru.',
 					empty: 'Pregled nije pronašao ispitanike.',
 					truncated: 'Pregled je skraćen.'
 				}
@@ -3175,22 +3176,22 @@ const hr: typeof en = {
 			defaultWaveName: (number: number) => `Mjerenje ${number}`,
 			steps: {
 				instrument: {
-					title: 'Izvor upitnika',
+					title: 'Početni izvor',
 					description:
-						'Odaberite višekratni ili uvezeni izvorni materijal. On pokreće upitnik, ali nije studija ni završni upitnik.'
+						'Potvrdite izvor iz kojeg nastaje upitnik. Većina timova može ga spremiti i nastaviti; audit detalji ostaju u zapisu.'
 				},
 				template: {
-					title: 'Upitnik',
-					description: 'Izradite spremljeni skup pitanja na koji sudionici odgovaraju u ovoj studiji.'
+					title: 'Izrada upitnika',
+					description: 'Uredite pitanja, formate odgovora i dimenzije na koje sudionici odgovaraju.'
 				},
 				scoring: {
-					title: 'Izlazi rezultata',
+					title: 'Priprema rezultata',
 					description:
-						'Odaberite koji odgovori iz upitnika postaju izlazi rezultata i kako se obrađuju nedostajući odgovori.'
+						'Odaberite koji odgovori postaju rezultati, sažeci ili stupci izvoza te kako se obrađuju nedostajući odgovori.'
 				},
 				campaign: {
 					title: 'Mjerenje i primatelji',
-					description: 'Pripremite krug prikupljanja, način odgovaranja i primatelje za ovu studiju.'
+					description: 'Izradite krug prikupljanja, odaberite kako ljudi odgovaraju i spremite odabir primatelja.'
 				},
 				readiness: {
 					title: 'Provjera pokretanja',
@@ -3199,7 +3200,7 @@ const hr: typeof en = {
 				}
 			},
 			disabled: {
-				confirmInstrument: 'Prvo odaberite izvor upitnika.',
+				confirmInstrument: 'Prvo potvrdite početni izvor.',
 				saveQuestionnaire: 'Prvo spremite upitnik.',
 				createCollectionWave: 'Prvo izradite mjerenje.'
 			},
@@ -3233,9 +3234,9 @@ const hr: typeof en = {
 					`${selectionCount} ${selectionCount === 1 ? 'odabir spremljen' : 'odabira spremljeno'}, ${pairCount} ${
 						pairCount === 1 ? 'pozivni par spreman' : 'pozivnih parova spremno'
 					}.`,
-				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih prije invite-only pokretanja.',
+				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih prije pokretanja samo za pozvane.',
 				noSavedLongitudinal:
-					'Nema spremljenih primatelja; spremite primatelje za invite-only pristup ili upotrijebite javnu poveznicu i neka sudionici unesu svoj kod ponovnog sudjelovanja.',
+					'Nema spremljenih primatelja; spremite primatelje za pristup samo za pozvane ili upotrijebite javnu poveznicu i neka sudionici unesu svoj ponovni kod.',
 				noSavedAnonymous: 'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje ispod.'
 			},
 			launchPlan: {
@@ -3252,7 +3253,7 @@ const hr: typeof en = {
 				identifiedModeDetail:
 					'Identificirano prikupljanje zahtijeva spremljene primatelje kako bi svaki sudionik dobio dodijeljeni pristup.',
 				longitudinalModeDetail:
-					'Prikupljanje s ponovnim sudjelovanjem može koristiti javni pristup ili spremljene primatelje; sudionici koriste vlastiti ponovni kod za usporedbu.',
+					'Mjerenje iste osobe kroz vrijeme može koristiti javni pristup ili spremljene primatelje; sudionici koriste vlastiti ponovni kod za usporedbu.',
 				anonymousModeDetail: 'Anonimno prikupljanje može koristiti javnu poveznicu ili spremljene pozive e-poštom.',
 				chooseModeDetail: 'Odaberite kako sudionici ulaze u ovo mjerenje.',
 				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
@@ -3261,7 +3262,7 @@ const hr: typeof en = {
 					}.`,
 				identifiedNeedsRecipients: 'Identificirano prikupljanje treba spremljene primatelje prije pokretanja.',
 				longitudinalNoRecipients:
-					'Nema spremljenih primatelja. Možete koristiti javnu poveznicu ili spremiti primatelje za invite-only ponovno sudjelovanje.',
+					'Nema spremljenih primatelja. Možete koristiti javnu poveznicu ili spremiti primatelje za ponovni pristup samo za pozvane.',
 				anonymousNoRecipients:
 					'Nema spremljenih primatelja. Anonimno prikupljanje još možete pokrenuti javnom poveznicom.',
 				saveRecipientsBeforeIdentifiedLaunch:
@@ -3272,19 +3273,19 @@ const hr: typeof en = {
 			designMap: {
 				title: 'Kako je ova studija sastavljena',
 				summary:
-					'Studija je projektni spremnik. Izvorni materijal pokreće upitnik; izlazi rezultata tumače odgovore; mjerenja prikupljajuju odgovore.',
-				source: 'Izvor upitnika',
+					'Studija je projektni spremnik. Početni izvor daje temelj upitniku; rezultati tumače odgovore; mjerenja prikupljaju odgovore.',
+				source: 'Početni izvor',
 				questionnaire: 'Upitnik',
-				results: 'Izlazi rezultata',
-				waves: 'Mjerenja prikupljanja',
-				sourceReady: 'Izvorni materijal spreman je za ovaj upitnik.',
-				sourceMissing: 'Odaberite višekratni ili uvezeni izvorni materijal prije spremanja upitnika.',
+				results: 'Rezultati',
+				waves: 'Mjerenja',
+				sourceReady: 'Početni izvor spreman je za ovaj upitnik.',
+				sourceMissing: 'Potvrdite početni izvor prije spremanja upitnika.',
 				questionnaireSaved: (name: string, questionCount: number) =>
 					`${name} spremljen je s ${questionCount} ${questionCount === 1 ? 'pitanjem' : 'pitanja'}.`,
 				questionnaireMissing: 'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
-				resultsReady: (ruleKey: string) => `Izlazi rezultata spremljeni su kao ${ruleKey}.`,
-				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju izlazi rezultata.',
-				noWaves: 'Još nema mjerenja prikupljajunja.',
+				resultsReady: (ruleKey: string) => `Rezultati su spremljeni kao ${ruleKey}.`,
+				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju rezultati.',
+				noWaves: 'Još nema mjerenja.',
 				draftWaveNeedsReadiness: (count: number) =>
 					`${count} ${count === 1 ? 'nacrt mjerenja pripremljen je' : 'nacrta mjerenja pripremljena su'}; spremnost pokretanja još treba pažnju.`,
 				waveReady: (count: number) =>
@@ -3323,7 +3324,7 @@ const hr: typeof en = {
 				reviewBeforePreparing: (previousWaveName: string, nextWaveName: string) =>
 					`Pregledajte ${previousWaveName} prije pripreme ${nextWaveName}`,
 				reviewExistingBeforePreparing: (nextWaveName: string) =>
-					`Pregledajte postojeće mjerenja prije pripreme ${nextWaveName}`,
+					`Pregledajte postojeća mjerenja prije pripreme ${nextWaveName}`,
 				openResultsBeforeCreating: (reviewTarget: string, nextWaveName: string) =>
 					`Otvorite Rezultate za pregled ili izvoz ${reviewTarget} prije izrade ${nextWaveName}.`,
 				createOnlyWhenIntentional: (nextWaveName: string) =>

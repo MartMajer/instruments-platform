@@ -1664,6 +1664,39 @@ a {
 	align-items: end;
 }
 
+.portfolio-create__details {
+	grid-column: 1 / -1;
+}
+
+.portfolio-create__details summary {
+	display: grid;
+	gap: 0.25rem;
+	cursor: pointer;
+	list-style: none;
+}
+
+.portfolio-create__details summary::-webkit-details-marker {
+	display: none;
+}
+
+.portfolio-create__details summary::after {
+	display: inline-grid;
+	place-items: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	background: var(--color-surface-raised);
+	content: '+';
+	font-size: 1rem;
+	font-weight: 800;
+	color: var(--color-text-muted);
+}
+
+.portfolio-create__details[open] summary::after {
+	content: '-';
+}
+
 .portfolio-row {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;

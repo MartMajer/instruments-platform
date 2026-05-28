@@ -239,38 +239,38 @@ export type SelectedSeriesSetupWorkflowCopy = {
 export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflowCopy = {
 	locale: 'en',
 	stepNumber: (number) => `Step ${number}`,
-	defaultWaveName: (number) => `Wave ${number}`,
+	defaultWaveName: (number) => `Measurement ${number}`,
 	steps: {
 		instrument: {
-			title: 'Questionnaire source',
+			title: 'Starting source',
 			description:
-				'Choose reusable or imported source material. It seeds the questionnaire; it is not the study and not the final questionnaire.'
+				'Confirm the source that seeds the questionnaire. Most teams can save it and continue; audit details stay in the record.'
 		},
 		template: {
-			title: 'Questionnaire',
+			title: 'Build questionnaire',
 			description:
-				"Build the saved question set respondents will answer for this study."
+				'Edit the questions, answer formats, and dimensions respondents will answer.'
 		},
 		scoring: {
-			title: 'Result outputs',
+			title: 'Prepare result outputs',
 			description:
-				'Choose which questionnaire answers become result outputs and how missing answers are handled.'
+				'Choose which answers become scores, summaries, or export columns, and how missing answers are handled.'
 		},
 		campaign: {
-			title: 'Wave and recipients',
+			title: 'Measurement and recipients',
 			description:
-				'Prepare the collection round, response mode, and recipients for this study.'
+				'Create the collection round, choose how people answer, and save the recipient selection.'
 		},
 		readiness: {
 			title: 'Launch check',
 			description:
-				'Check the questionnaire, results setup, wave, recipients, and policies before collection starts.'
+				'Check the questionnaire, result outputs, measurement, recipients, and policies before collection starts.'
 		}
 	},
 	disabled: {
-		confirmInstrument: 'Choose the questionnaire source first.',
+		confirmInstrument: 'Confirm the starting source first.',
 		saveQuestionnaire: 'Save the questionnaire first.',
-		createCollectionWave: 'Create the collection wave first.'
+		createCollectionWave: 'Create the measurement first.'
 	},
 	pathDisplay: {
 		done: 'Done',
@@ -280,8 +280,8 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		blocked: 'Blocked'
 	},
 	launchState: {
-		createWaveFirstStatus: 'Create collection wave first',
-		createWaveFirstNext: 'Create and save the collection wave before checking launch.',
+		createWaveFirstStatus: 'Create measurement first',
+		createWaveFirstNext: 'Create and save the measurement before checking launch.',
 		runLaunchCheckFirst: 'Run launch check first',
 		launchPassedSaveRecipients: 'Launch check passed; save recipients for identified access',
 		launchPassedChooseAccess: 'Launch check passed; choose public link or save recipients',
@@ -291,7 +291,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 			'Open Collection to launch with a public link, or save recipients below before launch.',
 		launchPassedWithRecipients: 'Launch check passed with saved recipients',
 		openCollectionStartSavedRecipients:
-			'Open Collection to start the wave and send the saved recipients.',
+			'Open Collection to start the measurement and send the saved recipients.',
 		openCollectionLaunch: 'Open Collection launch',
 		runLaunchCheck: 'Run launch check',
 		needsAttention: 'Needs attention',
@@ -302,98 +302,98 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 			`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
 				pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 			} ready.`,
-		noSavedIdentified: 'No saved recipients yet; save recipients before invite-only launch.',
+		noSavedIdentified: 'No saved recipients yet; save recipients before launching access for invited people only.',
 		noSavedLongitudinal:
-			'No saved recipients; save recipients for invite-only access, or use a public link and let respondents enter their repeat-participation code.',
+			'No saved recipients; save recipients for invited-only access, or use a public link and let respondents enter their repeat code.',
 		noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients below.'
 	},
 	launchPlan: {
 		title: 'Launch plan',
-		summary: 'Prepare the wave, response mode, recipients, and Collection handoff before launch.',
-		draftWave: 'Draft wave',
-		wave: 'Wave',
+		summary: 'Prepare the measurement, response mode, recipients, and Collection handoff before launch.',
+		draftWave: 'Draft measurement',
+		wave: 'Measurement',
 		responseMode: 'Response mode',
 		recipients: 'Recipients',
 		collectionHandoff: 'Collection handoff',
-		waveDraftReady: (waveName) => `${waveName} is the draft wave for this study.`,
+		waveDraftReady: (waveName) => `${waveName} is the draft measurement for this study.`,
 		waveWillBeCreated: (waveName) => `${waveName} will be created when you save this step.`,
 		identifiedModeDetail:
 			'Identified collection requires saved recipients so each respondent can receive assigned access.',
 		longitudinalModeDetail:
-			'Repeat-participation collection can use public access or saved recipients; respondents use their own repeat code for comparison.',
+			'Same-person comparison can use public access or saved recipients; respondents use their own repeat code for comparison.',
 		anonymousModeDetail: 'Anonymous collection can use a public link or saved email recipients.',
-		chooseModeDetail: 'Choose how respondents should enter this wave.',
+		chooseModeDetail: 'Choose how respondents should enter this measurement.',
 		savedRecipientDetail: (selectionCount, pairCount) =>
 			`${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
 				pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 			}.`,
 		identifiedNeedsRecipients: 'Identified collection needs saved recipients before launch.',
 		longitudinalNoRecipients:
-			'No saved recipients yet. You can use a public link, or save recipients for invite-only repeat participation.',
+			'No saved recipients yet. You can use a public link, or save recipients for invited-only same-person comparison.',
 		anonymousNoRecipients:
 			'No saved recipients yet. You can still launch anonymous collection with a public link.',
 		saveRecipientsBeforeIdentifiedLaunch:
 			'Save recipients before opening Collection for identified launch.',
-		launchPassedOpenCollection: 'Launch check passed; open Collection to start the wave.',
+		launchPassedOpenCollection: 'Launch check passed; open Collection to start the measurement.',
 		runLaunchCheckBeforeCollection: 'Run launch check before opening Collection.'
 	},
 	designMap: {
 		title: 'How this study is built',
 		summary:
-			'Study is the project container. Source material seeds the questionnaire; result outputs interpret answers; waves collect responses.',
-		source: 'Questionnaire source',
+			'Study is the project container. The starting source seeds the questionnaire; result outputs interpret answers; measurements collect responses.',
+		source: 'Starting source',
 		questionnaire: 'Questionnaire',
 		results: 'Result outputs',
-		waves: 'Collection waves',
-		sourceReady: 'Source material is ready for this questionnaire.',
-		sourceMissing: 'Choose reusable or imported source material before saving the questionnaire.',
+		waves: 'Measurements',
+		sourceReady: 'The starting source is ready for this questionnaire.',
+		sourceMissing: 'Confirm a starting source before saving the questionnaire.',
 		questionnaireSaved: (name, questionCount) =>
 			`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
 		questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
 		resultsReady: (ruleKey) => `Result outputs are saved as ${ruleKey}.`,
 		resultsMissing: 'Choose which questionnaire answers become result outputs.',
-		noWaves: 'No collection wave exists yet.',
+		noWaves: 'No measurement exists yet.',
 		draftWaveNeedsReadiness: (count) =>
-			`${count} draft ${count === 1 ? 'wave is' : 'waves are'} prepared; launch readiness still needs attention.`,
+			`${count} draft ${count === 1 ? 'measurement is' : 'measurements are'} prepared; launch readiness still needs attention.`,
 		waveReady: (count) =>
-			`${count} draft ${count === 1 ? 'wave is' : 'waves are'} ready for Collection.`,
+			`${count} draft ${count === 1 ? 'measurement is' : 'measurements are'} ready for Collection.`,
 		liveWave: (count) =>
-			`${count} ${count === 1 ? 'wave is' : 'waves are'} collecting responses.`,
+			`${count} ${count === 1 ? 'measurement is' : 'measurements are'} collecting responses.`,
 		closedWave: (count) =>
-			`${count} ${count === 1 ? 'wave has' : 'waves have'} closed data for Results review.`
+			`${count} ${count === 1 ? 'measurement has' : 'measurements have'} closed data for Results review.`
 	},
 	waveContext: {
 		prepareForCollection: (waveName) => `Prepare ${waveName} for collection`,
-		firstWaveSetup: 'First wave setup',
-		currentDraftWave: 'Current draft wave',
-		followUpDraftWave: 'Follow-up draft wave',
-		futureWaveSetup: 'Future wave setup',
-		firstWaveSummary: 'Use this step to create the first collection wave and decide who can answer.',
-		currentDraftSummary: 'Use this step to finish the current draft wave before opening Collection.',
+		firstWaveSetup: 'First measurement setup',
+		currentDraftWave: 'Current draft measurement',
+		followUpDraftWave: 'Next draft measurement',
+		futureWaveSetup: 'Future measurement setup',
+		firstWaveSummary: 'Use this step to create the first measurement and decide who can answer.',
+		currentDraftSummary: 'Use this step to finish the current draft measurement before opening Collection.',
 		followUpDraftSummary: (waveName) =>
-			`${waveName} is a draft follow-up wave. Use it only when the next collection round is intentional.`,
+			`${waveName} is a draft follow-up measurement. Use it only when the next collection round is intentional.`,
 		closedOneWaveSummary: (previousWaveName, previousWaveStatus, nextWaveName) =>
 			`${previousWaveName} is already ${previousWaveStatus}. Create ${nextWaveName} only when the next collection round is intentional.`,
 		multipleWaveSummary: (existingWaveCount, nextWaveName) =>
-			`${existingWaveCount} waves already exist. Create ${nextWaveName} only after the current wave results have been reviewed.`,
-		createFirstAfterSetup: 'Create Wave 1 only after the questionnaire and results setup are saved.',
+			`${existingWaveCount} measurements already exist. Create ${nextWaveName} only after the current measurement results have been reviewed.`,
+		createFirstAfterSetup: 'Create Measurement 1 only after the questionnaire and result outputs are saved.',
 		recipientBelongsUntilLaunch: (waveName) =>
-			`Recipient selection belongs to ${waveName} until this wave is launched.`,
+			`Recipient selection belongs to ${waveName} until this measurement is launched.`,
 		reviewResultsBeforeFollowup:
 			'Review the previous wave in Results before treating this as a follow-up collection.',
 		doNotAssumeRecipients:
-			'Do not assume recipients are unchanged; save the intended people or group for this wave.',
+			'Do not assume recipients are unchanged; save the intended people or group for this measurement.',
 		reviewBeforePreparing: (previousWaveName, nextWaveName) =>
 			`Review ${previousWaveName} before preparing ${nextWaveName}`,
 		reviewExistingBeforePreparing: (nextWaveName) =>
-			`Review existing waves before preparing ${nextWaveName}`,
+			`Review existing measurements before preparing ${nextWaveName}`,
 		openResultsBeforeCreating: (reviewTarget, nextWaveName) =>
 			`Open Results to review or export ${reviewTarget} before creating ${nextWaveName}.`,
 		createOnlyWhenIntentional: (nextWaveName) =>
 			`Create ${nextWaveName} only when the next collection round is intentional.`,
 		recipientBelongsToNewDraft: (previousLabel) =>
-			`Recipient selection in this step will belong to the new draft wave, not to ${previousLabel}.`,
-		previousWaves: 'the previous waves'
+			`Recipient selection in this step will belong to the new draft measurement, not to ${previousLabel}.`,
+		previousWaves: 'the previous measurements'
 	},
 	misc: {
 		notEditable: 'not editable',
