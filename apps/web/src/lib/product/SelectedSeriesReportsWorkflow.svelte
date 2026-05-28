@@ -25,6 +25,14 @@
 	import { formatScoreOutputMetadata, toProductApiErrorMessage } from './view-models';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
+	const primaryReportWidgetKinds = ['results-dashboard/v1', 'visual-analytics-entry/v1'];
+	const detailReportWidgetKinds = [
+		'report-readiness-summary/v1',
+		'score-coverage-summary/v1',
+		'selected-campaign-report-state/v1',
+		'export-artifact-registry/v1',
+		'finality-provenance-summary/v1'
+	];
 
 	let {
 		workspace,
@@ -161,6 +169,9 @@
 		canManageSetup &&
 			Boolean(currentDownloadableExportArtifactId) &&
 			actionStates.downloadCsv !== 'submitting'
+	);
+	const hasDetailReportWidgets = $derived(
+		Boolean(widgetManifest?.widgets.some((widget) => detailReportWidgetKinds.includes(widget.kind)))
 	);
 	const downloadCsvTitle = $derived(
 		preferredDownloadableExportArtifact?.artifactType === 'campaign_series_response_csv_codebook'
@@ -375,10 +386,43 @@
 		<p class="error-line">{refreshWarning}</p>
 	{/if}
 
+	<article class="record-row" role="group" aria-label={reportsUi.resultsPreview}>
+		<div class="record-row__header">
+			<div>
+				<span>{reportsWorkflowCopy.surface.flowKicker}</span>
+				<strong>{selectedCampaign?.name ?? workspace.series.name}</strong>
+			</div>
+			<StatusBadge status={packetReview.status} />
+		</div>
+		<dl class="record-grid">
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.responsesLabel}</dt>
+				<dd class="record-field__value">{workspace.summary.submittedResponseCount}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.scoresLabel}</dt>
+				<dd class="record-field__value">{workspace.summary.visibleScoreCount}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.exportsLabel}</dt>
+				<dd class="record-field__value">{workspace.summary.exportArtifactCount}</dd>
+			</div>
+			<div class="record-field">
+				<dt class="record-field__label">{reportsUi.statusLabel}</dt>
+				<dd class="record-field__value">
+					{selectedCampaign ? humanize(selectedCampaign.reportStatus) : packetReview.title}
+				</dd>
+			</div>
+		</dl>
+	</article>
+
 	<ReportWidgetsSection
 		manifest={widgetManifest}
 		warning={widgetWarning}
 		embedded={true}
+		includeKinds={primaryReportWidgetKinds}
+		hideWhenEmpty={true}
+		showChrome={false}
 	/>
 	<article class="overview-command-card" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
 		<div>
@@ -548,9 +592,21 @@
 
 	<details class="record-row">
 		<summary class="record-row__header">
-			<span>{reportsWorkflowCopy.surface.scoreMethodLabel}</span>
-			<StatusBadge status={methodReview.status} />
+			<span>{reportsUi.detailsDrawerTitle}</span>
+			<StatusBadge status={exportPreview.status} />
 		</summary>
+
+		{#if hasDetailReportWidgets || widgetWarning}
+			<ReportWidgetsSection
+				manifest={widgetManifest}
+				warning={widgetWarning}
+				embedded={true}
+				includeKinds={detailReportWidgetKinds}
+				hideWhenEmpty={true}
+				showChrome={false}
+			/>
+		{/if}
+
 		<div class="questionnaire-blueprint-review__grid">
 			{#each methodReview.items as item (item.id)}
 				<section
@@ -566,15 +622,6 @@
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
 				</section>
 			{/each}
-		</div>
-	</details>
-
-	<details class="record-row">
-		<summary class="record-row__header">
-			<span>{exportPreview.title}</span>
-			<StatusBadge status={exportPreview.status} />
-		</summary>
-		<div class="questionnaire-blueprint-review__grid">
 			{#each exportPreview.items as item (item.id)}
 				<section
 					class="questionnaire-blueprint-review__item"
@@ -595,7 +642,6 @@
 			<span>{exportPreview.downloadLabel}</span>
 		</p>
 	</details>
-
 	{#if !canManageSetup}
 		<p class="record-row text-sm text-[var(--color-text-muted)]">
 			<strong class="record-row__title">{reportsUi.readOnlyTitle}</strong>
@@ -738,5 +784,7 @@
 		</p>
 	{/if}
 {/snippet}
+
+
 
 

@@ -9,18 +9,40 @@
 	let {
 		manifest,
 		warning,
-		embedded = false
+		embedded = false,
+		includeKinds = null,
+		hideWhenEmpty = false,
+		showChrome = true
 	}: {
 		manifest: CampaignSeriesReportsWidgetManifestResponse | null;
 		warning?: string | null;
 		embedded?: boolean;
+		includeKinds?: string[] | null;
+		hideWhenEmpty?: boolean;
+		showChrome?: boolean;
 	} = $props();
 
 	const appLocale = $derived(appLocaleFromPageData(page.data));
 	const copy = $derived(routePageCopy(appLocale).selectedStudy.reportWidgets);
+	const filteredWidgets = $derived(
+		manifest?.widgets.filter((widget) => !includeKinds || includeKinds.includes(widget.kind)) ?? []
+	);
+	const filteredManifest = $derived(
+		manifest
+			? {
+					...manifest,
+					widgets: filteredWidgets
+				}
+			: null
+	);
+	const shouldRender = $derived(
+		!hideWhenEmpty || Boolean(warning) || !manifest || filteredWidgets.length > 0
+	);
 </script>
 
-{#if embedded}
+{#if shouldRender && !showChrome}
+	{@render WidgetBody()}
+{:else if shouldRender && embedded}
 	<div
 		class="score-result-panel report-proof-panel"
 		data-priority="trust"
@@ -40,7 +62,7 @@
 		</div>
 		{@render WidgetBody()}
 	</div>
-{:else}
+{:else if shouldRender}
 	<section
 		class="product-panel"
 		data-priority="trust"
@@ -66,9 +88,9 @@
 		<p class="error-line">{warning}</p>
 	{/if}
 
-	{#if manifest}
+	{#if filteredManifest}
 		<div class="report-widget-grid">
-			{#each manifest.widgets as widget (widget.id)}
+			{#each filteredManifest.widgets as widget (widget.id)}
 				{@const WidgetComponent = getReportWidgetComponent(widget.kind)}
 				<WidgetComponent {widget} {copy} />
 			{/each}

@@ -1655,6 +1655,11 @@ const en = {
 				taskProgress: (completed: number, total: number) =>
 					`${completed} of ${total} results tasks done`,
 				currentTaskTitle: 'Current results task',
+				responsesLabel: 'Responses',
+				scoresLabel: 'Scores',
+				exportsLabel: 'Exports',
+				statusLabel: 'Status',
+				detailsDrawerTitle: 'Details: method, readiness, coverage, and exports',
 				selectedWave: 'Selected wave',
 				previewStatus: 'Preview status',
 				readyForReview: 'Ready for review',
@@ -3943,6 +3948,11 @@ const hr: typeof en = {
 				taskProgress: (completed: number, total: number) =>
 					`${completed} od ${total} zadataka rezultata dovršeno`,
 				currentTaskTitle: 'Trenutni zadatak rezultata',
+				responsesLabel: 'Odgovori',
+				scoresLabel: 'Rezultati',
+				exportsLabel: 'Izvozi',
+				statusLabel: 'Status',
+				detailsDrawerTitle: 'Detalji: metoda, spremnost, pokrivenost i izvozi',
 				selectedWave: 'Odabrano mjerenje',
 				previewStatus: 'Status pregleda',
 				readyForReview: 'Spremno za pregled',
