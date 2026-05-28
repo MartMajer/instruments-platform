@@ -80,6 +80,31 @@ describe('selected-series setup workflow model', () => {
 	});
 
 	it('does not treat launched or closed waves as editable setup campaigns', () => {
+		const liveWorkspace: CampaignSeriesSetupWorkspaceResponse = {
+			...configuredWorkspace,
+			summary: {
+				campaignCount: 1,
+				liveCampaignCount: 1,
+				missingPrerequisiteCount: 0
+			},
+			selectedCampaign: {
+				...configuredWorkspace.selectedCampaign!,
+				status: 'live',
+				latestLaunchAt: '2026-05-20T10:00:00Z'
+			},
+			readiness: {
+				campaignId: 'campaign-id',
+				status: 'ready',
+				ready: true
+			},
+			campaigns: [
+				{
+					...configuredWorkspace.campaigns[0],
+					status: 'live',
+					latestLaunchAt: '2026-05-20T10:00:00Z'
+				}
+			]
+		};
 		const closedWorkspace: CampaignSeriesSetupWorkspaceResponse = {
 			...configuredWorkspace,
 			summary: {
@@ -106,9 +131,29 @@ describe('selected-series setup workflow model', () => {
 			]
 		};
 
+		const liveActions = toSelectedSeriesSetupWorkflowActions(liveWorkspace);
+		const livePath = toSelectedSeriesSetupPath(liveWorkspace);
 		const actions = toSelectedSeriesSetupWorkflowActions(closedWorkspace);
 		const path = toSelectedSeriesSetupPath(closedWorkspace);
 
+		expect(selectSetupCampaignId(liveWorkspace)).toBeNull();
+		expect(liveActions.find((action) => action.id === 'campaign')).toMatchObject({
+			status: 'ready',
+			available: true,
+			disabledReason: null
+		});
+		expect(liveActions.find((action) => action.id === 'readiness')).toMatchObject({
+			status: 'ready',
+			available: true,
+			disabledReason: null
+		});
+		expect(livePath.completedCount).toBe(4);
+		expect(livePath.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
+			{ id: 'template', state: 'done' },
+			{ id: 'scoring', state: 'done' },
+			{ id: 'campaign', state: 'done' },
+			{ id: 'readiness', state: 'done' }
+		]);
 		expect(selectSetupCampaignId(closedWorkspace)).toBeNull();
 		expect(actions.find((action) => action.id === 'campaign')).toMatchObject({
 			status: 'blocked',

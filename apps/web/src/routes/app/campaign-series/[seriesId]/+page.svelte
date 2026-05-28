@@ -137,7 +137,9 @@
 <SurfaceHeader
 	eyebrow={copy.eyebrow}
 	title={copy.title}
-	description={copy.description}
+	description={hubView?.overviewCommand.summary ?? copy.description}
+	statusLabel={hubView?.overviewCommand.badgeLabel ?? 'Study workspace'}
+	status={hubView?.overviewCommand.status ?? 'neutral'}
 />
 
 <section class="product-stack" aria-label={copy.ariaLabel}>
@@ -218,74 +220,76 @@
 					<p class="error-line" role="alert">{restoreError}</p>
 				{/if}
 
-				<div
-					role="group"
-					aria-label={hubView.studyModel.title}
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">{copy.studyModel}</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">
-							{hubView.studyModel.title}
-						</h3>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{hubView.studyModel.description}
-						</p>
+				<div class="overview-command-card" aria-label={hubView.overviewCommand.title}>
+					<div class="overview-command-card__body">
+						<div class="overview-command-card__header">
+							<StatusBadge
+								status={hubView.overviewCommand.status}
+								label={hubView.overviewCommand.badgeLabel}
+							/>
+							<h3 class="overview-command-card__title">{hubView.overviewCommand.title}</h3>
+						</div>
+						<p class="overview-command-card__summary">{hubView.overviewCommand.summary}</p>
 					</div>
-
-					<div class="record-list">
-						{#each hubView.studyModel.items as item}
-							<article aria-label={item.label} class="record-row">
-								<div class="record-row__header">
-									<div>
-										<p class="record-row__title">{item.label}</p>
-										<p class="mt-2 text-sm leading-6 text-[var(--color-text)]">{item.summary}</p>
-										<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
-											{item.guidance}
-										</p>
-									</div>
-									<StatusBadge status={item.status} label={item.badgeLabel} />
-								</div>
-								<dl class="record-grid mt-3">
-									{#each item.detailRows as row}
-										<div class="record-field">
-											<dt class="record-field__label">{row.label}</dt>
-											<dd class="record-field__value" class:font-mono={row.mono}>
-												{row.value}
-												{#if row.status}
-													<span class="ml-2 inline-flex align-middle">
-														<StatusBadge status={row.status} />
-													</span>
-												{/if}
-											</dd>
-										</div>
-									{/each}
-								</dl>
-							</article>
-						{/each}
-					</div>
-				</div>
-			</section>
-
-			<section class="product-panel" aria-label={hubView.referenceTitle}>
-				<div class="product-panel__header">
-					<div>
-						<p class="product-kicker">{copy.studyDetails}</p>
-						<h2 class="product-title">{copy.statusRecords}</h2>
-						<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-							{copy.statusDescription}
-						</p>
-					</div>
+					{#if hubView.overviewCommand.href && hubView.overviewCommand.actionLabel}
+						<a class="primary-button" href={hubView.overviewCommand.href}>
+							{hubView.overviewCommand.actionLabel}
+						</a>
+					{/if}
 				</div>
 
-				<dl class="selected-reference-total-list" role="group" aria-label={copy.statusRecords}>
-					{#each hubView.totalRows as row}
-						<div class="selected-reference-total-row">
-							<dt class="selected-reference-total-row__label">{row.label}</dt>
-							<dd class="selected-reference-total-row__value">{row.value}</dd>
+				<dl class="overview-metric-grid" role="group" aria-label={copy.statusRecords}>
+					{#each hubView.overviewMetrics as row}
+						<div class="overview-metric-card">
+							<dt class="overview-metric-card__label">{row.label}</dt>
+							<dd class="overview-metric-card__value">{row.value}</dd>
 						</div>
 					{/each}
 				</dl>
+
+				{#if hubView.overviewAttentionItems.length > 0}
+					<section class="overview-attention-list" aria-label={hubView.overviewAttentionTitle}>
+						<p class="product-kicker">{hubView.overviewAttentionTitle}</p>
+						{#each hubView.overviewAttentionItems as item}
+							<article class="overview-attention-row" aria-label={item.label}>
+								<div>
+									<div class="overview-attention-row__header">
+										<h4 class="record-row__title">{item.label}</h4>
+										<StatusBadge status={item.status} label={item.badgeLabel} />
+									</div>
+									<p class="mt-1 text-sm text-[var(--color-text-muted)]">{item.summary}</p>
+								</div>
+								<a class="secondary-button" href={item.href}>{item.actionLabel}</a>
+							</article>
+						{/each}
+					</section>
+				{/if}
+
+				{#if hubView.campaignRows.length > 0}
+					<details class="record-row" open={hubView.campaignRows.length <= 2}>
+						<summary class="record-row__title">
+							{copy.campaigns} ({hubView.campaignRows.length})
+						</summary>
+						<div class="record-list mt-3">
+							{#each hubView.campaignRows as campaign (campaign.id)}
+								<article aria-label={campaign.title} class="record-row">
+									<div class="record-row__header">
+										<h4 class="record-row__title">{campaign.title}</h4>
+										<StatusBadge status={campaign.status} />
+									</div>
+									<span class="record-grid">
+										{#each campaign.rows as row}
+											<span class="record-field">
+												<span class="record-field__label">{row.label}</span>
+												<span class="record-field__value">{row.value}</span>
+											</span>
+										{/each}
+									</span>
+								</article>
+							{/each}
+						</div>
+					</details>
+				{/if}
 
 				{#if hubView.rows.length > 0}
 					<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
@@ -308,41 +312,6 @@
 						</dl>
 					</details>
 				{/if}
-				<div
-					role="group"
-					aria-label={copy.campaignsAria}
-					class="grid gap-3 border-t border-[var(--color-border)] pt-4"
-				>
-					<div>
-						<p class="product-kicker">{copy.campaigns}</p>
-						<h3 class="text-base font-semibold text-[var(--color-text)]">{copy.campaignsInStudy}</h3>
-					</div>
-
-					{#if hubView.campaignRows.length === 0}
-						<p class="text-sm text-[var(--color-text-muted)]">
-							{copy.noCampaigns}
-						</p>
-					{:else}
-						<div class="record-list">
-							{#each hubView.campaignRows as campaign (campaign.id)}
-								<article aria-label={campaign.title} class="record-row">
-									<div class="record-row__header">
-										<h4 class="record-row__title">{campaign.title}</h4>
-										<StatusBadge status={campaign.status} />
-									</div>
-									<span class="record-grid">
-										{#each campaign.rows as row}
-											<span class="record-field">
-												<span class="record-field__label">{row.label}</span>
-												<span class="record-field__value">{row.value}</span>
-											</span>
-										{/each}
-									</span>
-								</article>
-							{/each}
-						</div>
-					{/if}
-				</div>
 			</section>
 		{/if}
 	</LoadingBoundary>

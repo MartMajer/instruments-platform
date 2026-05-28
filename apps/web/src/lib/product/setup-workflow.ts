@@ -416,7 +416,9 @@ export function toSelectedSeriesSetupWorkflowActions(
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
 	const scoringConfigured = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
-	const campaignConfigured = Boolean(campaignId);
+	const campaignConfigured = Boolean(campaignId) || hasUnfinishedSetupCampaign(workspace, localState);
+	const collectionStarted = hasStartedSetupCampaign(workspace);
+	const readinessConfigured = campaignConfigured && (workspace.readiness.ready || collectionStarted);
 
 	return [
 		{
@@ -451,9 +453,13 @@ export function toSelectedSeriesSetupWorkflowActions(
 			step: copy.stepNumber(4),
 			title: copy.steps.readiness.title,
 			description: copy.steps.readiness.description,
-			status: campaignId ? toActionReadinessStatus(workspace) : 'not_available',
-			available: Boolean(campaignId),
-			disabledReason: campaignId ? null : copy.disabled.createCollectionWave
+			status: readinessConfigured
+				? 'ready'
+				: campaignId
+					? toActionReadinessStatus(workspace)
+					: 'not_available',
+			available: Boolean(campaignId || readinessConfigured),
+			disabledReason: campaignId || readinessConfigured ? null : copy.disabled.createCollectionWave
 		}
 	];
 }
@@ -765,6 +771,7 @@ export function toSelectedSeriesSetupPath(
 	const actions = toSelectedSeriesSetupWorkflowActions(workspace, localState, copy);
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
+	const campaignDone = Boolean(campaignId) || hasUnfinishedSetupCampaign(workspace, localState);
 	const instrumentDone = Boolean(
 		localState.instrumentId ?? workspace.template?.instrumentId ?? templateVersionId
 	);
@@ -772,8 +779,8 @@ export function toSelectedSeriesSetupPath(
 		instrument: instrumentDone,
 		template: Boolean(templateVersionId),
 		scoring: Boolean(localState.scoringRuleId ?? workspace.scoring?.id),
-		campaign: Boolean(campaignId),
-		readiness: workspace.readiness.ready
+		campaign: campaignDone,
+		readiness: campaignDone && (workspace.readiness.ready || hasStartedSetupCampaign(workspace))
 	};
 	const currentAction =
 		actions.find((action) => !doneByActionId[action.id] && action.available) ??
@@ -842,8 +849,38 @@ export function selectSetupCampaignId(
 		: null;
 }
 
+function hasUnfinishedSetupCampaign(
+	workspace: CampaignSeriesSetupWorkspaceResponse,
+	localState: SelectedSeriesSetupWorkflowLocalState = {}
+) {
+	if (localState.campaignId) {
+		return true;
+	}
+
+	return setupCampaigns(workspace).some((campaign) => !isClosedSetupCampaign(campaign.status));
+}
+
+function hasStartedSetupCampaign(workspace: CampaignSeriesSetupWorkspaceResponse) {
+	return setupCampaigns(workspace).some((campaign) => campaign.status === 'live');
+}
+
+function setupCampaigns(workspace: CampaignSeriesSetupWorkspaceResponse) {
+	const campaigns = [...workspace.campaigns];
+	if (
+		workspace.selectedCampaign &&
+		!campaigns.some((campaign) => campaign.id === workspace.selectedCampaign?.id)
+	) {
+		campaigns.push(workspace.selectedCampaign);
+	}
+	return campaigns;
+}
+
 function isEditableSetupCampaign(status: string | null | undefined) {
 	return status === 'draft' || status === 'scheduled';
+}
+
+function isClosedSetupCampaign(status: string | null | undefined) {
+	return status === 'closed';
 }
 
 function selectedSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse, campaignId: string) {

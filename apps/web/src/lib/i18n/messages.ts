@@ -148,6 +148,43 @@ const enMessages = {
 		'At least one collection round exists. Use Collection to open access and monitor responses.',
 	'overview.studyModel.currentState.guidance.setup':
 		'Finish Setup before opening collection or reviewing results.',
+	'overview.command.title.setup': 'Finish setup',
+	'overview.command.title.collect': 'Start collection',
+	'overview.command.title.collecting': 'Collecting responses',
+	'overview.command.title.results': 'Review results',
+	'overview.command.title.archived': 'Archived study',
+	'overview.command.badge.setup': 'Setup',
+	'overview.command.badge.collect': 'Ready',
+	'overview.command.badge.collecting': 'Live',
+	'overview.command.badge.results': 'Results',
+	'overview.command.badge.archived': 'Archived',
+	'overview.command.summary.setup':
+		'Questionnaire, result setup, recipients, and launch check are not all ready yet.',
+	'overview.command.summary.collect':
+		'Measurement is prepared. Open Collection when recipients and access are final.',
+	'overview.command.summary.collecting': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'liveCount'), 'measurement')} live, ${formatCount(
+			locale,
+			numberValue(values, 'responseCount'),
+			'response'
+		)} collected.`,
+	'overview.command.summary.results': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'responseCount'), 'response')}, ${formatCount(
+			locale,
+			numberValue(values, 'scoreCount'),
+			'score'
+		)}, ${formatCount(locale, numberValue(values, 'exportCount'), 'exportFile')}.`,
+	'overview.command.summary.archived':
+		'This study is archived. Restore it before editing setup, collection, or results.',
+	'overview.command.action.setup': 'Open Setup',
+	'overview.command.action.collect': 'Open Collection',
+	'overview.command.action.results': 'Open Results',
+	'overview.metric.measurements': 'Measurements',
+	'overview.metric.live': 'Live',
+	'overview.metric.responses': 'Responses',
+	'overview.metric.scores': 'Scores',
+	'overview.metric.exports': 'Exports',
+	'overview.attention.title': 'Needs attention',
 	'overview.studyModel.nextAction.label': 'Recommended next move',
 	'overview.studyModel.nextAction.badge.setup': 'Finish setup',
 	'overview.studyModel.nextAction.badge.collect': 'Go to collection',
@@ -1239,6 +1276,43 @@ const hrMessages: AppMessageCatalog = {
 		'Postoji barem jedan krug prikupljanja. Koristite Prikupljanje za otvaranje pristupa i praćenje odgovora.',
 	'overview.studyModel.currentState.guidance.setup':
 		'Dovršite Postavljanje prije otvaranja prikupljanja ili pregleda rezultata.',
+	'overview.command.title.setup': 'Dovršite postavljanje',
+	'overview.command.title.collect': 'Pokrenite prikupljanje',
+	'overview.command.title.collecting': 'Prikupljanje traje',
+	'overview.command.title.results': 'Pregledajte rezultate',
+	'overview.command.title.archived': 'Arhivirana studija',
+	'overview.command.badge.setup': 'Postavljanje',
+	'overview.command.badge.collect': 'Spremno',
+	'overview.command.badge.collecting': 'Aktivno',
+	'overview.command.badge.results': 'Rezultati',
+	'overview.command.badge.archived': 'Arhivirano',
+	'overview.command.summary.setup':
+		'Upitnik, rezultati, primatelji i provjera pokretanja još nisu potpuno spremni.',
+	'overview.command.summary.collect':
+		'Mjerenje je pripremljeno. Otvorite Prikupljanje kada su primatelji i pristup konačni.',
+	'overview.command.summary.collecting': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'liveCount'), 'measurement')} aktivno, ${formatCount(
+			locale,
+			numberValue(values, 'responseCount'),
+			'response'
+		)} prikupljeno.`,
+	'overview.command.summary.results': (values, locale) =>
+		`${formatCount(locale, numberValue(values, 'responseCount'), 'response')}, ${formatCount(
+			locale,
+			numberValue(values, 'scoreCount'),
+			'score'
+		)}, ${formatCount(locale, numberValue(values, 'exportCount'), 'exportFile')}.`,
+	'overview.command.summary.archived':
+		'Ova studija je arhivirana. Vratite je prije uređivanja postavljanja, prikupljanja ili rezultata.',
+	'overview.command.action.setup': 'Otvori Postavljanje',
+	'overview.command.action.collect': 'Otvori Prikupljanje',
+	'overview.command.action.results': 'Otvori Rezultate',
+	'overview.metric.measurements': 'Mjerenja',
+	'overview.metric.live': 'Aktivno',
+	'overview.metric.responses': 'Odgovori',
+	'overview.metric.scores': 'Rezultati',
+	'overview.metric.exports': 'Izvozi',
+	'overview.attention.title': 'Treba pažnju',
 	'overview.studyModel.nextAction.label': 'Preporučeni sljedeći korak',
 	'overview.studyModel.nextAction.badge.setup': 'Dovršite postavljanje',
 	'overview.studyModel.nextAction.badge.collect': 'Otvorite prikupljanje',

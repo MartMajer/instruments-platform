@@ -130,6 +130,25 @@ export type SelectedSeriesStudyModel = {
 	items: SelectedSeriesStudyModelItem[];
 };
 
+export type SelectedSeriesOverviewCommand = {
+	title: string;
+	summary: string;
+	status: ProductReadModelBadgeStatus;
+	badgeLabel: string;
+	actionLabel: string | null;
+	href: string | null;
+};
+
+export type SelectedSeriesOverviewAttentionItem = {
+	id: string;
+	label: string;
+	status: ProductReadModelBadgeStatus;
+	badgeLabel: string;
+	summary: string;
+	href: string;
+	actionLabel: string;
+};
+
 export type ExportArtifactLibraryOverviewItem = {
 	id: 'ready_downloads' | 'attention_needed' | 'artifact_purpose' | 'study_context';
 	label: string;
@@ -368,6 +387,10 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 		ownership,
 		canMutate: !ownership.isSample,
 		archiveState,
+		overviewCommand: toCampaignSeriesHubOverviewCommand(hub, locale),
+		overviewMetrics: toCampaignSeriesHubOverviewMetrics(hub, locale),
+		overviewAttentionTitle: appMessage(locale, 'overview.attention.title'),
+		overviewAttentionItems: toCampaignSeriesHubAttentionItems(hub, locale),
 		totalRows: toCampaignSeriesHubTotalRows(hub.totals),
 		governanceRows: [
 			toGovernanceRow('overview.governance.consent', hub.governance.consentStatus, locale),
@@ -407,6 +430,165 @@ export function toCampaignSeriesHubView(hub: CampaignSeriesHubResponse, locale: 
 			]
 		}))
 	}, locale);
+}
+
+function toCampaignSeriesHubOverviewCommand(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): SelectedSeriesOverviewCommand {
+	if (hub.archived) {
+		return {
+			title: appMessage(locale, 'overview.command.title.archived'),
+			summary: appMessage(locale, 'overview.command.summary.archived'),
+			status: 'archived',
+			badgeLabel: appMessage(locale, 'overview.command.badge.archived'),
+			actionLabel: null,
+			href: null
+		};
+	}
+
+	const setupLifecycle = findHubLifecycleItem(hub, 'setup');
+	const setupStatus = toProductReadModelBadgeStatus(setupLifecycle?.status);
+	const routeBase = `/app/campaign-series/${hub.id}`;
+
+	if (!setupLifecycleReady(setupStatus) || hub.totals.campaignCount === 0) {
+		return {
+			title: appMessage(locale, 'overview.command.title.setup'),
+			summary: appMessage(locale, 'overview.command.summary.setup'),
+			status: setupStatus === 'ready' ? 'pending' : setupStatus,
+			badgeLabel: appMessage(locale, 'overview.command.badge.setup'),
+			actionLabel: appMessage(locale, 'overview.command.action.setup'),
+			href: `${routeBase}/setup`
+		};
+	}
+
+	if (hub.totals.liveCampaignCount > 0) {
+		return {
+			title: appMessage(locale, 'overview.command.title.collecting'),
+			summary: appMessage(locale, 'overview.command.summary.collecting', {
+				liveCount: hub.totals.liveCampaignCount,
+				responseCount: hub.totals.submittedResponseCount
+			}),
+			status: 'live',
+			badgeLabel: appMessage(locale, 'overview.command.badge.collecting'),
+			actionLabel: appMessage(locale, 'overview.command.action.collect'),
+			href: `${routeBase}/operations`
+		};
+	}
+
+	if (
+		hub.totals.submittedResponseCount > 0 ||
+		hub.totals.scoreCount > 0 ||
+		hub.totals.exportArtifactCount > 0
+	) {
+		return {
+			title: appMessage(locale, 'overview.command.title.results'),
+			summary: appMessage(locale, 'overview.command.summary.results', {
+				responseCount: hub.totals.submittedResponseCount,
+				scoreCount: hub.totals.scoreCount,
+				exportCount: hub.totals.exportArtifactCount
+			}),
+			status: 'ready',
+			badgeLabel: appMessage(locale, 'overview.command.badge.results'),
+			actionLabel: appMessage(locale, 'overview.command.action.results'),
+			href: `${routeBase}/reports`
+		};
+	}
+
+	return {
+		title: appMessage(locale, 'overview.command.title.collect'),
+		summary: appMessage(locale, 'overview.command.summary.collect'),
+		status: 'pending',
+		badgeLabel: appMessage(locale, 'overview.command.badge.collect'),
+		actionLabel: appMessage(locale, 'overview.command.action.collect'),
+		href: `${routeBase}/operations`
+	};
+}
+
+function toCampaignSeriesHubOverviewMetrics(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): DisplayRow[] {
+	return [
+		{
+			label: appMessage(locale, 'overview.metric.measurements'),
+			value: formatLocalizedCount(locale, hub.totals.campaignCount, 'measurement')
+		},
+		{
+			label: appMessage(locale, 'overview.metric.live'),
+			value: formatCount(hub.totals.liveCampaignCount)
+		},
+		{
+			label: appMessage(locale, 'overview.metric.responses'),
+			value: formatLocalizedCount(locale, hub.totals.submittedResponseCount, 'response')
+		},
+		{
+			label: appMessage(locale, 'overview.metric.scores'),
+			value: formatLocalizedCount(locale, hub.totals.scoreCount, 'score')
+		},
+		{
+			label: appMessage(locale, 'overview.metric.exports'),
+			value: formatLocalizedCount(locale, hub.totals.exportArtifactCount, 'exportFile')
+		}
+	];
+}
+
+function toCampaignSeriesHubAttentionItems(
+	hub: CampaignSeriesHubResponse,
+	locale: AppLocale
+): SelectedSeriesOverviewAttentionItem[] {
+	const setupLifecycle = findHubLifecycleItem(hub, 'setup');
+	const setupStatus = toProductReadModelBadgeStatus(setupLifecycle?.status);
+	if (!setupLifecycleReady(setupStatus) || hub.totals.campaignCount === 0) {
+		return lifecycleAttentionItems(hub, setupLifecycle, 'setup', locale);
+	}
+
+	const operationsLifecycle = findHubLifecycleItem(hub, 'operations');
+	const operationsStatus = toProductReadModelBadgeStatus(operationsLifecycle?.status);
+	if (
+		hub.totals.submittedResponseCount === 0 &&
+		hub.totals.liveCampaignCount === 0 &&
+		lifecycleNeedsAttention(operationsStatus)
+	) {
+		return lifecycleAttentionItems(hub, operationsLifecycle, 'operations', locale);
+	}
+
+	const reportsLifecycle = findHubLifecycleItem(hub, 'reports');
+	const reportsStatus = toProductReadModelBadgeStatus(reportsLifecycle?.status);
+	if (hub.totals.submittedResponseCount > 0 && lifecycleNeedsAttention(reportsStatus)) {
+		return lifecycleAttentionItems(hub, reportsLifecycle, 'reports', locale);
+	}
+
+	return [];
+}
+
+function lifecycleAttentionItems(
+	hub: CampaignSeriesHubResponse,
+	item: CampaignSeriesHubResponse['lifecycle'][number] | undefined,
+	route: CampaignSeriesHubResponse['lifecycle'][number]['route'],
+	locale: AppLocale
+): SelectedSeriesOverviewAttentionItem[] {
+	const status = toProductReadModelBadgeStatus(item?.status);
+	const phase = campaignSeriesHubLifecyclePhase(route, locale);
+	return [
+		{
+			id: route,
+			label: phase.label,
+			status,
+			badgeLabel: toModelBadgeLabel(status, locale),
+			summary: toProductDisplayCopy(item?.guidance ?? phase.description),
+			href: `/app/campaign-series/${hub.id}/${route}`,
+			actionLabel: toProductDisplayCopy(item?.actionLabel ?? phase.label)
+		}
+	];
+}
+
+function setupLifecycleReady(status: ProductReadModelBadgeStatus) {
+	return status === 'ready' || status === 'live';
+}
+
+function lifecycleNeedsAttention(status: ProductReadModelBadgeStatus) {
+	return status === 'blocked' || status === 'not_available' || status === 'not_configured';
 }
 
 function toCampaignSeriesHubLifecycleMap(hub: CampaignSeriesHubResponse, locale: AppLocale) {
