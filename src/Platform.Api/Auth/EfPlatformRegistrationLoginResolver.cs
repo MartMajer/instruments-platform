@@ -22,7 +22,6 @@ public sealed class EfPlatformRegistrationLoginResolver(
     private const string ResearcherRoleCode = "researcher";
     private const string AnalystRoleCode = "analyst";
     private const string ViewerRoleCode = "viewer";
-    private const string Provider = "auth0";
 
     public async Task<PlatformOidcLoginResolution?> ResolveAsync(
         string registrationToken,
@@ -32,9 +31,10 @@ public sealed class EfPlatformRegistrationLoginResolver(
         string providerSubject,
         CancellationToken cancellationToken)
     {
+        var expectedProvider = PlatformOidcProviderProfile.From(configuration).ProviderKey;
         if (currentTenant.HasTenant ||
             string.IsNullOrWhiteSpace(registrationToken) ||
-            !string.Equals(provider, Provider, StringComparison.OrdinalIgnoreCase))
+            !string.Equals(provider, expectedProvider, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

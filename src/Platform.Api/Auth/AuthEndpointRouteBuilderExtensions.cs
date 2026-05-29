@@ -282,14 +282,31 @@ public static class AuthEndpointRouteBuilderExtensions
     private static string? BuildProviderLogoutUrl(IConfiguration configuration, string returnUrl)
     {
         var oidc = configuration.GetSection("Authentication:Oidc");
+        var providerProfile = PlatformOidcProviderProfile.From(configuration);
         var authority = oidc["Authority"]?.Trim();
         var clientId = oidc["ClientId"]?.Trim();
+
+        if (string.Equals(
+                providerProfile.ProviderLogoutMode,
+                PlatformOidcProviderProfile.NoProviderLogoutMode,
+                StringComparison.Ordinal))
+        {
+            return null;
+        }
 
         if (string.IsNullOrWhiteSpace(authority) ||
             string.IsNullOrWhiteSpace(clientId) ||
             !Uri.TryCreate(authority, UriKind.Absolute, out var authorityUri))
         {
             return null;
+        }
+
+        if (string.Equals(
+                providerProfile.ProviderLogoutMode,
+                PlatformOidcProviderProfile.MicrosoftLogoutMode,
+                StringComparison.Ordinal))
+        {
+            return BuildMicrosoftLogoutUrl(authorityUri, returnUrl);
         }
 
         var logoutEndpoint = new Uri(authorityUri, "/v2/logout");
@@ -300,5 +317,24 @@ public static class AuthEndpointRouteBuilderExtensions
             Uri.EscapeDataString(clientId),
             "&returnTo=",
             Uri.EscapeDataString(returnUrl));
+    }
+
+    private static string BuildMicrosoftLogoutUrl(Uri authorityUri, string returnUrl)
+    {
+        var path = authorityUri.AbsolutePath.TrimEnd('/');
+        if (path.EndsWith("/v2.0", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path[..^"/v2.0".Length];
+        }
+
+        var logoutEndpoint = new UriBuilder(authorityUri)
+        {
+            Path = string.Concat(path, "/oauth2/v2.0/logout"),
+            Query = string.Concat(
+                "post_logout_redirect_uri=",
+                Uri.EscapeDataString(returnUrl))
+        };
+
+        return logoutEndpoint.Uri.ToString();
     }
 }

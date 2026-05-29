@@ -151,6 +151,34 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Logout_endpoint_can_redirect_to_microsoft_provider_logout_when_configured()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Authentication:Oidc:Authority"] =
+                "https://login.microsoftonline.com/e78bc07c-063c-47b0-afd0-d08580b54187/v2.0",
+            ["Authentication:Oidc:ProviderLogoutMode"] = "microsoft",
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/register");
+
+        var response = await client.GetAsync($"/auth/logout?provider=1&returnUrl={returnUrl}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("login.microsoftonline.com", response.Headers.Location?.Host);
+        Assert.Equal(
+            "/e78bc07c-063c-47b0-afd0-d08580b54187/oauth2/v2.0/logout",
+            response.Headers.Location?.AbsolutePath);
+        Assert.Contains(
+            "post_logout_redirect_uri=https%3A%2F%2Fapp.example.test%2Fregister",
+            response.Headers.Location?.Query);
+        Assert.DoesNotContain("returnTo=", response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_uses_forwarded_https_scheme_for_oidc_callback()
     {
         var tenantId = Guid.NewGuid();
@@ -660,6 +688,56 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Oidc_token_validation_uses_configured_entra_workforce_claims()
+    {
+        var tenantId = Guid.NewGuid();
+        const string sandboxTenantId = "e78bc07c-063c-47b0-afd0-d08580b54187";
+        const string sandboxUserId = "817c9a38-7e01-4260-a783-57c02d91b712";
+        var resolver = new FakeOidcLoginResolver
+        {
+            Resolution = new PlatformOidcLoginResolution(
+                Guid.NewGuid(),
+                tenantId,
+                Guid.NewGuid(),
+                [PlatformPermissions.SetupManage])
+        };
+        var events = CreateOidcEvents(
+            resolver,
+            new Dictionary<string, string?>
+            {
+                ["Authentication:Oidc:ProviderKey"] = "entra-workforce",
+                ["Authentication:Oidc:EmailClaim"] = "preferred_username",
+                ["Authentication:Oidc:SubjectClaim"] = "oid",
+                ["Authentication:Oidc:SubjectTenantClaim"] = "tid",
+                ["Authentication:Oidc:AssumeEmailVerifiedWhenClaimMissing"] = "true",
+                ["Authentication:Oidc:RequireVerifiedEmail"] = "false"
+            });
+        var context = CreateTokenValidatedContext(
+            email: null,
+            emailVerified: false,
+            tenantId,
+            providerSubject: null,
+            includeEmailVerifiedClaim: false,
+            additionalClaims:
+            [
+                new Claim("preferred_username", "  Sandbox.Owner@1W85JD.OnMicrosoft.com  "),
+                new Claim("tid", sandboxTenantId),
+                new Claim("oid", sandboxUserId)
+            ]);
+
+        await events.TokenValidated(context);
+
+        Assert.Null(context.Result?.Failure);
+        Assert.Equal(
+            [(tenantId,
+                "sandbox.owner@1w85jd.onmicrosoft.com",
+                true,
+                "entra-workforce",
+                $"{sandboxTenantId}:{sandboxUserId}")],
+            resolver.Calls);
+    }
+
+    [Fact]
     public async Task Oidc_token_validation_projects_session_id_claim_from_resolved_login()
     {
         var tenantId = Guid.NewGuid();
@@ -712,6 +790,52 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
             claim.Type == PlatformClaimTypes.TenantMembership);
         Assert.DoesNotContain(context.Principal.Claims, claim =>
             claim.Type == "sub" || claim.Value == "auth0|abc123");
+    }
+
+    [Fact]
+    public async Task Oidc_token_validation_projects_registration_bootstrap_with_configured_provider()
+    {
+        const string sandboxTenantId = "e78bc07c-063c-47b0-afd0-d08580b54187";
+        const string sandboxUserId = "817c9a38-7e01-4260-a783-57c02d91b712";
+        var tenantResolver = new FakeOidcLoginResolver();
+        var registrationResolver = new FakeRegistrationLoginResolver();
+        var events = CreateOidcEvents(
+            tenantResolver,
+            new Dictionary<string, string?>
+            {
+                ["Authentication:Oidc:ProviderKey"] = "entra-workforce",
+                ["Authentication:Oidc:EmailClaim"] = "preferred_username",
+                ["Authentication:Oidc:SubjectClaim"] = "oid",
+                ["Authentication:Oidc:SubjectTenantClaim"] = "tid",
+                ["Authentication:Oidc:AssumeEmailVerifiedWhenClaimMissing"] = "true",
+                ["Authentication:Oidc:RequireVerifiedEmail"] = "false"
+            },
+            registrationResolver);
+        var context = CreateTokenValidatedContext(
+            email: null,
+            emailVerified: false,
+            registrationBootstrap: true,
+            providerSubject: null,
+            includeEmailVerifiedClaim: false,
+            additionalClaims:
+            [
+                new Claim("preferred_username", "Owner@1w85jd.onmicrosoft.com"),
+                new Claim("tid", sandboxTenantId),
+                new Claim("oid", sandboxUserId)
+            ]);
+        var expectedSubjectHash = new Sha256ProviderSubjectHasher()
+            .Hash("entra-workforce", $"{sandboxTenantId}:{sandboxUserId}");
+
+        await events.TokenValidated(context);
+
+        Assert.Null(context.Result?.Failure);
+        Assert.Empty(tenantResolver.Calls);
+        Assert.Empty(registrationResolver.Calls);
+        Assert.Contains(context.Principal!.Claims, claim =>
+            claim.Type == PlatformRegistrationClaimTypes.Provider && claim.Value == "entra-workforce");
+        Assert.Contains(context.Principal.Claims, claim =>
+            claim.Type == PlatformRegistrationClaimTypes.ProviderSubjectHash &&
+            claim.Value == expectedSubjectHash);
     }
 
     [Fact]
@@ -1408,12 +1532,15 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         string? providerSubject = "auth0|subject",
         string? registrationToken = null,
         bool registrationBootstrap = false,
-        string? expectedLoginEmail = null)
+        string? expectedLoginEmail = null,
+        bool includeEmailVerifiedClaim = true,
+        IReadOnlyCollection<Claim>? additionalClaims = null)
     {
-        var claims = new List<Claim>
+        var claims = new List<Claim>();
+        if (includeEmailVerifiedClaim)
         {
-            new("email_verified", emailVerified ? "true" : "false")
-        };
+            claims.Add(new Claim("email_verified", emailVerified ? "true" : "false"));
+        }
 
         if (providerSubject is not null)
         {
@@ -1423,6 +1550,10 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
         if (email is not null)
         {
             claims.Add(new Claim("email", email));
+        }
+        if (additionalClaims is not null)
+        {
+            claims.AddRange(additionalClaims);
         }
 
         var properties = new AuthenticationProperties();

@@ -56,8 +56,6 @@ public sealed class PlatformOidcEvents(
     IConfiguration configuration,
     ILogger<PlatformOidcEvents> logger) : OpenIdConnectEvents
 {
-    private const string Provider = "auth0";
-
     public const string AuthFailureReasonPropertyName = "platform_auth_failure_reason";
 
     public const string EmailUnverifiedFailureReason = "email_unverified";
@@ -128,6 +126,7 @@ public sealed class PlatformOidcEvents(
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {
+        var providerProfile = PlatformOidcProviderProfile.From(configuration);
         var hasTenantLogin = TryGetLoginTenantId(context, out var tenantId);
         var registrationToken = GetRegistrationToken(context);
         var hasRegistrationLogin = !string.IsNullOrWhiteSpace(registrationToken);
@@ -142,7 +141,7 @@ public sealed class PlatformOidcEvents(
             return;
         }
 
-        var email = context.Principal?.FindFirst("email")?.Value?.Trim();
+        var email = providerProfile.GetEmail(context.Principal);
         if (string.IsNullOrWhiteSpace(email))
         {
             logger.LogWarning("OIDC login rejected because the provider did not return an email claim.");
@@ -150,7 +149,7 @@ public sealed class PlatformOidcEvents(
             return;
         }
 
-        var providerSubject = context.Principal?.FindFirst("sub")?.Value?.Trim();
+        var providerSubject = providerProfile.GetProviderSubject(context.Principal);
         if (string.IsNullOrWhiteSpace(providerSubject))
         {
             logger.LogWarning("OIDC login rejected because the provider did not return a subject claim.");
@@ -158,7 +157,7 @@ public sealed class PlatformOidcEvents(
             return;
         }
 
-        var emailVerified = IsEmailVerified(context.Principal);
+        var emailVerified = providerProfile.IsEmailVerified(context.Principal);
         var normalizedEmail = email.ToLowerInvariant();
         var expectedEmail = GetExpectedLoginEmail(context);
         if (!string.IsNullOrWhiteSpace(expectedEmail) &&
@@ -183,8 +182,8 @@ public sealed class PlatformOidcEvents(
             ProjectRegistrationBootstrapClaims(
                 context,
                 normalizedEmail,
-                Provider,
-                providerSubjectHasher.Hash(Provider, providerSubject));
+                providerProfile.ProviderKey,
+                providerSubjectHasher.Hash(providerProfile.ProviderKey, providerSubject));
             return;
         }
 
@@ -193,14 +192,14 @@ public sealed class PlatformOidcEvents(
                 registrationToken!,
                 normalizedEmail,
                 emailVerified,
-                Provider,
+                providerProfile.ProviderKey,
                 providerSubject,
                 context.HttpContext.RequestAborted)
             : await loginResolver.ResolveAsync(
                 tenantId,
                 normalizedEmail,
                 emailVerified,
-                Provider,
+                providerProfile.ProviderKey,
                 providerSubject,
                 context.HttpContext.RequestAborted);
 
@@ -321,13 +320,6 @@ public sealed class PlatformOidcEvents(
                 AuthEndpointRouteBuilderExtensions.RegistrationBootstrapPropertyName,
                 out var value) == true &&
             string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsEmailVerified(ClaimsPrincipal? principal)
-    {
-        var value = principal?.FindFirst("email_verified")?.Value;
-
-        return bool.TryParse(value, out var verified) && verified;
     }
 
     private static void ProjectPlatformClaims(
