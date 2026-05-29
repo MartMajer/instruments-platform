@@ -201,10 +201,14 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("/directory-imports/workspace", script);
         Assert.Contains("/directory-connections", script);
         Assert.Contains("/directory-import-rules", script);
+        Assert.Contains("/subjects", script);
         Assert.Contains("/preview", script);
         Assert.Contains("/apply", script);
         Assert.Contains("safePreviewSummary", script);
         Assert.Contains("safeApplySummary", script);
+        Assert.Contains("safeBeforeDirectorySummary", script);
+        Assert.Contains("safeAfterDirectorySummary", script);
+        Assert.Contains("subjectCountIncrease", script);
         Assert.DoesNotContain("client_secret", lower);
         Assert.DoesNotContain("access_token", lower);
         Assert.DoesNotContain("authorization", lower);
@@ -213,6 +217,8 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.DoesNotContain("Write-Host \"$SessionCookie", script);
         Assert.DoesNotContain("ConvertTo-Json $preview", script);
         Assert.DoesNotContain("ConvertTo-Json $apply", script);
+        Assert.DoesNotContain("ConvertTo-Json $beforeDirectory", script);
+        Assert.DoesNotContain("ConvertTo-Json $afterDirectory", script);
         Assert.DoesNotContain("csvContent", script);
         Assert.DoesNotContain("participantCode", script);
     }

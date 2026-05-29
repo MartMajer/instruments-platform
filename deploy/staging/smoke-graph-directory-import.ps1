@@ -12,6 +12,7 @@ param(
     [switch]$MirrorMode,
     [string]$MirrorConfirmation = '',
     [int]$MinimumMatchedUsers = 1,
+    [int]$MinimumSubjectCountIncrease = 1,
     [switch]$PreviewOnly,
     [string]$EvidencePath = ''
 )
@@ -21,6 +22,9 @@ $ErrorActionPreference = 'Stop'
 
 $safePreviewSummary = $null
 $safeApplySummary = $null
+$safeBeforeDirectorySummary = $null
+$safeAfterDirectorySummary = $null
+$safeDirectoryDelta = $null
 
 function Resolve-RequiredText {
     param(
@@ -214,6 +218,46 @@ function Assert-ApplySummary {
     }
 }
 
+function Get-SafeDirectorySummary {
+    param([object]$Directory)
+
+    if ($null -eq $Directory -or $null -eq $Directory.summary) {
+        throw 'Directory response did not include a summary.'
+    }
+
+    [ordered]@{
+        subjectCount = [int]$Directory.summary.subjectCount
+        groupCount = [int]$Directory.summary.groupCount
+        managerRelationshipCount = [int]$Directory.summary.managerRelationshipCount
+    }
+}
+
+function Assert-DirectoryCountDelta {
+    param(
+        [object]$Before,
+        [object]$After
+    )
+
+    if ($MinimumSubjectCountIncrease -lt 0) {
+        throw 'MinimumSubjectCountIncrease cannot be negative.'
+    }
+
+    $subjectCountIncrease = [int]$After.subjectCount - [int]$Before.subjectCount
+    $groupCountIncrease = [int]$After.groupCount - [int]$Before.groupCount
+    $managerRelationshipCountIncrease =
+        [int]$After.managerRelationshipCount - [int]$Before.managerRelationshipCount
+
+    if ($subjectCountIncrease -lt $MinimumSubjectCountIncrease) {
+        throw "Directory subject count increased by $subjectCountIncrease, below expected minimum $MinimumSubjectCountIncrease."
+    }
+
+    [ordered]@{
+        subjectCountIncrease = $subjectCountIncrease
+        groupCountIncrease = $groupCountIncrease
+        managerRelationshipCountIncrease = $managerRelationshipCountIncrease
+    }
+}
+
 function Write-SmokeEvidence {
     if ([string]::IsNullOrWhiteSpace($EvidencePath)) {
         return
@@ -234,6 +278,9 @@ function Write-SmokeEvidence {
         previewOnly = [bool]$PreviewOnly
         safePreviewSummary = $script:safePreviewSummary
         safeApplySummary = $script:safeApplySummary
+        safeBeforeDirectorySummary = $script:safeBeforeDirectorySummary
+        safeAfterDirectorySummary = $script:safeAfterDirectorySummary
+        safeDirectoryDelta = $script:safeDirectoryDelta
     }
 
     Set-Content -LiteralPath $EvidencePath -Value ($evidence | ConvertTo-Json -Depth 6) -Encoding utf8
@@ -253,6 +300,8 @@ $workspace = Invoke-GraphDirectorySmokeJson -Method GET -Path '/directory-import
 $connection = Get-OrCreateConnection -Workspace $workspace
 $workspace = Invoke-GraphDirectorySmokeJson -Method GET -Path '/directory-imports/workspace'
 $rule = Get-OrCreateRule -Workspace $workspace -Connection $connection
+$beforeDirectory = Invoke-GraphDirectorySmokeJson -Method GET -Path '/subjects'
+$safeBeforeDirectorySummary = Get-SafeDirectorySummary -Directory $beforeDirectory
 
 $preview = Invoke-GraphDirectorySmokeJson -Method POST -Path "/directory-import-rules/$($rule.id)/preview"
 $safePreviewSummary = Assert-PreviewSummary -Preview $preview
@@ -263,9 +312,15 @@ Write-Host "Preview actions: create=$($safePreviewSummary.createSubjectCount), u
 if (-not $PreviewOnly) {
     $apply = Invoke-GraphDirectorySmokeJson -Method POST -Path "/directory-import-runs/$($preview.runId)/apply"
     $safeApplySummary = Assert-ApplySummary -Apply $apply
+    $afterDirectory = Invoke-GraphDirectorySmokeJson -Method GET -Path '/subjects'
+    $safeAfterDirectorySummary = Get-SafeDirectorySummary -Directory $afterDirectory
+    $safeDirectoryDelta = Assert-DirectoryCountDelta `
+        -Before $safeBeforeDirectorySummary `
+        -After $safeAfterDirectorySummary
 
     Write-Host "Graph directory import apply completed."
     Write-Host "Apply actions: created=$($safeApplySummary.createdSubjectCount), updated=$($safeApplySummary.updatedSubjectCount), memberships=$($safeApplySummary.addedMembershipCount), managers=$($safeApplySummary.setManagerCount), warnings=$($safeApplySummary.warningCount)."
+    Write-Host "Directory subjects: before=$($safeBeforeDirectorySummary.subjectCount), after=$($safeAfterDirectorySummary.subjectCount), increase=$($safeDirectoryDelta.subjectCountIncrease)."
 }
 
 Write-SmokeEvidence
