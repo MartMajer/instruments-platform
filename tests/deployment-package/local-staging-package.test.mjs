@@ -120,6 +120,19 @@ describe('local staging deployment package', () => {
     assert.match(compose, /Authentication__Oidc__ProviderLogoutMode: \$\{Authentication__Oidc__ProviderLogoutMode:-auth0\}/);
   });
 
+  it('includes a safe Microsoft Graph directory probe script', () => {
+    const script = read('tools/graph-directory-probe.ps1');
+
+    assert.match(script, /GRAPH_TENANT_ID/);
+    assert.match(script, /GRAPH_CLIENT_ID/);
+    assert.match(script, /GRAPH_CLIENT_SECRET/);
+    assert.match(script, /https:\/\/graph\.microsoft\.com\/v1\.0\/users/);
+    assert.match(script, /https:\/\/graph\.microsoft\.com\/v1\.0\/groups/);
+    assert.match(script, /manager/);
+    assert.doesNotMatch(script, /Write-Host[^\n]*(client_secret|access_token|Authorization|Bearer)/i);
+    assert.doesNotMatch(script, /ConvertTo-Json[^\n]*token/i);
+  });
+
   it('keeps the web runtime image install free of dev prepare scripts', () => {
     const dockerfile = read('deploy/staging/web.Dockerfile');
 
