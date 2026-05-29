@@ -19,6 +19,7 @@ using Platform.Domain.Auditing;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
+using Platform.Domain.DirectoryImports;
 using Platform.Domain.Instruments;
 using Platform.Domain.Outbox;
 using Platform.Domain.Operations;
@@ -633,6 +634,143 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             parentGroupId: tenantBGroupId));
 
         await Assert.ThrowsAsync<DbUpdateException>(() => tenantADb.SaveChangesAsync());
+    }
+
+    [DockerFact]
+    public async Task Migrations_create_directory_import_tables_with_rls_and_allow_tenant_writes()
+    {
+        var tenantId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var itemId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+        }
+
+        await AssertTenantScopedTableAsync(migratorOptions, "directory_connection");
+        await AssertTenantScopedTableAsync(migratorOptions, "directory_import_rule");
+        await AssertTenantScopedTableAsync(migratorOptions, "directory_import_run");
+        await AssertTenantScopedTableAsync(migratorOptions, "directory_import_run_item");
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+
+        tenantDb.Tenants.Add(new Tenant(tenantId, "directory-import", "Directory Import"));
+        tenantDb.DirectoryConnections.Add(new DirectoryConnection(
+            connectionId,
+            tenantId,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            "graph-tenant",
+            "Graph Tenant",
+            "graph.example",
+            """{"scopes":["User.Read.All","GroupMember.Read.All"]}"""));
+        tenantDb.DirectoryImportRules.Add(new DirectoryImportRule(
+            ruleId,
+            tenantId,
+            connectionId,
+            "Psychology students",
+            """{"departments":["Psychology"],"userTypes":["Member"]}""",
+            """{"userFields":["displayName","mail","department"]}"""));
+        tenantDb.DirectoryImportRuns.Add(new DirectoryImportRun(
+            runId,
+            tenantId,
+            ruleId,
+            DirectoryImportRunModes.Preview));
+        tenantDb.DirectoryImportRunItems.Add(new DirectoryImportRunItem(
+            itemId,
+            tenantId,
+            runId,
+            "user",
+            "sha256:abc123",
+            DirectoryImportRunItemActions.CreateSubject,
+            DirectoryImportRunItemStatuses.Planned,
+            safeSummaryJson: """{"safe":"count-only"}"""));
+
+        await tenantDb.SaveChangesAsync();
+
+        Assert.Equal(connectionId, (await tenantDb.DirectoryConnections.SingleAsync()).Id);
+        Assert.Equal(ruleId, (await tenantDb.DirectoryImportRules.SingleAsync()).Id);
+        Assert.Equal(runId, (await tenantDb.DirectoryImportRuns.SingleAsync()).Id);
+        Assert.Equal(itemId, (await tenantDb.DirectoryImportRunItems.SingleAsync()).Id);
+
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Rls_blocks_cross_tenant_directory_import_reads()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using (var tenantADb = new ApplicationDbContext(CreateRuntimeOptions()))
+        {
+            var tenantADbScope = new TenantDbScope(tenantADb);
+            await using var tenantATransaction = await tenantADbScope.BeginTransactionAsync(tenantA);
+
+            tenantADb.Tenants.Add(new Tenant(tenantA, "directory-import-a", "Directory Import A"));
+            tenantADb.Tenants.Add(new Tenant(tenantB, "directory-import-b", "Directory Import B"));
+            tenantADb.DirectoryConnections.Add(new DirectoryConnection(
+                connectionId,
+                tenantA,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                "graph-tenant-a",
+                "Graph Tenant A",
+                "a.example",
+                """{"scopes":["User.Read.All"]}"""));
+            tenantADb.DirectoryImportRules.Add(new DirectoryImportRule(
+                ruleId,
+                tenantA,
+                connectionId,
+                "Tenant A rule",
+                "{}",
+                "{}"));
+            tenantADb.DirectoryImportRuns.Add(new DirectoryImportRun(
+                runId,
+                tenantA,
+                ruleId,
+                DirectoryImportRunModes.Preview));
+            tenantADb.DirectoryImportRunItems.Add(new DirectoryImportRunItem(
+                Guid.NewGuid(),
+                tenantA,
+                runId,
+                "user",
+                "sha256:tenant-a",
+                DirectoryImportRunItemActions.NoChange,
+                DirectoryImportRunItemStatuses.Planned,
+                safeSummaryJson: "{}"));
+
+            await tenantADb.SaveChangesAsync();
+            await tenantATransaction.CommitAsync();
+        }
+
+        await using var tenantBDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantBDbScope = new TenantDbScope(tenantBDb);
+        await using var tenantBTransaction = await tenantBDbScope.BeginTransactionAsync(tenantB);
+
+        Assert.Empty(await tenantBDb.DirectoryConnections.ToListAsync());
+        Assert.Empty(await tenantBDb.DirectoryImportRules.ToListAsync());
+        Assert.Empty(await tenantBDb.DirectoryImportRuns.ToListAsync());
+        Assert.Empty(await tenantBDb.DirectoryImportRunItems.ToListAsync());
+
+        await tenantBTransaction.CommitAsync();
     }
 
     [DockerFact]
@@ -8963,6 +9101,10 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 subject_group,
                 subject_membership,
                 subject_relationship,
+                directory_connection,
+                directory_import_rule,
+                directory_import_run,
+                directory_import_run_item,
                 instrument,
                 instrument_subscale,
                 instrument_item,
@@ -9012,6 +9154,53 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 worker_heartbeat
             TO {{RuntimeUsername}};
             """);
+    }
+
+    private static async Task AssertTenantScopedTableAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        string tableName)
+    {
+        await using var db = new ApplicationDbContext(options);
+
+        var exists = await db.Database.SqlQueryRaw<bool>(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = {0}
+                ) AS "Value"
+                """,
+                tableName)
+            .SingleAsync();
+        var tenantScoped = await db.Database.SqlQueryRaw<bool>(
+                """
+                SELECT (
+                    c.relrowsecurity
+                    AND c.relforcerowsecurity
+                    AND EXISTS (
+                        SELECT 1
+                        FROM pg_catalog.pg_attribute AS a
+                        WHERE a.attrelid = c.oid
+                          AND a.attname = 'tenant_id'
+                          AND NOT a.attisdropped
+                    )
+                    AND EXISTS (
+                        SELECT 1
+                        FROM pg_catalog.pg_policy AS p
+                        WHERE p.polrelid = c.oid
+                    )
+                ) AS "Value"
+                FROM pg_catalog.pg_class AS c
+                JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                  AND c.relname = {0}
+                """,
+                tableName)
+            .SingleAsync();
+
+        Assert.True(exists, $"Expected table '{tableName}' to exist.");
+        Assert.True(tenantScoped, $"Expected table '{tableName}' to have tenant_id and forced row-level security policy.");
     }
 
     private static async Task CreateWorkerRoleAsync(DbContextOptions<ApplicationDbContext> options)
