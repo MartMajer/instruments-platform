@@ -190,6 +190,34 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Graph_directory_import_smoke_uses_safe_inputs_and_does_not_leak_graph_data()
+    {
+        var script = ReadRepoFile("deploy/staging/smoke-graph-directory-import.ps1");
+        var lower = script.ToLowerInvariant();
+
+        Assert.Contains("GRAPH_DIRECTORY_IMPORT_API_ORIGIN", script);
+        Assert.Contains("GRAPH_TENANT_ID", script);
+        Assert.Contains("GRAPH_DIRECTORY_PRIMARY_DOMAIN", script);
+        Assert.Contains("/directory-imports/workspace", script);
+        Assert.Contains("/directory-connections", script);
+        Assert.Contains("/directory-import-rules", script);
+        Assert.Contains("/preview", script);
+        Assert.Contains("/apply", script);
+        Assert.Contains("safePreviewSummary", script);
+        Assert.Contains("safeApplySummary", script);
+        Assert.DoesNotContain("client_secret", lower);
+        Assert.DoesNotContain("access_token", lower);
+        Assert.DoesNotContain("authorization", lower);
+        Assert.DoesNotContain("bearer", lower);
+        Assert.DoesNotContain("Write-Host $SessionCookie", script);
+        Assert.DoesNotContain("Write-Host \"$SessionCookie", script);
+        Assert.DoesNotContain("ConvertTo-Json $preview", script);
+        Assert.DoesNotContain("ConvertTo-Json $apply", script);
+        Assert.DoesNotContain("csvContent", script);
+        Assert.DoesNotContain("participantCode", script);
+    }
+
+    [Fact]
     public void Staging_release_check_runner_runs_backup_restore_smoke_with_live_gates()
     {
         var script = ReadRepoFile("deploy/staging/run-release-checks.ps1");
