@@ -159,6 +159,13 @@ if [[ -n "$compose_project_name" ]]; then
   compose_cmd+=(-p "$compose_project_name")
 fi
 
+api_origin="$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)"
+web_origin="$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)"
+if [[ -z "$api_origin" || -z "$web_origin" ]]; then
+  echo "VPS rollback requires STAGING_API_ORIGIN/PUBLIC_API_BASE_URL and STAGING_WEB_ORIGIN/Cors__AllowedOrigins__0 in $env_file." >&2
+  exit 1
+fi
+
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
@@ -171,6 +178,8 @@ mkdir -p "$evidence_dir"
 release_args_for_dir() {
   local target_dir="$1"
   printf '%s\n' --evidence-dir "$target_dir"
+  printf '%s\n' --api-origin "$api_origin"
+  printf '%s\n' --web-origin "$web_origin"
   if [[ "$require_authenticated_session" == "true" ]]; then
     printf '%s\n' --require-authenticated-session
   fi

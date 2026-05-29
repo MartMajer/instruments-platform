@@ -855,6 +855,10 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("docker compose", script);
         Assert.Contains("up -d --build", script);
         Assert.Contains("run-vps-release-checks.sh", script);
+        Assert.Contains("api_origin=\"$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)\"", script);
+        Assert.Contains("web_origin=\"$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)\"", script);
+        Assert.Contains("--api-origin \"$api_origin\"", script);
+        Assert.Contains("--web-origin \"$web_origin\"", script);
         Assert.Contains("redeploy-evidence.json", script);
         Assert.Contains("release-evidence", script);
         Assert.Contains("redeployProven", script);
@@ -885,6 +889,10 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("docker compose", script);
         Assert.Contains("up -d --build", script);
         Assert.Contains("run-vps-release-checks.sh", script);
+        Assert.Contains("api_origin=\"$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)\"", script);
+        Assert.Contains("web_origin=\"$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)\"", script);
+        Assert.Contains("--api-origin \"$api_origin\"", script);
+        Assert.Contains("--web-origin \"$web_origin\"", script);
         Assert.Contains("rollback-evidence.json", script);
         Assert.Contains("rollback-release-evidence", script);
         Assert.Contains("restore-release-evidence", script);
