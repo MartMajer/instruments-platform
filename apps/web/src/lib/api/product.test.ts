@@ -118,6 +118,36 @@ describe('createProductApi', () => {
 		expect(calls).toEqual(['/subjects']);
 	});
 
+	it('requests subject directory with search and paging query', async () => {
+		const calls: string[] = [];
+		const api = createProductApi({
+			request: async <T>(path: string): Promise<T> => {
+				calls.push(path);
+				return {
+					tenantId: 'tenant-id',
+					summary: {
+						subjectCount: 2000,
+						filteredSubjectCount: 2000,
+						returnedSubjectCount: 25,
+						groupCount: 0,
+						managerRelationshipCount: 0,
+						pageOffset: 25,
+						pageSize: 25,
+						hasMore: true
+					},
+					subjects: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.listSubjects({ search: 'ana', skip: 25, take: 25 });
+
+		expect(calls).toEqual(['/subjects?search=ana&skip=25&take=25']);
+	});
+
 	it('creates a subject directory entry', async () => {
 		const calls: Array<{ path: string; init?: RequestInit }> = [];
 		const api = createProductApi({

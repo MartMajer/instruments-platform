@@ -903,8 +903,21 @@ public sealed record SubjectDirectoryResponse(
 
 public sealed record SubjectDirectorySummaryResponse(
     int SubjectCount,
+    int FilteredSubjectCount,
+    int ReturnedSubjectCount,
     int GroupCount,
-    int ManagerRelationshipCount);
+    int ManagerRelationshipCount,
+    int PageOffset,
+    int PageSize,
+    bool HasMore);
+
+public sealed record SubjectDirectoryQuery(
+    string? Search = null,
+    int Skip = 0,
+    int? Take = null)
+{
+    public static SubjectDirectoryQuery All { get; } = new();
+}
 
 public sealed record SubjectDirectoryItemResponse(
     Guid Id,

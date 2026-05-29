@@ -257,10 +257,13 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> ListSubjects(
+        string? search,
+        int? skip,
+        int? take,
         ISender sender,
         CancellationToken cancellationToken)
     {
-        return Results.Ok(await sender.Send(new ListSubjectsQuery(), cancellationToken));
+        return Results.Ok(await sender.Send(new ListSubjectsQuery(search, skip ?? 0, take), cancellationToken));
     }
 
     private static async Task<IResult> CreateSubject(

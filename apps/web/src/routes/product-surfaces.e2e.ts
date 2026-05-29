@@ -6309,8 +6309,13 @@ const sampleSubjectDirectory: SubjectDirectoryResponse = {
 	tenantId: '11111111-1111-4111-8111-111111111111',
 	summary: {
 		subjectCount: 2,
+		filteredSubjectCount: 2,
+		returnedSubjectCount: 2,
 		groupCount: 1,
-		managerRelationshipCount: 1
+		managerRelationshipCount: 1,
+		pageOffset: 0,
+		pageSize: 0,
+		hasMore: false
 	},
 	subjects: [
 		{

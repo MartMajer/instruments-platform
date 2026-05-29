@@ -34,6 +34,7 @@ public interface IProductSurfaceReadStore
 
     Task<SubjectDirectoryResponse> ListSubjectsAsync(
         Guid tenantId,
+        SubjectDirectoryQuery query,
         CancellationToken cancellationToken);
 
     Task<SubjectGroupListResponse> ListSubjectGroupsAsync(

@@ -153,8 +153,19 @@ export type SubjectDirectoryResponse = {
 
 export type SubjectDirectorySummaryResponse = {
 	subjectCount: number;
+	filteredSubjectCount: number;
+	returnedSubjectCount: number;
 	groupCount: number;
 	managerRelationshipCount: number;
+	pageOffset: number;
+	pageSize: number;
+	hasMore: boolean;
+};
+
+export type SubjectDirectoryQuery = {
+	search?: string | null;
+	skip?: number | null;
+	take?: number | null;
 };
 
 export type SubjectDirectoryItemResponse = {
@@ -309,6 +320,10 @@ export type DirectoryImportPreviewSummaryResponse = {
 	updateSubjectCount: number;
 	noChangeCount: number;
 	warningCount: number;
+	totalItemCount: number;
+	returnedItemCount: number;
+	itemsTruncated: boolean;
+	sampleLimit: number;
 	retainedFields: string[];
 };
 
@@ -1227,7 +1242,8 @@ export function createProductApi(client: ApiClient) {
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),
 		listTenantMembers: () => client.request<TenantMemberRosterResponse>('/tenant-members'),
 		listTenantRoles: () => client.request<TenantRoleListResponse>('/tenant-roles'),
-		listSubjects: () => client.request<SubjectDirectoryResponse>('/subjects'),
+		listSubjects: (query?: SubjectDirectoryQuery) =>
+			client.request<SubjectDirectoryResponse>(withSubjectDirectoryQuery('/subjects', query)),
 		createSubject: (request: CreateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>('/subjects', jsonRequest('POST', request)),
 		importSubjectDirectoryCsv: (request: SubjectDirectoryCsvImportRequest) =>
@@ -1368,6 +1384,20 @@ function withQuery(path: string, query: CampaignSeriesPortfolioQuery | undefined
 	return serialized.length > 0 ? `${path}?${serialized}` : path;
 }
 
+function withSubjectDirectoryQuery(path: string, query: SubjectDirectoryQuery | undefined) {
+	if (!query) {
+		return path;
+	}
+
+	const parameters = new URLSearchParams();
+	appendQueryValue(parameters, 'search', query.search);
+	appendNumberQueryValue(parameters, 'skip', query.skip);
+	appendNumberQueryValue(parameters, 'take', query.take);
+
+	const serialized = parameters.toString();
+	return serialized.length > 0 ? `${path}?${serialized}` : path;
+}
+
 function appendQueryValue(
 	parameters: URLSearchParams,
 	name: string,
@@ -1376,6 +1406,16 @@ function appendQueryValue(
 	const normalized = value?.trim();
 	if (normalized) {
 		parameters.set(name, normalized);
+	}
+}
+
+function appendNumberQueryValue(
+	parameters: URLSearchParams,
+	name: string,
+	value: number | null | undefined
+) {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		parameters.set(name, String(value));
 	}
 }
 

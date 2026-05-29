@@ -53,6 +53,10 @@ test('runs the Microsoft Graph directory import preview workflow from saved conn
 					updateSubjectCount: 1,
 					noChangeCount: 2,
 					warningCount: 0,
+					totalItemCount: 1,
+					returnedItemCount: 1,
+					itemsTruncated: false,
+					sampleLimit: 25,
 					retainedFields: ['id', 'displayName', 'mail', 'department']
 				},
 				items: [
@@ -181,6 +185,53 @@ test('starts Microsoft Graph admin consent from the Directory page', async ({ pa
 	await page.waitForURL('**/mock-microsoft-admin-consent');
 });
 
+test('keeps large Microsoft preview and people directory bounded', async ({ page }) => {
+	await page.unroute('**/subjects**');
+	await routeLargeSubjectDirectory(page);
+	await routeGraphImportWorkspaceWithSavedRule(page);
+	await page.route(`**/directory-import-rules/${ruleId}/preview`, async (route) => {
+		await route.fulfill({
+			json: {
+				runId: previewRunId,
+				ruleId,
+				status: 'previewed',
+				summary: {
+					matchedUserCount: 40,
+					createSubjectCount: 40,
+					updateSubjectCount: 0,
+					noChangeCount: 0,
+					warningCount: 0,
+					totalItemCount: 40,
+					returnedItemCount: 25,
+					itemsTruncated: true,
+					sampleLimit: 25,
+					retainedFields: ['id', 'displayName', 'mail', 'department']
+				},
+				items: Array.from({ length: 25 }, (_, index) => ({
+					action: 'create_subject',
+					status: 'planned',
+					issueCode: null,
+					displayName: `Preview Person ${index + 1}`,
+					email: `preview${index + 1}@example.test`
+				}))
+			}
+		});
+	});
+
+	await page.goto('/app/directory');
+
+	const graphImport = page.getByRole('region', { name: 'Microsoft Graph directory import' });
+	await graphImport.getByRole('button', { name: 'Preview import' }).click();
+	await expect(graphImport.getByText('Showing 25 of 40 planned actions')).toBeVisible();
+	await expect(graphImport.getByTestId('graph-preview-row')).toHaveCount(25);
+	await expect(graphImport.getByText('Preview Person 26')).toHaveCount(0);
+
+	const peopleDirectory = page.getByTestId('workspace-people-directory');
+	await expect(peopleDirectory.getByText('Showing 25 of 2,000 people')).toBeVisible();
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toHaveCount(25);
+	await expect(peopleDirectory.getByText('Person 2000')).toHaveCount(0);
+});
+
 async function routeAuthenticatedSession(page: Page) {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
@@ -201,7 +252,7 @@ async function routeCsrfToken(page: Page) {
 }
 
 async function routeSubjectDirectory(page: Page) {
-	await page.route('**/subjects', async (route) => {
+	await page.route('**/subjects**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isProductApiPath(route.request().url(), '/subjects')
@@ -215,10 +266,75 @@ async function routeSubjectDirectory(page: Page) {
 				tenantId,
 				summary: {
 					subjectCount: 0,
+					filteredSubjectCount: 0,
+					returnedSubjectCount: 0,
 					groupCount: 0,
-					managerRelationshipCount: 0
+					managerRelationshipCount: 0,
+					pageOffset: 0,
+					pageSize: 0,
+					hasMore: false
 				},
 				subjects: []
+			}
+		});
+	});
+	await page.route('**/subject-groups', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subject-groups')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({ json: { tenantId, groups: [] } });
+	});
+}
+
+async function routeLargeSubjectDirectory(page: Page) {
+	await page.route('**/subjects**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subjects')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				summary: {
+					subjectCount: 2000,
+					filteredSubjectCount: 2000,
+					returnedSubjectCount: 25,
+					groupCount: 18,
+					managerRelationshipCount: 340,
+					pageOffset: 0,
+					pageSize: 25,
+					hasMore: true
+				},
+				subjects: Array.from({ length: 25 }, (_, index) => ({
+					id: `66666666-6666-4666-8666-${String(index + 1).padStart(12, '0')}`,
+					displayName: `Person ${index + 1}`,
+					email: `person${index + 1}@example.test`,
+					externalId: `msgraph:tenant:person-${index + 1}`,
+					locale: 'en',
+					attributes: '{}',
+					managerSubjectId: null,
+					managerDisplayName: null,
+					directReportCount: 0,
+					groups: [
+						{
+							groupId: `77777777-7777-4777-8777-${String(index + 1).padStart(12, '0')}`,
+							groupType: 'department',
+							groupName: 'Retail',
+							roleInGroup: 'member',
+							validFrom: null,
+							validTo: null
+						}
+					]
+				}))
 			}
 		});
 	});
@@ -254,6 +370,45 @@ async function routeGraphImportWorkspace(page: Page) {
 					}
 				],
 				rules: [],
+				recentRuns: []
+			}
+		});
+	});
+}
+
+async function routeGraphImportWorkspaceWithSavedRule(page: Page) {
+	await page.route('**/directory-imports/workspace', async (route) => {
+		await route.fulfill({
+			json: {
+				tenantId,
+				connections: [
+					{
+						id: connectionId,
+						provider: 'microsoft_graph',
+						externalTenantId: 'customer-tenant',
+						displayName: 'Algebra sandbox',
+						primaryDomain: 'algebra.example',
+						grantedScopes: ['User.Read.All', 'Group.Read.All', 'GroupMember.Read.All'],
+						status: 'active',
+						lastSuccessfulSyncAt: null,
+						createdAt: '2026-05-29T18:00:00Z'
+					}
+				],
+				rules: [
+					{
+						id: ruleId,
+						connectionId,
+						name: 'All current students',
+						criteria: {},
+						fieldSelection: {
+							fields: ['displayName', 'mail', 'userPrincipalName', 'department', 'jobTitle']
+						},
+						mirrorMode: false,
+						mirrorConfirmedAt: null,
+						createdAt: '2026-05-29T18:15:00Z',
+						updatedAt: '2026-05-29T18:15:00Z'
+					}
+				],
 				recentRuns: []
 			}
 		});

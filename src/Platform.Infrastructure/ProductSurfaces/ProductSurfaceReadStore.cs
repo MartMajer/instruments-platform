@@ -502,17 +502,42 @@ public sealed class ProductSurfaceReadStore(
 
     public async Task<SubjectDirectoryResponse> ListSubjectsAsync(
         Guid tenantId,
+        SubjectDirectoryQuery query,
         CancellationToken cancellationToken)
     {
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
             tenantId,
             cancellationToken: cancellationToken);
 
-        var subjects = await db.Subjects
+        var subjectsQuery = db.Subjects
             .AsNoTracking()
-            .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null)
+            .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null);
+        var totalSubjectCount = await subjectsQuery.CountAsync(cancellationToken);
+        var normalizedSearch = NormalizeSearch(query.Search);
+        if (normalizedSearch is not null)
+        {
+            var pattern = $"%{normalizedSearch}%";
+            subjectsQuery = subjectsQuery.Where(subject =>
+                (subject.DisplayName != null && EF.Functions.ILike(subject.DisplayName, pattern)) ||
+                (subject.Email != null && EF.Functions.ILike(subject.Email, pattern)) ||
+                (subject.ExternalId != null && EF.Functions.ILike(subject.ExternalId, pattern)));
+        }
+
+        var filteredSubjectCount = await subjectsQuery.CountAsync(cancellationToken);
+        IQueryable<Subject> orderedSubjectsQuery = subjectsQuery
             .OrderBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
-            .ThenBy(subject => subject.Id)
+            .ThenBy(subject => subject.Id);
+        if (query.Skip > 0)
+        {
+            orderedSubjectsQuery = orderedSubjectsQuery.Skip(query.Skip);
+        }
+
+        if (query.Take.HasValue)
+        {
+            orderedSubjectsQuery = orderedSubjectsQuery.Take(query.Take.Value);
+        }
+
+        var subjects = await orderedSubjectsQuery
             .Select(subject => new SubjectDirectorySubjectRow(
                 subject.Id,
                 subject.DisplayName,
@@ -631,9 +656,14 @@ public sealed class ProductSurfaceReadStore(
         return new SubjectDirectoryResponse(
             tenantId,
             new SubjectDirectorySummaryResponse(
+                totalSubjectCount,
+                filteredSubjectCount,
                 items.Length,
                 groupCount,
-                managerRelationshipCount),
+                managerRelationshipCount,
+                query.Skip,
+                query.Take ?? 0,
+                query.Take.HasValue && query.Skip + items.Length < filteredSubjectCount),
             items);
     }
 

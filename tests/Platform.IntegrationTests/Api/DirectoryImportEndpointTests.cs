@@ -178,6 +178,10 @@ public sealed class DirectoryImportEndpointTests(WebApplicationFactory<Program> 
                 UpdateSubjectCount: 0,
                 NoChangeCount: 0,
                 WarningCount: 0,
+                TotalItemCount: 1,
+                ReturnedItemCount: 1,
+                ItemsTruncated: false,
+                SampleLimit: 25,
                 RetainedFields: ["id", "displayName", "mail"]),
             []);
         var store = new FakeDirectoryImportStore(

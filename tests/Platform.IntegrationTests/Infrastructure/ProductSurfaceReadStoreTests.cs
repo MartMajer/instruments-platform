@@ -670,12 +670,17 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(runtimeOptions);
         var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
 
-        var result = await store.ListSubjectsAsync(tenantA, CancellationToken.None);
+        var result = await store.ListSubjectsAsync(tenantA, SubjectDirectoryQuery.All, CancellationToken.None);
 
         Assert.Equal(tenantA, result.TenantId);
         Assert.Equal(3, result.Summary.SubjectCount);
+        Assert.Equal(3, result.Summary.FilteredSubjectCount);
+        Assert.Equal(3, result.Summary.ReturnedSubjectCount);
         Assert.Equal(1, result.Summary.GroupCount);
         Assert.Equal(1, result.Summary.ManagerRelationshipCount);
+        Assert.Equal(0, result.Summary.PageOffset);
+        Assert.Equal(0, result.Summary.PageSize);
+        Assert.False(result.Summary.HasMore);
         Assert.DoesNotContain(result.Subjects, subject => subject.DisplayName == "Tenant B Person");
         var employeeRow = result.Subjects.Single(subject => subject.Id == employee.Id);
         Assert.Equal("Ana Analyst", employeeRow.DisplayName);
@@ -690,6 +695,37 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(SubjectGroupTypes.Department, membership.GroupType);
         var managerRow = result.Subjects.Single(subject => subject.Id == manager.Id);
         Assert.Equal(1, managerRow.DirectReportCount);
+    }
+
+    [DockerFact]
+    public async Task Subject_directory_applies_search_and_paging_with_total_metadata()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "subject-directory-paged");
+        await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst 01", "ana01@example.test", "emp-001");
+        await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst 02", "ana02@example.test", "emp-002");
+        await SeedSubjectAsync(runtimeOptions, tenantId, "Bo Builder", "bo@example.test", "emp-003");
+        await SeedSubjectAsync(runtimeOptions, tenantId, "Mira Manager", "mira@example.test", "emp-004");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.ListSubjectsAsync(
+            tenantId,
+            new SubjectDirectoryQuery(Search: "ana", Skip: 1, Take: 1),
+            CancellationToken.None);
+
+        Assert.Equal(4, result.Summary.SubjectCount);
+        Assert.Equal(2, result.Summary.FilteredSubjectCount);
+        Assert.Equal(1, result.Summary.ReturnedSubjectCount);
+        Assert.Equal(1, result.Summary.PageOffset);
+        Assert.Equal(1, result.Summary.PageSize);
+        Assert.False(result.Summary.HasMore);
+        var subject = Assert.Single(result.Subjects);
+        Assert.Equal("Ana Analyst 02", subject.DisplayName);
     }
 
     [DockerFact]

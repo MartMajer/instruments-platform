@@ -1436,7 +1436,7 @@ a {
 
 .directory-graph-grid {
 	display: grid;
-	grid-template-columns: minmax(16rem, 0.72fr) minmax(0, 1.28fr);
+	grid-template-columns: minmax(0, 1fr);
 	gap: 1rem;
 	align-items: start;
 	min-width: 0;
@@ -1502,9 +1502,205 @@ a {
 	word-break: break-word;
 }
 
-@media (max-width: 1100px) {
-	.directory-graph-grid {
+.directory-sample-note {
+	margin: 0;
+	font-size: 0.875rem;
+	font-weight: 650;
+	color: var(--color-text-muted);
+}
+
+.directory-compact-list {
+	display: grid;
+	gap: 0;
+	min-width: 0;
+	max-height: min(28rem, 70vh);
+	overflow: auto;
+	border-block: 1px solid var(--color-border);
+	background: color-mix(in srgb, var(--color-surface-raised) 50%, transparent);
+}
+
+.directory-compact-row {
+	display: grid;
+	grid-template-columns: minmax(10rem, 0.9fr) minmax(0, 1.4fr);
+	gap: 0.75rem;
+	align-items: start;
+	min-width: 0;
+	border-bottom: 1px solid var(--color-border);
+	padding: 0.625rem 0.75rem;
+}
+
+.directory-compact-row__header {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+	min-width: 0;
+}
+
+.directory-compact-row__title {
+	overflow-wrap: anywhere;
+	font-weight: 700;
+	color: var(--color-text);
+}
+
+.directory-compact-row__body {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.75rem;
+	min-width: 0;
+	font-size: 0.8125rem;
+	color: var(--color-text-muted);
+}
+
+.directory-compact-row__body span {
+	overflow-wrap: anywhere;
+}
+
+.directory-toolbar {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 1rem;
+	align-items: start;
+	min-width: 0;
+}
+
+.directory-search {
+	display: grid;
+	grid-template-columns: minmax(12rem, 1fr) auto;
+	gap: 0.75rem;
+	align-items: end;
+	min-width: min(100%, 34rem);
+}
+
+.directory-pagination {
+	display: grid;
+	justify-items: end;
+	gap: 0.5rem;
+	min-width: 12rem;
+}
+
+.directory-people-table {
+	min-width: 58rem;
+}
+
+.directory-groups-table {
+	min-width: 42rem;
+}
+
+.directory-people-table th,
+.directory-people-table td,
+.directory-groups-table th,
+.directory-groups-table td {
+	vertical-align: top;
+}
+
+.directory-people-table td,
+.directory-groups-table td {
+	overflow-wrap: anywhere;
+}
+
+.directory-people-table td:first-child {
+	display: grid;
+	gap: 0.125rem;
+}
+
+.directory-people-table td:first-child span,
+.directory-people-table td:nth-child(3) span {
+	display: block;
+	margin-top: 0.125rem;
+	font-size: 0.75rem;
+	color: var(--color-text-muted);
+}
+
+.directory-chip-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.375rem;
+	min-width: 0;
+}
+
+.directory-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	max-width: 100%;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	padding: 0.1875rem 0.375rem;
+	font-size: 0.75rem;
+	font-weight: 650;
+	color: var(--color-text-muted);
+}
+
+.directory-maintenance-panel,
+details.product-panel {
+	box-shadow: none;
+}
+
+.directory-maintenance-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	min-width: 0;
+	cursor: pointer;
+	border-bottom: 1px solid var(--color-border);
+	padding-bottom: 0.75rem;
+	list-style: none;
+}
+
+.directory-maintenance-summary::-webkit-details-marker {
+	display: none;
+}
+
+.directory-maintenance-summary > span:first-child {
+	display: grid;
+	gap: 0.125rem;
+	min-width: 0;
+}
+
+.directory-maintenance-summary strong {
+	overflow-wrap: anywhere;
+	font-size: 1rem;
+	color: var(--color-text);
+}
+
+.directory-maintenance-summary::after {
+	display: inline-grid;
+	place-items: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	flex: 0 0 auto;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	content: '+';
+	font-size: 1rem;
+	font-weight: 800;
+	color: var(--color-text-muted);
+}
+
+details[open] > .directory-maintenance-summary::after {
+	content: '-';
+}
+
+.directory-maintenance-body {
+	display: grid;
+	gap: 1rem;
+	min-width: 0;
+	padding-top: 1rem;
+}
+
+@media (max-width: 760px) {
+	.directory-toolbar,
+	.directory-search,
+	.directory-compact-row,
+	.directory-compact-row__body {
 		grid-template-columns: 1fr;
+	}
+
+	.directory-pagination {
+		justify-items: start;
 	}
 }
 

@@ -8,6 +8,32 @@ namespace Platform.UnitTests.Application;
 public sealed class PreviewDirectoryImportTests
 {
     [Fact]
+    public void Preview_sample_builder_returns_bounded_rows_with_truncation_metadata()
+    {
+        var builder = new DirectoryImportPreviewSampleBuilder(sampleLimit: 25);
+
+        for (var index = 0; index < 40; index++)
+        {
+            builder.Add(new DirectoryImportPreviewItemResponse(
+                "create_subject",
+                "planned",
+                IssueCode: null,
+                $"Person {index + 1}",
+                $"person{index + 1}@example.test"));
+        }
+
+        var sample = builder.Build();
+
+        Assert.Equal(40, sample.TotalItemCount);
+        Assert.Equal(25, sample.ReturnedItemCount);
+        Assert.True(sample.ItemsTruncated);
+        Assert.Equal(25, sample.SampleLimit);
+        Assert.Equal(25, sample.Items.Count);
+        Assert.Equal("Person 1", sample.Items[0].DisplayName);
+        Assert.Equal("Person 25", sample.Items[^1].DisplayName);
+    }
+
+    [Fact]
     public async Task Handler_fetches_graph_candidates_and_persists_preview_under_current_tenant()
     {
         var tenantId = Guid.NewGuid();
@@ -38,6 +64,10 @@ public sealed class PreviewDirectoryImportTests
                 UpdateSubjectCount: 0,
                 NoChangeCount: 0,
                 WarningCount: 0,
+                TotalItemCount: 1,
+                ReturnedItemCount: 1,
+                ItemsTruncated: false,
+                SampleLimit: 25,
                 RetainedFields: ["id", "displayName", "mail"]),
             []);
         var store = new RecordingDirectoryImportStore(context, response);

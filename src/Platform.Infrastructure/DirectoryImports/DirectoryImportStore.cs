@@ -18,6 +18,8 @@ public sealed class DirectoryImportStore(
     IOptions<MicrosoftGraphDirectoryImportOptions> graphOptions)
     : IDirectoryImportStore
 {
+    private const int PreviewItemSampleLimit = 25;
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<Result<DirectoryImportWorkspaceResponse>> ListWorkspaceAsync(
@@ -300,7 +302,7 @@ public sealed class DirectoryImportStore(
             executionContext.RuleId,
             DirectoryImportRunModes.Preview,
             actorUserId);
-        var previewItems = new List<DirectoryImportPreviewItemResponse>();
+        var previewSampleBuilder = new DirectoryImportPreviewSampleBuilder(PreviewItemSampleLimit);
         var runItems = new List<DirectoryImportRunItem>();
         var createSubjectCount = 0;
         var updateSubjectCount = 0;
@@ -342,7 +344,7 @@ public sealed class DirectoryImportStore(
                 action,
                 DirectoryImportRunItemStatuses.Planned,
                 safeSummaryJson: CreateUserSafeSummaryJson(index, user, action)));
-            previewItems.Add(new DirectoryImportPreviewItemResponse(
+            previewSampleBuilder.Add(new DirectoryImportPreviewItemResponse(
                 action,
                 DirectoryImportRunItemStatuses.Planned,
                 IssueCode: null,
@@ -362,7 +364,7 @@ public sealed class DirectoryImportStore(
                     DirectoryImportRunItemStatuses.Warning,
                     warning.Code,
                     CreateWarningSafeSummaryJson(index, warning.Code)));
-                previewItems.Add(new DirectoryImportPreviewItemResponse(
+                previewSampleBuilder.Add(new DirectoryImportPreviewItemResponse(
                     DirectoryImportRunItemActions.Warning,
                     DirectoryImportRunItemStatuses.Warning,
                     warning.Code,
@@ -386,7 +388,7 @@ public sealed class DirectoryImportStore(
                 DirectoryImportRunItemActions.SetManager,
                 DirectoryImportRunItemStatuses.Planned,
                 safeSummaryJson: CreateManagerSafeSummaryJson()));
-            previewItems.Add(new DirectoryImportPreviewItemResponse(
+            previewSampleBuilder.Add(new DirectoryImportPreviewItemResponse(
                 DirectoryImportRunItemActions.SetManager,
                 DirectoryImportRunItemStatuses.Planned,
                 IssueCode: null,
@@ -394,12 +396,17 @@ public sealed class DirectoryImportStore(
                 manager.ManagerEmail));
         }
 
+        var previewSample = previewSampleBuilder.Build();
         var summary = new DirectoryImportPreviewSummaryResponse(
             users.Count,
             createSubjectCount,
             updateSubjectCount,
             noChangeCount,
             warningCount,
+            previewSample.TotalItemCount,
+            previewSample.ReturnedItemCount,
+            previewSample.ItemsTruncated,
+            previewSample.SampleLimit,
             plan.UserSelectFields);
         run.MarkPreviewed(CreateSummaryJson(summary), DateTimeOffset.UtcNow);
 
@@ -413,7 +420,7 @@ public sealed class DirectoryImportStore(
             executionContext.RuleId,
             run.Status,
             summary,
-            previewItems));
+            previewSample.Items));
     }
 
     public async Task<Result<DirectoryImportApplyExecutionContext>> GetApplyExecutionContextAsync(
@@ -946,6 +953,10 @@ public sealed class DirectoryImportStore(
             summary.UpdateSubjectCount,
             summary.NoChangeCount,
             summary.WarningCount,
+            summary.TotalItemCount,
+            summary.ReturnedItemCount,
+            summary.ItemsTruncated,
+            summary.SampleLimit,
             summary.RetainedFields
         }, JsonOptions);
     }

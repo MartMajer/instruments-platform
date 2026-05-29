@@ -504,8 +504,13 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             tenantId,
             new SubjectDirectorySummaryResponse(
                 SubjectCount: 2,
+                FilteredSubjectCount: 2,
+                ReturnedSubjectCount: 1,
                 GroupCount: 1,
-                ManagerRelationshipCount: 1),
+                ManagerRelationshipCount: 1,
+                PageOffset: 0,
+                PageSize: 0,
+                HasMore: false),
             [
                 new SubjectDirectoryItemResponse(
                     subjectId,
@@ -546,6 +551,26 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal(groupId, membership.GroupId);
         Assert.Equal("Research", membership.GroupName);
         Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Subjects_endpoint_binds_search_and_paging_query()
+    {
+        var tenantId = Guid.NewGuid();
+        var store = new FakeProductSurfaceReadStore();
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/subjects?search=ana&skip=25&take=25",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.NotNull(store.SubjectDirectoryQuery);
+        Assert.Equal("ana", store.SubjectDirectoryQuery.Search);
+        Assert.Equal(25, store.SubjectDirectoryQuery.Skip);
+        Assert.Equal(25, store.SubjectDirectoryQuery.Take);
     }
 
     [Fact]
@@ -2235,6 +2260,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
         public CampaignSeriesPortfolioQuery? PortfolioQuery { get; private set; }
 
+        public SubjectDirectoryQuery? SubjectDirectoryQuery { get; private set; }
+
         public RespondentRulePreviewRequest? RespondentRulePreviewRequest { get; private set; }
 
         public Task<WorkspaceOverviewResponse> GetWorkspaceOverviewAsync(
@@ -2321,13 +2348,23 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
         public Task<SubjectDirectoryResponse> ListSubjectsAsync(
             Guid tenantId,
+            SubjectDirectoryQuery query,
             CancellationToken cancellationToken)
         {
             TenantId = tenantId;
+            SubjectDirectoryQuery = query;
 
             return Task.FromResult(subjectDirectory ?? new SubjectDirectoryResponse(
                 tenantId,
-                new SubjectDirectorySummaryResponse(0, 0, 0),
+                new SubjectDirectorySummaryResponse(
+                    SubjectCount: 0,
+                    FilteredSubjectCount: 0,
+                    ReturnedSubjectCount: 0,
+                    GroupCount: 0,
+                    ManagerRelationshipCount: 0,
+                    PageOffset: 0,
+                    PageSize: 0,
+                    HasMore: false),
                 []));
         }
 

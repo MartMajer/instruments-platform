@@ -37,6 +37,7 @@
 	const authContext = getProductAuthContext();
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
+	const countFormatter = new Intl.NumberFormat('en-US');
 
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let loadState = $state<LoadState>('idle');
@@ -105,6 +106,10 @@
 	let graphPreview = $state<DirectoryImportPreviewResponse | null>(null);
 	let graphApplyResult = $state<DirectoryImportApplyResponse | null>(null);
 	let graphImportError = $state<string | null>(null);
+	const directoryPageSize = 25;
+	let directorySearch = $state('');
+	let activeDirectorySearch = $state('');
+	let directoryPageOffset = $state(0);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -114,6 +119,17 @@
 	const canManageSetup = $derived(hasProductPermission(authSession, setupManagePermission));
 	const subjects = $derived(directory?.subjects ?? []);
 	const groups = $derived(groupList?.groups ?? []);
+	const visibleGroups = $derived(groups.slice(0, 50));
+	const directorySummary = $derived(directory?.summary ?? null);
+	const directoryReturnedCount = $derived(directorySummary?.returnedSubjectCount ?? subjects.length);
+	const directoryFilteredCount = $derived(directorySummary?.filteredSubjectCount ?? subjects.length);
+	const directoryTotalCount = $derived(directorySummary?.subjectCount ?? subjects.length);
+	const directoryPageStart = $derived(
+		directoryReturnedCount === 0 ? 0 : (directorySummary?.pageOffset ?? 0) + 1
+	);
+	const directoryPageEnd = $derived((directorySummary?.pageOffset ?? 0) + directoryReturnedCount);
+	const directoryCanPageBack = $derived((directorySummary?.pageOffset ?? 0) > 0);
+	const directoryCanPageForward = $derived(directorySummary?.hasMore ?? false);
 	const membershipCount = $derived(
 		subjects.reduce((total, subject) => total + subject.groups.length, 0)
 	);
@@ -167,15 +183,21 @@
 		}
 	});
 
-	async function loadDirectory() {
+	async function loadDirectory(search = activeDirectorySearch, skip = directoryPageOffset) {
 		const requestId = requestGate.next();
 
 		loadState = 'loading';
 		errorMessage = null;
+		const normalizedSearch = search.trim();
+		const normalizedSkip = Math.max(0, skip);
 
 		try {
 			const [nextDirectory, nextGroupList] = await Promise.all([
-				productApi.listSubjects(),
+				productApi.listSubjects({
+					search: normalizedSearch,
+					skip: normalizedSkip,
+					take: directoryPageSize
+				}),
 				productApi.listSubjectGroups()
 			]);
 
@@ -185,6 +207,9 @@
 
 			directory = nextDirectory;
 			groupList = nextGroupList;
+			activeDirectorySearch = normalizedSearch;
+			directorySearch = normalizedSearch;
+			directoryPageOffset = nextDirectory.summary.pageOffset;
 			syncSelections(nextDirectory.subjects, nextGroupList.groups);
 			syncSelectedSubjectFields(nextDirectory.subjects);
 			loadState = 'ready';
@@ -217,6 +242,23 @@
 			);
 			graphWorkspaceState = 'error';
 		}
+	}
+
+	function submitDirectorySearch() {
+		void loadDirectory(directorySearch, 0);
+	}
+
+	function clearDirectorySearch() {
+		directorySearch = '';
+		void loadDirectory('', 0);
+	}
+
+	function loadPreviousDirectoryPage() {
+		void loadDirectory(activeDirectorySearch, Math.max(0, directoryPageOffset - directoryPageSize));
+	}
+
+	function loadNextDirectoryPage() {
+		void loadDirectory(activeDirectorySearch, directoryPageOffset + directoryPageSize);
 	}
 
 	async function startGraphAdminConsent() {
@@ -707,6 +749,10 @@
 
 		return typeof value === 'number' ? value : 0;
 	}
+
+	function formatCount(value: number) {
+		return countFormatter.format(value);
+	}
 </script>
 
 <SurfaceHeader
@@ -1081,30 +1127,28 @@
 									<dd class="directory-count-row__value">{graphPreview.summary.noChangeCount}</dd>
 								</div>
 							</dl>
-							<div class="record-list" aria-label="Microsoft Graph preview rows">
+							<p class="directory-sample-note">
+								Showing {formatCount(graphPreview.summary.returnedItemCount)} of {formatCount(
+									graphPreview.summary.totalItemCount
+								)} planned actions
+							</p>
+							<div class="directory-compact-list" aria-label="Microsoft Graph preview rows">
 								{#each graphPreview.items as item, index}
-									<article class="record-row" aria-label={`Preview item ${index + 1}`}>
-										<span class="record-row__header">
-											<span class="record-row__title">{formatImportAction(item.action)}</span>
+									<article
+										class="directory-compact-row"
+										aria-label={`Preview item ${index + 1}`}
+										data-testid="graph-preview-row"
+									>
+										<span class="directory-compact-row__header">
+											<span class="directory-compact-row__title">{formatImportAction(item.action)}</span>
 											<span class="status-badge" data-status="pending">
 												{formatDirectoryImportStatus(item.status)}
 											</span>
 										</span>
-										<span class="record-grid">
-											<span class="record-field">
-												<span class="record-field__label">Person</span>
-												<span class="record-field__value">{item.displayName ?? 'Unknown'}</span>
-											</span>
-											<span class="record-field">
-												<span class="record-field__label">Email</span>
-												<span class="record-field__value"
-													>{item.email ?? text.directory.notAvailable}</span
-												>
-											</span>
-											<span class="record-field">
-												<span class="record-field__label">Issue</span>
-												<span class="record-field__value">{item.issueCode ?? 'None'}</span>
-											</span>
+										<span class="directory-compact-row__body">
+											<span>{item.displayName ?? 'Unknown'}</span>
+											<span>{item.email ?? text.directory.notAvailable}</span>
+											<span>{item.issueCode ?? 'No issue'}</span>
 										</span>
 									</article>
 								{/each}
@@ -1171,8 +1215,16 @@
 		{/if}
 	</section>
 
-	<section class="product-panel" aria-label="Import audience CSV">
-		<div class="product-panel__header">
+	<details class="product-panel directory-maintenance-panel" aria-label="Import audience CSV">
+		<summary class="directory-maintenance-summary">
+			<span>
+				<span class="product-kicker">{text.directory.csvImport}</span>
+				<strong>{text.directory.csvTitle}</strong>
+			</span>
+			<span class="text-sm text-[var(--color-text-muted)]">Manual fallback</span>
+		</summary>
+		<div class="directory-maintenance-body">
+			<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.csvImport}</p>
 				<h2 class="product-title">{text.directory.csvTitle}</h2>
@@ -1183,9 +1235,9 @@
 			<a class="secondary-button" href={csvTemplateHref} download="directory-import-template.csv">
 				{text.directory.downloadTemplate}
 			</a>
-		</div>
+			</div>
 
-		<form
+			<form
 			class="grid gap-4"
 			onsubmit={(event) => {
 				event.preventDefault();
@@ -1338,10 +1390,15 @@
 					</details>
 				</div>
 			{/if}
-		</form>
-	</section>
+			</form>
+		</div>
+	</details>
 
-	<section class="product-panel" aria-label={text.directory.peopleDirectoryAria}>
+	<section
+		class="product-panel"
+		aria-label={text.directory.peopleDirectoryAria}
+		data-testid="workspace-people-directory"
+	>
 		<LoadingBoundary loading={loadState === 'loading'} label={text.directory.loadingDirectory}>
 			{#if loadState === 'error' && errorMessage}
 				<ErrorPanel
@@ -1355,29 +1412,95 @@
 					<div>
 						<p class="product-kicker">{text.directory.people}</p>
 						<h2 class="product-title">{text.directory.peopleInWorkspace}</h2>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							Showing {formatCount(directoryReturnedCount)} of {formatCount(directoryFilteredCount)} people
+							{#if activeDirectorySearch}
+								matching "{activeDirectorySearch}"
+							{/if}
+							{#if directoryFilteredCount !== directoryTotalCount}
+								from {formatCount(directoryTotalCount)} total
+							{/if}
+						</p>
 					</div>
+					<form
+						class="directory-search"
+						onsubmit={(event) => {
+							event.preventDefault();
+							submitDirectorySearch();
+						}}
+					>
+						<label class="field">
+							<span>Search people</span>
+							<input
+								bind:value={directorySearch}
+								placeholder="Name, email, or external id"
+								disabled={loadState === 'loading'}
+							/>
+						</label>
+						<div class="action-row">
+							<button type="submit" class="secondary-button" disabled={loadState === 'loading'}>
+								<RefreshCcw size={16} aria-hidden="true" />
+								<span>Search</span>
+							</button>
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={loadState === 'loading' || !activeDirectorySearch}
+								onclick={clearDirectorySearch}
+							>
+								Clear
+							</button>
+						</div>
+					</form>
 				</div>
 
-				<dl
-					class="directory-count-list"
-					role="group"
-					aria-label={text.directory.directoryGraphCounts}
-				>
-					<div class="directory-count-row">
-						<dt class="directory-count-row__label">{text.directory.subjects}</dt>
-						<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
+				<div class="directory-toolbar">
+					<dl
+						class="directory-count-list"
+						role="group"
+						aria-label={text.directory.directoryGraphCounts}
+					>
+						<div class="directory-count-row">
+							<dt class="directory-count-row__label">{text.directory.subjects}</dt>
+							<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
+						</div>
+						<div class="directory-count-row">
+							<dt class="directory-count-row__label">{text.directory.groups}</dt>
+							<dd class="directory-count-row__value">{directory.summary.groupCount}</dd>
+						</div>
+						<div class="directory-count-row">
+							<dt class="directory-count-row__label">{text.directory.managerLinks}</dt>
+							<dd class="directory-count-row__value">
+								{directory.summary.managerRelationshipCount}
+							</dd>
+						</div>
+					</dl>
+					<div class="directory-pagination" aria-label="People directory pagination">
+						<p class="text-sm text-[var(--color-text-muted)]">
+							Rows {formatCount(directoryPageStart)}-{formatCount(directoryPageEnd)} of {formatCount(
+								directoryFilteredCount
+							)}
+						</p>
+						<div class="action-row">
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={!directoryCanPageBack || loadState === 'loading'}
+								onclick={loadPreviousDirectoryPage}
+							>
+								Previous
+							</button>
+							<button
+								type="button"
+								class="secondary-button"
+								disabled={!directoryCanPageForward || loadState === 'loading'}
+								onclick={loadNextDirectoryPage}
+							>
+								Next
+							</button>
+						</div>
 					</div>
-					<div class="directory-count-row">
-						<dt class="directory-count-row__label">{text.directory.groups}</dt>
-						<dd class="directory-count-row__value">{directory.summary.groupCount}</dd>
-					</div>
-					<div class="directory-count-row">
-						<dt class="directory-count-row__label">{text.directory.managerLinks}</dt>
-						<dd class="directory-count-row__value">
-							{directory.summary.managerRelationshipCount}
-						</dd>
-					</div>
-				</dl>
+				</div>
 
 				{#if subjects.length === 0}
 					<EmptyState
@@ -1385,70 +1508,55 @@
 						description="Add people before configuring audiences."
 					/>
 				{:else}
-					<div class="record-list">
-						{#each subjects as subject (subject.id)}
-							<article class="record-row" aria-label={subjectLabel(subject)}>
-								<span class="record-row__header">
-									<span class="record-row__title">{subjectLabel(subject)}</span>
-									<span
-										class="status-badge"
-										data-status={subject.managerSubjectId ? 'ready' : 'pending'}
-									>
-										{subject.managerSubjectId ? text.directory.managed : text.directory.noManager}
-									</span>
-								</span>
-								<span class="record-grid">
-									<span class="record-field">
-										<span class="record-field__label">Email</span>
-										<span class="record-field__value"
-											>{subject.email ?? text.directory.notAvailable}</span
-										>
-									</span>
-									<span class="record-field">
-										<span class="record-field__label">{text.directory.externalId}</span>
-										<span class="record-field__value"
-											>{subject.externalId ?? text.directory.notAvailable}</span
-										>
-									</span>
-									<span class="record-field">
-										<span class="record-field__label">{text.directory.locale}</span>
-										<span class="record-field__value">{subject.locale}</span>
-									</span>
-									<span class="record-field">
-										<span class="record-field__label">{text.directory.manager}</span>
-										<span class="record-field__value">{subject.managerDisplayName ?? 'None'}</span>
-									</span>
-									<span class="record-field">
-										<span class="record-field__label">{text.directory.directReports}</span>
-										<span class="record-field__value">{subject.directReportCount}</span>
-									</span>
-								</span>
-								<div>
-									<p class="record-field__label">{text.directory.groups}</p>
-									<div class="mt-2 flex flex-wrap gap-2">
-										{#if subject.groups.length === 0}
-											<span class="text-xs text-[var(--color-text-muted)]"
-												>{text.directory.noMemberships}</span
-											>
-										{:else}
-											{#each subject.groups as membership (membership.groupId)}
-												<span
-													class="inline-flex items-center gap-1 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2 py-1 text-xs font-semibold"
-												>
-													<UserRound size={13} aria-hidden="true" />
-													{membership.groupName}
-													{#if membership.roleInGroup}
-														<span class="text-[var(--color-text-muted)]"
-															>({membership.roleInGroup})</span
-														>
-													{/if}
+					<div class="table-wrap">
+						<table class="directory-table directory-people-table">
+							<thead>
+								<tr>
+									<th scope="col">Person</th>
+									<th scope="col">Email</th>
+									<th scope="col">{text.directory.manager}</th>
+									<th scope="col">{text.directory.groups}</th>
+									<th scope="col">{text.directory.externalId}</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each subjects as subject (subject.id)}
+									<tr data-testid="directory-person-row">
+										<td>
+											<strong>{subjectLabel(subject)}</strong>
+											<span>{subject.locale}</span>
+										</td>
+										<td>{subject.email ?? text.directory.notAvailable}</td>
+										<td>
+											{subject.managerDisplayName ?? text.directory.noManager}
+											{#if subject.directReportCount > 0}
+												<span>{subject.directReportCount} direct reports</span>
+											{/if}
+										</td>
+										<td>
+											{#if subject.groups.length === 0}
+												<span class="text-xs text-[var(--color-text-muted)]">
+													{text.directory.noMemberships}
 												</span>
-											{/each}
-										{/if}
-									</div>
-								</div>
-							</article>
-						{/each}
+											{:else}
+												<div class="directory-chip-list">
+													{#each subject.groups.slice(0, 3) as membership (membership.groupId)}
+														<span class="directory-chip">
+															<UserRound size={13} aria-hidden="true" />
+															{membership.groupName}
+														</span>
+													{/each}
+													{#if subject.groups.length > 3}
+														<span class="directory-chip">+{subject.groups.length - 3}</span>
+													{/if}
+												</div>
+											{/if}
+										</td>
+										<td>{subject.externalId ?? text.directory.notAvailable}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
 					</div>
 				{/if}
 			{/if}
@@ -1467,47 +1575,60 @@
 			{#if groups.length === 0}
 				<EmptyState title="No groups" description="Create groups before assigning subjects." />
 			{:else}
-				<div class="record-list">
-					{#each groups as group (group.id)}
-						<article class="record-row" aria-label={group.name}>
-							<span class="record-row__header">
-								<span class="record-row__title">{group.name}</span>
-								<span class="status-badge" data-status="neutral">{group.type}</span>
-							</span>
-							<span class="record-grid">
-								<span class="record-field">
-									<span class="record-field__label">{text.directory.parent}</span>
-									<span class="record-field__value">{groupParentLabel(group)}</span>
-								</span>
-								<span class="record-field">
-									<span class="record-field__label">{text.directory.members}</span>
-									<span class="record-field__value">{group.memberCount}</span>
-								</span>
-							</span>
-						</article>
-					{/each}
+				<div class="directory-sample-note">
+					Showing {formatCount(visibleGroups.length)} of {formatCount(groups.length)} groups
+				</div>
+				<div class="table-wrap">
+					<table class="directory-table directory-groups-table">
+						<thead>
+							<tr>
+								<th scope="col">Group</th>
+								<th scope="col">Type</th>
+								<th scope="col">{text.directory.parent}</th>
+								<th scope="col">{text.directory.members}</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each visibleGroups as group (group.id)}
+								<tr>
+									<td>{group.name}</td>
+									<td>{group.type}</td>
+									<td>{groupParentLabel(group)}</td>
+									<td>{group.memberCount}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
 				</div>
 			{/if}
 		{/if}
 	</section>
 
-	<section
+	<details
 		id="directory-create"
 		class="product-panel"
 		aria-label={text.directory.createRecordsAria}
 	>
-		<div class="product-panel__header">
+		<summary class="directory-maintenance-summary">
+			<span>
+				<span class="product-kicker">{text.directory.addRecords}</span>
+				<strong>{text.directory.title}</strong>
+			</span>
+			<span class="text-sm text-[var(--color-text-muted)]">Manual maintenance</span>
+		</summary>
+		<div class="directory-maintenance-body">
+			<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.addRecords}</p>
 				<h2 class="product-title">{text.directory.title}</h2>
 			</div>
-			<button type="button" class="secondary-button" onclick={loadDirectory}>
+			<button type="button" class="secondary-button" onclick={() => void loadDirectory()}>
 				<RefreshCcw size={16} aria-hidden="true" />
 				<span>{text.directory.refresh}</span>
 			</button>
-		</div>
+			</div>
 
-		<div class="grid gap-4 xl:grid-cols-2">
+			<div class="grid gap-4 xl:grid-cols-2">
 			<form
 				class="grid gap-3"
 				onsubmit={(event) => {
@@ -1619,11 +1740,20 @@
 					<p class="error-line" role="alert">{groupMutationError}</p>
 				{/if}
 			</form>
+			</div>
 		</div>
-	</section>
+	</details>
 
-	<section class="product-panel" aria-label={text.directory.directoryRelationshipsAria}>
-		<div class="product-panel__header">
+	<details class="product-panel" aria-label={text.directory.directoryRelationshipsAria}>
+		<summary class="directory-maintenance-summary">
+			<span>
+				<span class="product-kicker">{text.directory.hierarchySetup}</span>
+				<strong>{text.directory.membershipManager}</strong>
+			</span>
+			<span class="text-sm text-[var(--color-text-muted)]">Manual maintenance</span>
+		</summary>
+		<div class="directory-maintenance-body">
+			<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.hierarchySetup}</p>
 				<h2 class="product-title">{text.directory.membershipManager}</h2>
@@ -1632,9 +1762,9 @@
 					hierarchy-aware review or reports-of-target context.
 				</p>
 			</div>
-		</div>
+			</div>
 
-		<form
+			<form
 			class="grid gap-3 border-b border-[var(--color-border)] pb-4"
 			onsubmit={(event) => {
 				event.preventDefault();
@@ -1699,7 +1829,7 @@
 			{/if}
 		</form>
 
-		<div class="grid gap-4 xl:grid-cols-2">
+			<div class="grid gap-4 xl:grid-cols-2">
 			<form
 				class="grid gap-3"
 				onsubmit={(event) => {
@@ -1806,6 +1936,7 @@
 					<p class="error-line" role="alert">{managerError}</p>
 				{/if}
 			</form>
+			</div>
 		</div>
-	</section>
+	</details>
 {/if}

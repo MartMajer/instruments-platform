@@ -245,6 +245,10 @@ public sealed record DirectoryImportPreviewSummaryResponse(
     int UpdateSubjectCount,
     int NoChangeCount,
     int WarningCount,
+    int TotalItemCount,
+    int ReturnedItemCount,
+    bool ItemsTruncated,
+    int SampleLimit,
     IReadOnlyList<string> RetainedFields);
 
 public sealed record DirectoryImportPreviewItemResponse(
@@ -253,3 +257,46 @@ public sealed record DirectoryImportPreviewItemResponse(
     string? IssueCode,
     string? DisplayName,
     string? Email);
+
+public sealed record DirectoryImportPreviewSample(
+    IReadOnlyList<DirectoryImportPreviewItemResponse> Items,
+    int TotalItemCount,
+    int ReturnedItemCount,
+    bool ItemsTruncated,
+    int SampleLimit);
+
+public sealed class DirectoryImportPreviewSampleBuilder
+{
+    private readonly List<DirectoryImportPreviewItemResponse> items = [];
+
+    public DirectoryImportPreviewSampleBuilder(int sampleLimit)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sampleLimit);
+        SampleLimit = sampleLimit;
+    }
+
+    public int SampleLimit { get; }
+
+    public int TotalItemCount { get; private set; }
+
+    public void Add(DirectoryImportPreviewItemResponse item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        TotalItemCount++;
+        if (items.Count < SampleLimit)
+        {
+            items.Add(item);
+        }
+    }
+
+    public DirectoryImportPreviewSample Build()
+    {
+        return new DirectoryImportPreviewSample(
+            items.ToArray(),
+            TotalItemCount,
+            items.Count,
+            TotalItemCount > items.Count,
+            SampleLimit);
+    }
+}

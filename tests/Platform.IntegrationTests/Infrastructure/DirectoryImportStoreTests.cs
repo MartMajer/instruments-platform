@@ -90,6 +90,11 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
         Assert.Equal(1, result.Value.Summary.UpdateSubjectCount);
         Assert.Equal(1, result.Value.Summary.NoChangeCount);
         Assert.Equal(1, result.Value.Summary.WarningCount);
+        Assert.Equal(5, result.Value.Summary.TotalItemCount);
+        Assert.Equal(5, result.Value.Summary.ReturnedItemCount);
+        Assert.False(result.Value.Summary.ItemsTruncated);
+        Assert.Equal(25, result.Value.Summary.SampleLimit);
+        Assert.Equal(5, result.Value.Items.Count);
         Assert.Contains("displayName", result.Value.Summary.RetainedFields);
 
         await using var verificationDb = new ApplicationDbContext(runtimeOptions);
@@ -125,6 +130,57 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
         Assert.DoesNotContain("access_token", persistedEvidence, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("create@example.test", persistedEvidence, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("graph-user-create", persistedEvidence, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Save_preview_returns_bounded_sample_for_large_directory_without_losing_counts()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-preview-large");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "owner@example.test");
+        var rule = await SeedDirectoryRuleAsync(runtimeOptions, tenantId, "graph-preview-large-rule");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = CreateStore(db);
+        var contextResult = await store.GetRuleExecutionContextAsync(tenantId, rule.Id, CancellationToken.None);
+        Assert.True(contextResult.IsSuccess, contextResult.Error.ToString());
+        var plan = DirectoryImportRulePlanner.Plan(contextResult.Value.CriteriaJson);
+        var users = Enumerable.Range(1, 40)
+            .Select(index => Candidate(
+                $"graph-user-{index:00}",
+                $"Person {index:00}",
+                $"person{index:00}@example.test"))
+            .ToArray();
+
+        var result = await store.SavePreviewAsync(
+            tenantId,
+            actorUserId,
+            contextResult.Value,
+            plan,
+            users,
+            managers: [],
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(40, result.Value.Summary.MatchedUserCount);
+        Assert.Equal(40, result.Value.Summary.CreateSubjectCount);
+        Assert.Equal(40, result.Value.Summary.TotalItemCount);
+        Assert.Equal(25, result.Value.Summary.ReturnedItemCount);
+        Assert.True(result.Value.Summary.ItemsTruncated);
+        Assert.Equal(25, result.Value.Summary.SampleLimit);
+        Assert.Equal(25, result.Value.Items.Count);
+        Assert.Equal("Person 01", result.Value.Items[0].DisplayName);
+        Assert.Equal("Person 25", result.Value.Items[^1].DisplayName);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(40, await verificationDb.DirectoryImportRunItems.CountAsync());
         await transaction.CommitAsync();
     }
 
