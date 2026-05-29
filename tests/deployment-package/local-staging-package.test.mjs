@@ -74,7 +74,7 @@ describe('local staging deployment package', () => {
     assert.doesNotMatch(env, /ghp_[A-Za-z0-9_]+/);
   });
 
-  it('documents Auth0-oriented VPS staging settings without development auth', () => {
+  it('documents OIDC-oriented VPS staging settings without development auth', () => {
     const env = read('deploy/staging/vps.env.example');
     const compose = read('deploy/staging/docker-compose.vps.yml');
 
@@ -90,9 +90,34 @@ describe('local staging deployment package', () => {
     assert.match(compose, /ASPNETCORE_ENVIRONMENT: Production/);
     assert.match(compose, /Authentication__Dev__Enabled: "false"/);
     assert.match(compose, /Authentication__Oidc__InteractiveEnabled: \$\{Authentication__Oidc__InteractiveEnabled:-true\}/);
-    assert.match(compose, /Authentication__Oidc__ClientSecret: \$\{Authentication__Oidc__ClientSecret:\?set Auth0 client secret\}/);
+    assert.match(compose, /Authentication__Oidc__ClientSecret: \$\{Authentication__Oidc__ClientSecret:\?set OIDC client secret\}/);
     assert.match(compose, /Cors__AllowedOrigins__0: \$\{Cors__AllowedOrigins__0:\?set staging web CORS origin\}/);
-    assert.match(compose, /PUBLIC_AUTH_LOGIN_URL: \$\{PUBLIC_AUTH_LOGIN_URL:\?set API auth login URL with allowed web returnUrl\}/);
+    assert.doesNotMatch(compose, /PUBLIC_AUTH_LOGIN_URL:/);
+  });
+
+  it('passes configurable OIDC provider profile settings to the staging API', () => {
+    const env = read('deploy/staging/env.example');
+    const vpsEnv = read('deploy/staging/vps.env.example');
+    const compose = read('deploy/staging/docker-compose.yml');
+
+    for (const settings of [env, vpsEnv]) {
+      assert.match(settings, /Authentication__Oidc__ProviderKey=/);
+      assert.match(settings, /Authentication__Oidc__EmailClaim=/);
+      assert.match(settings, /Authentication__Oidc__SubjectClaim=/);
+      assert.match(settings, /Authentication__Oidc__SubjectTenantClaim=/);
+      assert.match(settings, /Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing=/);
+      assert.match(settings, /Authentication__Oidc__ProviderLogoutMode=/);
+    }
+
+    assert.match(compose, /Authentication__Oidc__ProviderKey: \$\{Authentication__Oidc__ProviderKey:-auth0\}/);
+    assert.match(compose, /Authentication__Oidc__EmailClaim: \$\{Authentication__Oidc__EmailClaim:-email\}/);
+    assert.match(compose, /Authentication__Oidc__SubjectClaim: \$\{Authentication__Oidc__SubjectClaim:-sub\}/);
+    assert.match(compose, /Authentication__Oidc__SubjectTenantClaim: \$\{Authentication__Oidc__SubjectTenantClaim:-\}/);
+    assert.match(
+      compose,
+      /Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing: \$\{Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing:-false\}/
+    );
+    assert.match(compose, /Authentication__Oidc__ProviderLogoutMode: \$\{Authentication__Oidc__ProviderLogoutMode:-auth0\}/);
   });
 
   it('keeps the web runtime image install free of dev prepare scripts', () => {

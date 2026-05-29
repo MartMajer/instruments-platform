@@ -80,6 +80,12 @@ services:
       Authentication__Oidc__RequireHttpsMetadata: ${Authentication__Oidc__RequireHttpsMetadata:-true}
       Authentication__Oidc__RequireVerifiedEmail: ${Authentication__Oidc__RequireVerifiedEmail:-true}
       Authentication__Oidc__SessionMinutes: ${Authentication__Oidc__SessionMinutes:-480}
+      Authentication__Oidc__ProviderKey: ${Authentication__Oidc__ProviderKey:-auth0}
+      Authentication__Oidc__EmailClaim: ${Authentication__Oidc__EmailClaim:-email}
+      Authentication__Oidc__SubjectClaim: ${Authentication__Oidc__SubjectClaim:-sub}
+      Authentication__Oidc__SubjectTenantClaim: ${Authentication__Oidc__SubjectTenantClaim:-}
+      Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing: ${Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing:-false}
+      Authentication__Oidc__ProviderLogoutMode: ${Authentication__Oidc__ProviderLogoutMode:-auth0}
       Registration__Enabled: ${Registration__Enabled:-false}
       Registration__IntentMinutes: ${Registration__IntentMinutes:-15}
       Registration__BetaAccessCodeSha256Hashes__0: ${Registration__BetaAccessCodeSha256Hashes__0:-}

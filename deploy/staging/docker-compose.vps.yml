@@ -7,13 +7,19 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Authentication__Dev__Enabled: "false"
       Authentication__Oidc__InteractiveEnabled: ${Authentication__Oidc__InteractiveEnabled:-true}
-      Authentication__Oidc__Authority: ${Authentication__Oidc__Authority:?set Auth0 authority}
-      Authentication__Oidc__ClientId: ${Authentication__Oidc__ClientId:?set Auth0 client id}
-      Authentication__Oidc__ClientSecret: ${Authentication__Oidc__ClientSecret:?set Auth0 client secret}
+      Authentication__Oidc__Authority: ${Authentication__Oidc__Authority:?set OIDC authority}
+      Authentication__Oidc__ClientId: ${Authentication__Oidc__ClientId:?set OIDC client id}
+      Authentication__Oidc__ClientSecret: ${Authentication__Oidc__ClientSecret:?set OIDC client secret}
       Authentication__Oidc__CallbackPath: ${Authentication__Oidc__CallbackPath:-/auth/callback}
       Authentication__Oidc__SignedOutCallbackPath: ${Authentication__Oidc__SignedOutCallbackPath:-/auth/signout-callback}
       Authentication__Oidc__RequireHttpsMetadata: ${Authentication__Oidc__RequireHttpsMetadata:-true}
       Authentication__Oidc__RequireVerifiedEmail: ${Authentication__Oidc__RequireVerifiedEmail:-true}
+      Authentication__Oidc__ProviderKey: ${Authentication__Oidc__ProviderKey:-auth0}
+      Authentication__Oidc__EmailClaim: ${Authentication__Oidc__EmailClaim:-email}
+      Authentication__Oidc__SubjectClaim: ${Authentication__Oidc__SubjectClaim:-sub}
+      Authentication__Oidc__SubjectTenantClaim: ${Authentication__Oidc__SubjectTenantClaim:-}
+      Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing: ${Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing:-false}
+      Authentication__Oidc__ProviderLogoutMode: ${Authentication__Oidc__ProviderLogoutMode:-auth0}
       Cors__AllowedOrigins__0: ${Cors__AllowedOrigins__0:?set staging web CORS origin}
       ReverseProxy__ForwardedHeaders__Enabled: ${ReverseProxy__ForwardedHeaders__Enabled:-true}
     ports: !override
