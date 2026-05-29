@@ -179,6 +179,24 @@ public sealed class DirectoryImportEntitiesTests
     }
 
     [Fact]
+    public void Apply_run_can_start_applying_from_planned_status()
+    {
+        var run = new DirectoryImportRun(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            DirectoryImportRunModes.Apply);
+        var applyingAt = DateTimeOffset.Parse("2026-05-29T19:00:00+00:00");
+        var appliedAt = applyingAt.AddMinutes(1);
+
+        run.StartApplying(applyingAt);
+        run.MarkApplied("""{"createdSubjectCount":1}""", appliedAt);
+
+        Assert.Equal(DirectoryImportRunStatuses.Applied, run.Status);
+        Assert.Equal(appliedAt, run.FinishedAt);
+    }
+
+    [Fact]
     public void Run_can_fail_from_planned_previewed_or_applying()
     {
         foreach (var statusSetup in new Action<DirectoryImportRun>[]

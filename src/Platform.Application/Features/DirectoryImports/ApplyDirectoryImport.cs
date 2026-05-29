@@ -6,63 +6,63 @@ using Platform.SharedKernel;
 
 namespace Platform.Application.Features.DirectoryImports;
 
-public sealed record PreviewDirectoryImportRequest(Guid RuleId);
+public sealed record ApplyDirectoryImportRequest(Guid PreviewRunId);
 
-public sealed record PreviewDirectoryImportCommand(PreviewDirectoryImportRequest Request)
-    : IRequest<Result<DirectoryImportPreviewResponse>>;
+public sealed record ApplyDirectoryImportCommand(ApplyDirectoryImportRequest Request)
+    : IRequest<Result<DirectoryImportApplyResponse>>;
 
-public sealed class PreviewDirectoryImportValidator
-    : AbstractValidator<PreviewDirectoryImportCommand>
+public sealed class ApplyDirectoryImportValidator
+    : AbstractValidator<ApplyDirectoryImportCommand>
 {
-    public PreviewDirectoryImportValidator()
+    public ApplyDirectoryImportValidator()
     {
-        RuleFor(command => command.Request.RuleId)
+        RuleFor(command => command.Request.PreviewRunId)
             .NotEmpty();
     }
 }
 
-public sealed class PreviewDirectoryImportHandler(
+public sealed class ApplyDirectoryImportHandler(
     ICurrentTenant currentTenant,
     ICurrentActor actor,
     IDirectoryImportStore store,
     IGraphDirectoryClient graphClient)
-    : IRequestHandler<PreviewDirectoryImportCommand, Result<DirectoryImportPreviewResponse>>
+    : IRequestHandler<ApplyDirectoryImportCommand, Result<DirectoryImportApplyResponse>>
 {
-    public async Task<Result<DirectoryImportPreviewResponse>> Handle(
-        PreviewDirectoryImportCommand command,
+    public async Task<Result<DirectoryImportApplyResponse>> Handle(
+        ApplyDirectoryImportCommand command,
         CancellationToken cancellationToken)
     {
         if (!actor.UserId.HasValue)
         {
-            return Result.Failure<DirectoryImportPreviewResponse>(
+            return Result.Failure<DirectoryImportApplyResponse>(
                 Error.Forbidden("actor.required", "Authenticated actor is required."));
         }
 
-        var contextResult = await store.GetRuleExecutionContextAsync(
+        var contextResult = await store.GetApplyExecutionContextAsync(
             currentTenant.TenantId,
-            command.Request.RuleId,
+            command.Request.PreviewRunId,
             cancellationToken);
         if (contextResult.IsFailure)
         {
-            return Result.Failure<DirectoryImportPreviewResponse>(contextResult.Error);
+            return Result.Failure<DirectoryImportApplyResponse>(contextResult.Error);
         }
 
         DirectoryImportPlan plan;
         try
         {
             plan = DirectoryImportRulePlanner.Plan(
-                contextResult.Value.CriteriaJson,
-                contextResult.Value.MirrorMode,
-                contextResult.Value.MirrorConfirmedAt);
+                contextResult.Value.RuleContext.CriteriaJson,
+                contextResult.Value.RuleContext.MirrorMode,
+                contextResult.Value.RuleContext.MirrorConfirmedAt);
         }
         catch (ArgumentException exception)
         {
-            return Result.Failure<DirectoryImportPreviewResponse>(
+            return Result.Failure<DirectoryImportApplyResponse>(
                 Error.Validation("directory_import_rule.invalid", exception.Message));
         }
         catch (InvalidOperationException exception)
         {
-            return Result.Failure<DirectoryImportPreviewResponse>(
+            return Result.Failure<DirectoryImportApplyResponse>(
                 Error.Conflict("directory_import_rule.invalid_state", exception.Message));
         }
 
@@ -70,19 +70,23 @@ public sealed class PreviewDirectoryImportHandler(
         IReadOnlyList<GraphDirectoryManagerCandidate> managers;
         try
         {
-            users = await FetchUsersAsync(contextResult.Value.Credentials, plan, cancellationToken);
+            users = await FetchUsersAsync(contextResult.Value.RuleContext.Credentials, plan, cancellationToken);
             users = ApplyLocalPostFilters(users, plan.LocalPostFilters);
-            managers = await FetchManagersAsync(contextResult.Value.Credentials, users, plan, cancellationToken);
+            managers = await FetchManagersAsync(
+                contextResult.Value.RuleContext.Credentials,
+                users,
+                plan,
+                cancellationToken);
         }
         catch (HttpRequestException)
         {
-            return Result.Failure<DirectoryImportPreviewResponse>(
+            return Result.Failure<DirectoryImportApplyResponse>(
                 Error.Conflict(
                     "directory_import.graph_request_failed",
                     "Microsoft Graph request failed. Reconnect the directory or adjust the import rule permissions."));
         }
 
-        return await store.SavePreviewAsync(
+        return await store.ApplyPreviewAsync(
             currentTenant.TenantId,
             actor.UserId.Value,
             contextResult.Value,
@@ -177,65 +181,22 @@ public sealed class PreviewDirectoryImportHandler(
     }
 }
 
-public interface IDirectoryImportStore
-{
-    Task<Result<DirectoryImportRuleExecutionContext>> GetRuleExecutionContextAsync(
-        Guid tenantId,
-        Guid ruleId,
-        CancellationToken cancellationToken);
+public sealed record DirectoryImportApplyExecutionContext(
+    Guid PreviewRunId,
+    DirectoryImportRuleExecutionContext RuleContext);
 
-    Task<Result<DirectoryImportPreviewResponse>> SavePreviewAsync(
-        Guid tenantId,
-        Guid actorUserId,
-        DirectoryImportRuleExecutionContext executionContext,
-        DirectoryImportPlan plan,
-        IReadOnlyList<GraphDirectoryUserCandidate> users,
-        IReadOnlyList<GraphDirectoryManagerCandidate> managers,
-        CancellationToken cancellationToken);
-
-    Task<Result<DirectoryImportApplyExecutionContext>> GetApplyExecutionContextAsync(
-        Guid tenantId,
-        Guid previewRunId,
-        CancellationToken cancellationToken);
-
-    Task<Result<DirectoryImportApplyResponse>> ApplyPreviewAsync(
-        Guid tenantId,
-        Guid actorUserId,
-        DirectoryImportApplyExecutionContext executionContext,
-        DirectoryImportPlan plan,
-        IReadOnlyList<GraphDirectoryUserCandidate> users,
-        IReadOnlyList<GraphDirectoryManagerCandidate> managers,
-        CancellationToken cancellationToken);
-}
-
-public sealed record DirectoryImportRuleExecutionContext(
-    Guid RuleId,
-    Guid ConnectionId,
-    string ExternalTenantId,
-    string CriteriaJson,
-    string FieldSelectionJson,
-    bool MirrorMode,
-    DateTimeOffset? MirrorConfirmedAt,
-    GraphDirectoryConnectionCredentials Credentials);
-
-public sealed record DirectoryImportPreviewResponse(
+public sealed record DirectoryImportApplyResponse(
     Guid RunId,
+    Guid PreviewRunId,
     Guid RuleId,
     string Status,
-    DirectoryImportPreviewSummaryResponse Summary,
-    IReadOnlyList<DirectoryImportPreviewItemResponse> Items);
+    DirectoryImportApplySummaryResponse Summary);
 
-public sealed record DirectoryImportPreviewSummaryResponse(
-    int MatchedUserCount,
-    int CreateSubjectCount,
-    int UpdateSubjectCount,
-    int NoChangeCount,
-    int WarningCount,
-    IReadOnlyList<string> RetainedFields);
-
-public sealed record DirectoryImportPreviewItemResponse(
-    string Action,
-    string Status,
-    string? IssueCode,
-    string? DisplayName,
-    string? Email);
+public sealed record DirectoryImportApplySummaryResponse(
+    int CreatedSubjectCount,
+    int UpdatedSubjectCount,
+    int NoChangeSubjectCount,
+    int CreatedGroupCount,
+    int AddedMembershipCount,
+    int SetManagerCount,
+    int WarningCount);

@@ -60,6 +60,13 @@ public sealed class DirectoryImportRun
 
     public void StartApplying(DateTimeOffset applyingAt)
     {
+        if (Mode == DirectoryImportRunModes.Apply && Status == DirectoryImportRunStatuses.Planned)
+        {
+            Status = DirectoryImportRunStatuses.Applying;
+            UpdatedAt = applyingAt;
+            return;
+        }
+
         EnsureStatus(DirectoryImportRunStatuses.Previewed, "Only previewed directory import runs can start applying.");
 
         Status = DirectoryImportRunStatuses.Applying;

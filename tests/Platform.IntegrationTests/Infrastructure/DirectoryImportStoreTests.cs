@@ -4,8 +4,10 @@ using Microsoft.Extensions.Options;
 using Npgsql;
 using Platform.Application.Features.DirectoryImports;
 using Platform.Domain.Auth;
+using Platform.Domain.Campaigns;
 using Platform.Domain.DirectoryImports;
 using Platform.Domain.Subjects;
+using Platform.Domain.Templates;
 using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.DirectoryImports;
@@ -153,6 +155,108 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
         Assert.Equal("directory_import_rule.not_found", wrongTenantResult.Error.Code);
     }
 
+    [DockerFact]
+    public async Task Apply_preview_upserts_directory_snapshot_and_is_idempotent_without_changing_audience()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-apply");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "owner@example.test");
+        var rule = await SeedDirectoryRuleAsync(runtimeOptions, tenantId, "graph-apply-rule");
+        var existingSubject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Old Update",
+            "old.update@example.test",
+            "msgraph:customer-tenant:graph-user-update");
+        var audienceId = await SeedAudienceAsync(runtimeOptions, tenantId, existingSubject.Id);
+
+        var users = new[]
+        {
+            Candidate("graph-manager", "Manager Person", "manager@example.test"),
+            Candidate("graph-user-create", "Create Person", "create@example.test"),
+            Candidate("graph-user-update", "Updated Person", "updated@example.test")
+        };
+        var managers = new[]
+        {
+            new GraphDirectoryManagerCandidate(
+                "graph-user-create",
+                "graph-manager",
+                "Manager Person",
+                "manager@example.test",
+                "manager@example.test",
+                [])
+        };
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = CreateStore(db);
+        var contextResult = await store.GetRuleExecutionContextAsync(tenantId, rule.Id, CancellationToken.None);
+        Assert.True(contextResult.IsSuccess, contextResult.Error.ToString());
+        var plan = DirectoryImportRulePlanner.Plan(contextResult.Value.CriteriaJson);
+        var preview = await store.SavePreviewAsync(
+            tenantId,
+            actorUserId,
+            contextResult.Value,
+            plan,
+            users,
+            managers,
+            CancellationToken.None);
+        Assert.True(preview.IsSuccess, preview.Error.ToString());
+
+        var applyContext = await store.GetApplyExecutionContextAsync(tenantId, preview.Value.RunId, CancellationToken.None);
+        Assert.True(applyContext.IsSuccess, applyContext.Error.ToString());
+        var firstApply = await store.ApplyPreviewAsync(
+            tenantId,
+            actorUserId,
+            applyContext.Value,
+            plan,
+            users,
+            managers,
+            CancellationToken.None);
+        var secondApply = await store.ApplyPreviewAsync(
+            tenantId,
+            actorUserId,
+            applyContext.Value,
+            plan,
+            users,
+            managers,
+            CancellationToken.None);
+
+        Assert.True(firstApply.IsSuccess, firstApply.Error.ToString());
+        Assert.Equal(2, firstApply.Value.Summary.CreatedSubjectCount);
+        Assert.Equal(1, firstApply.Value.Summary.UpdatedSubjectCount);
+        Assert.Equal(2, firstApply.Value.Summary.CreatedGroupCount);
+        Assert.Equal(3, firstApply.Value.Summary.AddedMembershipCount);
+        Assert.Equal(1, firstApply.Value.Summary.SetManagerCount);
+        Assert.True(secondApply.IsSuccess, secondApply.Error.ToString());
+        Assert.Equal(0, secondApply.Value.Summary.CreatedSubjectCount);
+        Assert.Equal(0, secondApply.Value.Summary.UpdatedSubjectCount);
+        Assert.Equal(3, secondApply.Value.Summary.NoChangeSubjectCount);
+        Assert.Equal(0, secondApply.Value.Summary.CreatedGroupCount);
+        Assert.Equal(0, secondApply.Value.Summary.AddedMembershipCount);
+        Assert.Equal(0, secondApply.Value.Summary.SetManagerCount);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(3, await verificationDb.Subjects.CountAsync());
+        Assert.Equal(2, await verificationDb.SubjectGroups.CountAsync());
+        Assert.Equal(3, await verificationDb.SubjectMemberships.CountAsync());
+        Assert.Single(await verificationDb.SubjectRelationships
+            .Where(relationship => relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf)
+            .ToListAsync());
+        var audienceMembers = await verificationDb.AudienceMembers
+            .Where(member => member.AudienceId == audienceId)
+            .ToListAsync();
+        var audienceMember = Assert.Single(audienceMembers);
+        Assert.Equal(existingSubject.Id, audienceMember.SubjectId);
+        Assert.Null(audienceMember.RemovedAt);
+        await transaction.CommitAsync();
+    }
+
     public Task InitializeAsync()
     {
         return _postgres.StartAsync();
@@ -228,10 +332,18 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
                 tenant,
                 user_account,
                 subject,
+                subject_group,
+                subject_membership,
+                subject_relationship,
                 directory_connection,
                 directory_import_rule,
                 directory_import_run,
-                directory_import_run_item
+                directory_import_run_item,
+                survey_template,
+                template_version,
+                campaign,
+                audience,
+                audience_member
             TO {{RuntimeUsername}};
             """);
     }
@@ -305,7 +417,7 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
         }
         """;
 
-    private static async Task SeedSubjectAsync(
+    private static async Task<Subject> SeedSubjectAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
         string displayName,
@@ -316,15 +428,49 @@ public sealed class DirectoryImportStoreTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);
         await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
-        db.Subjects.Add(new Subject(
+        var subject = new Subject(
             Guid.NewGuid(),
             tenantId,
             externalId: externalId,
             email: email,
             displayName: displayName,
-            attributes: attributes));
+            attributes: attributes);
+        db.Subjects.Add(subject);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
+
+        return subject;
+    }
+
+    private static async Task<Guid> SeedAudienceAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        Guid tenantId,
+        Guid subjectId)
+    {
+        var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Audience template");
+        var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        var campaign = new Campaign(
+            Guid.NewGuid(),
+            tenantId,
+            version.Id,
+            "Live campaign",
+            ResponseIdentityModes.Identified,
+            status: CampaignStatuses.Live);
+        var audience = new Audience(Guid.NewGuid(), campaign.Id);
+        var audienceMember = new AudienceMember(audience.Id, subjectId);
+
+        await using var db = new ApplicationDbContext(options);
+        var tenantDbScope = new TenantDbScope(db);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        db.SurveyTemplates.Add(template);
+        db.TemplateVersions.Add(version);
+        db.Campaigns.Add(campaign);
+        db.Audiences.Add(audience);
+        db.AudienceMembers.Add(audienceMember);
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return audience.Id;
     }
 
     private static GraphDirectoryUserCandidate Candidate(

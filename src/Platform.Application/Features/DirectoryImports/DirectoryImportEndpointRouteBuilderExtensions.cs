@@ -20,6 +20,12 @@ public static class DirectoryImportEndpointRouteBuilderExtensions
             .WithName("PreviewDirectoryImport")
             .WithTags("DirectoryImports");
 
+        app.MapPost("/directory-import-runs/{previewRunId:guid}/apply", ApplyDirectoryImport)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ApplyDirectoryImport")
+            .WithTags("DirectoryImports");
+
         return app;
     }
 
@@ -30,6 +36,18 @@ public static class DirectoryImportEndpointRouteBuilderExtensions
     {
         var result = await sender.Send(
             new PreviewDirectoryImportCommand(new PreviewDirectoryImportRequest(ruleId)),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ApplyDirectoryImport(
+        Guid previewRunId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ApplyDirectoryImportCommand(new ApplyDirectoryImportRequest(previewRunId)),
             cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
