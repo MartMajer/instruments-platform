@@ -96,6 +96,9 @@ test('runs the Microsoft Graph directory import preview workflow from saved conn
 			.getByText('Algebra sandbox', { exact: true })
 	).toBeVisible();
 	await expect(graphImport.getByText('Active', { exact: true })).toBeVisible();
+	await expect(graphImport.getByLabel('Microsoft tenant ID')).toBeHidden();
+	await graphImport.getByText('Manual connection fallback').click();
+	await expect(graphImport.getByLabel('Microsoft tenant ID')).toBeVisible();
 
 	await graphImport.getByLabel('Rule name').fill('Third year students');
 	await graphImport.getByLabel('Departments').fill('Psychology, Sociology');
@@ -135,6 +138,14 @@ test('runs the Microsoft Graph directory import preview workflow from saved conn
 	await expect(previewCounts.getByText('No change')).toBeVisible();
 	await expect(previewCounts.getByText('2', { exact: true })).toBeVisible();
 	await expect(graphImport.getByRole('button', { name: 'Apply import' })).toBeEnabled();
+
+	const connectionColumn = graphImport.getByTestId('graph-connection-column');
+	const ruleColumn = graphImport.getByTestId('graph-rule-column');
+	const connectionBox = await connectionColumn.boundingBox();
+	const ruleBox = await ruleColumn.boundingBox();
+	expect(connectionBox).not.toBeNull();
+	expect(ruleBox).not.toBeNull();
+	expect(connectionBox!.width).toBeLessThanOrEqual(ruleBox!.width);
 });
 
 test('starts Microsoft Graph admin consent from the Directory page', async ({ page }) => {

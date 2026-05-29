@@ -767,11 +767,15 @@
 		</details>
 	</section>
 
-	<section class="product-panel" aria-label="Microsoft Graph directory import">
+	<section
+		class="product-panel directory-graph-import-panel"
+		data-priority="primary"
+		aria-label="Microsoft Graph directory import"
+	>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">Microsoft Graph</p>
-				<h2 class="product-title">Directory import</h2>
+				<h2 class="product-title">Microsoft 365 directory import</h2>
 				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
 					Connect a Microsoft 365 tenant, save an import rule, preview the diff, then apply the
 					snapshot before study launch.
@@ -824,8 +828,8 @@
 				</div>
 			</dl>
 
-			<div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-				<div class="grid gap-3">
+			<div class="directory-graph-grid">
+				<div class="directory-graph-column" data-testid="graph-connection-column">
 					<div>
 						<p class="product-kicker">Connection</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">Microsoft tenant</h3>
@@ -854,7 +858,7 @@
 						<InlineAlert
 							variant="info"
 							title="No Microsoft connection"
-							message="Create a sandbox connection here after admin consent is granted."
+							message="Use Microsoft admin consent first. Open the manual fallback only if that flow cannot return."
 						/>
 					{:else}
 						<div class="record-list">
@@ -888,44 +892,47 @@
 						</div>
 					{/if}
 
-					<form
-						class="grid gap-3"
-						onsubmit={(event) => {
-							event.preventDefault();
-							void createGraphConnection();
-						}}
-					>
-						<label class="field">
-							<span>Connection name</span>
-							<input bind:value={graphConnectionDisplayName} disabled={creatingGraphConnection} />
-						</label>
-						<label class="field">
-							<span>Microsoft tenant ID</span>
-							<input bind:value={graphConnectionTenantId} disabled={creatingGraphConnection} />
-						</label>
-						<label class="field">
-							<span>Primary domain</span>
-							<input bind:value={graphConnectionPrimaryDomain} disabled={creatingGraphConnection} />
-						</label>
-						<label class="field">
-							<span>Granted scopes</span>
-							<input bind:value={graphConnectionScopes} disabled={creatingGraphConnection} />
-						</label>
-						<button type="submit" class="secondary-button" disabled={creatingGraphConnection}>
-							{#if creatingGraphConnection}
-								<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
-							{:else}
-								<Plus size={16} aria-hidden="true" />
+					<details class="directory-graph-fallback">
+						<summary>Manual connection fallback</summary>
+						<form
+							class="grid gap-3 pt-3"
+							onsubmit={(event) => {
+								event.preventDefault();
+								void createGraphConnection();
+							}}
+						>
+							<label class="field">
+								<span>Connection name</span>
+								<input bind:value={graphConnectionDisplayName} disabled={creatingGraphConnection} />
+							</label>
+							<label class="field">
+								<span>Microsoft tenant ID</span>
+								<input bind:value={graphConnectionTenantId} disabled={creatingGraphConnection} />
+							</label>
+							<label class="field">
+								<span>Primary domain</span>
+								<input bind:value={graphConnectionPrimaryDomain} disabled={creatingGraphConnection} />
+							</label>
+							<label class="field">
+								<span>Granted scopes</span>
+								<input bind:value={graphConnectionScopes} disabled={creatingGraphConnection} />
+							</label>
+							<button type="submit" class="secondary-button" disabled={creatingGraphConnection}>
+								{#if creatingGraphConnection}
+									<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+								{:else}
+									<Plus size={16} aria-hidden="true" />
+								{/if}
+								<span>{creatingGraphConnection ? 'Saving connection' : 'Save connection'}</span>
+							</button>
+							{#if graphConnectionError}
+								<p class="error-line" role="alert">{graphConnectionError}</p>
 							{/if}
-							<span>{creatingGraphConnection ? 'Saving connection' : 'Save connection'}</span>
-						</button>
-						{#if graphConnectionError}
-							<p class="error-line" role="alert">{graphConnectionError}</p>
-						{/if}
-					</form>
+						</form>
+					</details>
 				</div>
 
-				<div class="grid gap-4">
+				<div class="directory-graph-column directory-graph-column--rule" data-testid="graph-rule-column">
 					<form
 						class="grid gap-3"
 						onsubmit={(event) => {
@@ -1005,7 +1012,7 @@
 						{/if}
 					</form>
 
-					<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
+					<div class="directory-graph-preview">
 						<div class="product-panel__header">
 							<div>
 								<p class="product-kicker">Preview and apply</p>

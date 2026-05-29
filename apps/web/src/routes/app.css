@@ -1428,6 +1428,86 @@ a {
 	box-shadow: none;
 }
 
+.directory-graph-import-panel {
+	border-top-width: 2px;
+	background: color-mix(in srgb, var(--color-accent-soft) 24%, transparent);
+	padding: 1rem clamp(0.75rem, 1.8vw, 1rem) 0;
+}
+
+.directory-graph-grid {
+	display: grid;
+	grid-template-columns: minmax(16rem, 0.72fr) minmax(0, 1.28fr);
+	gap: 1rem;
+	align-items: start;
+	min-width: 0;
+}
+
+.directory-graph-column {
+	display: grid;
+	gap: 0.75rem;
+	min-width: 0;
+	align-self: start;
+}
+
+.directory-graph-column--rule {
+	gap: 1rem;
+}
+
+.directory-graph-fallback {
+	min-width: 0;
+	border-top: 1px solid var(--color-border);
+	padding-top: 0.75rem;
+}
+
+.directory-graph-fallback summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	cursor: pointer;
+	font-size: 0.875rem;
+	font-weight: 650;
+	color: var(--color-text-muted);
+}
+
+.directory-graph-fallback summary::after {
+	display: inline-grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	flex: 0 0 auto;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	content: '+';
+	font-size: 0.9375rem;
+	font-weight: 800;
+	color: var(--color-text-muted);
+}
+
+.directory-graph-fallback[open] summary::after {
+	content: '-';
+}
+
+.directory-graph-preview {
+	display: grid;
+	gap: 0.75rem;
+	min-width: 0;
+	border-top: 1px solid var(--color-border);
+	padding-top: 1rem;
+}
+
+.directory-graph-import-panel .record-row__title,
+.directory-graph-import-panel .record-field__value {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+	.directory-graph-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
 .product-panel[data-priority='trust'] {
 	border-top-color: color-mix(in srgb, var(--color-analysis) 30%, var(--color-border));
 	box-shadow: none;
