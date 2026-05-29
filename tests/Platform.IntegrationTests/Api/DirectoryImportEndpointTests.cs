@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Platform.Application.Features.DirectoryImports;
 using Platform.IntegrationTests.Support;
 using Platform.SharedKernel;
@@ -323,9 +325,92 @@ public sealed class DirectoryImportEndpointTests(WebApplicationFactory<Program> 
         Assert.Equal("customer-tenant", graphClient.Credentials?.TenantId);
     }
 
+    [Fact]
+    public async Task Start_microsoft_graph_admin_consent_returns_authorization_url_with_protected_state()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(
+            new FakeDirectoryImportStore(),
+            new FakeGraphDirectoryClient([]),
+            ConfigureGraphConsentOptions);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/admin-consent/start",
+            tenantId,
+            permissions: "setup.manage");
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content
+            .ReadFromJsonAsync<MicrosoftGraphAdminConsentStartResponse>();
+        Assert.NotNull(payload);
+        var uri = new Uri(payload.AuthorizationUrl);
+        Assert.Equal("login.microsoftonline.com", uri.Host);
+        Assert.Equal("/organizations/v2.0/adminconsent", uri.AbsolutePath);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        Assert.Equal("graph-client-id", query["client_id"]);
+        Assert.Equal("https://graph.microsoft.com/.default", query["scope"]);
+        Assert.Equal(
+            "https://api.example.test/directory-connections/microsoft-graph/admin-consent/callback",
+            query["redirect_uri"]);
+        Assert.True(query.ContainsKey("state"));
+        Assert.DoesNotContain(tenantId.ToString(), query["state"].ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_admin_consent_callback_creates_connection_from_protected_state()
+    {
+        var tenantId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var connectionResponse = new DirectoryConnectionResponse(
+            connectionId,
+            "microsoft_graph",
+            "customer-tenant-id",
+            "Microsoft tenant customer-tenant-id",
+            "customer-tenant-id",
+            ["User.Read.All", "Group.Read.All", "GroupMember.Read.All"],
+            "active",
+            LastSuccessfulSyncAt: null,
+            DateTimeOffset.Parse("2026-05-30T08:00:00Z"));
+        var store = new FakeDirectoryImportStore(connectionResponse: connectionResponse);
+        using var client = CreateClient(store, new FakeGraphDirectoryClient([]), ConfigureGraphConsentOptions);
+        using var startRequest = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/admin-consent/start",
+            tenantId,
+            permissions: "setup.manage");
+        var startResponse = await client.SendAsync(startRequest);
+        var startPayload = await startResponse.Content
+            .ReadFromJsonAsync<MicrosoftGraphAdminConsentStartResponse>();
+        Assert.NotNull(startPayload);
+        var state = QueryHelpers.ParseQuery(new Uri(startPayload.AuthorizationUrl).Query)["state"].ToString();
+
+        var callbackResponse = await client.GetAsync(
+            "/directory-connections/microsoft-graph/admin-consent/callback" +
+            "?admin_consent=True" +
+            "&tenant=customer-tenant-id" +
+            "&scope=https%3A%2F%2Fgraph.microsoft.com%2FUser.Read.All%20https%3A%2F%2Fgraph.microsoft.com%2FGroup.Read.All%20https%3A%2F%2Fgraph.microsoft.com%2FGroupMember.Read.All" +
+            $"&state={Uri.EscapeDataString(state)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, callbackResponse.StatusCode);
+        Assert.Equal(
+            "https://staging.example.test/app/directory?directoryConnection=connected",
+            callbackResponse.Headers.Location?.ToString());
+        Assert.Equal(tenantId, store.CreateConnectionTenantId);
+        Assert.NotNull(store.CreateConnectionRequest);
+        Assert.Equal("customer-tenant-id", store.CreateConnectionRequest.ExternalTenantId);
+        Assert.Equal("Microsoft tenant customer-tenant-id", store.CreateConnectionRequest.DisplayName);
+        Assert.Equal("customer-tenant-id", store.CreateConnectionRequest.PrimaryDomain);
+        Assert.Equal(
+            ["User.Read.All", "Group.Read.All", "GroupMember.Read.All"],
+            store.CreateConnectionRequest.GrantedScopes);
+    }
+
     private HttpClient CreateClient(
         IDirectoryImportStore store,
-        IGraphDirectoryClient graphClient)
+        IGraphDirectoryClient graphClient,
+        Action<IServiceCollection>? configureServices = null)
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -342,8 +427,24 @@ public sealed class DirectoryImportEndpointTests(WebApplicationFactory<Program> 
 
                 services.AddScoped(_ => store);
                 services.AddScoped(_ => graphClient);
+                configureServices?.Invoke(services);
             });
-        }).CreateClient();
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+    }
+
+    private static void ConfigureGraphConsentOptions(IServiceCollection services)
+    {
+        services.PostConfigure<MicrosoftGraphDirectoryImportOptions>(options =>
+        {
+            options.ClientId = "graph-client-id";
+            options.ClientSecret = "graph-client-secret";
+            options.AdminConsentRedirectUri =
+                "https://api.example.test/directory-connections/microsoft-graph/admin-consent/callback";
+            options.PostConsentRedirectUrl = "https://staging.example.test/app/directory";
+        });
     }
 
     private static HttpRequestMessage AuthenticatedRequest(

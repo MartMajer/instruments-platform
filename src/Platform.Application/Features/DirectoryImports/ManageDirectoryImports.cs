@@ -1,5 +1,8 @@
 using System.Text.Json;
 using FluentValidation;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Options;
 using MediatR;
 using Platform.Application.Auth;
 using Platform.Application.Tenancy;
@@ -29,6 +32,21 @@ public sealed record CreateDirectoryImportRuleRequest(
 
 public sealed record CreateDirectoryImportRuleCommand(CreateDirectoryImportRuleRequest Request)
     : IRequest<Result<DirectoryImportRuleResponse>>;
+
+public sealed record StartMicrosoftGraphAdminConsentCommand()
+    : IRequest<Result<MicrosoftGraphAdminConsentStartResponse>>;
+
+public sealed record CompleteMicrosoftGraphAdminConsentRequest(
+    string? AdminConsent,
+    string? Tenant,
+    string? Scope,
+    string? State,
+    string? Error,
+    string? ErrorDescription);
+
+public sealed record CompleteMicrosoftGraphAdminConsentCommand(
+    CompleteMicrosoftGraphAdminConsentRequest Request)
+    : IRequest<Result<MicrosoftGraphAdminConsentCallbackResponse>>;
 
 public sealed class CreateDirectoryConnectionValidator
     : AbstractValidator<CreateDirectoryConnectionCommand>
@@ -140,6 +158,181 @@ public sealed class CreateDirectoryImportRuleHandler(
     }
 }
 
+public sealed class StartMicrosoftGraphAdminConsentHandler(
+    ICurrentTenant currentTenant,
+    ICurrentActor actor,
+    IDataProtectionProvider dataProtectionProvider,
+    IOptions<MicrosoftGraphDirectoryImportOptions> graphOptions)
+    : IRequestHandler<StartMicrosoftGraphAdminConsentCommand, Result<MicrosoftGraphAdminConsentStartResponse>>
+{
+    public Task<Result<MicrosoftGraphAdminConsentStartResponse>> Handle(
+        StartMicrosoftGraphAdminConsentCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (!actor.UserId.HasValue)
+        {
+            return Task.FromResult(Result.Failure<MicrosoftGraphAdminConsentStartResponse>(
+                Error.Forbidden("actor.required", "Authenticated actor is required.")));
+        }
+
+        var options = graphOptions.Value;
+        if (!options.IsAdminConsentConfigured)
+        {
+            return Task.FromResult(Result.Failure<MicrosoftGraphAdminConsentStartResponse>(
+                Error.Conflict(
+                    "directory_import.microsoft_graph_admin_consent_not_configured",
+                    "Microsoft Graph admin consent settings are not configured.")));
+        }
+
+        var state = new MicrosoftGraphAdminConsentState(
+            currentTenant.TenantId,
+            actor.UserId.Value,
+            DateTimeOffset.UtcNow);
+        var protectedState = ProtectState(dataProtectionProvider, state);
+        var tenant = string.IsNullOrWhiteSpace(options.AdminConsentTenant)
+            ? "organizations"
+            : options.AdminConsentTenant.Trim();
+        var query = new Dictionary<string, string?>
+        {
+            ["client_id"] = options.ClientId!.Trim(),
+            ["scope"] = "https://graph.microsoft.com/.default",
+            ["redirect_uri"] = options.AdminConsentRedirectUri!.Trim(),
+            ["state"] = protectedState
+        };
+        var authorizationUrl = QueryHelpers.AddQueryString(
+            $"https://login.microsoftonline.com/{Uri.EscapeDataString(tenant)}/v2.0/adminconsent",
+            query);
+
+        return Task.FromResult(Result.Success(new MicrosoftGraphAdminConsentStartResponse(authorizationUrl)));
+    }
+
+    internal static string ProtectState(
+        IDataProtectionProvider dataProtectionProvider,
+        MicrosoftGraphAdminConsentState state)
+    {
+        var protector = dataProtectionProvider
+            .CreateProtector("Platform.DirectoryImports.MicrosoftGraph.AdminConsent.v1")
+            .ToTimeLimitedDataProtector();
+
+        return protector.Protect(JsonSerializer.Serialize(state), TimeSpan.FromMinutes(30));
+    }
+}
+
+public sealed class CompleteMicrosoftGraphAdminConsentHandler(
+    IDataProtectionProvider dataProtectionProvider,
+    IOptions<MicrosoftGraphDirectoryImportOptions> graphOptions,
+    IDirectoryImportStore store)
+    : IRequestHandler<CompleteMicrosoftGraphAdminConsentCommand, Result<MicrosoftGraphAdminConsentCallbackResponse>>
+{
+    private static readonly string[] DefaultGrantedScopes =
+    [
+        "User.Read.All",
+        "Group.Read.All",
+        "GroupMember.Read.All"
+    ];
+
+    public async Task<Result<MicrosoftGraphAdminConsentCallbackResponse>> Handle(
+        CompleteMicrosoftGraphAdminConsentCommand command,
+        CancellationToken cancellationToken)
+    {
+        var options = graphOptions.Value;
+        if (string.IsNullOrWhiteSpace(options.PostConsentRedirectUrl))
+        {
+            return Result.Failure<MicrosoftGraphAdminConsentCallbackResponse>(
+                Error.Conflict(
+                    "directory_import.microsoft_graph_admin_consent_not_configured",
+                    "Microsoft Graph admin consent return URL is not configured."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(command.Request.Error))
+        {
+            return Result.Success(new MicrosoftGraphAdminConsentCallbackResponse(
+                AppendConsentStatus(options.PostConsentRedirectUrl, "failed")));
+        }
+
+        if (!string.Equals(command.Request.AdminConsent, "True", StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(command.Request.Tenant) ||
+            string.IsNullOrWhiteSpace(command.Request.State))
+        {
+            return Result.Success(new MicrosoftGraphAdminConsentCallbackResponse(
+                AppendConsentStatus(options.PostConsentRedirectUrl, "failed")));
+        }
+
+        var state = UnprotectState(dataProtectionProvider, command.Request.State);
+        if (state is null)
+        {
+            return Result.Success(new MicrosoftGraphAdminConsentCallbackResponse(
+                AppendConsentStatus(options.PostConsentRedirectUrl, "failed")));
+        }
+
+        var externalTenantId = command.Request.Tenant.Trim();
+        var connectionRequest = new CreateDirectoryConnectionRequest(
+            externalTenantId,
+            $"Microsoft tenant {externalTenantId}",
+            externalTenantId,
+            ParseGrantedScopes(command.Request.Scope));
+        var connectionResult = await store.CreateConnectionAsync(
+            state.TenantId,
+            connectionRequest,
+            cancellationToken);
+
+        return connectionResult.IsSuccess
+            ? Result.Success(new MicrosoftGraphAdminConsentCallbackResponse(
+                AppendConsentStatus(options.PostConsentRedirectUrl, "connected")))
+            : Result.Success(new MicrosoftGraphAdminConsentCallbackResponse(
+                AppendConsentStatus(options.PostConsentRedirectUrl, "failed")));
+    }
+
+    private static MicrosoftGraphAdminConsentState? UnprotectState(
+        IDataProtectionProvider dataProtectionProvider,
+        string protectedState)
+    {
+        try
+        {
+            var protector = dataProtectionProvider
+                .CreateProtector("Platform.DirectoryImports.MicrosoftGraph.AdminConsent.v1")
+                .ToTimeLimitedDataProtector();
+            var json = protector.Unprotect(protectedState);
+            return JsonSerializer.Deserialize<MicrosoftGraphAdminConsentState>(json);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    private static IReadOnlyList<string> ParseGrantedScopes(string? scope)
+    {
+        if (string.IsNullOrWhiteSpace(scope))
+        {
+            return DefaultGrantedScopes;
+        }
+
+        var scopes = scope
+            .Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(value =>
+            {
+                var lastSlashIndex = value.LastIndexOf('/');
+                return lastSlashIndex >= 0 && lastSlashIndex < value.Length - 1
+                    ? value[(lastSlashIndex + 1)..]
+                    : value;
+            })
+            .Where(value => !string.IsNullOrWhiteSpace(value) && value != ".default")
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return scopes.Length == 0 ? DefaultGrantedScopes : scopes;
+    }
+
+    private static string AppendConsentStatus(string returnUrl, string status)
+    {
+        return QueryHelpers.AddQueryString(
+            returnUrl,
+            "directoryConnection",
+            status);
+    }
+}
+
 public sealed record DirectoryImportWorkspaceResponse(
     Guid TenantId,
     IReadOnlyList<DirectoryConnectionResponse> Connections,
@@ -177,3 +370,12 @@ public sealed record DirectoryImportRunHistoryResponse(
     DateTimeOffset StartedAt,
     DateTimeOffset? FinishedAt,
     JsonElement Summary);
+
+public sealed record MicrosoftGraphAdminConsentStartResponse(string AuthorizationUrl);
+
+public sealed record MicrosoftGraphAdminConsentCallbackResponse(string RedirectUrl);
+
+internal sealed record MicrosoftGraphAdminConsentState(
+    Guid TenantId,
+    Guid UserId,
+    DateTimeOffset StartedAt);

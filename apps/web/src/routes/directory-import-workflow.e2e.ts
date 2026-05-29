@@ -137,6 +137,39 @@ test('runs the Microsoft Graph directory import preview workflow from saved conn
 	await expect(graphImport.getByRole('button', { name: 'Apply import' })).toBeEnabled();
 });
 
+test('starts Microsoft Graph admin consent from the Directory page', async ({ page }) => {
+	let startedConsent = false;
+
+	await routeEmptyGraphImportWorkspace(page);
+	await page.route('**/directory-connections/microsoft-graph/admin-consent/start', async (route) => {
+		if (
+			route.request().method() !== 'POST' ||
+			!isProductApiPath(
+				route.request().url(),
+				'/directory-connections/microsoft-graph/admin-consent/start'
+			)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		startedConsent = true;
+		await route.fulfill({
+			json: {
+				authorizationUrl: '/mock-microsoft-admin-consent'
+			}
+		});
+	});
+
+	await page.goto('/app/directory');
+
+	const graphImport = page.getByRole('region', { name: 'Microsoft Graph directory import' });
+	await graphImport.getByRole('button', { name: 'Connect Microsoft tenant' }).click();
+
+	await expect.poll(() => startedConsent).toBe(true);
+	await page.waitForURL('**/mock-microsoft-admin-consent');
+});
+
 async function routeAuthenticatedSession(page: Page) {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
@@ -209,6 +242,19 @@ async function routeGraphImportWorkspace(page: Page) {
 						createdAt: '2026-05-29T18:00:00Z'
 					}
 				],
+				rules: [],
+				recentRuns: []
+			}
+		});
+	});
+}
+
+async function routeEmptyGraphImportWorkspace(page: Page) {
+	await page.route('**/directory-imports/workspace', async (route) => {
+		await route.fulfill({
+			json: {
+				tenantId,
+				connections: [],
 				rules: [],
 				recentRuns: []
 			}

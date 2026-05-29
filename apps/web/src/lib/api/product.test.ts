@@ -218,6 +218,7 @@ describe('createProductApi', () => {
 		});
 
 		await api.getDirectoryImportWorkspace();
+		await api.startMicrosoftGraphAdminConsent();
 		await api.createDirectoryConnection({
 			externalTenantId: 'customer-tenant',
 			displayName: 'Algebra sandbox',
@@ -243,6 +244,16 @@ describe('createProductApi', () => {
 
 		expect(calls).toEqual([
 			{ path: '/directory-imports/workspace', init: undefined },
+			{
+				path: '/directory-connections/microsoft-graph/admin-consent/start',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({})
+				}
+			},
 			{
 				path: '/directory-connections',
 				init: {

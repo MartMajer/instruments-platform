@@ -26,6 +26,20 @@ public static class DirectoryImportEndpointRouteBuilderExtensions
             .WithName("CreateDirectoryConnection")
             .WithTags("DirectoryImports");
 
+        app.MapPost(
+                "/directory-connections/microsoft-graph/admin-consent/start",
+                StartMicrosoftGraphAdminConsent)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("StartMicrosoftGraphAdminConsent")
+            .WithTags("DirectoryImports");
+
+        app.MapGet(
+                "/directory-connections/microsoft-graph/admin-consent/callback",
+                CompleteMicrosoftGraphAdminConsent)
+            .WithName("CompleteMicrosoftGraphAdminConsent")
+            .WithTags("DirectoryImports");
+
         app.MapPost("/directory-import-rules", CreateDirectoryImportRule)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -64,6 +78,41 @@ public static class DirectoryImportEndpointRouteBuilderExtensions
         var result = await sender.Send(new CreateDirectoryConnectionCommand(request), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> StartMicrosoftGraphAdminConsent(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new StartMicrosoftGraphAdminConsentCommand(), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CompleteMicrosoftGraphAdminConsent(
+        string? admin_consent,
+        string? tenant,
+        string? scope,
+        string? state,
+        string? error,
+        string? error_description,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new CompleteMicrosoftGraphAdminConsentCommand(
+                new CompleteMicrosoftGraphAdminConsentRequest(
+                    admin_consent,
+                    tenant,
+                    scope,
+                    state,
+                    error,
+                    error_description)),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Results.Redirect(result.Value.RedirectUrl)
+            : ProductSurfaceHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> CreateDirectoryImportRule(

@@ -224,6 +224,29 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Compose_and_env_examples_expose_microsoft_graph_admin_consent_config()
+    {
+        var compose = ReadRepoFile("deploy/staging/docker-compose.yml");
+
+        Assert.Contains("DirectoryImports__MicrosoftGraph__ClientId", compose);
+        Assert.Contains("DirectoryImports__MicrosoftGraph__ClientSecret", compose);
+        Assert.Contains("DirectoryImports__MicrosoftGraph__AdminConsentRedirectUri", compose);
+        Assert.Contains("DirectoryImports__MicrosoftGraph__PostConsentRedirectUrl", compose);
+        Assert.Contains("DirectoryImports__MicrosoftGraph__AdminConsentTenant", compose);
+
+        foreach (var path in new[] { "deploy/staging/env.example", "deploy/staging/vps.env.example" })
+        {
+            var env = ReadRepoFile(path);
+
+            Assert.Contains("DirectoryImports__MicrosoftGraph__ClientId=", env);
+            Assert.Contains("DirectoryImports__MicrosoftGraph__ClientSecret=", env);
+            Assert.Contains("DirectoryImports__MicrosoftGraph__AdminConsentRedirectUri=", env);
+            Assert.Contains("DirectoryImports__MicrosoftGraph__PostConsentRedirectUrl=", env);
+            Assert.Contains("DirectoryImports__MicrosoftGraph__AdminConsentTenant=organizations", env);
+        }
+    }
+
+    [Fact]
     public void Staging_release_check_runner_runs_backup_restore_smoke_with_live_gates()
     {
         var script = ReadRepoFile("deploy/staging/run-release-checks.ps1");

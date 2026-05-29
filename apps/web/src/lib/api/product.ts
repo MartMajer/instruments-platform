@@ -282,6 +282,10 @@ export type CreateDirectoryConnectionRequest = {
 	grantedScopes: string[];
 };
 
+export type MicrosoftGraphAdminConsentStartResponse = {
+	authorizationUrl: string;
+};
+
 export type CreateDirectoryImportRuleRequest = {
 	connectionId: string;
 	name: string;
@@ -1237,6 +1241,11 @@ export function createProductApi(client: ApiClient) {
 			client.request<DirectoryConnectionResponse>(
 				'/directory-connections',
 				jsonRequest('POST', request)
+			),
+		startMicrosoftGraphAdminConsent: () =>
+			client.request<MicrosoftGraphAdminConsentStartResponse>(
+				'/directory-connections/microsoft-graph/admin-consent/start',
+				jsonRequest('POST', {})
 			),
 		createDirectoryImportRule: (request: CreateDirectoryImportRuleRequest) =>
 			client.request<DirectoryImportRuleResponse>(

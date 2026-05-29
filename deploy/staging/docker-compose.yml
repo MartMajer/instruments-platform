@@ -86,6 +86,11 @@ services:
       Authentication__Oidc__SubjectTenantClaim: ${Authentication__Oidc__SubjectTenantClaim:-}
       Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing: ${Authentication__Oidc__AssumeEmailVerifiedWhenClaimMissing:-false}
       Authentication__Oidc__ProviderLogoutMode: ${Authentication__Oidc__ProviderLogoutMode:-auth0}
+      DirectoryImports__MicrosoftGraph__ClientId: ${DirectoryImports__MicrosoftGraph__ClientId:-}
+      DirectoryImports__MicrosoftGraph__ClientSecret: ${DirectoryImports__MicrosoftGraph__ClientSecret:-}
+      DirectoryImports__MicrosoftGraph__AdminConsentRedirectUri: ${DirectoryImports__MicrosoftGraph__AdminConsentRedirectUri:-}
+      DirectoryImports__MicrosoftGraph__PostConsentRedirectUrl: ${DirectoryImports__MicrosoftGraph__PostConsentRedirectUrl:-}
+      DirectoryImports__MicrosoftGraph__AdminConsentTenant: ${DirectoryImports__MicrosoftGraph__AdminConsentTenant:-organizations}
       Registration__Enabled: ${Registration__Enabled:-false}
       Registration__IntentMinutes: ${Registration__IntentMinutes:-15}
       Registration__BetaAccessCodeSha256Hashes__0: ${Registration__BetaAccessCodeSha256Hashes__0:-}

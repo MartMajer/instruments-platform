@@ -83,6 +83,8 @@
 	let graphWorkspaceError = $state<string | null>(null);
 	let selectedDirectoryConnectionId = $state('');
 	let selectedDirectoryImportRuleId = $state('');
+	let startingGraphAdminConsent = $state(false);
+	let graphAdminConsentError = $state<string | null>(null);
 	let graphConnectionDisplayName = $state('');
 	let graphConnectionTenantId = $state('');
 	let graphConnectionPrimaryDomain = $state('');
@@ -134,6 +136,7 @@
 	const selectedDirectoryImportRule = $derived(
 		graphRules.find((rule) => rule.id === selectedDirectoryImportRuleId) ?? graphRules[0] ?? null
 	);
+	const graphConnectionReturnStatus = $derived(page.url.searchParams.get('directoryConnection'));
 	const graphImportBusy = $derived(previewingGraphImport || applyingGraphImport || savingGraphRule);
 	const graphMirrorConfirmationText = 'MIRROR MICROSOFT DIRECTORY';
 	const graphSaveRuleDisabled = $derived(
@@ -213,6 +216,27 @@
 				'Microsoft Graph directory import workspace could not be loaded.'
 			);
 			graphWorkspaceState = 'error';
+		}
+	}
+
+	async function startGraphAdminConsent() {
+		if (!canManageSetup) {
+			return;
+		}
+
+		startingGraphAdminConsent = true;
+		graphAdminConsentError = null;
+
+		try {
+			const response = await productApi.startMicrosoftGraphAdminConsent();
+			window.location.assign(response.authorizationUrl);
+		} catch (error) {
+			graphAdminConsentError = toProductApiErrorMessage(
+				error,
+				'Microsoft admin consent could not be started.'
+			);
+		} finally {
+			startingGraphAdminConsent = false;
 		}
 	}
 
@@ -771,6 +795,19 @@
 					message={graphWorkspaceError}
 				/>
 			{/if}
+			{#if graphConnectionReturnStatus === 'connected'}
+				<InlineAlert
+					variant="success"
+					title="Microsoft tenant connected"
+					message="The tenant admin consent callback created a Microsoft Graph connection."
+				/>
+			{:else if graphConnectionReturnStatus === 'failed'}
+				<InlineAlert
+					variant="warning"
+					title="Microsoft tenant connection failed"
+					message="The Microsoft admin consent callback did not complete. Start consent again from this page."
+				/>
+			{/if}
 
 			<dl class="directory-count-list" role="group" aria-label="Microsoft Graph import counts">
 				<div class="directory-count-row">
@@ -792,6 +829,25 @@
 					<div>
 						<p class="product-kicker">Connection</p>
 						<h3 class="text-base font-semibold text-[var(--color-text)]">Microsoft tenant</h3>
+					</div>
+
+					<div class="grid gap-2">
+						<button
+							type="button"
+							class="primary-button"
+							disabled={startingGraphAdminConsent}
+							onclick={startGraphAdminConsent}
+						>
+							{#if startingGraphAdminConsent}
+								<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+							{:else}
+								<Link2 size={16} aria-hidden="true" />
+							{/if}
+							<span>{startingGraphAdminConsent ? 'Opening Microsoft' : 'Connect Microsoft tenant'}</span>
+						</button>
+						{#if graphAdminConsentError}
+							<p class="error-line" role="alert">{graphAdminConsentError}</p>
+						{/if}
 					</div>
 
 					{#if graphConnections.length === 0}
