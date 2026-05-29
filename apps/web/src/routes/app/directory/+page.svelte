@@ -4,6 +4,10 @@
 	import { onDestroy } from 'svelte';
 	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, Upload, UserRound } from 'lucide-svelte';
 	import type {
+		DirectoryImportApplyResponse,
+		DirectoryImportPreviewResponse,
+		DirectoryImportRuleResponse,
+		DirectoryImportWorkspaceResponse,
 		SubjectDirectoryCsvImportResponse,
 		SubjectDirectoryItemResponse,
 		SubjectDirectoryResponse,
@@ -74,6 +78,31 @@
 	let applyingCsv = $state(false);
 	let importResult = $state<SubjectDirectoryCsvImportResponse | null>(null);
 	let importError = $state<string | null>(null);
+	let graphWorkspace = $state<DirectoryImportWorkspaceResponse | null>(null);
+	let graphWorkspaceState = $state<LoadState>('idle');
+	let graphWorkspaceError = $state<string | null>(null);
+	let selectedDirectoryConnectionId = $state('');
+	let selectedDirectoryImportRuleId = $state('');
+	let graphConnectionDisplayName = $state('');
+	let graphConnectionTenantId = $state('');
+	let graphConnectionPrimaryDomain = $state('');
+	let graphConnectionScopes = $state('User.Read.All, Group.Read.All, GroupMember.Read.All');
+	let creatingGraphConnection = $state(false);
+	let graphConnectionError = $state<string | null>(null);
+	let graphRuleName = $state('');
+	let graphRuleDepartments = $state('');
+	let graphRuleGroupIds = $state('');
+	let graphRuleJobTitleContains = $state('');
+	let graphRuleIncludeManagers = $state(false);
+	let graphRuleMirrorMode = $state(false);
+	let graphRuleMirrorConfirmation = $state('');
+	let savingGraphRule = $state(false);
+	let graphRuleError = $state<string | null>(null);
+	let previewingGraphImport = $state(false);
+	let applyingGraphImport = $state(false);
+	let graphPreview = $state<DirectoryImportPreviewResponse | null>(null);
+	let graphApplyResult = $state<DirectoryImportApplyResponse | null>(null);
+	let graphImportError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -94,6 +123,25 @@
 		importResult?.rows.some((row) => row.status === 'failed') ?? false
 	);
 	const importBusy = $derived(previewingCsv || applyingCsv);
+	const graphConnections = $derived(graphWorkspace?.connections ?? []);
+	const graphRules = $derived(graphWorkspace?.rules ?? []);
+	const graphRecentRuns = $derived(graphWorkspace?.recentRuns ?? []);
+	const selectedDirectoryConnection = $derived(
+		graphConnections.find((connection) => connection.id === selectedDirectoryConnectionId) ??
+			graphConnections[0] ??
+			null
+	);
+	const selectedDirectoryImportRule = $derived(
+		graphRules.find((rule) => rule.id === selectedDirectoryImportRuleId) ?? graphRules[0] ?? null
+	);
+	const graphImportBusy = $derived(previewingGraphImport || applyingGraphImport || savingGraphRule);
+	const graphMirrorConfirmationText = 'MIRROR MICROSOFT DIRECTORY';
+	const graphSaveRuleDisabled = $derived(
+		graphImportBusy ||
+			!selectedDirectoryConnection ||
+			!graphRuleName.trim() ||
+			(graphRuleMirrorMode && graphRuleMirrorConfirmation.trim() !== graphMirrorConfirmationText)
+	);
 	const csvTemplateHref = $derived(
 		`data:text/csv;charset=utf-8,${encodeURIComponent('external_id,email,display_name,locale,group_type,group_name,role_in_group\nemp-001,ana@example.test,Ana Analyst,en,department,Research,member\nemp-002,bo@example.test,Bo Builder,en,department,Operations,member')}`
 	);
@@ -101,6 +149,12 @@
 	$effect(() => {
 		if (canManageSetup && loadState === 'idle') {
 			void loadDirectory();
+		}
+	});
+
+	$effect(() => {
+		if (canManageSetup && graphWorkspaceState === 'idle') {
+			void loadGraphImportWorkspace();
 		}
 	});
 
@@ -140,6 +194,145 @@
 			groupList = null;
 			errorMessage = toProductApiErrorMessage(error, text.directory.loadFailed);
 			loadState = 'error';
+		}
+	}
+
+	async function loadGraphImportWorkspace() {
+		graphWorkspaceState = 'loading';
+		graphWorkspaceError = null;
+
+		try {
+			const workspace = await productApi.getDirectoryImportWorkspace();
+			graphWorkspace = workspace;
+			syncGraphImportSelections(workspace);
+			graphWorkspaceState = 'ready';
+		} catch (error) {
+			graphWorkspace = null;
+			graphWorkspaceError = toProductApiErrorMessage(
+				error,
+				'Microsoft Graph directory import workspace could not be loaded.'
+			);
+			graphWorkspaceState = 'error';
+		}
+	}
+
+	async function createGraphConnection() {
+		if (!canManageSetup) {
+			return;
+		}
+
+		if (
+			!graphConnectionDisplayName.trim() ||
+			!graphConnectionTenantId.trim() ||
+			!graphConnectionPrimaryDomain.trim()
+		) {
+			graphConnectionError = 'Connection name, tenant ID, and primary domain are required.';
+			return;
+		}
+
+		creatingGraphConnection = true;
+		graphConnectionError = null;
+
+		try {
+			const connection = await productApi.createDirectoryConnection({
+				displayName: graphConnectionDisplayName.trim(),
+				externalTenantId: graphConnectionTenantId.trim(),
+				primaryDomain: graphConnectionPrimaryDomain.trim(),
+				grantedScopes: splitList(graphConnectionScopes)
+			});
+			graphWorkspace = mergeGraphWorkspace({
+				connections: [connection, ...graphConnections.filter((item) => item.id !== connection.id)]
+			});
+			selectedDirectoryConnectionId = connection.id;
+			graphConnectionDisplayName = '';
+			graphConnectionTenantId = '';
+			graphConnectionPrimaryDomain = '';
+			graphConnectionScopes = 'User.Read.All, Group.Read.All, GroupMember.Read.All';
+		} catch (error) {
+			graphConnectionError = toProductApiErrorMessage(
+				error,
+				'Microsoft Graph connection could not be saved.'
+			);
+		} finally {
+			creatingGraphConnection = false;
+		}
+	}
+
+	async function saveGraphImportRule() {
+		if (!canManageSetup || !selectedDirectoryConnection) {
+			graphRuleError = 'Select a Microsoft Graph connection first.';
+			return;
+		}
+
+		if (graphSaveRuleDisabled) {
+			graphRuleError = graphRuleMirrorMode
+				? `Type ${graphMirrorConfirmationText} before saving a mirror rule.`
+				: 'Rule name is required.';
+			return;
+		}
+
+		savingGraphRule = true;
+		graphRuleError = null;
+		graphImportError = null;
+		graphPreview = null;
+		graphApplyResult = null;
+
+		try {
+			const rule = await productApi.createDirectoryImportRule({
+				connectionId: selectedDirectoryConnection.id,
+				name: graphRuleName.trim(),
+				criteria: buildGraphImportCriteria(),
+				fieldSelection: buildGraphImportFieldSelection(),
+				mirrorMode: graphRuleMirrorMode,
+				mirrorConfirmation: graphRuleMirrorMode ? graphRuleMirrorConfirmation.trim() : null
+			});
+			graphWorkspace = mergeGraphWorkspace({
+				rules: [rule, ...graphRules.filter((item) => item.id !== rule.id)]
+			});
+			selectedDirectoryImportRuleId = rule.id;
+		} catch (error) {
+			graphRuleError = toProductApiErrorMessage(error, 'Directory import rule could not be saved.');
+		} finally {
+			savingGraphRule = false;
+		}
+	}
+
+	async function previewGraphImportRule() {
+		const rule = selectedDirectoryImportRule;
+		if (!canManageSetup || !rule) {
+			graphImportError = 'Save or select a directory import rule first.';
+			return;
+		}
+
+		previewingGraphImport = true;
+		graphImportError = null;
+		graphPreview = null;
+		graphApplyResult = null;
+
+		try {
+			graphPreview = await productApi.previewDirectoryImportRule(rule.id);
+		} catch (error) {
+			graphImportError = toProductApiErrorMessage(error, 'Directory import preview failed.');
+		} finally {
+			previewingGraphImport = false;
+		}
+	}
+
+	async function applyGraphImportRun() {
+		if (!canManageSetup || !graphPreview || graphPreview.status !== 'previewed') {
+			return;
+		}
+
+		applyingGraphImport = true;
+		graphImportError = null;
+
+		try {
+			graphApplyResult = await productApi.applyDirectoryImportRun(graphPreview.runId);
+			await Promise.all([loadDirectory(), loadGraphImportWorkspace()]);
+		} catch (error) {
+			graphImportError = toProductApiErrorMessage(error, 'Directory import apply failed.');
+		} finally {
+			applyingGraphImport = false;
 		}
 	}
 
@@ -382,6 +575,70 @@
 		managerSubjectId = subject.managerSubjectId ?? '';
 	}
 
+	function syncGraphImportSelections(workspace: DirectoryImportWorkspaceResponse) {
+		if (
+			!workspace.connections.some((connection) => connection.id === selectedDirectoryConnectionId)
+		) {
+			selectedDirectoryConnectionId = workspace.connections[0]?.id ?? '';
+		}
+
+		if (!workspace.rules.some((rule) => rule.id === selectedDirectoryImportRuleId)) {
+			selectedDirectoryImportRuleId = workspace.rules[0]?.id ?? '';
+		}
+	}
+
+	function mergeGraphWorkspace(
+		updates: Partial<Pick<DirectoryImportWorkspaceResponse, 'connections' | 'rules' | 'recentRuns'>>
+	) {
+		return {
+			tenantId: graphWorkspace?.tenantId ?? authSession?.tenantId ?? '',
+			connections: updates.connections ?? graphWorkspace?.connections ?? [],
+			rules: updates.rules ?? graphWorkspace?.rules ?? [],
+			recentRuns: updates.recentRuns ?? graphWorkspace?.recentRuns ?? []
+		};
+	}
+
+	function splitList(value: string) {
+		return value
+			.split(/[,\n]/)
+			.map((item) => item.trim())
+			.filter(Boolean);
+	}
+
+	function buildGraphImportCriteria() {
+		const criteria: Record<string, unknown> = {
+			accountEnabled: true,
+			excludeGuests: true
+		};
+		const departments = splitList(graphRuleDepartments);
+		const groupIds = splitList(graphRuleGroupIds);
+		const jobTitleContains = graphRuleJobTitleContains.trim();
+
+		if (departments.length > 0) {
+			criteria.departments = departments;
+		}
+
+		if (groupIds.length > 0) {
+			criteria.groupIds = groupIds;
+		}
+
+		if (jobTitleContains) {
+			criteria.jobTitleContains = jobTitleContains;
+		}
+
+		if (graphRuleIncludeManagers) {
+			criteria.includeManagerChain = true;
+		}
+
+		return criteria;
+	}
+
+	function buildGraphImportFieldSelection() {
+		return {
+			fields: ['displayName', 'mail', 'userPrincipalName', 'department', 'jobTitle']
+		};
+	}
+
 	function optionalText(value: string) {
 		const trimmed = value.trim();
 		return trimmed.length > 0 ? trimmed : null;
@@ -411,6 +668,20 @@
 			.filter(Boolean)
 			.map((part) => part.replaceAll('_', ' '))
 			.join(', ');
+	}
+
+	function formatDirectoryImportStatus(status: string) {
+		return status
+			.split('_')
+			.filter(Boolean)
+			.map((part) => part[0]?.toUpperCase() + part.slice(1))
+			.join(' ');
+	}
+
+	function graphRunSummaryValue(summary: Record<string, unknown>, key: string) {
+		const value = summary[key];
+
+		return typeof value === 'number' ? value : 0;
 	}
 </script>
 
@@ -460,7 +731,9 @@
 			</div>
 		</dl>
 
-		<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+		<details
+			class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+		>
 			<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
 				{text.directory.howUsed}
 			</summary>
@@ -468,6 +741,371 @@
 				{text.directory.buildAudienceBody}
 			</p>
 		</details>
+	</section>
+
+	<section class="product-panel" aria-label="Microsoft Graph directory import">
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">Microsoft Graph</p>
+				<h2 class="product-title">Directory import</h2>
+				<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+					Connect a Microsoft 365 tenant, save an import rule, preview the diff, then apply the
+					snapshot before study launch.
+				</p>
+			</div>
+			<button type="button" class="secondary-button" onclick={loadGraphImportWorkspace}>
+				<RefreshCcw size={16} aria-hidden="true" />
+				<span>Refresh Graph state</span>
+			</button>
+		</div>
+
+		{#if graphWorkspaceState === 'loading'}
+			<p class="text-sm text-[var(--color-text-muted)]">
+				Loading Microsoft Graph directory state...
+			</p>
+		{:else}
+			{#if graphWorkspaceError}
+				<InlineAlert
+					variant="warning"
+					title="Microsoft Graph import unavailable"
+					message={graphWorkspaceError}
+				/>
+			{/if}
+
+			<dl class="directory-count-list" role="group" aria-label="Microsoft Graph import counts">
+				<div class="directory-count-row">
+					<dt class="directory-count-row__label">Connections</dt>
+					<dd class="directory-count-row__value">{graphConnections.length}</dd>
+				</div>
+				<div class="directory-count-row">
+					<dt class="directory-count-row__label">Saved rules</dt>
+					<dd class="directory-count-row__value">{graphRules.length}</dd>
+				</div>
+				<div class="directory-count-row">
+					<dt class="directory-count-row__label">Recent runs</dt>
+					<dd class="directory-count-row__value">{graphRecentRuns.length}</dd>
+				</div>
+			</dl>
+
+			<div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+				<div class="grid gap-3">
+					<div>
+						<p class="product-kicker">Connection</p>
+						<h3 class="text-base font-semibold text-[var(--color-text)]">Microsoft tenant</h3>
+					</div>
+
+					{#if graphConnections.length === 0}
+						<InlineAlert
+							variant="info"
+							title="No Microsoft connection"
+							message="Create a sandbox connection here after admin consent is granted."
+						/>
+					{:else}
+						<div class="record-list">
+							{#each graphConnections as connection (connection.id)}
+								<article class="record-row" aria-label={connection.displayName}>
+									<span class="record-row__header">
+										<span class="record-row__title">{connection.displayName}</span>
+										<span
+											class="status-badge"
+											data-status={connection.status === 'active' ? 'ready' : 'pending'}
+										>
+											{formatDirectoryImportStatus(connection.status)}
+										</span>
+									</span>
+									<span class="record-grid">
+										<span class="record-field">
+											<span class="record-field__label">Domain</span>
+											<span class="record-field__value">{connection.primaryDomain}</span>
+										</span>
+										<span class="record-field">
+											<span class="record-field__label">Tenant</span>
+											<span class="record-field__value">{connection.externalTenantId}</span>
+										</span>
+										<span class="record-field">
+											<span class="record-field__label">Scopes</span>
+											<span class="record-field__value">{connection.grantedScopes.join(', ')}</span>
+										</span>
+									</span>
+								</article>
+							{/each}
+						</div>
+					{/if}
+
+					<form
+						class="grid gap-3"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void createGraphConnection();
+						}}
+					>
+						<label class="field">
+							<span>Connection name</span>
+							<input bind:value={graphConnectionDisplayName} disabled={creatingGraphConnection} />
+						</label>
+						<label class="field">
+							<span>Microsoft tenant ID</span>
+							<input bind:value={graphConnectionTenantId} disabled={creatingGraphConnection} />
+						</label>
+						<label class="field">
+							<span>Primary domain</span>
+							<input bind:value={graphConnectionPrimaryDomain} disabled={creatingGraphConnection} />
+						</label>
+						<label class="field">
+							<span>Granted scopes</span>
+							<input bind:value={graphConnectionScopes} disabled={creatingGraphConnection} />
+						</label>
+						<button type="submit" class="secondary-button" disabled={creatingGraphConnection}>
+							{#if creatingGraphConnection}
+								<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+							{:else}
+								<Plus size={16} aria-hidden="true" />
+							{/if}
+							<span>{creatingGraphConnection ? 'Saving connection' : 'Save connection'}</span>
+						</button>
+						{#if graphConnectionError}
+							<p class="error-line" role="alert">{graphConnectionError}</p>
+						{/if}
+					</form>
+				</div>
+
+				<div class="grid gap-4">
+					<form
+						class="grid gap-3"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void saveGraphImportRule();
+						}}
+					>
+						<div>
+							<p class="product-kicker">Import rule</p>
+							<h3 class="text-base font-semibold text-[var(--color-text)]">
+								Saved Microsoft filter
+							</h3>
+						</div>
+						<label class="field">
+							<span>Connection</span>
+							<select
+								bind:value={selectedDirectoryConnectionId}
+								disabled={graphConnections.length === 0 || graphImportBusy}
+							>
+								{#each graphConnections as connection (connection.id)}
+									<option value={connection.id}>{connection.displayName}</option>
+								{/each}
+							</select>
+						</label>
+						<div class="grid gap-3 md:grid-cols-2">
+							<label class="field">
+								<span>Rule name</span>
+								<input bind:value={graphRuleName} disabled={graphImportBusy} />
+							</label>
+							<label class="field">
+								<span>Departments</span>
+								<input bind:value={graphRuleDepartments} disabled={graphImportBusy} />
+							</label>
+							<label class="field">
+								<span>Job title contains</span>
+								<input bind:value={graphRuleJobTitleContains} disabled={graphImportBusy} />
+							</label>
+							<label class="field">
+								<span>Group IDs</span>
+								<input bind:value={graphRuleGroupIds} disabled={graphImportBusy} />
+							</label>
+						</div>
+						<div class="flex flex-wrap gap-4">
+							<label class="checkbox-field">
+								<input
+									type="checkbox"
+									bind:checked={graphRuleIncludeManagers}
+									disabled={graphImportBusy}
+								/>
+								<span>Include manager links</span>
+							</label>
+							<label class="checkbox-field">
+								<input
+									type="checkbox"
+									bind:checked={graphRuleMirrorMode}
+									disabled={graphImportBusy}
+								/>
+								<span>Mirror Microsoft directory</span>
+							</label>
+						</div>
+						{#if graphRuleMirrorMode}
+							<label class="field">
+								<span>Mirror confirmation</span>
+								<input bind:value={graphRuleMirrorConfirmation} disabled={graphImportBusy} />
+							</label>
+						{/if}
+						<button type="submit" class="primary-button" disabled={graphSaveRuleDisabled}>
+							{#if savingGraphRule}
+								<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+							{:else}
+								<Save size={17} aria-hidden="true" />
+							{/if}
+							<span>{savingGraphRule ? 'Saving import rule' : 'Save import rule'}</span>
+						</button>
+						{#if graphRuleError}
+							<p class="error-line" role="alert">{graphRuleError}</p>
+						{/if}
+					</form>
+
+					<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
+						<div class="product-panel__header">
+							<div>
+								<p class="product-kicker">Preview and apply</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">
+									{selectedDirectoryImportRule?.name ?? 'No saved rule selected'}
+								</h3>
+							</div>
+							<div class="action-row">
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={!selectedDirectoryImportRule || graphImportBusy}
+									onclick={previewGraphImportRule}
+								>
+									{#if previewingGraphImport}
+										<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+									{:else}
+										<RefreshCcw size={16} aria-hidden="true" />
+									{/if}
+									<span>{previewingGraphImport ? 'Previewing import' : 'Preview import'}</span>
+								</button>
+								<button
+									type="button"
+									class="primary-button"
+									disabled={!graphPreview || graphPreview.status !== 'previewed' || graphImportBusy}
+									onclick={applyGraphImportRun}
+								>
+									{#if applyingGraphImport}
+										<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+									{:else}
+										<Save size={17} aria-hidden="true" />
+									{/if}
+									<span>{applyingGraphImport ? 'Applying import' : 'Apply import'}</span>
+								</button>
+							</div>
+						</div>
+						{#if graphImportError}
+							<p class="error-line" role="alert">{graphImportError}</p>
+						{/if}
+						{#if graphPreview}
+							<dl
+								class="directory-count-list"
+								role="group"
+								aria-label="Microsoft Graph preview counts"
+							>
+								<div class="directory-count-row">
+									<dt class="directory-count-row__label">Matched users</dt>
+									<dd class="directory-count-row__value">
+										{graphPreview.summary.matchedUserCount}
+									</dd>
+								</div>
+								<div class="directory-count-row">
+									<dt class="directory-count-row__label">Create subjects</dt>
+									<dd class="directory-count-row__value">
+										{graphPreview.summary.createSubjectCount}
+									</dd>
+								</div>
+								<div class="directory-count-row">
+									<dt class="directory-count-row__label">Update subjects</dt>
+									<dd class="directory-count-row__value">
+										{graphPreview.summary.updateSubjectCount}
+									</dd>
+								</div>
+								<div class="directory-count-row">
+									<dt class="directory-count-row__label">No change</dt>
+									<dd class="directory-count-row__value">{graphPreview.summary.noChangeCount}</dd>
+								</div>
+							</dl>
+							<div class="record-list" aria-label="Microsoft Graph preview rows">
+								{#each graphPreview.items as item, index}
+									<article class="record-row" aria-label={`Preview item ${index + 1}`}>
+										<span class="record-row__header">
+											<span class="record-row__title">{formatImportAction(item.action)}</span>
+											<span class="status-badge" data-status="pending">
+												{formatDirectoryImportStatus(item.status)}
+											</span>
+										</span>
+										<span class="record-grid">
+											<span class="record-field">
+												<span class="record-field__label">Person</span>
+												<span class="record-field__value">{item.displayName ?? 'Unknown'}</span>
+											</span>
+											<span class="record-field">
+												<span class="record-field__label">Email</span>
+												<span class="record-field__value"
+													>{item.email ?? text.directory.notAvailable}</span
+												>
+											</span>
+											<span class="record-field">
+												<span class="record-field__label">Issue</span>
+												<span class="record-field__value">{item.issueCode ?? 'None'}</span>
+											</span>
+										</span>
+									</article>
+								{/each}
+							</div>
+						{/if}
+						{#if graphApplyResult}
+							<InlineAlert
+								variant="info"
+								title="Directory snapshot applied"
+								message={`Created ${graphApplyResult.summary.createdSubjectCount} subjects, updated ${graphApplyResult.summary.updatedSubjectCount}, and added ${graphApplyResult.summary.addedMembershipCount} memberships.`}
+							/>
+						{/if}
+					</div>
+
+					{#if graphRecentRuns.length > 0}
+						<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
+							<div>
+								<p class="product-kicker">Import history</p>
+								<h3 class="text-base font-semibold text-[var(--color-text)]">Recent runs</h3>
+							</div>
+							<div class="record-list">
+								{#each graphRecentRuns as run (run.id)}
+									<article class="record-row" aria-label={run.ruleName}>
+										<span class="record-row__header">
+											<span class="record-row__title">{run.ruleName}</span>
+											<span
+												class="status-badge"
+												data-status={run.status === 'applied' || run.status === 'previewed'
+													? 'ready'
+													: 'pending'}
+											>
+												{formatDirectoryImportStatus(run.status)}
+											</span>
+										</span>
+										<span class="record-grid">
+											<span class="record-field">
+												<span class="record-field__label">Mode</span>
+												<span class="record-field__value"
+													>{formatDirectoryImportStatus(run.mode)}</span
+												>
+											</span>
+											<span class="record-field">
+												<span class="record-field__label">Created</span>
+												<span class="record-field__value">
+													{graphRunSummaryValue(run.summary, 'createSubjectCount') ||
+														graphRunSummaryValue(run.summary, 'createdSubjectCount')}
+												</span>
+											</span>
+											<span class="record-field">
+												<span class="record-field__label">Updated</span>
+												<span class="record-field__value">
+													{graphRunSummaryValue(run.summary, 'updateSubjectCount') ||
+														graphRunSummaryValue(run.summary, 'updatedSubjectCount')}
+												</span>
+											</span>
+										</span>
+									</article>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</section>
 
 	<section class="product-panel" aria-label="Import audience CSV">
@@ -556,9 +1194,12 @@
 				<p class="error-line" role="alert">{importError}</p>
 			{/if}
 			{#if importResult}
-				<div class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+				<div
+					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+				>
 					<p class="text-sm font-semibold text-[var(--color-text)]">
-						{importResult.dryRun ? text.directory.previewed : text.directory.imported} {importResult.importedRowCount} of
+						{importResult.dryRun ? text.directory.previewed : text.directory.imported}
+						{importResult.importedRowCount} of
 						{importResult.rowCount} rows
 					</p>
 					<dl class="mt-3 grid gap-2 text-sm md:grid-cols-3">
@@ -582,7 +1223,9 @@
 						</div>
 						<div>
 							<dt class="text-[var(--color-text-muted)]">
-								{importResult.dryRun ? text.directory.membershipsToAdd : text.directory.membershipsAdded}
+								{importResult.dryRun
+									? text.directory.membershipsToAdd
+									: text.directory.membershipsAdded}
 							</dt>
 							<dd class="font-semibold">{importResult.addedMembershipCount}</dd>
 						</div>
@@ -593,9 +1236,13 @@
 					</dl>
 					{#if importResult.rows.some((row) => row.status === 'failed')}
 						<div class="mt-4 grid gap-2" aria-label="CSV import row issues">
-							<p class="text-sm font-semibold text-[var(--color-text)]">{text.directory.rowsNeedingAttention}</p>
+							<p class="text-sm font-semibold text-[var(--color-text)]">
+								{text.directory.rowsNeedingAttention}
+							</p>
 							{#each importResult.rows.filter((row) => row.status === 'failed') as row}
-								<article class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm">
+								<article
+									class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm"
+								>
 									<p class="font-semibold">Row {row.rowNumber}</p>
 									<p class="text-[var(--color-text-muted)]">
 										{row.displayName ?? row.email ?? row.externalId ?? text.directory.unmatchedRow}
@@ -648,7 +1295,11 @@
 					</div>
 				</div>
 
-				<dl class="directory-count-list" role="group" aria-label={text.directory.directoryGraphCounts}>
+				<dl
+					class="directory-count-list"
+					role="group"
+					aria-label={text.directory.directoryGraphCounts}
+				>
 					<div class="directory-count-row">
 						<dt class="directory-count-row__label">{text.directory.subjects}</dt>
 						<dd class="directory-count-row__value">{directory.summary.subjectCount}</dd>
@@ -666,7 +1317,10 @@
 				</dl>
 
 				{#if subjects.length === 0}
-					<EmptyState title="No people yet" description="Add people before configuring audiences." />
+					<EmptyState
+						title="No people yet"
+						description="Add people before configuring audiences."
+					/>
 				{:else}
 					<div class="record-list">
 						{#each subjects as subject (subject.id)}
@@ -683,11 +1337,15 @@
 								<span class="record-grid">
 									<span class="record-field">
 										<span class="record-field__label">Email</span>
-										<span class="record-field__value">{subject.email ?? text.directory.notAvailable}</span>
+										<span class="record-field__value"
+											>{subject.email ?? text.directory.notAvailable}</span
+										>
 									</span>
 									<span class="record-field">
 										<span class="record-field__label">{text.directory.externalId}</span>
-										<span class="record-field__value">{subject.externalId ?? text.directory.notAvailable}</span>
+										<span class="record-field__value"
+											>{subject.externalId ?? text.directory.notAvailable}</span
+										>
 									</span>
 									<span class="record-field">
 										<span class="record-field__label">{text.directory.locale}</span>
@@ -706,7 +1364,9 @@
 									<p class="record-field__label">{text.directory.groups}</p>
 									<div class="mt-2 flex flex-wrap gap-2">
 										{#if subject.groups.length === 0}
-											<span class="text-xs text-[var(--color-text-muted)]">{text.directory.noMemberships}</span>
+											<span class="text-xs text-[var(--color-text-muted)]"
+												>{text.directory.noMemberships}</span
+											>
 										{:else}
 											{#each subject.groups as membership (membership.groupId)}
 												<span
@@ -768,7 +1428,11 @@
 		{/if}
 	</section>
 
-	<section id="directory-create" class="product-panel" aria-label={text.directory.createRecordsAria}>
+	<section
+		id="directory-create"
+		class="product-panel"
+		aria-label={text.directory.createRecordsAria}
+	>
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.addRecords}</p>
@@ -790,7 +1454,9 @@
 			>
 				<div>
 					<p class="product-kicker">{text.directory.person}</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">{text.directory.newPerson}</h3>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">
+						{text.directory.newPerson}
+					</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
@@ -810,7 +1476,9 @@
 						<input bind:value={newSubjectLocale} disabled={creatingSubject} />
 					</label>
 				</div>
-				<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+				<details
+					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+				>
 					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
 						Advanced attributes
 					</summary>
@@ -842,7 +1510,9 @@
 			>
 				<div>
 					<p class="product-kicker">Group</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">{text.directory.newGroup}</h3>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">
+						{text.directory.newGroup}
+					</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
@@ -863,7 +1533,9 @@
 						{/each}
 					</select>
 				</label>
-				<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+				<details
+					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+				>
 					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
 						Advanced attributes
 					</summary>
@@ -936,7 +1608,9 @@
 					<input bind:value={editSubjectLocale} disabled={savingSubject || !selectedSubject} />
 				</label>
 			</div>
-			<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
+			<details
+				class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+			>
 				<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
 					Advanced attributes
 				</summary>
@@ -1072,5 +1746,3 @@
 		</div>
 	</section>
 {/if}
-
-

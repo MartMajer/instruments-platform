@@ -20,6 +20,195 @@ public sealed class DirectoryImportStore(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<Result<DirectoryImportWorkspaceResponse>> ListWorkspaceAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var connections = await db.DirectoryConnections
+            .AsNoTracking()
+            .Where(connection => connection.TenantId == tenantId && connection.DeletedAt == null)
+            .OrderBy(connection => connection.DisplayName)
+            .ThenBy(connection => connection.CreatedAt)
+            .Select(connection => new DirectoryConnectionRecord(
+                connection.Id,
+                connection.Provider,
+                connection.ExternalTenantId,
+                connection.DisplayName,
+                connection.PrimaryDomain,
+                connection.GrantedScopesJson,
+                connection.Status,
+                connection.LastSuccessfulSyncAt,
+                connection.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        var rules = await db.DirectoryImportRules
+            .AsNoTracking()
+            .Where(rule => rule.TenantId == tenantId && rule.DeletedAt == null)
+            .OrderBy(rule => rule.Name)
+            .ThenBy(rule => rule.CreatedAt)
+            .Select(rule => new DirectoryImportRuleRecord(
+                rule.Id,
+                rule.ConnectionId,
+                rule.Name,
+                rule.CriteriaJson,
+                rule.FieldSelectionJson,
+                rule.MirrorMode,
+                rule.MirrorConfirmedAt,
+                rule.CreatedAt,
+                rule.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        var recentRuns = await (
+                from run in db.DirectoryImportRuns.AsNoTracking()
+                join rule in db.DirectoryImportRules.AsNoTracking()
+                    on new { run.RuleId, run.TenantId } equals new { RuleId = rule.Id, rule.TenantId }
+                where run.TenantId == tenantId && rule.DeletedAt == null
+                orderby run.StartedAt descending
+                select new DirectoryImportRunRecord(
+                    run.Id,
+                    run.RuleId,
+                    rule.Name,
+                    run.Mode,
+                    run.Status,
+                    run.StartedAt,
+                    run.FinishedAt,
+                    run.SummaryJson))
+            .Take(12)
+            .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new DirectoryImportWorkspaceResponse(
+            tenantId,
+            connections.Select(ToConnectionResponse).ToArray(),
+            rules.Select(ToRuleResponse).ToArray(),
+            recentRuns.Select(ToRunHistoryResponse).ToArray()));
+    }
+
+    public async Task<Result<DirectoryConnectionResponse>> CreateConnectionAsync(
+        Guid tenantId,
+        CreateDirectoryConnectionRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var externalTenantId = request.ExternalTenantId.Trim();
+        var duplicateExists = await db.DirectoryConnections.AnyAsync(
+            connection =>
+                connection.TenantId == tenantId &&
+                connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                connection.ExternalTenantId == externalTenantId &&
+                connection.DeletedAt == null,
+            cancellationToken);
+        if (duplicateExists)
+        {
+            return Result.Failure<DirectoryConnectionResponse>(
+                Error.Conflict(
+                    "directory_connection.duplicate",
+                    "A Microsoft Graph directory connection for this tenant already exists."));
+        }
+
+        var connection = new DirectoryConnection(
+            Guid.NewGuid(),
+            tenantId,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            externalTenantId,
+            request.DisplayName,
+            request.PrimaryDomain,
+            CreateGrantedScopesJson(request.GrantedScopes));
+
+        db.DirectoryConnections.Add(connection);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToConnectionResponse(new DirectoryConnectionRecord(
+            connection.Id,
+            connection.Provider,
+            connection.ExternalTenantId,
+            connection.DisplayName,
+            connection.PrimaryDomain,
+            connection.GrantedScopesJson,
+            connection.Status,
+            connection.LastSuccessfulSyncAt,
+            connection.CreatedAt)));
+    }
+
+    public async Task<Result<DirectoryImportRuleResponse>> CreateRuleAsync(
+        Guid tenantId,
+        CreateDirectoryImportRuleRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var connectionExists = await db.DirectoryConnections.AnyAsync(
+            connection =>
+                connection.TenantId == tenantId &&
+                connection.Id == request.ConnectionId &&
+                connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                connection.Status == DirectoryConnectionStatuses.Active &&
+                connection.DeletedAt == null,
+            cancellationToken);
+        if (!connectionExists)
+        {
+            return Result.Failure<DirectoryImportRuleResponse>(
+                Error.NotFound(
+                    "directory_connection.not_found",
+                    "Directory connection was not found."));
+        }
+
+        var ruleName = request.Name.Trim();
+        var duplicateRuleExists = await db.DirectoryImportRules.AnyAsync(
+            rule =>
+                rule.TenantId == tenantId &&
+                rule.ConnectionId == request.ConnectionId &&
+                rule.Name == ruleName &&
+                rule.DeletedAt == null,
+            cancellationToken);
+        if (duplicateRuleExists)
+        {
+            return Result.Failure<DirectoryImportRuleResponse>(
+                Error.Conflict(
+                    "directory_import_rule.duplicate",
+                    "A directory import rule with this name already exists for the connection."));
+        }
+
+        var mirrorConfirmedAt = request.MirrorMode
+            ? DateTimeOffset.UtcNow
+            : (DateTimeOffset?)null;
+        var rule = new DirectoryImportRule(
+            Guid.NewGuid(),
+            tenantId,
+            request.ConnectionId,
+            ruleName,
+            request.Criteria.GetRawText(),
+            request.FieldSelection.GetRawText(),
+            request.MirrorMode,
+            mirrorConfirmedAt);
+
+        db.DirectoryImportRules.Add(rule);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToRuleResponse(new DirectoryImportRuleRecord(
+            rule.Id,
+            rule.ConnectionId,
+            rule.Name,
+            rule.CriteriaJson,
+            rule.FieldSelectionJson,
+            rule.MirrorMode,
+            rule.MirrorConfirmedAt,
+            rule.CreatedAt,
+            rule.UpdatedAt)));
+    }
+
     public async Task<Result<DirectoryImportRuleExecutionContext>> GetRuleExecutionContextAsync(
         Guid tenantId,
         Guid ruleId,
@@ -453,6 +642,84 @@ public sealed class DirectoryImportStore(
             summary));
     }
 
+    private static DirectoryConnectionResponse ToConnectionResponse(DirectoryConnectionRecord connection)
+    {
+        return new DirectoryConnectionResponse(
+            connection.Id,
+            connection.Provider,
+            connection.ExternalTenantId,
+            connection.DisplayName,
+            connection.PrimaryDomain,
+            ParseGrantedScopes(connection.GrantedScopesJson),
+            connection.Status,
+            connection.LastSuccessfulSyncAt,
+            connection.CreatedAt);
+    }
+
+    private static DirectoryImportRuleResponse ToRuleResponse(DirectoryImportRuleRecord rule)
+    {
+        return new DirectoryImportRuleResponse(
+            rule.Id,
+            rule.ConnectionId,
+            rule.Name,
+            CloneJson(rule.CriteriaJson),
+            CloneJson(rule.FieldSelectionJson),
+            rule.MirrorMode,
+            rule.MirrorConfirmedAt,
+            rule.CreatedAt,
+            rule.UpdatedAt);
+    }
+
+    private static DirectoryImportRunHistoryResponse ToRunHistoryResponse(DirectoryImportRunRecord run)
+    {
+        return new DirectoryImportRunHistoryResponse(
+            run.Id,
+            run.RuleId,
+            run.RuleName,
+            run.Mode,
+            run.Status,
+            run.StartedAt,
+            run.FinishedAt,
+            CloneJson(run.SummaryJson));
+    }
+
+    private static string CreateGrantedScopesJson(IReadOnlyList<string> scopes)
+    {
+        var normalizedScopes = scopes
+            .Select(scope => scope.Trim())
+            .Where(scope => scope.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return JsonSerializer.Serialize(new { Scopes = normalizedScopes }, JsonOptions);
+    }
+
+    private static IReadOnlyList<string> ParseGrantedScopes(string scopesJson)
+    {
+        using var document = JsonDocument.Parse(scopesJson);
+        if (!document.RootElement.TryGetProperty("scopes", out var scopesElement) ||
+            scopesElement.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return scopesElement
+            .EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString())
+            .Where(scope => !string.IsNullOrWhiteSpace(scope))
+            .Select(scope => scope!)
+            .ToArray();
+    }
+
+    private static JsonElement CloneJson(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+
+        return document.RootElement.Clone();
+    }
+
     public static string BuildSubjectExternalId(string externalTenantId, string graphUserId)
     {
         return $"msgraph:{externalTenantId}:{graphUserId}";
@@ -753,4 +1020,36 @@ public sealed class DirectoryImportStore(
     }
 
     private sealed record SubjectMembershipImportKey(Guid SubjectId, Guid GroupId);
+
+    private sealed record DirectoryConnectionRecord(
+        Guid Id,
+        string Provider,
+        string ExternalTenantId,
+        string DisplayName,
+        string PrimaryDomain,
+        string GrantedScopesJson,
+        string Status,
+        DateTimeOffset? LastSuccessfulSyncAt,
+        DateTimeOffset CreatedAt);
+
+    private sealed record DirectoryImportRuleRecord(
+        Guid Id,
+        Guid ConnectionId,
+        string Name,
+        string CriteriaJson,
+        string FieldSelectionJson,
+        bool MirrorMode,
+        DateTimeOffset? MirrorConfirmedAt,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
+
+    private sealed record DirectoryImportRunRecord(
+        Guid Id,
+        Guid RuleId,
+        string RuleName,
+        string Mode,
+        string Status,
+        DateTimeOffset StartedAt,
+        DateTimeOffset? FinishedAt,
+        string SummaryJson);
 }

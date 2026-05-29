@@ -200,6 +200,110 @@ describe('createProductApi', () => {
 		]);
 	});
 
+	it('requests Microsoft Graph directory import workspace and commands', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					connections: [],
+					rules: [],
+					recentRuns: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.getDirectoryImportWorkspace();
+		await api.createDirectoryConnection({
+			externalTenantId: 'customer-tenant',
+			displayName: 'Algebra sandbox',
+			primaryDomain: 'algebra.example',
+			grantedScopes: ['User.Read.All', 'Group.Read.All']
+		});
+		await api.createDirectoryImportRule({
+			connectionId: 'connection/id',
+			name: 'Third year students',
+			criteria: {
+				accountEnabled: true,
+				departments: ['Psychology'],
+				includeManagerChain: true
+			},
+			fieldSelection: {
+				fields: ['displayName', 'mail', 'department']
+			},
+			mirrorMode: true,
+			mirrorConfirmation: 'MIRROR MICROSOFT DIRECTORY'
+		});
+		await api.previewDirectoryImportRule('rule/id');
+		await api.applyDirectoryImportRun('run/id');
+
+		expect(calls).toEqual([
+			{ path: '/directory-imports/workspace', init: undefined },
+			{
+				path: '/directory-connections',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						externalTenantId: 'customer-tenant',
+						displayName: 'Algebra sandbox',
+						primaryDomain: 'algebra.example',
+						grantedScopes: ['User.Read.All', 'Group.Read.All']
+					})
+				}
+			},
+			{
+				path: '/directory-import-rules',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						connectionId: 'connection/id',
+						name: 'Third year students',
+						criteria: {
+							accountEnabled: true,
+							departments: ['Psychology'],
+							includeManagerChain: true
+						},
+						fieldSelection: {
+							fields: ['displayName', 'mail', 'department']
+						},
+						mirrorMode: true,
+						mirrorConfirmation: 'MIRROR MICROSOFT DIRECTORY'
+					})
+				}
+			},
+			{
+				path: '/directory-import-rules/rule%2Fid/preview',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({})
+				}
+			},
+			{
+				path: '/directory-import-runs/run%2Fid/apply',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({})
+				}
+			}
+		]);
+	});
+
 	it('updates a subject directory entry by encoded subject id', async () => {
 		const calls: Array<{ path: string; init?: RequestInit }> = [];
 		const api = createProductApi({

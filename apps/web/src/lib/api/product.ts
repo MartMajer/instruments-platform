@@ -233,6 +233,107 @@ export type SubjectDirectoryCsvImportRowResponse = {
 	issues: string[];
 };
 
+export type DirectoryImportWorkspaceResponse = {
+	tenantId: string;
+	connections: DirectoryConnectionResponse[];
+	rules: DirectoryImportRuleResponse[];
+	recentRuns: DirectoryImportRunHistoryResponse[];
+};
+
+export type DirectoryConnectionResponse = {
+	id: string;
+	provider: string;
+	externalTenantId: string;
+	displayName: string;
+	primaryDomain: string;
+	grantedScopes: string[];
+	status: string;
+	lastSuccessfulSyncAt: string | null;
+	createdAt: string;
+};
+
+export type DirectoryImportRuleResponse = {
+	id: string;
+	connectionId: string;
+	name: string;
+	criteria: Record<string, unknown>;
+	fieldSelection: Record<string, unknown>;
+	mirrorMode: boolean;
+	mirrorConfirmedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type DirectoryImportRunHistoryResponse = {
+	id: string;
+	ruleId: string;
+	ruleName: string;
+	mode: string;
+	status: string;
+	startedAt: string;
+	finishedAt: string | null;
+	summary: Record<string, unknown>;
+};
+
+export type CreateDirectoryConnectionRequest = {
+	externalTenantId: string;
+	displayName: string;
+	primaryDomain: string;
+	grantedScopes: string[];
+};
+
+export type CreateDirectoryImportRuleRequest = {
+	connectionId: string;
+	name: string;
+	criteria: Record<string, unknown>;
+	fieldSelection: Record<string, unknown>;
+	mirrorMode?: boolean;
+	mirrorConfirmation?: string | null;
+};
+
+export type DirectoryImportPreviewResponse = {
+	runId: string;
+	ruleId: string;
+	status: string;
+	summary: DirectoryImportPreviewSummaryResponse;
+	items: DirectoryImportPreviewItemResponse[];
+};
+
+export type DirectoryImportPreviewSummaryResponse = {
+	matchedUserCount: number;
+	createSubjectCount: number;
+	updateSubjectCount: number;
+	noChangeCount: number;
+	warningCount: number;
+	retainedFields: string[];
+};
+
+export type DirectoryImportPreviewItemResponse = {
+	action: string;
+	status: string;
+	issueCode: string | null;
+	displayName: string | null;
+	email: string | null;
+};
+
+export type DirectoryImportApplyResponse = {
+	runId: string;
+	previewRunId: string;
+	ruleId: string;
+	status: string;
+	summary: DirectoryImportApplySummaryResponse;
+};
+
+export type DirectoryImportApplySummaryResponse = {
+	createdSubjectCount: number;
+	updatedSubjectCount: number;
+	noChangeSubjectCount: number;
+	createdGroupCount: number;
+	addedMembershipCount: number;
+	setManagerCount: number;
+	warningCount: number;
+};
+
 export type CreateSubjectGroupRequest = {
 	type: string;
 	name: string;
@@ -1129,6 +1230,28 @@ export function createProductApi(client: ApiClient) {
 			client.request<SubjectDirectoryCsvImportResponse>(
 				'/subjects/imports/csv',
 				jsonRequest('POST', request)
+			),
+		getDirectoryImportWorkspace: () =>
+			client.request<DirectoryImportWorkspaceResponse>('/directory-imports/workspace'),
+		createDirectoryConnection: (request: CreateDirectoryConnectionRequest) =>
+			client.request<DirectoryConnectionResponse>(
+				'/directory-connections',
+				jsonRequest('POST', request)
+			),
+		createDirectoryImportRule: (request: CreateDirectoryImportRuleRequest) =>
+			client.request<DirectoryImportRuleResponse>(
+				'/directory-import-rules',
+				jsonRequest('POST', request)
+			),
+		previewDirectoryImportRule: (ruleId: string) =>
+			client.request<DirectoryImportPreviewResponse>(
+				`/directory-import-rules/${encodeURIComponent(ruleId)}/preview`,
+				jsonRequest('POST', {})
+			),
+		applyDirectoryImportRun: (previewRunId: string) =>
+			client.request<DirectoryImportApplyResponse>(
+				`/directory-import-runs/${encodeURIComponent(previewRunId)}/apply`,
+				jsonRequest('POST', {})
 			),
 		updateSubject: (subjectId: string, request: UpdateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>(

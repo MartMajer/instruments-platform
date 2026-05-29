@@ -179,6 +179,20 @@ public sealed class PreviewDirectoryImportHandler(
 
 public interface IDirectoryImportStore
 {
+    Task<Result<DirectoryImportWorkspaceResponse>> ListWorkspaceAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<Result<DirectoryConnectionResponse>> CreateConnectionAsync(
+        Guid tenantId,
+        CreateDirectoryConnectionRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<DirectoryImportRuleResponse>> CreateRuleAsync(
+        Guid tenantId,
+        CreateDirectoryImportRuleRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<DirectoryImportRuleExecutionContext>> GetRuleExecutionContextAsync(
         Guid tenantId,
         Guid ruleId,

@@ -131,6 +131,32 @@ public sealed class ApplyDirectoryImportTests
 
         public IReadOnlyList<GraphDirectoryManagerCandidate> ApplyManagers { get; private set; } = [];
 
+        public Task<Result<DirectoryImportWorkspaceResponse>> ListWorkspaceAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Failure<DirectoryImportWorkspaceResponse>(
+                Error.NotFound("directory_import_workspace.not_found", "Workspace is not part of this test.")));
+        }
+
+        public Task<Result<DirectoryConnectionResponse>> CreateConnectionAsync(
+            Guid tenantId,
+            CreateDirectoryConnectionRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Failure<DirectoryConnectionResponse>(
+                Error.Validation("directory_connection.invalid", "Connection creation is not part of this test.")));
+        }
+
+        public Task<Result<DirectoryImportRuleResponse>> CreateRuleAsync(
+            Guid tenantId,
+            CreateDirectoryImportRuleRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Failure<DirectoryImportRuleResponse>(
+                Error.Validation("directory_import_rule.invalid", "Rule creation is not part of this test.")));
+        }
+
         public Task<Result<DirectoryImportRuleExecutionContext>> GetRuleExecutionContextAsync(
             Guid tenantId,
             Guid ruleId,
