@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Platform.Application.Features.DirectoryImports;
 using Platform.Application.Features.System.GetHealth;
 using Platform.Application.Features.Notifications;
 using Platform.Application.Features.Operations;
@@ -16,6 +17,7 @@ using Platform.Application.Features.TestData;
 using Platform.Infrastructure.Campaigns.RespondentRules;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Data.Interceptors;
+using Platform.Infrastructure.DirectoryImports;
 using Platform.Infrastructure.Notifications;
 using Platform.Infrastructure.Operations;
 using Platform.Infrastructure.ParticipantCodes;
@@ -159,6 +161,7 @@ public static class DependencyInjection
             {
                 AllowAutoRedirect = false
             });
+        services.AddHttpClient<IGraphDirectoryClient, GraphDirectoryClient>();
         services.AddScoped<IEmailDeliveryProvider>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<EmailDeliveryOptions>>().Value;
