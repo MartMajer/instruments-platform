@@ -4,6 +4,7 @@ namespace Platform.Api.Auth;
 
 public sealed class PlatformOidcProviderProfile
 {
+    public const string Auth0ProviderKey = "auth0";
     public const string Auth0LogoutMode = "auth0";
     public const string MicrosoftLogoutMode = "microsoft";
     public const string NoProviderLogoutMode = "none";
@@ -15,7 +16,8 @@ public sealed class PlatformOidcProviderProfile
         string? subjectTenantClaim,
         string emailVerifiedClaim,
         bool assumeEmailVerifiedWhenClaimMissing,
-        string providerLogoutMode)
+        string providerLogoutMode,
+        string? signupScreenHint)
     {
         ProviderKey = providerKey;
         EmailClaim = emailClaim;
@@ -24,6 +26,7 @@ public sealed class PlatformOidcProviderProfile
         EmailVerifiedClaim = emailVerifiedClaim;
         AssumeEmailVerifiedWhenClaimMissing = assumeEmailVerifiedWhenClaimMissing;
         ProviderLogoutMode = providerLogoutMode;
+        SignupScreenHint = signupScreenHint;
     }
 
     public string ProviderKey { get; }
@@ -40,18 +43,22 @@ public sealed class PlatformOidcProviderProfile
 
     public string ProviderLogoutMode { get; }
 
+    public string? SignupScreenHint { get; }
+
     public static PlatformOidcProviderProfile From(IConfiguration configuration)
     {
         var oidc = configuration.GetSection("Authentication:Oidc");
+        var providerKey = NormalizeProviderKey(oidc["ProviderKey"]);
 
         return new PlatformOidcProviderProfile(
-            NormalizeProviderKey(oidc["ProviderKey"]),
+            providerKey,
             NormalizeClaimName(oidc["EmailClaim"], "email"),
             NormalizeClaimName(oidc["SubjectClaim"], "sub"),
             NormalizeOptionalClaimName(oidc["SubjectTenantClaim"]),
             NormalizeClaimName(oidc["EmailVerifiedClaim"], "email_verified"),
             oidc.GetValue("AssumeEmailVerifiedWhenClaimMissing", false),
-            NormalizeProviderLogoutMode(oidc["ProviderLogoutMode"]));
+            NormalizeProviderLogoutMode(oidc["ProviderLogoutMode"]),
+            NormalizeSignupScreenHint(oidc["SignupScreenHint"], providerKey));
     }
 
     public string? GetEmail(ClaimsPrincipal? principal)
@@ -92,7 +99,7 @@ public sealed class PlatformOidcProviderProfile
     private static string NormalizeProviderKey(string? value)
     {
         var normalized = string.IsNullOrWhiteSpace(value)
-            ? "auth0"
+            ? Auth0ProviderKey
             : value.Trim().ToLowerInvariant();
 
         return normalized.Length > 80
@@ -123,6 +130,19 @@ public sealed class PlatformOidcProviderProfile
         return normalized is MicrosoftLogoutMode or NoProviderLogoutMode
             ? normalized
             : Auth0LogoutMode;
+    }
+
+    private static string? NormalizeSignupScreenHint(string? value, string providerKey)
+    {
+        if (value is null)
+        {
+            return string.Equals(providerKey, Auth0ProviderKey, StringComparison.Ordinal)
+                ? "signup"
+                : null;
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return normalized == "signup" ? normalized : null;
     }
 
     private static string? GetClaimValue(ClaimsPrincipal? principal, string claimType)

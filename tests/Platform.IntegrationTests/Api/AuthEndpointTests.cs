@@ -289,6 +289,29 @@ public sealed class AuthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Login_endpoint_omits_signup_screen_hint_for_microsoft_registration_bootstrap()
+    {
+        using var client = CreateInteractiveOidcFactory(new Dictionary<string, string?>
+        {
+            ["Authentication:Oidc:Authority"] =
+                "https://login.microsoftonline.com/e78bc07c-063c-47b0-afd0-d08580b54187/v2.0",
+            ["Authentication:Oidc:ProviderKey"] = "entra-workforce",
+            ["Authentication:Oidc:ProviderLogoutMode"] = "microsoft",
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        }).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+        var returnUrl = Uri.EscapeDataString("https://app.example.test/register");
+
+        var response = await client.GetAsync(
+            $"/auth/login?registration=1&returnUrl={returnUrl}&screen_hint=signup");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.DoesNotContain("screen_hint=", response.Headers.Location?.Query);
+    }
+
+    [Fact]
     public async Task Login_endpoint_rejects_unsupported_prompt()
     {
         var tenantId = Guid.NewGuid();

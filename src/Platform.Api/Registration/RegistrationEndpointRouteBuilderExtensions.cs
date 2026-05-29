@@ -159,16 +159,11 @@ public sealed class RegistrationIntentService(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var loginUrl = QueryHelpers.AddQueryString(
-            "/auth/login",
-            new Dictionary<string, string?>
-                {
-                    ["registrationToken"] = token.RawToken,
-                    ["returnUrl"] = returnUrl,
-                    ["prompt"] = "login",
-                    ["screen_hint"] = "signup",
-                    ["login_hint"] = email.Value
-                });
+        var loginUrl = BuildRegistrationLoginUrl(
+            token.RawToken,
+            returnUrl,
+            email.Value,
+            configuration);
 
         return Result.Success(new CreateRegistrationIntentResponse(loginUrl, expiresAt));
     }
@@ -182,6 +177,26 @@ public sealed class RegistrationIntentService(
                 ["tenantId"] = tenantId.ToString(),
                 ["returnUrl"] = returnUrl,
                 ["prompt"] = "login",
+                ["login_hint"] = email
+            });
+    }
+
+    public static string BuildRegistrationLoginUrl(
+        string registrationToken,
+        string returnUrl,
+        string email,
+        IConfiguration configuration)
+    {
+        var signupScreenHint = PlatformOidcProviderProfile.From(configuration).SignupScreenHint;
+
+        return QueryHelpers.AddQueryString(
+            "/auth/login",
+            new Dictionary<string, string?>
+            {
+                ["registrationToken"] = registrationToken,
+                ["returnUrl"] = returnUrl,
+                ["prompt"] = "login",
+                ["screen_hint"] = signupScreenHint,
                 ["login_hint"] = email
             });
     }

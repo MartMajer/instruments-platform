@@ -117,12 +117,17 @@ public static class AuthEndpointRouteBuilderExtensions
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var providerProfile = PlatformOidcProviderProfile.From(configuration);
         var prompt = hasTenantId || !string.IsNullOrEmpty(requestedPrompt)
             ? requestedPrompt
             : "login";
-        if (hasRegistrationBootstrap && string.IsNullOrEmpty(screenHint))
+        if (string.IsNullOrEmpty(providerProfile.SignupScreenHint))
         {
-            screenHint = "signup";
+            screenHint = string.Empty;
+        }
+        else if (hasRegistrationBootstrap && string.IsNullOrEmpty(screenHint))
+        {
+            screenHint = providerProfile.SignupScreenHint;
         }
 
         var properties = new AuthenticationProperties

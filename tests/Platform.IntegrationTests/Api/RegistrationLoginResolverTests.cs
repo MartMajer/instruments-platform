@@ -222,6 +222,37 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task RegistrationIntentService_CreateAsync_omits_signup_screen_hint_for_entra_provider()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+
+        await using var db = new ApplicationDbContext(options);
+        var service = new RegistrationIntentService(
+            CreateWorkspaceConfiguration(new Dictionary<string, string?>
+            {
+                ["Authentication:Oidc:ProviderKey"] = "entra-workforce",
+                ["Authentication:Oidc:ProviderLogoutMode"] = "microsoft"
+            }),
+            db,
+            new AcceptingBetaAccessCodeVerifier(),
+            new Sha256RegistrationTokenProtector(),
+            TimeProvider.System);
+
+        var result = await service.CreateAsync(
+            new CreateRegistrationIntentRequest(
+                "Owner@Example.Test",
+                "Entra Workspace",
+                "martin-beta-2026",
+                "https://app.example.test/app"),
+            CancellationToken.None);
+
+        Assert.False(result.IsFailure);
+        Assert.DoesNotContain("screen_hint=", result.Value.LoginUrl, StringComparison.Ordinal);
+        Assert.Contains("login_hint=owner%40example.test", result.Value.LoginUrl, StringComparison.Ordinal);
+    }
+
+    [DockerFact]
     public async Task ResolveAsync_rejects_mismatched_provider_email_without_consuming_intent()
     {
         var options = CreateOptions();
@@ -504,15 +535,26 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
             .Build();
     }
 
-    private static IConfiguration CreateWorkspaceConfiguration()
+    private static IConfiguration CreateWorkspaceConfiguration(
+        Dictionary<string, string?>? overrides = null)
     {
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
+        var settings = new Dictionary<string, string?>
+        {
+            ["Registration:Enabled"] = "true",
+            ["Authentication:Oidc:SessionMinutes"] = "30",
+            ["Cors:AllowedOrigins:0"] = "https://app.example.test"
+        };
+
+        if (overrides is not null)
+        {
+            foreach (var (key, value) in overrides)
             {
-                ["Registration:Enabled"] = "true",
-                ["Authentication:Oidc:SessionMinutes"] = "30",
-                ["Cors:AllowedOrigins:0"] = "https://app.example.test"
-            })
+                settings[key] = value;
+            }
+        }
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
             .Build();
     }
 

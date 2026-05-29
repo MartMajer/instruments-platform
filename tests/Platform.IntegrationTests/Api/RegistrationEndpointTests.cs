@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -47,6 +48,28 @@ public sealed class RegistrationEndpointTests(WebApplicationFactory<Program> fac
         Assert.Equal("Owner@Example.Test", service.Requests.Single().Email);
         Assert.Equal("Croatian Research Lab", service.Requests.Single().OrganizationName);
         Assert.Equal("beta-code", service.Requests.Single().AccessCode);
+    }
+
+    [Fact]
+    public void Registration_intent_login_url_omits_signup_hint_for_entra_provider()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Authentication:Oidc:ProviderKey"] = "entra-workforce",
+                ["Authentication:Oidc:ProviderLogoutMode"] = "microsoft"
+            })
+            .Build();
+
+        var loginUrl = RegistrationIntentService.BuildRegistrationLoginUrl(
+            "registration-token",
+            "https://app.example.test/app",
+            "owner@example.test",
+            configuration);
+
+        Assert.DoesNotContain("screen_hint=", loginUrl, StringComparison.Ordinal);
+        var query = QueryHelpers.ParseQuery(new Uri(new Uri("https://api.example.test"), loginUrl).Query);
+        Assert.Equal("owner@example.test", query["login_hint"].Single());
     }
 
     [Fact]
