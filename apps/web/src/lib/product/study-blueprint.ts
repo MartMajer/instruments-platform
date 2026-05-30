@@ -6,6 +6,15 @@ export type StudyBlueprintId =
 	| 'repeated_wave'
 	| 'osh_ergonomics_study';
 
+export type SetupQuestionnaireStarterId =
+	| 'blank'
+	| 'workload_recovery'
+	| 'osh_ergonomics'
+	| 'office_ergonomics'
+	| 'academic_workload'
+	| 'team_climate'
+	| 'healthcare_staff_strain';
+
 export type StudyBlueprintStep = {
 	label: string;
 	description: string;
@@ -32,6 +41,7 @@ export type StudyBriefDefaults = {
 
 export type StudyBlueprintOption = {
 	id: StudyBlueprintId;
+	questionnaireStarterId: SetupQuestionnaireStarterId | null;
 	eyebrow: string;
 	title: string;
 	summary: string;
@@ -48,6 +58,7 @@ export const defaultStudyBlueprintId: StudyBlueprintId = 'custom_research_study'
 const studyBlueprintOptions: StudyBlueprintOption[] = [
 	{
 		id: 'custom_research_study',
+		questionnaireStarterId: null,
 		eyebrow: 'Blank study',
 		title: 'Build from scratch',
 		summary: 'Start with an empty study when you want to define your own topics, questions, and result outputs.',
@@ -81,6 +92,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	},
 	{
 		id: 'team_pulse',
+		questionnaireStarterId: 'team_climate',
 		eyebrow: 'Short check-in',
 		title: 'Team check-in',
 		summary: 'Start with a compact study for a team, department, class, or cohort.',
@@ -114,6 +126,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	},
 	{
 		id: 'repeated_wave',
+		questionnaireStarterId: null,
 		eyebrow: 'Compare measurements',
 		title: 'Repeated measurement study',
 		summary: 'Start here when you want to run the same study again later and compare change over time.',
@@ -147,6 +160,7 @@ const studyBlueprintOptions: StudyBlueprintOption[] = [
 	},
 	{
 		id: 'osh_ergonomics_study',
+		questionnaireStarterId: 'osh_ergonomics',
 		eyebrow: 'Work and ergonomics',
 		title: 'Workplace health review',
 		summary:
@@ -197,6 +211,11 @@ export function buildStudyNamePlaceholder(id: string | null | undefined, locale:
 	return getStudyBlueprintOption(id, locale).namePlaceholder;
 }
 
+export function buildSetupQuestionnaireStarterParam(id: string | null | undefined) {
+	const starterId = getStudyBlueprintOption(id).questionnaireStarterId;
+	return starterId && starterId !== 'blank' ? starterId : null;
+}
+
 function copyStudyBlueprintOption(option: StudyBlueprintOption): StudyBlueprintOption {
 	return {
 		...option,
@@ -206,7 +225,10 @@ function copyStudyBlueprintOption(option: StudyBlueprintOption): StudyBlueprintO
 	};
 }
 
-const croatianBlueprintCopy: Record<StudyBlueprintId, Omit<StudyBlueprintOption, 'id'>> = {
+const croatianBlueprintCopy: Record<
+	StudyBlueprintId,
+	Omit<StudyBlueprintOption, 'id' | 'questionnaireStarterId'>
+> = {
 	custom_research_study: {
 		eyebrow: 'Prazna studija',
 		title: 'Izradite od početka',
@@ -314,6 +336,7 @@ function localizeStudyBlueprintOption(option: StudyBlueprintOption, locale: AppL
 
 	return {
 		id: option.id,
+		questionnaireStarterId: option.questionnaireStarterId,
 		...croatianBlueprintCopy[option.id]
 	};
 }

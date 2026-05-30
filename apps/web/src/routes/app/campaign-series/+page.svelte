@@ -20,6 +20,7 @@
 		createSetupApiFromEnv
 	} from '$lib/product/route-state';
 	import {
+		buildSetupQuestionnaireStarterParam,
 		buildStudyNamePlaceholder,
 		defaultStudyBlueprintId,
 		getStudyBlueprintOption,
@@ -153,7 +154,13 @@
 					ownerNotes: trimmedOrNull(studyOwnerNotes)
 				}
 			});
-			await goto(resolve(`/app/campaign-series/${created.id}/setup`));
+			const starterParam = buildSetupQuestionnaireStarterParam(selectedBlueprintId);
+			const setupRoute = resolve(`/app/campaign-series/${created.id}/setup`);
+			await goto(
+				starterParam
+					? `${setupRoute}?questionnaireStarter=${encodeURIComponent(starterParam)}`
+					: setupRoute
+			);
 		} catch (error) {
 			createSeriesError = toProductApiErrorMessage(error, text.portfolio.createFailed);
 		} finally {

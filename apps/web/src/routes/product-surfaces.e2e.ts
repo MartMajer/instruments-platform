@@ -1836,7 +1836,7 @@ test('restores archived campaign-series portfolio row and reloads archived visib
 
 test('creates a campaign series from the list and routes to setup', async ({ page }) => {
 	const createdSeriesId = '3505be02-11b0-4b43-8a73-1f9f3f2c7d15';
-	const createRequests: Array<{ name: string }> = [];
+	const createRequests: Array<{ name: string; studyBrief?: Record<string, unknown> }> = [];
 
 	await page.route('**/campaign-series', async (route) => {
 		if (!isProductApiPath(route.request().url(), '/campaign-series')) {
@@ -1849,7 +1849,9 @@ test('creates a campaign series from the list and routes to setup', async ({ pag
 			return;
 		}
 
-		createRequests.push(route.request().postDataJSON() as { name: string });
+		createRequests.push(
+			route.request().postDataJSON() as { name: string; studyBrief?: Record<string, unknown> }
+		);
 		await route.fulfill({ status: 201, json: { id: createdSeriesId } });
 	});
 
@@ -1897,12 +1899,74 @@ test('creates a campaign series from the list and routes to setup', async ({ pag
 	await page.getByRole('button', { name: 'Create study' }).click();
 
 	await expect(page).toHaveURL(`/app/campaign-series/${createdSeriesId}/setup`);
-	expect(createRequests).toEqual([{ name: 'New routed pulse' }]);
+	expect(createRequests).toEqual([
+		expect.objectContaining({
+			name: 'New routed pulse',
+			studyBrief: expect.objectContaining({
+				designType: 'single_wave',
+				intendedUse: 'research_analysis'
+			})
+		})
+	]);
 	await expect(
 		page
-			.getByRole('region', { name: 'Setup reference' })
-			.getByText(createdSeriesId, { exact: true })
+			.getByRole('region', { name: 'Setup workspace' })
+			.getByRole('heading', { name: 'Study setup progress', exact: true })
 	).toBeVisible();
+});
+
+test('carries a selected OSH starting point into setup without showing another starter chooser first', async ({
+	page
+}) => {
+	const createdSeriesId = '4505be02-11b0-4b43-8a73-1f9f3f2c7d15';
+
+	await page.route('**/campaign-series', async (route) => {
+		if (!isProductApiPath(route.request().url(), '/campaign-series')) {
+			await route.fallback();
+			return;
+		}
+
+		if (route.request().method() !== 'POST') {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({ status: 201, json: { id: createdSeriesId } });
+	});
+
+	await page.route(`**/campaign-series/${createdSeriesId}/setup-workspace`, async (route) => {
+		if (
+			!isProductApiPath(
+				route.request().url(),
+				`/campaign-series/${createdSeriesId}/setup-workspace`
+			)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: createEmptySetupWorkspace(createdSeriesId, 'Warehouse strain review')
+		});
+	});
+
+	await page.goto('/app/campaign-series');
+	await page.getByRole('button', { name: /Workplace health review/i }).click();
+	await page.getByLabel('Study name').fill('Warehouse strain review');
+	await page.getByRole('button', { name: 'Create study' }).click();
+
+	await expect(page).toHaveURL(
+		`/app/campaign-series/${createdSeriesId}/setup?questionnaireStarter=osh_ergonomics`
+	);
+	await expect(page.getByText('Using OSH / ergonomics starter', { exact: true })).toBeVisible();
+	await expect(page.getByText('Choose a questionnaire starter', { exact: true })).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Change starter' }).click();
+	await expect(page.getByText('Choose a questionnaire starter', { exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: /OSH \/ ergonomics/ })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 });
 
 test('renders selected study overview from the product read model', async ({ page }) => {

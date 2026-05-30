@@ -1778,7 +1778,7 @@ function measurementLevelFor(row: TemplateQuestionAuthoringRow): string | null {
 	}
 
 	if (row.type === 'number') {
-		return 'numeric';
+		return 'scale';
 	}
 
 	if (row.type === 'ranking') {
@@ -2531,6 +2531,25 @@ export type QuestionnairePaletteId =
 	| 'academic_workload'
 	| 'team_climate'
 	| 'healthcare_staff_strain';
+
+const questionnairePaletteIds: QuestionnairePaletteId[] = [
+	'blank',
+	'workload_recovery',
+	'osh_ergonomics',
+	'office_ergonomics',
+	'academic_workload',
+	'team_climate',
+	'healthcare_staff_strain'
+];
+
+export function questionnairePaletteIdFromParam(
+	value: string | null | undefined
+): QuestionnairePaletteId {
+	const normalized = value?.trim();
+	return normalized && questionnairePaletteIds.includes(normalized as QuestionnairePaletteId)
+		? (normalized as QuestionnairePaletteId)
+		: 'blank';
+}
 
 export type QuestionnairePaletteOption = {
 	id: QuestionnairePaletteId;

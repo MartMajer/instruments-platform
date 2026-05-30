@@ -53,7 +53,6 @@
 	buildScoreProduces,
 	buildScoringDocument,
 	createScoreOutputRowsForQuestionnairePalette,
-	createDefaultTemplateQuestionRows,
 	createTemplateQuestionRowsForQuestionnairePalette,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
@@ -63,6 +62,7 @@
 	isMeanScoreEligible,
 	listQuestionnairePaletteOptions,
 	moveTemplateQuestionRow,
+	questionnairePaletteIdFromParam,
 	questionScalePresetOptions,
 	removeScoreOutputRow,
 	removeTemplateQuestionRow,
@@ -118,8 +118,15 @@
 	const setupBodyCopy = $derived(routePageCopy(appLocale).selectedStudy.setupBody);
 	const initialSetupRunSuffix = generateSetupRunSuffix();
 	const initialScoringRuleKey = 'custom.total_score';
-	const initialTemplateQuestionRows = createDefaultTemplateQuestionRows();
-	const initialScoreOutputs = createScoreOutputRowsForQuestionnairePalette('blank', initialTemplateQuestionRows);
+	const initialQuestionnairePalette = questionnairePaletteIdFromParam(
+		page.url.searchParams.get('questionnaireStarter')
+	);
+	const initialTemplateQuestionRows =
+		createTemplateQuestionRowsForQuestionnairePalette(initialQuestionnairePalette);
+	const initialScoreOutputs = createScoreOutputRowsForQuestionnairePalette(
+		initialQuestionnairePalette,
+		initialTemplateQuestionRows
+	);
 	const questionnairePaletteOptionBase = listQuestionnairePaletteOptions();
 	const questionnairePaletteOptions = $derived(
 	questionnairePaletteOptionBase.map((option) => ({
@@ -129,13 +136,18 @@
 		] ?? {})
 	}))
 );
+	const selectedQuestionnairePaletteOption = $derived(
+		questionnairePaletteOptions.find((option) => option.id === selectedQuestionnairePalette) ??
+			questionnairePaletteOptions[0]
+	);
 
 	let instrumentResult = $state<InstrumentSummaryResponse | null>(null);
 	let templateResult = $state<TemplateVersionDetailResponse | null>(null);
 	let scoringResult = $state<SetupIdResponse | null>(null);
 	let campaignResult = $state<CampaignDraftResponse | null>(null);
 	let readinessResult = $state<LaunchReadinessResponse | null>(null);
-	let selectedQuestionnairePalette = $state<QuestionnairePaletteId>('blank');
+	let selectedQuestionnairePalette = $state<QuestionnairePaletteId>(initialQuestionnairePalette);
+	let paletteChooserExpanded = $state(initialQuestionnairePalette === 'blank');
 	let refreshWarning = $state<string | null>(null);
 	let actionStates = $state<Record<SelectedSeriesSetupWorkflowActionId, StepState>>({
 		instrument: 'idle',
@@ -173,6 +185,7 @@
 		const nextOutputs = createScoreOutputRowsForQuestionnairePalette(paletteId, nextRows);
 
 		selectedQuestionnairePalette = paletteId;
+		paletteChooserExpanded = paletteId === 'blank';
 		templateQuestionRows = nextRows;
 		expandedQuestionCode = nextRows[0]?.code ?? '';
 		scoreOutputs = nextOutputs;
@@ -2339,52 +2352,81 @@
 								</select>
 							</label>
 						</div>
-						<div class="mt-4 record-row">
-							<div class="record-row__header">
-								<div>
-									<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
-									<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.')}
-									</p>
-								</div>
-								<StatusBadge status="neutral" label={setupUi('Customizable')} />
-							</div>
-							<div class="grid gap-3 xl:grid-cols-2">
-								{#each questionnairePaletteOptions as preset (preset.id)}
-									<button
-										type="button"
-										class="record-field min-w-0 cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
-										aria-pressed={selectedQuestionnairePalette === preset.id}
-										style={selectedQuestionnairePalette === preset.id
-											? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
-											: undefined}
-										onclick={() => applyQuestionnairePalette(preset.id)}
-									>
-										<div class="flex min-w-0 items-start justify-between gap-3">
-											<div class="min-w-0">
-												<p class="record-field__label">
-													{preset.category} - {setupQuestionCount(preset.questionCount)}
-												</p>
-												<p class="record-field__value">{preset.label}</p>
-											</div>
-											{#if selectedQuestionnairePalette === preset.id}
-												<span class="step-pill shrink-0" data-state="current">{setupUi('Selected')}</span>
-											{:else}
-												<span class="shrink-0 whitespace-nowrap text-xs font-semibold text-[var(--color-accent)]">
-													{setupUi('Use this set')}
-												</span>
-											{/if}
-										</div>
-										<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
-										<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
-										<p class="mt-2 text-xs text-[var(--color-text-muted)]">
-											{setupUi('Suggested results')}: {setupResultOutputsList(preset.resultOutputs)}
+						{#if selectedQuestionnairePaletteOption && !paletteChooserExpanded}
+							<div class="mt-4 record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Questionnaire starter')}</p>
+										<h5 class="record-row__title">
+											{setupUi('Using')} {selectedQuestionnairePaletteOption.label} {setupUi('starter')}
+										</h5>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{selectedQuestionnairePaletteOption.summary}
 										</p>
-									</button>
-								{/each}
+									</div>
+									<StatusBadge status="neutral" label={setupUi('Selected')} />
+								</div>
+								<p class="text-xs text-[var(--color-text-muted)]">
+									{setupUi('Suggested results')}: {setupResultOutputsList(selectedQuestionnairePaletteOption.resultOutputs)}
+								</p>
+								<button
+									type="button"
+									class="secondary-button w-fit"
+									onclick={() => {
+										paletteChooserExpanded = true;
+									}}
+								>
+									{setupUi('Change starter')}
+								</button>
 							</div>
-						</div>
+						{:else}
+							<div class="mt-4 record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
+										<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.')}
+										</p>
+									</div>
+									<StatusBadge status="neutral" label={setupUi('Customizable')} />
+								</div>
+								<div class="grid gap-3 xl:grid-cols-2">
+									{#each questionnairePaletteOptions as preset (preset.id)}
+										<button
+											type="button"
+											class="record-field min-w-0 cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
+											aria-pressed={selectedQuestionnairePalette === preset.id}
+											style={selectedQuestionnairePalette === preset.id
+												? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
+												: undefined}
+											onclick={() => applyQuestionnairePalette(preset.id)}
+										>
+											<div class="flex min-w-0 items-start justify-between gap-3">
+												<div class="min-w-0">
+													<p class="record-field__label">
+														{preset.category} - {setupQuestionCount(preset.questionCount)}
+													</p>
+													<p class="record-field__value">{preset.label}</p>
+												</div>
+												{#if selectedQuestionnairePalette === preset.id}
+													<span class="step-pill shrink-0" data-state="current">{setupUi('Selected')}</span>
+												{:else}
+													<span class="shrink-0 whitespace-nowrap text-xs font-semibold text-[var(--color-accent)]">
+														{setupUi('Use this set')}
+													</span>
+												{/if}
+											</div>
+											<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
+											<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
+											<p class="mt-2 text-xs text-[var(--color-text-muted)]">
+												{setupUi('Suggested results')}: {setupResultOutputsList(preset.resultOutputs)}
+											</p>
+										</button>
+									{/each}
+								</div>
+							</div>
+						{/if}
 						<div class="mt-4 grid gap-4">
 							{#each templateQuestionRows as question, index (question.ordinal)}
 								<div class="question-row">

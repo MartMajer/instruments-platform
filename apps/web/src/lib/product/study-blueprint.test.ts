@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	buildSetupQuestionnaireStarterParam,
 	buildStudyNamePlaceholder,
 	defaultStudyBlueprintId,
 	getStudyBlueprintOption,
@@ -13,7 +14,7 @@ describe('study blueprint model', () => {
 		expect(defaultStudyBlueprintId).toBe('custom_research_study');
 		expect(options[0]).toMatchObject({
 			id: 'custom_research_study',
-			title: 'Custom research study'
+			title: 'Build from scratch'
 		});
 	});
 
@@ -29,7 +30,7 @@ describe('study blueprint model', () => {
 
 		expect(option).toMatchObject({
 			id: 'osh_ergonomics_study',
-			title: 'OSH / ergonomics study',
+			title: 'Workplace health review',
 			namePlaceholder: 'e.g. Warehouse strain and recovery pulse'
 		});
 		expect(option.highlights).toContain('Mixed answer formats');
@@ -58,11 +59,21 @@ describe('study blueprint model', () => {
 		);
 	});
 
+	it('maps concrete starting points to setup questionnaire starters', () => {
+		expect(buildSetupQuestionnaireStarterParam('custom_research_study')).toBeNull();
+		expect(buildSetupQuestionnaireStarterParam('repeated_wave')).toBeNull();
+		expect(buildSetupQuestionnaireStarterParam('team_pulse')).toBe('team_climate');
+		expect(buildSetupQuestionnaireStarterParam('osh_ergonomics_study')).toBe('osh_ergonomics');
+		expect(getStudyBlueprintOption('osh_ergonomics_study').questionnaireStarterId).toBe(
+			'osh_ergonomics'
+		);
+	});
+
 	it('localizes blueprint copy for Croatian app UI without changing ids', () => {
 		const option = getStudyBlueprintOption('custom_research_study', 'hr-HR');
 
 		expect(option.id).toBe('custom_research_study');
-		expect(option.title).toBe('Prilagođena istraživačka studija');
+		expect(option.title).toBe('Izradite od početka');
 		expect(buildStudyNamePlaceholder('team_pulse', 'hr-HR')).toBe('npr. Timski puls Q3');
 		expect(listStudyBlueprintOptions('hr-HR')[0].nextSteps[0].label).toBe('Svrha');
 	});

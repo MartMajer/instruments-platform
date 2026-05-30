@@ -18,6 +18,7 @@ import {
 	describeScoreMissingDataStrategy,
 	duplicateTemplateQuestionRow,
 	listStudyAuthoringPresetOptions,
+	listQuestionnairePaletteOptions,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeTemplateQuestionRow,
@@ -258,6 +259,31 @@ describe('template authoring helpers', () => {
 				missingCodes: '[]'
 			}
 		]);
+	});
+
+	it('maps every questionnaire starter to backend-supported measurement levels', () => {
+		const supportedMeasurementLevels = new Set(['nominal', 'ordinal', 'scale']);
+		const starterIds = listQuestionnairePaletteOptions().map((option) => option.id);
+
+		const unsupported = starterIds.flatMap((starterId) =>
+			toCreateTemplateQuestions(createTemplateQuestionRowsForQuestionnairePalette(starterId))
+				.filter(
+					(question) => {
+						const measurementLevel = question.measurementLevel;
+						return (
+							measurementLevel != null &&
+							!supportedMeasurementLevels.has(measurementLevel)
+						);
+					}
+				)
+				.map((question) => `${starterId}:${question.code}:${question.measurementLevel}`)
+		);
+
+		expect(unsupported).toEqual([]);
+		expect(
+			toCreateTemplateQuestions(createTemplateQuestionRowsForQuestionnairePalette('osh_ergonomics'))
+				.find((question) => question.code === 'discomfort_severity')?.measurementLevel
+		).toBe('scale');
 	});
 
 	it('builds default scoring from current question codes and reverse-coded flags', () => {
