@@ -325,6 +325,7 @@ public static class ResponseAnswerValueValidator
         if (!payload.TryGetProperty("text", out var text) ||
             text.ValueKind != JsonValueKind.Object ||
             !text.TryGetProperty("maxLength", out var maxLength) ||
+            maxLength.ValueKind != JsonValueKind.Number ||
             !maxLength.TryGetInt32(out var maxLengthValue))
         {
             return Result.Success(true);

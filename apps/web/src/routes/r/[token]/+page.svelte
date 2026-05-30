@@ -753,17 +753,17 @@
 	function getSaveStatusMessage(status: SaveStatus) {
 		switch (status) {
 			case 'dirty':
-				return 'Unsaved changes';
+				return text.respondent.saveStatusUnsavedChanges;
 			case 'saving':
-				return 'Saving answers';
+				return text.respondent.saveStatusSavingAnswers;
 			case 'saved':
-				return 'Answers saved';
+				return text.respondent.saveStatusAnswersSaved;
 			case 'failed':
-				return 'Answers are not saved yet. Review will retry before submit.';
+				return text.respondent.saveStatusRetryBeforeSubmit;
 			case 'local-restored':
-				return 'Unsaved answers restored on this device';
+				return text.respondent.saveStatusLocalRestored;
 			default:
-				return 'Answers not saved yet';
+				return text.respondent.saveStatusNotSavedYet;
 		}
 	}
 

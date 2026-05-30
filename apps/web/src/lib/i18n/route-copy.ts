@@ -681,6 +681,12 @@ const en = {
 		responseSessionUnavailable: 'This response session is no longer available.',
 		requestFailed: 'Request failed.',
 		networkRequestFailed: 'Connection problem. Try again before submitting.',
+		saveStatusUnsavedChanges: 'Unsaved changes',
+		saveStatusSavingAnswers: 'Saving answers',
+		saveStatusAnswersSaved: 'Answers saved',
+		saveStatusRetryBeforeSubmit: 'Answers are not saved yet. Review will retry before submit.',
+		saveStatusLocalRestored: 'Unsaved answers restored on this device',
+		saveStatusNotSavedYet: 'Answers not saved yet',
 		questionRequiresAnswer: (code: string) => code + ' requires an answer.',
 		questionMustBeNumber: (code: string) => code + ' must be a number.',
 		questionBetween: (code: string, min: number, max: number) =>
@@ -3046,6 +3052,13 @@ const hr: typeof en = {
 		responseSessionUnavailable: 'Ova sesija odgovaranja više nije dostupna.',
 		requestFailed: 'Zahtjev nije uspio.',
 		networkRequestFailed: 'Problem s vezom. Pokušajte ponovno prije predaje.',
+		saveStatusUnsavedChanges: 'Nespremljene promjene',
+		saveStatusSavingAnswers: 'Spremanje odgovora',
+		saveStatusAnswersSaved: 'Odgovori su spremljeni',
+		saveStatusRetryBeforeSubmit:
+			'Odgovori još nisu spremljeni. Pregled će pokušati ponovno prije predaje.',
+		saveStatusLocalRestored: 'Nespremljeni odgovori vraćeni su na ovom uređaju',
+		saveStatusNotSavedYet: 'Odgovori još nisu spremljeni',
 		questionRequiresAnswer: (code: string) => code + ' zahtijeva odgovor.',
 		questionMustBeNumber: (code: string) => code + ' mora biti broj.',
 		questionBetween: (code: string, min: number, max: number) =>

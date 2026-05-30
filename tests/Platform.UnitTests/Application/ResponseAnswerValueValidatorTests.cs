@@ -163,6 +163,26 @@ public sealed class ResponseAnswerValueValidatorTests
     }
 
     [Fact]
+    public void Text_answer_allows_null_max_length_metadata()
+    {
+        var questionId = Guid.NewGuid();
+
+        var result = ResponseAnswerValueValidator.Validate(
+            [
+                new ResponseAnswerQuestionContract(
+                    questionId,
+                    "context",
+                    QuestionTypes.Text,
+                    """{"text":{"maxLength":null}}""")
+            ],
+            [
+                new SaveAnswerRequest(questionId, "\"Some context\"")
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+    }
+
+    [Fact]
     public void Skipped_or_not_applicable_answer_cannot_carry_a_value()
     {
         var skippedId = Guid.NewGuid();

@@ -898,6 +898,34 @@ test('does not expose raw fetch failures after background autosave fails', async
 	await expect(page.getByText('Failed to fetch')).toHaveCount(0);
 });
 
+test('localizes failed autosave status for Croatian respondents', async ({ page }) => {
+	await page.route('**/respondent/open-links/*/sessions/*/answers', async (route) => {
+		await route.abort('failed');
+	});
+
+	await page.route('**/respondent/open-links/*/sessions', async (route) => {
+		await route.fulfill({ status: 201, json: sampleSession });
+	});
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({ json: sampleOpenLinkEntry });
+	});
+
+	await page.goto(`/r/${openLinkToken}?locale=hr-HR`);
+
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Nastavi' }).click();
+	await answerLikert(page, 5);
+
+	await expect(
+		page.getByText('Odgovori još nisu spremljeni. Pregled će pokušati ponovno prije predaje.')
+	).toBeVisible();
+	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toHaveCount(
+		0
+	);
+});
+
 test('requires participant code before starting anonymous longitudinal open-link response', async ({
 	page
 }) => {
