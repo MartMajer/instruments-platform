@@ -883,25 +883,21 @@ test('renders authenticated app shell session profile without exposing technical
 	await expect(session.getByText(sampleSessionTenantId, { exact: true })).toBeVisible();
 });
 
-test('renders tenant settings profile, counts, and management links', async ({ page }) => {
+test('renders tenant settings language and email-template controls', async ({ page }) => {
 	await page.goto('/app/settings');
 
-	await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Workspace settings', exact: true })).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
 	await expect(nav.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
 
-	const settings = page.getByRole('region', { name: 'Tenant settings' });
+	const settings = page.getByRole('region', { name: 'Workspace settings' });
 	await expect(settings.getByText('Occupational Health Lab', { exact: true })).toBeVisible();
-	const profile = settings.getByRole('group', { name: 'Tenant profile details' });
-	await expect(profile.getByText(sampleSessionTenantId, { exact: true })).toBeVisible();
-	await expect(profile.getByText('occupational-health-lab', { exact: true })).toBeVisible();
+	const profile = settings.getByRole('group', { name: 'Workspace profile details' });
 	await expect(profile.getByText('EU', { exact: true })).toBeVisible();
 	await expect(profile.getByText('en', { exact: true })).toBeVisible();
 	await expect(profile.getByText('Active', { exact: true })).toBeVisible();
-	await expect(profile.getByText('2026-05-01T08:00:00Z', { exact: true })).toBeVisible();
-	await expect(profile.getByText('2026-05-12T09:30:00Z', { exact: true })).toBeVisible();
 
-	const counts = settings.getByRole('group', { name: 'Tenant workspace counts' });
+	const counts = settings.getByRole('group', { name: 'Workspace counts' });
 	await expect(counts.locator('div').filter({ hasText: 'Campaign series' })).toContainText('3');
 	await expect(counts.locator('div').filter({ hasText: 'Live campaigns' })).toContainText('2');
 	await expect(counts.locator('div').filter({ hasText: 'Submitted responses' })).toContainText(
@@ -911,12 +907,29 @@ test('renders tenant settings profile, counts, and management links', async ({ p
 	await expect(counts.locator('div').filter({ hasText: 'Tenant members' })).toContainText('4');
 	await expect(settings.locator('.metric-card')).toHaveCount(0);
 
-	const links = settings.getByLabel('Tenant management links');
-	await expect(links.getByRole('link', { name: /Campaign series/i })).toHaveAttribute(
+	await expect(settings.getByRole('button', { name: 'English' })).toHaveClass(/active/);
+	await settings.getByRole('button', { name: 'Croatian' }).click();
+	await settings.getByRole('button', { name: 'Save language' }).click();
+	await expect(settings.getByText('Default language saved.', { exact: true })).toBeVisible();
+
+	await settings.getByRole('tab', { name: /Invitation Croatian/ }).click();
+	await settings.getByLabel('Subject').fill('Prilagodeni poziv za {{workspace_name}}');
+	await settings.getByRole('button', { name: 'Save template' }).click();
+	await expect(settings.getByText('Email template saved.', { exact: true })).toBeVisible();
+	await expect(settings.getByText('https://staging.validatedscale.com/r/inv_preview')).toBeVisible();
+
+	await settings.getByRole('button', { name: 'Reset to default' }).click();
+	await expect(settings.getByText('Email template reset.', { exact: true })).toBeVisible();
+
+	const links = settings.getByLabel('Workspace setting shortcuts');
+	await expect(links.getByRole('link', { name: /Study setup/i })).toHaveAttribute(
 		'href',
 		'/app/campaign-series'
 	);
-	await expect(links.getByRole('link', { name: /Team/i })).toHaveAttribute('href', '/app/team');
+	await expect(links.getByRole('link', { name: /Workspace access/i })).toHaveAttribute(
+		'href',
+		'/app/team'
+	);
 	await expect(links.getByRole('link', { name: /Directory/i })).toHaveAttribute(
 		'href',
 		'/app/directory'
@@ -6107,6 +6120,61 @@ async function routeProductReadModels(page: Page) {
 		await route.fulfill({ json: sampleTenantSettings });
 	});
 
+	await page.route('**/tenant-settings/language', async (route) => {
+		if (
+			route.request().method() !== 'PUT' ||
+			!isProductApiPath(route.request().url(), '/tenant-settings/language')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				defaultLocale: 'hr-HR',
+				supportedLocales: ['en', 'hr-HR']
+			}
+		});
+	});
+
+	await page.route('**/tenant-settings/email-templates/**', async (route) => {
+		const url = new URL(route.request().url());
+		const match = /^\/tenant-settings\/email-templates\/([^/]+)\/([^/]+)$/u.exec(url.pathname);
+		if (!match) {
+			await route.fallback();
+			return;
+		}
+
+		const [, templateCode, templateLocale] = match;
+		if (route.request().method() === 'PUT') {
+			const request = route.request().postDataJSON() as { subject: string; bodyText: string };
+			await route.fulfill({
+				json: {
+					templateCode,
+					locale: decodeURIComponent(templateLocale),
+					subject: request.subject,
+					bodyText: request.bodyText,
+					isCustom: true,
+					isBuiltInDefault: false,
+					validationIssues: []
+				}
+			});
+			return;
+		}
+
+		if (route.request().method() === 'DELETE') {
+			const template =
+				sampleTenantSettings.emailTemplates.find(
+					(item) =>
+						item.templateCode === templateCode && item.locale === decodeURIComponent(templateLocale)
+				) ?? sampleTenantSettings.emailTemplates[0];
+			await route.fulfill({ json: { template } });
+			return;
+		}
+
+		await route.fallback();
+	});
+
 	await page.route('**/export-artifacts', async (route) => {
 		if (!isProductApiPath(route.request().url(), '/export-artifacts')) {
 			await route.fallback();
@@ -6772,6 +6840,49 @@ const sampleTenantSettings: TenantSettingsWorkspaceResponse = {
 			label: 'Directory',
 			description: 'Review subject records and hierarchy.',
 			route: '/app/directory'
+		}
+	],
+	supportedLocales: ['en', 'hr-HR'],
+	emailTemplates: [
+		{
+			templateCode: 'invitation',
+			locale: 'en',
+			subject: 'Study invitation',
+			bodyText:
+				'Open {{respondent_link}}. Unsubscribe with {{unsubscribe_link}}. Sent by {{workspace_name}}.',
+			isCustom: false,
+			isBuiltInDefault: true,
+			validationIssues: []
+		},
+		{
+			templateCode: 'invitation',
+			locale: 'hr-HR',
+			subject: 'Poziv na istrazivanje',
+			bodyText:
+				'Otvorite {{respondent_link}}. Odjava je {{unsubscribe_link}}. Poslao radni prostor {{workspace_name}}.',
+			isCustom: false,
+			isBuiltInDefault: true,
+			validationIssues: []
+		},
+		{
+			templateCode: 'reminder',
+			locale: 'en',
+			subject: 'Study reminder',
+			bodyText:
+				'Open {{respondent_link}}. Unsubscribe with {{unsubscribe_link}}. Sent by {{workspace_name}}.',
+			isCustom: false,
+			isBuiltInDefault: true,
+			validationIssues: []
+		},
+		{
+			templateCode: 'reminder',
+			locale: 'hr-HR',
+			subject: 'Podsjetnik na istrazivanje',
+			bodyText:
+				'Otvorite {{respondent_link}}. Odjava je {{unsubscribe_link}}. Poslao radni prostor {{workspace_name}}.',
+			isCustom: false,
+			isBuiltInDefault: true,
+			validationIssues: []
 		}
 	]
 };

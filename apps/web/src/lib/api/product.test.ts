@@ -42,6 +42,78 @@ describe('createProductApi', () => {
 		expect(calls).toEqual(['/tenant-settings']);
 	});
 
+	it('updates tenant language settings', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					defaultLocale: 'hr-HR',
+					supportedLocales: ['en', 'hr-HR']
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.updateTenantLanguage({ defaultLocale: 'hr-HR' });
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-settings/language',
+				init: {
+					method: 'PUT',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({ defaultLocale: 'hr-HR' })
+				}
+			}
+		]);
+	});
+
+	it('updates and resets tenant email templates', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return sampleTenantSettings.emailTemplates[0] as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.updateTenantEmailTemplate('invitation', 'hr-HR', {
+			subject: 'Poziv',
+			bodyText: 'Body with {{respondent_link}} and {{unsubscribe_link}} in enough text.'
+		});
+		await api.resetTenantEmailTemplate('reminder', 'en');
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-settings/email-templates/invitation/hr-HR',
+				init: {
+					method: 'PUT',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						subject: 'Poziv',
+						bodyText: 'Body with {{respondent_link}} and {{unsubscribe_link}} in enough text.'
+					})
+				}
+			},
+			{
+				path: '/tenant-settings/email-templates/reminder/en',
+				init: {
+					method: 'DELETE'
+				}
+			}
+		]);
+	});
+
 	it('requests export artifact library', async () => {
 		const calls: string[] = [];
 		const api = createProductApi({
@@ -1379,6 +1451,19 @@ const sampleTenantSettings: TenantSettingsWorkspaceResponse = {
 			label: 'Campaign series',
 			description: 'Manage tenant study series and selected-series workspaces.',
 			route: '/app/campaign-series'
+		}
+	],
+	supportedLocales: ['en', 'hr-HR'],
+	emailTemplates: [
+		{
+			templateCode: 'invitation',
+			locale: 'en',
+			subject: 'Study invitation',
+			bodyText:
+				'Open {{respondent_link}}. Unsubscribe with {{unsubscribe_link}}. Sent by {{workspace_name}}.',
+			isCustom: false,
+			isBuiltInDefault: true,
+			validationIssues: []
 		}
 	]
 };

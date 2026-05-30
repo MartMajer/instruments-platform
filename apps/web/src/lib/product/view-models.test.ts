@@ -343,7 +343,9 @@ describe('product view models', () => {
 					description: 'Review subjects, groups, and hierarchy.',
 					route: '/app/directory'
 				}
-			]
+			],
+			supportedLocales: ['en', 'hr-HR'],
+			emailTemplates: []
 		};
 
 		const view = toTenantSettingsView(settings);
@@ -398,7 +400,9 @@ describe('product view models', () => {
 				tenantRoleCount: 3,
 				exportArtifactCount: 9
 			},
-			managementLinks: []
+			managementLinks: [],
+			supportedLocales: ['en', 'hr-HR'],
+			emailTemplates: []
 		};
 
 		const settingsView = toTenantSettingsView(settings, 'hr-HR');

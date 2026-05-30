@@ -50,6 +50,8 @@ export type TenantSettingsWorkspaceResponse = {
 	profile: TenantSettingsProfileResponse;
 	counts: TenantSettingsWorkspaceCountsResponse;
 	managementLinks: TenantSettingsManagementLinkResponse[];
+	supportedLocales: string[];
+	emailTemplates: TenantEmailTemplateSettingsResponse[];
 };
 
 export type TenantSettingsProfileResponse = {
@@ -80,6 +82,39 @@ export type TenantSettingsManagementLinkResponse = {
 	label: string;
 	description: string;
 	route: string;
+};
+
+export type TenantLanguageResponse = {
+	defaultLocale: string;
+	supportedLocales: string[];
+};
+
+export type UpdateTenantLanguageRequest = {
+	defaultLocale: string;
+};
+
+export type TenantEmailTemplateSettingsResponse = {
+	templateCode: string;
+	locale: string;
+	subject: string;
+	bodyText: string;
+	isCustom: boolean;
+	isBuiltInDefault: boolean;
+	validationIssues: EmailTemplateValidationIssueResponse[];
+};
+
+export type EmailTemplateValidationIssueResponse = {
+	code: string;
+	message: string;
+};
+
+export type UpdateEmailTemplateRequest = {
+	subject: string;
+	bodyText: string;
+};
+
+export type ResetEmailTemplateResponse = {
+	template: TenantEmailTemplateSettingsResponse;
 };
 
 export type ExportArtifactLibraryResponse = {
@@ -1289,6 +1324,25 @@ export function createProductApi(client: ApiClient) {
 			),
 		getWorkspaceOverview: () => client.request<WorkspaceOverviewResponse>('/workspace-overview'),
 		getTenantSettings: () => client.request<TenantSettingsWorkspaceResponse>('/tenant-settings'),
+		updateTenantLanguage: (request: UpdateTenantLanguageRequest) =>
+			client.request<TenantLanguageResponse>(
+				'/tenant-settings/language',
+				jsonRequest('PUT', request)
+			),
+		updateTenantEmailTemplate: (
+			templateCode: string,
+			locale: string,
+			request: UpdateEmailTemplateRequest
+		) =>
+			client.request<TenantEmailTemplateSettingsResponse>(
+				`/tenant-settings/email-templates/${encodeURIComponent(templateCode)}/${encodeURIComponent(locale)}`,
+				jsonRequest('PUT', request)
+			),
+		resetTenantEmailTemplate: (templateCode: string, locale: string) =>
+			client.request<ResetEmailTemplateResponse>(
+				`/tenant-settings/email-templates/${encodeURIComponent(templateCode)}/${encodeURIComponent(locale)}`,
+				{ method: 'DELETE' }
+			),
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),
 		listTenantMembers: () => client.request<TenantMemberRosterResponse>('/tenant-members'),
 		listTenantRoles: () => client.request<TenantRoleListResponse>('/tenant-roles'),
