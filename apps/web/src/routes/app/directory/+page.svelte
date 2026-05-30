@@ -50,6 +50,8 @@
 	let newSubjectExternalId = $state('');
 	let newSubjectLocale = $state('en');
 	let newSubjectAttributes = $state('{}');
+	let newSubjectGroupId = $state('');
+	let newSubjectRoleInGroup = $state('');
 	let creatingSubject = $state(false);
 	let subjectMutationError = $state<string | null>(null);
 	let editSubjectSourceId = $state('');
@@ -124,6 +126,7 @@
 	let activeDirectoryContact = $state('any');
 	let directoryPageOffset = $state(0);
 	let detailsSubjectId = $state('');
+	let personDetailsDialog = $state<HTMLDialogElement | null>(null);
 	let statusMutationReason = $state('');
 	let statusMutatingSubject = $state(false);
 	let statusMutationError = $state<string | null>(null);
@@ -496,12 +499,26 @@
 				locale: newSubjectLocale.trim() || 'en',
 				attributes: newSubjectAttributes.trim() || '{}'
 			});
+			const requestedGroupId = optionalText(newSubjectGroupId);
+			if (requestedGroupId) {
+				await productApi.addSubjectGroupMember(requestedGroupId, {
+					subjectId: created.id,
+					roleInGroup: optionalText(newSubjectRoleInGroup)
+				});
+			}
+
 			newSubjectDisplayName = '';
 			newSubjectEmail = '';
 			newSubjectExternalId = '';
+			newSubjectLocale = 'en';
 			newSubjectAttributes = '{}';
+			newSubjectGroupId = '';
+			newSubjectRoleInGroup = '';
 			await loadDirectory();
 			selectedSubjectId = created.id;
+			if (requestedGroupId) {
+				selectedGroupId = requestedGroupId;
+			}
 			syncSelectedSubjectFields(directory?.subjects ?? []);
 		} catch (error) {
 			subjectMutationError = toProductApiErrorMessage(error, text.directory.personCreateFailed);
@@ -651,6 +668,7 @@
 			newGroupAttributes = '{}';
 			await loadDirectory();
 			selectedGroupId = created.id;
+			newSubjectGroupId = created.id;
 		} catch (error) {
 			groupMutationError = toProductApiErrorMessage(error, text.directory.groupCreateFailed);
 		} finally {
@@ -714,6 +732,10 @@
 
 		if (!nextGroups.some((group) => group.id === selectedGroupId)) {
 			selectedGroupId = nextGroups[0]?.id ?? '';
+		}
+
+		if (newSubjectGroupId && !nextGroups.some((group) => group.id === newSubjectGroupId)) {
+			newSubjectGroupId = '';
 		}
 	}
 
@@ -814,6 +836,18 @@
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
+	}
+
+	function openSubjectDetails(subject: SubjectDirectoryItemResponse) {
+		detailsSubjectId = subject.id;
+		selectedSubjectId = subject.id;
+		statusMutationReason = '';
+		statusMutationError = null;
+		syncSelectedSubjectFields(subjects);
+		setTimeout(() => {
+			personDetailsDialog?.focus({ preventScroll: true });
+			personDetailsDialog?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}, 0);
 	}
 
 	function normalizeSelect(value: string, fallback: string) {
@@ -1705,7 +1739,10 @@
 							</thead>
 							<tbody>
 								{#each subjects as subject (subject.id)}
-									<tr data-testid="directory-person-row">
+									<tr
+										data-testid="directory-person-row"
+										data-selected={detailsSubjectId === subject.id ? 'true' : undefined}
+									>
 										<td>
 											<strong>{subjectLabel(subject)}</strong>
 											<span>{subject.locale}</span>
@@ -1754,15 +1791,12 @@
 										<td>
 											<button
 												type="button"
+												class:directory-row-action--active={detailsSubjectId === subject.id}
 												class="secondary-button directory-row-action"
-												aria-label={`View ${subjectLabel(subject)}`}
-												onclick={() => {
-													detailsSubjectId = subject.id;
-													statusMutationReason = '';
-													statusMutationError = null;
-												}}
+												aria-label={`${detailsSubjectId === subject.id ? 'Viewing' : 'View'} ${subjectLabel(subject)}`}
+												onclick={() => openSubjectDetails(subject)}
 											>
-												View
+												{detailsSubjectId === subject.id ? 'Viewing' : 'View'}
 											</button>
 										</td>
 									</tr>
@@ -1776,7 +1810,13 @@
 	</section>
 
 	{#if detailsSubject}
-		<dialog class="person-drawer" aria-label="Person details" open>
+		<dialog
+			bind:this={personDetailsDialog}
+			class="person-drawer"
+			aria-label="Person details"
+			tabindex="-1"
+			open
+		>
 			<div class="person-drawer__header">
 				<div>
 					<p class="product-kicker">{detailsSubject.sourceLabel}</p>
@@ -1963,6 +2003,7 @@
 	<details
 		id="directory-create"
 		class="product-panel"
+		role="region"
 		aria-label={text.directory.createRecordsAria}
 	>
 		<summary class="directory-maintenance-summary">
@@ -2008,24 +2049,47 @@
 						<input type="email" bind:value={newSubjectEmail} disabled={creatingSubject} />
 					</label>
 					<label class="field">
-						<span>{text.directory.externalId}</span>
-						<input bind:value={newSubjectExternalId} disabled={creatingSubject} />
+						<span>Department / group</span>
+						<select
+							aria-label="Department / group"
+							bind:value={newSubjectGroupId}
+							disabled={creatingSubject || groups.length === 0}
+						>
+							<option value="">No group yet</option>
+							{#each groups as group (group.id)}
+								<option value={group.id}>{group.name}</option>
+							{/each}
+						</select>
 					</label>
 					<label class="field">
-						<span>{text.directory.locale}</span>
-						<input bind:value={newSubjectLocale} disabled={creatingSubject} />
+						<span>{text.directory.roleInGroup}</span>
+						<input
+							aria-label="Role in group"
+							bind:value={newSubjectRoleInGroup}
+							disabled={creatingSubject || !newSubjectGroupId}
+							placeholder="member"
+						/>
 					</label>
 				</div>
-				<details
-					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
-				>
-					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-						Advanced attributes
-					</summary>
+				<details class="directory-advanced-panel">
+					<summary>Advanced identity and attributes</summary>
+					<div class="grid gap-3 pt-3 md:grid-cols-2">
+						<label class="field">
+							<span>{text.directory.externalId}</span>
+							<input
+								bind:value={newSubjectExternalId}
+								disabled={creatingSubject}
+								placeholder="Optional HR or student-system id"
+							/>
+						</label>
+						<label class="field">
+							<span>{text.directory.locale}</span>
+							<input bind:value={newSubjectLocale} disabled={creatingSubject} />
+						</label>
+					</div>
 					<label class="field mt-3">
 						<span>{text.directory.attributesJson}</span>
-						<textarea rows="3" bind:value={newSubjectAttributes} disabled={creatingSubject}
-						></textarea>
+						<textarea rows="3" bind:value={newSubjectAttributes} disabled={creatingSubject}></textarea>
 					</label>
 				</details>
 				<button type="submit" class="primary-button" disabled={creatingSubject}>
@@ -2057,7 +2121,13 @@
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
 						<span>Type</span>
-						<input bind:value={newGroupType} disabled={creatingGroup} />
+						<select bind:value={newGroupType} disabled={creatingGroup}>
+							<option value="department">Department</option>
+							<option value="team">Team</option>
+							<option value="cohort">Cohort</option>
+							<option value="course">Course</option>
+							<option value="org_unit">Organization unit</option>
+						</select>
 					</label>
 					<label class="field">
 						<span>Name</span>
@@ -2073,12 +2143,8 @@
 						{/each}
 					</select>
 				</label>
-				<details
-					class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
-				>
-					<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-						Advanced attributes
-					</summary>
+				<details class="directory-advanced-panel">
+					<summary>Advanced attributes</summary>
 					<label class="field mt-3">
 						<span>{text.directory.attributesJson}</span>
 						<textarea rows="3" bind:value={newGroupAttributes} disabled={creatingGroup}></textarea>
@@ -2100,7 +2166,11 @@
 		</div>
 	</details>
 
-	<details class="product-panel" aria-label={text.directory.directoryRelationshipsAria}>
+	<details
+		class="product-panel"
+		role="region"
+		aria-label={text.directory.directoryRelationshipsAria}
+	>
 		<summary class="directory-maintenance-summary">
 			<span>
 				<span class="product-kicker">{text.directory.hierarchySetup}</span>
@@ -2120,8 +2190,10 @@
 			</div>
 			</div>
 
+			<details class="directory-advanced-panel">
+				<summary>Edit selected person profile</summary>
 			<form
-			class="grid gap-3 border-b border-[var(--color-border)] pb-4"
+			class="grid gap-3 pt-3"
 			onsubmit={(event) => {
 				event.preventDefault();
 				void saveSelectedSubject();
@@ -2157,12 +2229,8 @@
 					<input bind:value={editSubjectLocale} disabled={savingSubject || !selectedSubject} />
 				</label>
 			</div>
-			<details
-				class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
-			>
-				<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-					Advanced attributes
-				</summary>
+			<details class="directory-advanced-panel">
+				<summary>Advanced attributes</summary>
 				<label class="field mt-3">
 					<span>{text.directory.attributesJson}</span>
 					<textarea
@@ -2184,6 +2252,7 @@
 				<p class="error-line" role="alert">{editSubjectError}</p>
 			{/if}
 		</form>
+			</details>
 
 			<div class="grid gap-4 xl:grid-cols-2">
 			<form
@@ -2193,6 +2262,10 @@
 					void addSubjectGroupMember();
 				}}
 			>
+				<div>
+					<p class="product-kicker">Group placement</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">Place person in group</h3>
+				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
 						<span>{text.directory.person}</span>
@@ -2206,7 +2279,7 @@
 						</select>
 					</label>
 					<label class="field">
-						<span>Group</span>
+						<span>Department / group</span>
 						<select bind:value={selectedGroupId} disabled={groups.length === 0 || addingMembership}>
 							{#each groups as group (group.id)}
 								<option value={group.id}>{group.name}</option>
@@ -2242,6 +2315,10 @@
 					void setSubjectManager();
 				}}
 			>
+				<div>
+					<p class="product-kicker">Hierarchy</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">Set manager</h3>
+				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">
 						<span>{text.directory.person}</span>

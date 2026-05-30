@@ -305,8 +305,12 @@ test('presents imported people as an operational directory with reversible statu
 	expect(requestedSubjectUrls.at(-1)).toContain('contact=has_email');
 	expect(requestedSubjectUrls.at(-1)).toContain('sort=department_asc');
 
+	const adeleRow = peopleDirectory.getByTestId('directory-person-row');
 	await peopleDirectory.getByRole('button', { name: 'View Adele Vance' }).click();
+	await expect(adeleRow).toHaveAttribute('data-selected', 'true');
+	await expect(adeleRow.getByRole('button', { name: 'Viewing Adele Vance' })).toBeVisible();
 	const drawer = page.getByRole('dialog', { name: 'Person details' });
+	await expect(drawer).toBeInViewport({ ratio: 0.25 });
 	await expect(drawer.getByText('Adele Vance')).toBeVisible();
 	await drawer.getByText('Technical details').click();
 	await expect(drawer.getByText(longExternalId)).toBeVisible();
@@ -356,6 +360,46 @@ test('keeps all-status directory filter broad instead of falling back to active 
 	await expect(peopleDirectory.getByText('Adele Active')).toBeVisible();
 	await expect(peopleDirectory.getByText('Enzo Excluded')).toBeVisible();
 	await expect(peopleDirectory.getByText('Dora Deactivated')).toBeVisible();
+});
+
+test('manual maintenance creates a person directly into an existing department group', async ({
+	page
+}) => {
+	await page.unroute('**/subjects**');
+	await page.unroute('**/subject-groups');
+	const requests: {
+		createdSubject?: Record<string, unknown>;
+		membership?: Record<string, unknown>;
+	} = {};
+	await routeManualMaintenanceDirectory(page, requests);
+	await routeGraphImportWorkspaceWithSavedRule(page);
+
+	await page.goto('/app/directory');
+
+	await page.locator('#directory-create > summary').click();
+	const createRecords = page.locator('#directory-create');
+	await expect(createRecords.locator('label.field:visible').filter({ hasText: 'External id' })).toHaveCount(0);
+	await expect(createRecords.getByText('Advanced identity and attributes')).toBeVisible();
+	await createRecords.getByLabel('Display name').fill('Ana Analyst');
+	await createRecords.getByLabel('Email').fill('ana@example.test');
+	await createRecords.getByLabel('Department / group').selectOption('77777777-7777-4777-8777-000000000001');
+	await createRecords.getByLabel('Role in group').fill('student');
+	await createRecords.getByRole('button', { name: 'Add person' }).click();
+
+	await expect.poll(() => requests.createdSubject?.displayName).toBe('Ana Analyst');
+	expect(requests.createdSubject?.externalId).toBeNull();
+	expect(requests.membership).toEqual({
+		subjectId: '66666666-6666-4666-8666-000000000010',
+		roleInGroup: 'student'
+	});
+	await expect(page.getByTestId('workspace-people-directory').getByText('Ana Analyst')).toBeVisible();
+
+	await page.locator('details[aria-label="Directory relationships"] > summary').click();
+	const relationships = page.locator('details[aria-label="Directory relationships"]');
+	await expect(relationships.getByText('Place person in group')).toBeVisible();
+	await expect(relationships.getByText('Set manager')).toBeVisible();
+	await expect(relationships.getByText('Edit selected person profile')).toBeVisible();
+	await expect(relationships.locator('label.field:visible').filter({ hasText: 'External id' })).toHaveCount(0);
 });
 
 async function routeAuthenticatedSession(page: Page) {
@@ -569,6 +613,113 @@ async function routeOperationalSubjectDirectory(
 	});
 }
 
+async function routeManualMaintenanceDirectory(
+	page: Page,
+	requests: {
+		createdSubject?: Record<string, unknown>;
+		membership?: Record<string, unknown>;
+	}
+) {
+	const groupId = '77777777-7777-4777-8777-000000000001';
+	const createdSubjectId = '66666666-6666-4666-8666-000000000010';
+	let createdSubject: ReturnType<typeof directorySubject> | null = null;
+
+	await page.route('**/subjects**', async (route) => {
+		const url = route.request().url();
+		if (route.request().method() === 'POST' && isProductApiPath(url, '/subjects')) {
+			requests.createdSubject = route.request().postDataJSON();
+			createdSubject = {
+				...directorySubject('000000000010', 'Ana Analyst', 'active'),
+				id: createdSubjectId,
+				email: 'ana@example.test',
+				groups: [
+					{
+						groupId,
+						groupType: 'department',
+						groupName: 'Retail',
+						roleInGroup: 'student',
+						validFrom: null,
+						validTo: null
+					}
+				]
+			};
+			await route.fulfill({ json: createdSubject });
+			return;
+		}
+
+		if (route.request().method() !== 'GET' || !isProductApiPath(url, '/subjects')) {
+			await route.fallback();
+			return;
+		}
+
+		const subjects = [
+			directorySubject('000000000001', 'Miriam Manager', 'active'),
+			...(createdSubject ? [createdSubject] : [])
+		];
+		await route.fulfill({
+			json: {
+				tenantId,
+				summary: {
+					subjectCount: subjects.length,
+					filteredSubjectCount: subjects.length,
+					returnedSubjectCount: subjects.length,
+					groupCount: 1,
+					managerRelationshipCount: 0,
+					pageOffset: 0,
+					pageSize: 25,
+					hasMore: false
+				},
+				subjects
+			}
+		});
+	});
+
+	await page.route(`**/subject-groups/${groupId}/members`, async (route) => {
+		if (route.request().method() !== 'POST') {
+			await route.fallback();
+			return;
+		}
+
+		requests.membership = route.request().postDataJSON();
+		await route.fulfill({
+			json: {
+				groupId,
+				groupType: 'department',
+				groupName: 'Retail',
+				roleInGroup: requests.membership?.roleInGroup,
+				validFrom: null,
+				validTo: null
+			}
+		});
+	});
+
+	await page.route('**/subject-groups', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subject-groups')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				groups: [
+					{
+						id: groupId,
+						type: 'department',
+						name: 'Retail',
+						parentGroupId: null,
+						attributes: '{}',
+						memberCount: createdSubject ? 1 : 0
+					}
+				]
+			}
+		});
+	});
+}
+
 async function routeStatusSensitiveSubjectDirectory(page: Page, requestedUrls: string[]) {
 	await page.route('**/subjects**', async (route) => {
 		if (
@@ -631,7 +782,14 @@ function directorySubject(idSuffix: string, displayName: string, status: 'active
 		managerSubjectId: null,
 		managerDisplayName: null,
 		directReportCount: 0,
-		groups: [],
+		groups: [] as {
+			groupId: string;
+			groupType: string;
+			groupName: string;
+			roleInGroup: string | null;
+			validFrom: string | null;
+			validTo: string | null;
+		}[],
 		source: 'microsoft_graph',
 		sourceLabel: 'Microsoft 365',
 		status,

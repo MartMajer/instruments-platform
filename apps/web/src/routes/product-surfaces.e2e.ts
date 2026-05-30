@@ -1201,20 +1201,19 @@ test('changes another tenant member role from the team page and refreshes the ro
 test('directory targeting overview explains hierarchy before setup actions', async ({ page }) => {
 	await page.goto('/app/directory');
 
-	await expect(page.getByRole('heading', { name: 'Directory', exact: true })).toBeVisible();
-	const overview = page.getByRole('region', { name: 'People and targeting overview' });
-	const subjectDirectory = page.getByRole('region', { name: 'Subject directory' });
-	const subjectGroups = page.getByRole('region', { name: 'Subject groups' });
+	await expect(page.getByRole('heading', { name: 'People and groups', exact: true })).toBeVisible();
+	const overview = page.getByRole('region', { name: 'People and groups' });
+	const peopleDirectory = page.getByRole('region', { name: 'People directory' });
+	const subjectGroups = page.getByRole('region', { name: 'Audience groups' });
 	const createRecords = page.getByRole('region', { name: 'Create directory records' });
 	const relationships = page.getByRole('region', { name: 'Directory relationships' });
 
 	await expect(overview).toBeVisible();
-	await expect(overview.getByText('Study targeting', { exact: true })).toBeVisible();
-	await expect(overview.getByText('Group respondent rules', { exact: true })).toBeVisible();
-	await expect(overview.getByText('Manager relationships', { exact: true })).toBeVisible();
-	await expect(overview.getByText('Reports-of-target paths', { exact: true })).toBeVisible();
+	await expect(overview.getByText('Directory setup', { exact: true })).toBeVisible();
+	await expect(overview.getByText('Build the audience list first', { exact: true })).toBeVisible();
+	await expect(overview.getByText('How directory data is used', { exact: true })).toBeVisible();
 	const overviewCounts = overview.locator('[aria-label="People and targeting counts"]');
-	await expect(overviewCounts.locator('div').filter({ hasText: 'Subjects' })).toContainText('2');
+	await expect(overviewCounts.locator('div').filter({ hasText: 'People' })).toContainText('2');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'Groups' })).toContainText('1');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'Memberships' })).toContainText(
 		'1'
@@ -1223,7 +1222,7 @@ test('directory targeting overview explains hierarchy before setup actions', asy
 		'1'
 	);
 
-	const graphCounts = subjectDirectory.locator('dl').first();
+	const graphCounts = peopleDirectory.locator('dl').first();
 	await expect(graphCounts.locator('div').filter({ hasText: 'Subjects' })).toContainText('2');
 	await expect(graphCounts.locator('div').filter({ hasText: 'Groups' })).toContainText('1');
 	await expect(graphCounts.locator('div').filter({ hasText: 'Manager links' })).toContainText('1');
@@ -1231,16 +1230,20 @@ test('directory targeting overview explains hierarchy before setup actions', asy
 
 	await expectElementBefore(overview, createRecords);
 	await expectElementBefore(overview, relationships);
-	await expectElementBefore(subjectDirectory, createRecords);
-	await expectElementBefore(subjectDirectory, relationships);
+	await expectElementBefore(peopleDirectory, createRecords);
+	await expectElementBefore(peopleDirectory, relationships);
 	await expectElementBefore(subjectGroups, createRecords);
 
 	const visibleAttributeFields = page
 		.locator('label.field:visible')
 		.filter({ hasText: 'Attributes JSON' });
-	await expect(page.getByText('Advanced attributes', { exact: true })).toHaveCount(3);
+	await page.locator('#directory-create > summary').click();
+	await expect(
+		createRecords.getByText('Advanced identity and attributes', { exact: true })
+	).toBeVisible();
+	await expect(createRecords.getByText('Advanced attributes', { exact: true })).toHaveCount(1);
 	await expect(visibleAttributeFields).toHaveCount(0);
-	await createRecords.getByText('Advanced attributes', { exact: true }).first().click();
+	await createRecords.getByText('Advanced identity and attributes', { exact: true }).click();
 	await expect(
 		createRecords.locator('label.field:visible').filter({ hasText: 'Attributes JSON' })
 	).toHaveCount(1);
@@ -5847,7 +5850,7 @@ async function routeProductReadModels(page: Page) {
 		await route.fulfill({ json: sampleTenantRoleList });
 	});
 
-	await page.route('**/subjects', async (route) => {
+	await page.route('**/subjects**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isProductApiPath(route.request().url(), '/subjects')
@@ -5859,7 +5862,7 @@ async function routeProductReadModels(page: Page) {
 		await route.fulfill({ json: sampleSubjectDirectory });
 	});
 
-	await page.route('**/subject-groups', async (route) => {
+	await page.route('**/subject-groups**', async (route) => {
 		if (
 			route.request().method() !== 'GET' ||
 			!isProductApiPath(route.request().url(), '/subject-groups')
