@@ -69,7 +69,7 @@ test.beforeEach(async ({ page }) => {
 test('renders the authenticated product shell and workspace overview', async ({ page }) => {
 	await page.goto('/app');
 
-	await expect(page.getByRole('heading', { name: 'Study cockpit', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
 	await expect(
 		page.getByText('UX02 product surfaces - read-model bridge', { exact: true })
 	).toHaveCount(0);
@@ -78,11 +78,11 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	).toHaveCount(0);
 	await expect(page.getByText('Product workspace', { exact: true })).toBeVisible();
 	await expect(page.getByText('Tenant command workspace', { exact: true })).toHaveCount(0);
-	await expect(page.getByLabel('Workspace posture')).toHaveCount(0);
+	await expect(page.getByLabel('Workspace posture')).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
 	await expect(nav).toBeVisible();
-	const overview = page.getByRole('region', { name: 'Self-serve study cockpit' });
-	const commandCenter = overview.getByRole('region', { name: 'Suggested next actions' });
+	const overview = page.getByRole('region', { name: 'Workspace home' });
+	const commandCenter = overview.getByRole('region', { name: 'Next actions' });
 	const sampleStudies = overview.getByRole('region', { name: 'Sample studies' });
 	const ownStudies = overview.getByRole('region', { name: 'Your studies' });
 	const setupCommand = commandCenter.getByRole('link', {
@@ -97,6 +97,7 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	await expect(commandCenter.getByText('setup.manage', { exact: true })).toHaveCount(0);
 	await expect(sampleStudies.getByText('Sample study', { exact: true })).toHaveCount(4);
 	await expect(ownStudies.getByText('Your study', { exact: true })).toBeVisible();
+	await overview.getByText('Workspace overview', { exact: true }).click();
 	await expect(totals.getByText('Campaign series', { exact: true })).toBeVisible();
 	await expect(totals.getByText('3', { exact: true })).toBeVisible();
 	await expect(totals.getByText('Campaigns', { exact: true })).toBeVisible();
@@ -206,34 +207,72 @@ test('demo sample setup loader describes staged sample workspace setup while see
 	).toHaveCount(0);
 });
 
-test('ui03 product workspace uses quiet section styling instead of raised cards', async ({
-	page
-}) => {
-	await page.goto('/app');
+test('app shell keeps home and sidebar routes on shared surface styling', async ({ page }) => {
+	const routes = [
+		{ path: '/app', heading: 'Home' },
+		{ path: '/app/campaign-series', heading: 'Studies' },
+		{ path: '/app/team', heading: 'Team' },
+		{ path: '/app/settings', heading: 'Workspace settings' },
+		{ path: '/app/exports', heading: 'Download files' },
+		{ path: '/app/instruments', heading: 'Instruments' }
+	];
+	const quietSurfaceSelector = [
+		'.surface-header__frame',
+		'.product-panel',
+		'.record-row',
+		'.setup-callout',
+		'.workspace-home-hero',
+		'.workspace-home-section',
+		'.workspace-home-reference',
+		'.workspace-home-action',
+		'.sample-study-card',
+		'.export-overview-row',
+		'.instrument-count-row',
+		'.settings-count-row',
+		'.team-stat-item',
+		'.team-capability-row'
+	].join(', ');
 
-	await expect(page.getByRole('heading', { name: 'Study cockpit', exact: true })).toBeVisible();
-	await expect(page.getByLabel('Workspace posture')).toHaveCount(0);
+	for (const route of routes) {
+		await page.goto(route.path);
+		await expect(page.getByRole('heading', { name: route.heading, exact: true })).toBeVisible();
 
-	const visualOffenders = await page
-		.locator('.product-panel, .record-row, .metric-card, .route-guidance, .setup-callout')
-		.evaluateAll((elements) =>
+		const visualOffenders = await page.locator(quietSurfaceSelector).evaluateAll((elements) =>
 			elements
 				.map((element) => {
 					const style = window.getComputedStyle(element);
+					const shadowPixels = Array.from(style.boxShadow.matchAll(/(-?\d+(?:\.\d+)?)px/g)).map(
+						(match) => Math.abs(Number.parseFloat(match[1] ?? '0'))
+					);
+					const maxShadowPixel = Math.max(0, ...shadowPixels);
 
 					return {
-						className: element.className,
+						className: element.className.toString(),
 						boxShadow: style.boxShadow,
-						borderRadius: style.borderRadius
+						borderRadius: style.borderRadius,
+						backgroundImage: style.backgroundImage,
+						beforeBackgroundImage: window.getComputedStyle(element, '::before').backgroundImage,
+						maxBorderRadius: Math.max(
+							...style.borderRadius
+								.split(/\s+/)
+								.map((part) => Number.parseFloat(part))
+								.filter(Number.isFinite),
+							0
+						),
+						maxShadowPixel
 					};
 				})
 				.filter(
 					(style) =>
-						style.boxShadow !== 'none' || Number.parseFloat(style.borderRadius) > 8
+						style.maxBorderRadius > 8 ||
+						style.maxShadowPixel > 8 ||
+						style.backgroundImage.includes('radial-gradient') ||
+						style.beforeBackgroundImage.includes('radial-gradient')
 				)
 		);
 
-	expect(visualOffenders).toEqual([]);
+		expect(visualOffenders, `${route.path} should use shared quiet app surfaces`).toEqual([]);
+	}
 });
 
 test('renders self-serve home cockpit for sample and own studies', async ({ page }) => {

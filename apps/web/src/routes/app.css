@@ -8724,3 +8724,173 @@ img.app-mobile-topbar__mark {
 	margin-top: 0.55rem;
 	box-shadow: 0 14px 32px rgba(31, 45, 38, 0.1);
 }
+
+/* APPSTYLE01: keep authenticated app surfaces on one quiet operational system. */
+.app-shell--product .surface-header,
+.app-shell--product .surface-header__frame,
+.app-shell--product .product-panel,
+.app-shell--product .setup-panel,
+.app-shell--product .record-row,
+.app-shell--product .setup-callout,
+.app-shell--product .empty-state,
+.app-shell--product .error-panel,
+.app-shell--product .route-guidance,
+.app-shell--product .export-overview-row,
+.app-shell--product .instrument-count-row,
+.app-shell--product .settings-count-row,
+.app-shell--product .team-stat-item,
+.app-shell--product .team-capability-row,
+.app-shell--product .workspace-home-hero,
+.app-shell--product .workspace-home-section,
+.app-shell--product .workspace-home-reference,
+.app-shell--product .workspace-home-action,
+.app-shell--product .sample-study-card {
+	box-shadow: none;
+}
+
+.app-shell--product .surface-header__frame,
+.app-shell--product .product-panel,
+.app-shell--product .setup-panel,
+.app-shell--product .empty-state,
+.app-shell--product .error-panel,
+.app-shell--product .route-guidance,
+.app-shell--product .workspace-home-hero,
+.app-shell--product .workspace-home-section,
+.app-shell--product .workspace-home-reference {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-section);
+	background: var(--color-surface-raised);
+}
+
+.app-shell--product .product-panel[data-priority='primary'] {
+	border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border));
+}
+
+.app-shell--product .surface-header {
+	border: 0;
+	background: transparent;
+}
+
+.app-shell--product .surface-header__frame {
+	background: var(--color-surface-raised);
+}
+
+.app-shell--product .product-panel__header,
+.app-shell--product .surface-header__frame,
+.app-shell--product .record-row__header {
+	border-color: var(--color-border);
+}
+
+.app-shell--product .record-row,
+.app-shell--product .export-overview-row,
+.app-shell--product .instrument-count-row,
+.app-shell--product .settings-count-row,
+.app-shell--product .team-stat-item,
+.app-shell--product .team-capability-row {
+	background: transparent;
+}
+
+.app-shell--product .record-row:hover,
+.app-shell--product .workspace-home-action:hover,
+.app-shell--product .sample-study-card:hover,
+.app-shell--product .study-blueprint-card:hover {
+	border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+	background: color-mix(in srgb, var(--color-surface-muted) 58%, transparent);
+	box-shadow: none;
+	transform: none;
+}
+
+.app-shell--product .record-grid,
+.app-shell--product .record-field,
+.app-shell--product .provenance-item,
+.app-shell--product .setup-path__item,
+.app-shell--product .study-blueprint-card__highlights span {
+	border-color: var(--color-border);
+	background: var(--color-surface-muted);
+}
+
+.app-shell--product .product-nav__link {
+	border-radius: var(--radius-panel);
+	box-shadow: none;
+}
+
+.app-shell--product .product-nav__link:hover,
+.app-shell--product .product-nav__link[aria-current='page'] {
+	border-color: var(--color-border-strong);
+	background: var(--color-surface-muted);
+	box-shadow: none;
+}
+
+.app-shell--product .product-nav__icon,
+.app-shell--product .app-brand__mark,
+.app-shell--product .app-mobile-topbar__mark {
+	border-radius: var(--radius-control);
+	background: var(--color-surface-raised);
+	box-shadow: none;
+}
+
+.app-shell--product .primary-button,
+.app-shell--product button.primary-button,
+.app-shell--product .secondary-button {
+	border-radius: var(--radius-control);
+	box-shadow: none;
+}
+
+.app-shell--product .workspace-home {
+	gap: 1rem;
+}
+
+.app-shell--product .workspace-home-hero {
+	grid-template-columns: minmax(0, 1.15fr) minmax(17rem, 0.85fr);
+	gap: clamp(1rem, 2vw, 1.5rem);
+	padding: clamp(1rem, 1.8vw, 1.375rem);
+	overflow: visible;
+}
+
+.app-shell--product .workspace-home-hero::before {
+	display: none;
+	content: none;
+	background: none;
+}
+
+.app-shell--product .workspace-home-hero__panel {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface-muted);
+}
+
+.app-shell--product .workspace-home-hero__panel li,
+.app-shell--product .workspace-home-action,
+.app-shell--product .sample-study-card {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface-raised);
+	box-shadow: none;
+}
+
+.app-shell--product .workspace-home-kicker,
+.app-shell--product .sample-study-card__kicker,
+.app-shell--product .sample-study-card small {
+	color: var(--color-text-muted);
+	letter-spacing: 0;
+}
+
+.app-shell--product .workspace-home-hero h2,
+.app-shell--product .workspace-home-section h2 {
+	color: var(--color-text);
+	letter-spacing: 0;
+}
+
+.app-shell--product .workspace-home-hero p,
+.app-shell--product .workspace-home-section__header > p,
+.app-shell--product .workspace-home-note,
+.app-shell--product .workspace-home-action span:last-child,
+.app-shell--product .sample-study-card > span:not(.sample-study-card__kicker):not(.sample-study-card__action),
+.app-shell--product .workspace-home-hero__panel small {
+	color: var(--color-text-muted);
+}
+
+.app-shell--product .workspace-home-section--samples,
+.app-shell--product .workspace-home-reference {
+	background: var(--color-surface-raised);
+}
