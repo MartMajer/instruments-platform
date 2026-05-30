@@ -5021,6 +5021,209 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Email_delivery_processor_renders_custom_template_for_notification_locale()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+        var emailDeliveryProvider = new RecordingEmailDeliveryProvider();
+        var deliveryStore = new NotificationDeliveryStore(
+            tenantDb,
+            tenantDbScope,
+            emailDeliveryProvider);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Localized template delivery study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Localized template delivery wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId,
+                DefaultLocale: EmailTemplateLocales.Croatian),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        var batch = await setupStore.CreateCampaignInvitationBatchAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignInvitationBatchRequest(
+            [
+                new InvitationRecipientRequest("ada@example.com")
+            ]),
+            CancellationToken.None);
+
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(batch.IsSuccess, batch.Error.ToString());
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.EmailTemplates.Add(new EmailTemplate(
+                Guid.NewGuid(),
+                tenantId,
+                EmailTemplateCodes.Invitation,
+                EmailTemplateLocales.Croatian,
+                "Prilagodeni poziv za {{workspace_name}}",
+                """
+                Ovo je prilagodeni poziv iz radnog prostora {{workspace_name}}.
+
+                Otvorite poziv ovdje:
+                {{respondent_link}}
+
+                Ako vise ne zelite primati pozive, odjavite se ovdje:
+                {{unsubscribe_link}}
+
+                Hvala.
+                """));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 25),
+            CancellationToken.None);
+
+        Assert.True(processed.IsSuccess, processed.Error.ToString());
+        Assert.Equal(1, processed.Value.SentCount);
+        var message = Assert.Single(emailDeliveryProvider.Messages);
+        Assert.StartsWith("Prilagodeni poziv za", message.Subject, StringComparison.Ordinal);
+        Assert.Contains("https://", message.BodyText, StringComparison.Ordinal);
+        Assert.Contains("/r/inv_", message.BodyText, StringComparison.Ordinal);
+        Assert.Contains("/unsubscribe", message.BodyText, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", message.Subject, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", message.BodyText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Localized template delivery wave", message.BodyText, StringComparison.Ordinal);
+    }
+
+    [DockerFact]
+    public async Task Email_delivery_processor_fails_invalid_custom_template_before_provider_handoff()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+        var emailDeliveryProvider = new RecordingEmailDeliveryProvider();
+        var deliveryStore = new NotificationDeliveryStore(
+            tenantDb,
+            tenantDbScope,
+            emailDeliveryProvider);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Invalid template delivery study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Invalid template delivery wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        var batch = await setupStore.CreateCampaignInvitationBatchAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignInvitationBatchRequest(
+            [
+                new InvitationRecipientRequest("ada@example.com")
+            ]),
+            CancellationToken.None);
+
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(batch.IsSuccess, batch.Error.ToString());
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.EmailTemplates.Add(new EmailTemplate(
+                Guid.NewGuid(),
+                tenantId,
+                EmailTemplateCodes.Invitation,
+                EmailTemplateLocales.English,
+                "Broken invitation",
+                """
+                This invalid custom invitation is long enough to pass body length checks,
+                but it intentionally omits the required respondent and unsubscribe variables.
+                """));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 25),
+            CancellationToken.None);
+
+        Assert.True(processed.IsSuccess, processed.Error.ToString());
+        Assert.Equal(1, processed.Value.FailedCount);
+        Assert.Empty(emailDeliveryProvider.Messages);
+        var delivery = Assert.Single(processed.Value.Deliveries);
+        Assert.Equal(NotificationStatuses.Failed, delivery.Status);
+        Assert.Equal("email_template_invalid", delivery.Error);
+
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var notification = await tenantDb.Notifications.SingleAsync(entity => entity.CampaignId == campaign.Value.Id);
+        var attempt = await tenantDb.NotificationDeliveryAttempts.SingleAsync(entity => entity.NotificationId == notification.Id);
+        Assert.Equal(NotificationStatuses.Failed, notification.Status);
+        Assert.Equal("email_template_invalid", notification.Error);
+        Assert.Equal(NotificationStatuses.Failed, attempt.Status);
+        Assert.Equal("email_template_invalid", attempt.Error);
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Email_delivery_requeues_failed_invitations_for_retry_without_retrying_withdrawal_scrubbed()
     {
         var tenantId = Guid.NewGuid();
@@ -5187,6 +5390,25 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         {
             throw new InvalidOperationException(
                 "validatedscale.communication.azure.com acs-access-key inv_secret /r/inv_secret ada@example.com");
+        }
+    }
+
+    private sealed class RecordingEmailDeliveryProvider : IEmailDeliveryProvider
+    {
+        public string Provider => EmailDeliveryProviderNames.LocalDev;
+
+        public List<EmailDeliveryMessage> Messages { get; } = [];
+
+        public Task<EmailDeliveryResult> SendAsync(
+            EmailDeliveryMessage message,
+            CancellationToken cancellationToken)
+        {
+            Messages.Add(message);
+
+            return Task.FromResult(new EmailDeliveryResult(
+                Provider,
+                ProviderMessageId: null,
+                DateTimeOffset.UtcNow));
         }
     }
 

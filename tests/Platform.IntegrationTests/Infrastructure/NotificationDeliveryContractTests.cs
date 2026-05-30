@@ -2,6 +2,7 @@ using System.Reflection;
 using Platform.Application.Features.Notifications;
 using Platform.Domain.Campaigns;
 using Platform.Infrastructure.Notifications;
+using Platform.SharedKernel;
 
 namespace Platform.IntegrationTests.Infrastructure;
 
@@ -112,29 +113,95 @@ public sealed class NotificationDeliveryContractTests
     }
 
     [Fact]
-    public void Invitation_email_subject_omits_campaign_name()
+    public void Invitation_email_renderer_prefers_custom_notification_locale()
     {
-        var subject = InvokeStoreContract<string>(
-            "BuildEmailSubject",
-            "Burnout pulse");
+        var customTemplates = new Dictionary<(string TemplateCode, string Locale), EmailTemplateContent>
+        {
+            [(EmailTemplateCodes.Invitation, EmailTemplateLocales.Croatian)] = new(
+                EmailTemplateCodes.Invitation,
+                EmailTemplateLocales.Croatian,
+                "Prilagodeni poziv za {{workspace_name}}",
+                """
+                Ovo je prilagodeni poziv iz radnog prostora {{workspace_name}}.
 
-        Assert.Equal("Study invitation", subject);
-        Assert.DoesNotContain("Burnout", subject, StringComparison.OrdinalIgnoreCase);
+                Otvorite poziv ovdje:
+                {{respondent_link}}
+
+                Ako vise ne zelite primati pozive, odjavite se ovdje:
+                {{unsubscribe_link}}
+
+                Hvala.
+                """)
+        };
+
+        var result = InvokeStoreContract<Result<EmailTemplateRenderedMessage>>(
+            "RenderDeliveryEmailMessage",
+            customTemplates,
+            EmailTemplateCodes.Invitation,
+            EmailTemplateLocales.Croatian,
+            EmailTemplateLocales.English,
+            EmailTemplateLocales.English,
+            "Algebra wellbeing",
+            "https://app.example.test/r/inv_example",
+            "https://app.example.test/r/inv_example/unsubscribe");
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("Prilagodeni poziv za Algebra wellbeing", result.Value.Subject);
+        Assert.Contains("https://app.example.test/r/inv_example", result.Value.BodyText, StringComparison.Ordinal);
+        Assert.Contains("https://app.example.test/r/inv_example/unsubscribe", result.Value.BodyText, StringComparison.Ordinal);
+        Assert.Contains("Algebra wellbeing", result.Value.BodyText, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", result.Value.BodyText, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Invitation_email_body_omits_campaign_name()
+    public void Invitation_email_renderer_uses_campaign_locale_default_when_notification_locale_is_missing()
     {
-        var body = InvokeStoreContract<string>(
-            "BuildEmailBody",
-            "Burnout pulse",
+        var result = InvokeStoreContract<Result<EmailTemplateRenderedMessage>>(
+            "RenderDeliveryEmailMessage",
+            new Dictionary<(string TemplateCode, string Locale), EmailTemplateContent>(),
+            EmailTemplateCodes.Invitation,
+            "",
+            EmailTemplateLocales.Croatian,
+            EmailTemplateLocales.English,
+            "ValidatedScale",
             "https://app.example.test/r/inv_example",
-            "https://app.example.test/r/inv_example/unsubscribe",
-            "Workspace footer");
+            "https://app.example.test/r/inv_example/unsubscribe");
 
-        Assert.DoesNotContain("Burnout", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("does not include the study title or topic", body, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("https://app.example.test/r/inv_example", body, StringComparison.Ordinal);
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.StartsWith("Poziv", result.Value.Subject, StringComparison.Ordinal);
+        Assert.Contains("Poslao radni prostor", result.Value.BodyText, StringComparison.Ordinal);
+        Assert.Contains("https://app.example.test/r/inv_example", result.Value.BodyText, StringComparison.Ordinal);
+        Assert.DoesNotContain("{{", result.Value.BodyText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Invitation_email_renderer_rejects_invalid_custom_template_before_delivery()
+    {
+        var customTemplates = new Dictionary<(string TemplateCode, string Locale), EmailTemplateContent>
+        {
+            [(EmailTemplateCodes.Invitation, EmailTemplateLocales.English)] = new(
+                EmailTemplateCodes.Invitation,
+                EmailTemplateLocales.English,
+                "Broken invitation",
+                """
+                This invalid custom invitation is long enough to pass body length checks,
+                but it intentionally omits the required respondent and unsubscribe variables.
+                """)
+        };
+
+        var result = InvokeStoreContract<Result<EmailTemplateRenderedMessage>>(
+            "RenderDeliveryEmailMessage",
+            customTemplates,
+            EmailTemplateCodes.Invitation,
+            EmailTemplateLocales.English,
+            EmailTemplateLocales.Croatian,
+            EmailTemplateLocales.Croatian,
+            "ValidatedScale",
+            "https://app.example.test/r/inv_example",
+            "https://app.example.test/r/inv_example/unsubscribe");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("notification_delivery.email_template_invalid", result.Error.Code);
     }
 
     private static T InvokeStoreContract<T>(string name, params object?[] args)

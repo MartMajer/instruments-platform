@@ -27,6 +27,7 @@ public sealed class NotificationDeliveryStore(
     private const string SanitizedDeliveryError = "delivery_failed";
     private const string DeliveryAmbiguousError = "delivery_ambiguous";
     private const string RecipientSuppressedError = "recipient_suppressed";
+    private const string TemplateInvalidError = "email_template_invalid";
     private const string ProviderReasonRedacted = "provider_reason_redacted";
     private const string ProviderEventIdHashPrefix = "sha256:";
     private const string UnknownProvider = "unknown";
@@ -815,14 +816,18 @@ public sealed class NotificationDeliveryStore(
             tenantId,
             cancellationToken: cancellationToken);
 
-        var campaign = await db.Campaigns
-            .AsNoTracking()
-            .Where(campaign => campaign.TenantId == tenantId && campaign.Id == campaignId)
-            .Select(campaign => new
-            {
-                campaign.Status,
-                campaign.Name
-            })
+        var campaign = await (
+                from campaignRow in db.Campaigns.AsNoTracking()
+                join tenant in db.Tenants.AsNoTracking()
+                    on campaignRow.TenantId equals tenant.Id
+                where campaignRow.TenantId == tenantId && campaignRow.Id == campaignId
+                select new
+                {
+                    campaignRow.Status,
+                    campaignRow.DefaultLocale,
+                    WorkspaceName = tenant.Name,
+                    TenantDefaultLocale = tenant.DefaultLocale
+                })
             .SingleOrDefaultAsync(cancellationToken);
         if (campaign is null)
         {
@@ -839,6 +844,7 @@ public sealed class NotificationDeliveryStore(
         }
 
         await FailStalePreparedAttemptsAsync(tenantId, campaignId, cancellationToken);
+        var customTemplates = await LoadCustomEmailTemplatesAsync(tenantId, cancellationToken);
 
         var notifications = await db.Notifications
             .FromSqlInterpolated(
@@ -903,6 +909,39 @@ public sealed class NotificationDeliveryStore(
             var respondentPath = $"/r/{issued.RawToken}";
             var respondentUrl = BuildPublicAppUrl(respondentPath);
             var unsubscribeUrl = BuildPublicAppUrl($"{respondentPath}/unsubscribe");
+            var renderedEmail = RenderDeliveryEmailMessage(
+                customTemplates,
+                notification.TemplateCode,
+                notification.Locale,
+                campaign.DefaultLocale,
+                campaign.TenantDefaultLocale,
+                campaign.WorkspaceName,
+                respondentUrl,
+                unsubscribeUrl);
+            if (renderedEmail.IsFailure)
+            {
+                var failedAt = DateTimeOffset.UtcNow;
+                notification.MarkFailed(TemplateInvalidError, failedAt);
+                db.NotificationDeliveryAttempts.Add(NotificationDeliveryAttempt.CreateFailed(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    notification.Id,
+                    provider,
+                    notification.Recipient,
+                    TemplateInvalidError,
+                    failedAt));
+
+                suppressedDeliveries.Add(new NotificationDeliveryProofResponse(
+                    notification.Id,
+                    CreateProofRecipient(provider, notification.Recipient),
+                    NotificationStatuses.Failed,
+                    provider,
+                    ProviderMessageId: null,
+                    RespondentPath: null,
+                    Error: TemplateInvalidError));
+                continue;
+            }
+
             db.InvitationTokens.Add(new InvitationToken(
                 PlatformIds.NewId(),
                 tenantId,
@@ -928,8 +967,8 @@ public sealed class NotificationDeliveryStore(
                 attemptId,
                 notification.Recipient,
                 BuildDeliveryAttemptKey(tenantId, providerDeliveryKey),
-                BuildEmailSubject(campaign.Name),
-                BuildEmailBody(campaign.Name, respondentUrl, unsubscribeUrl, deliveryOptions.InvitationFooterText),
+                renderedEmail.Value.Subject,
+                renderedEmail.Value.BodyText,
                 respondentPath,
                 unsubscribeUrl));
         }
@@ -1701,38 +1740,6 @@ public sealed class NotificationDeliveryStore(
         return issues;
     }
 
-    private static string BuildEmailSubject(string campaignName)
-    {
-        return "Study invitation";
-    }
-
-    private static string BuildEmailBody(
-        string campaignName,
-        string respondentPath,
-        string unsubscribePath,
-        string? footerText)
-    {
-        var footer = string.IsNullOrWhiteSpace(footerText)
-            ? "This invitation was sent by the workspace running this study."
-            : footerText.Trim();
-
-        return $"""
-            You have been invited to complete a study.
-
-            For privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.
-
-            Open your study link:
-            {respondentPath}
-
-            If you already responded, you can ignore this email.
-
-            If you should not receive future study invitations from this workspace, unsubscribe here:
-            {unsubscribePath}
-
-            {footer}
-            """;
-    }
-
     private string BuildPublicAppUrl(string path)
     {
         if (string.IsNullOrWhiteSpace(deliveryOptions.PublicAppBaseUrl) ||
@@ -1742,6 +1749,103 @@ public sealed class NotificationDeliveryStore(
         }
 
         return new Uri(baseUri, path).ToString();
+    }
+
+    private async Task<IReadOnlyDictionary<(string TemplateCode, string Locale), EmailTemplateContent>>
+        LoadCustomEmailTemplatesAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+    {
+        var rows = await db.EmailTemplates
+            .AsNoTracking()
+            .Where(template =>
+                template.TenantId == tenantId &&
+                template.Status == EmailTemplateStatuses.Active)
+            .Select(template => new
+            {
+                template.TemplateCode,
+                template.Locale,
+                template.Subject,
+                template.BodyText
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            template => (template.TemplateCode, EmailTemplateLocales.Normalize(template.Locale)),
+            template => new EmailTemplateContent(
+                template.TemplateCode,
+                EmailTemplateLocales.Normalize(template.Locale),
+                template.Subject,
+                template.BodyText));
+    }
+
+    private static Result<EmailTemplateRenderedMessage> RenderDeliveryEmailMessage(
+        IReadOnlyDictionary<(string TemplateCode, string Locale), EmailTemplateContent> customTemplates,
+        string templateCode,
+        string notificationLocale,
+        string campaignDefaultLocale,
+        string tenantDefaultLocale,
+        string workspaceName,
+        string respondentUrl,
+        string unsubscribeUrl)
+    {
+        if (!EmailTemplateCodes.IsKnown(templateCode))
+        {
+            return Result.Failure<EmailTemplateRenderedMessage>(CreateInvalidEmailTemplateError());
+        }
+
+        var locale = ResolveDeliveryLocale(notificationLocale, campaignDefaultLocale, tenantDefaultLocale);
+        var template = customTemplates.TryGetValue((templateCode, locale), out var customTemplate)
+            ? customTemplate
+            : EmailTemplateDefaults.Get(templateCode, locale);
+        var rendered = EmailTemplateRenderer.Render(
+            template,
+            new EmailTemplateRenderContext(
+                templateCode,
+                locale,
+                NormalizeWorkspaceName(workspaceName),
+                respondentUrl,
+                unsubscribeUrl));
+
+        return rendered.IsSuccess
+            ? rendered
+            : Result.Failure<EmailTemplateRenderedMessage>(CreateInvalidEmailTemplateError());
+    }
+
+    private static Error CreateInvalidEmailTemplateError()
+    {
+        return Error.Validation(
+            "notification_delivery.email_template_invalid",
+            "Email template is invalid. Fix the workspace email template before sending invitations.");
+    }
+
+    private static string ResolveDeliveryLocale(
+        string notificationLocale,
+        string campaignDefaultLocale,
+        string tenantDefaultLocale)
+    {
+        foreach (var candidate in new[]
+        {
+            notificationLocale,
+            campaignDefaultLocale,
+            tenantDefaultLocale,
+            EmailTemplateLocales.English
+        })
+        {
+            if (EmailTemplateLocales.IsSupported(candidate))
+            {
+                return EmailTemplateLocales.Normalize(candidate);
+            }
+        }
+
+        return EmailTemplateLocales.English;
+    }
+
+    private static string NormalizeWorkspaceName(string workspaceName)
+    {
+        return string.IsNullOrWhiteSpace(workspaceName)
+            ? "this workspace"
+            : workspaceName.Trim();
     }
 
     private Error? ValidateEmailProviderBeforeDelivery()
