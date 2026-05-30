@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -1131,6 +1132,84 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal(actorUserId, writeStore.ActorUserId);
         Assert.Equal(actorUserId, writeStore.TargetUserId);
         Assert.Equal("viewer", writeStore.ChangeTenantMemberRoleRequest?.RoleCode);
+    }
+
+    [Theory]
+    [InlineData("POST", "/tenant-members/{0}/suspend")]
+    [InlineData("POST", "/tenant-members/{0}/reactivate")]
+    [InlineData("DELETE", "/tenant-members/{0}")]
+    public async Task Tenant_member_access_endpoints_require_team_manage_permission(string method, string pathTemplate)
+    {
+        var tenantId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var writeStore = new FakeProductSurfaceWriteStore();
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            new HttpMethod(method),
+            string.Format(CultureInfo.InvariantCulture, pathTemplate, targetUserId),
+            tenantId,
+            permissions: "setup.manage");
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, httpResponse.StatusCode);
+        Assert.Equal(0, writeStore.CallCount);
+    }
+
+    [Fact]
+    public async Task Suspend_tenant_member_endpoint_maps_last_manager_rejection_to_409()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var result = Result.Failure<TenantMemberMutationResponse>(
+            Error.Conflict("tenant_member.last_team_manager", "At least one manager must remain."));
+        var writeStore = new FakeProductSurfaceWriteStore(suspendTenantMemberResult: result);
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/tenant-members/{targetUserId}/suspend",
+            tenantId,
+            actorUserId,
+            permissions: "team.manage");
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Conflict, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(payload);
+        Assert.Equal("tenant_member.last_team_manager", payload.Title);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal(targetUserId, writeStore.TargetUserId);
+    }
+
+    [Fact]
+    public async Task Remove_tenant_member_endpoint_returns_removed_response()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var result = Result.Success(new TenantMemberRemovalResponse(targetUserId, Removed: true));
+        var writeStore = new FakeProductSurfaceWriteStore(removeTenantMemberResult: result);
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Delete,
+            $"/tenant-members/{targetUserId}",
+            tenantId,
+            actorUserId,
+            permissions: "team.manage");
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantMemberRemovalResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(targetUserId, payload.UserId);
+        Assert.True(payload.Removed);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal(targetUserId, writeStore.TargetUserId);
     }
 
     [Fact]
@@ -2636,6 +2715,9 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<CampaignSeriesScoreRemediationResponse>? scoreRemediationResult = null,
         Result<TenantMemberMutationResponse>? createTenantMemberResult = null,
         Result<TenantMemberMutationResponse>? changeTenantMemberRoleResult = null,
+        Result<TenantMemberMutationResponse>? suspendTenantMemberResult = null,
+        Result<TenantMemberMutationResponse>? reactivateTenantMemberResult = null,
+        Result<TenantMemberRemovalResponse>? removeTenantMemberResult = null,
         Result<SubjectDirectoryItemResponse>? createSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? updateSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? deactivateSubjectResult = null,
@@ -2825,6 +2907,54 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
             return Task.FromResult(changeTenantMemberRoleResult ??
                 Result.Failure<TenantMemberMutationResponse>(
+                    Error.NotFound("tenant_member.not_found", "Tenant member was not found.")));
+        }
+
+        public Task<Result<TenantMemberMutationResponse>> SuspendTenantMemberAsync(
+            Guid tenantId,
+            Guid targetUserId,
+            Guid actorUserId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            TargetUserId = targetUserId;
+            ActorUserId = actorUserId;
+
+            return Task.FromResult(suspendTenantMemberResult ??
+                Result.Failure<TenantMemberMutationResponse>(
+                    Error.NotFound("tenant_member.not_found", "Tenant member was not found.")));
+        }
+
+        public Task<Result<TenantMemberMutationResponse>> ReactivateTenantMemberAsync(
+            Guid tenantId,
+            Guid targetUserId,
+            Guid actorUserId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            TargetUserId = targetUserId;
+            ActorUserId = actorUserId;
+
+            return Task.FromResult(reactivateTenantMemberResult ??
+                Result.Failure<TenantMemberMutationResponse>(
+                    Error.NotFound("tenant_member.not_found", "Tenant member was not found.")));
+        }
+
+        public Task<Result<TenantMemberRemovalResponse>> RemoveTenantMemberAsync(
+            Guid tenantId,
+            Guid targetUserId,
+            Guid actorUserId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            TargetUserId = targetUserId;
+            ActorUserId = actorUserId;
+
+            return Task.FromResult(removeTenantMemberResult ??
+                Result.Failure<TenantMemberRemovalResponse>(
                     Error.NotFound("tenant_member.not_found", "Tenant member was not found.")));
         }
 

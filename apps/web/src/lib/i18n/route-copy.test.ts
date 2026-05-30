@@ -44,18 +44,26 @@ describe('localized route body copy', () => {
 		expect(copy.publicEntry.productStageRibbon).toBe(
 			'Keep datasets, data descriptions, and report context ready for analysis.'
 		);
-		expect(publicEntryText).not.toMatch(/private beta|tenant|authenticated|provider|owner-controlled/i);
+		expect(publicEntryText).not.toMatch(
+			/private beta|tenant|authenticated|provider|owner-controlled/i
+		);
 	});
 
 	it('keeps public sign-in and registration copy out of provider and beta jargon', () => {
 		const copy = routePageCopy('en');
-		const authText = [copy.common.privateBeta, ...Object.values(copy.signIn), ...Object.values(copy.register)]
+		const authText = [
+			copy.common.privateBeta,
+			...Object.values(copy.signIn),
+			...Object.values(copy.register)
+		]
 			.filter((value) => typeof value === 'string')
 			.join(' ');
 
 		expect(copy.common.privateBeta).toBe('Access note');
 		expect(copy.register.betaAccessCode).toBe('Access code');
-		expect(authText).not.toMatch(/private beta|sign-in provider|provider handles|owner-controlled/i);
+		expect(authText).not.toMatch(
+			/private beta|sign-in provider|provider handles|owner-controlled/i
+		);
 	});
 
 	it('provides Croatian public and auth page copy', () => {
@@ -102,7 +110,7 @@ describe('localized route body copy', () => {
 		expect(copy.instruments.title).toBe('Instrumenti');
 		expect(copy.exports.title).toBe('Preuzimanje datoteka');
 		expect(copy.directory.title).toBe('Ljudi i grupe');
-		expect(copy.team.title).toBe('Tim');
+		expect(copy.team.title).toBe('Pristup radnom prostoru');
 		expect(copy.settings.title).toBe('Postavke radnog prostora');
 		expect(copy.selectedStudy.surfaceChrome.missingStudy).toBe(
 			'Odaberite studiju prije otvaranja ove površine.'
@@ -169,9 +177,7 @@ describe('localized route body copy', () => {
 		expect(copy.instruments.description).toBe(
 			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.'
 		);
-		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe(
-			'Questionnaire check'
-		);
+		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe('Questionnaire check');
 	});
 
 	it('provides Croatian selected-study collection body copy', () => {
@@ -190,12 +196,11 @@ describe('localized route body copy', () => {
 
 		expect(copy.directory.csvFile).toBe('CSV datoteka');
 		expect(copy.directory.previewCsv).toBe('Pregledaj CSV');
-		expect(copy.team.memberEmail).toBe('E-pošta člana');
-		expect(copy.team.copyLink).toBe('Kopiraj poveznicu');
+		expect(copy.team.memberEmail).toBe('E-pošta operatera');
+		expect(copy.team.copyLink).toBe('Kopiraj poveznicu za prijavu');
 		expect(copy.settings.directoryShortcut).toBe('Imenik');
 		expect(copy.settings.exportsShortcut).toBe('Izvozi');
 	});
-
 
 	it('provides Croatian respondent runtime copy', () => {
 		const copy = routePageCopy('hr-HR');
@@ -204,5 +209,4 @@ describe('localized route body copy', () => {
 		expect(copy.respondent.saveAndReview).toBe('Spremi i pregledaj');
 		expect(copy.unsubscribe.button).toBe('Odjavi ovu adresu e-pošte');
 	});
-
 });

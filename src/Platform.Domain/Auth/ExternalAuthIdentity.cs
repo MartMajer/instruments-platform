@@ -79,6 +79,11 @@ public sealed class ExternalAuthIdentity
         DisabledAt ??= disabledAt;
     }
 
+    public void Enable()
+    {
+        DisabledAt = null;
+    }
+
     private static void ValidateRequired(string value, string parameterName, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))

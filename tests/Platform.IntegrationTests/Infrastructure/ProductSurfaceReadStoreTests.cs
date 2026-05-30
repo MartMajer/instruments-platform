@@ -1388,18 +1388,32 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var tenantId = Guid.NewGuid();
         var ownerUserId = Guid.NewGuid();
         var analystUserId = Guid.NewGuid();
+        var suspendedUserId = Guid.NewGuid();
         var migratorOptions = CreateMigratorOptions();
         await PrepareDatabaseAsync(migratorOptions);
         var runtimeOptions = CreateRuntimeOptions();
         await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-member-status");
-        await SeedTenantMemberRosterAsync(
+        var ownerRoleId = await SeedTenantMemberRosterAsync(
             runtimeOptions,
             tenantId,
             ownerUserId,
             analystUserId,
             Guid.NewGuid(),
             Guid.NewGuid());
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            suspendedUserId,
+            "suspended@example.test",
+            ownerRoleId,
+            ownerUserId);
         await SeedExternalAuthIdentityAsync(runtimeOptions, tenantId, ownerUserId);
+        await SeedExternalAuthIdentityAsync(
+            runtimeOptions,
+            tenantId,
+            suspendedUserId,
+            "suspended@example.test",
+            disabledAt: DateTimeOffset.Parse("2026-05-12T10:00:00+00:00"));
 
         await using var db = new ApplicationDbContext(runtimeOptions);
         var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
@@ -1407,9 +1421,17 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var result = await store.ListTenantMembersAsync(tenantId, CancellationToken.None);
 
         Assert.Equal("active", result.Members.Single(member => member.UserId == ownerUserId).IdentityStatus);
+        Assert.Equal("active", result.Members.Single(member => member.UserId == ownerUserId).Status);
         Assert.Equal(
             "pending_provider_link",
             result.Members.Single(member => member.UserId == analystUserId).IdentityStatus);
+        Assert.Equal("invited", result.Members.Single(member => member.UserId == analystUserId).Status);
+        Assert.Equal("disabled", result.Members.Single(member => member.UserId == suspendedUserId).IdentityStatus);
+        Assert.Equal("suspended", result.Members.Single(member => member.UserId == suspendedUserId).Status);
+        Assert.Equal(3, result.Summary.TotalCount);
+        Assert.Equal(1, result.Summary.ActiveCount);
+        Assert.Equal(1, result.Summary.InvitedCount);
+        Assert.Equal(1, result.Summary.SuspendedCount);
     }
 
     [DockerFact]
@@ -4749,22 +4771,53 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         return ownerRoleId;
     }
 
-    private static async Task SeedExternalAuthIdentityAsync(
+    private static async Task SeedTenantMemberWithRoleAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
-        Guid userId)
+        Guid userId,
+        string email,
+        Guid roleId,
+        Guid grantedBy)
     {
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);
         await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
-        db.ExternalAuthIdentities.Add(new ExternalAuthIdentity(
+        db.UserAccounts.Add(new UserAccount(userId, tenantId, email));
+        db.RoleAssignments.Add(new RoleAssignment(
+            Guid.NewGuid(),
+            tenantId,
+            userId,
+            roleId,
+            RoleAssignmentScopes.Tenant,
+            grantedBy: grantedBy));
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    private static async Task SeedExternalAuthIdentityAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        Guid tenantId,
+        Guid userId,
+        string email = "owner@example.test",
+        DateTimeOffset? disabledAt = null)
+    {
+        await using var db = new ApplicationDbContext(options);
+        var tenantDbScope = new TenantDbScope(db);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var identity = new ExternalAuthIdentity(
             Guid.NewGuid(),
             tenantId,
             userId,
             "auth0",
             $"hash-{userId:N}",
-            "owner@example.test",
-            DateTimeOffset.Parse("2026-05-11T08:00:00+00:00")));
+            email,
+            DateTimeOffset.Parse("2026-05-11T08:00:00+00:00"));
+        if (disabledAt.HasValue)
+        {
+            identity.Disable(disabledAt.Value);
+        }
+
+        db.ExternalAuthIdentities.Add(identity);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
     }

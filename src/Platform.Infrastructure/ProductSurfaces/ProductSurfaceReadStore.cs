@@ -357,18 +357,22 @@ public sealed class ProductSurfaceReadStore(
             .Select(row => row.UserId)
             .Distinct()
             .ToArray();
-        var activeIdentityUserIds = userIds.Length == 0
+        List<TenantMemberIdentityStatusRow> identityRows = userIds.Length == 0
             ? []
             : await db.ExternalAuthIdentities
                 .AsNoTracking()
                 .Where(identity =>
                     identity.TenantId == tenantId &&
-                    userIds.Contains(identity.UserId) &&
-                    identity.DisabledAt == null)
-                .Select(identity => identity.UserId)
-                .Distinct()
-                .ToArrayAsync(cancellationToken);
-        var activeIdentityUsers = activeIdentityUserIds.ToHashSet();
+                    userIds.Contains(identity.UserId))
+                .Select(identity => new TenantMemberIdentityStatusRow(
+                    identity.UserId,
+                    identity.DisabledAt))
+                .ToListAsync(cancellationToken);
+        var identityStatusByUser = identityRows
+            .GroupBy(row => row.UserId)
+            .ToDictionary(
+                group => group.Key,
+                group => ResolveTenantMemberIdentityStatus(group.Select(row => row.DisabledAt)));
         var roleIds = assignmentRows
             .Select(row => row.RoleId)
             .Distinct()
@@ -429,6 +433,11 @@ public sealed class ProductSurfaceReadStore(
                     .OrderBy(code => code, StringComparer.Ordinal)
                     .ToArray();
 
+                var identityStatus = identityStatusByUser.GetValueOrDefault(
+                    group.Key.UserId,
+                    TenantMemberIdentityStatuses.PendingProviderLink);
+                var accessStatus = ResolveTenantMemberAccessStatus(identityStatus);
+
                 return new TenantMemberResponse(
                     group.Key.UserId,
                     group.Key.Email,
@@ -437,9 +446,9 @@ public sealed class ProductSurfaceReadStore(
                     group.Key.LastLoginAt,
                     roles,
                     permissions,
-                    activeIdentityUsers.Contains(group.Key.UserId)
-                        ? TenantMemberIdentityStatuses.Active
-                        : TenantMemberIdentityStatuses.PendingProviderLink);
+                    identityStatus,
+                    accessStatus.Status,
+                    accessStatus.Label);
             })
             .OrderBy(member => member.Email, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -6078,6 +6087,35 @@ public sealed class ProductSurfaceReadStore(
         string? StudyInterpretationBoundary = null,
         string? StudyOwnerNotes = null);
 
+    private static string ResolveTenantMemberIdentityStatus(IEnumerable<DateTimeOffset?> disabledAtValues)
+    {
+        var values = disabledAtValues.ToArray();
+        if (values.Length == 0)
+        {
+            return TenantMemberIdentityStatuses.PendingProviderLink;
+        }
+
+        return values.Any(disabledAt => disabledAt is null)
+            ? TenantMemberIdentityStatuses.Active
+            : TenantMemberIdentityStatuses.Disabled;
+    }
+
+    private static (string Status, string Label) ResolveTenantMemberAccessStatus(string identityStatus)
+    {
+        return identityStatus switch
+        {
+            TenantMemberIdentityStatuses.Active => (
+                TenantMemberAccessStatuses.Active,
+                TenantMemberAccessStatusLabels.Active),
+            TenantMemberIdentityStatuses.Disabled => (
+                TenantMemberAccessStatuses.Suspended,
+                TenantMemberAccessStatusLabels.Suspended),
+            _ => (
+                TenantMemberAccessStatuses.Invited,
+                TenantMemberAccessStatusLabels.Invited)
+        };
+    }
+
     private sealed record TenantMemberAssignmentRow(
         Guid UserId,
         string Email,
@@ -6090,6 +6128,10 @@ public sealed class ProductSurfaceReadStore(
         string ScopeType,
         Guid? ScopeId,
         DateTimeOffset GrantedAt);
+
+    private sealed record TenantMemberIdentityStatusRow(
+        Guid UserId,
+        DateTimeOffset? DisabledAt);
 
     private sealed record TenantMemberRolePermissionRow(
         Guid RoleId,

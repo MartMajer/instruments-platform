@@ -202,9 +202,7 @@ test('demo sample setup loader describes staged sample workspace setup while see
 	releaseSampleSetup();
 
 	await expect(page.getByRole('heading', { name: 'Sample studies', exact: true })).toBeVisible();
-	await expect(
-		page.getByText('Setting up your sample workspace', { exact: true })
-	).toHaveCount(0);
+	await expect(page.getByText('Setting up your sample workspace', { exact: true })).toHaveCount(0);
 });
 
 test('app shell keeps home and sidebar routes on shared surface styling', async ({ page }) => {
@@ -579,9 +577,15 @@ test('self-serve walkthrough contract exposes starter states and duplicate-to-ed
 		await expect(
 			article.getByRole('link', { name: new RegExp(sample.portfolioActionLabel) })
 		).toHaveAttribute('href', sample.portfolioHref);
-		await expect(article.getByRole('button', { name: `Duplicate as study ${sample.name}` })).toBeVisible();
-		await expect(article.getByRole('button', { name: new RegExp(`Rename ${sample.name}`) })).toHaveCount(0);
-		await expect(article.getByRole('button', { name: new RegExp(`Archive ${sample.name}`) })).toHaveCount(0);
+		await expect(
+			article.getByRole('button', { name: `Duplicate as study ${sample.name}` })
+		).toBeVisible();
+		await expect(
+			article.getByRole('button', { name: new RegExp(`Rename ${sample.name}`) })
+		).toHaveCount(0);
+		await expect(
+			article.getByRole('button', { name: new RegExp(`Archive ${sample.name}`) })
+		).toHaveCount(0);
 	}
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}`);
@@ -601,7 +605,9 @@ test('self-serve walkthrough contract exposes starter states and duplicate-to-ed
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 	const setupWorkspace = page.getByRole('region', { name: 'Setup workspace' });
-	await expect(setupWorkspace.getByRole('region', { name: 'Sample study read-only state' })).toBeVisible();
+	await expect(
+		setupWorkspace.getByRole('region', { name: 'Sample study read-only state' })
+	).toBeVisible();
 	await expect(setupWorkspace.getByRole('region', { name: 'Study preparation' })).toBeVisible();
 
 	await page.unroute('**/auth/session');
@@ -896,19 +902,13 @@ test('renders tenant settings profile, counts, and management links', async ({ p
 	await expect(profile.getByText('2026-05-12T09:30:00Z', { exact: true })).toBeVisible();
 
 	const counts = settings.getByRole('group', { name: 'Tenant workspace counts' });
-	await expect(counts.locator('div').filter({ hasText: 'Campaign series' })).toContainText(
-		'3'
-	);
-	await expect(counts.locator('div').filter({ hasText: 'Live campaigns' })).toContainText(
-		'2'
-	);
+	await expect(counts.locator('div').filter({ hasText: 'Campaign series' })).toContainText('3');
+	await expect(counts.locator('div').filter({ hasText: 'Live campaigns' })).toContainText('2');
 	await expect(counts.locator('div').filter({ hasText: 'Submitted responses' })).toContainText(
 		'128'
 	);
 	await expect(counts.locator('div').filter({ hasText: 'Subjects' })).toContainText('42');
-	await expect(counts.locator('div').filter({ hasText: 'Tenant members' })).toContainText(
-		'4'
-	);
+	await expect(counts.locator('div').filter({ hasText: 'Tenant members' })).toContainText('4');
 	await expect(settings.locator('.metric-card')).toHaveCount(0);
 
 	const links = settings.getByLabel('Tenant management links');
@@ -980,16 +980,16 @@ test('renders export file library summary and latest artifacts', async ({ page }
 		overview.getByText('1 export file is ready to download.', { exact: true })
 	).toBeVisible();
 	await expect(overview.getByText('Needs attention', { exact: true })).toBeVisible();
-	await expect(
-		overview.getByText('1 export file needs attention.', { exact: true })
-	).toBeVisible();
+	await expect(overview.getByText('1 export file needs attention.', { exact: true })).toBeVisible();
 	await expect(
 		overview.getByText('Exports cover Results matrix export and Response dataset export.', {
 			exact: true
 		})
 	).toBeVisible();
 	await expect(
-		overview.getByText('Export files are tied to Baseline wave and Response study.', { exact: true })
+		overview.getByText('Export files are tied to Baseline wave and Response study.', {
+			exact: true
+		})
 	).toBeVisible();
 	await expectElementBefore(overview, artifacts);
 	await expect(library.locator('.metric-card')).toHaveCount(0);
@@ -1023,64 +1023,56 @@ test('renders export file library summary and latest artifacts', async ({ page }
 test('renders tenant member roster from the product read model', async ({ page }) => {
 	await page.goto('/app/team');
 
-	await expect(page.getByRole('heading', { name: 'Team', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Workspace access', exact: true })).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
 	await expect(nav.getByRole('link', { name: 'Team' })).toHaveAttribute('aria-current', 'page');
 
-	const roster = page.getByRole('region', { name: 'Tenant member roster' });
-	await expect(roster.getByText('2', { exact: true })).toBeVisible();
+	const summary = page.getByRole('region', { name: 'Workspace access summary' });
+	const roster = page.getByRole('region', { name: 'Workspace operator roster' });
+	await expect(summary.getByText('Operators', { exact: true })).toBeVisible();
+	await expect(summary.getByText('2', { exact: true })).toBeVisible();
 	const owner = roster.getByRole('article', { name: 'owner@example.test' });
 	const analyst = roster.getByRole('article', { name: 'analyst@example.test' });
 	await expect(owner.getByText('owner@example.test', { exact: true })).toBeVisible();
 	await expect(owner.getByText('Current user', { exact: true })).toBeVisible();
-	await expect(
-		owner
-			.getByRole('group', { name: 'Assigned roles for owner@example.test' })
-			.getByText('Tenant Owner', { exact: true })
-	).toBeVisible();
-	await expect(
-		owner.getByRole('group', { name: 'Capabilities for owner@example.test' })
-	).toContainText('Study setup and launch');
-	await expect(
-		owner.getByRole('group', { name: 'Capabilities for owner@example.test' })
-	).toContainText('Team access management');
+	await expect(owner.getByText('Tenant Owner', { exact: true })).toBeVisible();
 	await expect(owner.getByText('Active', { exact: true })).toBeVisible();
 	await expect(analyst.getByText('analyst@example.test', { exact: true })).toBeVisible();
 	await expect(
-		analyst
-			.getByRole('group', { name: 'Assigned roles for analyst@example.test' })
-			.getByText('Analyst', { exact: true })
+		analyst.locator('.record-row__header').getByText('Analyst', { exact: true })
 	).toBeVisible();
-	await expect(
-		analyst.getByRole('group', { name: 'Capabilities for analyst@example.test' })
-	).toContainText('Reports and exports');
-	await expect(analyst.getByText('Pending provider link', { exact: true })).toBeVisible();
-	await expect(page.getByRole('region', { name: 'Prepare tenant member' })).toBeVisible();
-	await expect(page.getByLabel('Member email')).toBeVisible();
-	await expect(page.getByLabel('Member role')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Add member' })).toBeVisible();
+	await expect(analyst.getByText('Invited', { exact: true })).toBeVisible();
+	await expect(roster.getByText('Study setup and launch', { exact: true })).toHaveCount(0);
+	await owner.getByRole('button', { name: 'Role permissions' }).click();
+	await expect(owner.getByText('Study setup and launch', { exact: true })).toBeVisible();
+	await expect(owner.getByText('Workspace access management', { exact: true })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Add workspace operator' })).toBeVisible();
+	await expect(page.getByLabel('Operator email')).toBeVisible();
+	await expect(page.getByLabel('Operator role')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Add operator' })).toBeVisible();
 	await expect(page.getByRole('combobox', { name: 'Role for analyst@example.test' })).toBeVisible();
 });
 
-test('team route explains access capabilities without raw permission codes', async ({ page }) => {
+test('workspace access route avoids proof-like capability panels and raw permission codes', async ({
+	page
+}) => {
 	await page.goto('/app/team');
 
-	const overview = page.getByRole('region', { name: 'Team access overview' });
-	const prepare = page.getByRole('region', { name: 'Prepare tenant member' });
-	const roster = page.getByRole('region', { name: 'Tenant member roster' });
+	const summary = page.getByRole('region', { name: 'Workspace access summary' });
+	const addOperator = page.getByRole('region', { name: 'Add workspace operator' });
+	const roster = page.getByRole('region', { name: 'Workspace operator roster' });
 	const owner = roster.getByRole('article', { name: 'owner@example.test' });
 
-	await expectElementBefore(overview, prepare);
-	await expectElementBefore(overview, roster);
-	await expect(overview.getByRole('heading', { name: 'Team access management' })).toBeVisible();
-	await expect(overview.locator('.metric-card')).toHaveCount(0);
+	await expectElementBefore(summary, addOperator);
+	await expectElementBefore(addOperator, roster);
+	await expect(page.getByText('Tenant team', { exact: true })).toHaveCount(0);
+	await expect(page.getByText('Team access overview', { exact: true })).toHaveCount(0);
+	await expect(page.getByText('Prepare tenant member', { exact: true })).toHaveCount(0);
+	await expect(page.getByText(/capability coverage/i)).toHaveCount(0);
+	await expect(summary.locator('.metric-card')).toHaveCount(0);
 	await expect(roster.locator('.metric-card')).toHaveCount(0);
-	await expect(
-		owner.getByRole('group', { name: 'Capabilities for owner@example.test' })
-	).toContainText('Study setup and launch');
-	await expect(
-		owner.getByRole('group', { name: 'Capabilities for owner@example.test' })
-	).toContainText('Team access management');
+	await owner.getByRole('button', { name: 'Role permissions' }).click();
+	await expect(owner.getByText('Study setup and launch', { exact: true })).toBeVisible();
 	await expect(roster.getByText('setup.manage', { exact: true })).toHaveCount(0);
 	await expect(roster.getByText('team.manage', { exact: true })).toHaveCount(0);
 });
@@ -1093,13 +1085,13 @@ test('renders tenant member roster read-only without team management permission'
 
 	await page.goto('/app/team');
 
-	const guidance = page.getByRole('region', { name: 'Route guidance' });
-	const roster = page.getByRole('region', { name: 'Tenant member roster' });
-	await expect(guidance.getByText('team management access')).toBeVisible();
-	await expectElementBefore(guidance, roster);
+	const readOnly = page.getByRole('region', { name: 'Read-only workspace access' });
+	const roster = page.getByRole('region', { name: 'Workspace operator roster' });
+	await expect(readOnly.getByText('team management access')).toBeVisible();
+	await expectElementBefore(readOnly, roster);
 	await expect(roster.getByText('owner@example.test', { exact: true })).toBeVisible();
-	await expect(page.getByRole('region', { name: 'Prepare tenant member' })).toHaveCount(0);
-	await expect(page.getByRole('button', { name: 'Add member' })).toHaveCount(0);
+	await expect(page.getByRole('region', { name: 'Add workspace operator' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Add operator' })).toHaveCount(0);
 	await expect(page.getByRole('combobox', { name: 'Role for analyst@example.test' })).toHaveCount(
 		0
 	);
@@ -1114,7 +1106,9 @@ test('creates tenant members from the team page and refreshes the roster', async
 		userId: '66666666-6666-4666-8666-666666666666',
 		email: 'new.member@example.test',
 		locale: 'hr',
-		identityStatus: 'pending_provider_link' as const
+		identityStatus: 'pending_provider_link' as const,
+		status: 'invited' as const,
+		statusLabel: 'Invited'
 	};
 	let roster = sampleTenantMemberRoster;
 	const createBodies: unknown[] = [];
@@ -1144,19 +1138,19 @@ test('creates tenant members from the team page and refreshes the roster', async
 	});
 
 	await page.goto('/app/team');
-	await page.getByLabel('Member email').fill('new.member@example.test');
-	await page.getByLabel('Member role').selectOption('analyst');
-	await page.getByLabel('Member locale').fill('hr');
-	await page.getByRole('button', { name: 'Add member' }).click();
+	await page.getByLabel('Operator email').fill('new.member@example.test');
+	await page.getByLabel('Operator role').selectOption('analyst');
+	await page.getByLabel('Operator locale').fill('hr');
+	await page.getByRole('button', { name: 'Add operator' }).click();
 
 	await expect(page.getByText('new.member@example.test', { exact: true })).toBeVisible();
 	const created = page.getByRole('article', { name: 'new.member@example.test' });
-	await expect(created.getByText('Pending provider link', { exact: true })).toBeVisible();
-	await expect(created.getByRole('link', { name: 'Open link' })).toHaveAttribute(
+	await expect(created.getByText('Invited', { exact: true })).toBeVisible();
+	await expect(created.getByRole('link', { name: 'Open sign-in' })).toHaveAttribute(
 		'href',
 		/login_hint=new\.member%40example\.test/
 	);
-	await expect(created.getByRole('button', { name: 'Copy link' })).toBeVisible();
+	await expect(created.getByRole('button', { name: 'Copy sign-in link' })).toBeVisible();
 	expect(createBodies).toEqual([
 		{
 			email: 'new.member@example.test',
@@ -1227,14 +1221,130 @@ test('changes another tenant member role from the team page and refreshes the ro
 	await analyst.getByRole('button', { name: 'Change role for analyst@example.test' }).click();
 
 	await expect(
-		analyst
-			.getByRole('group', { name: 'Assigned roles for analyst@example.test' })
-			.getByText('Tenant Owner', { exact: true })
+		analyst.locator('.record-row__header').getByText('Tenant Owner', { exact: true })
 	).toBeVisible();
-	await expect(
-		analyst.getByRole('group', { name: 'Capabilities for analyst@example.test' })
-	).toContainText('Team access management');
+	await analyst.getByRole('button', { name: 'Role permissions' }).click();
+	await expect(analyst.getByText('Workspace access management', { exact: true })).toBeVisible();
 	expect(changeBodies).toEqual([{ roleCode: 'tenant_owner' }]);
+});
+
+test('suspends, reactivates, and removes workspace operators from the roster', async ({ page }) => {
+	const activeAnalyst = {
+		...sampleTenantMemberRoster.members[1],
+		identityStatus: 'active' as const,
+		status: 'active' as const,
+		statusLabel: 'Active',
+		lastLoginAt: '2026-05-12T09:00:00Z'
+	};
+	const suspendedOperator = {
+		...sampleTenantMemberRoster.members[1],
+		userId: '77777777-7777-4777-8777-777777777777',
+		email: 'suspended@example.test',
+		identityStatus: 'disabled' as const,
+		status: 'suspended' as const,
+		statusLabel: 'Suspended'
+	};
+	let roster = {
+		...sampleTenantMemberRoster,
+		summary: {
+			totalCount: 3,
+			activeCount: 2,
+			invitedCount: 0,
+			suspendedCount: 1,
+			teamManagerCount: 1
+		},
+		members: [sampleTenantMemberRoster.members[0], activeAnalyst, suspendedOperator]
+	};
+	const lifecycleCalls: string[] = [];
+
+	await page.route('**/tenant-members', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/tenant-members')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({ json: roster });
+	});
+
+	await page.route('**/tenant-members/*/suspend', async (route) => {
+		lifecycleCalls.push('suspend');
+		const suspendedAnalyst = {
+			...activeAnalyst,
+			identityStatus: 'disabled' as const,
+			status: 'suspended' as const,
+			statusLabel: 'Suspended'
+		};
+		roster = {
+			...roster,
+			summary: { ...roster.summary, activeCount: 1, suspendedCount: 2 },
+			members: [sampleTenantMemberRoster.members[0], suspendedAnalyst, suspendedOperator]
+		};
+		await route.fulfill({ json: { member: suspendedAnalyst } });
+	});
+
+	await page.route('**/tenant-members/*/reactivate', async (route) => {
+		lifecycleCalls.push('reactivate');
+		const reactivated = {
+			...suspendedOperator,
+			identityStatus: 'active' as const,
+			status: 'active' as const,
+			statusLabel: 'Active'
+		};
+		roster = {
+			...roster,
+			summary: { ...roster.summary, activeCount: 2, suspendedCount: 1 },
+			members: [roster.members[0], roster.members[1], reactivated]
+		};
+		await route.fulfill({ json: { member: reactivated } });
+	});
+
+	await page.route('**/tenant-members/*', async (route) => {
+		if (route.request().method() !== 'DELETE') {
+			await route.fallback();
+			return;
+		}
+
+		lifecycleCalls.push('remove');
+		roster = {
+			...roster,
+			summary: { ...roster.summary, totalCount: 2, suspendedCount: 0 },
+			members: [roster.members[0], roster.members[2]]
+		};
+		await route.fulfill({ json: { userId: activeAnalyst.userId, removed: true } });
+	});
+
+	page.on('dialog', (dialog) => void dialog.accept());
+
+	await page.goto('/app/team');
+	await page
+		.getByRole('article', { name: 'analyst@example.test' })
+		.getByRole('button', { name: 'Suspend analyst@example.test' })
+		.click();
+	await expect(
+		page.getByRole('article', { name: 'analyst@example.test' }).getByText('Suspended', {
+			exact: true
+		})
+	).toBeVisible();
+
+	await page
+		.getByRole('article', { name: 'suspended@example.test' })
+		.getByRole('button', { name: 'Reactivate suspended@example.test' })
+		.click();
+	await expect(
+		page.getByRole('article', { name: 'suspended@example.test' }).getByText('Active', {
+			exact: true
+		})
+	).toBeVisible();
+
+	await page
+		.getByRole('article', { name: 'analyst@example.test' })
+		.getByRole('button', { name: 'Remove analyst@example.test' })
+		.click();
+	await expect(page.getByRole('article', { name: 'analyst@example.test' })).toHaveCount(0);
+	expect(lifecycleCalls).toEqual(['suspend', 'reactivate', 'remove']);
 });
 
 test('directory targeting overview explains hierarchy before setup actions', async ({ page }) => {
@@ -1254,9 +1364,7 @@ test('directory targeting overview explains hierarchy before setup actions', asy
 	const overviewCounts = overview.locator('[aria-label="People and targeting counts"]');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'People' })).toContainText('2');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'Groups' })).toContainText('1');
-	await expect(overviewCounts.locator('div').filter({ hasText: 'Memberships' })).toContainText(
-		'1'
-	);
+	await expect(overviewCounts.locator('div').filter({ hasText: 'Memberships' })).toContainText('1');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'Manager links' })).toContainText(
 		'1'
 	);
@@ -1398,16 +1506,12 @@ test('renders campaign-series as a grouped study portfolio', async ({ page }) =>
 	await expect(nav.getByText('Workspace admin', { exact: true })).toBeVisible();
 });
 
-test('studies route surfaces create path before portfolio scanning controls', async ({
-	page
-}) => {
+test('studies route surfaces create path before portfolio scanning controls', async ({ page }) => {
 	await page.goto('/app/campaign-series');
 
 	const portfolio = page.getByRole('region', { name: 'Study portfolio' });
 	const createStudy = page.getByRole('region', { name: 'Create your study' });
-	const firstPortfolioRow = portfolio
-		.getByRole('article', { name: /Quarterly pulse/i })
-		.first();
+	const firstPortfolioRow = portfolio.getByRole('article', { name: /Quarterly pulse/i }).first();
 	const filters = portfolio.getByRole('group', { name: 'Study portfolio filters' });
 
 	await expectElementBefore(createStudy, firstPortfolioRow);
@@ -3044,7 +3148,9 @@ test('waves longitudinal overview leads before mechanics and current task leads 
 	const reference = waves.getByRole('region', { name: 'Waves selected-series context' });
 
 	await expect(overview).toBeVisible();
-	await expect(overview.getByRole('heading', { name: 'Longitudinal analysis overview' })).toBeVisible();
+	await expect(
+		overview.getByRole('heading', { name: 'Longitudinal analysis overview' })
+	).toBeVisible();
 	await expect(overview.getByText('Repeated-wave studies', { exact: true })).toBeVisible();
 	await expect(overview.getByText('Single-wave studies', { exact: true })).toBeVisible();
 	await expectMetricValue(overview, 'Longitudinal waves', '2');
@@ -3308,7 +3414,9 @@ test('operations workflow exposes one current operations task for a draft campai
 	await expect(workflow.getByRole('heading', { name: 'Collection flow' })).toBeVisible();
 	await expect(currentTask).toContainText('Start collection');
 	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeVisible();
+	await expect(
+		workflow.getByRole('button', { name: 'Start collection', exact: true })
+	).toBeVisible();
 	await expect(workflow.getByRole('button', { name: 'Create respondent link' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Queue email invitations' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Process local delivery' })).toHaveCount(0);
@@ -3443,7 +3551,9 @@ test('operations workflow shows share access after launch even when access is pr
 	const operations = page.getByRole('region', { name: 'Collection workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
-	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeEnabled();
+	await expect(
+		workflow.getByRole('button', { name: 'Start collection', exact: true })
+	).toBeEnabled();
 	await workflow.getByRole('button', { name: 'Start collection', exact: true }).click();
 
 	await expect(currentTask).toContainText('Share access');
@@ -3708,7 +3818,9 @@ test('operations workflow runs primary actions against the selected campaign', a
 	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
 	await expect(workflow).toBeVisible();
 	await expect(currentTask).toContainText('Start collection');
-	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeEnabled();
+	await expect(
+		workflow.getByRole('button', { name: 'Start collection', exact: true })
+	).toBeEnabled();
 	await workflow.getByRole('button', { name: 'Start collection', exact: true }).click();
 	await expect(currentTask).toContainText('Share access');
 	const openLinkButton = workflow.getByRole('button', { name: 'Create respondent link' });
@@ -3866,9 +3978,7 @@ test('reports route leads with result availability, limits, and export next use'
 	await expectElementBefore(workflow, reference);
 });
 
-test('Results summary renders primary dashboard labels before workflow', async ({
-	page
-}) => {
+test('Results summary renders primary dashboard labels before workflow', async ({ page }) => {
 	await page.route(
 		`**/campaign-series/${sampleSeriesId}/reports-widget-manifest`,
 		async (route) => {
@@ -3911,7 +4021,9 @@ test('Results summary renders primary dashboard labels before workflow', async (
 	await expect(widgets).toBeVisible();
 	const dashboard = widgets.getByRole('article', { name: 'Results dashboard' });
 	await expect(dashboard).toBeVisible();
-	await expect(dashboard.getByText('Workload manageability', { exact: true }).first()).toBeVisible();
+	await expect(
+		dashboard.getByText('Workload manageability', { exact: true }).first()
+	).toBeVisible();
 	await expect(dashboard.getByText('workload_manageability', { exact: true })).toHaveCount(0);
 	await expect(widgets.getByRole('article', { name: 'Visual analytics' })).toBeVisible();
 	await expect(reports.getByRole('region', { name: 'Results use review' })).toBeVisible();
@@ -4082,7 +4194,9 @@ test('report dashboard renders selected campaign decision surface semantics', as
 
 	const registry = dashboard.getByRole('group', { name: 'Export files' });
 	await expect(registry.getByText('report-proof.csv', { exact: true })).toBeVisible();
-	await expect(registry.getByText('report summary CSV and codebook', { exact: true })).toBeVisible();
+	await expect(
+		registry.getByText('report summary CSV and codebook', { exact: true })
+	).toBeVisible();
 	await expect(registry.getByText('csv codebook', { exact: true })).toBeVisible();
 	await expect(registry.getByText('120 rows', { exact: true })).toBeVisible();
 	await expect(registry.getByText('2,048 bytes', { exact: true })).toBeVisible();
@@ -4092,9 +4206,7 @@ test('report dashboard renders selected campaign decision surface semantics', as
 	await expect(registry.getByText('checksum-sha256', { exact: true })).toBeVisible();
 
 	const visualAnalytics = dashboard.getByRole('group', { name: 'Report visual analytics' });
-	await expect(
-		visualAnalytics.getByText('Preview / not validated', { exact: true })
-	).toBeVisible();
+	await expect(visualAnalytics.getByText('Preview / not validated', { exact: true })).toBeVisible();
 	await expect(visualAnalytics.getByTestId('report-visual-analytics-chart')).toBeVisible();
 
 	const chartValues = visualAnalytics.getByRole('list', {
@@ -4650,9 +4762,7 @@ test('wave dashboard renders selected comparison decision surface semantics', as
 	await expect(provenance.getByText('burnout.total', { exact: true }).first()).toBeVisible();
 
 	const visualAnalytics = dashboard.getByRole('group', { name: 'Wave visual analytics' });
-	await expect(
-		visualAnalytics.getByText('Preview / not validated', { exact: true })
-	).toBeVisible();
+	await expect(visualAnalytics.getByText('Preview / not validated', { exact: true })).toBeVisible();
 	await expect(visualAnalytics.getByTestId('wave-visual-analytics-chart')).toBeVisible();
 
 	const chartValues = visualAnalytics.getByRole('list', {
@@ -5253,23 +5363,28 @@ test('setup template authoring edits question rows and generated scoring default
 	await expect.poll(() => scoringBodies).toHaveLength(1);
 	const submittedScoringDocument = JSON.parse(scoringBodies[0].document) as {
 		inputs: Array<{ id: string; items: string[] }>;
-		nodes: Array<{ id: string; op: string; explicit_reverse_items?: string[]; missing_data?: unknown }>;
+		nodes: Array<{
+			id: string;
+			op: string;
+			explicit_reverse_items?: string[];
+			missing_data?: unknown;
+		}>;
 		outputs: Array<{ code: string; node: string }>;
 	};
-	expect(submittedScoringDocument.inputs.find((input) => input.id === 'recovery_items')?.items).toEqual([
-		'q04'
-	]);
+	expect(
+		submittedScoringDocument.inputs.find((input) => input.id === 'recovery_items')?.items
+	).toEqual(['q04']);
 	expect(
 		submittedScoringDocument.nodes.find((node) => node.id === 'recovery_scored_answers')
 			?.explicit_reverse_items
 	).toEqual(['q04']);
-	expect(submittedScoringDocument.nodes.find((node) => node.id === 'recovery_score')).toMatchObject({
-		op: 'sum',
-		missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
-	});
-	expect(submittedScoringDocument.outputs).toEqual([
-		{ code: 'recovery', node: 'recovery_score' }
-	]);
+	expect(submittedScoringDocument.nodes.find((node) => node.id === 'recovery_score')).toMatchObject(
+		{
+			op: 'sum',
+			missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
+		}
+	);
+	expect(submittedScoringDocument.outputs).toEqual([{ code: 'recovery', node: 'recovery_score' }]);
 	expect(submittedScoringDocument.outputs.map((output) => output.code)).toEqual(['recovery']);
 	expect(JSON.parse(scoringBodies[0].produces)).toEqual({ scores: ['recovery'] });
 });
@@ -5303,7 +5418,9 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
+	const preview = setup.getByRole('region', {
+		name: 'Preview recipients, then save the selection'
+	});
 	await expect(preview).toBeVisible();
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
 	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
@@ -5420,7 +5537,9 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Setup workspace' });
-	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
+	const preview = setup.getByRole('region', {
+		name: 'Preview recipients, then save the selection'
+	});
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
 	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
 	await preview.getByRole('button', { name: 'Save previewed recipients' }).click();
@@ -6568,6 +6687,13 @@ const sampleExportArtifactLibrary: ExportArtifactLibraryResponse = {
 
 const sampleTenantMemberRoster: TenantMemberRosterResponse = {
 	tenantId: '11111111-1111-4111-8111-111111111111',
+	summary: {
+		totalCount: 2,
+		activeCount: 1,
+		invitedCount: 1,
+		suspendedCount: 0,
+		teamManagerCount: 1
+	},
 	members: [
 		{
 			userId: '22222222-2222-4222-8222-222222222222',
@@ -6576,6 +6702,8 @@ const sampleTenantMemberRoster: TenantMemberRosterResponse = {
 			createdAt: '2026-05-10T08:00:00Z',
 			lastLoginAt: '2026-05-11T09:00:00Z',
 			identityStatus: 'active',
+			status: 'active',
+			statusLabel: 'Active',
 			roles: [
 				{
 					roleId: '33333333-3333-4333-8333-333333333333',
@@ -6595,6 +6723,8 @@ const sampleTenantMemberRoster: TenantMemberRosterResponse = {
 			createdAt: '2026-05-10T08:00:00Z',
 			lastLoginAt: null,
 			identityStatus: 'pending_provider_link',
+			status: 'invited',
+			statusLabel: 'Invited',
 			roles: [
 				{
 					roleId: '55555555-5555-4555-8555-555555555555',

@@ -134,6 +134,24 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("ChangeTenantMemberRole")
             .WithTags("ProductSurfaces");
 
+        app.MapPost("/tenant-members/{userId:guid}/suspend", SuspendTenantMember)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, TeamManagePolicy)
+            .WithName("SuspendTenantMember")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/tenant-members/{userId:guid}/reactivate", ReactivateTenantMember)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, TeamManagePolicy)
+            .WithName("ReactivateTenantMember")
+            .WithTags("ProductSurfaces");
+
+        app.MapDelete("/tenant-members/{userId:guid}", RemoveTenantMember)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, TeamManagePolicy)
+            .WithName("RemoveTenantMember")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/campaign-series/{id:guid}", GetCampaignSeriesHub)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember)
@@ -412,6 +430,36 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new ChangeTenantMemberRoleCommand(userId, request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> SuspendTenantMember(
+        Guid userId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new SuspendTenantMemberCommand(userId), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ReactivateTenantMember(
+        Guid userId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ReactivateTenantMemberCommand(userId), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> RemoveTenantMember(
+        Guid userId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RemoveTenantMemberCommand(userId), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

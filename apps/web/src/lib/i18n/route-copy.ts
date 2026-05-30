@@ -14,7 +14,8 @@ const en = {
 	},
 	publicEntry: {
 		metaTitle: 'Validated Scale | Research and wellbeing study platform',
-		metaDescription:'Study operations for questionnaires, collection, results, repeat-participation waves, and analysis-ready exports in one workspace.',
+		metaDescription:
+			'Study operations for questionnaires, collection, results, repeat-participation waves, and analysis-ready exports in one workspace.',
 		brandSubtitle: 'Research studies and wellbeing programs',
 		navAria: 'Product entry actions',
 		mobileNavAria: 'Mobile product entry actions',
@@ -26,7 +27,8 @@ const en = {
 		trustModel: 'Study controls',
 		heroKicker: 'Study operations in one workspace',
 		heroTitle: 'Run studies, response collection, and results without rebuilding the data stack.',
-		heroBody:'Build questionnaires, choose the response mode, track collection, compare waves, and export datasets with codebooks from one workspace instead of stitching forms, spreadsheets, scripts, and screenshots together.',
+		heroBody:
+			'Build questionnaires, choose the response mode, track collection, compare waves, and export datasets with codebooks from one workspace instead of stitching forms, spreadsheets, scripts, and screenshots together.',
 		previewAria: 'Product preview',
 		previewChrome: 'study overview',
 		governanceBody: 'Consent, retention, finality, and provenance',
@@ -51,10 +53,12 @@ const en = {
 		responseProgress: '412 responses · 33% complete',
 		prepare: 'Prepare',
 		launchChecklist: 'Launch checklist',
-		prepareBody: 'Questionnaire, result outputs, audience, consent, and pre-launch checks stay visible before launch.',
+		prepareBody:
+			'Questionnaire, result outputs, audience, consent, and pre-launch checks stay visible before launch.',
 		export: 'Export',
 		datasetCodebook: 'Dataset + codebook',
-		exportBody: 'Exports carry dataset shape, codebook metadata, finality, and source context together.',
+		exportBody:
+			'Exports carry dataset shape, codebook metadata, finality, and source context together.',
 		trustAria: 'Study controls',
 		workflowRibbon: 'Questionnaires, collection, results, waves, and exports',
 		access: 'Study access',
@@ -65,28 +69,30 @@ const en = {
 		productStageRibbon: 'Keep datasets, data descriptions, and report context ready for analysis.',
 		workspaceOverview: 'Study overview',
 		suiteTitle: 'See what each study needs next.',
-		suiteBody:'Preparation, live collection, result review, wave comparison, and export readiness stay visible in one place.',
+		suiteBody:
+			'Preparation, live collection, result review, wave comparison, and export readiness stay visible in one place.',
 		nextAction: 'Next action',
 		nextActionQuestion: 'What needs attention now?',
 		appAreas: 'Work areas',
 		studyStatus: 'Study status',
 		workflowTitle: 'From questionnaire to analysis-ready results.',
 		portfolio: 'Portfolio',
-		portfolioBody: 'Start a new study or return to active study programs, including repeated-wave programs.',
-		prepareStepBody: 'Define questionnaire, result outputs, policies, recipients, and pre-launch checks.',
-		collectStepBody: 'Share links or send invitations, track response progress, and monitor delivery.',
+		portfolioBody:
+			'Start a new study or return to active study programs, including repeated-wave programs.',
+		prepareStepBody:
+			'Define questionnaire, result outputs, policies, recipients, and pre-launch checks.',
+		collectStepBody:
+			'Share links or send invitations, track response progress, and monitor delivery.',
 		reviewStepBody: 'Review results, compare waves, and export datasets with codebooks.'
 	},
 	signIn: {
 		metaTitle: 'Sign in | Validated Scale',
-		metaDescription:
-			'Find your Validated Scale workspace and continue to the app.',
+		metaDescription: 'Find your Validated Scale workspace and continue to the app.',
 		brandSubtitle: 'Workspace sign-in',
 		navAria: 'Sign-in actions',
 		eyebrow: 'Workspace access',
 		title: 'Sign in to your workspace.',
-		body:
-			'Enter the email used for the workspace. We find the right workspace first, then open the account step for password and MFA.',
+		body: 'Enter the email used for the workspace. We find the right workspace first, then open the account step for password and MFA.',
 		stepsAria: 'Sign-in steps',
 		stepFind: 'Find workspace',
 		stepFindBody: 'Use the same email that owns or belongs to the workspace.',
@@ -102,7 +108,8 @@ const en = {
 		createInsteadLink: 'Create one instead',
 		recentWorkspace: 'Recent workspace found',
 		continueAs: (email: string) => `Continue as ${email}, or enter another workspace email below.`,
-		continueRecentBody: 'Continue to your recent workspace, or enter another workspace email below.',
+		continueRecentBody:
+			'Continue to your recent workspace, or enter another workspace email below.',
 		continueRecent: 'Continue to recent workspace',
 		openingWorkspace: 'Opening workspace sign-in.',
 		findingWorkspace: 'Finding workspace...',
@@ -115,21 +122,21 @@ const en = {
 	},
 	register: {
 		metaTitle: 'Create workspace | Validated Scale',
-		metaDescription:
-			'Create a Validated Scale workspace for research or wellbeing studies.',
+		metaDescription: 'Create a Validated Scale workspace for research or wellbeing studies.',
 		brandSubtitle: 'Study workspace',
 		navAria: 'Registration actions',
 		eyebrow: 'Workspace access',
 		title: 'Create your workspace.',
-		body:
-			'Use the email that should manage the workspace. The account step handles password and MFA; this page names the workspace and checks your access code.',
+		body: 'Use the email that should manage the workspace. The account step handles password and MFA; this page names the workspace and checks your access code.',
 		stepsAria: 'Registration steps',
 		stepCreate: 'Create account',
-		stepCreateBody: 'Enter the email, workspace name, and access code before opening account setup.',
+		stepCreateBody:
+			'Enter the email, workspace name, and access code before opening account setup.',
 		stepVerify: 'Verify email',
 		stepVerifyBody: 'If email verification is requested, confirm the email and continue here.',
 		stepOpen: 'Open the app',
-		stepOpenBody: 'The workspace is created after approved registration and opens with your session.',
+		stepOpenBody:
+			'The workspace is created after approved registration and opens with your session.',
 		formAria: 'Create workspace form',
 		panelEyebrow: 'Workspace signup',
 		panelTitle: 'Create account and workspace',
@@ -140,8 +147,7 @@ const en = {
 		verifyThenSignIn: 'Verify email, then sign in',
 		mismatchBody:
 			'The selected sign-in account did not match the workspace email you entered. Sign out completely if the browser keeps choosing the wrong account.',
-		verifyBody:
-			'Open the verification email, then retry account setup with the same email.',
+		verifyBody: 'Open the verification email, then retry account setup with the same email.',
 		retryRegistration: 'Retry registration sign-in',
 		startOver: 'Start over',
 		workspaceName: 'Workspace name',
@@ -152,7 +158,8 @@ const en = {
 		openingAccountButton: 'Opening account setup...',
 		createAccount: 'Create account',
 		useDifferentEmail: 'Use a different email',
-		accountReady: (email: string) => `Account ready: ${email}. This email will manage the workspace.`,
+		accountReady: (email: string) =>
+			`Account ready: ${email}. This email will manage the workspace.`,
 		workspaceCreated: 'Workspace created. Opening your app.',
 		creatingWorkspace: 'Creating workspace...',
 		boundaryTitle: 'Access note',
@@ -162,7 +169,8 @@ const en = {
 			'We could not confirm the account step. Continue with account setup again before creating the workspace.',
 		disabled:
 			'Workspace creation is not open on this environment. Sign in if you already have a workspace.',
-		expired: 'Your account step expired. Continue with account setup again, then create the workspace.',
+		expired:
+			'Your account step expired. Continue with account setup again, then create the workspace.',
 		forbidden:
 			'This account cannot create a workspace. Sign out and use an approved account, or ask for access.',
 		conflict: 'This account or workspace is already set up. Sign in instead.',
@@ -197,15 +205,11 @@ const en = {
 			'Most teams begin by creating a study, adding people, then launching collection after setup is ready.',
 		setupWorkspace: 'Set up your workspace',
 		chooseNext: 'Choose what to do next',
-		firstRunActions: [
-			'Create first study',
-			'Invite team',
-			'Set up directory'
-		],
+		firstRunActions: ['Create first study', 'Invite team', 'Set up directory'],
 		firstRunActionStatuses: ['Start here', 'Access', 'People'],
 		firstRunActionDescriptions: [
 			'Start a real study and continue through setup, collection, and results.',
-			'Prepare tenant member access before sharing the first sign-in link.',
+			'Add workspace operator access before sharing the first sign-in link.',
 			'Create people, groups, memberships, and manager links for targeting.'
 		],
 		nextActions: 'Next actions',
@@ -366,7 +370,8 @@ const en = {
 	portfolio: {
 		eyebrow: 'Study workspace',
 		title: 'Studies',
-		description: 'Create a study or open an existing one. Samples stay separated from real workspace studies.',
+		description:
+			'Create a study or open an existing one. Samples stay separated from real workspace studies.',
 		loading: 'Loading studies',
 		errorTitle: 'Studies unavailable',
 		retry: 'Retry studies',
@@ -406,8 +411,7 @@ const en = {
 			{ value: 'client_report', label: 'Client or stakeholder report' }
 		],
 		studyInterpretationBoundary: 'Interpretation limits',
-		studyInterpretationBoundaryPlaceholder:
-			'What should readers not conclude from these results?',
+		studyInterpretationBoundaryPlaceholder: 'What should readers not conclude from these results?',
 		studyOwnerNotes: 'Owner notes',
 		studyOwnerNotesPlaceholder: 'Optional internal notes for the study team.',
 		continueSetup: 'Create study and open setup',
@@ -489,11 +493,13 @@ const en = {
 		addRecords: 'Add records',
 		membershipManager: 'Membership and manager',
 		countsAria: 'People and targeting counts',
-		csvBody: 'Use this when a study audience is already prepared in a spreadsheet. First preview the rows so you can confirm who will be created, updated, grouped, or rejected. Apply only after the preview looks right.',
+		csvBody:
+			'Use this when a study audience is already prepared in a spreadsheet. First preview the rows so you can confirm who will be created, updated, grouped, or rejected. Apply only after the preview looks right.',
 		downloadTemplate: 'Download template',
 		csvFile: 'CSV file',
 		csvRows: 'CSV rows',
-		csvHelp: 'Required identity: external_id or email. Optional grouping: group_type, group_name, role_in_group. One person can appear in multiple rows when they belong to multiple groups.',
+		csvHelp:
+			'Required identity: external_id or email. Optional grouping: group_type, group_name, role_in_group. One person can appear in multiple rows when they belong to multiple groups.',
 		previewing: 'Previewing...',
 		previewCsv: 'Preview CSV',
 		applying: 'Applying...',
@@ -569,50 +575,54 @@ const en = {
 	},
 	team: {
 		eyebrow: 'Workspace access',
-		title: 'Team',
-		description: 'Invite teammates, assign roles, and confirm who can manage studies or access results.',
-		loadingOverview: 'Loading team access overview',
-		tenantTeam: 'Tenant team',
-		overviewTitle: 'Team access overview',
-		overviewBody: 'Who can enter the tenant, prepare studies, and manage access.',
-		prepareTitle: 'Prepare member access, then share sign-in',
+		title: 'Workspace access',
+		description:
+			'Manage the operators who can sign in, prepare studies, review results, or administer access.',
+		loadingOverview: 'Loading workspace access',
+		tenantTeam: 'Workspace',
+		overviewTitle: 'Access summary',
+		overviewBody:
+			'Only product operators belong here. Imported employees, students, departments, and hierarchy stay in Directory.',
+		prepareTitle: 'Add workspace operator',
 		prepareBody:
-			'Add the email, choose a role, then share the generated sign-in link from the roster. Passwords and MFA stay in Auth0.',
+			'Add the email and choose the workspace role. The person stays invited until their first matching sign-in.',
 		readOnlyTitle: 'Read-only access',
 		readOnlyBody: 'Member preparation and role changes require team management access.',
-		rosterTitle: 'Members and roles',
+		rosterTitle: 'Operators and roles',
 		memberSingular: 'member',
 		memberPlural: 'members',
-		teamOverviewCountsAria: 'Team access overview counts',
-		capabilityCoverageAria: 'Team capability coverage',
-		tenantRolesUnavailable: 'Tenant roles unavailable',
+		teamOverviewCountsAria: 'Workspace access counts',
+		capabilityCoverageAria: 'Workspace role permissions',
+		tenantRolesUnavailable: 'Workspace roles unavailable',
 		retryRoles: 'Retry roles',
-		memberEmail: 'Member email',
-		memberRole: 'Member role',
-		memberLocale: 'Member locale',
+		memberEmail: 'Operator email',
+		memberRole: 'Operator role',
+		memberLocale: 'Operator locale',
 		adding: 'Adding...',
-		addMember: 'Add member',
-		loadingRoles: 'Loading tenant roles.',
-		pendingNoticeSuffix: 'The roster marks the member pending until the first matching Auth0 sign-in.',
-		readOnlyAria: 'Read-only team access',
-		teamRoster: 'Team roster',
-		loadingMembers: 'Loading team members',
-		teamMembersUnavailable: 'Team members unavailable',
+		addMember: 'Add operator',
+		loadingRoles: 'Loading workspace roles.',
+		pendingNoticeSuffix:
+			'Use the sign-in link from the roster if their browser keeps choosing the wrong account.',
+		readOnlyAria: 'Read-only workspace access',
+		teamRoster: 'Workspace operators',
+		loadingMembers: 'Loading workspace operators',
+		teamMembersUnavailable: 'Workspace operators unavailable',
 		retryMembers: 'Retry members',
-		rosterCountsAria: 'Tenant member roster counts',
-		membersLabel: 'Members',
-		noMembersTitle: 'No tenant members',
-		noMembersBody: 'No active tenant role assignments are available for this tenant.',
+		rosterCountsAria: 'Workspace operator counts',
+		membersLabel: 'Operators',
+		noMembersTitle: 'No workspace operators',
+		noMembersBody: 'No active workspace role assignments are available.',
 		currentUser: 'Current user',
 		localeLabel: 'Locale',
 		created: 'Created',
 		lastLogin: 'Last login',
 		roles: 'Roles',
-		capabilities: 'Capabilities',
-		firstSignIn: 'First sign-in',
-		firstSignInBody: (email: string) => `Send this link to ${email}. They stay pending until Auth0 returns the same email for this workspace.`,
-		openLink: 'Open link',
-		copyLink: 'Copy link',
+		capabilities: 'Role permissions',
+		firstSignIn: 'Sign-in link',
+		firstSignInBody: (email: string) =>
+			`Send this link to ${email} if their browser keeps choosing the wrong account.`,
+		openLink: 'Open sign-in',
+		copyLink: 'Copy sign-in link',
 		copied: 'Copied',
 		roleFor: (email: string) => `Role for ${email}`,
 		changeRoleAria: (email: string) => `Change role for ${email}`,
@@ -630,11 +640,12 @@ const en = {
 		whatManage: 'What can you manage here?',
 		whatManageBody:
 			'Workspace-level settings are being assembled here. For now, use these shortcuts to manage the active areas of the product.',
-		teamAccess: 'Team access',
-		teamBody: 'Invite workspace members, review pending access, and manage workspace roles.',
+		teamAccess: 'Workspace access',
+		teamBody: 'Invite workspace operators, review pending access, and manage workspace roles.',
 		directoryBody: 'Manage people, groups, and hierarchy data used for study audiences.',
 		studySetup: 'Study setup',
-		studySetupBody: 'Create or continue studies, questionnaires, collection waves, and results setup.',
+		studySetupBody:
+			'Create or continue studies, questionnaires, collection waves, and results setup.',
 		exportsBody: 'Review generated export files and download analysis-ready outputs.',
 		workspaceDetails: 'Workspace details',
 		profile: 'Workspace profile',
@@ -678,12 +689,10 @@ const en = {
 		metaTitle: 'Unsubscribe from study invitations - Validated Scale',
 		kicker: 'Study invitation email',
 		title: 'Unsubscribe from future invitations',
-		body:
-			'Use this page only if you want this email address added to the workspace do-not-contact list for study invitation emails.',
+		body: 'Use this page only if you want this email address added to the workspace do-not-contact list for study invitation emails.',
 		button: 'Unsubscribe this email address',
 		submitting: 'Applying your do-not-contact request...',
-		done:
-			'This email address has been added to the workspace do-not-contact list for future study invitation emails. You can close this page.',
+		done: 'This email address has been added to the workspace do-not-contact list for future study invitation emails. You can close this page.',
 		retry: 'Try again',
 		fallbackError:
 			'This invitation could not be unsubscribed. The link may be invalid or already removed.'
@@ -804,22 +813,26 @@ const en = {
 					osh_ergonomics: {
 						label: 'OSH / ergonomics',
 						category: 'Original starter',
-						summary: 'Original workplace-risk items for posture, repetition, discomfort, and recovery.',
-						detail: 'Useful for occupational-safety discovery work. Not a validated named instrument by itself.'
+						summary:
+							'Original workplace-risk items for posture, repetition, discomfort, and recovery.',
+						detail:
+							'Useful for occupational-safety discovery work. Not a validated named instrument by itself.'
 					},
 					office_ergonomics: {
 						label: 'Office ergonomics',
 						category: 'Persona starter',
 						summary:
 							'Original office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
-						detail: 'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.'
+						detail:
+							'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.'
 					},
 					academic_workload: {
 						label: 'Academic workload',
 						category: 'Persona starter',
 						summary:
 							'Original items for teaching/research load, admin pressure, supervision clarity, and recovery.',
-						detail: 'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.'
+						detail:
+							'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.'
 					},
 					team_climate: {
 						label: 'Team climate pulse',
@@ -851,7 +864,8 @@ const en = {
 					psychosocial_safety: {
 						label: 'Psychosocial safety pulse',
 						category: 'Organizational climate',
-						summary: 'Editable questions for support, clarity, workload fairness, and psychological safety.',
+						summary:
+							'Editable questions for support, clarity, workload fairness, and psychological safety.',
 						detail: 'Designed for internal improvement, not external diagnosis.'
 					}
 				}
@@ -871,7 +885,8 @@ const en = {
 					anonymousHelp: 'Responses are not linked back to a known person in reporting.',
 					anonymousLongitudinalHelp:
 						'Respondents stay anonymous in reporting, but the same person can be compared across measurements using a repeat code.',
-					identifiedHelp: 'Responses can be connected to known respondents for operational follow-up.'
+					identifiedHelp:
+						'Responses can be connected to known respondents for operational follow-up.'
 				}
 			},
 			recipients: {
@@ -881,7 +896,8 @@ const en = {
 					externalEmailsLabel: 'One-time email import',
 					selfHelp: 'One saved recipient creates one invitation.',
 					managerHelp: 'Managers receive invitations for the people in their reporting scope.',
-					externalEmailsHelp: 'Paste external email addresses for this measurement without adding them to the directory.'
+					externalEmailsHelp:
+						'Paste external email addresses for this measurement without adding them to the directory.'
 				},
 				roles: {
 					respondent: 'Respondent',
@@ -917,7 +933,8 @@ const en = {
 				},
 				campaign: {
 					title: 'Measurement and recipients',
-					description: 'Create the collection round, choose how people answer, and save the recipient selection.'
+					description:
+						'Create the collection round, choose how people answer, and save the recipient selection.'
 				},
 				readiness: {
 					title: 'Ready to collect',
@@ -959,27 +976,31 @@ const en = {
 					`${selectionCount} ${selectionCount === 1 ? 'selection' : 'selections'} saved, ${pairCount} ${
 						pairCount === 1 ? 'invitation pair' : 'invitation pairs'
 					} ready.`,
-				noSavedIdentified: 'No saved recipients yet; save recipients above before launching access for invited people only.',
+				noSavedIdentified:
+					'No saved recipients yet; save recipients above before launching access for invited people only.',
 				noSavedLongitudinal:
 					'No saved recipients; save recipients above for invited-only access, or use a public link and let respondents enter their repeat code.',
 				noSavedAnonymous: 'No saved recipients; launch with a public link or save recipients above.'
 			},
 			launchPlan: {
 				title: 'Launch plan',
-				summary: 'Prepare the measurement, response mode, recipients, and Collection handoff before launch.',
+				summary:
+					'Prepare the measurement, response mode, recipients, and Collection handoff before launch.',
 				draftWave: 'Draft measurement',
 				wave: 'Measurement',
 				responseMode: 'Response mode',
 				recipients: 'Recipients',
 				collectionHandoff: 'Collection handoff',
-				waveDraftReady: (waveName: string) => `${waveName} is the draft measurement for this study.`,
+				waveDraftReady: (waveName: string) =>
+					`${waveName} is the draft measurement for this study.`,
 				waveWillBeCreated: (waveName: string) =>
 					`${waveName} will be created when you save this step.`,
 				identifiedModeDetail:
 					'Identified collection requires saved recipients so each respondent can receive assigned access.',
 				longitudinalModeDetail:
 					'Same-person comparison can use public access or saved recipients; respondents use their own repeat code for comparison.',
-				anonymousModeDetail: 'Anonymous collection can use a public link or saved email recipients.',
+				anonymousModeDetail:
+					'Anonymous collection can use a public link or saved email recipients.',
 				chooseModeDetail: 'Choose how respondents should enter this measurement.',
 				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
 					`${selectionCount} saved ${selectionCount === 1 ? 'selection' : 'selections'} with ${pairCount} ${
@@ -1026,8 +1047,10 @@ const en = {
 				currentDraftWave: 'Current draft measurement',
 				followUpDraftWave: 'Next draft measurement',
 				futureWaveSetup: 'Future measurement setup',
-				firstWaveSummary: 'Use this step to create the first measurement and decide who can answer.',
-				currentDraftSummary: 'Use this step to finish the current draft measurement before opening Collection.',
+				firstWaveSummary:
+					'Use this step to create the first measurement and decide who can answer.',
+				currentDraftSummary:
+					'Use this step to finish the current draft measurement before opening Collection.',
 				followUpDraftSummary: (waveName: string) =>
 					`${waveName} is a draft follow-up measurement. Use it only when the next collection round is intentional.`,
 				closedOneWaveSummary: (
@@ -1108,13 +1131,11 @@ const en = {
 				reconciled: (count: string) => `${count} reconciled`
 			},
 			readiness: {
-				body:
-					'Use this before opening collection. The check confirms that the questionnaire, results, recipients, and policy setup can support responses and reporting.',
+				body: 'Use this before opening collection. The check confirms that the questionnaire, results, recipients, and policy setup can support responses and reporting.',
 				issuesAria: 'Readiness issues',
 				warningsTitle: 'Setup warnings',
 				blockersTitle: 'Before collection can start',
-				warningsBody:
-					'These items do not block collection, but review them before sharing access.',
+				warningsBody: 'These items do not block collection, but review them before sharing access.',
 				blockersBody: 'Fix the blocking setup items, then run the pre-launch check again.',
 				blocking: 'Blocking',
 				warning: 'Warning',
@@ -1126,14 +1147,12 @@ const en = {
 				runCheck: 'Run pre-launch check'
 			},
 			launch: {
-				body:
-					'Starting collection opens the selected wave for responses and records the setup version that reports will use later.',
+				body: 'Starting collection opens the selected wave for responses and records the setup version that reports will use later.',
 				start: 'Start collection',
 				resultLabel: 'Collection'
 			},
 			shareAccess: {
-				body:
-					'Choose how respondents enter this wave. Saved Directory and group selections become private invitations. Use the one-off importer only to add ad hoc recipients after launch, or create an open respondent link when broad access is acceptable.',
+				body: 'Choose how respondents enter this wave. Saved Directory and group selections become private invitations. Use the one-off importer only to add ad hoc recipients after launch, or create an open respondent link when broad access is acceptable.',
 				accessMethodLabel: 'Access method',
 				chooseAccessMethodTitle: 'Choose access method',
 				openLinkMode: 'Open link',
@@ -1159,7 +1178,8 @@ const en = {
 				createRespondentLink: 'Create respondent link',
 				shareLink: 'Share link',
 				respondentLinkReady: 'Respondent link ready',
-				identifiedHelp: 'Use this only when respondents should be connected to known subject records.',
+				identifiedHelp:
+					'Use this only when respondents should be connected to known subject records.',
 				inviteOnlyHelp:
 					'This wave already has private email invitations. Open links are disabled so participation stays limited to invited recipients.',
 				openLinkReadyHelp:
@@ -1170,8 +1190,7 @@ const en = {
 			emailSetup: {
 				label: 'Email sending setup',
 				title: 'Check delivery configuration before sending',
-				body:
-					'This check shows whether this environment can send real SMTP invitations or is still in test mode or missing settings. It never exposes provider secrets or SMTP credentials.',
+				body: 'This check shows whether this environment can send real SMTP invitations or is still in test mode or missing settings. It never exposes provider secrets or SMTP credentials.',
 				mode: 'Mode',
 				realEmailSend: 'Real email send',
 				providerEvents: 'Provider events',
@@ -1182,8 +1201,7 @@ const en = {
 			simulation: {
 				label: 'Test responses',
 				title: 'Simulate response data',
-				body:
-					'Use this in non-production environments to create believable submitted responses without sending email.',
+				body: 'Use this in non-production environments to create believable submitted responses without sending email.',
 				responses: 'Responses',
 				averageTarget: 'Average target',
 				variation: 'Variation',
@@ -1191,13 +1209,13 @@ const en = {
 				normal: 'Normal',
 				noisy: 'Noisy',
 				simulateCollection: 'Simulate collection',
-				includeComments: 'Add short synthetic text answers when the questionnaire has comment fields.',
+				includeComments:
+					'Add short synthetic text answers when the questionnaire has comment fields.',
 				answersSaved: 'Answers saved',
 				scoredResponses: 'Scored responses'
 			},
 			monitor: {
-				body:
-					'Watch response movement while collection is open. These numbers refresh from the workspace state and do not change study setup.',
+				body: 'Watch response movement while collection is open. These numbers refresh from the workspace state and do not change study setup.',
 				deliveryDiagnostics: 'Delivery diagnostics',
 				recentEmailEvents: 'Recent email delivery events',
 				noEventsYet: 'No events yet',
@@ -1218,8 +1236,7 @@ const en = {
 				needsReview: 'Needs review',
 				noCleanup: 'No cleanup',
 				notChecked: 'Not checked',
-				body:
-					'Check this before retrying failed invitation emails. It separates stale handoffs, ambiguous failures, retryable failures, and suppressed recipients without changing delivery state.',
+				body: 'Check this before retrying failed invitation emails. It separates stale handoffs, ambiguous failures, retryable failures, and suppressed recipients without changing delivery state.',
 				staleHandoffs: 'Stale handoffs',
 				ambiguousFailures: 'Ambiguous failures',
 				retryableFailures: 'Retryable failures',
@@ -1229,8 +1246,7 @@ const en = {
 				retryPossible: 'Retry possible'
 			},
 			close: {
-				body:
-					'Close collection when the response window is finished. Submitted responses remain available for scoring and reports.',
+				body: 'Close collection when the response window is finished. Submitted responses remain available for scoring and reports.',
 				closeCollection: 'Close collection'
 			},
 			navigation: {
@@ -1241,8 +1257,7 @@ const en = {
 			},
 			email: {
 				subject: 'Study invitation',
-				body:
-					'You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]'
+				body: 'You have been invited to complete a study.\n\nFor privacy, this email does not include the study title or topic. The link opens the study page before you decide whether to respond.\n\nOpen your study link:\n[unique respondent link]\n\nIf you already responded, you can ignore this email.\n\nIf you should not receive future study invitations from this workspace, unsubscribe here:\n[unsubscribe link]\n\n[workspace invitation footer]'
 			},
 			component: {
 				doNotContactList: 'Do-not-contact list',
@@ -1318,8 +1333,7 @@ const en = {
 					createWaveBeforeSending: 'Create a collection wave before sending invitations.',
 					checkEmailSetupBeforeSending:
 						'Check email sending setup before sending invitation emails.',
-					resolveEmailSetupBeforeSending:
-						'Resolve email sending setup blockers before sending.',
+					resolveEmailSetupBeforeSending: 'Resolve email sending setup blockers before sending.',
 					createWaveBeforeRetrying: 'Create a collection wave before retrying failed emails.',
 					confirmRetryBeforeRequeueing:
 						'Confirm another invitation email is appropriate before requeueing.',
@@ -1331,8 +1345,7 @@ const en = {
 						'Create and start a collection wave before simulating responses.',
 					createWaveBeforeRepairReadiness:
 						'Create a collection wave before checking email repair readiness.',
-					enterEmailBeforeSuppressing:
-						'Enter an email address before adding it to do-not-contact.',
+					enterEmailBeforeSuppressing: 'Enter an email address before adding it to do-not-contact.',
 					refreshDoNotContactBeforeRelease:
 						'Refresh the do-not-contact list before releasing this recipient.',
 					collectionStatusRefreshError: 'Collection status could not be refreshed.',
@@ -1418,13 +1431,15 @@ const en = {
 					reviewSetupTitle: 'Review setup'
 				}
 			}
-		},		operationsWorkflow: {
+		},
+		operationsWorkflow: {
 			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
 					title: 'Pre-launch check',
-					description: 'Confirm the questionnaire, results setup, recipients, and policies are ready.'
+					description:
+						'Confirm the questionnaire, results setup, recipients, and policies are ready.'
 				},
 				launch: {
 					title: 'Start collection',
@@ -1436,7 +1451,8 @@ const en = {
 				},
 				monitor: {
 					title: 'Monitor responses',
-					description: 'Track starts, drafts, submissions, and report readiness while collection runs.'
+					description:
+						'Track starts, drafts, submissions, and report readiness while collection runs.'
 				},
 				close: {
 					title: 'Close collection',
@@ -1472,40 +1488,47 @@ const en = {
 				noResponsesYetTitle: 'No responses yet',
 				noResponsesYetDetail: 'Response counts appear after a wave is started.',
 				noRecipientAccessTitle: 'No recipient access prepared',
-				noRecipientAccessDetail: 'Choose recipients or create respondent access after setup is ready.',
+				noRecipientAccessDetail:
+					'Choose recipients or create respondent access after setup is ready.',
 				reportingNotAvailableTitle: 'Not available',
-				reportingNotAvailableDetail: 'Reporting readiness appears after collection has a selected wave.',
+				reportingNotAvailableDetail:
+					'Reporting readiness appears after collection has a selected wave.',
 				createWaveFirstHeadline: 'Create a collection wave first',
 				createWaveFirstGuidance: 'Collection starts after Setup has a collection wave.',
 				createWaveFirstNextAction: 'Open Setup and create a collection wave.',
 				closedTitle: 'Closed',
 				closedDetail: 'This wave no longer accepts new responses.',
 				liveTitle: 'Live: accepting responses',
-				liveDetail: 'Respondents can still submit. Results remain preliminary until collection closes.',
+				liveDetail:
+					'Respondents can still submit. Results remain preliminary until collection closes.',
 				draftTitle: 'Draft: not collecting yet',
 				draftDetail: 'Start collection when setup is ready.',
 				submittedTitle: (submitted: string) => `${submitted} submitted`,
 				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
 					`${started} started, ${drafts} in progress, ${submitted} submitted.`,
 				waitingForResponsesTitle: 'Waiting for responses',
-				waitingForResponsesDetail: 'Collection is open, but no response activity has been recorded yet.',
+				waitingForResponsesDetail:
+					'Collection is open, but no response activity has been recorded yet.',
 				notCollectingTitle: 'Not collecting yet',
 				notCollectingDetail: 'Start collection before monitoring responses.',
 				accessNotPreparedTitle: 'Access not prepared',
-				accessNotPreparedDetail: 'Create a respondent link or prepare invitations before expecting responses.',
+				accessNotPreparedDetail:
+					'Create a respondent link or prepare invitations before expecting responses.',
 				accessWaitsForLaunchTitle: 'Access waits for launch',
 				accessWaitsForLaunchDetail:
 					'Save recipients in Setup before launch, or start collection before creating an open respondent link.',
 				resultsPreliminaryDetail:
 					'Results can be reviewed, but live collection data should be treated as preliminary until closed.',
-				reportingUsefulAfterSubmitted: 'Reporting becomes useful after submitted responses are available.',
+				reportingUsefulAfterSubmitted:
+					'Reporting becomes useful after submitted responses are available.',
 				closedOverallLabel: 'Closed',
 				closedHeadline: (submitted: string, submittedCount: number) =>
 					`Closed: ${submitted} submitted response${submittedCount === 1 ? '' : 's'}`,
 				closedGuidance: 'Collection is closed. Submitted responses are stable for Results review.',
 				closedNextAction: 'Open Results to review findings and exports.',
 				liveOverallLabel: 'Live',
-				liveHeadline: (submitted: string) => `Live: accepting responses with ${submitted} submitted`,
+				liveHeadline: (submitted: string) =>
+					`Live: accepting responses with ${submitted} submitted`,
 				liveGuidance:
 					'Use this page to monitor response progress and recipient access. Close collection when the response window is finished.',
 				liveNextWithResponses:
@@ -1536,7 +1559,8 @@ const en = {
 				createAccessBeforeResponses:
 					'Create a respondent link or saved email invitations before expecting responses.',
 				anonymousBoundary: 'anonymous reports still do not show who answered.',
-				anonymousBoundarySentence: 'Anonymous reports still keep respondent identity out of results.',
+				anonymousBoundarySentence:
+					'Anonymous reports still keep respondent identity out of results.',
 				longitudinalBoundary:
 					'repeat-participation results use participant codes instead of showing who answered.',
 				longitudinalBoundarySentence:
@@ -1545,19 +1569,20 @@ const en = {
 			}
 		},
 		reportsWorkflow: {
-			locale: "en",
+			locale: 'en',
 			surface: {
-				reviewActionsAria: "Review and export actions",
-				flowKicker: "Study flow · Results",
-				title: "Review and export results",
-				description: "Review aggregate results, check whether they are ready to share, and create export files when ready.",
-				useDecisionLabel: "Use decision",
-				resultsUseReviewAria: "Results use review",
-				nextActionLabel: "Next action",
-				scoreMethodLabel: "Score method",
-				scoreMethodReviewAria: "Score method review",
-				exportPreviewLabel: "Export preview",
-				exportPreviewAria: "Export preview"
+				reviewActionsAria: 'Review and export actions',
+				flowKicker: 'Study flow · Results',
+				title: 'Review and export results',
+				description:
+					'Review aggregate results, check whether they are ready to share, and create export files when ready.',
+				useDecisionLabel: 'Use decision',
+				resultsUseReviewAria: 'Results use review',
+				nextActionLabel: 'Next action',
+				scoreMethodLabel: 'Score method',
+				scoreMethodReviewAria: 'Score method review',
+				exportPreviewLabel: 'Export preview',
+				exportPreviewAria: 'Export preview'
 			},
 
 			stepNumber: (number: number) => `Step ${number}`,
@@ -1592,23 +1617,27 @@ const en = {
 				}
 			},
 			disabled: {
-				createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
+				createOrSelectWaveBeforeReviewingResults:
+					'Create or select a wave before reviewing results.',
 				resolveReportPrerequisitesBeforeReviewingResults:
 					'Resolve report prerequisites before reviewing results.',
-				reviewResultsBeforeCreatingReportExport: 'Review results before creating a results matrix export.',
+				reviewResultsBeforeCreatingReportExport:
+					'Review results before creating a results matrix export.',
 				resolveReportPrerequisitesBeforeCreatingReportExport:
 					'Resolve report prerequisites before creating a results matrix export.',
 				reportExportCreatedThisSession: 'Results matrix export was created in this session.',
 				responseDatasetAlreadyExistsReportOptional:
 					'Response dataset already exists; results matrix export is optional.',
 				reportSummaryExportAlreadyExists: 'Results matrix export already exists for this study.',
-				reviewResultsBeforeCreatingResponseExport: 'Review results before creating a response export.',
+				reviewResultsBeforeCreatingResponseExport:
+					'Review results before creating a response export.',
 				resolveReportPrerequisitesBeforeCreatingResponseExport:
 					'Resolve report prerequisites before creating a response export.',
 				responseExportCreatedThisSession: 'Response export was created in this session.',
 				responseExportAlreadyExists: 'Response export already exists for this study.',
 				createOrSelectExportBeforeReview: 'Create or select an export file before reviewing it.',
-				createOrSelectExportBeforeDownload: 'Create or select an export file before downloading CSV.',
+				createOrSelectExportBeforeDownload:
+					'Create or select an export file before downloading CSV.',
 				selectDownloadableExportBeforeDownload:
 					'Select a downloadable export file before downloading CSV.'
 			},
@@ -1665,8 +1694,7 @@ const en = {
 					createStudyBeforeResponseExport:
 						'Create or select a study before creating a response export.',
 					createExportBeforeReview: 'Create or select an export file before reviewing it.',
-					selectDownloadableExport:
-						'Select a downloadable export file before downloading CSV.',
+					selectDownloadableExport: 'Select a downloadable export file before downloading CSV.',
 					createExportBeforeDownload: 'Create or select an export file before downloading CSV.'
 				},
 				currentPurpose: {
@@ -1735,9 +1763,9 @@ const en = {
 				notReviewed: 'not reviewed',
 				official: 'official',
 				notOfficial: 'not official'
-			},
-
-		},		wavesWorkflow: {
+			}
+		},
+		wavesWorkflow: {
 			locale: 'en' as AppLocale,
 			stepNumber: (number: number) => `Step ${number}`,
 			surface: {
@@ -1751,7 +1779,8 @@ const en = {
 			},
 			plan: {
 				createFirstTitle: 'Create the first wave',
-				createFirstDescription: 'Start by creating Wave 1 as the first collection round for this study.',
+				createFirstDescription:
+					'Start by creating Wave 1 as the first collection round for this study.',
 				openSetupLabel: 'Open setup',
 				createFirstGuidance: [
 					'Each wave is a collection round inside this study. Create Wave 1 in Setup, then launch it from Collection.',
@@ -1767,7 +1796,8 @@ const en = {
 					'Use repeat participation from Wave 1 when the study needs linked change-over-time comparison later.',
 					`Review or export Wave 1 and Wave 2 before using Setup to create Wave ${nextWaveNumber}.`
 				],
-				oneWaveTitle: (nextWaveNumber: number) => `Review Wave 1 before planning Wave ${nextWaveNumber}`,
+				oneWaveTitle: (nextWaveNumber: number) =>
+					`Review Wave 1 before planning Wave ${nextWaveNumber}`,
 				oneWaveDescription:
 					'Wave 1 exists. Review the current results first; plan a follow-up only when the next collection round is intentional.',
 				reviewWaveResultsLabel: (waveNumber: number) => `Review Wave ${waveNumber} results`,
@@ -1799,7 +1829,8 @@ const en = {
 			},
 			groupTrend: {
 				notReadyTitle: 'Group trend not ready',
-				notReadyDescription: 'Collect responses in at least two waves before reviewing wave-level trend.',
+				notReadyDescription:
+					'Collect responses in at least two waves before reviewing wave-level trend.',
 				sameRespondentComparisonLabel: 'Same-respondent comparison',
 				notReadySameRespondentValue: 'Not available until two repeated waves exist',
 				disclosureStatusLabel: 'Disclosure status',
@@ -1853,7 +1884,8 @@ const en = {
 				unlinkedWavesUseGroupTrend:
 					'Linked same-respondent comparison is unavailable because these waves were not created with repeat participation. Review group trend instead.',
 				addRepeatedWaves: 'Add at least two repeated waves before comparing change over time.',
-				chooseBaselineAndComparison: 'Choose baseline and comparison waves before reviewing change over time.',
+				chooseBaselineAndComparison:
+					'Choose baseline and comparison waves before reviewing change over time.',
 				checkReadinessBeforeReview: 'Check comparison readiness before reviewing change over time.'
 			},
 			inactiveReason: {
@@ -1862,7 +1894,8 @@ const en = {
 				noWaves: 'Create and collect the first waves before linked-change checks apply.',
 				oneWave:
 					'Review Wave 1 in Results. Plan Wave 2 from Setup only when the next collection round is intentional.',
-				needScoredResponses: 'Collect scored responses in at least two waves before comparison tasks apply.'
+				needScoredResponses:
+					'Collect scored responses in at least two waves before comparison tasks apply.'
 			},
 			component: {
 				state: {
@@ -2032,8 +2065,7 @@ const en = {
 				completeTrajectories: (count: number | string) => `complete repeat-response pairs ${count}`,
 				linkedPairs: (count: number | string) => `linked pairs ${count}`,
 				waveComparisonRowsAria: 'Wave comparison rows',
-				waveComparisonScoreAria: (dimensionCode: string) =>
-					`Wave comparison ${dimensionCode}`,
+				waveComparisonScoreAria: (dimensionCode: string) => `Wave comparison ${dimensionCode}`,
 				baselineMean: (value: string) => `baseline mean ${value}`,
 				comparisonMean: (value: string) => `comparison mean ${value}`,
 				baselineMeta: (value: string) => `baseline ${value}`,
@@ -2094,11 +2126,13 @@ const en = {
 				dashboardMatrixExportGuidance:
 					'Aggregate data behind result charts, group comparison, and measurement comparison.',
 				rowLevelResponseExport: 'Row-level response dataset',
-				rowLevelResponseExportGuidance: 'Analysis-ready respondent rows with variables and score values.',
+				rowLevelResponseExportGuidance:
+					'Analysis-ready respondent rows with variables and score values.',
 				singleMeasurementReportExport: 'Single measurement report export',
 				singleMeasurementReportExportGuidance: 'One measurement summary for review or handoff.',
 				reportPacketExport: 'Report packet export',
-				reportPacketExportGuidance: 'Formatted report file for review or sharing after interpretation checks.',
+				reportPacketExportGuidance:
+					'Formatted report file for review or sharing after interpretation checks.',
 				exportUseUnknownGuidance: 'Review file metadata before using this export.',
 				notConfigured: 'Not configured',
 				notConfiguredState: 'Not configured',
@@ -2336,7 +2370,8 @@ const hr: typeof en = {
 	},
 	publicEntry: {
 		metaTitle: 'Validated Scale | Platforma za istraživanja i wellbeing programe',
-		metaDescription:'Platforma za upitnike, prikupljanje odgovora, rezultate, ponovljena mjerenja i izvoz podataka s opisom podataka.',
+		metaDescription:
+			'Platforma za upitnike, prikupljanje odgovora, rezultate, ponovljena mjerenja i izvoz podataka s opisom podataka.',
 		brandSubtitle: 'Istraživanja i wellbeing programi',
 		navAria: 'Radnje ulaza u proizvod',
 		mobileNavAria: 'Mobilne radnje ulaza u proizvod',
@@ -2348,7 +2383,8 @@ const hr: typeof en = {
 		trustModel: 'Sigurnost i kontrola',
 		heroKicker: 'Platforma za istraživanja i wellbeing programe',
 		heroTitle: 'Vodite studije, prikupljanje odgovora i rezultate bez improviziranih tablica.',
-		heroBody:'Složite upitnik, odaberite način prikupljanja, pratite odgovore, usporedite mjerenja i izvezite podatke s opisom podataka iz jednog radnog prostora.',
+		heroBody:
+			'Složite upitnik, odaberite način prikupljanja, pratite odgovore, usporedite mjerenja i izvezite podatke s opisom podataka iz jednog radnog prostora.',
 		previewAria: 'Pregled proizvoda',
 		previewChrome: 'pregled studije',
 		governanceBody: 'Privola, zadržavanje podataka, konačnost i trag izvoza',
@@ -2373,7 +2409,8 @@ const hr: typeof en = {
 		responseProgress: '412 odgovora · 33% dovršeno',
 		prepare: 'Priprema',
 		launchChecklist: 'Provjera prije pokretanja',
-		prepareBody: 'Upitnik, izlazi rezultata, sudionici, privola i provjera prije pokretanja ostaju vidljivi na jednom mjestu.',
+		prepareBody:
+			'Upitnik, izlazi rezultata, sudionici, privola i provjera prije pokretanja ostaju vidljivi na jednom mjestu.',
 		export: 'Izvoz',
 		datasetCodebook: 'Podaci + opis podataka',
 		exportBody: 'Izvoz uključuje podatke, opis podataka, status konačnosti i kontekst studije.',
@@ -2384,20 +2421,25 @@ const hr: typeof en = {
 		dataControls: 'Kontrola podataka',
 		dataControlsRibbon: 'Privola, zadržavanje podataka, konačnost, pragovi prikaza i trag izvoza',
 		productStage: 'Predaja za analizu',
-		productStageRibbon:'Podaci, opis podataka i kontekst izvještaja ostaju spremni za analizu.',
+		productStageRibbon: 'Podaci, opis podataka i kontekst izvještaja ostaju spremni za analizu.',
 		workspaceOverview: 'Pregled studije',
 		suiteTitle: 'Vidite što je sljedeće u svakoj studiji.',
-		suiteBody:'Priprema, aktivno prikupljanje, pregled rezultata, usporedba mjerenja i izvoz nalaze se na jednom mjestu.',
+		suiteBody:
+			'Priprema, aktivno prikupljanje, pregled rezultata, usporedba mjerenja i izvoz nalaze se na jednom mjestu.',
 		nextAction: 'Sljedeći korak',
 		nextActionQuestion: 'Što prvo treba riješiti?',
 		appAreas: 'Područja rada',
 		studyStatus: 'Status studije',
 		workflowTitle: 'Od upitnika do rezultata spremnih za analizu.',
 		portfolio: 'Studije',
-		portfolioBody: 'Pokrenite novu studiju ili nastavite rad na postojećoj, uključujući ponovljena mjerenja.',
-		prepareStepBody: 'Definirajte upitnik, izlaze rezultata, pravila, sudionike i provjeru prije pokretanja.',
-		collectStepBody: 'Podijelite poveznicu ili pošaljite pozive, pratite odgovore i status dostave.',
-		reviewStepBody: 'Pregledajte rezultate, usporedite mjerenja i izvezite podatke s opisom podataka.'
+		portfolioBody:
+			'Pokrenite novu studiju ili nastavite rad na postojećoj, uključujući ponovljena mjerenja.',
+		prepareStepBody:
+			'Definirajte upitnik, izlaze rezultata, pravila, sudionike i provjeru prije pokretanja.',
+		collectStepBody:
+			'Podijelite poveznicu ili pošaljite pozive, pratite odgovore i status dostave.',
+		reviewStepBody:
+			'Pregledajte rezultate, usporedite mjerenja i izvezite podatke s opisom podataka.'
 	},
 	signIn: {
 		metaTitle: 'Prijava | Validated Scale',
@@ -2406,8 +2448,7 @@ const hr: typeof en = {
 		navAria: 'Radnje prijave',
 		eyebrow: 'Pristup radnom prostoru',
 		title: 'Prijavite se u svoj radni prostor.',
-		body:
-			'Unesite e-poštu koja se koristi za radni prostor. Prvo pronalazimo pravi radni prostor, zatim otvaramo korak računa za lozinku i MFA.',
+		body: 'Unesite e-poštu koja se koristi za radni prostor. Prvo pronalazimo pravi radni prostor, zatim otvaramo korak računa za lozinku i MFA.',
 		stepsAria: 'Koraci prijave',
 		stepFind: 'Pronađi radni prostor',
 		stepFindBody: 'Upotrijebite istu e-poštu koja je vlasnik ili član radnog prostora.',
@@ -2422,8 +2463,10 @@ const hr: typeof en = {
 		createInsteadPrefix: 'Trebate novi radni prostor?',
 		createInsteadLink: 'Izradite ga umjesto toga',
 		recentWorkspace: 'Pronađen je nedavni radni prostor',
-		continueAs: (email: string) => `Nastavite kao ${email} ili unesite drugu e-poštu radnog prostora.`,
-		continueRecentBody: 'Nastavite u nedavni radni prostor ili unesite drugu e-poštu radnog prostora.',
+		continueAs: (email: string) =>
+			`Nastavite kao ${email} ili unesite drugu e-poštu radnog prostora.`,
+		continueRecentBody:
+			'Nastavite u nedavni radni prostor ili unesite drugu e-poštu radnog prostora.',
 		continueRecent: 'Nastavi u nedavni radni prostor',
 		openingWorkspace: 'Otvaram prijavu u radni prostor.',
 		findingWorkspace: 'Tražim radni prostor...',
@@ -2436,17 +2479,16 @@ const hr: typeof en = {
 	},
 	register: {
 		metaTitle: 'Izradi radni prostor | Validated Scale',
-		metaDescription:
-			'Izradite radni prostor za istraživačke studije ili studije dobrobiti.',
+		metaDescription: 'Izradite radni prostor za istraživačke studije ili studije dobrobiti.',
 		brandSubtitle: 'Radni prostor studije',
 		navAria: 'Radnje registracije',
 		eyebrow: 'Pristup radnom prostoru',
 		title: 'Izradite svoj radni prostor.',
-		body:
-			'Upotrijebite e-poštu koja treba upravljati radnim prostorom. Korak računa obrađuje lozinku i MFA; ova stranica imenuje radni prostor i provjerava pristupni kod.',
+		body: 'Upotrijebite e-poštu koja treba upravljati radnim prostorom. Korak računa obrađuje lozinku i MFA; ova stranica imenuje radni prostor i provjerava pristupni kod.',
 		stepsAria: 'Koraci registracije',
 		stepCreate: 'Izradi račun',
-		stepCreateBody: 'Unesite e-poštu, naziv radnog prostora i pristupni kod prije otvaranja postavljanja računa.',
+		stepCreateBody:
+			'Unesite e-poštu, naziv radnog prostora i pristupni kod prije otvaranja postavljanja računa.',
 		stepVerify: 'Potvrdite e-poštu',
 		stepVerifyBody: 'Ako se zatraži potvrda e-pošte, potvrdite e-poštu i nastavite ovdje.',
 		stepOpen: 'Otvori aplikaciju',
@@ -2492,7 +2534,8 @@ const hr: typeof en = {
 		invalidCode: 'Taj pristupni kod nije prihvaćen.',
 		emailExists: 'Radni prostor već postoji za ovu e-poštu. Prijavite se umjesto toga.',
 		organizationInvalid: 'Unesite naziv radnog prostora ili organizacije koji želite koristiti.',
-		fallbackError: 'Nismo mogli izraditi radni prostor. Provjerite pristupni kod i pokušajte ponovno.'
+		fallbackError:
+			'Nismo mogli izraditi radni prostor. Provjerite pristupni kod i pokušajte ponovno.'
 	},
 	workspaceHome: {
 		eyebrow: 'Radni prostor',
@@ -2558,7 +2601,7 @@ const hr: typeof en = {
 		yourStudies: 'Vaše studije',
 		openPortfolio: 'Otvori Studije',
 		noStudiesYet: 'Još nema stvarnih studija',
-			noStudiesYetBody: 'Vaše prilagodljive studije pojavit će se ovdje nakon izrade.',
+		noStudiesYetBody: 'Vaše prilagodljive studije pojavit će se ovdje nakon izrade.',
 		workspaceOverview: 'Pregled radnog prostora',
 		sampleDemo: {
 			eyebrow: 'Primjeri za pregled',
@@ -2774,7 +2817,8 @@ const hr: typeof en = {
 	exports: {
 		eyebrow: 'Izvozi',
 		title: 'Preuzimanje datoteka',
-		description: 'Pronađite CSV datoteke i opise podataka izrađene na stranicama Rezultata studije.',
+		description:
+			'Pronađite CSV datoteke i opise podataka izrađene na stranicama Rezultata studije.',
 		loading: 'Učitavanje izvoznih datoteka',
 		errorTitle: 'Izvozne datoteke nisu dostupne',
 		retry: 'Pokušaj izvoze ponovno',
@@ -2784,12 +2828,14 @@ const hr: typeof en = {
 		noFilesBody: 'Izradite izvoz na stranici rezultata studije nakon što rezultati budu dostupni.',
 		reports: 'Izvještaji',
 		counts: 'Brojevi izvoza',
-		countsBody: 'Koristite ove brojeve za provjeru jesu li datoteke spremne, na čekanju ili neuspjele.'
+		countsBody:
+			'Koristite ove brojeve za provjeru jesu li datoteke spremne, na čekanju ili neuspjele.'
 	},
 	directory: {
 		eyebrow: 'Imenik publike',
 		title: 'Ljudi i grupe',
-		description: 'Izradite sudionike, ponovno upotrebljive publike i managerske veze za ciljanje studija.',
+		description:
+			'Izradite sudionike, ponovno upotrebljive publike i managerske veze za ciljanje studija.',
 		accessTitle: 'Pristup imeniku zahtijeva upravljanje postavljanjem',
 		accessMessage: 'Podaci imenika osoba dostupni su samo setup managerima.',
 		setup: 'Postavljanje imenika',
@@ -2809,11 +2855,13 @@ const hr: typeof en = {
 		addRecords: 'Dodaj zapise',
 		membershipManager: 'Članstvo i manager',
 		countsAria: 'Brojevi ljudi i ciljanja',
-		csvBody: 'Koristite ovo kada je publika studije već pripremljena u tablici. Prvo pregledajte retke kako biste potvrdili tko će biti izrađen, ažuriran, grupiran ili odbijen. Primijenite tek kada pregled izgleda ispravno.',
+		csvBody:
+			'Koristite ovo kada je publika studije već pripremljena u tablici. Prvo pregledajte retke kako biste potvrdili tko će biti izrađen, ažuriran, grupiran ili odbijen. Primijenite tek kada pregled izgleda ispravno.',
 		downloadTemplate: 'Preuzmi predložak',
 		csvFile: 'CSV datoteka',
 		csvRows: 'CSV retci',
-		csvHelp: 'Obavezan identitet: external_id ili email. Opcionalno grupiranje: group_type, group_name, role_in_group. Jedna osoba može biti u više redaka kada pripada više grupa.',
+		csvHelp:
+			'Obavezan identitet: external_id ili email. Opcionalno grupiranje: group_type, group_name, role_in_group. Jedna osoba može biti u više redaka kada pripada više grupa.',
 		previewing: 'Pregled...',
 		previewCsv: 'Pregledaj CSV',
 		applying: 'Primjena...',
@@ -2889,50 +2937,54 @@ const hr: typeof en = {
 	},
 	team: {
 		eyebrow: 'Pristup radnom prostoru',
-		title: 'Tim',
-		description: 'Pozovite članove tima, dodijelite uloge i potvrdite tko može upravljati studijama ili rezultatima.',
-		loadingOverview: 'Učitavanje pregleda pristupa timu',
-		tenantTeam: 'Tim organizacije',
-		overviewTitle: 'Pregled pristupa timu',
-		overviewBody: 'Tko može ući u organizaciju, pripremati studije i upravljati pristupom.',
-		prepareTitle: 'Pripremite pristup člana, zatim podijelite prijavu',
+		title: 'Pristup radnom prostoru',
+		description:
+			'Upravljajte operaterima koji se mogu prijaviti, pripremati studije, pregledavati rezultate ili administrirati pristup.',
+		loadingOverview: 'Učitavanje pristupa radnom prostoru',
+		tenantTeam: 'Radni prostor',
+		overviewTitle: 'Sažetak pristupa',
+		overviewBody:
+			'Ovdje su samo operateri proizvoda. Uvezeni zaposlenici, studenti, odjeli i hijerarhija ostaju u Imeniku.',
+		prepareTitle: 'Dodaj operatera radnog prostora',
 		prepareBody:
-			'Dodajte e-poštu, odaberite ulogu, zatim podijelite generiranu poveznicu iz popisa. Lozinke i MFA ostaju u Auth0.',
+			'Dodajte e-poštu i odaberite ulogu radnog prostora. Osoba ostaje pozvana do prve odgovarajuće prijave.',
 		readOnlyTitle: 'Pristup samo za čitanje',
-		readOnlyBody: 'Priprema članova i promjena uloga zahtijeva pristup upravljanju timom.',
-		rosterTitle: 'Članovi i uloge',
+		readOnlyBody:
+			'Dodavanje operatera i promjena uloga zahtijeva pristup upravljanju radnim prostorom.',
+		rosterTitle: 'Operateri i uloge',
 		memberSingular: 'član',
 		memberPlural: 'članova',
-		teamOverviewCountsAria: 'Brojevi pregleda pristupa timu',
-		capabilityCoverageAria: 'Pokrivenost mogućnosti tima',
-		tenantRolesUnavailable: 'Uloge organizacije nisu dostupne',
+		teamOverviewCountsAria: 'Brojevi pristupa radnom prostoru',
+		capabilityCoverageAria: 'Dopuštenja uloga radnog prostora',
+		tenantRolesUnavailable: 'Uloge radnog prostora nisu dostupne',
 		retryRoles: 'Pokušaj ponovno učitati uloge',
-		memberEmail: 'E-pošta člana',
-		memberRole: 'Uloga člana',
-		memberLocale: 'Jezik člana',
+		memberEmail: 'E-pošta operatera',
+		memberRole: 'Uloga operatera',
+		memberLocale: 'Jezik operatera',
 		adding: 'Dodavanje...',
-		addMember: 'Dodaj člana',
-		loadingRoles: 'Učitavanje uloga organizacije.',
-		pendingNoticeSuffix: 'Popis označava člana kao na čekanju dok Auth0 prvi put ne vrati istu e-poštu.',
-		readOnlyAria: 'Pristup timu samo za čitanje',
-		teamRoster: 'Popis tima',
-		loadingMembers: 'Učitavanje članova tima',
-		teamMembersUnavailable: 'Članovi tima nisu dostupni',
-		retryMembers: 'Pokušaj ponovno učitati članove',
-		rosterCountsAria: 'Brojevi popisa članova organizacije',
-		membersLabel: 'Članovi',
-		noMembersTitle: 'Nema članova organizacije',
-		noMembersBody: 'Nema aktivnih dodjela uloga za ovu organizaciju.',
+		addMember: 'Dodaj operatera',
+		loadingRoles: 'Učitavanje uloga radnog prostora.',
+		pendingNoticeSuffix: 'Koristite poveznicu za prijavu ako preglednik stalno bira krivi račun.',
+		readOnlyAria: 'Pristup radnom prostoru samo za čitanje',
+		teamRoster: 'Operateri radnog prostora',
+		loadingMembers: 'Učitavanje operatera radnog prostora',
+		teamMembersUnavailable: 'Operateri radnog prostora nisu dostupni',
+		retryMembers: 'Pokušaj ponovno učitati operatere',
+		rosterCountsAria: 'Brojevi operatera radnog prostora',
+		membersLabel: 'Operateri',
+		noMembersTitle: 'Nema operatera radnog prostora',
+		noMembersBody: 'Nema aktivnih dodjela uloga radnog prostora.',
 		currentUser: 'Trenutni korisnik',
 		localeLabel: 'Jezik',
 		created: 'Izrađeno',
 		lastLogin: 'Zadnja prijava',
 		roles: 'Uloge',
-		capabilities: 'Mogućnosti',
-		firstSignIn: 'Prva prijava',
-		firstSignInBody: (email: string) => `Pošaljite ovu poveznicu na ${email}. Član ostaje na čekanju dok Auth0 ne vrati istu e-poštu za ovaj radni prostor.`,
-		openLink: 'Otvori poveznicu',
-		copyLink: 'Kopiraj poveznicu',
+		capabilities: 'Dopuštenja uloge',
+		firstSignIn: 'Poveznica za prijavu',
+		firstSignInBody: (email: string) =>
+			`Pošaljite ovu poveznicu na ${email} ako preglednik stalno bira krivi račun.`,
+		openLink: 'Otvori prijavu',
+		copyLink: 'Kopiraj poveznicu za prijavu',
 		copied: 'Kopirano',
 		roleFor: (email: string) => `Uloga za ${email}`,
 		changeRoleAria: (email: string) => `Promijeni ulogu za ${email}`,
@@ -2942,7 +2994,8 @@ const hr: typeof en = {
 	settings: {
 		eyebrow: 'Radni prostor',
 		title: 'Postavke radnog prostora',
-		description: 'Upravljajte pristupom, ljudima, podacima i zadanim postavkama studija s jednog mjesta.',
+		description:
+			'Upravljajte pristupom, ljudima, podacima i zadanim postavkama studija s jednog mjesta.',
 		loading: 'Učitavanje postavki organizacije',
 		errorTitle: 'Postavke radnog prostora nisu dostupne',
 		retry: 'Pokušaj postavke ponovno',
@@ -2950,8 +3003,9 @@ const hr: typeof en = {
 		whatManage: 'Čime ovdje možete upravljati?',
 		whatManageBody:
 			'Postavke razine radnog prostora postupno se sastavljaju ovdje. Za sada koristite ove prečace za aktivna područja proizvoda.',
-		teamAccess: 'Pristup timu',
-		teamBody: 'Pozovite članove radnog prostora, pregledajte pristup na čekanju i upravljajte ulogama.',
+		teamAccess: 'Pristup radnom prostoru',
+		teamBody:
+			'Pozovite operatere radnog prostora, pregledajte pristup na čekanju i upravljajte ulogama.',
 		directoryBody: 'Upravljajte ljudima, grupama i hijerarhijskim podacima za publike studija.',
 		studySetup: 'Postavljanje studije',
 		studySetupBody: 'Izradite ili nastavite studije, upitnike, mjerenja i postavljanje rezultata.',
@@ -2977,7 +3031,8 @@ const hr: typeof en = {
 		continue: 'Nastavi',
 		reviewKicker: 'Pregled',
 		reviewTitle: 'Pregled odgovora',
-		savedAnswers: (count: number) => count + ' ' + (count === 1 ? 'odgovor spremljen' : 'odgovora spremljeno'),
+		savedAnswers: (count: number) =>
+			count + ' ' + (count === 1 ? 'odgovor spremljen' : 'odgovora spremljeno'),
 		session: 'Sesija',
 		backToEdit: 'Natrag na uređivanje',
 		submitReviewed: 'Predaj pregledani odgovor',
@@ -2998,12 +3053,10 @@ const hr: typeof en = {
 		metaTitle: 'Odjava od pozivnica za studije - Validated Scale',
 		kicker: 'E-pošta pozivnice za studiju',
 		title: 'Odjava od budućih pozivnica',
-		body:
-			'Koristite ovu stranicu samo ako želite da se ova adresa e-pošte doda na popis radnog prostora za ne kontaktirati za pozivnice na studije.',
+		body: 'Koristite ovu stranicu samo ako želite da se ova adresa e-pošte doda na popis radnog prostora za ne kontaktirati za pozivnice na studije.',
 		button: 'Odjavi ovu adresu e-pošte',
 		submitting: 'Primjenjujem zahtjev za ne kontaktirati...',
-		done:
-			'Ova adresa e-pošte dodana je na popis radnog prostora za ne kontaktirati za buduće pozivnice na studije. Možete zatvoriti ovu stranicu.',
+		done: 'Ova adresa e-pošte dodana je na popis radnog prostora za ne kontaktirati za buduće pozivnice na studije. Možete zatvoriti ovu stranicu.',
 		retry: 'Pokušaj ponovno',
 		fallbackError:
 			'Ova pozivnica se nije mogla odjaviti. Poveznica može biti neispravna ili već uklonjena.'
@@ -3125,7 +3178,8 @@ const hr: typeof en = {
 						label: 'Zaštita na radu i ergonomija',
 						category: 'Izvorni početni predložak',
 						summary: 'Izvorne stavke za držanje, ponavljanje, nelagodu i oporavak.',
-						detail: 'Korisno za početno istraživanje zaštite na radu. Nije validirani imenovani instrument.'
+						detail:
+							'Korisno za početno istraživanje zaštite na radu. Nije validirani imenovani instrument.'
 					},
 					office_ergonomics: {
 						label: 'Uredska ergonomija',
@@ -3139,14 +3193,16 @@ const hr: typeof en = {
 						category: 'Početni skup za personu',
 						summary:
 							'Izvorne stavke za nastavno/istraživačko opterećenje, administraciju, jasnoću očekivanja i oporavak.',
-						detail: 'Korisno za profesorske studije i provjere opterećenja odjela. Tumačenje zadržite specifično za studiju.'
+						detail:
+							'Korisno za profesorske studije i provjere opterećenja odjela. Tumačenje zadržite specifično za studiju.'
 					},
 					team_climate: {
 						label: 'Puls timske klime',
 						category: 'Izvorni početni predložak',
 						summary:
 							'Izvorne stavke za jasnoću uloga, podršku, komunikaciju, pravednost i psihološku sigurnost.',
-						detail: 'Kompaktan puls zdravlja tima za ponovljena mjerenja ili jednokratni interni pregled.'
+						detail:
+							'Kompaktan puls zdravlja tima za ponovljena mjerenja ili jednokratni interni pregled.'
 					},
 					healthcare_staff_strain: {
 						label: 'Opterećenje zdravstvenog osoblja',
@@ -3171,7 +3227,8 @@ const hr: typeof en = {
 					psychosocial_safety: {
 						label: 'Psihosocijalna sigurnost',
 						category: 'Organizacijska klima',
-						summary: 'Pitanja o podršci, jasnoći, pravednosti opterećenja i psihološkoj sigurnosti.',
+						summary:
+							'Pitanja o podršci, jasnoći, pravednosti opterećenja i psihološkoj sigurnosti.',
 						detail: 'Namijenjeno za interno poboljšanje, ne za vanjsku dijagnostiku.'
 					}
 				}
@@ -3191,7 +3248,8 @@ const hr: typeof en = {
 					anonymousHelp: 'Odgovori se u izvještaju ne povezuju s poznatom osobom.',
 					anonymousLongitudinalHelp:
 						'Ispitanici ostaju anonimni u izvještaju, ali se ista osoba može usporediti kroz mjerenja pomoću ponovnog koda.',
-					identifiedHelp: 'Odgovori se mogu povezati s poznatim ispitanicima za operativno praćenje.'
+					identifiedHelp:
+						'Odgovori se mogu povezati s poznatim ispitanicima za operativno praćenje.'
 				}
 			},
 			recipients: {
@@ -3201,7 +3259,8 @@ const hr: typeof en = {
 					externalEmailsLabel: 'Jednokratni uvoz e-pošte',
 					selfHelp: 'Jedan spremljeni primatelj stvara jednu pozivnicu.',
 					managerHelp: 'Voditelji dobivaju pozivnice za osobe u svom opsegu odgovornosti.',
-					externalEmailsHelp: 'Zalijepite vanjske adrese e-pošte za ovo mjerenje bez dodavanja u imenik.'
+					externalEmailsHelp:
+						'Zalijepite vanjske adrese e-pošte za ovo mjerenje bez dodavanja u imenik.'
 				},
 				roles: {
 					respondent: 'Ispitanik',
@@ -3237,11 +3296,13 @@ const hr: typeof en = {
 				},
 				campaign: {
 					title: 'Mjerenje i primatelji',
-					description: 'Izradite krug prikupljanja, odaberite kako ljudi odgovaraju i spremite odabir primatelja.'
+					description:
+						'Izradite krug prikupljanja, odaberite kako ljudi odgovaraju i spremite odabir primatelja.'
 				},
 				readiness: {
 					title: 'Spremno za prikupljanje',
-					description: 'Pokrenite završnu provjeru, zatim otvorite Prikupljanje za dijeljenje pristupa.'
+					description:
+						'Pokrenite završnu provjeru, zatim otvorite Prikupljanje za dijeljenje pristupa.'
 				}
 			},
 			disabled: {
@@ -3279,33 +3340,37 @@ const hr: typeof en = {
 					`${selectionCount} ${selectionCount === 1 ? 'odabir spremljen' : 'odabira spremljeno'}, ${pairCount} ${
 						pairCount === 1 ? 'pozivni par spreman' : 'pozivnih parova spremno'
 					}.`,
-				noSavedIdentified: 'Primatelji još nisu spremljeni; spremite ih iznad prije pokretanja samo za pozvane.',
+				noSavedIdentified:
+					'Primatelji još nisu spremljeni; spremite ih iznad prije pokretanja samo za pozvane.',
 				noSavedLongitudinal:
 					'Nema spremljenih primatelja; spremite primatelje iznad za pristup samo za pozvane ili upotrijebite javnu poveznicu i neka sudionici unesu svoj ponovni kod.',
-				noSavedAnonymous: 'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje iznad.'
+				noSavedAnonymous:
+					'Nema spremljenih primatelja; pokrenite javnom poveznicom ili spremite primatelje iznad.'
 			},
 			launchPlan: {
 				title: 'Plan pokretanja',
-				summary: 'Pripremite mjerenje, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.',
+				summary:
+					'Pripremite mjerenje, način odgovaranja, primatelje i prijenos u Prikupljanje prije pokretanja.',
 				draftWave: 'Nacrt mjerenja',
 				wave: 'Mjerenje',
 				responseMode: 'Način odgovaranja',
 				recipients: 'Primatelji',
 				collectionHandoff: 'Prijenos u Prikupljanje',
 				waveDraftReady: (waveName: string) => `${waveName} je nacrt mjerenja za ovu studiju.`,
-				waveWillBeCreated: (waveName: string) =>
-					`${waveName} nastat će kad spremite ovaj korak.`,
+				waveWillBeCreated: (waveName: string) => `${waveName} nastat će kad spremite ovaj korak.`,
 				identifiedModeDetail:
 					'Identificirano prikupljanje zahtijeva spremljene primatelje kako bi svaki sudionik dobio dodijeljeni pristup.',
 				longitudinalModeDetail:
 					'Mjerenje iste osobe kroz vrijeme može koristiti javni pristup ili spremljene primatelje; sudionici koriste vlastiti ponovni kod za usporedbu.',
-				anonymousModeDetail: 'Anonimno prikupljanje može koristiti javnu poveznicu ili spremljene pozive e-poštom.',
+				anonymousModeDetail:
+					'Anonimno prikupljanje može koristiti javnu poveznicu ili spremljene pozive e-poštom.',
 				chooseModeDetail: 'Odaberite kako sudionici ulaze u ovo mjerenje.',
 				savedRecipientDetail: (selectionCount: number, pairCount: number) =>
 					`${selectionCount} ${selectionCount === 1 ? 'spremljen odabir' : 'spremljena odabira'} s ${pairCount} ${
 						pairCount === 1 ? 'pozivnim parom' : 'pozivnih parova'
 					}.`,
-				identifiedNeedsRecipients: 'Identificirano prikupljanje treba spremljene primatelje prije pokretanja.',
+				identifiedNeedsRecipients:
+					'Identificirano prikupljanje treba spremljene primatelje prije pokretanja.',
 				longitudinalNoRecipients:
 					'Nema spremljenih primatelja. Možete koristiti javnu poveznicu ili spremiti primatelje za ponovni pristup samo za pozvane.',
 				anonymousNoRecipients:
@@ -3327,7 +3392,8 @@ const hr: typeof en = {
 				sourceMissing: 'Potvrdite početni izvor prije spremanja upitnika.',
 				questionnaireSaved: (name: string, questionCount: number) =>
 					`${name} spremljen je s ${questionCount} ${questionCount === 1 ? 'pitanjem' : 'pitanja'}.`,
-				questionnaireMissing: 'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
+				questionnaireMissing:
+					'Spremite upitnik prije postavljanja rezultata ili provjere pokretanja.',
 				resultsReady: (ruleKey: string) => `Rezultati su spremljeni kao ${ruleKey}.`,
 				resultsMissing: 'Odaberite koji odgovori iz upitnika postaju rezultati.',
 				noWaves: 'Još nema mjerenja.',
@@ -3428,32 +3494,31 @@ const hr: typeof en = {
 				reconciled: (count: string) => `${count} usklađeno`
 			},
 			readiness: {
-				body:
-					'Koristite ovo prije otvaranja prikupljanja. Provjera potvrđuje da upitnik, rezultati, primatelji i pravila mogu podržati odgovore i izvještavanje.',
+				body: 'Koristite ovo prije otvaranja prikupljanja. Provjera potvrđuje da upitnik, rezultati, primatelji i pravila mogu podržati odgovore i izvještavanje.',
 				issuesAria: 'Problemi spremnosti',
 				warningsTitle: 'Upozorenja postavljanja',
 				blockersTitle: 'Prije početka prikupljanja',
 				warningsBody:
 					'Ove stavke ne blokiraju prikupljanje, ali ih pregledajte prije dijeljenja pristupa.',
-				blockersBody: 'Popravite blokirajuće stavke postavljanja, zatim ponovno pokrenite provjeru.',
+				blockersBody:
+					'Popravite blokirajuće stavke postavljanja, zatim ponovno pokrenite provjeru.',
 				blocking: 'Blokira',
 				warning: 'Upozorenje',
 				openSetup: 'Otvori Postavljanje',
-				returnAndCheck: 'Vratite se ovdje i ponovno pokrenite provjeru nakon spremanja postavljanja.',
+				returnAndCheck:
+					'Vratite se ovdje i ponovno pokrenite provjeru nakon spremanja postavljanja.',
 				blockedTitle: 'Postavljanje je blokirano',
 				blockedBody:
 					'Provjera nije vratila pojedinačne blokade. Otvorite Postavljanje, pregledajte nedovršene korake, spremite promjene i ponovno pokrenite provjeru.',
 				runCheck: 'Pokreni provjeru prije pokretanja'
 			},
 			launch: {
-				body:
-					'Pokretanje prikupljanja otvara odabrano mjerenje za odgovore i bilježi verziju postavljanja koju će izvještaji kasnije koristiti.',
+				body: 'Pokretanje prikupljanja otvara odabrano mjerenje za odgovore i bilježi verziju postavljanja koju će izvještaji kasnije koristiti.',
 				start: 'Pokreni prikupljanje',
 				resultLabel: 'Prikupljanje'
 			},
 			shareAccess: {
-				body:
-					'Odaberite kako sudionici ulaze u ovo mjerenje. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
+				body: 'Odaberite kako sudionici ulaze u ovo mjerenje. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
 				accessMethodLabel: 'Način pristupa',
 				chooseAccessMethodTitle: 'Odaberite način pristupa',
 				openLinkMode: 'Otvorena poveznica',
@@ -3479,7 +3544,8 @@ const hr: typeof en = {
 				createRespondentLink: 'Izradi poveznicu za sudionika',
 				shareLink: 'Poveznica za dijeljenje',
 				respondentLinkReady: 'Poveznica za sudionika spremna',
-				identifiedHelp: 'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
+				identifiedHelp:
+					'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
 				inviteOnlyHelp:
 					'Ovo mjerenje već ima privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi sudjelovanje ostalo ograničeno na pozvane primatelje.',
 				openLinkReadyHelp:
@@ -3490,8 +3556,7 @@ const hr: typeof en = {
 			emailSetup: {
 				label: 'Postavljanje slanja e-pošte',
 				title: 'Provjera slanja e-pošte prije slanja',
-				body:
-					'Ova provjera pokazuje može li okruženje slati stvarne SMTP pozivnice ili je još u testnom načinu rada odnosno nema potrebne postavke. Ne prikazuje tajne davatelja ni SMTP vjerodajnice.',
+				body: 'Ova provjera pokazuje može li okruženje slati stvarne SMTP pozivnice ili je još u testnom načinu rada odnosno nema potrebne postavke. Ne prikazuje tajne davatelja ni SMTP vjerodajnice.',
 				mode: 'Način rada',
 				realEmailSend: 'Stvarno slanje e-pošte',
 				providerEvents: 'Događaji davatelja',
@@ -3502,8 +3567,7 @@ const hr: typeof en = {
 			simulation: {
 				label: 'Testni odgovori',
 				title: 'Simuliraj podatke odgovora',
-				body:
-					'Koristite u neprodukcijskim okruženjima za stvaranje uvjerljivih predanih odgovora bez slanja e-pošte.',
+				body: 'Koristite u neprodukcijskim okruženjima za stvaranje uvjerljivih predanih odgovora bez slanja e-pošte.',
 				responses: 'Odgovori',
 				averageTarget: 'Ciljani prosjek',
 				variation: 'Varijacija',
@@ -3511,13 +3575,13 @@ const hr: typeof en = {
 				normal: 'Normalno',
 				noisy: 'Šumovito',
 				simulateCollection: 'Simuliraj prikupljanje',
-				includeComments: 'Dodaj kratke sintetičke tekstualne odgovore kada upitnik ima polja za komentar.',
+				includeComments:
+					'Dodaj kratke sintetičke tekstualne odgovore kada upitnik ima polja za komentar.',
 				answersSaved: 'Spremljeni odgovori',
 				scoredResponses: 'Bodovani odgovori'
 			},
 			monitor: {
-				body:
-					'Pratite kretanje odgovora dok je prikupljanje otvoreno. Brojevi se osvježavaju iz stanja radnog prostora i ne mijenjaju postavljanje studije.',
+				body: 'Pratite kretanje odgovora dok je prikupljanje otvoreno. Brojevi se osvježavaju iz stanja radnog prostora i ne mijenjaju postavljanje studije.',
 				deliveryDiagnostics: 'Dijagnostika dostave',
 				recentEmailEvents: 'Nedavni događaji dostave e-pošte',
 				noEventsYet: 'Još nema događaja',
@@ -3538,8 +3602,7 @@ const hr: typeof en = {
 				needsReview: 'Treba pregled',
 				noCleanup: 'Nema čišćenja',
 				notChecked: 'Nije provjereno',
-				body:
-					'Provjerite ovo prije ponovnog slanja neuspjelih pozivnica. Odvaja zastarjele predaje, nejasne neuspjehe, neuspjehe koje se može ponoviti i potisnute primatelje bez promjene stanja dostave.',
+				body: 'Provjerite ovo prije ponovnog slanja neuspjelih pozivnica. Odvaja zastarjele predaje, nejasne neuspjehe, neuspjehe koje se može ponoviti i potisnute primatelje bez promjene stanja dostave.',
 				staleHandoffs: 'Zastarjele predaje',
 				ambiguousFailures: 'Nejasni neuspjesi',
 				retryableFailures: 'Ponovljivi neuspjesi',
@@ -3549,8 +3612,7 @@ const hr: typeof en = {
 				retryPossible: 'Ponovno slanje moguće'
 			},
 			close: {
-				body:
-					'Zatvorite prikupljanje kada prozor za odgovore završi. Predani odgovori ostaju dostupni za bodovanje i izvještaje.',
+				body: 'Zatvorite prikupljanje kada prozor za odgovore završi. Predani odgovori ostaju dostupni za bodovanje i izvještaje.',
 				closeCollection: 'Zatvori prikupljanje'
 			},
 			navigation: {
@@ -3561,8 +3623,7 @@ const hr: typeof en = {
 			},
 			email: {
 				subject: 'Pozivnica za studiju',
-				body:
-					'Pozvani ste da ispunite studiju.\n\nRadi privatnosti, ova e-pošta ne uključuje naziv ni temu studije. Poveznica otvara stranicu studije prije nego odlučite hoćete li odgovoriti.\n\nOtvorite svoju poveznicu za studiju:\n[jedinstvena poveznica sudionika]\n\nAko ste već odgovorili, ovu poruku možete zanemariti.\n\nAko više ne biste trebali primati pozivnice za studije iz ovog radnog prostora, odjavite se ovdje:\n[poveznica za odjavu]\n\n[podnožje pozivnice radnog prostora]'
+				body: 'Pozvani ste da ispunite studiju.\n\nRadi privatnosti, ova e-pošta ne uključuje naziv ni temu studije. Poveznica otvara stranicu studije prije nego odlučite hoćete li odgovoriti.\n\nOtvorite svoju poveznicu za studiju:\n[jedinstvena poveznica sudionika]\n\nAko ste već odgovorili, ovu poruku možete zanemariti.\n\nAko više ne biste trebali primati pozivnice za studije iz ovog radnog prostora, odjavite se ovdje:\n[poveznica za odjavu]\n\n[podnožje pozivnice radnog prostora]'
 			},
 			component: {
 				doNotContactList: 'Popis bez kontaktiranja',
@@ -3621,8 +3682,7 @@ const hr: typeof en = {
 						'Ovo mjerenje već koristi privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi pristup ostao samo pozivnicom.',
 					openLinkAlreadyActive:
 						'Ovo mjerenje već ima otvorenu poveznicu. Koristite postojeću poveznicu ili izradite novo mjerenje ako je poveznica izgubljena.',
-					createWaveBeforeReplaceLink:
-						'Izradite mjerenje prije zamjene otvorene poveznice.',
+					createWaveBeforeReplaceLink: 'Izradite mjerenje prije zamjene otvorene poveznice.',
 					replaceLinkOnlyForAnonymous:
 						'Zamjena otvorene poveznice dostupna je samo za anonimno prikupljanje otvorenom poveznicom.',
 					createWaveBeforeInvitations: 'Izradite mjerenje prije pripreme pozivnica.',
@@ -3638,8 +3698,7 @@ const hr: typeof en = {
 					createWaveBeforeSending: 'Izradite mjerenje prije slanja pozivnica.',
 					checkEmailSetupBeforeSending:
 						'Provjerite postavke slanja e-pošte prije slanja pozivnica.',
-					resolveEmailSetupBeforeSending:
-						'Riješite blokade postavki e-pošte prije slanja.',
+					resolveEmailSetupBeforeSending: 'Riješite blokade postavki e-pošte prije slanja.',
 					createWaveBeforeRetrying: 'Izradite mjerenje prije ponavljanja neuspjelih e-poruka.',
 					confirmRetryBeforeRequeueing:
 						'Potvrdite da je nova pozivnica prikladna prije vraćanja u red.',
@@ -3739,29 +3798,35 @@ const hr: typeof en = {
 					reviewSetupTitle: 'Pregledajte postavljanje'
 				}
 			}
-		},		operationsWorkflow: {
+		},
+		operationsWorkflow: {
 			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				readiness: {
 					title: 'Provjera prije pokretanja',
-					description: 'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
+					description:
+						'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
 				},
 				launch: {
 					title: 'Pokretanje prikupljanja',
-					description: 'Otvorite ovo mjerenje za odgovore i zabilježite postavke korištene za izvještavanje.'
+					description:
+						'Otvorite ovo mjerenje za odgovore i zabilježite postavke korištene za izvještavanje.'
 				},
 				openLink: {
 					title: 'Dijeljenje pristupa',
-					description: 'Pošaljite spremljene pozive ili izradite otvorenu poveznicu za ovo mjerenje.'
+					description:
+						'Pošaljite spremljene pozive ili izradite otvorenu poveznicu za ovo mjerenje.'
 				},
 				monitor: {
 					title: 'Praćenje odgovora',
-					description: 'Pratite početke, nacrte, predaje i spremnost izvještaja dok prikupljanje traje.'
+					description:
+						'Pratite početke, nacrte, predaje i spremnost izvještaja dok prikupljanje traje.'
 				},
 				close: {
 					title: 'Zatvaranje prikupljanja',
-					description: 'Zaustavite nove odgovore, a predane podatke zadržite dostupnima za izvještaje.'
+					description:
+						'Zaustavite nove odgovore, a predane podatke zadržite dostupnima za izvještaje.'
 				}
 			},
 			pathDisplay: {
@@ -3793,39 +3858,47 @@ const hr: typeof en = {
 				noResponsesYetTitle: 'Još nema odgovora',
 				noResponsesYetDetail: 'Brojevi odgovora pojavit će se nakon pokretanja mjerenja.',
 				noRecipientAccessTitle: 'Pristup sudionicima nije pripremljen',
-				noRecipientAccessDetail: 'Odaberite primatelje ili izradite pristup sudionicima nakon što je postavljanje spremno.',
+				noRecipientAccessDetail:
+					'Odaberite primatelje ili izradite pristup sudionicima nakon što je postavljanje spremno.',
 				reportingNotAvailableTitle: 'Nije dostupno',
-				reportingNotAvailableDetail: 'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrano mjerenje.',
+				reportingNotAvailableDetail:
+					'Spremnost izvještaja prikazuje se nakon što prikupljanje ima odabrano mjerenje.',
 				createWaveFirstHeadline: 'Prvo izradite mjerenje',
 				createWaveFirstGuidance: 'Prikupljanje počinje nakon što Postavljanje ima mjerenje.',
 				createWaveFirstNextAction: 'Otvorite Postavljanje i izradite mjerenje.',
 				closedTitle: 'Zatvoreno',
 				closedDetail: 'Ovo mjerenje više ne prihvaća nove odgovore.',
 				liveTitle: 'Aktivno: prihvaća odgovore',
-				liveDetail: 'Sudionici još mogu predati odgovore. Rezultati ostaju preliminarni dok se prikupljanje ne zatvori.',
+				liveDetail:
+					'Sudionici još mogu predati odgovore. Rezultati ostaju preliminarni dok se prikupljanje ne zatvori.',
 				draftTitle: 'Nacrt: još ne prikuplja',
 				draftDetail: 'Pokrenite prikupljanje kada je postavljanje spremno.',
 				submittedTitle: (submitted: string) => `${submitted} predano`,
 				responseActivityDetail: (started: string, drafts: string, submitted: string) =>
 					`${started} započeto, ${drafts} u tijeku, ${submitted} predano.`,
 				waitingForResponsesTitle: 'Čekanje odgovora',
-				waitingForResponsesDetail: 'Prikupljanje je otvoreno, ali još nema zabilježene aktivnosti odgovora.',
+				waitingForResponsesDetail:
+					'Prikupljanje je otvoreno, ali još nema zabilježene aktivnosti odgovora.',
 				notCollectingTitle: 'Još ne prikuplja',
 				notCollectingDetail: 'Pokrenite prikupljanje prije praćenja odgovora.',
 				accessNotPreparedTitle: 'Pristup nije pripremljen',
-				accessNotPreparedDetail: 'Izradite poveznicu za sudionike ili pripremite pozive prije očekivanja odgovora.',
+				accessNotPreparedDetail:
+					'Izradite poveznicu za sudionike ili pripremite pozive prije očekivanja odgovora.',
 				accessWaitsForLaunchTitle: 'Pristup čeka pokretanje',
 				accessWaitsForLaunchDetail:
 					'Spremite primatelje u Postavljanju prije pokretanja ili pokrenite prikupljanje prije izrade otvorene poveznice.',
 				resultsPreliminaryDetail:
 					'Rezultati se mogu pregledati, ali podatke aktivnog prikupljanja tretirajte kao preliminarne dok se prikupljanje ne zatvori.',
-				reportingUsefulAfterSubmitted: 'Izvještavanje postaje korisno nakon što postoje predani odgovori.',
+				reportingUsefulAfterSubmitted:
+					'Izvještavanje postaje korisno nakon što postoje predani odgovori.',
 				closedOverallLabel: 'Zatvoreno',
 				closedHeadline: (submitted: string) => `Zatvoreno: ${submitted} predanih odgovora`,
-				closedGuidance: 'Prikupljanje je zatvoreno. Predani odgovori stabilni su za pregled Rezultata.',
+				closedGuidance:
+					'Prikupljanje je zatvoreno. Predani odgovori stabilni su za pregled Rezultata.',
 				closedNextAction: 'Otvorite Rezultate za pregled nalaza i izvoza.',
 				liveOverallLabel: 'Aktivno',
-				liveHeadline: (submitted: string) => `Aktivno: prihvaća odgovore s ${submitted} predanim odgovorom`,
+				liveHeadline: (submitted: string) =>
+					`Aktivno: prihvaća odgovore s ${submitted} predanim odgovorom`,
 				liveGuidance:
 					'Koristite ovu stranicu za praćenje napretka odgovora i pristupa sudionicima. Zatvorite prikupljanje kad prozor odgovaranja završi.',
 				liveNextWithResponses:
@@ -3856,7 +3929,8 @@ const hr: typeof en = {
 				createAccessBeforeResponses:
 					'Izradite poveznicu za sudionike ili spremljene pozive e-poštom prije očekivanja odgovora.',
 				anonymousBoundary: 'anonimni izvještaji i dalje ne prikazuju tko je odgovorio.',
-				anonymousBoundarySentence: 'Anonimni izvještaji i dalje odvajaju identitet sudionika od rezultata.',
+				anonymousBoundarySentence:
+					'Anonimni izvještaji i dalje odvajaju identitet sudionika od rezultata.',
 				longitudinalBoundary:
 					'rezultati ponovnog sudjelovanja koriste kodove sudionika umjesto prikaza tko je odgovorio.',
 				longitudinalBoundarySentence:
@@ -3865,26 +3939,28 @@ const hr: typeof en = {
 			}
 		},
 		reportsWorkflow: {
-			locale: "hr-HR",
+			locale: 'hr-HR',
 			surface: {
-				reviewActionsAria: "Radnje pregleda i izvoza",
-				flowKicker: "Tijek studije · Rezultati",
-				title: "Pregled i izvoz rezultata",
-				description: "Pregledajte agregirane rezultate, provjerite jesu li spremni za korištenje i izradite datoteke izvoza kada su spremne.",
-				useDecisionLabel: "Odluka o korištenju",
-				resultsUseReviewAria: "Pregled korištenja rezultata",
-				nextActionLabel: "Sljedeći korak",
-				scoreMethodLabel: "Metoda rezultata",
-				scoreMethodReviewAria: "Pregled metode rezultata",
-				exportPreviewLabel: "Pregled izvoza",
-				exportPreviewAria: "Pregled izvoza"
+				reviewActionsAria: 'Radnje pregleda i izvoza',
+				flowKicker: 'Tijek studije · Rezultati',
+				title: 'Pregled i izvoz rezultata',
+				description:
+					'Pregledajte agregirane rezultate, provjerite jesu li spremni za korištenje i izradite datoteke izvoza kada su spremne.',
+				useDecisionLabel: 'Odluka o korištenju',
+				resultsUseReviewAria: 'Pregled korištenja rezultata',
+				nextActionLabel: 'Sljedeći korak',
+				scoreMethodLabel: 'Metoda rezultata',
+				scoreMethodReviewAria: 'Pregled metode rezultata',
+				exportPreviewLabel: 'Pregled izvoza',
+				exportPreviewAria: 'Pregled izvoza'
 			},
 
 			stepNumber: (number: number) => `${number}`,
 			actions: {
 				reportProof: {
 					title: 'Pregled rezultata',
-					description: 'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
+					description:
+						'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
 				},
 				exportArtifact: {
 					title: 'Izradi matricu rezultata',
@@ -3912,23 +3988,27 @@ const hr: typeof en = {
 				}
 			},
 			disabled: {
-				createOrSelectWaveBeforeReviewingResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
+				createOrSelectWaveBeforeReviewingResults:
+					'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 				resolveReportPrerequisitesBeforeReviewingResults:
 					'Riješite preduvjete izvještavanja prije pregleda rezultata.',
-				reviewResultsBeforeCreatingReportExport: 'Pregledajte rezultate prije izrade matrice rezultata.',
+				reviewResultsBeforeCreatingReportExport:
+					'Pregledajte rezultate prije izrade matrice rezultata.',
 				resolveReportPrerequisitesBeforeCreatingReportExport:
 					'Riješite preduvjete izvještavanja prije izrade matrice rezultata.',
 				reportExportCreatedThisSession: 'Matrica rezultata izrađena je u ovoj sesiji.',
 				responseDatasetAlreadyExistsReportOptional:
 					'Skup odgovora već postoji; matrica rezultata nije obavezna.',
 				reportSummaryExportAlreadyExists: 'Matrica rezultata već postoji za ovu studiju.',
-				reviewResultsBeforeCreatingResponseExport: 'Pregledajte rezultate prije izrade izvoza odgovora.',
+				reviewResultsBeforeCreatingResponseExport:
+					'Pregledajte rezultate prije izrade izvoza odgovora.',
 				resolveReportPrerequisitesBeforeCreatingResponseExport:
 					'Riješite preduvjete izvještavanja prije izrade izvoza odgovora.',
 				responseExportCreatedThisSession: 'Izvoz odgovora izrađen je u ovoj sesiji.',
 				responseExportAlreadyExists: 'Izvoz odgovora već postoji za ovu studiju.',
 				createOrSelectExportBeforeReview: 'Izradite ili odaberite datoteku izvoza prije pregleda.',
-				createOrSelectExportBeforeDownload: 'Izradite ili odaberite datoteku izvoza prije preuzimanja CSV-a.',
+				createOrSelectExportBeforeDownload:
+					'Izradite ili odaberite datoteku izvoza prije preuzimanja CSV-a.',
 				selectDownloadableExportBeforeDownload:
 					'Odaberite datoteku izvoza koja se može preuzeti prije preuzimanja CSV-a.'
 			},
@@ -3962,7 +4042,8 @@ const hr: typeof en = {
 				createOrSelectWaveFirst: 'Prvo izradite ili odaberite mjerenje',
 				reviewExportFileFirst: 'Prvo pregledajte datoteku izvoza',
 				selectWavePendingDetail: 'Odaberite mjerenje prije pripreme datoteka izvoza.',
-				reviewFilePendingDetail: 'Pregledajte datoteku izvoza kako biste provjerili CSV i opis podataka.',
+				reviewFilePendingDetail:
+					'Pregledajte datoteku izvoza kako biste provjerili CSV i opis podataka.',
 				downloadResponseDatasetCsv: 'Preuzmi CSV skupa odgovora',
 				downloadReportSummaryCsv: 'Preuzmi CSV matrice rezultata'
 			},
@@ -3977,8 +4058,7 @@ const hr: typeof en = {
 					blocked: 'Blokirano'
 				},
 				errors: {
-					refreshFailed:
-						'Radnja je spremljena, ali osvježavanje prostora rezultata nije uspjelo.',
+					refreshFailed: 'Radnja je spremljena, ali osvježavanje prostora rezultata nije uspjelo.',
 					actionFailed: 'Radnja nad rezultatima nije uspjela.',
 					createWaveBeforeResults: 'Izradite ili odaberite mjerenje prije pregleda rezultata.',
 					createWaveBeforeReportExport:
@@ -4057,9 +4137,9 @@ const hr: typeof en = {
 				notReviewed: 'nije pregledano',
 				official: 'službeno',
 				notOfficial: 'nije službeno'
-			},
-
-		},		wavesWorkflow: {
+			}
+		},
+		wavesWorkflow: {
 			locale: 'hr-HR' as AppLocale,
 			stepNumber: (number: number) => `${number}`,
 			surface: {
@@ -4073,7 +4153,8 @@ const hr: typeof en = {
 			},
 			plan: {
 				createFirstTitle: 'Izradite prvo mjerenje',
-				createFirstDescription: 'Počnite izradom Mjerenja 1 kao prvog kruga prikupljanja za ovu studiju.',
+				createFirstDescription:
+					'Počnite izradom Mjerenja 1 kao prvog kruga prikupljanja za ovu studiju.',
 				openSetupLabel: 'Otvori Postavljanje',
 				createFirstGuidance: [
 					'Svako mjerenje je krug prikupljanja unutar studije. Izradite Mjerenje 1 u Postavljanju, zatim ga pokrenite iz Prikupljanja.',
@@ -4089,10 +4170,12 @@ const hr: typeof en = {
 					'Koristite ponovljeno sudjelovanje od Mjerenja 1 kada studija kasnije treba povezanu promjenu kroz vrijeme.',
 					`Pregledajte ili izvezite Mjerenje 1 i Mjerenje 2 prije izrade Mjerenja ${nextWaveNumber} u Postavljanju.`
 				],
-				oneWaveTitle: (nextWaveNumber: number) => `Pregledajte Mjerenje 1 prije planiranja Mjerenja ${nextWaveNumber}`,
+				oneWaveTitle: (nextWaveNumber: number) =>
+					`Pregledajte Mjerenje 1 prije planiranja Mjerenja ${nextWaveNumber}`,
 				oneWaveDescription:
 					'Mjerenje 1 postoji. Prvo pregledajte trenutne rezultate; sljedeće mjerenje planirajte samo kada je novi krug prikupljanja namjeran.',
-				reviewWaveResultsLabel: (waveNumber: number) => `Pregledaj rezultate Mjerenja ${waveNumber}`,
+				reviewWaveResultsLabel: (waveNumber: number) =>
+					`Pregledaj rezultate Mjerenja ${waveNumber}`,
 				planWaveLaterLabel: (waveNumber: number) => `Planiraj Mjerenje ${waveNumber} kasnije`,
 				oneWaveGuidance: (nextWaveNumber: number) => [
 					`Pregledajte ili izvezite Mjerenje 1 prije izrade Mjerenja ${nextWaveNumber} u Postavljanju.`,
@@ -4121,7 +4204,8 @@ const hr: typeof en = {
 			},
 			groupTrend: {
 				notReadyTitle: 'Grupni trend nije spreman',
-				notReadyDescription: 'Prikupite odgovore u barem dva mjerenja prije pregleda trenda po mjerenjima.',
+				notReadyDescription:
+					'Prikupite odgovore u barem dva mjerenja prije pregleda trenda po mjerenjima.',
 				sameRespondentComparisonLabel: 'Usporedba istih sudionika',
 				notReadySameRespondentValue: 'Nije dostupno dok ne postoje dva ponovljena mjerenja',
 				disclosureStatusLabel: 'Status prikaza',
@@ -4168,15 +4252,19 @@ const hr: typeof en = {
 				},
 				waveComparisonProof: {
 					title: 'Pregled povezane promjene',
-					description: 'Pregledajte promjenu istih sudionika između odabranih mjerenja bez narušavanja pravila prikaza.'
+					description:
+						'Pregledajte promjenu istih sudionika između odabranih mjerenja bez narušavanja pravila prikaza.'
 				}
 			},
 			disabled: {
 				unlinkedWavesUseGroupTrend:
 					'Povezana usporedba istih sudionika nije dostupna jer ova mjerenja nisu izrađeni s ponovljenim sudjelovanjem. Pregledajte grupni trend.',
-				addRepeatedWaves: 'Dodajte barem dva ponovljena mjerenja prije usporedbe promjene kroz vrijeme.',
-				chooseBaselineAndComparison: 'Odaberite početni i usporedno mjerenje prije pregleda promjene kroz vrijeme.',
-				checkReadinessBeforeReview: 'Provjerite spremnost usporedbe prije pregleda promjene kroz vrijeme.'
+				addRepeatedWaves:
+					'Dodajte barem dva ponovljena mjerenja prije usporedbe promjene kroz vrijeme.',
+				chooseBaselineAndComparison:
+					'Odaberite početni i usporedno mjerenje prije pregleda promjene kroz vrijeme.',
+				checkReadinessBeforeReview:
+					'Provjerite spremnost usporedbe prije pregleda promjene kroz vrijeme.'
 			},
 			inactiveReason: {
 				groupTrend:
@@ -4184,7 +4272,8 @@ const hr: typeof en = {
 				noWaves: 'Izradite i prikupite prve mjerenja prije provjera povezane promjene.',
 				oneWave:
 					'Pregledajte Mjerenje 1 u Rezultatima. Planirajte Mjerenje 2 iz Postavljanja samo kada je sljedeći krug prikupljanja namjeran.',
-				needScoredResponses: 'Prikupite bodovane odgovore u barem dva mjerenja prije zadataka usporedbe.'
+				needScoredResponses:
+					'Prikupite bodovane odgovore u barem dva mjerenja prije zadataka usporedbe.'
 			},
 			component: {
 				state: {
@@ -4253,8 +4342,7 @@ const hr: typeof en = {
 				disclosureGatedComparison: 'Usporedba uz pravila prikaza',
 				disclosureK: (kMin: number) => `Pravila prikaza k=${kMin}`,
 				waveComparisonScoresAria: 'Rezultati usporedbe mjerenja',
-				waveComparisonScoreAria: (dimensionCode: string) =>
-					`Usporedba mjerenja ${dimensionCode}`,
+				waveComparisonScoreAria: (dimensionCode: string) => `Usporedba mjerenja ${dimensionCode}`,
 				pairedDelta: (value: string) => `promjena u paru ${value}`,
 				baselineMeta: (value: string) => `početno ${value}`,
 				comparisonMeta: (value: string) => `usporedno ${value}`,
@@ -4288,7 +4376,8 @@ const hr: typeof en = {
 			},
 			dashboard: {
 				unavailableTitle: 'Pregled mjerenja nije dostupan',
-				unavailableMessage: 'Odaberite dva usporediva mjerenja prije pregleda nadzorne ploče mjerenja.',
+				unavailableMessage:
+					'Odaberite dva usporediva mjerenja prije pregleda nadzorne ploče mjerenja.',
 				title: (baselineName: string, comparisonName: string) =>
 					`${baselineName} prema ${comparisonName} pregled mjerenja`,
 				campaigns: 'Mjerenja',
@@ -4352,11 +4441,11 @@ const hr: typeof en = {
 				aggregateSnapshotAria: 'Sažetak usporedbe mjerenja',
 				changeOverTimeTitle: 'Promjena kroz vrijeme',
 				comparisonReady: 'Usporedba spremna',
-				completeTrajectories: (count: number | string) => `potpuni parovi ponovljenih odgovora ${count}`,
+				completeTrajectories: (count: number | string) =>
+					`potpuni parovi ponovljenih odgovora ${count}`,
 				linkedPairs: (count: number | string) => `povezanih parova ${count}`,
 				waveComparisonRowsAria: 'Redci usporedbe mjerenja',
-				waveComparisonScoreAria: (dimensionCode: string) =>
-					`Usporedba mjerenja ${dimensionCode}`,
+				waveComparisonScoreAria: (dimensionCode: string) => `Usporedba mjerenja ${dimensionCode}`,
 				baselineMean: (value: string) => `prosjek početnog mjerenja ${value}`,
 				comparisonMean: (value: string) => `prosjek usporednog mjerenja ${value}`,
 				baselineMeta: (value: string) => `početno ${value}`,
@@ -4417,11 +4506,13 @@ const hr: typeof en = {
 				dashboardMatrixExportGuidance:
 					'Agregirani podaci iza grafova rezultata, usporedbe grupa i usporedbe mjerenja.',
 				rowLevelResponseExport: 'Skup odgovora po redcima',
-				rowLevelResponseExportGuidance: 'Redci ispitanika spremni za analizu, s varijablama i vrijednostima rezultata.',
+				rowLevelResponseExportGuidance:
+					'Redci ispitanika spremni za analizu, s varijablama i vrijednostima rezultata.',
 				singleMeasurementReportExport: 'Izvoz jednog mjerenja',
 				singleMeasurementReportExportGuidance: 'Sažetak jednog mjerenja za pregled ili predaju.',
 				reportPacketExport: 'Izvoz paketa izvještaja',
-				reportPacketExportGuidance: 'Formatirana datoteka izvještaja za pregled ili dijeljenje nakon provjera tumačenja.',
+				reportPacketExportGuidance:
+					'Formatirana datoteka izvještaja za pregled ili dijeljenje nakon provjera tumačenja.',
 				exportUseUnknownGuidance: 'Prije korištenja provjerite metapodatke datoteke.',
 				notConfigured: 'Nije postavljeno',
 				notConfiguredState: 'Nije postavljeno',
@@ -4568,7 +4659,8 @@ const hr: typeof en = {
 				scoreCoverageTitle: 'Pokrivenost bodovanja predanih odgovora',
 				remediatingScores: 'Popravljanje bodovanja',
 				remediateMissingScores: 'Popravi nedostajuća bodovanja',
-				remediationRequiresAccess: 'Popravak bodovanja zahtijeva pristup za upravljanje postavljanjem.',
+				remediationRequiresAccess:
+					'Popravak bodovanja zahtijeva pristup za upravljanje postavljanjem.',
 				resultAria: 'Rezultat popravka bodovanja',
 				submittedResponses: 'Predani odgovori',
 				eligibleSubmitted: 'Prihvatljivi predani',
@@ -4642,7 +4734,8 @@ const hr: typeof en = {
 				campaignRowsAria: 'Popis mjerenja odabrane studije',
 				campaignContext: 'Kontekst mjerenja odabrane studije',
 				readOnlyAccess: 'Pristup samo za čitanje',
-				workflowRequiresSetup: 'Radnje tijeka rada zahtijevaju pristup za upravljanje postavljanjem.'
+				workflowRequiresSetup:
+					'Radnje tijeka rada zahtijevaju pristup za upravljanje postavljanjem.'
 			}
 		}
 	}

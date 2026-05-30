@@ -64,7 +64,17 @@ describe('createProductApi', () => {
 		const api = createProductApi({
 			request: async <T>(path: string): Promise<T> => {
 				calls.push(path);
-				return { tenantId: 'tenant-id', members: [] } as T;
+				return {
+					tenantId: 'tenant-id',
+					summary: {
+						totalCount: 0,
+						activeCount: 0,
+						invitedCount: 0,
+						suspendedCount: 0,
+						teamManagerCount: 0
+					},
+					members: []
+				} as T;
 			},
 			requestText: async () => {
 				throw new Error('not used');
@@ -682,6 +692,86 @@ describe('createProductApi', () => {
 						'content-type': 'application/json'
 					},
 					body: JSON.stringify({ roleCode: 'tenant_owner' })
+				}
+			}
+		]);
+	});
+
+	it('suspends a tenant member by encoded user id', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return { member: sampleTenantMember } as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.suspendTenantMember('user/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-members/user%2Fid/suspend',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: '{}'
+				}
+			}
+		]);
+	});
+
+	it('reactivates a tenant member by encoded user id', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return { member: sampleTenantMember } as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.reactivateTenantMember('user/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-members/user%2Fid/reactivate',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: '{}'
+				}
+			}
+		]);
+	});
+
+	it('removes a tenant member by encoded user id', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return { userId: 'user/id', removed: true } as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.removeTenantMember('user/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-members/user%2Fid',
+				init: {
+					method: 'DELETE'
 				}
 			}
 		]);
@@ -1338,6 +1428,8 @@ const sampleTenantMember = {
 	createdAt: '2026-05-12T08:00:00Z',
 	lastLoginAt: null,
 	identityStatus: 'pending_provider_link',
+	status: 'invited',
+	statusLabel: 'Invited',
 	roles: [
 		{
 			roleId: '55555555-5555-4555-8555-555555555555',

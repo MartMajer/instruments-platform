@@ -57,6 +57,24 @@ public interface IProductSurfaceWriteStore
         ChangeTenantMemberRoleRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<TenantMemberMutationResponse>> SuspendTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
+    Task<Result<TenantMemberMutationResponse>> ReactivateTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
+    Task<Result<TenantMemberRemovalResponse>> RemoveTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
     Task<Result<SubjectDirectoryItemResponse>> CreateSubjectAsync(
         Guid tenantId,
         Guid actorUserId,

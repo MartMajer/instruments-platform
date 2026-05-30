@@ -1,4 +1,5 @@
 using MediatR;
+using Platform.Application.Auth;
 using Platform.Application.Tenancy;
 
 namespace Platform.Application.Features.ProductSurfaces;
@@ -20,7 +21,34 @@ public sealed class ListTenantMembersHandler(
 
 public sealed record TenantMemberRosterResponse(
     Guid TenantId,
-    TenantMemberResponse[] Members);
+    TenantMemberResponse[] Members,
+    TenantMemberRosterSummaryResponse Summary)
+{
+    public TenantMemberRosterResponse(Guid tenantId, TenantMemberResponse[] members)
+        : this(tenantId, members, TenantMemberRosterSummaryResponse.FromMembers(members))
+    {
+    }
+}
+
+public sealed record TenantMemberRosterSummaryResponse(
+    int TotalCount,
+    int ActiveCount,
+    int InvitedCount,
+    int SuspendedCount,
+    int TeamManagerCount)
+{
+    public static TenantMemberRosterSummaryResponse FromMembers(IEnumerable<TenantMemberResponse> members)
+    {
+        var materialized = members.ToArray();
+
+        return new TenantMemberRosterSummaryResponse(
+            materialized.Length,
+            materialized.Count(member => member.Status == TenantMemberAccessStatuses.Active),
+            materialized.Count(member => member.Status == TenantMemberAccessStatuses.Invited),
+            materialized.Count(member => member.Status == TenantMemberAccessStatuses.Suspended),
+            materialized.Count(member => member.Permissions.Contains(PlatformPermissions.TeamManage, StringComparer.Ordinal)));
+    }
+}
 
 public sealed record TenantMemberResponse(
     Guid UserId,
@@ -30,7 +58,9 @@ public sealed record TenantMemberResponse(
     DateTimeOffset? LastLoginAt,
     TenantMemberRoleResponse[] Roles,
     string[] Permissions,
-    string IdentityStatus = TenantMemberIdentityStatuses.PendingProviderLink);
+    string IdentityStatus = TenantMemberIdentityStatuses.PendingProviderLink,
+    string Status = TenantMemberAccessStatuses.Invited,
+    string StatusLabel = TenantMemberAccessStatusLabels.Invited);
 
 public sealed record TenantMemberRoleResponse(
     Guid RoleId,
@@ -44,4 +74,19 @@ public static class TenantMemberIdentityStatuses
 {
     public const string Active = "active";
     public const string PendingProviderLink = "pending_provider_link";
+    public const string Disabled = "disabled";
+}
+
+public static class TenantMemberAccessStatuses
+{
+    public const string Active = "active";
+    public const string Invited = "invited";
+    public const string Suspended = "suspended";
+}
+
+public static class TenantMemberAccessStatusLabels
+{
+    public const string Active = "Active";
+    public const string Invited = "Invited";
+    public const string Suspended = "Suspended";
 }

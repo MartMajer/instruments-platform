@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Platform.Application.Auth;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
@@ -1105,6 +1106,305 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Suspend_tenant_member_disables_provider_identities_and_revokes_active_sessions()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "team-suspend-member");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "actor@example.test");
+        var ownerRoleId = await SeedTenantRoleWithPermissionsAsync(
+            runtimeOptions,
+            tenantId,
+            "tenant_owner",
+            "Tenant Owner",
+            PlatformPermissions.TeamManage);
+        var analystRoleId = await SeedTenantRoleAsync(runtimeOptions, tenantId, "analyst", "Analyst");
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            actorUserId,
+            "actor@example.test",
+            ownerRoleId,
+            actorUserId);
+        var externalIdentityId = await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            targetUserId,
+            "target@example.test",
+            analystRoleId,
+            actorUserId,
+            withExternalIdentity: true);
+        var activeSessionId = await SeedAuthSessionAsync(runtimeOptions, tenantId, targetUserId, externalIdentityId);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.SuspendTenantMemberAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("suspended", result.Value.Member.Status);
+        Assert.Equal("disabled", result.Value.Member.IdentityStatus);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var identity = await verificationDb.ExternalAuthIdentities.SingleAsync(identity => identity.Id == externalIdentityId);
+        Assert.NotNull(identity.DisabledAt);
+        var session = await verificationDb.AuthSessions.SingleAsync(session => session.Id == activeSessionId);
+        Assert.NotNull(session.RevokedAt);
+        Assert.Equal("member_suspended", session.RevokedReason);
+        Assert.True(await verificationDb.RoleAssignments.AnyAsync(assignment =>
+            assignment.TenantId == tenantId &&
+            assignment.UserId == targetUserId &&
+            assignment.ScopeType == RoleAssignmentScopes.Tenant));
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Reactivate_tenant_member_enables_provider_identities()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "team-reactivate-member");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "actor@example.test");
+        var ownerRoleId = await SeedTenantRoleWithPermissionsAsync(
+            runtimeOptions,
+            tenantId,
+            "tenant_owner",
+            "Tenant Owner",
+            PlatformPermissions.TeamManage);
+        var analystRoleId = await SeedTenantRoleAsync(runtimeOptions, tenantId, "analyst", "Analyst");
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            actorUserId,
+            "actor@example.test",
+            ownerRoleId,
+            actorUserId);
+        var externalIdentityId = await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            targetUserId,
+            "target@example.test",
+            analystRoleId,
+            actorUserId,
+            withExternalIdentity: true,
+            externalIdentityDisabledAt: DateTimeOffset.UtcNow.AddHours(-1));
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ReactivateTenantMemberAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("active", result.Value.Member.Status);
+        Assert.Equal("active", result.Value.Member.IdentityStatus);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var identity = await verificationDb.ExternalAuthIdentities.SingleAsync(identity => identity.Id == externalIdentityId);
+        Assert.Null(identity.DisabledAt);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Remove_tenant_member_removes_workspace_access_preserves_user_and_resource_assignments()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var resourceId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "team-remove-member");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "actor@example.test");
+        var ownerRoleId = await SeedTenantRoleWithPermissionsAsync(
+            runtimeOptions,
+            tenantId,
+            "tenant_owner",
+            "Tenant Owner",
+            PlatformPermissions.TeamManage);
+        var analystRoleId = await SeedTenantRoleAsync(runtimeOptions, tenantId, "analyst", "Analyst");
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            actorUserId,
+            "actor@example.test",
+            ownerRoleId,
+            actorUserId);
+        var externalIdentityId = await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            targetUserId,
+            "target@example.test",
+            analystRoleId,
+            actorUserId,
+            withExternalIdentity: true);
+        await SeedResourceRoleAssignmentAsync(runtimeOptions, tenantId, targetUserId, analystRoleId, resourceId);
+        var activeSessionId = await SeedAuthSessionAsync(runtimeOptions, tenantId, targetUserId, externalIdentityId);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.RemoveTenantMemberAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(targetUserId, result.Value.UserId);
+        Assert.True(result.Value.Removed);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.True(await verificationDb.UserAccounts.AnyAsync(user =>
+            user.TenantId == tenantId &&
+            user.Id == targetUserId &&
+            user.DeletedAt == null));
+        Assert.False(await verificationDb.RoleAssignments.AnyAsync(assignment =>
+            assignment.TenantId == tenantId &&
+            assignment.UserId == targetUserId &&
+            assignment.ScopeType == RoleAssignmentScopes.Tenant));
+        Assert.True(await verificationDb.RoleAssignments.AnyAsync(assignment =>
+            assignment.TenantId == tenantId &&
+            assignment.UserId == targetUserId &&
+            assignment.ScopeType == RoleAssignmentScopes.CampaignSeries &&
+            assignment.ScopeId == resourceId));
+        var session = await verificationDb.AuthSessions.SingleAsync(session => session.Id == activeSessionId);
+        Assert.NotNull(session.RevokedAt);
+        Assert.Equal("member_removed", session.RevokedReason);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Tenant_member_lifecycle_rejects_self_actions()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "team-lifecycle-self");
+        var roleId = await SeedTenantRoleAsync(runtimeOptions, tenantId, "analyst", "Analyst");
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            actorUserId,
+            "actor@example.test",
+            roleId,
+            actorUserId,
+            withExternalIdentity: true);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var suspend = await store.SuspendTenantMemberAsync(
+            tenantId,
+            actorUserId,
+            actorUserId,
+            CancellationToken.None);
+        var reactivate = await store.ReactivateTenantMemberAsync(
+            tenantId,
+            actorUserId,
+            actorUserId,
+            CancellationToken.None);
+        var remove = await store.RemoveTenantMemberAsync(
+            tenantId,
+            actorUserId,
+            actorUserId,
+            CancellationToken.None);
+
+        Assert.True(suspend.IsFailure);
+        Assert.Equal("tenant_member.self_access_change", suspend.Error.Code);
+        Assert.True(reactivate.IsFailure);
+        Assert.Equal("tenant_member.self_access_change", reactivate.Error.Code);
+        Assert.True(remove.IsFailure);
+        Assert.Equal("tenant_member.self_access_change", remove.Error.Code);
+    }
+
+    [DockerFact]
+    public async Task Tenant_member_lifecycle_preserves_the_last_team_manager()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var targetUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "team-last-manager");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "actor@example.test");
+        var ownerRoleId = await SeedTenantRoleWithPermissionsAsync(
+            runtimeOptions,
+            tenantId,
+            "tenant_owner",
+            "Tenant Owner",
+            PlatformPermissions.TeamManage);
+        var viewerRoleId = await SeedTenantRoleAsync(runtimeOptions, tenantId, "viewer", "Viewer");
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            actorUserId,
+            "actor@example.test",
+            viewerRoleId,
+            actorUserId);
+        await SeedTenantMemberWithRoleAsync(
+            runtimeOptions,
+            tenantId,
+            targetUserId,
+            "owner@example.test",
+            ownerRoleId,
+            actorUserId,
+            withExternalIdentity: true);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var suspend = await store.SuspendTenantMemberAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            CancellationToken.None);
+        var remove = await store.RemoveTenantMemberAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            CancellationToken.None);
+        var demote = await store.ChangeTenantMemberRoleAsync(
+            tenantId,
+            targetUserId,
+            actorUserId,
+            new ChangeTenantMemberRoleRequest("viewer"),
+            CancellationToken.None);
+
+        Assert.True(suspend.IsFailure);
+        Assert.Equal("tenant_member.last_team_manager", suspend.Error.Code);
+        Assert.True(remove.IsFailure);
+        Assert.Equal("tenant_member.last_team_manager", remove.Error.Code);
+        Assert.True(demote.IsFailure);
+        Assert.Equal("tenant_member.last_team_manager", demote.Error.Code);
+    }
+
+    [DockerFact]
     public async Task Create_subject_persists_directory_subject_under_tenant_scope()
     {
         var tenantId = Guid.NewGuid();
@@ -1725,6 +2025,31 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
         return roleId;
     }
 
+    private static async Task<Guid> SeedTenantRoleWithPermissionsAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        Guid tenantId,
+        string code,
+        string name,
+        params string[] permissionCodes)
+    {
+        var roleId = Guid.NewGuid();
+        var permissions = permissionCodes
+            .Distinct(StringComparer.Ordinal)
+            .Select(code => new Permission(Guid.NewGuid(), code))
+            .ToArray();
+
+        await using var db = new ApplicationDbContext(options);
+        var tenantDbScope = new TenantDbScope(db);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        db.Roles.Add(new Role(roleId, tenantId, code, name));
+        db.Permissions.AddRange(permissions);
+        db.RolePermissions.AddRange(permissions.Select(permission => new RolePermission(roleId, permission.Id)));
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return roleId;
+    }
+
     private static async Task<Guid> SeedTenantMemberWithRoleAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
@@ -1732,7 +2057,8 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
         string email,
         Guid roleId,
         Guid grantedBy,
-        bool withExternalIdentity = false)
+        bool withExternalIdentity = false,
+        DateTimeOffset? externalIdentityDisabledAt = null)
     {
         var externalIdentityId = Guid.NewGuid();
 
@@ -1749,14 +2075,20 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
             grantedBy: grantedBy));
         if (withExternalIdentity)
         {
-            db.ExternalAuthIdentities.Add(new ExternalAuthIdentity(
+            var identity = new ExternalAuthIdentity(
                 externalIdentityId,
                 tenantId,
                 userId,
                 "auth0",
                 $"hash-{userId:N}",
                 email,
-                DateTimeOffset.Parse("2026-05-11T08:00:00+00:00")));
+                DateTimeOffset.Parse("2026-05-11T08:00:00+00:00"));
+            if (externalIdentityDisabledAt.HasValue)
+            {
+                identity.Disable(externalIdentityDisabledAt.Value);
+            }
+
+            db.ExternalAuthIdentities.Add(identity);
         }
 
         await db.SaveChangesAsync();

@@ -4,7 +4,16 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { onDestroy, onMount } from 'svelte';
-	import { Check, LoaderCircle, Plus } from 'lucide-svelte';
+	import {
+		Check,
+		Copy,
+		ExternalLink,
+		LoaderCircle,
+		RotateCcw,
+		ShieldOff,
+		Trash2,
+		UserPlus
+	} from 'lucide-svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LoadingBoundary from '$lib/components/LoadingBoundary.svelte';
@@ -28,13 +37,11 @@
 
 	type LoadState = 'loading' | 'ready' | 'error';
 	type RoleLoadState = 'idle' | LoadState;
-	type CapabilitySummary = {
+	type AccessMutation = 'suspend' | 'reactivate' | 'remove';
+	type PermissionSummary = {
 		label: string;
 		detail: string;
 		status: 'ready' | 'neutral';
-	};
-	type CapabilityCoverage = CapabilitySummary & {
-		count: number;
 	};
 
 	const productApi = createProductApiFromEnv(env);
@@ -60,6 +67,10 @@
 	let changeRoleError = $state<string | null>(null);
 	let copiedMemberUserId = $state<string | null>(null);
 	let roleSelections = $state<Record<string, string>>({});
+	let permissionDetailsOpen = $state<Record<string, boolean>>({});
+	let accessMutationUserId = $state<string | null>(null);
+	let accessMutation = $state<AccessMutation | null>(null);
+	let accessMutationError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -99,7 +110,7 @@
 			}
 
 			roster = null;
-			errorMessage = toProductApiErrorMessage(error, 'Team members could not be loaded.');
+			errorMessage = toProductApiErrorMessage(error, 'Workspace access could not be loaded.');
 			loadState = 'error';
 		}
 	}
@@ -120,7 +131,7 @@
 			syncRoleSelections(roster);
 		} catch (error) {
 			tenantRoles = [];
-			roleErrorMessage = toProductApiErrorMessage(error, 'Tenant roles could not be loaded.');
+			roleErrorMessage = toProductApiErrorMessage(error, 'Workspace roles could not be loaded.');
 			roleLoadState = 'error';
 		}
 	}
@@ -152,10 +163,13 @@
 			const response = await productApi.createTenantMember({ email, roleCode, locale });
 			newMemberEmail = '';
 			newMemberLocale = locale;
-			createMemberNotice = `Member access prepared for ${response.member.email}. Share the first sign-in link from the roster.`;
+			createMemberNotice = `Workspace access prepared for ${response.member.email}.`;
 			await loadTenantMembers();
 		} catch (error) {
-			createMemberError = toProductApiErrorMessage(error, 'Member access could not be prepared.');
+			createMemberError = toProductApiErrorMessage(
+				error,
+				'Workspace access could not be prepared.'
+			);
 		} finally {
 			creatingMember = false;
 		}
@@ -178,9 +192,70 @@
 			await productApi.changeTenantMemberRole(member.userId, { roleCode });
 			await loadTenantMembers();
 		} catch (error) {
-			changeRoleError = toProductApiErrorMessage(error, 'Tenant member role could not be changed.');
+			changeRoleError = toProductApiErrorMessage(error, 'Workspace role could not be changed.');
 		} finally {
 			changingRoleUserId = null;
+		}
+	}
+
+	async function suspendTenantMember(member: TenantMemberResponse) {
+		await runAccessMutation(
+			member,
+			'suspend',
+			() => productApi.suspendTenantMember(member.userId),
+			'Workspace access could not be suspended.'
+		);
+	}
+
+	async function reactivateTenantMember(member: TenantMemberResponse) {
+		await runAccessMutation(
+			member,
+			'reactivate',
+			() => productApi.reactivateTenantMember(member.userId),
+			'Workspace access could not be reactivated.'
+		);
+	}
+
+	async function removeTenantMember(member: TenantMemberResponse) {
+		if (
+			browser &&
+			!window.confirm(
+				`Remove workspace access for ${member.email}? They will no longer be able to sign in.`
+			)
+		) {
+			return;
+		}
+
+		await runAccessMutation(
+			member,
+			'remove',
+			() => productApi.removeTenantMember(member.userId),
+			'Workspace access could not be removed.'
+		);
+	}
+
+	async function runAccessMutation<T>(
+		member: TenantMemberResponse,
+		mutation: AccessMutation,
+		action: () => Promise<T>,
+		fallbackMessage: string
+	) {
+		if (!canManageTeam || isCurrentUser(member.userId) || isMutatingAccess(member)) {
+			return;
+		}
+
+		accessMutationUserId = member.userId;
+		accessMutation = mutation;
+		accessMutationError = null;
+
+		try {
+			await action();
+			await loadTenantMembers();
+		} catch (error) {
+			accessMutationError = toProductApiErrorMessage(error, fallbackMessage);
+		} finally {
+			accessMutationUserId = null;
+			accessMutation = null;
 		}
 	}
 
@@ -188,6 +263,13 @@
 		roleSelections = {
 			...roleSelections,
 			[member.userId]: roleCode
+		};
+	}
+
+	function togglePermissionDetails(member: TenantMemberResponse) {
+		permissionDetailsOpen = {
+			...permissionDetailsOpen,
+			[member.userId]: !permissionDetailsOpen[member.userId]
 		};
 	}
 
@@ -223,8 +305,8 @@
 		);
 	}
 
-	function toMemberCapabilities(permissions: string[]): CapabilitySummary[] {
-		const capabilities: CapabilitySummary[] = [];
+	function toPermissionSummaries(permissions: string[]): PermissionSummary[] {
+		const summaries: PermissionSummary[] = [];
 		const seenLabels = new Set<string>();
 		const hasReportsOrExports = permissions.some(
 			(permission) => permission.startsWith('report.') || permission.startsWith('export.')
@@ -237,17 +319,17 @@
 				!permission.startsWith('export.')
 		);
 
-		function addCapability(capability: CapabilitySummary) {
-			if (seenLabels.has(capability.label)) {
+		function addSummary(summary: PermissionSummary) {
+			if (seenLabels.has(summary.label)) {
 				return;
 			}
 
-			capabilities.push(capability);
-			seenLabels.add(capability.label);
+			summaries.push(summary);
+			seenLabels.add(summary.label);
 		}
 
 		if (permissions.includes(setupManagePermission)) {
-			addCapability({
+			addSummary({
 				label: 'Study setup and launch',
 				detail: 'Can create, prepare, duplicate, launch, and manage study workflows.',
 				status: 'ready'
@@ -255,92 +337,76 @@
 		}
 
 		if (permissions.includes(teamManagePermission)) {
-			addCapability({
-				label: 'Team access management',
-				detail: 'Can prepare tenant members and change tenant roles.',
+			addSummary({
+				label: 'Workspace access management',
+				detail:
+					'Can add operators, change roles, suspend access, reactivate access, and remove access.',
 				status: 'ready'
 			});
 		}
 
 		if (hasReportsOrExports) {
-			addCapability({
+			addSummary({
 				label: 'Reports and exports',
-				detail: 'Can inspect allowed result and export surfaces for the tenant.',
+				detail: 'Can inspect allowed result and export surfaces for the workspace.',
 				status: 'ready'
 			});
 		}
 
 		if (hasUnknownPlatformAccess) {
-			addCapability({
+			addSummary({
 				label: 'Additional platform access',
-				detail: 'Has extra platform access not yet summarized by this screen.',
+				detail: 'Has platform permissions not yet summarized by this screen.',
 				status: 'neutral'
 			});
 		}
 
-		if (capabilities.length === 0) {
-			addCapability({
-				label: 'Read-only tenant access',
-				detail: 'Can inspect tenant surfaces allowed by membership.',
+		if (summaries.length === 0) {
+			addSummary({
+				label: 'Workspace member',
+				detail: 'Can inspect workspace surfaces allowed by membership.',
 				status: 'neutral'
 			});
 		}
 
-		return capabilities;
+		return summaries;
 	}
 
-	function toTeamOverviewRows(nextRoster: TenantMemberRosterResponse | null) {
+	function toWorkspaceAccessRows(nextRoster: TenantMemberRosterResponse | null) {
 		const members = nextRoster?.members ?? [];
-		const activeIdentities = members.filter((member) => member.identityStatus === 'active').length;
-		const pendingIdentities = members.filter(
-			(member) => member.identityStatus !== 'active'
-		).length;
-		const setupManagers = members.filter((member) =>
-			member.permissions.includes(setupManagePermission)
-		).length;
-		const teamManagers = members.filter((member) =>
-			member.permissions.includes(teamManagePermission)
-		).length;
+		const summary = nextRoster?.summary;
 
 		return [
-			{ label: 'Members', value: members.length.toString() },
-			{ label: 'Active identities', value: activeIdentities.toString() },
-			{ label: 'Pending links', value: pendingIdentities.toString() },
-			{ label: 'Study setup and launch', value: setupManagers.toString() },
-			{ label: 'Team access management', value: teamManagers.toString() }
-		];
-	}
-
-	function toTeamCapabilityRows(nextRoster: TenantMemberRosterResponse | null): CapabilityCoverage[] {
-		const members = nextRoster?.members ?? [];
-		const capabilities: CapabilitySummary[] = [
+			{ label: 'Operators', value: (summary?.totalCount ?? members.length).toString() },
 			{
-				label: 'Study setup and launch',
-				detail: 'Can create, prepare, duplicate, launch, and manage study workflows.',
-				status: 'ready'
+				label: 'Active',
+				value: (
+					summary?.activeCount ??
+					members.filter((member) => memberStatus(member) === 'active').length
+				).toString()
 			},
 			{
-				label: 'Team access management',
-				detail: 'Can prepare tenant members and change tenant roles.',
-				status: 'ready'
+				label: 'Invited',
+				value: (
+					summary?.invitedCount ??
+					members.filter((member) => memberStatus(member) === 'invited').length
+				).toString()
 			},
 			{
-				label: 'Reports and exports',
-				detail: 'Can inspect allowed result and export surfaces for the tenant.',
-				status: 'ready'
+				label: 'Suspended',
+				value: (
+					summary?.suspendedCount ??
+					members.filter((member) => memberStatus(member) === 'suspended').length
+				).toString()
+			},
+			{
+				label: 'Access managers',
+				value: (
+					summary?.teamManagerCount ??
+					members.filter((member) => member.permissions.includes(teamManagePermission)).length
+				).toString()
 			}
 		];
-
-		return capabilities
-			.map((capability) => ({
-				...capability,
-				count: members.filter((member) =>
-					toMemberCapabilities(member.permissions).some(
-						(memberCapability) => memberCapability.label === capability.label
-					)
-				).length
-			}))
-			.filter((row) => row.count > 0);
 	}
 
 	function formatDate(value: string | null) {
@@ -355,16 +421,29 @@
 		}).format(new Date(value));
 	}
 
-	function identityStatusLabel(member: TenantMemberResponse) {
-		if (member.identityStatus === 'active') {
-			return 'Active';
+	function memberStatus(member: TenantMemberResponse) {
+		if (member.status) {
+			return member.status;
 		}
 
-	return 'Invite pending';
+		return member.identityStatus === 'active' ? 'active' : 'invited';
 	}
 
-	function identityStatusBadge(member: TenantMemberResponse) {
-		return member.identityStatus === 'active' ? 'ready' : 'pending';
+	function memberStatusLabel(member: TenantMemberResponse) {
+		return member.statusLabel || (memberStatus(member) === 'active' ? 'Active' : 'Invited');
+	}
+
+	function memberStatusBadge(member: TenantMemberResponse) {
+		const status = memberStatus(member);
+		if (status === 'active') {
+			return 'ready';
+		}
+
+		return status === 'suspended' ? 'blocked' : 'pending';
+	}
+
+	function isMutatingAccess(member: TenantMemberResponse, mutation?: AccessMutation) {
+		return accessMutationUserId === member.userId && (!mutation || accessMutation === mutation);
 	}
 
 	function memberSignInUrl(member: TenantMemberResponse) {
@@ -383,7 +462,8 @@
 			await navigator.clipboard.writeText(memberSignInUrl(member));
 			copiedMemberUserId = member.userId;
 		} catch {
-			createMemberError = 'Could not copy the sign-in link. Open the link and copy it from the address bar.';
+			createMemberError =
+				'Could not copy the sign-in link. Open the link and copy it from the address bar.';
 		}
 	}
 
@@ -437,7 +517,7 @@
 />
 
 {#if loadState === 'loading' || roster}
-	<section class="product-panel" data-priority="primary" aria-label="Team access overview">
+	<section class="product-panel" data-priority="primary" aria-label="Workspace access summary">
 		<LoadingBoundary loading={loadState === 'loading'} label={text.team.loadingOverview}>
 			{#if roster}
 				<div class="product-panel__header">
@@ -451,39 +531,20 @@
 				</div>
 
 				<dl class="team-stat-list" role="group" aria-label={text.team.teamOverviewCountsAria}>
-					{#each toTeamOverviewRows(roster) as row}
+					{#each toWorkspaceAccessRows(roster) as row}
 						<div class="team-stat-item">
 							<dt class="team-stat-item__label">{row.label}</dt>
 							<dd class="team-stat-item__value">{row.value}</dd>
 						</div>
 					{/each}
 				</dl>
-
-				{#if toTeamCapabilityRows(roster).length > 0}
-					<div class="team-capability-list" aria-label={text.team.capabilityCoverageAria}>
-						{#each toTeamCapabilityRows(roster) as row}
-							<article class="team-capability-row" aria-label={row.label}>
-								<div>
-									<h3 class="team-capability-row__title">{row.label}</h3>
-									<p class="team-capability-row__detail">{row.detail}</p>
-								</div>
-								<div class="team-capability-row__count">
-									<span>{row.count}</span>
-									<div>
-										{row.count === 1 ? text.team.memberSingular : text.team.memberPlural}
-									</div>
-								</div>
-							</article>
-						{/each}
-					</div>
-				{/if}
 			{/if}
 		</LoadingBoundary>
 	</section>
 {/if}
 
 {#if canManageTeam}
-	<section class="product-panel" aria-label="Prepare tenant member">
+	<section class="product-panel" aria-label="Add workspace operator">
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.team.tenantTeam}</p>
@@ -545,7 +606,7 @@
 						<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
 						<span>{text.team.adding}</span>
 					{:else}
-						<Plus size={17} aria-hidden="true" />
+						<UserPlus size={17} aria-hidden="true" />
 						<span>{text.team.addMember}</span>
 					{/if}
 				</button>
@@ -561,7 +622,8 @@
 
 			{#if createMemberNotice}
 				<p class="text-sm text-[var(--color-text-muted)]" role="status">
-					{createMemberNotice} {text.team.pendingNoticeSuffix}
+					{createMemberNotice}
+					{text.team.pendingNoticeSuffix}
 				</p>
 			{/if}
 		{/if}
@@ -580,7 +642,7 @@
 	</section>
 {/if}
 
-<section class="product-panel" aria-label={text.team.teamRoster}>
+<section class="product-panel" aria-label="Workspace operator roster">
 	<LoadingBoundary loading={loadState === 'loading'} label={text.team.loadingMembers}>
 		{#if loadState === 'error' && errorMessage}
 			<ErrorPanel
@@ -597,27 +659,22 @@
 				</div>
 			</div>
 
-			<dl class="team-stat-list" role="group" aria-label={text.team.rosterCountsAria}>
-				<div class="team-stat-item">
-					<dt class="team-stat-item__label">{text.team.membersLabel}</dt>
-					<dd class="team-stat-item__value">{roster.members.length}</dd>
-				</div>
-			</dl>
-
 			{#if roster.members.length === 0}
-				<EmptyState
-					title={text.team.noMembersTitle}
-					description={text.team.noMembersBody}
-				/>
+				<EmptyState title={text.team.noMembersTitle} description={text.team.noMembersBody} />
 			{:else}
 				<div class="record-list">
 					{#each roster.members as member (member.userId)}
 						<article class="record-row" aria-label={member.email}>
 							<span class="record-row__header">
-								<span class="record-row__title">{member.email}</span>
+								<span>
+									<span class="record-row__title">{member.email}</span>
+									<span class="mt-1 block text-sm text-[var(--color-text-muted)]">
+										{currentTenantRole(member)?.name ?? 'Workspace role unavailable'}
+									</span>
+								</span>
 								<span class="flex flex-wrap gap-2">
-									<span class="status-badge" data-status={identityStatusBadge(member)}>
-										{identityStatusLabel(member)}
+									<span class="status-badge" data-status={memberStatusBadge(member)}>
+										{memberStatusLabel(member)}
 									</span>
 									{#if isCurrentUser(member.userId)}
 										<span class="status-badge" data-status="ready">{text.team.currentUser}</span>
@@ -640,94 +697,153 @@
 								</span>
 							</span>
 
-							<div class="grid gap-2">
-								<div>
-									<p class="record-field__label">{text.team.roles}</p>
-									<div
-										class="mt-2 flex flex-wrap gap-2"
-										role="group"
-										aria-label={`Assigned roles for ${member.email}`}
-									>
-										{#each member.roles as role (role.roleId)}
-											<span
-												class="inline-flex items-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs font-semibold text-[var(--color-text)]"
+							<div
+								class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+							>
+								<button
+									type="button"
+									class="quiet-button"
+									aria-expanded={Boolean(permissionDetailsOpen[member.userId])}
+									onclick={() => togglePermissionDetails(member)}
+								>
+									Role permissions
+								</button>
+								{#if permissionDetailsOpen[member.userId]}
+									<div class="mt-3 grid gap-2">
+										{#each toPermissionSummaries(member.permissions) as permission}
+											<div
+												class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
 											>
-												{role.name}
-											</span>
+												<span class="status-badge" data-status={permission.status}>
+													{permission.label}
+												</span>
+												<p class="mt-2 text-sm text-[var(--color-text-muted)]">
+													{permission.detail}
+												</p>
+											</div>
 										{/each}
 									</div>
-								</div>
-								<div>
-									<p class="record-field__label">{text.team.capabilities}</p>
-									<div
-										class="mt-2 flex flex-wrap gap-2"
-										role="group"
-										aria-label={`Capabilities for ${member.email}`}
-									>
-										{#each toMemberCapabilities(member.permissions) as capability}
-											<span class="status-badge" data-status={capability.status}>
-												{capability.label}
-											</span>
-										{/each}
-									</div>
-								</div>
+								{/if}
 							</div>
 
-							{#if canManageTeam && member.identityStatus !== 'active'}
-								<div class="grid gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
+							{#if canManageTeam && memberStatus(member) === 'invited'}
+								<div
+									class="grid gap-3 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center"
+								>
 									<div>
 										<p class="record-field__label">{text.team.firstSignIn}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											Send this link to {member.email}. They stay pending until Auth0 returns the
-											same email for this workspace.
+											{text.team.firstSignInBody(member.email)}
 										</p>
 									</div>
-									<a class="secondary-button" href={memberSignInUrl(member)}>{text.team.openLink}</a>
+									<a class="secondary-button" href={memberSignInUrl(member)}>
+										<ExternalLink size={16} aria-hidden="true" />
+										<span>{text.team.openLink}</span>
+									</a>
 									<button
 										type="button"
 										class="secondary-button"
 										onclick={() => void copyMemberSignInUrl(member)}
 									>
-										{copiedMemberUserId === member.userId ? text.team.copied : text.team.copyLink}
+										<Copy size={16} aria-hidden="true" />
+										<span
+											>{copiedMemberUserId === member.userId
+												? text.team.copied
+												: text.team.copyLink}</span
+										>
 									</button>
 								</div>
 							{/if}
 
-							{#if canManageTeam && !isCurrentUser(member.userId) && tenantRoles.length > 0}
-								<form
-									class="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_auto] md:items-end"
-									onsubmit={(event) => {
-										event.preventDefault();
-										void changeTenantMemberRole(member);
-									}}
-								>
-									<label class="field">
-										<span>{text.team.roleFor(member.email)}</span>
-										<select
-											value={selectedRoleCode(member)}
-											disabled={changingRoleUserId === member.userId}
-											onchange={(event) => updateRoleSelection(member, event.currentTarget.value)}
+							{#if canManageTeam && !isCurrentUser(member.userId)}
+								<div class="grid gap-3 xl:grid-cols-[minmax(14rem,1fr)_auto] xl:items-end">
+									{#if tenantRoles.length > 0}
+										<form
+											class="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_auto] md:items-end"
+											onsubmit={(event) => {
+												event.preventDefault();
+												void changeTenantMemberRole(member);
+											}}
 										>
-											{#each tenantRoles as role (role.roleId)}
-												<option value={role.code}>{role.name}</option>
-											{/each}
-										</select>
-									</label>
-									<button
-										type="submit"
-										class="secondary-button"
-										aria-label={text.team.changeRoleAria(member.email)}
-										disabled={!canSubmitRoleChange(member)}
-									>
-										{#if changingRoleUserId === member.userId}
-											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
-											<span>{text.team.saving}</span>
-										{:else}
-											<Check size={16} aria-hidden="true" />
-											<span>{text.team.changeRole}</span>
+											<label class="field">
+												<span>{text.team.roleFor(member.email)}</span>
+												<select
+													value={selectedRoleCode(member)}
+													disabled={changingRoleUserId === member.userId}
+													onchange={(event) =>
+														updateRoleSelection(member, event.currentTarget.value)}
+												>
+													{#each tenantRoles as role (role.roleId)}
+														<option value={role.code}>{role.name}</option>
+													{/each}
+												</select>
+											</label>
+											<button
+												type="submit"
+												class="secondary-button"
+												aria-label={text.team.changeRoleAria(member.email)}
+												disabled={!canSubmitRoleChange(member)}
+											>
+												{#if changingRoleUserId === member.userId}
+													<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+													<span>{text.team.saving}</span>
+												{:else}
+													<Check size={16} aria-hidden="true" />
+													<span>{text.team.changeRole}</span>
+												{/if}
+											</button>
+										</form>
+									{/if}
+
+									<div class="flex flex-wrap gap-2 xl:justify-end">
+										{#if memberStatus(member) === 'active'}
+											<button
+												type="button"
+												class="secondary-button"
+												aria-label={`Suspend ${member.email}`}
+												disabled={isMutatingAccess(member)}
+												onclick={() => void suspendTenantMember(member)}
+											>
+												{#if isMutatingAccess(member, 'suspend')}
+													<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+												{:else}
+													<ShieldOff size={16} aria-hidden="true" />
+												{/if}
+												<span>Suspend</span>
+											</button>
+										{:else if memberStatus(member) === 'suspended'}
+											<button
+												type="button"
+												class="secondary-button"
+												aria-label={`Reactivate ${member.email}`}
+												disabled={isMutatingAccess(member)}
+												onclick={() => void reactivateTenantMember(member)}
+											>
+												{#if isMutatingAccess(member, 'reactivate')}
+													<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+												{:else}
+													<RotateCcw size={16} aria-hidden="true" />
+												{/if}
+												<span>Reactivate</span>
+											</button>
 										{/if}
-									</button>
-								</form>
+
+										<button
+											type="button"
+											class="secondary-button"
+											aria-label={`Remove ${member.email}`}
+											disabled={isMutatingAccess(member)}
+											onclick={() => void removeTenantMember(member)}
+										>
+											{#if isMutatingAccess(member, 'remove')}
+												<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+											{:else}
+												<Trash2 size={16} aria-hidden="true" />
+											{/if}
+											<span>Remove</span>
+										</button>
+									</div>
+								</div>
 							{/if}
 						</article>
 					{/each}
@@ -735,6 +851,10 @@
 
 				{#if changeRoleError}
 					<p class="error-line" role="alert">{changeRoleError}</p>
+				{/if}
+
+				{#if accessMutationError}
+					<p class="error-line" role="alert">{accessMutationError}</p>
 				{/if}
 			{/if}
 		{/if}

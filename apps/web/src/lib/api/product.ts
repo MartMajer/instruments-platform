@@ -97,7 +97,16 @@ export type ExportArtifactLibrarySummaryResponse = {
 
 export type TenantMemberRosterResponse = {
 	tenantId: string;
+	summary: TenantMemberRosterSummaryResponse;
 	members: TenantMemberResponse[];
+};
+
+export type TenantMemberRosterSummaryResponse = {
+	totalCount: number;
+	activeCount: number;
+	invitedCount: number;
+	suspendedCount: number;
+	teamManagerCount: number;
 };
 
 export type TenantMemberResponse = {
@@ -106,7 +115,9 @@ export type TenantMemberResponse = {
 	locale: string;
 	createdAt: string;
 	lastLoginAt: string | null;
-	identityStatus: 'active' | 'pending_provider_link';
+	identityStatus: 'active' | 'pending_provider_link' | 'disabled';
+	status: 'active' | 'invited' | 'suspended';
+	statusLabel: string;
 	roles: TenantMemberRoleResponse[];
 	permissions: string[];
 };
@@ -143,6 +154,11 @@ export type ChangeTenantMemberRoleRequest = {
 
 export type TenantMemberMutationResponse = {
 	member: TenantMemberResponse;
+};
+
+export type TenantMemberRemovalResponse = {
+	userId: string;
+	removed: boolean;
 };
 
 export type SubjectDirectoryResponse = {
@@ -1361,6 +1377,20 @@ export function createProductApi(client: ApiClient) {
 				`/tenant-members/${encodeURIComponent(userId)}/tenant-role`,
 				jsonRequest('PUT', request)
 			),
+		suspendTenantMember: (userId: string) =>
+			client.request<TenantMemberMutationResponse>(
+				`/tenant-members/${encodeURIComponent(userId)}/suspend`,
+				jsonRequest('POST', {})
+			),
+		reactivateTenantMember: (userId: string) =>
+			client.request<TenantMemberMutationResponse>(
+				`/tenant-members/${encodeURIComponent(userId)}/reactivate`,
+				jsonRequest('POST', {})
+			),
+		removeTenantMember: (userId: string) =>
+			client.request<TenantMemberRemovalResponse>(`/tenant-members/${encodeURIComponent(userId)}`, {
+				method: 'DELETE'
+			}),
 		listCampaignSeries: (query?: CampaignSeriesPortfolioQuery) =>
 			client.request<CampaignSeriesListResponse>(withQuery('/campaign-series', query)),
 		renameCampaignSeries: (seriesId: string, request: RenameCampaignSeriesRequest) =>

@@ -2,6 +2,7 @@ using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Platform.Application.Auth;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
@@ -594,6 +595,21 @@ public sealed class ProductSurfaceWriteStore(
                 assignment.ScopeType == RoleAssignmentScopes.Tenant)
             .ToListAsync(cancellationToken);
 
+        if (tenantAssignments.Count == 0)
+        {
+            return Result.Failure<TenantMemberMutationResponse>(
+                Error.NotFound("tenant_member.not_found", "Tenant member was not found."));
+        }
+
+        if (await WouldRemoveLastViableTeamManagerAsync(
+            tenantId,
+            targetUserId,
+            replacementRoleId: role.Id,
+            cancellationToken))
+        {
+            return Result.Failure<TenantMemberMutationResponse>(CreateLastTeamManagerError());
+        }
+
         db.RoleAssignments.RemoveRange(tenantAssignments);
         db.RoleAssignments.Add(new RoleAssignment(
             PlatformIds.NewId(),
@@ -603,18 +619,124 @@ public sealed class ProductSurfaceWriteStore(
             RoleAssignmentScopes.Tenant,
             grantedBy: actorUserId));
 
-        var now = DateTimeOffset.UtcNow;
-        var activeSessions = await db.AuthSessions
-            .Where(session =>
-                session.TenantId == tenantId &&
-                session.UserId == targetUserId &&
-                session.RevokedAt == null &&
-                session.ExpiresAt > now)
+        await RevokeActiveTenantMemberSessionsAsync(
+            tenantId,
+            targetUserId,
+            DateTimeOffset.UtcNow,
+            "role_changed",
+            cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        var member = await LoadTenantMemberAsync(tenantId, targetUserId, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TenantMemberMutationResponse(member));
+    }
+
+    public async Task<Result<TenantMemberMutationResponse>> SuspendTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (targetUserId == actorUserId)
+        {
+            return Result.Failure<TenantMemberMutationResponse>(CreateSelfAccessChangeError());
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        if (!await TenantMemberHasTenantAssignmentAsync(tenantId, targetUserId, cancellationToken))
+        {
+            return Result.Failure<TenantMemberMutationResponse>(
+                Error.NotFound("tenant_member.not_found", "Tenant member was not found."));
+        }
+
+        if (await WouldRemoveLastViableTeamManagerAsync(
+            tenantId,
+            targetUserId,
+            replacementRoleId: null,
+            cancellationToken))
+        {
+            return Result.Failure<TenantMemberMutationResponse>(CreateLastTeamManagerError());
+        }
+
+        var identities = await db.ExternalAuthIdentities
+            .Where(identity =>
+                identity.TenantId == tenantId &&
+                identity.UserId == targetUserId)
             .ToListAsync(cancellationToken);
 
-        foreach (var session in activeSessions)
+        if (identities.Count == 0)
         {
-            session.Revoke(now, "role_changed");
+            return Result.Failure<TenantMemberMutationResponse>(
+                Error.Conflict(
+                    "tenant_member.no_provider_identity",
+                    "Invited members do not have provider access to suspend. Remove access instead."));
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var identity in identities)
+        {
+            identity.Disable(now);
+        }
+
+        await RevokeActiveTenantMemberSessionsAsync(
+            tenantId,
+            targetUserId,
+            now,
+            "member_suspended",
+            cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        var member = await LoadTenantMemberAsync(tenantId, targetUserId, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TenantMemberMutationResponse(member));
+    }
+
+    public async Task<Result<TenantMemberMutationResponse>> ReactivateTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (targetUserId == actorUserId)
+        {
+            return Result.Failure<TenantMemberMutationResponse>(CreateSelfAccessChangeError());
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        if (!await TenantMemberHasTenantAssignmentAsync(tenantId, targetUserId, cancellationToken))
+        {
+            return Result.Failure<TenantMemberMutationResponse>(
+                Error.NotFound("tenant_member.not_found", "Tenant member was not found."));
+        }
+
+        var identities = await db.ExternalAuthIdentities
+            .Where(identity =>
+                identity.TenantId == tenantId &&
+                identity.UserId == targetUserId)
+            .ToListAsync(cancellationToken);
+
+        if (!identities.Any(identity => identity.DisabledAt.HasValue))
+        {
+            return Result.Failure<TenantMemberMutationResponse>(
+                Error.Conflict("tenant_member.not_suspended", "Tenant member is not suspended."));
+        }
+
+        foreach (var identity in identities)
+        {
+            identity.Enable();
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -623,6 +745,65 @@ public sealed class ProductSurfaceWriteStore(
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new TenantMemberMutationResponse(member));
+    }
+
+    public async Task<Result<TenantMemberRemovalResponse>> RemoveTenantMemberAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (targetUserId == actorUserId)
+        {
+            return Result.Failure<TenantMemberRemovalResponse>(CreateSelfAccessChangeError());
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenantAssignments = await db.RoleAssignments
+            .Where(assignment =>
+                assignment.TenantId == tenantId &&
+                assignment.UserId == targetUserId &&
+                assignment.ScopeType == RoleAssignmentScopes.Tenant)
+            .ToListAsync(cancellationToken);
+
+        var userExists = await db.UserAccounts.AnyAsync(
+            user =>
+                user.TenantId == tenantId &&
+                user.Id == targetUserId &&
+                user.DeletedAt == null,
+            cancellationToken);
+
+        if (!userExists || tenantAssignments.Count == 0)
+        {
+            return Result.Failure<TenantMemberRemovalResponse>(
+                Error.NotFound("tenant_member.not_found", "Tenant member was not found."));
+        }
+
+        if (await WouldRemoveLastViableTeamManagerAsync(
+            tenantId,
+            targetUserId,
+            replacementRoleId: null,
+            cancellationToken))
+        {
+            return Result.Failure<TenantMemberRemovalResponse>(CreateLastTeamManagerError());
+        }
+
+        db.RoleAssignments.RemoveRange(tenantAssignments);
+        await RevokeActiveTenantMemberSessionsAsync(
+            tenantId,
+            targetUserId,
+            DateTimeOffset.UtcNow,
+            "member_removed",
+            cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TenantMemberRemovalResponse(targetUserId, Removed: true));
     }
 
     public async Task<Result<SubjectDirectoryItemResponse>> CreateSubjectAsync(
@@ -1280,6 +1461,185 @@ public sealed class ProductSurfaceWriteStore(
             "Sample studies are read-only. Duplicate the sample before changing it.");
     }
 
+    private static Error CreateSelfAccessChangeError()
+    {
+        return Error.Conflict(
+            "tenant_member.self_access_change",
+            "You cannot suspend, reactivate, or remove your own workspace access.");
+    }
+
+    private static Error CreateLastTeamManagerError()
+    {
+        return Error.Conflict(
+            "tenant_member.last_team_manager",
+            "At least one active or invited workspace access manager must remain.");
+    }
+
+    private async Task<bool> TenantMemberHasTenantAssignmentAsync(
+        Guid tenantId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await (
+                from user in db.UserAccounts
+                join assignment in db.RoleAssignments
+                    on user.Id equals assignment.UserId
+                where user.TenantId == tenantId &&
+                    user.Id == userId &&
+                    user.DeletedAt == null &&
+                    assignment.TenantId == tenantId &&
+                    assignment.ScopeType == RoleAssignmentScopes.Tenant
+                select user.Id)
+            .AnyAsync(cancellationToken);
+    }
+
+    private async Task<bool> WouldRemoveLastViableTeamManagerAsync(
+        Guid tenantId,
+        Guid targetUserId,
+        Guid? replacementRoleId,
+        CancellationToken cancellationToken)
+    {
+        var teamManageRoleIds = await GetTeamManageRoleIdsAsync(tenantId, cancellationToken);
+        if (teamManageRoleIds.Length == 0)
+        {
+            return false;
+        }
+
+        var targetHasTeamManage = await db.RoleAssignments.AnyAsync(
+            assignment =>
+                assignment.TenantId == tenantId &&
+                assignment.UserId == targetUserId &&
+                assignment.ScopeType == RoleAssignmentScopes.Tenant &&
+                teamManageRoleIds.Contains(assignment.RoleId),
+            cancellationToken);
+
+        if (!targetHasTeamManage)
+        {
+            return false;
+        }
+
+        if (replacementRoleId.HasValue && teamManageRoleIds.Contains(replacementRoleId.Value))
+        {
+            return false;
+        }
+
+        var viableTeamManagerUserIds = await GetViableTeamManagerUserIdsAsync(
+            tenantId,
+            teamManageRoleIds,
+            cancellationToken);
+
+        return viableTeamManagerUserIds.SequenceEqual([targetUserId]);
+    }
+
+    private async Task<Guid[]> GetTeamManageRoleIdsAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        return await (
+                from role in db.Roles.AsNoTracking()
+                join rolePermission in db.RolePermissions.AsNoTracking()
+                    on role.Id equals rolePermission.RoleId
+                join permission in db.Permissions.AsNoTracking()
+                    on rolePermission.PermissionId equals permission.Id
+                where role.TenantId == tenantId &&
+                    permission.Code == PlatformPermissions.TeamManage
+                select role.Id)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+    }
+
+    private async Task<Guid[]> GetViableTeamManagerUserIdsAsync(
+        Guid tenantId,
+        Guid[] teamManageRoleIds,
+        CancellationToken cancellationToken)
+    {
+        var managerUserIds = await (
+                from user in db.UserAccounts.AsNoTracking()
+                join assignment in db.RoleAssignments.AsNoTracking()
+                    on user.Id equals assignment.UserId
+                where user.TenantId == tenantId &&
+                    user.DeletedAt == null &&
+                    assignment.TenantId == tenantId &&
+                    assignment.ScopeType == RoleAssignmentScopes.Tenant &&
+                    teamManageRoleIds.Contains(assignment.RoleId)
+                select user.Id)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        if (managerUserIds.Length == 0)
+        {
+            return [];
+        }
+
+        var identityRows = await db.ExternalAuthIdentities
+            .AsNoTracking()
+            .Where(identity =>
+                identity.TenantId == tenantId &&
+                managerUserIds.Contains(identity.UserId))
+            .Select(identity => new TenantMemberIdentityStatusRow(
+                identity.UserId,
+                identity.DisabledAt))
+            .ToListAsync(cancellationToken);
+        var identityRowsByUser = identityRows
+            .GroupBy(row => row.UserId)
+            .ToDictionary(group => group.Key, group => group.Select(row => row.DisabledAt).ToArray());
+
+        return managerUserIds
+            .Where(userId =>
+                !identityRowsByUser.TryGetValue(userId, out var disabledAtValues) ||
+                disabledAtValues.Any(disabledAt => disabledAt is null))
+            .OrderBy(userId => userId)
+            .ToArray();
+    }
+
+    private async Task RevokeActiveTenantMemberSessionsAsync(
+        Guid tenantId,
+        Guid userId,
+        DateTimeOffset now,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        var activeSessions = await db.AuthSessions
+            .Where(session =>
+                session.TenantId == tenantId &&
+                session.UserId == userId &&
+                session.RevokedAt == null &&
+                session.ExpiresAt > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var session in activeSessions)
+        {
+            session.Revoke(now, reason);
+        }
+    }
+
+    private static string ResolveTenantMemberIdentityStatus(IEnumerable<DateTimeOffset?> disabledAtValues)
+    {
+        var values = disabledAtValues.ToArray();
+        if (values.Length == 0)
+        {
+            return TenantMemberIdentityStatuses.PendingProviderLink;
+        }
+
+        return values.Any(disabledAt => disabledAt is null)
+            ? TenantMemberIdentityStatuses.Active
+            : TenantMemberIdentityStatuses.Disabled;
+    }
+
+    private static (string Status, string Label) ResolveTenantMemberAccessStatus(string identityStatus)
+    {
+        return identityStatus switch
+        {
+            TenantMemberIdentityStatuses.Active => (
+                TenantMemberAccessStatuses.Active,
+                TenantMemberAccessStatusLabels.Active),
+            TenantMemberIdentityStatuses.Disabled => (
+                TenantMemberAccessStatuses.Suspended,
+                TenantMemberAccessStatusLabels.Suspended),
+            _ => (
+                TenantMemberAccessStatuses.Invited,
+                TenantMemberAccessStatusLabels.Invited)
+        };
+    }
+
     private async Task<TenantMemberResponse> LoadTenantMemberAsync(
         Guid tenantId,
         Guid userId,
@@ -1328,13 +1688,17 @@ public sealed class ProductSurfaceWriteStore(
                 .Distinct()
                 .OrderBy(code => code)
                 .ToArrayAsync(cancellationToken);
-        var hasActiveIdentity = await db.ExternalAuthIdentities
+        var identityRows = await db.ExternalAuthIdentities
             .AsNoTracking()
-            .AnyAsync(identity =>
+            .Where(identity =>
                 identity.TenantId == tenantId &&
-                identity.UserId == userId &&
-                identity.DisabledAt == null,
-                cancellationToken);
+                identity.UserId == userId)
+            .Select(identity => new TenantMemberIdentityStatusRow(
+                identity.UserId,
+                identity.DisabledAt))
+            .ToListAsync(cancellationToken);
+        var identityStatus = ResolveTenantMemberIdentityStatus(identityRows.Select(row => row.DisabledAt));
+        var accessStatus = ResolveTenantMemberAccessStatus(identityStatus);
 
         return new TenantMemberResponse(
             user.Id,
@@ -1344,9 +1708,9 @@ public sealed class ProductSurfaceWriteStore(
             user.LastLoginAt,
             roles,
             permissions,
-            hasActiveIdentity
-                ? TenantMemberIdentityStatuses.Active
-                : TenantMemberIdentityStatuses.PendingProviderLink);
+            identityStatus,
+            accessStatus.Status,
+            accessStatus.Label);
     }
 
     private async Task<SubjectDirectoryItemResponse> LoadSubjectDirectoryItemAsync(
@@ -1832,6 +2196,10 @@ public sealed class ProductSurfaceWriteStore(
             campaign.ClosedByUserId,
             campaign.CloseReason);
     }
+
+    private sealed record TenantMemberIdentityStatusRow(
+        Guid UserId,
+        DateTimeOffset? DisabledAt);
 
     private sealed record SubmittedSessionForScoreRemediation(Guid SessionId, Guid CampaignId);
 
