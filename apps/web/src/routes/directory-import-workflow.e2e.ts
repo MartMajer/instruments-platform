@@ -334,6 +334,30 @@ test('presents imported people as an operational directory with reversible statu
 	await expect(drawer.getByRole('button', { name: 'Reactivate' })).toBeVisible();
 });
 
+test('keeps all-status directory filter broad instead of falling back to active only', async ({
+	page
+}) => {
+	await page.unroute('**/subjects**');
+	const requestedSubjectUrls: string[] = [];
+	await routeStatusSensitiveSubjectDirectory(page, requestedSubjectUrls);
+	await routeGraphImportWorkspaceWithSavedRule(page);
+
+	await page.goto('/app/directory');
+
+	const peopleDirectory = page.getByTestId('workspace-people-directory');
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toHaveCount(1);
+	await expect(peopleDirectory.getByText('Adele Active')).toBeVisible();
+
+	await peopleDirectory.getByLabel('Status', { exact: true }).selectOption('all');
+	await peopleDirectory.getByRole('button', { name: 'Apply filters' }).click();
+
+	await expect.poll(() => requestedSubjectUrls.at(-1) ?? '').toContain('status=all');
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toHaveCount(3);
+	await expect(peopleDirectory.getByText('Adele Active')).toBeVisible();
+	await expect(peopleDirectory.getByText('Enzo Excluded')).toBeVisible();
+	await expect(peopleDirectory.getByText('Dora Deactivated')).toBeVisible();
+});
+
 async function routeAuthenticatedSession(page: Page) {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
@@ -543,6 +567,80 @@ async function routeOperationalSubjectDirectory(
 			}
 		});
 	});
+}
+
+async function routeStatusSensitiveSubjectDirectory(page: Page, requestedUrls: string[]) {
+	await page.route('**/subjects**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subjects')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		requestedUrls.push(route.request().url());
+		const status = new URL(route.request().url()).searchParams.get('status') ?? 'active';
+		const subjects =
+			status === 'all'
+				? [
+						directorySubject('000000000001', 'Adele Active', 'active'),
+						directorySubject('000000000002', 'Enzo Excluded', 'excluded'),
+						directorySubject('000000000003', 'Dora Deactivated', 'deactivated')
+					]
+				: [directorySubject('000000000001', 'Adele Active', 'active')];
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				summary: {
+					subjectCount: subjects.length,
+					filteredSubjectCount: subjects.length,
+					returnedSubjectCount: subjects.length,
+					groupCount: 0,
+					managerRelationshipCount: 0,
+					pageOffset: 0,
+					pageSize: 25,
+					hasMore: false
+				},
+				subjects
+			}
+		});
+	});
+	await page.route('**/subject-groups', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subject-groups')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({ json: { tenantId, groups: [] } });
+	});
+}
+
+function directorySubject(idSuffix: string, displayName: string, status: 'active' | 'excluded' | 'deactivated') {
+	return {
+		id: `66666666-6666-4666-8666-${idSuffix}`,
+		displayName,
+		email: `${displayName.toLowerCase().replaceAll(' ', '.')}@example.test`,
+		externalId: `msgraph:tenant:${idSuffix}`,
+		locale: 'en',
+		attributes: `{"directory_status":"${status}","directory_source":"microsoft_graph"}`,
+		managerSubjectId: null,
+		managerDisplayName: null,
+		directReportCount: 0,
+		groups: [],
+		source: 'microsoft_graph',
+		sourceLabel: 'Microsoft 365',
+		status,
+		statusLabel: statusLabel(status),
+		department: 'Retail',
+		jobTitle: 'Store lead',
+		employeeType: 'Staff',
+		officeLocation: 'Zagreb'
+	};
 }
 
 function statusLabel(status: 'active' | 'excluded' | 'deactivated') {

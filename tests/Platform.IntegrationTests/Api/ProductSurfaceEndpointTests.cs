@@ -581,6 +581,27 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Subjects_endpoint_preserves_explicit_broad_directory_filters()
+    {
+        var tenantId = Guid.NewGuid();
+        var store = new FakeProductSurfaceReadStore();
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/subjects?source=all&status=all&manager=any&contact=any",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.NotNull(store.SubjectDirectoryQuery);
+        Assert.Equal("all", store.SubjectDirectoryQuery.Source);
+        Assert.Equal("all", store.SubjectDirectoryQuery.Status);
+        Assert.Equal("any", store.SubjectDirectoryQuery.Manager);
+        Assert.Equal("any", store.SubjectDirectoryQuery.Contact);
+    }
+
+    [Fact]
     public async Task Deactivate_subject_endpoint_maps_safe_status_mutation()
     {
         var tenantId = Guid.NewGuid();

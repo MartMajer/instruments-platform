@@ -761,13 +761,27 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             "",
             "emp-no-email",
             """{"department":"Operations","job_title":"Coordinator"}""");
-        await SeedSubjectAsync(
+        var inactive = await SeedSubjectAsync(
             runtimeOptions,
             tenantId,
             "Manual Inactive",
             "inactive@example.test",
             "manual-001",
             """{"directory_status":"deactivated","directory_source":"manual","department":"Archive"}""");
+        var excluded = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Excluded Manual",
+            "excluded@example.test",
+            "manual-002",
+            """{"directory_status":"excluded","directory_source":"manual","department":"Archive"}""");
+        var csv = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "CSV Person",
+            "csv@example.test",
+            "csv-001",
+            """{"directory_source":"csv","department":"People Ops"}""");
         var retailGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
         await SeedSubjectMembershipAsync(runtimeOptions, tenantId, adele.Id, retailGroup.Id, SubjectGroupRoles.Member);
         await SeedSubjectRelationshipAsync(runtimeOptions, tenantId, manager.Id, adele.Id, SubjectRelationshipTypes.ManagerOf);
@@ -793,6 +807,15 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             tenantId,
             new SubjectDirectoryQuery(Status: "deactivated"),
             CancellationToken.None);
+        var broadFiltersResult = await store.ListSubjectsAsync(
+            tenantId,
+            new SubjectDirectoryQuery(
+                Source: "all",
+                Status: "all",
+                Manager: "any",
+                Contact: "any",
+                Take: 25),
+            CancellationToken.None);
 
         var microsoftSubject = Assert.Single(microsoftResult.Subjects);
         Assert.Equal(adele.Id, microsoftSubject.Id);
@@ -815,6 +838,14 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal("Manual Inactive", inactiveSubject.DisplayName);
         Assert.Equal("deactivated", inactiveSubject.Status);
         Assert.Equal("Deactivated", inactiveSubject.StatusLabel);
+
+        Assert.Equal(6, broadFiltersResult.Summary.FilteredSubjectCount);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == manager.Id);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == adele.Id);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == noEmail.Id);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == inactive.Id);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == excluded.Id);
+        Assert.Contains(broadFiltersResult.Subjects, subject => subject.Id == csv.Id);
     }
 
     [DockerFact]

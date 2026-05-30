@@ -234,7 +234,7 @@
 					take: directoryPageSize,
 					sort: normalizedSort,
 					source: normalizedSource === 'all' ? null : normalizedSource,
-					status: normalizedStatus === 'all' ? null : normalizedStatus,
+					status: normalizedStatus,
 					groupId: normalizedGroupId === 'all' ? null : normalizedGroupId,
 					manager: normalizedManager === 'any' ? null : normalizedManager,
 					contact: normalizedContact === 'any' ? null : normalizedContact
