@@ -1077,6 +1077,58 @@ test('workspace access route avoids proof-like capability panels and raw permiss
 	await expect(roster.getByText('team.manage', { exact: true })).toHaveCount(0);
 });
 
+test('workspace access explains selected operator roles before assignment changes', async ({
+	page
+}) => {
+	await page.goto('/app/team');
+
+	const addOperator = page.getByRole('region', { name: 'Add workspace operator' });
+	const addRoleDetails = addOperator.getByRole('region', { name: 'Role details for Tenant Owner' });
+	await expect(addRoleDetails).toHaveCount(0);
+
+	await addOperator.getByRole('button', { name: 'Role details for Tenant Owner' }).click();
+	await expect(addRoleDetails.getByText('Study setup and launch', { exact: true })).toBeVisible();
+	await expect(
+		addRoleDetails.getByText('Workspace access management', { exact: true })
+	).toBeVisible();
+	await expect(addRoleDetails.getByText('Reports and exports', { exact: true })).toBeVisible();
+	await expect(
+		addRoleDetails.getByText('This role can change access for other workspace operators.', {
+			exact: true
+		})
+	).toBeVisible();
+
+	await addOperator.getByLabel('Operator role').selectOption('analyst');
+	const analystAddRoleDetails = addOperator.getByRole('region', {
+		name: 'Role details for Analyst'
+	});
+	await expect(
+		analystAddRoleDetails.getByText('Reports and exports', { exact: true })
+	).toBeVisible();
+	await expect(
+		analystAddRoleDetails.getByText('Workspace access management', { exact: true })
+	).toHaveCount(0);
+
+	const analyst = page
+		.getByRole('region', { name: 'Workspace operator roster' })
+		.getByRole('article', { name: 'analyst@example.test' });
+	await analyst.getByRole('button', { name: 'Role details for selected role' }).click();
+	await expect(
+		analyst
+			.getByRole('region', { name: 'Role details for Analyst' })
+			.getByText('Reports and exports', { exact: true })
+	).toBeVisible();
+
+	await analyst
+		.getByRole('combobox', { name: 'Role for analyst@example.test' })
+		.selectOption('tenant_owner');
+	await expect(
+		analyst
+			.getByRole('region', { name: 'Role details for Tenant Owner' })
+			.getByText('Workspace access management', { exact: true })
+	).toBeVisible();
+});
+
 test('renders tenant member roster read-only without team management permission', async ({
 	page
 }) => {

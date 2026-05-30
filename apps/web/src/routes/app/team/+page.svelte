@@ -8,6 +8,7 @@
 		Check,
 		Copy,
 		ExternalLink,
+		Info,
 		LoaderCircle,
 		RotateCcw,
 		ShieldOff,
@@ -67,6 +68,8 @@
 	let changeRoleError = $state<string | null>(null);
 	let copiedMemberUserId = $state<string | null>(null);
 	let roleSelections = $state<Record<string, string>>({});
+	let addRoleDetailsOpen = $state(false);
+	let memberRoleDetailsOpen = $state<Record<string, boolean>>({});
 	let permissionDetailsOpen = $state<Record<string, boolean>>({});
 	let accessMutationUserId = $state<string | null>(null);
 	let accessMutation = $state<AccessMutation | null>(null);
@@ -273,6 +276,13 @@
 		};
 	}
 
+	function toggleMemberRoleDetails(member: TenantMemberResponse) {
+		memberRoleDetailsOpen = {
+			...memberRoleDetailsOpen,
+			[member.userId]: !memberRoleDetailsOpen[member.userId]
+		};
+	}
+
 	function syncRoleSelections(nextRoster: TenantMemberRosterResponse | null) {
 		if (!nextRoster) {
 			roleSelections = {};
@@ -292,6 +302,33 @@
 
 	function selectedRoleCode(member: TenantMemberResponse) {
 		return roleSelections[member.userId] ?? currentTenantRole(member)?.code ?? '';
+	}
+
+	function tenantRoleByCode(roleCode: string) {
+		return tenantRoles.find((role) => role.code === roleCode) ?? null;
+	}
+
+	function selectedNewMemberRole() {
+		return tenantRoleByCode(newMemberRoleCode);
+	}
+
+	function selectedTenantRole(member: TenantMemberResponse): TenantRoleResponse | null {
+		const selectedRole = tenantRoleByCode(selectedRoleCode(member));
+		if (selectedRole) {
+			return selectedRole;
+		}
+
+		const assignedRole = currentTenantRole(member);
+		if (!assignedRole) {
+			return null;
+		}
+
+		return {
+			roleId: assignedRole.roleId,
+			code: assignedRole.code,
+			name: assignedRole.name,
+			permissions: member.permissions
+		};
 	}
 
 	function canSubmitRoleChange(member: TenantMemberResponse) {
@@ -370,6 +407,10 @@
 		}
 
 		return summaries;
+	}
+
+	function roleDetailsLabel(role: TenantRoleResponse | null) {
+		return `Role details for ${role?.name ?? 'selected role'}`;
 	}
 
 	function toWorkspaceAccessRows(nextRoster: TenantMemberRosterResponse | null) {
@@ -580,9 +621,23 @@
 					/>
 				</label>
 
-				<label class="field">
-					<span>{text.team.memberRole}</span>
+				<div class="field">
+					<div class="flex items-center justify-between gap-2">
+						<label class="label" for="new-member-role">{text.team.memberRole}</label>
+						<button
+							type="button"
+							class="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
+							aria-label={roleDetailsLabel(selectedNewMemberRole())}
+							aria-expanded={addRoleDetailsOpen}
+							aria-controls="new-member-role-details"
+							disabled={!selectedNewMemberRole()}
+							onclick={() => (addRoleDetailsOpen = !addRoleDetailsOpen)}
+						>
+							<Info size={16} aria-hidden="true" />
+						</button>
+					</div>
 					<select
+						id="new-member-role"
 						bind:value={newMemberRoleCode}
 						disabled={creatingMember || roleLoadState !== 'ready' || tenantRoles.length === 0}
 					>
@@ -590,7 +645,38 @@
 							<option value={role.code}>{role.name}</option>
 						{/each}
 					</select>
-				</label>
+					{#if addRoleDetailsOpen && selectedNewMemberRole()}
+						<div
+							id="new-member-role-details"
+							class="grid gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+							role="region"
+							aria-label={roleDetailsLabel(selectedNewMemberRole())}
+						>
+							<p class="text-sm font-semibold text-[var(--color-text)]">
+								{selectedNewMemberRole()?.name}
+							</p>
+							<div class="grid gap-2">
+								{#each toPermissionSummaries(selectedNewMemberRole()?.permissions ?? []) as permission}
+									<div
+										class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
+									>
+										<span class="status-badge" data-status={permission.status}>
+											{permission.label}
+										</span>
+										<p class="mt-2 text-sm text-[var(--color-text-muted)]">
+											{permission.detail}
+										</p>
+									</div>
+								{/each}
+							</div>
+							{#if selectedNewMemberRole()?.permissions.includes(teamManagePermission)}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									This role can change access for other workspace operators.
+								</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
 
 				<label class="field">
 					<span>{text.team.memberLocale}</span>
@@ -765,9 +851,25 @@
 												void changeTenantMemberRole(member);
 											}}
 										>
-											<label class="field">
-												<span>{text.team.roleFor(member.email)}</span>
+											<div class="field">
+												<div class="flex items-center justify-between gap-2">
+													<label class="label" for={`member-role-${member.userId}`}>
+														{text.team.roleFor(member.email)}
+													</label>
+													<button
+														type="button"
+														class="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
+														aria-label="Role details for selected role"
+														aria-expanded={Boolean(memberRoleDetailsOpen[member.userId])}
+														aria-controls={`member-role-details-${member.userId}`}
+														disabled={!selectedTenantRole(member)}
+														onclick={() => toggleMemberRoleDetails(member)}
+													>
+														<Info size={16} aria-hidden="true" />
+													</button>
+												</div>
 												<select
+													id={`member-role-${member.userId}`}
 													value={selectedRoleCode(member)}
 													disabled={changingRoleUserId === member.userId}
 													onchange={(event) =>
@@ -777,7 +879,38 @@
 														<option value={role.code}>{role.name}</option>
 													{/each}
 												</select>
-											</label>
+												{#if memberRoleDetailsOpen[member.userId] && selectedTenantRole(member)}
+													<div
+														id={`member-role-details-${member.userId}`}
+														class="grid gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+														role="region"
+														aria-label={roleDetailsLabel(selectedTenantRole(member))}
+													>
+														<p class="text-sm font-semibold text-[var(--color-text)]">
+															{selectedTenantRole(member)?.name}
+														</p>
+														<div class="grid gap-2">
+															{#each toPermissionSummaries(selectedTenantRole(member)?.permissions ?? []) as permission}
+																<div
+																	class="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
+																>
+																	<span class="status-badge" data-status={permission.status}>
+																		{permission.label}
+																	</span>
+																	<p class="mt-2 text-sm text-[var(--color-text-muted)]">
+																		{permission.detail}
+																	</p>
+																</div>
+															{/each}
+														</div>
+														{#if selectedTenantRole(member)?.permissions.includes(teamManagePermission)}
+															<p class="text-sm text-[var(--color-text-muted)]">
+																This role can change access for other workspace operators.
+															</p>
+														{/if}
+													</div>
+												{/if}
+											</div>
 											<button
 												type="submit"
 												class="secondary-button"
