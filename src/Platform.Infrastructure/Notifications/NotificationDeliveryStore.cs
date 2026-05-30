@@ -757,7 +757,8 @@ public sealed class NotificationDeliveryStore(
                     workItem.DeliveryAttemptKey,
                     workItem.Recipient,
                     workItem.Subject,
-                    workItem.BodyText),
+                    workItem.BodyText,
+                    workItem.UnsubscribeUrl),
                 cancellationToken);
 
             return await CompletePreparedDeliveryAsync(
@@ -1601,6 +1602,11 @@ public sealed class NotificationDeliveryStore(
         if (string.Equals(provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase))
         {
             return EmailDeliveryProviderNames.Smtp;
+        }
+
+        if (string.Equals(provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return EmailDeliveryProviderNames.AzureCommunicationEmail;
         }
 
         return UnknownProvider;

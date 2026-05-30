@@ -152,6 +152,8 @@ public static class DependencyInjection
         });
         services.AddScoped<LocalDevEmailDeliveryProvider>();
         services.AddScoped<SmtpEmailDeliveryProvider>();
+        services.AddScoped<AzureCommunicationEmailDeliveryProvider>();
+        services.AddScoped<IAzureCommunicationEmailSender, AzureCommunicationEmailSdkSender>();
         services
             .AddHttpClient<IAwsSnsSignatureVerifier, AwsSnsSignatureVerifier>()
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
@@ -170,8 +172,8 @@ public static class DependencyInjection
             var options = serviceProvider.GetRequiredService<IOptions<EmailDeliveryOptions>>().Value;
             options.EnsureValidProviderConfiguration();
 
-            return string.Equals(options.Provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase)
-                ? serviceProvider.GetRequiredService<SmtpEmailDeliveryProvider>()
+            return string.Equals(options.Provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<AzureCommunicationEmailDeliveryProvider>()
                 : serviceProvider.GetRequiredService<LocalDevEmailDeliveryProvider>();
         });
 
