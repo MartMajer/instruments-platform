@@ -1,5 +1,7 @@
 ﻿import type { CreateQuestionScaleRequest, CreateTemplateQuestionRequest } from '$lib/api/setup';
 
+import type { RespondentQuestionResponse } from '$lib/api/setup';
+
 export type TemplateQuestionAnswerType =
 	| 'likert'
 	| 'single'
@@ -294,7 +296,8 @@ export function listStudyAuthoringPresetOptions(): StudyAuthoringPresetOption[] 
 			id: 'blank',
 			label: 'Blank study',
 			summary: 'Start with three editable placeholder questions.',
-			detail: 'Use this when the study structure is already clear and you want to write everything manually.',
+			detail:
+				'Use this when the study structure is already clear and you want to write everything manually.',
 			questionCount: 3
 		},
 		{
@@ -349,8 +352,7 @@ function createOshErgonomicsTemplateQuestionRows(): TemplateQuestionAuthoringRow
 			ordinal: 3,
 			code: 'awkward_posture_frequency',
 			dimensionLabel: 'Posture and repetition',
-			textDefault:
-				'I often worked in awkward postures, repetitive movements, or fixed positions.',
+			textDefault: 'I often worked in awkward postures, repetitive movements, or fixed positions.',
 			scalePreset: 'frequency_5',
 			scaleLowLabel: 'Never',
 			scaleHighLabel: 'Always'
@@ -499,7 +501,11 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 		}
 
 		if (isScaleBackedType(row.type)) {
-			if (!Number.isFinite(row.scaleMin) || !Number.isFinite(row.scaleMax) || row.scaleMin >= row.scaleMax) {
+			if (
+				!Number.isFinite(row.scaleMin) ||
+				!Number.isFinite(row.scaleMax) ||
+				row.scaleMin >= row.scaleMax
+			) {
 				errors.push(`Question ${index + 1} needs a valid scale range.`);
 			}
 
@@ -519,7 +525,9 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 			const numberMin = nullableNumber(row.numberMin);
 			const numberMax = nullableNumber(row.numberMax);
 			if (numberMin !== null && numberMax !== null && numberMin > numberMax) {
-				errors.push(`Question ${index + 1} number minimum must be less than or equal to the maximum.`);
+				errors.push(
+					`Question ${index + 1} number minimum must be less than or equal to the maximum.`
+				);
 			}
 		}
 
@@ -582,7 +590,9 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 				errors.push(`Question ${index + 1} display rule source must be a single-choice question.`);
 			} else {
 				const sourceOptions = choiceOptionPayloads(source);
-				if (!sourceOptions.some((option) => option.code === row.displayLogicSourceOptionCode.trim())) {
+				if (
+					!sourceOptions.some((option) => option.code === row.displayLogicSourceOptionCode.trim())
+				) {
 					errors.push(`Question ${index + 1} display rule needs one source answer.`);
 				}
 			}
@@ -695,6 +705,36 @@ export function toCreateTemplateQuestions(
 	}));
 }
 
+export function toDraftRespondentQuestions(
+	rows: TemplateQuestionAuthoringRow[]
+): RespondentQuestionResponse[] {
+	const scaleByCode = new Map(toCreateQuestionScales(rows).map((scale) => [scale.code, scale]));
+	const usedIds = new Set<string>();
+
+	return toCreateTemplateQuestions(rows).map((question) => {
+		const scale = question.scaleCode ? scaleByCode.get(question.scaleCode) : null;
+		const baseId = draftRespondentQuestionId(question.code);
+		const id = usedIds.has(baseId) ? `${baseId}-${question.ordinal}` : baseId;
+		usedIds.add(id);
+
+		return {
+			id,
+			ordinal: question.ordinal,
+			code: question.code,
+			type: question.type,
+			textDefault: question.textDefault,
+			required: question.required,
+			scaleId: null,
+			scaleCode: question.scaleCode ?? null,
+			scaleMinValue: scale?.minValue ?? null,
+			scaleMaxValue: scale?.maxValue ?? null,
+			scaleNaAllowed: scale?.naAllowed ?? null,
+			scaleAnchors: scale?.anchors ?? null,
+			payload: question.payload
+		};
+	});
+}
+
 export function buildMeanScoringDocument(
 	ruleId: string,
 	rows: TemplateQuestionAuthoringRow[],
@@ -708,7 +748,8 @@ export function buildMeanScoringDocument(
 			calculation: options.aggregation ?? 'mean',
 			missingStrategy: options.missingStrategy ?? 'require_all',
 			minValidCount: Math.max(1, options.minValidCount ?? 1),
-			includedQuestionCodes: options.includedQuestionCodes ?? rows.filter(isMeanScoreEligible).map((row) => row.code)
+			includedQuestionCodes:
+				options.includedQuestionCodes ?? rows.filter(isMeanScoreEligible).map((row) => row.code)
 		}
 	]);
 }
@@ -801,10 +842,7 @@ export function appendScoreOutputRow(
 	const fallbackRows = rows.filter(isMeanScoreEligible);
 	const includedRows = selectedDimensionRows.length ? selectedDimensionRows : fallbackRows;
 	const defaultName = selectedDimension?.label ?? `Dimension ${index}`;
-	const defaultCode = nextScoreCode(
-		outputs,
-		selectedDimension?.code ?? `dimension_${index}`
-	);
+	const defaultCode = nextScoreCode(outputs, selectedDimension?.code ?? `dimension_${index}`);
 	return [
 		...outputs,
 		{
@@ -953,7 +991,9 @@ export function buildScoringDocument(
 				(code) => code.trim().toLowerCase() === row.code.trim().toLowerCase()
 			)
 		);
-		const outputReverseRows = outputRows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
+		const outputReverseRows = outputRows.filter(
+			(row) => row.reverseCoded && isScaleBackedType(row.type)
+		);
 		const aggregateInput = reverseScale && outputReverseRows.length > 0 ? reverseId : answersId;
 
 		inputs.push({ id: inputId, kind: 'answers', items: outputRows.map((row) => row.code.trim()) });
@@ -1078,7 +1118,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'number',
 			label: 'Number entry',
-			detail: 'Respondents enter a numeric value. Use this for counts, minutes, ratings with known units, or direct measurements.'
+			detail:
+				'Respondents enter a numeric value. Use this for counts, minutes, ratings with known units, or direct measurements.'
 		};
 	}
 
@@ -1086,7 +1127,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'written',
 			label: 'Written response',
-			detail: 'Respondents write free text. This is collected for review but is not included in numeric scoring.'
+			detail:
+				'Respondents write free text. This is collected for review but is not included in numeric scoring.'
 		};
 	}
 
@@ -1094,7 +1136,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'date',
 			label: 'Date',
-			detail: 'Respondents provide a date. This is collected for context and is not included in numeric scoring.'
+			detail:
+				'Respondents provide a date. This is collected for context and is not included in numeric scoring.'
 		};
 	}
 
@@ -1102,7 +1145,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'ranking',
 			label: 'Ranking',
-			detail: 'Respondents order choices. Ranking can support descriptive review but is not included in current numeric result outputs.'
+			detail:
+				'Respondents order choices. Ranking can support descriptive review but is not included in current numeric result outputs.'
 		};
 	}
 
@@ -1119,7 +1163,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'choice',
 			label: row.type === 'single' ? 'Single choice' : 'Multiple choice',
-			detail: 'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.'
+			detail:
+				'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.'
 		};
 	}
 
@@ -1127,7 +1172,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'recommendation',
 			label: 'Recommendation scale',
-			detail: 'Respondents answer on a recommendation-style numeric scale. Higher values increase included result scores unless reversed.'
+			detail:
+				'Respondents answer on a recommendation-style numeric scale. Higher values increase included result scores unless reversed.'
 		};
 	}
 
@@ -1138,7 +1184,8 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'frequency',
 			label: 'Frequency scale',
-			detail: 'Respondents report how often something happens. Higher answers increase included result scores unless reversed.'
+			detail:
+				'Respondents report how often something happens. Higher answers increase included result scores unless reversed.'
 		};
 	}
 
@@ -1146,22 +1193,30 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'agreement',
 			label: 'Agreement scale',
-			detail: 'Respondents report how much they agree with a statement. Higher answers increase included result scores unless reversed.'
+			detail:
+				'Respondents report how much they agree with a statement. Higher answers increase included result scores unless reversed.'
 		};
 	}
 
-	if (low.includes('low') || high.includes('high') || high.includes('extreme') || high.includes('very')) {
+	if (
+		low.includes('low') ||
+		high.includes('high') ||
+		high.includes('extreme') ||
+		high.includes('very')
+	) {
 		return {
 			kind: 'intensity',
 			label: 'Intensity scale',
-			detail: 'Respondents report strength or intensity. Higher answers increase included result scores unless reversed.'
+			detail:
+				'Respondents report strength or intensity. Higher answers increase included result scores unless reversed.'
 		};
 	}
 
 	return {
 		kind: 'rating',
 		label: 'Rating scale',
-		detail: 'Respondents answer on a numeric rating scale. Higher answers increase included result scores unless reversed.'
+		detail:
+			'Respondents answer on a numeric rating scale. Higher answers increase included result scores unless reversed.'
 	};
 }
 
@@ -1218,7 +1273,7 @@ export function summarizeScorePlan(
 						? `Requires every selected question; includes ${conditionalQuestionCount} conditional ${
 								conditionalQuestionCount === 1 ? 'question that may' : 'questions that may'
 							} be hidden and saved as skipped`
-					: 'Requires every selected question'
+						: 'Requires every selected question'
 		};
 	});
 }
@@ -1241,13 +1296,18 @@ export function summarizeResultsBlueprintReview(
 	const affectedReverseCodes = new Set(reverseRows.map((row) => row.code.trim().toLowerCase()));
 	const affectedReverseOutputLabels = normalizedOutputs
 		.filter((output) =>
-			output.includedQuestionCodes.some((code) => affectedReverseCodes.has(code.trim().toLowerCase()))
+			output.includedQuestionCodes.some((code) =>
+				affectedReverseCodes.has(code.trim().toLowerCase())
+			)
 		)
 		.map((output) => output.name.trim() || output.code);
 	const allRequireEveryQuestion =
 		normalizedOutputs.length > 0 &&
 		normalizedOutputs.every((output) => output.missingStrategy === 'require_all');
-	const strictConditionalQuestionCount = countStrictConditionalScoreQuestions(normalizedOutputs, rows);
+	const strictConditionalQuestionCount = countStrictConditionalScoreQuestions(
+		normalizedOutputs,
+		rows
+	);
 	const scaleCompatibilityWarnings = normalizedOutputs
 		.map((output) => scoreScaleCompatibilityWarning(output, rows))
 		.filter((warning): warning is string => Boolean(warning));
@@ -1397,12 +1457,14 @@ export function summarizeReverseScoringReview(
 export function summarizeCollectedContextQuestions(
 	rows: TemplateQuestionAuthoringRow[]
 ): CollectedContextQuestionSummary[] {
-	return rows.filter((row) => !isMeanScoreEligible(row)).map((row) => ({
-		code: row.code,
-		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
-		typeLabel: describeQuestionScaleIntent(row).label,
-		text: questionTitle(row)
-	}));
+	return rows
+		.filter((row) => !isMeanScoreEligible(row))
+		.map((row) => ({
+			code: row.code,
+			dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
+			typeLabel: describeQuestionScaleIntent(row).label,
+			text: questionTitle(row)
+		}));
 }
 
 export function summarizeRespondentQuestionPreview(
@@ -1588,7 +1650,10 @@ function scoreScaleCompatibilityWarning(
 	])}. Create separate result outputs or normalize outside this release.`;
 }
 
-function scoreScaleFamilyForQuestion(row: TemplateQuestionAuthoringRow): { id: string; label: string } {
+function scoreScaleFamilyForQuestion(row: TemplateQuestionAuthoringRow): {
+	id: string;
+	label: string;
+} {
 	if (row.type === 'number') {
 		if (
 			row.scalePreset === 'discomfort_0_10' ||
@@ -1772,6 +1837,16 @@ function questionScaleCode(row: TemplateQuestionAuthoringRow): string {
 	return `scale_${row.code.trim().toLowerCase()}`;
 }
 
+function draftRespondentQuestionId(code: string): string {
+	const normalized =
+		code
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9_-]+/g, '-')
+			.replace(/^-+|-+$/g, '') || 'question';
+	return `draft-${normalized}`;
+}
+
 function measurementLevelFor(row: TemplateQuestionAuthoringRow): string | null {
 	if (row.type === 'likert' || row.type === 'nps') {
 		return 'ordinal';
@@ -1883,7 +1958,10 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	return payloadString(row, {});
 }
 
-function payloadString(row: TemplateQuestionAuthoringRow, payload: Record<string, unknown>): string {
+function payloadString(
+	row: TemplateQuestionAuthoringRow,
+	payload: Record<string, unknown>
+): string {
 	const displayLogic = displayLogicPayload(row);
 	return JSON.stringify(displayLogic ? { ...payload, displayLogic } : payload);
 }
@@ -2232,7 +2310,9 @@ export function toDraftRespondentPreviewContract(
 		.sort((left, right) => left.ordinal - right.ordinal)
 		.map((row, index) => toDraftRespondentPreviewQuestion(row, index, scoreOutputs));
 	const warningCount = questions.reduce((sum, question) => sum + question.warnings.length, 0);
-	const unsupportedCount = questions.filter((question) => question.controlType === 'unsupported').length;
+	const unsupportedCount = questions.filter(
+		(question) => question.controlType === 'unsupported'
+	).length;
 	const controls = Array.from(
 		questions.reduce((map, question) => {
 			const current = map.get(question.answerFormatLabel) ?? 0;
@@ -2310,7 +2390,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: question.type === 'nps' ? '0-10 rating' : 'Rating scale',
 			answerFormatDetail: `Respondents choose one value from ${question.scaleMin} to ${question.scaleMax}.`,
-			responsePreviewLabel: 'SurveyJS rating control',
+			responsePreviewLabel: 'First-party rating buttons',
 			scaleMin: question.scaleMin,
 			scaleMax: question.scaleMax,
 			scaleLowLabel: question.scaleLowLabel,
@@ -2325,7 +2405,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: 'Single choice',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS radio group',
+			responsePreviewLabel: 'First-party single-choice buttons',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2340,7 +2420,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: 'Multiple choice',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS checkbox group',
+			responsePreviewLabel: 'First-party multi-choice buttons',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2355,7 +2435,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: 'Ranking',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS ranking control',
+			responsePreviewLabel: 'First-party ranking buttons',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2370,7 +2450,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: 'Matrix / grid',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS single-select matrix',
+			responsePreviewLabel: 'First-party matrix buttons',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2385,7 +2465,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: 'number',
 			answerFormatLabel: 'Number input',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS text control with number input',
+			responsePreviewLabel: 'First-party number input',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2400,7 +2480,7 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: 'date',
 			answerFormatLabel: 'Date input',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: 'SurveyJS text control with date input',
+			responsePreviewLabel: 'First-party date input',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2415,7 +2495,9 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 			inputType: null,
 			answerFormatLabel: 'Text input',
 			answerFormatDetail: answerFormatDetail(question),
-			responsePreviewLabel: question.textMultiline ? 'SurveyJS long text control' : 'SurveyJS text control',
+			responsePreviewLabel: question.textMultiline
+				? 'First-party long text input'
+				: 'First-party text input',
 			scaleMin: null,
 			scaleMax: null,
 			scaleLowLabel: null,
@@ -2437,7 +2519,9 @@ function draftRuntimeControl(question: TemplateQuestionAuthoringRow) {
 	};
 }
 
-function draftRuntimeChoices(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+function draftRuntimeChoices(
+	question: TemplateQuestionAuthoringRow
+): DraftRespondentPreviewChoice[] {
 	if (question.type !== 'single' && question.type !== 'multi' && question.type !== 'ranking') {
 		return [];
 	}
@@ -2452,7 +2536,9 @@ function draftRuntimeChoices(question: TemplateQuestionAuthoringRow): DraftRespo
 	}));
 }
 
-function draftRuntimeMatrixRows(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+function draftRuntimeMatrixRows(
+	question: TemplateQuestionAuthoringRow
+): DraftRespondentPreviewChoice[] {
 	if (question.type !== 'matrix') {
 		return [];
 	}
@@ -2463,7 +2549,9 @@ function draftRuntimeMatrixRows(question: TemplateQuestionAuthoringRow): DraftRe
 	}));
 }
 
-function draftRuntimeMatrixColumns(question: TemplateQuestionAuthoringRow): DraftRespondentPreviewChoice[] {
+function draftRuntimeMatrixColumns(
+	question: TemplateQuestionAuthoringRow
+): DraftRespondentPreviewChoice[] {
 	if (question.type !== 'matrix') {
 		return [];
 	}
@@ -2488,15 +2576,24 @@ function draftRuntimeWarnings(
 		warnings.push('This answer format cannot be rendered by the current respondent runtime.');
 	}
 
-	if ((question.type === 'likert' || question.type === 'nps') && question.scaleMin >= question.scaleMax) {
+	if (
+		(question.type === 'likert' || question.type === 'nps') &&
+		question.scaleMin >= question.scaleMax
+	) {
 		warnings.push('Rating scale minimum must be lower than the maximum.');
 	}
 
-	if ((question.type === 'likert' || question.type === 'nps') && (!question.scaleLowLabel.trim() || !question.scaleHighLabel.trim())) {
+	if (
+		(question.type === 'likert' || question.type === 'nps') &&
+		(!question.scaleLowLabel.trim() || !question.scaleHighLabel.trim())
+	) {
 		warnings.push('Rating endpoint labels should be visible before respondents answer.');
 	}
 
-	if ((question.type === 'single' || question.type === 'multi' || question.type === 'ranking') && question.choiceOptions.length < 2) {
+	if (
+		(question.type === 'single' || question.type === 'multi' || question.type === 'ranking') &&
+		question.choiceOptions.length < 2
+	) {
 		warnings.push('Choice and ranking questions need at least two options.');
 	}
 
@@ -2568,7 +2665,8 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			label: 'Blank questionnaire',
 			category: 'Build your own',
 			summary: 'Start with one editable rating question and define the study yourself.',
-			detail: 'Best when the researcher already knows the constructs, item wording, and scoring plan.',
+			detail:
+				'Best when the researcher already knows the constructs, item wording, and scoring plan.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('blank').length,
 			resultOutputs: ['Custom result']
 		},
@@ -2576,8 +2674,10 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'workload_recovery',
 			label: 'Workload and recovery',
 			category: 'Original editable starter',
-			summary: 'Original editable items for workload pressure, mental drain, recovery, control, and support.',
-			detail: 'Burnout-adjacent without naming or copying a named instrument. Edit wording before launch.',
+			summary:
+				'Original editable items for workload pressure, mental drain, recovery, control, and support.',
+			detail:
+				'Burnout-adjacent without naming or copying a named instrument. Edit wording before launch.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('workload_recovery').length,
 			resultOutputs: ['Workload strain', 'Recovery capacity', 'Work climate context']
 		},
@@ -2585,8 +2685,10 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'osh_ergonomics',
 			label: 'OSH / ergonomics',
 			category: 'Original editable starter',
-			summary: 'Original editable workplace-risk items for posture, repetition, discomfort, and recovery.',
-			detail: 'Useful for occupational-safety discovery work. Not a validated named instrument by itself.',
+			summary:
+				'Original editable workplace-risk items for posture, repetition, discomfort, and recovery.',
+			detail:
+				'Useful for occupational-safety discovery work. Not a validated named instrument by itself.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('osh_ergonomics').length,
 			resultOutputs: ['Posture and repetition', 'Discomfort severity', 'Recovery and control']
 		},
@@ -2594,8 +2696,10 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'office_ergonomics',
 			label: 'Office ergonomics',
 			category: 'Persona starter',
-			summary: 'Original editable office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
-			detail: 'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.',
+			summary:
+				'Original editable office-work items for workstation fit, screen strain, input-device strain, and interruptions.',
+			detail:
+				'Designed for hybrid or desk-based teams where ergonomics and focus conditions both matter.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('office_ergonomics').length,
 			resultOutputs: ['Workstation strain', 'Focus conditions']
 		},
@@ -2603,8 +2707,10 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'academic_workload',
 			label: 'Academic workload',
 			category: 'Persona starter',
-			summary: 'Original editable items for teaching/research load, admin pressure, supervision clarity, and recovery.',
-			detail: 'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.',
+			summary:
+				'Original editable items for teaching/research load, admin pressure, supervision clarity, and recovery.',
+			detail:
+				'Useful for professor-led studies and department workload checks. Keep interpretation study-specific.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('academic_workload').length,
 			resultOutputs: ['Academic workload strain', 'Support and clarity']
 		},
@@ -2612,7 +2718,8 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'team_climate',
 			label: 'Team climate pulse',
 			category: 'Original editable starter',
-			summary: 'Original editable items for role clarity, support, communication, fairness, and psychological safety.',
+			summary:
+				'Original editable items for role clarity, support, communication, fairness, and psychological safety.',
 			detail: 'A compact team-health pulse for repeated waves or a one-off internal review.',
 			questionCount: createTemplateQuestionRowsForQuestionnairePalette('team_climate').length,
 			resultOutputs: ['Team climate', 'Workload fairness']
@@ -2621,9 +2728,12 @@ export function listQuestionnairePaletteOptions(): QuestionnairePaletteOption[] 
 			id: 'healthcare_staff_strain',
 			label: 'Healthcare staff strain',
 			category: 'Persona starter',
-			summary: 'Original editable items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
-			detail: 'Useful for owner-controlled rehearsal and future hospital discovery without clinical or diagnostic claims.',
-			questionCount: createTemplateQuestionRowsForQuestionnairePalette('healthcare_staff_strain').length,
+			summary:
+				'Original editable items for shift fatigue, emotional load, staffing pressure, handoff clarity, and recovery.',
+			detail:
+				'Useful for owner-controlled rehearsal and future hospital discovery without clinical or diagnostic claims.',
+			questionCount:
+				createTemplateQuestionRowsForQuestionnairePalette('healthcare_staff_strain').length,
 			resultOutputs: ['Shift strain', 'Operational support']
 		}
 	];
@@ -2658,89 +2768,326 @@ export function createScoreOutputRowsForQuestionnairePalette(
 	return paletteOutputs[paletteId](rows);
 }
 
-const paletteRows: Record<Exclude<QuestionnairePaletteId, 'blank' | 'osh_ergonomics'>, () => TemplateQuestionAuthoringRow[]> = {
+const paletteRows: Record<
+	Exclude<QuestionnairePaletteId, 'blank' | 'osh_ergonomics'>,
+	() => TemplateQuestionAuthoringRow[]
+> = {
 	workload_recovery: () => [
-		paletteQuestion('wr_workload_pressure', 'Workload strain', 'likert', 'Over the past two weeks, my workload has felt difficult to keep under control.'),
-		paletteQuestion('wr_mental_drain', 'Workload strain', 'likert', 'At the end of a typical workday, I feel mentally drained.'),
-		paletteQuestion('wr_time_pressure', 'Workload strain', 'likert', 'I have enough time to complete important work without rushing.', {
-			reverseCoded: true
-		}),
-		paletteQuestion('wr_recovery_time', 'Recovery capacity', 'likert', 'I have enough recovery time between demanding work periods.'),
-		paletteQuestion('wr_detach_after_work', 'Recovery capacity', 'likert', 'After work, I can mentally switch off from work demands.'),
-		paletteQuestion('wr_control', 'Recovery capacity', 'likert', 'I can influence how I organize my work when pressure increases.'),
-		paletteQuestion('wr_support', 'Work climate context', 'likert', 'When work becomes intense, I can get practical support from colleagues or supervisors.'),
-		paletteQuestion('wr_pressure_source', 'Work climate context', 'single', 'What is the main source of pressure right now?', {
-			choiceOptions: ['Work volume', 'Deadlines', 'Interruptions', 'Role conflict', 'Staffing or coverage', 'Other']
-		}),
-		paletteQuestion('wr_open_context', 'Work climate context', 'text', 'What would most improve recovery or workload balance in the next month?', {
-			required: false
-		})
+		paletteQuestion(
+			'wr_workload_pressure',
+			'Workload strain',
+			'likert',
+			'Over the past two weeks, my workload has felt difficult to keep under control.'
+		),
+		paletteQuestion(
+			'wr_mental_drain',
+			'Workload strain',
+			'likert',
+			'At the end of a typical workday, I feel mentally drained.'
+		),
+		paletteQuestion(
+			'wr_time_pressure',
+			'Workload strain',
+			'likert',
+			'I have enough time to complete important work without rushing.',
+			{
+				reverseCoded: true
+			}
+		),
+		paletteQuestion(
+			'wr_recovery_time',
+			'Recovery capacity',
+			'likert',
+			'I have enough recovery time between demanding work periods.'
+		),
+		paletteQuestion(
+			'wr_detach_after_work',
+			'Recovery capacity',
+			'likert',
+			'After work, I can mentally switch off from work demands.'
+		),
+		paletteQuestion(
+			'wr_control',
+			'Recovery capacity',
+			'likert',
+			'I can influence how I organize my work when pressure increases.'
+		),
+		paletteQuestion(
+			'wr_support',
+			'Work climate context',
+			'likert',
+			'When work becomes intense, I can get practical support from colleagues or supervisors.'
+		),
+		paletteQuestion(
+			'wr_pressure_source',
+			'Work climate context',
+			'single',
+			'What is the main source of pressure right now?',
+			{
+				choiceOptions: [
+					'Work volume',
+					'Deadlines',
+					'Interruptions',
+					'Role conflict',
+					'Staffing or coverage',
+					'Other'
+				]
+			}
+		),
+		paletteQuestion(
+			'wr_open_context',
+			'Work climate context',
+			'text',
+			'What would most improve recovery or workload balance in the next month?',
+			{
+				required: false
+			}
+		)
 	],
 	office_ergonomics: () => [
-		paletteQuestion('oe_workstation_fit', 'Workstation fit', 'likert', 'My workstation setup lets me work comfortably for most of the day.'),
-		paletteQuestion('oe_screen_strain', 'Workstation fit', 'likert', 'Screen placement, glare, or lighting creates noticeable strain.', {
-			scalePreset: 'intensity_5',
-			scaleLowLabel: 'No strain',
-			scaleHighLabel: 'High strain'
-		}),
-		paletteQuestion('oe_input_strain', 'Workstation fit', 'likert', 'Keyboard, mouse, or laptop use creates discomfort during focused work.', {
-			scalePreset: 'intensity_5',
-			scaleLowLabel: 'No discomfort',
-			scaleHighLabel: 'High discomfort'
-		}),
-		paletteQuestion('oe_breaks', 'Recovery behavior', 'likert', 'I take short movement breaks often enough during long desk-work periods.'),
-		paletteQuestion('oe_focus_interruptions', 'Focus conditions', 'likert', 'Interruptions make it hard to complete focused work.', {
-			scalePreset: 'frequency_5',
-			scaleLowLabel: 'Never',
-			scaleHighLabel: 'Very often'
-		}),
-		paletteQuestion('oe_hybrid_setup', 'Work context', 'single', 'Where do you usually complete focused desk work?', {
-			choiceOptions: ['Office workstation', 'Home workstation', 'Shared/hot desk', 'Multiple locations', 'Other']
-		}),
-		paletteQuestion('oe_priority_fix', 'Work context', 'text', 'What workstation or work-pattern change would help most?', {
-			required: false
-		})
+		paletteQuestion(
+			'oe_workstation_fit',
+			'Workstation fit',
+			'likert',
+			'My workstation setup lets me work comfortably for most of the day.'
+		),
+		paletteQuestion(
+			'oe_screen_strain',
+			'Workstation fit',
+			'likert',
+			'Screen placement, glare, or lighting creates noticeable strain.',
+			{
+				scalePreset: 'intensity_5',
+				scaleLowLabel: 'No strain',
+				scaleHighLabel: 'High strain'
+			}
+		),
+		paletteQuestion(
+			'oe_input_strain',
+			'Workstation fit',
+			'likert',
+			'Keyboard, mouse, or laptop use creates discomfort during focused work.',
+			{
+				scalePreset: 'intensity_5',
+				scaleLowLabel: 'No discomfort',
+				scaleHighLabel: 'High discomfort'
+			}
+		),
+		paletteQuestion(
+			'oe_breaks',
+			'Recovery behavior',
+			'likert',
+			'I take short movement breaks often enough during long desk-work periods.'
+		),
+		paletteQuestion(
+			'oe_focus_interruptions',
+			'Focus conditions',
+			'likert',
+			'Interruptions make it hard to complete focused work.',
+			{
+				scalePreset: 'frequency_5',
+				scaleLowLabel: 'Never',
+				scaleHighLabel: 'Very often'
+			}
+		),
+		paletteQuestion(
+			'oe_hybrid_setup',
+			'Work context',
+			'single',
+			'Where do you usually complete focused desk work?',
+			{
+				choiceOptions: [
+					'Office workstation',
+					'Home workstation',
+					'Shared/hot desk',
+					'Multiple locations',
+					'Other'
+				]
+			}
+		),
+		paletteQuestion(
+			'oe_priority_fix',
+			'Work context',
+			'text',
+			'What workstation or work-pattern change would help most?',
+			{
+				required: false
+			}
+		)
 	],
 	academic_workload: () => [
-		paletteQuestion('aw_teaching_load', 'Academic workload', 'likert', 'Teaching and student-facing work leave enough time for focused academic work.', {
-			reverseCoded: true
-		}),
-		paletteQuestion('aw_admin_pressure', 'Academic workload', 'likert', 'Administrative work interrupts research or preparation time.'),
-		paletteQuestion('aw_deadline_pressure', 'Academic workload', 'likert', 'Grant, publication, or reporting deadlines create sustained pressure.'),
-		paletteQuestion('aw_supervision_clarity', 'Support and clarity', 'likert', 'Expectations for supervision, teaching, and service work are clear.'),
-		paletteQuestion('aw_recovery_after_peaks', 'Recovery capacity', 'likert', 'After peak workload periods, I have enough time to recover.'),
-		paletteQuestion('aw_primary_role_pressure', 'Academic workload', 'single', 'Which area creates the most pressure right now?', {
-			choiceOptions: ['Teaching', 'Research', 'Administration', 'Supervision', 'Clinical/service work', 'Other']
-		}),
-		paletteQuestion('aw_change_request', 'Support and clarity', 'text', 'What one change would make the workload more sustainable?', {
-			required: false
-		})
+		paletteQuestion(
+			'aw_teaching_load',
+			'Academic workload',
+			'likert',
+			'Teaching and student-facing work leave enough time for focused academic work.',
+			{
+				reverseCoded: true
+			}
+		),
+		paletteQuestion(
+			'aw_admin_pressure',
+			'Academic workload',
+			'likert',
+			'Administrative work interrupts research or preparation time.'
+		),
+		paletteQuestion(
+			'aw_deadline_pressure',
+			'Academic workload',
+			'likert',
+			'Grant, publication, or reporting deadlines create sustained pressure.'
+		),
+		paletteQuestion(
+			'aw_supervision_clarity',
+			'Support and clarity',
+			'likert',
+			'Expectations for supervision, teaching, and service work are clear.'
+		),
+		paletteQuestion(
+			'aw_recovery_after_peaks',
+			'Recovery capacity',
+			'likert',
+			'After peak workload periods, I have enough time to recover.'
+		),
+		paletteQuestion(
+			'aw_primary_role_pressure',
+			'Academic workload',
+			'single',
+			'Which area creates the most pressure right now?',
+			{
+				choiceOptions: [
+					'Teaching',
+					'Research',
+					'Administration',
+					'Supervision',
+					'Clinical/service work',
+					'Other'
+				]
+			}
+		),
+		paletteQuestion(
+			'aw_change_request',
+			'Support and clarity',
+			'text',
+			'What one change would make the workload more sustainable?',
+			{
+				required: false
+			}
+		)
 	],
 	team_climate: () => [
-		paletteQuestion('tc_role_clarity', 'Team climate', 'likert', 'People on this team understand what is expected from them.'),
-		paletteQuestion('tc_support', 'Team climate', 'likert', 'Team members help each other when workload becomes uneven.'),
-		paletteQuestion('tc_safety', 'Team climate', 'likert', 'People can raise concerns without being punished or dismissed.'),
-		paletteQuestion('tc_communication', 'Team climate', 'likert', 'Important information reaches the right people in time.'),
-		paletteQuestion('tc_fairness', 'Workload fairness', 'likert', 'Workload is distributed fairly across the team.'),
-		paletteQuestion('tc_blockers', 'Team context', 'multi', 'Which blockers affect the team most right now?', {
-			choiceOptions: ['Unclear priorities', 'Too many meetings', 'Staffing gaps', 'Slow decisions', 'Tooling/process friction', 'Other']
-		}),
-		paletteQuestion('tc_improvement', 'Team context', 'text', 'What should the team improve first?', {
-			required: false
-		})
+		paletteQuestion(
+			'tc_role_clarity',
+			'Team climate',
+			'likert',
+			'People on this team understand what is expected from them.'
+		),
+		paletteQuestion(
+			'tc_support',
+			'Team climate',
+			'likert',
+			'Team members help each other when workload becomes uneven.'
+		),
+		paletteQuestion(
+			'tc_safety',
+			'Team climate',
+			'likert',
+			'People can raise concerns without being punished or dismissed.'
+		),
+		paletteQuestion(
+			'tc_communication',
+			'Team climate',
+			'likert',
+			'Important information reaches the right people in time.'
+		),
+		paletteQuestion(
+			'tc_fairness',
+			'Workload fairness',
+			'likert',
+			'Workload is distributed fairly across the team.'
+		),
+		paletteQuestion(
+			'tc_blockers',
+			'Team context',
+			'multi',
+			'Which blockers affect the team most right now?',
+			{
+				choiceOptions: [
+					'Unclear priorities',
+					'Too many meetings',
+					'Staffing gaps',
+					'Slow decisions',
+					'Tooling/process friction',
+					'Other'
+				]
+			}
+		),
+		paletteQuestion(
+			'tc_improvement',
+			'Team context',
+			'text',
+			'What should the team improve first?',
+			{
+				required: false
+			}
+		)
 	],
 	healthcare_staff_strain: () => [
-		paletteQuestion('hs_shift_fatigue', 'Shift strain', 'likert', 'After a typical shift, I feel too fatigued to recover quickly.'),
-		paletteQuestion('hs_emotional_load', 'Shift strain', 'likert', 'Emotional demands from the work are difficult to leave behind after the shift.'),
-		paletteQuestion('hs_staffing_pressure', 'Operational pressure', 'likert', 'Staffing or coverage levels make safe work harder than it should be.'),
-		paletteQuestion('hs_handoff_clarity', 'Operational support', 'likert', 'Handoffs and communication give me enough information to continue work safely.'),
-		paletteQuestion('hs_recovery_between_shifts', 'Recovery capacity', 'likert', 'There is enough recovery time between demanding shifts.'),
-		paletteQuestion('hs_pressure_area', 'Operational pressure', 'single', 'Which area creates the most strain right now?', {
-			choiceOptions: ['Staffing', 'Patient complexity', 'Documentation', 'Handoffs', 'Emotional load', 'Other']
-		}),
-		paletteQuestion('hs_support_needed', 'Operational support', 'text', 'What support would reduce strain most in the next month?', {
-			required: false
-		})
+		paletteQuestion(
+			'hs_shift_fatigue',
+			'Shift strain',
+			'likert',
+			'After a typical shift, I feel too fatigued to recover quickly.'
+		),
+		paletteQuestion(
+			'hs_emotional_load',
+			'Shift strain',
+			'likert',
+			'Emotional demands from the work are difficult to leave behind after the shift.'
+		),
+		paletteQuestion(
+			'hs_staffing_pressure',
+			'Operational pressure',
+			'likert',
+			'Staffing or coverage levels make safe work harder than it should be.'
+		),
+		paletteQuestion(
+			'hs_handoff_clarity',
+			'Operational support',
+			'likert',
+			'Handoffs and communication give me enough information to continue work safely.'
+		),
+		paletteQuestion(
+			'hs_recovery_between_shifts',
+			'Recovery capacity',
+			'likert',
+			'There is enough recovery time between demanding shifts.'
+		),
+		paletteQuestion(
+			'hs_pressure_area',
+			'Operational pressure',
+			'single',
+			'Which area creates the most strain right now?',
+			{
+				choiceOptions: [
+					'Staffing',
+					'Patient complexity',
+					'Documentation',
+					'Handoffs',
+					'Emotional load',
+					'Other'
+				]
+			}
+		),
+		paletteQuestion(
+			'hs_support_needed',
+			'Operational support',
+			'text',
+			'What support would reduce strain most in the next month?',
+			{
+				required: false
+			}
+		)
 	]
 };
 
@@ -2749,25 +3096,51 @@ const paletteOutputs: Record<
 	(rows: TemplateQuestionAuthoringRow[]) => ScoreOutputAuthoringRow[]
 > = {
 	workload_recovery: () => [
-		paletteOutput('workload_strain', 'Workload strain', ['wr_workload_pressure', 'wr_mental_drain', 'wr_time_pressure']),
-		paletteOutput('recovery_capacity', 'Recovery capacity', ['wr_recovery_time', 'wr_detach_after_work', 'wr_control']),
+		paletteOutput('workload_strain', 'Workload strain', [
+			'wr_workload_pressure',
+			'wr_mental_drain',
+			'wr_time_pressure'
+		]),
+		paletteOutput('recovery_capacity', 'Recovery capacity', [
+			'wr_recovery_time',
+			'wr_detach_after_work',
+			'wr_control'
+		]),
 		paletteOutput('work_climate_context', 'Work climate context', ['wr_support'])
 	],
 	office_ergonomics: () => [
-		paletteOutput('workstation_strain', 'Workstation strain', ['oe_screen_strain', 'oe_input_strain']),
+		paletteOutput('workstation_strain', 'Workstation strain', [
+			'oe_screen_strain',
+			'oe_input_strain'
+		]),
 		paletteOutput('focus_conditions', 'Focus conditions', ['oe_focus_interruptions'])
 	],
 	academic_workload: () => [
-		paletteOutput('academic_workload_strain', 'Academic workload strain', ['aw_teaching_load', 'aw_admin_pressure', 'aw_deadline_pressure']),
-		paletteOutput('support_and_clarity', 'Support and clarity', ['aw_supervision_clarity', 'aw_recovery_after_peaks'])
+		paletteOutput('academic_workload_strain', 'Academic workload strain', [
+			'aw_teaching_load',
+			'aw_admin_pressure',
+			'aw_deadline_pressure'
+		]),
+		paletteOutput('support_and_clarity', 'Support and clarity', [
+			'aw_supervision_clarity',
+			'aw_recovery_after_peaks'
+		])
 	],
 	team_climate: () => [
-		paletteOutput('team_climate', 'Team climate', ['tc_role_clarity', 'tc_support', 'tc_safety', 'tc_communication']),
+		paletteOutput('team_climate', 'Team climate', [
+			'tc_role_clarity',
+			'tc_support',
+			'tc_safety',
+			'tc_communication'
+		]),
 		paletteOutput('workload_fairness', 'Workload fairness', ['tc_fairness'])
 	],
 	healthcare_staff_strain: () => [
 		paletteOutput('shift_strain', 'Shift strain', ['hs_shift_fatigue', 'hs_emotional_load']),
-		paletteOutput('operational_support', 'Operational support', ['hs_handoff_clarity', 'hs_recovery_between_shifts'])
+		paletteOutput('operational_support', 'Operational support', [
+			'hs_handoff_clarity',
+			'hs_recovery_between_shifts'
+		])
 	]
 };
 
@@ -2776,7 +3149,12 @@ function paletteQuestion(
 	dimensionLabel: string,
 	type: TemplateQuestionAnswerType,
 	textDefault: string,
-	overrides: Partial<Omit<TemplateQuestionAuthoringRow, 'ordinal' | 'code' | 'dimensionLabel' | 'type' | 'textDefault'>> = {}
+	overrides: Partial<
+		Omit<
+			TemplateQuestionAuthoringRow,
+			'ordinal' | 'code' | 'dimensionLabel' | 'type' | 'textDefault'
+		>
+	> = {}
 ): TemplateQuestionAuthoringRow {
 	return {
 		ordinal: 1,

@@ -5305,6 +5305,63 @@ test('setup workflow exposes one current setup task for an empty series', async 
 	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toHaveCount(0);
 });
 
+test('setup opens a safe playable respondent preview from the current draft', async ({ page }) => {
+	const respondentApiRequests: string[] = [];
+
+	await page.route('**/respondent/**', async (route) => {
+		respondentApiRequests.push(route.request().url());
+		await route.fulfill({
+			status: 500,
+			json: { detail: 'Draft preview must not call respondent persistence APIs.' }
+		});
+	});
+
+	await page.route(`**/campaign-series/${sampleSeriesId}/setup-workspace`, async (route) => {
+		if (
+			!isProductApiPath(route.request().url(), `/campaign-series/${sampleSeriesId}/setup-workspace`)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({ json: emptySetupWorkspace });
+	});
+
+	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
+
+	const setup = page.getByRole('region', { name: 'Setup workspace' });
+	const workflow = setup.getByRole('group', { name: 'Study setup progress' });
+	await workflow.getByRole('button', { name: 'Preview as respondent' }).click();
+
+	await expect(page).toHaveURL(
+		new RegExp(`/app/campaign-series/${sampleSeriesId}/setup/respondent-preview\\?previewId=`)
+	);
+	await expect(
+		page.getByRole('heading', { name: 'Quarterly pulse respondent preview' })
+	).toBeVisible();
+	await expect(
+		page
+			.getByRole('region', { name: 'Respondent preview' })
+			.getByText('Preview answers stay in this browser and do not count in results.', {
+				exact: true
+			})
+	).toBeVisible();
+
+	const runner = page.getByTestId('respondent-question-runner');
+	await expect(runner).toBeVisible();
+	await expect(runner).toContainText('Write the first question for this study.');
+
+	for (let index = 0; index < 3; index += 1) {
+		await runner.getByRole('button', { name: '1 Strongly disagree' }).click();
+	}
+
+	await runner.getByRole('button', { name: 'Review response' }).click();
+	await expect(page.getByRole('heading', { name: 'Preview review' })).toBeVisible();
+	await page.getByRole('button', { name: 'Finish preview' }).click();
+	await expect(page.getByRole('heading', { name: 'Preview complete' })).toBeVisible();
+	expect(respondentApiRequests).toEqual([]);
+});
+
 test('setup template authoring edits question rows and generated scoring defaults', async ({
 	page
 }) => {
@@ -5433,6 +5490,7 @@ test('setup template authoring edits question rows and generated scoring default
 
 	await expect(workflow).toContainText('Review results setup');
 	await expect(workflow.getByRole('heading', { name: 'Total score' })).toBeVisible();
+	await workflow.getByText('Result outputs plan', { exact: true }).click();
 	await workflow.getByLabel('Result name').fill('Recovery');
 	await workflow.getByLabel('Result code').fill('recovery');
 	await workflow.getByLabel('Calculation').selectOption('sum');

@@ -3,12 +3,14 @@ import {
 	createDefaultTemplateQuestionRows,
 	toCreateTemplateQuestions,
 	toDraftRespondentPreviewContract,
+	toDraftRespondentQuestions,
 	validateTemplateQuestionRows,
 	type TemplateQuestionAuthoringRow
 } from './template-authoring';
 
 function row(
-	overrides: Partial<TemplateQuestionAuthoringRow> & Pick<TemplateQuestionAuthoringRow, 'code' | 'type'>
+	overrides: Partial<TemplateQuestionAuthoringRow> &
+		Pick<TemplateQuestionAuthoringRow, 'code' | 'type'>
 ): TemplateQuestionAuthoringRow {
 	return {
 		...createDefaultTemplateQuestionRows()[0],
@@ -65,7 +67,10 @@ describe('advanced question metadata', () => {
 		];
 
 		const payloads = Object.fromEntries(
-			toCreateTemplateQuestions(rows).map((question) => [question.code, JSON.parse(question.payload)])
+			toCreateTemplateQuestions(rows).map((question) => [
+				question.code,
+				JSON.parse(question.payload)
+			])
 		);
 
 		expect(payloads.weekly_hours).toEqual({
@@ -179,8 +184,9 @@ describe('advanced question metadata', () => {
 		});
 
 		const payload = JSON.parse(
-			toCreateTemplateQuestions([source, followUp]).find((question) => question.code === 'barrier_detail')
-				?.payload ?? '{}'
+			toCreateTemplateQuestions([source, followUp]).find(
+				(question) => question.code === 'barrier_detail'
+			)?.payload ?? '{}'
 		);
 
 		expect(payload.displayLogic).toEqual({
@@ -258,7 +264,9 @@ describe('advanced question metadata', () => {
 		const dateQuestion = preview.questions.find((question) => question.code === 'followup_date');
 		const choiceQuestion = preview.questions.find((question) => question.code === 'barriers');
 		const rankingQuestion = preview.questions.find((question) => question.code === 'priorities');
-		const matrixQuestion = preview.questions.find((question) => question.code === 'body_discomfort');
+		const matrixQuestion = preview.questions.find(
+			(question) => question.code === 'body_discomfort'
+		);
 
 		expect(numberQuestion?.answerFormatDetail).toContain('0 to 80');
 		expect(numberQuestion?.answerFormatDetail).toContain('hours/week');
@@ -270,8 +278,12 @@ describe('advanced question metadata', () => {
 		expect(textQuestion?.answerFormatDetail).toContain('500 characters');
 		expect(dateQuestion?.answerFormatDetail).toContain('2026-01-01 to 2026-12-31');
 		expect(choiceQuestion?.answerFormatDetail).toContain('Other barrier');
-		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain('Other barrier (write-in)');
-		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain('None of these (exclusive)');
+		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain(
+			'Other barrier (write-in)'
+		);
+		expect(choiceQuestion?.choices.map((choice) => choice.text)).toContain(
+			'None of these (exclusive)'
+		);
 		expect(rankingQuestion?.answerFormatDetail).toContain('top 2');
 		expect(matrixQuestion?.answerFormatLabel).toBe('Matrix / grid');
 		expect(matrixQuestion?.answerFormatDetail).toContain('2 rows');
@@ -284,5 +296,63 @@ describe('advanced question metadata', () => {
 			'Mild',
 			'Severe'
 		]);
+	});
+
+	test('maps draft questions to the real respondent runner question contract', () => {
+		const scale = row({
+			code: 'strain',
+			type: 'likert',
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Strongly disagree',
+			scaleHighLabel: 'Strongly agree'
+		});
+		const source = row({
+			code: 'has_barrier',
+			type: 'single',
+			choiceOptions: ['Yes', 'No']
+		});
+		const followUp = row({
+			code: 'barrier_detail',
+			type: 'text',
+			textMultiline: true,
+			textMaxLength: 240,
+			displayLogicEnabled: true,
+			displayLogicSourceQuestionCode: 'has_barrier',
+			displayLogicSourceOptionCode: 'o01'
+		});
+
+		const questions = toDraftRespondentQuestions([scale, source, followUp]);
+
+		expect(questions).toHaveLength(3);
+		expect(questions[0]).toMatchObject({
+			id: 'draft-strain',
+			ordinal: 1,
+			code: 'strain',
+			type: 'likert',
+			textDefault: 'Question strain',
+			required: true,
+			scaleCode: 'scale_strain',
+			scaleMinValue: 1,
+			scaleMaxValue: 5
+		});
+		expect(JSON.parse(questions[0].scaleAnchors ?? '[]')).toEqual([
+			{ value: 1, label: 'Strongly disagree' },
+			{ value: 5, label: 'Strongly agree' }
+		]);
+		expect(JSON.parse(questions[1].payload ?? '{}').options).toEqual([
+			{ code: 'o01', label: 'Yes' },
+			{ code: 'o02', label: 'No' }
+		]);
+		expect(JSON.parse(questions[2].payload ?? '{}')).toEqual({
+			text: { multiline: true, maxLength: 240 },
+			displayLogic: {
+				mode: 'show_when',
+				sourceQuestionCode: 'has_barrier',
+				operator: 'equals',
+				value: 'o01',
+				requiredWhenVisible: true
+			}
+		});
 	});
 });

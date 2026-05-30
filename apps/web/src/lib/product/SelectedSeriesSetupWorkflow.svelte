@@ -1,7 +1,19 @@
 <script lang="ts">
 	import { env } from '$env/dynamic/public';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { ArrowDown, ArrowUp, Copy, LoaderCircle, Plus, RefreshCw, SearchCheck, Send, Trash2 } from 'lucide-svelte';
+	import {
+		ArrowDown,
+		ArrowUp,
+		Copy,
+		LoaderCircle,
+		Plus,
+		RefreshCw,
+		SearchCheck,
+		Send,
+		Trash2
+	} from 'lucide-svelte';
 	import type {
 		CampaignSeriesSetupWorkspaceResponse,
 		RespondentRulePreviewResponse,
@@ -47,39 +59,39 @@
 		reviewRecipientImport
 	} from './recipient-import';
 	import {
-	appendScoreOutputRow,
-	applyQuestionScalePreset,
-	appendTemplateQuestionRow,
-	buildScoreProduces,
-	buildScoringDocument,
-	createScoreOutputRowsForQuestionnairePalette,
-	createTemplateQuestionRowsForQuestionnairePalette,
-	describeQuestionResultUsage,
-	describeQuestionScaleIntent,
-	describeQuestionScoringDirection,
-	describeScoreMissingDataStrategy,
-	duplicateTemplateQuestionRow,
-	isMeanScoreEligible,
-	listQuestionnairePaletteOptions,
-	moveTemplateQuestionRow,
-	questionnairePaletteIdFromParam,
-	questionScalePresetOptions,
-	removeScoreOutputRow,
-	removeTemplateQuestionRow,
-	summarizeAuthoringReadiness,
-	summarizeCollectedContextQuestions,
-	summarizeQuestionDimensions,
-	summarizeQuestionAuthoringCards,
-	summarizeQuestionnaireBlueprintReview,
-	summarizeReverseScoringReview,
-	summarizeResultsBlueprintReview,
-	summarizeScorePlan,
-	syncScoreOutputQuestionCodes,
-	toDraftRespondentPreviewContract,
+		appendScoreOutputRow,
+		applyQuestionScalePreset,
+		appendTemplateQuestionRow,
+		buildScoreProduces,
+		buildScoringDocument,
+		createScoreOutputRowsForQuestionnairePalette,
+		createTemplateQuestionRowsForQuestionnairePalette,
+		describeQuestionResultUsage,
+		describeQuestionScaleIntent,
+		describeQuestionScoringDirection,
+		describeScoreMissingDataStrategy,
+		duplicateTemplateQuestionRow,
+		isMeanScoreEligible,
+		listQuestionnairePaletteOptions,
+		moveTemplateQuestionRow,
+		questionnairePaletteIdFromParam,
+		questionScalePresetOptions,
+		removeScoreOutputRow,
+		removeTemplateQuestionRow,
+		summarizeAuthoringReadiness,
+		summarizeCollectedContextQuestions,
+		summarizeQuestionDimensions,
+		summarizeQuestionAuthoringCards,
+		summarizeQuestionnaireBlueprintReview,
+		summarizeReverseScoringReview,
+		summarizeResultsBlueprintReview,
+		summarizeScorePlan,
+		syncScoreOutputQuestionCodes,
+		toDraftRespondentPreviewContract,
+		toDraftRespondentQuestions,
 		toCreateQuestionScales,
 		toCreateTemplateQuestions,
 		validateScoreOutputRows,
-		type DraftRespondentPreviewQuestion,
 		type QuestionnairePaletteId,
 		type QuestionRankingMode,
 		type QuestionScalePreset,
@@ -91,6 +103,11 @@
 		type TemplateQuestionAuthoringRow
 	} from './template-authoring';
 	import { toCampaignSeriesSetupWorkspaceView, toProductApiErrorMessage } from './view-models';
+	import {
+		createRespondentPreviewId,
+		createRespondentPreviewSession,
+		writeRespondentPreviewSession
+	} from '$lib/respondent/respondent-preview-session';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
 	type PreviewRuleKind =
@@ -121,21 +138,22 @@
 	const initialQuestionnairePalette = questionnairePaletteIdFromParam(
 		page.url.searchParams.get('questionnaireStarter')
 	);
-	const initialTemplateQuestionRows =
-		createTemplateQuestionRowsForQuestionnairePalette(initialQuestionnairePalette);
+	const initialTemplateQuestionRows = createTemplateQuestionRowsForQuestionnairePalette(
+		initialQuestionnairePalette
+	);
 	const initialScoreOutputs = createScoreOutputRowsForQuestionnairePalette(
 		initialQuestionnairePalette,
 		initialTemplateQuestionRows
 	);
 	const questionnairePaletteOptionBase = listQuestionnairePaletteOptions();
 	const questionnairePaletteOptions = $derived(
-	questionnairePaletteOptionBase.map((option) => ({
-		...option,
-		...(setupBodyCopy.questionnaire.paletteOptions[
-			option.id as keyof typeof setupBodyCopy.questionnaire.paletteOptions
-		] ?? {})
-	}))
-);
+		questionnairePaletteOptionBase.map((option) => ({
+			...option,
+			...(setupBodyCopy.questionnaire.paletteOptions[
+				option.id as keyof typeof setupBodyCopy.questionnaire.paletteOptions
+			] ?? {})
+		}))
+	);
 	const selectedQuestionnairePaletteOption = $derived(
 		questionnairePaletteOptions.find((option) => option.id === selectedQuestionnairePalette) ??
 			questionnairePaletteOptions[0]
@@ -263,7 +281,9 @@
 	const currentActionId = $derived(setupPath.currentActionId);
 	let activeActionId = $state<SelectedSeriesSetupWorkflowActionId>('template');
 	let activeActionInitialized = $state(false);
-	const activeActionIdForView = $derived(activeActionInitialized ? activeActionId : currentActionId);
+	const activeActionIdForView = $derived(
+		activeActionInitialized ? activeActionId : currentActionId
+	);
 	const activeStep = $derived(
 		setupPath.steps.find((step) => step.id === activeActionIdForView) ??
 			setupPath.steps.find((step) => step.id === currentActionId) ??
@@ -280,7 +300,9 @@
 			? workflowActions[activeActionIndex + 1]
 			: null
 	);
-	const canGoPrevious = $derived(Boolean(previousAction && canSelectSetupAction(previousAction.id)));
+	const canGoPrevious = $derived(
+		Boolean(previousAction && canSelectSetupAction(previousAction.id))
+	);
 	const canGoNext = $derived(Boolean(nextAction && canSelectSetupAction(nextAction.id)));
 	const selectedTemplateVersionId = $derived(selectSetupTemplateVersionId(workspace, localState));
 	const selectedCampaignId = $derived(selectSetupCampaignId(workspace, localState));
@@ -310,7 +332,9 @@
 			: null
 	);
 	const questionnaireQuestionCount = $derived(
-		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
+		templateResult?.questions.length ??
+			workspace.template?.questionCount ??
+			templateQuestionRows.length
 	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
 	const questionDimensionSummaries = $derived(summarizeQuestionDimensions(templateQuestionRows));
@@ -321,23 +345,31 @@
 		summarizeQuestionnaireBlueprintReview(templateQuestionRows, scoreOutputs)
 	);
 	const scoreableQuestionRows = $derived(templateQuestionRows.filter(isMeanScoreEligible));
-	const collectedContextSummaries = $derived(summarizeCollectedContextQuestions(templateQuestionRows));
+	const collectedContextSummaries = $derived(
+		summarizeCollectedContextQuestions(templateQuestionRows)
+	);
 	const scoreOutputErrors = $derived(validateScoreOutputRows(scoreOutputs, templateQuestionRows));
 	const scorePlanSummaries = $derived(summarizeScorePlan(scoreOutputs, templateQuestionRows));
 	const resultsBlueprintReview = $derived(
 		summarizeResultsBlueprintReview(templateQuestionRows, scoreOutputs)
 	);
-	const reverseScoringReview = $derived(summarizeReverseScoringReview(templateQuestionRows, scoreOutputs));
+	const reverseScoringReview = $derived(
+		summarizeReverseScoringReview(templateQuestionRows, scoreOutputs)
+	);
 	const respondentPreviewContract = $derived(
 		toDraftRespondentPreviewContract(templateQuestionRows, scoreOutputs)
 	);
-	const authoringReadiness = $derived(summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs));
+	const authoringReadiness = $derived(
+		summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs)
+	);
 	const selectedScoreQuestionRows = $derived(
 		scoreableQuestionRows.filter((row) =>
 			scoreOutputs.some((output) => output.includedQuestionCodes.includes(row.code))
 		)
 	);
-	const waveContext = $derived(toSelectedSeriesSetupWaveContext(workspace, localState, setupWorkflowCopy));
+	const waveContext = $derived(
+		toSelectedSeriesSetupWaveContext(workspace, localState, setupWorkflowCopy)
+	);
 	const previewRequiresTarget = $derived(
 		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
 	);
@@ -477,6 +509,28 @@
 		}
 	}
 
+	function openRespondentPreview() {
+		const previewId = createRespondentPreviewId();
+		const preview = createRespondentPreviewSession({
+			previewId,
+			seriesId: workspace.series.id,
+			seriesName: workspace.series.name,
+			questionnaireName: templateName.trim() || `${workspace.series.name} questionnaire`,
+			locale: questionnaireLocale,
+			createdAt: Date.now(),
+			questions: toDraftRespondentQuestions(templateQuestionRows)
+		});
+
+		writeRespondentPreviewSession(window.sessionStorage, preview);
+		void goto(
+			resolve(
+				`/app/campaign-series/${workspace.series.id}/setup/respondent-preview?previewId=${encodeURIComponent(
+					previewId
+				)}`
+			)
+		);
+	}
+
 	async function createScoringRule() {
 		const templateVersionId = selectedTemplateVersionId;
 		if (!templateVersionId) {
@@ -580,7 +634,10 @@
 			previewGroups = groupList.groups;
 			syncPreviewSelections();
 		} catch (error) {
-			previewOptionsError = toProductApiErrorMessage(error, setupUi('Recipient preview options failed to load.'));
+			previewOptionsError = toProductApiErrorMessage(
+				error,
+				setupUi('Recipient preview options failed to load.')
+			);
 		} finally {
 			previewOptionsLoading = false;
 		}
@@ -651,7 +708,10 @@
 		} catch (error) {
 			if (campaignId === selectedCampaignId) {
 				savedRuleState = 'failed';
-				savedRuleError = toProductApiErrorMessage(error, setupUi('Saved recipient selections failed to load.'));
+				savedRuleError = toProductApiErrorMessage(
+					error,
+					setupUi('Saved recipient selections failed to load.')
+				);
 			}
 		}
 	}
@@ -669,7 +729,10 @@
 		} catch (error) {
 			if (campaignId === selectedCampaignId) {
 				assignmentState = 'failed';
-				assignmentError = toProductApiErrorMessage(error, setupUi('Campaign assignments failed to load.'));
+				assignmentError = toProductApiErrorMessage(
+					error,
+					setupUi('Campaign assignments failed to load.')
+				);
 			}
 		}
 	}
@@ -696,7 +759,9 @@
 			(previewExternalEmailReview.validRecipientCount === 0 ||
 				previewExternalEmailReview.hasBlockingIssues)
 		) {
-			savedRuleError = setupUi('Add at least one valid email and remove invalid or duplicate rows.');
+			savedRuleError = setupUi(
+				'Add at least one valid email and remove invalid or duplicate rows.'
+			);
 			return;
 		}
 
@@ -764,11 +829,16 @@
 			testRecipientState = 'succeeded';
 			const refreshed = await onWorkspaceRefresh?.();
 			if (refreshed === false) {
-				refreshWarning = setupUi('Test recipients were saved, but this setup view could not refresh.');
+				refreshWarning = setupUi(
+					'Test recipients were saved, but this setup view could not refresh.'
+				);
 			}
 		} catch (error) {
 			testRecipientState = 'failed';
-			testRecipientError = toProductApiErrorMessage(error, setupUi('Test recipients could not be created.'));
+			testRecipientError = toProductApiErrorMessage(
+				error,
+				setupUi('Test recipients could not be created.')
+			);
 		}
 	}
 
@@ -857,7 +927,8 @@
 			templateName,
 			semver: '1.0.0',
 			defaultLocale: questionnaireLocale,
-			instrumentId: instrumentId ?? instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
+			instrumentId:
+				instrumentId ?? instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
 			sections: questionDimensionSummaries.map((dimension, index) => ({
 				ordinal: index + 1,
 				code: dimension.code,
@@ -1041,7 +1112,7 @@
 		}
 
 		const source = displayLogicSourceQuestions(rowIndex)[0];
-		const optionCode = source ? displayLogicSourceOptions(source.code)[0]?.code ?? '' : '';
+		const optionCode = source ? (displayLogicSourceOptions(source.code)[0]?.code ?? '') : '';
 		updateTemplateQuestionRow(rowIndex, {
 			displayLogicEnabled: true,
 			displayLogicSourceQuestionCode: source?.code ?? '',
@@ -1106,7 +1177,9 @@
 
 	function questionPreviewDetail(question: TemplateQuestionAuthoringRow) {
 		if (isScaleQuestion(question)) {
-			return setupUi(`${question.scaleMin} to ${question.scaleMax}: ${question.scaleLowLabel} -> ${question.scaleHighLabel}`);
+			return setupUi(
+				`${question.scaleMin} to ${question.scaleMax}: ${question.scaleLowLabel} -> ${question.scaleHighLabel}`
+			);
 		}
 
 		if (question.type === 'single') {
@@ -1158,17 +1231,6 @@
 
 	function questionResultUsage(question: TemplateQuestionAuthoringRow) {
 		return setupUi(describeQuestionResultUsage(question, scoreOutputs));
-	}
-
-	function runtimeRatingValues(question: DraftRespondentPreviewQuestion) {
-		if (question.scaleMin === null || question.scaleMax === null || question.scaleMin > question.scaleMax) {
-			return [];
-		}
-
-		return Array.from(
-			{ length: question.scaleMax - question.scaleMin + 1 },
-			(_, index) => (question.scaleMin ?? 0) + index
-		);
 	}
 
 	function questionAuthoringSummary(code: string) {
@@ -1246,7 +1308,9 @@
 		);
 		scoreOutputs = nextOutputs;
 		const firstOutput = nextOutputs[0];
-		const ruleKey = firstOutput ? `custom.${scoreCodeFromName(firstOutput.code || firstOutput.name)}` : 'custom.total';
+		const ruleKey = firstOutput
+			? `custom.${scoreCodeFromName(firstOutput.code || firstOutput.name)}`
+			: 'custom.total';
 		scoringForm = {
 			...scoringForm,
 			ruleKey,
@@ -1415,13 +1479,19 @@
 	}
 
 	function currentLaunchState() {
-		return toSelectedSeriesSetupLaunchState(workspace, localState, {
-			readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
-			savedRecipientSelectionCount: savedRecipientSelectionCount(),
-			savedRecipientPairCount: savedRecipientPairCount(),
-			savedRecipientLoading: savedRuleState === 'submitting',
-			responseIdentityMode: selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode
-		}, setupWorkflowCopy);
+		return toSelectedSeriesSetupLaunchState(
+			workspace,
+			localState,
+			{
+				readinessPassed: readinessResult?.ready ?? workspace.readiness.ready,
+				savedRecipientSelectionCount: savedRecipientSelectionCount(),
+				savedRecipientPairCount: savedRecipientPairCount(),
+				savedRecipientLoading: savedRuleState === 'submitting',
+				responseIdentityMode:
+					selectedCampaign?.responseIdentityMode ?? campaignForm.responseIdentityMode
+			},
+			setupWorkflowCopy
+		);
 	}
 
 	function deliveryRosterSummary() {
@@ -1571,9 +1641,11 @@
 
 	function missingPolicyLabel(output: ScoreOutputAuthoringRow) {
 		if (output.missingStrategy === 'min_valid_count') {
-			return setupUi(`A score is allowed when at least ${output.minValidCount} selected ${
-				output.minValidCount === 1 ? 'question is' : 'questions are'
-			} answered.`);
+			return setupUi(
+				`A score is allowed when at least ${output.minValidCount} selected ${
+					output.minValidCount === 1 ? 'question is' : 'questions are'
+				} answered.`
+			);
 		}
 
 		return setupUi('Every selected question must be answered.');
@@ -1598,37 +1670,82 @@
 			.replace(/^(\d+) selected questions$/u, (_, count: string) =>
 				setupSelectedQuestionCount(Number(count))
 			)
-			.replace(/^(\d+) result (output|outputs), (\d+) scored (question|questions), (\d+) reversed$/u, (_, outputs: string, _outputWord: string, scored: string, _questionWord: string, reversed: string) =>
-				`${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}, ${scored} ${
-					Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
-				}, ${reversed} obrnuto`
+			.replace(
+				/^(\d+) result (output|outputs), (\d+) scored (question|questions), (\d+) reversed$/u,
+				(
+					_,
+					outputs: string,
+					_outputWord: string,
+					scored: string,
+					_questionWord: string,
+					reversed: string
+				) =>
+					`${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}, ${scored} ${
+						Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
+					}, ${reversed} obrnuto`
 			)
-			.replace(/^(\d+) dimensions?, (\d+) scored questions?, (\d+) result outputs?$/u, (_, dimensions: string, scored: string, outputs: string) =>
-				`${dimensions} ${Number(dimensions) === 1 ? 'dimenzija' : 'dimenzije'}, ${scored} ${
-					Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
-				}, ${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}`
+			.replace(
+				/^(\d+) dimensions?, (\d+) scored questions?, (\d+) result outputs?$/u,
+				(_, dimensions: string, scored: string, outputs: string) =>
+					`${dimensions} ${Number(dimensions) === 1 ? 'dimenzija' : 'dimenzije'}, ${scored} ${
+						Number(scored) === 1 ? 'bodovano pitanje' : 'bodovana pitanja'
+					}, ${outputs} ${Number(outputs) === 1 ? 'izlaz rezultata' : 'izlaza rezultata'}`
 			)
-			.replace(/^(\d+) constructs?, (\d+) questions?, (\d+) required$/u, (_, constructs: string, questions: string, required: string) =>
-				`${constructs} ${Number(constructs) === 1 ? 'konstrukt' : 'konstrukta'}, ${questions} ${
-					Number(questions) === 1 ? 'pitanje' : 'pitanja'
-				}, ${required} obavezno`
+			.replace(
+				/^(\d+) constructs?, (\d+) questions?, (\d+) required$/u,
+				(_, constructs: string, questions: string, required: string) =>
+					`${constructs} ${Number(constructs) === 1 ? 'konstrukt' : 'konstrukta'}, ${questions} ${
+						Number(questions) === 1 ? 'pitanje' : 'pitanja'
+					}, ${required} obavezno`
 			)
-			.replace(/^(\d+) result outputs? will be saved: (.+)\.$/u, (_, count: string, names: string) =>
-				`${count} ${Number(count) === 1 ? 'izlaz rezultata bit će spremljen' : 'izlaza rezultata bit će spremljeno'}: ${names}.`
+			.replace(
+				/^(\d+) result outputs? will be saved: (.+)\.$/u,
+				(_, count: string, names: string) =>
+					`${count} ${Number(count) === 1 ? 'izlaz rezultata bit će spremljen' : 'izlaza rezultata bit će spremljeno'}: ${names}.`
 			)
-			.replace(/^(\d+) of (\d+) scoreable questions? (is|are) included in at least one result output\.$/u, '$1 od $2 bodovanih pitanja uključeno je u barem jedan izlaz rezultata.')
-			.replace(/^(\d+) scored question feeds (\d+) result output\.$/u, '$1 bodovano pitanje puni $2 izlaz rezultata.')
-			.replace(/^(\d+) scored questions feed (\d+) result outputs\.$/u, '$1 bodovana pitanja pune $2 izlaza rezultata.')
+			.replace(
+				/^(\d+) of (\d+) scoreable questions? (is|are) included in at least one result output\.$/u,
+				'$1 od $2 bodovanih pitanja uključeno je u barem jedan izlaz rezultata.'
+			)
+			.replace(
+				/^(\d+) scored question feeds (\d+) result output\.$/u,
+				'$1 bodovano pitanje puni $2 izlaz rezultata.'
+			)
+			.replace(
+				/^(\d+) scored questions feed (\d+) result outputs\.$/u,
+				'$1 bodovana pitanja pune $2 izlaza rezultata.'
+			)
 			.replace(/^(\d+) required, (\d+) optional\.$/u, '$1 obavezno, $2 neobavezno.')
 			.replace(/^Questions are grouped into (.+)\.$/u, 'Pitanja su grupirana u $1.')
-			.replace(/^Respondents answer (\d+) questions? in order, from "(.+)" to "(.+)"$/u, 'Ispitanici odgovaraju na $1 pitanja redom, od "$2" do "$3"')
+			.replace(
+				/^Respondents answer (\d+) questions? in order, from "(.+)" to "(.+)"$/u,
+				'Ispitanici odgovaraju na $1 pitanja redom, od "$2" do "$3"'
+			)
 			.replace(/^Used in: (.+)\.$/u, 'Koristi se u: $1.')
-			.replace(/^(\d+) \((.+)\) to (\d+) \((.+)\) is used as entered in every result output that includes this question\.$/u, '$1 ($2) do $3 ($4) koristi se kako je uneseno u svakom izlazu rezultata koji uključuje ovo pitanje.')
-			.replace(/^(\d+) \((.+)\) is converted toward (\d+); (\d+) \((.+)\) is converted toward (\d+)\. Use this for protective wording when the result score should still point in one direction\.$/u, '$1 ($2) pretvara se prema $3; $4 ($5) pretvara se prema $6. Koristite za zaštitno formulirana pitanja kada rezultat i dalje treba pokazivati u jednom smjeru.')
-			.replace(/^A respondent needs at least (\d+) selected questions answered for this result score\.$/u, 'Ispitanik treba barem $1 odabranih odgovorenih pitanja za ovaj rezultat.')
-			.replace(/^Requires at least (\d+) selected questions$/u, 'Zahtijeva barem $1 odabranih pitanja')
-			.replace(/^A score is allowed when at least (\d+) selected questions are answered\.$/u, 'Rezultat je dopušten kada je odgovoreno na barem $1 odabranih pitanja.')
-			.replace(/^A score is allowed when at least (\d+) selected question is answered\.$/u, 'Rezultat je dopušten kada je odgovoreno na barem $1 odabrano pitanje.')
+			.replace(
+				/^(\d+) \((.+)\) to (\d+) \((.+)\) is used as entered in every result output that includes this question\.$/u,
+				'$1 ($2) do $3 ($4) koristi se kako je uneseno u svakom izlazu rezultata koji uključuje ovo pitanje.'
+			)
+			.replace(
+				/^(\d+) \((.+)\) is converted toward (\d+); (\d+) \((.+)\) is converted toward (\d+)\. Use this for protective wording when the result score should still point in one direction\.$/u,
+				'$1 ($2) pretvara se prema $3; $4 ($5) pretvara se prema $6. Koristite za zaštitno formulirana pitanja kada rezultat i dalje treba pokazivati u jednom smjeru.'
+			)
+			.replace(
+				/^A respondent needs at least (\d+) selected questions answered for this result score\.$/u,
+				'Ispitanik treba barem $1 odabranih odgovorenih pitanja za ovaj rezultat.'
+			)
+			.replace(
+				/^Requires at least (\d+) selected questions$/u,
+				'Zahtijeva barem $1 odabranih pitanja'
+			)
+			.replace(
+				/^A score is allowed when at least (\d+) selected questions are answered\.$/u,
+				'Rezultat je dopušten kada je odgovoreno na barem $1 odabranih pitanja.'
+			)
+			.replace(
+				/^A score is allowed when at least (\d+) selected question is answered\.$/u,
+				'Rezultat je dopušten kada je odgovoreno na barem $1 odabrano pitanje.'
+			)
 			.replace(/^Uses (.+) from$/u, 'Koristi $1 iz')
 			.replace(/^Choose one: (.+)$/u, 'Odaberite jedno: $1')
 			.replace(/^Choose any: (.+)$/u, 'Odaberite više: $1')
@@ -1794,25 +1911,35 @@
 		}
 
 		if (issue.code.includes('template')) {
-			return setupUi(issue.message.replace('Template', 'Questionnaire').replace('template', 'questionnaire'));
+			return setupUi(
+				issue.message.replace('Template', 'Questionnaire').replace('template', 'questionnaire')
+			);
 		}
 
 		if (issue.code.includes('scoring')) {
 			return setupUi(
-				issue.message.replace('Scoring rule', 'Results setup').replace('scoring rule', 'results setup')
+				issue.message
+					.replace('Scoring rule', 'Results setup')
+					.replace('scoring rule', 'results setup')
 			);
 		}
 
 		if (issue.code === 'respondent_rule.email_required') {
-			return setupUi('Every saved Directory recipient needs an email address before invite-only collection can start.');
+			return setupUi(
+				'Every saved Directory recipient needs an email address before invite-only collection can start.'
+			);
 		}
 
 		if (issue.code === 'respondent_rule.no_recipients') {
-			return setupUi('Save at least one recipient selection before launch, and make sure it resolves to active people.');
+			return setupUi(
+				'Save at least one recipient selection before launch, and make sure it resolves to active people.'
+			);
 		}
 
 		if (issue.code === 'respondent_rule.identity_mode_not_supported') {
-			return setupUi('Specific email lists are available for anonymous invite-only or same-person repeat measurements only.');
+			return setupUi(
+				'Specific email lists are available for anonymous invite-only or same-person repeat measurements only.'
+			);
 		}
 
 		return setupUi(issue.message);
@@ -1912,7 +2039,8 @@
 			'Skrivena dodatna pitanja spremaju se kao preskočena i obavezna su samo kada su vidljiva.',
 		'Scale values and labels': 'Vrijednosti i oznake ljestvice',
 		'Scale preset': 'Predložak ljestvice',
-		'Keep the current scale values and labels.': 'Zadrži trenutačne vrijednosti i oznake ljestvice.',
+		'Keep the current scale values and labels.':
+			'Zadrži trenutačne vrijednosti i oznake ljestvice.',
 		'Lowest value': 'Najniža vrijednost',
 		'Highest value': 'Najviša vrijednost',
 		'Low label': 'Oznaka niskog kraja',
@@ -1961,9 +2089,11 @@
 		'Respondent preview': 'Pregled za ispitanika',
 		'Runtime control': 'Kontrola za ispitanika',
 		'Runtime notes': 'Napomene prikaza',
+		'Preview as respondent': 'Pregled kao ispitanik',
+		'Open the playable preview to answer this draft with the same respondent runner used by live survey links. Preview answers stay local and do not count in results.':
+			'Otvorite interaktivni pregled i odgovorite na ovaj nacrt istim prikazom koji koriste stvarne poveznice za ispitanike. Odgovori u pregledu ostaju lokalni i ne ulaze u rezultate.',
+		'Respondent preview warnings': 'Upozorenja pregleda za ispitanika',
 		'Limitations to review before launch.': 'Ograničenja koja treba pregledati prije pokretanja.',
-		'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, number, date, and text.':
-			'Ovaj pregled koristi iste vrste kontrola kao ispitanikov SurveyJS prikaz: procjena, radio grupa, checkbox grupa, rangiranje, broj, datum i tekst.',
 		'Number response': 'Brojčani odgovor',
 		'Date response': 'Datumski odgovor',
 		'Text response': 'Tekstualni odgovor',
@@ -1987,7 +2117,8 @@
 		'Remove result': 'Ukloni rezultat',
 		'Result name': 'Naziv rezultata',
 		'Result code': 'Kod rezultata',
-		'Used as the report/export dimension code.': 'Koristi se kao kod dimenzije u izvještaju/izvozu.',
+		'Used as the report/export dimension code.':
+			'Koristi se kao kod dimenzije u izvještaju/izvozu.',
 		Calculation: 'Izračun',
 		'Average selected answers': 'Prosjek odabranih odgovora',
 		'Sum selected answers': 'Zbroj odabranih odgovora',
@@ -2041,7 +2172,7 @@
 		'Check before collection': 'Provjera prije prikupljanja',
 		Check: 'Provjera',
 		Questionnaire: 'Upitnik',
-		'Measurement': 'Mjerenje',
+		Measurement: 'Mjerenje',
 		'Create measurement first': 'Najprije izradite mjerenje',
 		'Create the measurement first.': 'Najprije izradite mjerenje.',
 		'Create collection wave first': 'Najprije izradite mjerenje',
@@ -2051,8 +2182,10 @@
 		'Select a target subject.': 'Odaberite ciljnu osobu.',
 		'Add at least one valid email and remove invalid or duplicate rows.':
 			'Dodajte barem jednu valjanu email adresu i uklonite nevaljane ili duplicirane retke.',
-		'Saved recipient selections failed to load.': 'Spremljeni odabiri primatelja nisu se mogli učitati.',
-		'Recipient preview options failed to load.': 'Opcije pregleda primatelja nisu se mogle učitati.',
+		'Saved recipient selections failed to load.':
+			'Spremljeni odabiri primatelja nisu se mogli učitati.',
+		'Recipient preview options failed to load.':
+			'Opcije pregleda primatelja nisu se mogle učitati.',
 		'Recipient preview failed.': 'Pregled primatelja nije uspio.',
 		'Campaign assignments failed to load.': 'Dodjele pozivnica nisu se mogle učitati.',
 		'Respondent rule save failed.': 'Spremanje pravila primatelja nije uspjelo.',
@@ -2062,7 +2195,8 @@
 			'Testni primatelji su spremljeni, ali se ovaj prikaz postavljanja nije mogao osvježiti.',
 		'Recipient file could not be read.': 'Datoteka primatelja nije se mogla pročitati.',
 		'Enter one valid email address.': 'Unesite jednu valjanu email adresu.',
-		'This recipient is already in the measurement list.': 'Ovaj primatelj već je na popisu za mjerenje.',
+		'This recipient is already in the measurement list.':
+			'Ovaj primatelj već je na popisu za mjerenje.',
 		'Setup action saved, but the setup workspace refresh failed.':
 			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
 		Status: 'Status',
@@ -2192,7 +2326,8 @@
 		'This answer format is collected for context, but it is not used in numeric result scores.':
 			'Ovaj format odgovora prikuplja se za kontekst, ali se ne koristi u brojčanim rezultatima.',
 		'Higher answers are reversed before scoring': 'Viši odgovori se obrću prije bodovanja',
-		'Higher answers increase included result scores': 'Viši odgovori povećavaju uključene rezultate',
+		'Higher answers increase included result scores':
+			'Viši odgovori povećavaju uključene rezultate',
 		'Not available for numeric result outputs.': 'Nije dostupno za brojčane izlaze rezultata.',
 		'Not included in any result output yet.': 'Još nije uključeno ni u jedan izlaz rezultata.',
 		'Respondents enter a numeric value. Use this for counts, minutes, ratings with known units, or direct measurements.':
@@ -2232,7 +2367,8 @@
 			'Dodajte barem jednu oznaku konstrukta ili dimenzije prije spremanja.',
 		'Review whether each format matches the evidence you need.':
 			'Provjerite odgovara li svaki format dokazima koji vam trebaju.',
-		'Add questions before reviewing respondent order.': 'Dodajte pitanja prije pregleda redoslijeda za ispitanika.',
+		'Add questions before reviewing respondent order.':
+			'Dodajte pitanja prije pregleda redoslijeda za ispitanika.',
 		'Add at least one rating, recommendation, or number question for numeric results.':
 			'Dodajte barem jedno pitanje s procjenom, preporukom ili brojem za brojčane rezultate.',
 		'Question coverage': 'Pokrivenost pitanja',
@@ -2243,7 +2379,8 @@
 		'Add at least one result output.': 'Dodajte barem jedan izlaz rezultata.',
 		'Add rating, recommendation, or number questions before saving numeric results.':
 			'Dodajte pitanja s procjenom, preporukom ili brojem prije spremanja brojčanih rezultata.',
-		'All outputs require every selected question.': 'Svi izlazi zahtijevaju svako odabrano pitanje.',
+		'All outputs require every selected question.':
+			'Svi izlazi zahtijevaju svako odabrano pitanje.',
 		'At least one output uses a minimum-answered rule; review whether partial answers should still produce a result.':
 			'Barem jedan izlaz koristi pravilo minimalnog broja odgovora; provjerite trebaju li djelomični odgovori ipak proizvesti rezultat.',
 		'Each result output uses one compatible answer-scale family.':
@@ -2277,1042 +2414,885 @@
 			<strong class="record-row__title">{setupBodyCopy.readOnlyTitle}</strong>
 			<span>{setupBodyCopy.readOnlyBody}</span>
 		</p>
-			{@render SetupPath()}
+		{@render SetupPath()}
 	{:else}
 		<div class="grid gap-3">
-					<p class="record-field__label">
+			<p class="record-field__label">
 				{setupBodyCopy.requiredStepsComplete(setupPath.completedCount, setupPath.totalCount)}
 			</p>
 			{@render SetupPath()}
 		</div>
 
 		{#if activeActionIdForView !== 'readiness'}
-		<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
-			<div class="setup-current-task__header">
-				<div>
-					<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
-					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
-				</div>
-				{#if activeStep.pathState === 'done'}
-					<StatusBadge status={activeStep.status} label={setupBodyCopy.status.done} />
-				{/if}
-			</div>
-			{#if activeStep.disabledReason}
-				<p class="text-sm text-[var(--color-text-muted)]">{activeStep.disabledReason}</p>
-			{/if}
-
-			<div class="setup-current-task__body">
-				{#if activeActionIdForView === 'instrument'}
+			<section class="record-row setup-current-task" aria-labelledby="current-setup-task-heading">
+				<div class="setup-current-task__header">
+					<div>
+						<h4 id="current-setup-task-heading" class="record-row__title">{activeStep.title}</h4>
+						<p class="text-sm text-[var(--color-text-muted)]">{activeStep.description}</p>
+					</div>
 					{#if activeStep.pathState === 'done'}
-						<div class="record-row">
-							<div class="record-row__header">
-								<div>
-									<h5 class="record-row__title">{setupUi('Starting source ready')}</h5>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi('The starting source is saved. Continue to the questionnaire.')}
-									</p>
-								</div>
-								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
-							</div>
-						</div>
-					{:else}
-						<div class="grid gap-4">
-							<label class="field lg:col-span-2">
-								<span>{setupUi('Starting source name')}</span>
-								<input bind:value={instrumentForm.fullName} />
-							</label>
-						</div>
-						{@render ActionFooter({
-							id: 'instrument',
-							label: setupUi('Save starting source'),
-							icon: 'plus',
-							onclick: createInstrumentImport
-						})}
+						<StatusBadge status={activeStep.status} label={setupBodyCopy.status.done} />
 					{/if}
-				{:else if activeActionIdForView === 'template'}
-					{#if activeStep.pathState === 'done'}
-						<div class="record-row">
-							<div class="record-row__header">
-								<div>
-									<h5 class="record-row__title">{setupUi('Questionnaire ready')}</h5>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupQuestionnaireSavedSummary(questionnaireQuestionCount)}
-									</p>
-								</div>
-								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
-							</div>
-						</div>
-					{:else}
-						<div class="grid gap-4 lg:grid-cols-2">
-							<label class="field">
-								<span>{setupUi('Language')}</span>
-								<select bind:value={questionnaireLocale}>
-									<option value="en">{setupUi('English')}</option>
-									<option value="hr">{setupUi('Croatian')}</option>
-								</select>
-							</label>
-						</div>
-						{#if selectedQuestionnairePaletteOption && !paletteChooserExpanded}
-							<div class="mt-4 record-row">
+				</div>
+				{#if activeStep.disabledReason}
+					<p class="text-sm text-[var(--color-text-muted)]">{activeStep.disabledReason}</p>
+				{/if}
+
+				<div class="setup-current-task__body">
+					{#if activeActionIdForView === 'instrument'}
+						{#if activeStep.pathState === 'done'}
+							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">{setupUi('Questionnaire starter')}</p>
-										<h5 class="record-row__title">
-											{setupUi('Using')} {selectedQuestionnairePaletteOption.label} {setupUi('starter')}
-										</h5>
+										<h5 class="record-row__title">{setupUi('Starting source ready')}</h5>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{selectedQuestionnairePaletteOption.summary}
+											{setupUi('The starting source is saved. Continue to the questionnaire.')}
 										</p>
 									</div>
-									<StatusBadge status="neutral" label={setupUi('Selected')} />
+									<StatusBadge status="ready" label={setupBodyCopy.status.done} />
 								</div>
-								<p class="text-xs text-[var(--color-text-muted)]">
-									{setupUi('Suggested results')}: {setupResultOutputsList(selectedQuestionnairePaletteOption.resultOutputs)}
-								</p>
-								<button
-									type="button"
-									class="secondary-button w-fit"
-									onclick={() => {
-										paletteChooserExpanded = true;
-									}}
-								>
-									{setupUi('Change starter')}
-								</button>
 							</div>
 						{:else}
-							<div class="mt-4 record-row">
+							<div class="grid gap-4">
+								<label class="field lg:col-span-2">
+									<span>{setupUi('Starting source name')}</span>
+									<input bind:value={instrumentForm.fullName} />
+								</label>
+							</div>
+							{@render ActionFooter({
+								id: 'instrument',
+								label: setupUi('Save starting source'),
+								icon: 'plus',
+								onclick: createInstrumentImport
+							})}
+						{/if}
+					{:else if activeActionIdForView === 'template'}
+						{#if activeStep.pathState === 'done'}
+							<div class="record-row">
 								<div class="record-row__header">
 									<div>
-										<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
-										<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
+										<h5 class="record-row__title">{setupUi('Questionnaire ready')}</h5>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupUi('Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.')}
+											{setupQuestionnaireSavedSummary(questionnaireQuestionCount)}
 										</p>
 									</div>
-									<StatusBadge status="neutral" label={setupUi('Customizable')} />
-								</div>
-								<div class="grid gap-3 xl:grid-cols-2">
-									{#each questionnairePaletteOptions as preset (preset.id)}
-										<button
-											type="button"
-											class="record-field min-w-0 cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
-											aria-pressed={selectedQuestionnairePalette === preset.id}
-											style={selectedQuestionnairePalette === preset.id
-												? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
-												: undefined}
-											onclick={() => applyQuestionnairePalette(preset.id)}
-										>
-											<div class="flex min-w-0 items-start justify-between gap-3">
-												<div class="min-w-0">
-													<p class="record-field__label">
-														{preset.category} - {setupQuestionCount(preset.questionCount)}
-													</p>
-													<p class="record-field__value">{preset.label}</p>
-												</div>
-												{#if selectedQuestionnairePalette === preset.id}
-													<span class="step-pill shrink-0" data-state="current">{setupUi('Selected')}</span>
-												{:else}
-													<span class="shrink-0 whitespace-nowrap text-xs font-semibold text-[var(--color-accent)]">
-														{setupUi('Use this set')}
-													</span>
-												{/if}
-											</div>
-											<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
-											<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
-											<p class="mt-2 text-xs text-[var(--color-text-muted)]">
-												{setupUi('Suggested results')}: {setupResultOutputsList(preset.resultOutputs)}
-											</p>
-										</button>
-									{/each}
+									<StatusBadge status="ready" label={setupBodyCopy.status.done} />
 								</div>
 							</div>
-						{/if}
-						<div class="mt-4 grid gap-4">
-							{#each templateQuestionRows as question, index (question.ordinal)}
-								<div class="question-row">
-									<button
-										type="button"
-										class="w-full cursor-pointer text-left"
-										aria-expanded={expandedQuestionCode === question.code}
-										onclick={() => toggleQuestionRow(question.code)}
-									>
-										<div class="record-row__header">
+						{:else}
+							<div class="grid gap-4 lg:grid-cols-2">
+								<label class="field">
+									<span>{setupUi('Language')}</span>
+									<select bind:value={questionnaireLocale}>
+										<option value="en">{setupUi('English')}</option>
+										<option value="hr">{setupUi('Croatian')}</option>
+									</select>
+								</label>
+							</div>
+							{#if selectedQuestionnairePaletteOption && !paletteChooserExpanded}
+								<div class="record-row mt-4">
+									<div class="record-row__header">
 										<div>
-											<p class="record-field__label">{setupUi(`Question ${index + 1}`)}</p>
+											<p class="record-field__label">{setupUi('Questionnaire starter')}</p>
 											<h5 class="record-row__title">
-												{question.textDefault.trim() || setupUi('Untitled question')}
+												{setupUi('Using')}
+												{selectedQuestionnairePaletteOption.label}
+												{setupUi('starter')}
 											</h5>
 											<p class="text-sm text-[var(--color-text-muted)]">
-												{questionAuthoringSummary(question.code)?.dimensionLabel ?? question.dimensionLabel}
-												-
-												{questionAuthoringSummary(question.code)?.scaleLabel ?? questionTypeLabel(question.type)}
-												-
-												{questionAuthoringSummary(question.code)?.resultUsageLabel ?? questionResultUsage(question)}
+												{selectedQuestionnairePaletteOption.summary}
 											</p>
 										</div>
-										<div class="flex items-center gap-2">
-											<StatusBadge
-												status="neutral"
-												label={isScaleQuestion(question)
-													? `${question.scaleMin}-${question.scaleMax} ${setupUi('Rating scale').toLowerCase()}`
-													: questionTypeLabel(question.type)}
-											/>
-											<span class="text-xs font-semibold text-[var(--color-accent)]">
-												{setupUi('Edit question')}
-											</span>
-										</div>
-										</div>
-									</button>
-									{#if expandedQuestionCode === question.code}
-									<div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
-										<label class="field">
-											<span>{setupBodyCopy.questionnaire.questionText}</span>
-											<textarea
-												rows="2"
-												value={question.textDefault}
-												oninput={(event) =>
-													updateTemplateQuestionRow(index, {
-														textDefault: event.currentTarget.value
-													})}
-											></textarea>
-										</label>
-										<label class="field">
-											<span>{setupUi('Dimension / construct')}</span>
-											<input
-												value={question.dimensionLabel}
-												oninput={(event) =>
-													updateTemplateQuestionRow(index, {
-														dimensionLabel: event.currentTarget.value
-													})}
-											/>
-											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-												{setupUi('Group questions by what they measure, for example workload, recovery, or autonomy.')}
-											</span>
-										</label>
-										<label class="field">
-											<span>{setupBodyCopy.questionnaire.answerFormat}</span>
-											<select
-												value={question.type}
-												onchange={(event) =>
-													updateTemplateQuestionType(
-														index,
-														event.currentTarget.value as TemplateQuestionAnswerType
-													)}
-											>
-												<option value="likert">{setupUi('Rating scale')}</option>
-												<option value="nps">{setupUi('0-10 recommendation scale')}</option>
-												<option value="single">{setupUi('Single choice')}</option>
-												<option value="multi">{setupUi('Multiple choice')}</option>
-												<option value="number">{setupUi('Number')}</option>
-												<option value="text">{setupUi('Text')}</option>
-												<option value="date">{setupUi('Date')}</option>
-												<option value="ranking">{setupUi('Ranking')}</option>
-												<option value="matrix">{setupUi('Matrix / grid')}</option>
-											</select>
-											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-												{questionScaleIntent(question).label}. {questionScaleIntent(question).detail}
-											</span>
-										</label>
+										<StatusBadge status="neutral" label={setupUi('Selected')} />
 									</div>
-									{#if isScaleQuestion(question)}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Scale values and labels')}</summary>
-											<div class="mt-3 grid gap-3 lg:grid-cols-5">
-												<label class="field">
-													<span>{setupUi('Scale preset')}</span>
-													<select
-														value={question.scalePreset}
-														onchange={(event) =>
-															updateTemplateQuestionScalePreset(
-																index,
-																event.currentTarget.value as QuestionScalePreset
-															)}
-													>
-														{#each questionScalePresetOptions as option (option.value)}
-															<option value={option.value}>{option.label}</option>
-														{/each}
-													</select>
-													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-														{questionScalePresetOptions.find((option) => option.value === question.scalePreset)
-															?.detail ?? setupUi('Keep the current scale values and labels.')}
-													</span>
-												</label>
-												<label class="field">
-													<span>{setupUi('Lowest value')}</span>
-													<input
-														type="number"
-														value={question.scaleMin}
-														oninput={(event) =>
-															updateScaleNumber(index, 'scaleMin', event.currentTarget.value, 1)}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('Highest value')}</span>
-													<input
-														type="number"
-														value={question.scaleMax}
-														oninput={(event) =>
-															updateScaleNumber(index, 'scaleMax', event.currentTarget.value, 5)}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('Low label')}</span>
-													<input
-														value={question.scaleLowLabel}
-														oninput={(event) =>
-															updateTemplateQuestionRow(index, {
-																scaleLowLabel: event.currentTarget.value,
-																scalePreset: 'custom'
-															})}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('High label')}</span>
-													<input
-														value={question.scaleHighLabel}
-														oninput={(event) =>
-															updateTemplateQuestionRow(index, {
-																scaleHighLabel: event.currentTarget.value,
-																scalePreset: 'custom'
-															})}
-													/>
-												</label>
-											</div>
-										</details>
-									{/if}
-									{#if question.type === 'number'}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Number rules')}</summary>
-											<div class="mt-3 grid gap-3 lg:grid-cols-4">
-												<label class="field">
-													<span>{setupUi('Minimum')}</span>
-													<input
-														type="number"
-														value={question.numberMin ?? ''}
-														oninput={(event) =>
-															updateMetadataNumber(index, 'numberMin', event.currentTarget.value)}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('Maximum')}</span>
-													<input
-														type="number"
-														value={question.numberMax ?? ''}
-														oninput={(event) =>
-															updateMetadataNumber(index, 'numberMax', event.currentTarget.value)}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('Unit label')}</span>
-													<input
-														placeholder={setupUi('hours/week, kg, minutes...')}
-														value={question.numberUnit}
-														oninput={(event) =>
-															updateTemplateQuestionRow(index, { numberUnit: event.currentTarget.value })}
-													/>
-												</label>
-												<label class="checkbox-field self-end">
-													<input
-														type="checkbox"
-														checked={question.numberIntegerOnly}
-														onchange={(event) =>
-															updateTemplateQuestionRow(index, {
-																numberIntegerOnly: event.currentTarget.checked
-														})}
-													/>
-													<span>{setupUi('Whole numbers only')}</span>
-												</label>
-											</div>
-										</details>
-									{/if}
-									{#if question.type === 'text'}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Text response rules')}</summary>
-											<div class="mt-3 grid gap-3 lg:grid-cols-3">
-												<label class="checkbox-field self-end">
-													<input
-														type="checkbox"
-														checked={question.textMultiline}
-														onchange={(event) =>
-															updateTemplateQuestionRow(index, {
-																textMultiline: event.currentTarget.checked
-															})}
-													/>
-													<span>{setupUi('Long text answer')}</span>
-												</label>
-												<label class="field">
-													<span>{setupUi('Max characters')}</span>
-													<input
-														type="number"
-														min="1"
-														value={question.textMaxLength ?? ''}
-														oninput={(event) =>
-															updateMetadataNumber(index, 'textMaxLength', event.currentTarget.value)}
-													/>
-												</label>
-											</div>
-										</details>
-									{/if}
-									{#if question.type === 'date'}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Date rules')}</summary>
-											<div class="mt-3 grid gap-3 lg:grid-cols-2">
-												<label class="field">
-													<span>{setupUi('Earliest date')}</span>
-													<input
-														type="date"
-														value={question.dateEarliest}
-														oninput={(event) =>
-															updateTemplateQuestionRow(index, {
-																dateEarliest: event.currentTarget.value
-															})}
-													/>
-												</label>
-												<label class="field">
-													<span>{setupUi('Latest date')}</span>
-													<input
-														type="date"
-														value={question.dateLatest}
-														oninput={(event) =>
-															updateTemplateQuestionRow(index, { dateLatest: event.currentTarget.value })}
-													/>
-												</label>
-											</div>
-										</details>
-									{/if}
-									{#if isChoiceQuestion(question) || question.type === 'ranking'}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Answer options')}</summary>
-											<label class="field mt-3">
-												<span>{setupUi('Options')}</span>
-												<textarea
-													rows="3"
-													value={question.choiceOptions.join('\n')}
-													oninput={(event) => updateChoiceOptions(index, event.currentTarget.value)}
-												></textarea>
-												<span class="text-sm text-[var(--color-text-muted)]">
-													{setupUi('Enter one option per line.')}
-												</span>
-											</label>
-											{#if isChoiceQuestion(question)}
-												<div class="mt-3 grid gap-3 lg:grid-cols-3">
-													<label class="checkbox-field self-end">
-														<input
-															type="checkbox"
-															checked={question.choiceAllowOther}
-															onchange={(event) =>
-																updateTemplateQuestionRow(index, {
-																	choiceAllowOther: event.currentTarget.checked
-																})}
-														/>
-														<span>{setupUi('Add an Other write-in option')}</span>
-													</label>
-													<label class="field">
-														<span>{setupUi('Other label')}</span>
-														<input
-															disabled={!question.choiceAllowOther}
-															value={question.choiceOtherLabel}
-															oninput={(event) =>
-																updateTemplateQuestionRow(index, {
-																	choiceOtherLabel: event.currentTarget.value
-																})}
-														/>
-													</label>
-													<label class="field">
-														<span>{setupUi('Exclusive option')}</span>
-														<input
-															placeholder={setupUi('Example: None of these')}
-															value={question.choiceExclusiveOptionLabel}
-															oninput={(event) =>
-																updateTemplateQuestionRow(index, {
-																	choiceExclusiveOptionLabel: event.currentTarget.value
-																})}
-														/>
-													</label>
-												</div>
-											{/if}
-											{#if question.type === 'ranking'}
-												<div class="mt-3 grid gap-3 lg:grid-cols-3">
-													<label class="field">
-														<span>{setupUi('Ranking rule')}</span>
-														<select
-															value={question.rankingMode}
-															onchange={(event) =>
-																updateTemplateQuestionRow(index, {
-																	rankingMode: event.currentTarget.value as QuestionRankingMode
-															})}
-														>
-															<option value="rank_all">{setupUi('Rank all options')}</option>
-															<option value="top_n">{setupUi('Rank only top N')}</option>
-														</select>
-													</label>
-													<label class="field">
-														<span>{setupUi('Top N')}</span>
-														<input
-															type="number"
-															min="1"
-															disabled={question.rankingMode !== 'top_n'}
-															value={question.rankingTopN ?? ''}
-															oninput={(event) =>
-																updateMetadataNumber(index, 'rankingTopN', event.currentTarget.value)}
-														/>
-													</label>
-												</div>
-											{/if}
-										</details>
-									{/if}
-									{#if question.type === 'matrix'}
-										<details class="record-row" open>
-											<summary class="record-row__title">{setupUi('Matrix rows and columns')}</summary>
-											<div class="mt-3 grid gap-3 lg:grid-cols-2">
-												<label class="field">
-													<span>{setupUi('Rows')}</span>
-													<textarea
-														rows="4"
-														value={question.matrixRows.join('\n')}
-														oninput={(event) => updateMatrixRows(index, event.currentTarget.value)}
-													></textarea>
-													<span class="text-sm text-[var(--color-text-muted)]">
-														{setupUi('Enter one row per line. Each row becomes a separate prompt in the grid.')}
-													</span>
-												</label>
-												<label class="field">
-													<span>{setupUi('Columns')}</span>
-													<textarea
-														rows="4"
-														value={question.matrixColumns.join('\n')}
-														oninput={(event) => updateMatrixColumns(index, event.currentTarget.value)}
-													></textarea>
-													<span class="text-sm text-[var(--color-text-muted)]">
-														{setupUi('Enter one answer column per line. Respondents choose one column for each row.')}
-													</span>
-												</label>
-											</div>
-										</details>
-									{/if}
-									{#if true}
-										{@const displaySources = displayLogicSourceQuestions(index)}
-										{@const displayOptions = displayLogicSourceOptions(
-											question.displayLogicSourceQuestionCode
-										)}
-										<details class="record-row">
-											<summary class="record-row__title">{setupUi('Display rule')}</summary>
-											<div class="mt-3 grid gap-3">
-												<label class="checkbox-field">
-													<input
-														type="checkbox"
-														checked={question.displayLogicEnabled}
-														disabled={displaySources.length === 0}
-														onchange={(event) =>
-															updateDisplayLogicEnabled(index, event.currentTarget.checked)}
-													/>
-													<span>{setupUi('Show this question only after a specific answer')}</span>
-												</label>
-												{#if displaySources.length === 0}
-													<p class="text-sm text-[var(--color-text-muted)]">
-														{setupUi(
-															'Add an earlier single-choice question before creating a follow-up rule.'
-														)}
-													</p>
-												{:else if question.displayLogicEnabled}
-													<div class="grid gap-3 lg:grid-cols-2">
-														<label class="field">
-															<span>{setupUi('Source question')}</span>
-															<select
-																value={question.displayLogicSourceQuestionCode}
-																onchange={(event) =>
-																	updateDisplayLogicSource(index, event.currentTarget.value)}
-															>
-																{#each displaySources as source (source.code)}
-																	<option value={source.code}>
-																		{source.textDefault.trim() || source.code}
-																	</option>
-																{/each}
-															</select>
-														</label>
-														<label class="field">
-															<span>{setupUi('Source answer')}</span>
-															<select
-																value={question.displayLogicSourceOptionCode}
-																onchange={(event) =>
-																	updateTemplateQuestionRow(index, {
-																		displayLogicSourceOptionCode: event.currentTarget.value
-																	})}
-															>
-																{#each displayOptions as option (option.code)}
-																	<option value={option.code}>{option.label}</option>
-																{/each}
-															</select>
-														</label>
-													</div>
-													<p class="text-sm text-[var(--color-text-muted)]">
-														{setupUi(
-															'Hidden follow-up questions are saved as skipped answers and are required only when visible.'
-														)}
-													</p>
-												{/if}
-											</div>
-										</details>
-									{/if}
-									<div class="action-row">
-										<p class="basis-full text-sm text-[var(--color-text-muted)]">
-											{setupUi('Question order below is the order respondents will see. Scoring stays attached to question meaning, not the visual position.')}
-										</p>
-										<label class="checkbox-field">
-											<input
-												type="checkbox"
-												checked={question.required}
-												onchange={(event) =>
-													updateTemplateQuestionRow(index, {
-														required: event.currentTarget.checked
-													})}
-											/>
-											<span>{setupUi('Required')}</span>
-										</label>
-										{#if isScaleQuestion(question)}
-											<label class="checkbox-field">
-												<input
-													type="checkbox"
-													checked={question.reverseCoded}
-													onchange={(event) =>
-														updateTemplateQuestionRow(index, {
-															reverseCoded: event.currentTarget.checked
-														})}
-												/>
-												<span>{setupUi('Reverse score this question')}</span>
-											</label>
-										{/if}
-										<button
-											type="button"
-											class="secondary-button"
-											disabled={index === 0}
-											title={setupUi('Move question earlier')}
-											onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
-										>
-											<ArrowUp size={16} aria-hidden="true" />
-											<span>{setupUi('Move earlier')}</span>
-										</button>
-										<button
-											type="button"
-											class="secondary-button"
-											disabled={index === templateQuestionRows.length - 1}
-											title={setupUi('Move question later')}
-											onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
-										>
-											<ArrowDown size={16} aria-hidden="true" />
-											<span>{setupUi('Move later')}</span>
-										</button>
-										<button
-											type="button"
-											class="secondary-button"
-											title={setupUi('Duplicate question')}
-											onclick={() => copyTemplateQuestionRow(question.code)}
-										>
-											<Copy size={16} aria-hidden="true" />
-											<span>{setupUi('Duplicate')}</span>
-										</button>
-										<button
-											type="button"
-											class="secondary-button"
-											disabled={templateQuestionRows.length <= 1}
-											title={setupUi('Remove question')}
-											onclick={() => deleteTemplateQuestionRow(question.code)}
-										>
-											<Trash2 size={16} aria-hidden="true" />
-											<span>{setupUi('Remove')}</span>
-										</button>
-									</div>
-									<div class="record-row">
-										<div class="record-row__header">
-											<div>
-												<p class="record-field__label">{setupUi('Answer scale')}</p>
-												<h6 class="record-row__title">{questionScaleIntent(question).label}</h6>
-											</div>
-											<StatusBadge status="neutral" label={questionTypeLabel(question.type)} />
-										</div>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{questionScaleIntent(question).detail}
-										</p>
-									</div>
-									<div class="record-row">
-										<div class="record-row__header">
-											<div>
-												<p class="record-field__label">{setupUi('Scoring meaning')}</p>
-												<h6 class="record-row__title">{questionScoringDetail(question).label}</h6>
-											</div>
-											<StatusBadge status={isMeanScoreEligible(question) ? 'ready' : 'neutral'} />
-										</div>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{questionScoringDetail(question).detail}
-										</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{questionResultUsage(question)}
-										</p>
-									</div>
-									{/if}
-								</div>
-							{/each}
-						</div>
-						<div class="action-row">
-							<button type="button" class="secondary-button" onclick={addTemplateQuestionRow}>
-								<Plus size={16} aria-hidden="true" />
-								<span>{setupBodyCopy.questionnaire.addQuestion}</span>
-							</button>
-						</div>
-						<details class="record-row">
-							<summary class="cursor-pointer">
-								<div class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupUi('Respondent preview')}</p>
-										<h5 class="record-row__title">{setupUi('How respondents will see this')}</h5>
-									</div>
-									<StatusBadge
-										status={respondentPreviewContract.unsupportedCount > 0 ? 'blocked' : 'neutral'}
-										label={setupQuestionCount(respondentPreviewContract.questionCount)}
-									/>
-								</div>
-							</summary>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{respondentPreviewContract.detail}
-							</p>
-							<div class="record-grid">
-								{#each respondentPreviewContract.controls as control (control.label)}
-									<div class="record-field">
-										<p class="record-field__label">{setupUi('Runtime control')}</p>
-										<p class="record-field__value">{setupUi(control.label)}</p>
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupQuestionCount(control.count)}
-										</p>
-									</div>
-								{/each}
-								<div class="record-field">
-									<p class="record-field__label">{setupUi('Runtime notes')}</p>
-									<p class="record-field__value">{respondentPreviewContract.warningCount}</p>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										Limitations to review before launch.
-									</p>
-								</div>
-							</div>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{setupUi(
-									'This preview uses the same control families as the respondent SurveyJS runtime: rating, radio group, checkbox group, ranking, matrix, number, date, and text.'
-								)}
-							</p>
-							<div class="grid gap-3">
-								{#each respondentPreviewContract.questions as question (question.code)}
-									<div class="record-row">
-										<div class="record-row__header">
-											<div>
-												<p class="record-field__label">
-													{question.positionLabel} - {question.dimensionLabel}
-												</p>
-												<p class="record-field__value">{question.text}</p>
-											</div>
-											<StatusBadge
-												status={question.requiredLabel === 'Required' ? 'ready' : 'neutral'}
-												label={setupUi(question.requiredLabel)}
-											/>
-										</div>
-										<div class="record-field">
-											<p class="record-field__label">
-												{question.answerFormatLabel} - {question.responsePreviewLabel}
-											</p>
-											<p class="record-field__value">{question.answerFormatDetail}</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{question.scoreEligibilityLabel}. {question.scoreDirectionLabel}.
-												{question.resultUsageLabel}
-											</p>
-										</div>
-										<div class="record-field">
-											{#if question.controlType === 'rating'}
-												<div class="action-row" aria-label={`${question.positionLabel} rating preview`}>
-													{#each runtimeRatingValues(question) as value}
-														<label class="checkbox-field">
-															<input type="radio" disabled />
-															<span>{value}</span>
-														</label>
-													{/each}
-												</div>
-												<p class="text-sm text-[var(--color-text-muted)]">
-													{question.scaleLowLabel} -> {question.scaleHighLabel}
-												</p>
-											{:else if question.controlType === 'radio'}
-												<div class="grid gap-2" aria-label={`${question.positionLabel} single choice preview`}>
-													{#each question.choices as choice (choice.value)}
-														<label class="checkbox-field">
-															<input type="radio" disabled />
-															<span>{choice.text}</span>
-														</label>
-													{/each}
-												</div>
-											{:else if question.controlType === 'checkbox'}
-												<div class="grid gap-2" aria-label={`${question.positionLabel} multiple choice preview`}>
-													{#each question.choices as choice (choice.value)}
-														<label class="checkbox-field">
-															<input type="checkbox" disabled />
-															<span>{choice.text}</span>
-														</label>
-													{/each}
-												</div>
-											{:else if question.controlType === 'ranking'}
-												<ol class="grid gap-2" aria-label={`${question.positionLabel} ranking preview`}>
-													{#each question.choices as choice, choiceIndex (choice.value)}
-														<li class="record-field">
-															<p class="record-field__label">{setupUi('Rank')} {choiceIndex + 1}</p>
-															<p class="record-field__value">{choice.text}</p>
-														</li>
-													{/each}
-												</ol>
-											{:else if question.controlType === 'matrix'}
-												<div class="overflow-x-auto" aria-label={`${question.positionLabel} matrix preview`}>
-													<table class="min-w-full text-left text-sm">
-														<thead>
-															<tr>
-																<th class="py-2 pr-3">{setupUi('Row')}</th>
-																{#each question.matrixColumns as column (column.value)}
-																	<th class="py-2 pr-3">{column.text}</th>
-																{/each}
-															</tr>
-														</thead>
-														<tbody>
-															{#each question.matrixRows as row (row.value)}
-																<tr>
-																	<th class="py-2 pr-3 font-medium text-[var(--color-text)]">{row.text}</th>
-																	{#each question.matrixColumns as column (column.value)}
-																		<td class="py-2 pr-3">
-																			<input type="radio" disabled aria-label={`${row.text} ${column.text}`} />
-																		</td>
-																	{/each}
-																</tr>
-															{/each}
-														</tbody>
-													</table>
-												</div>
-											{:else if question.controlType === 'number'}
-												<input type="number" disabled placeholder={setupUi('Number response')} />
-											{:else if question.controlType === 'date'}
-												<input type="date" disabled />
-											{:else if question.controlType === 'text'}
-												{#if question.runtimeElementType === 'comment'}
-													<textarea rows="3" disabled placeholder={setupUi('Long text response')}></textarea>
-												{:else}
-													<input type="text" disabled placeholder={setupUi('Text response')} />
-												{/if}
-											{:else}
-												<p class="error-line">
-													{setupUi('This question cannot be rendered by the current respondent runtime.')}
-												</p>
-											{/if}
-										</div>
-										{#if question.warnings.length > 0}
-											<ul class="grid gap-1" aria-label={`${question.positionLabel} runtime notes`}>
-												{#each question.warnings as warning}
-													<li class="text-sm text-[var(--color-text-muted)]">{warning}</li>
-												{/each}
-											</ul>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						</details>
-						{#if templateQuestionErrors.length > 0}
-							<ul class="grid gap-1" aria-label={setupBodyCopy.questionnaire.errorsLabel}>
-								{#each templateQuestionErrors as error}
-									<li class="error-line">{error}</li>
-								{/each}
-							</ul>
-						{/if}
-						{@render ActionFooter({
-							id: 'template',
-							label: setupUi('Save questionnaire'),
-							icon: 'send',
-							onclick: createTemplateVersion
-						})}
-					{/if}
-				{:else if activeActionIdForView === 'scoring'}
-					{#if activeStep.pathState === 'done'}
-						<div class="record-row">
-							<h5 class="record-row__title">{setupUi('Result outputs ready')}</h5>
-							<div class="record-grid">
-								<div class="record-field">
-									<p class="record-field__label">{setupUi('Results setup')}</p>
-									<p class="record-field__value">{scoreOutputs.length}</p>
-								</div>
-								<div class="record-field">
-									<p class="record-field__label">{setupUi('Outputs')}</p>
-									<p class="record-field__value">
-										{scoreOutputs
-											.map((output) => setupUi(output.name.trim() || output.code))
-											.join(', ')}
-									</p>
-								</div>
-								<div class="record-field">
-									<p class="record-field__label">{setupUi('Unique scored questions')}</p>
-									<p class="record-field__value">{selectedScoreQuestionRows.length}</p>
-								</div>
-							</div>
-						</div>
-					{:else}
-						<div class="grid gap-4">
-							{#if scoreOutputs.length === 0}
-								<div class="empty-panel">
-									<p class="record-row__title">{setupUi('No result outputs yet')}</p>
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{setupUi(
-											'Add a result output, choose the questions it uses, then save the results setup.'
+									<p class="text-xs text-[var(--color-text-muted)]">
+										{setupUi('Suggested results')}: {setupResultOutputsList(
+											selectedQuestionnairePaletteOption.resultOutputs
 										)}
 									</p>
-									<button type="button" class="primary-button" onclick={() => addScoreOutput()}>
-										<Plus size={16} aria-hidden="true" />
-										<span>{setupUi('Add result output')}</span>
+									<button
+										type="button"
+										class="secondary-button w-fit"
+										onclick={() => {
+											paletteChooserExpanded = true;
+										}}
+									>
+										{setupUi('Change starter')}
 									</button>
 								</div>
 							{:else}
-								{#each scoreOutputs as output, outputIndex (output.localId)}
-									<div class="record-row">
-										<div class="setup-current-task__header">
-											<div>
-												<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
-												<h5 class="record-row__title">
-													{setupUi(output.name.trim()) || `${setupUi('Result')} ${outputIndex + 1}`}
-												</h5>
-												<p class="setup-current-task__title">
-													{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
+								<div class="record-row mt-4">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupUi('Questionnaire palette')}</p>
+											<h5 class="record-row__title">{setupBodyCopy.questionnaire.paletteTitle}</h5>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupUi(
+													'Start blank, or load a starter that matches the study you are building. Review and adjust questions before launch.'
+												)}
+											</p>
+										</div>
+										<StatusBadge status="neutral" label={setupUi('Customizable')} />
+									</div>
+									<div class="grid gap-3 xl:grid-cols-2">
+										{#each questionnairePaletteOptions as preset (preset.id)}
+											<button
+												type="button"
+												class="record-field min-w-0 cursor-pointer text-left transition hover:border-[var(--color-accent)] hover:bg-[var(--color-surface-muted)]"
+												aria-pressed={selectedQuestionnairePalette === preset.id}
+												style={selectedQuestionnairePalette === preset.id
+													? 'border-color: var(--color-accent); background: var(--color-surface-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);'
+													: undefined}
+												onclick={() => applyQuestionnairePalette(preset.id)}
+											>
+												<div class="flex min-w-0 items-start justify-between gap-3">
+													<div class="min-w-0">
+														<p class="record-field__label">
+															{preset.category} - {setupQuestionCount(preset.questionCount)}
+														</p>
+														<p class="record-field__value">{preset.label}</p>
+													</div>
+													{#if selectedQuestionnairePalette === preset.id}
+														<span class="step-pill shrink-0" data-state="current"
+															>{setupUi('Selected')}</span
+														>
+													{:else}
+														<span
+															class="shrink-0 text-xs font-semibold whitespace-nowrap text-[var(--color-accent)]"
+														>
+															{setupUi('Use this set')}
+														</span>
+													{/if}
+												</div>
+												<p class="mt-1 text-sm text-[var(--color-text-muted)]">{preset.summary}</p>
+												<p class="mt-2 text-xs text-[var(--color-text-muted)]">{preset.detail}</p>
+												<p class="mt-2 text-xs text-[var(--color-text-muted)]">
+													{setupUi('Suggested results')}: {setupResultOutputsList(
+														preset.resultOutputs
+													)}
 												</p>
+											</button>
+										{/each}
+									</div>
+								</div>
+							{/if}
+							<div class="mt-4 grid gap-4">
+								{#each templateQuestionRows as question, index (question.ordinal)}
+									<div class="question-row">
+										<button
+											type="button"
+											class="w-full cursor-pointer text-left"
+											aria-expanded={expandedQuestionCode === question.code}
+											onclick={() => toggleQuestionRow(question.code)}
+										>
+											<div class="record-row__header">
+												<div>
+													<p class="record-field__label">{setupUi(`Question ${index + 1}`)}</p>
+													<h5 class="record-row__title">
+														{question.textDefault.trim() || setupUi('Untitled question')}
+													</h5>
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{questionAuthoringSummary(question.code)?.dimensionLabel ??
+															question.dimensionLabel}
+														-
+														{questionAuthoringSummary(question.code)?.scaleLabel ??
+															questionTypeLabel(question.type)}
+														-
+														{questionAuthoringSummary(question.code)?.resultUsageLabel ??
+															questionResultUsage(question)}
+													</p>
+												</div>
+												<div class="flex items-center gap-2">
+													<StatusBadge
+														status="neutral"
+														label={isScaleQuestion(question)
+															? `${question.scaleMin}-${question.scaleMax} ${setupUi('Rating scale').toLowerCase()}`
+															: questionTypeLabel(question.type)}
+													/>
+													<span class="text-xs font-semibold text-[var(--color-accent)]">
+														{setupUi('Edit question')}
+													</span>
+												</div>
 											</div>
-											{#if scoreOutputs.length > 1}
+										</button>
+										{#if expandedQuestionCode === question.code}
+											<div class="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)]">
+												<label class="field">
+													<span>{setupBodyCopy.questionnaire.questionText}</span>
+													<textarea
+														rows="2"
+														value={question.textDefault}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, {
+																textDefault: event.currentTarget.value
+															})}
+													></textarea>
+												</label>
+												<label class="field">
+													<span>{setupUi('Dimension / construct')}</span>
+													<input
+														value={question.dimensionLabel}
+														oninput={(event) =>
+															updateTemplateQuestionRow(index, {
+																dimensionLabel: event.currentTarget.value
+															})}
+													/>
+													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+														{setupUi(
+															'Group questions by what they measure, for example workload, recovery, or autonomy.'
+														)}
+													</span>
+												</label>
+												<label class="field">
+													<span>{setupBodyCopy.questionnaire.answerFormat}</span>
+													<select
+														value={question.type}
+														onchange={(event) =>
+															updateTemplateQuestionType(
+																index,
+																event.currentTarget.value as TemplateQuestionAnswerType
+															)}
+													>
+														<option value="likert">{setupUi('Rating scale')}</option>
+														<option value="nps">{setupUi('0-10 recommendation scale')}</option>
+														<option value="single">{setupUi('Single choice')}</option>
+														<option value="multi">{setupUi('Multiple choice')}</option>
+														<option value="number">{setupUi('Number')}</option>
+														<option value="text">{setupUi('Text')}</option>
+														<option value="date">{setupUi('Date')}</option>
+														<option value="ranking">{setupUi('Ranking')}</option>
+														<option value="matrix">{setupUi('Matrix / grid')}</option>
+													</select>
+													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+														{questionScaleIntent(question).label}. {questionScaleIntent(question)
+															.detail}
+													</span>
+												</label>
+											</div>
+											{#if isScaleQuestion(question)}
+												<details class="record-row">
+													<summary class="record-row__title"
+														>{setupUi('Scale values and labels')}</summary
+													>
+													<div class="mt-3 grid gap-3 lg:grid-cols-5">
+														<label class="field">
+															<span>{setupUi('Scale preset')}</span>
+															<select
+																value={question.scalePreset}
+																onchange={(event) =>
+																	updateTemplateQuestionScalePreset(
+																		index,
+																		event.currentTarget.value as QuestionScalePreset
+																	)}
+															>
+																{#each questionScalePresetOptions as option (option.value)}
+																	<option value={option.value}>{option.label}</option>
+																{/each}
+															</select>
+															<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+																{questionScalePresetOptions.find(
+																	(option) => option.value === question.scalePreset
+																)?.detail ?? setupUi('Keep the current scale values and labels.')}
+															</span>
+														</label>
+														<label class="field">
+															<span>{setupUi('Lowest value')}</span>
+															<input
+																type="number"
+																value={question.scaleMin}
+																oninput={(event) =>
+																	updateScaleNumber(
+																		index,
+																		'scaleMin',
+																		event.currentTarget.value,
+																		1
+																	)}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Highest value')}</span>
+															<input
+																type="number"
+																value={question.scaleMax}
+																oninput={(event) =>
+																	updateScaleNumber(
+																		index,
+																		'scaleMax',
+																		event.currentTarget.value,
+																		5
+																	)}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Low label')}</span>
+															<input
+																value={question.scaleLowLabel}
+																oninput={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		scaleLowLabel: event.currentTarget.value,
+																		scalePreset: 'custom'
+																	})}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('High label')}</span>
+															<input
+																value={question.scaleHighLabel}
+																oninput={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		scaleHighLabel: event.currentTarget.value,
+																		scalePreset: 'custom'
+																	})}
+															/>
+														</label>
+													</div>
+												</details>
+											{/if}
+											{#if question.type === 'number'}
+												<details class="record-row">
+													<summary class="record-row__title">{setupUi('Number rules')}</summary>
+													<div class="mt-3 grid gap-3 lg:grid-cols-4">
+														<label class="field">
+															<span>{setupUi('Minimum')}</span>
+															<input
+																type="number"
+																value={question.numberMin ?? ''}
+																oninput={(event) =>
+																	updateMetadataNumber(
+																		index,
+																		'numberMin',
+																		event.currentTarget.value
+																	)}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Maximum')}</span>
+															<input
+																type="number"
+																value={question.numberMax ?? ''}
+																oninput={(event) =>
+																	updateMetadataNumber(
+																		index,
+																		'numberMax',
+																		event.currentTarget.value
+																	)}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Unit label')}</span>
+															<input
+																placeholder={setupUi('hours/week, kg, minutes...')}
+																value={question.numberUnit}
+																oninput={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		numberUnit: event.currentTarget.value
+																	})}
+															/>
+														</label>
+														<label class="checkbox-field self-end">
+															<input
+																type="checkbox"
+																checked={question.numberIntegerOnly}
+																onchange={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		numberIntegerOnly: event.currentTarget.checked
+																	})}
+															/>
+															<span>{setupUi('Whole numbers only')}</span>
+														</label>
+													</div>
+												</details>
+											{/if}
+											{#if question.type === 'text'}
+												<details class="record-row">
+													<summary class="record-row__title"
+														>{setupUi('Text response rules')}</summary
+													>
+													<div class="mt-3 grid gap-3 lg:grid-cols-3">
+														<label class="checkbox-field self-end">
+															<input
+																type="checkbox"
+																checked={question.textMultiline}
+																onchange={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		textMultiline: event.currentTarget.checked
+																	})}
+															/>
+															<span>{setupUi('Long text answer')}</span>
+														</label>
+														<label class="field">
+															<span>{setupUi('Max characters')}</span>
+															<input
+																type="number"
+																min="1"
+																value={question.textMaxLength ?? ''}
+																oninput={(event) =>
+																	updateMetadataNumber(
+																		index,
+																		'textMaxLength',
+																		event.currentTarget.value
+																	)}
+															/>
+														</label>
+													</div>
+												</details>
+											{/if}
+											{#if question.type === 'date'}
+												<details class="record-row">
+													<summary class="record-row__title">{setupUi('Date rules')}</summary>
+													<div class="mt-3 grid gap-3 lg:grid-cols-2">
+														<label class="field">
+															<span>{setupUi('Earliest date')}</span>
+															<input
+																type="date"
+																value={question.dateEarliest}
+																oninput={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		dateEarliest: event.currentTarget.value
+																	})}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Latest date')}</span>
+															<input
+																type="date"
+																value={question.dateLatest}
+																oninput={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		dateLatest: event.currentTarget.value
+																	})}
+															/>
+														</label>
+													</div>
+												</details>
+											{/if}
+											{#if isChoiceQuestion(question) || question.type === 'ranking'}
+												<details class="record-row">
+													<summary class="record-row__title">{setupUi('Answer options')}</summary>
+													<label class="field mt-3">
+														<span>{setupUi('Options')}</span>
+														<textarea
+															rows="3"
+															value={question.choiceOptions.join('\n')}
+															oninput={(event) =>
+																updateChoiceOptions(index, event.currentTarget.value)}
+														></textarea>
+														<span class="text-sm text-[var(--color-text-muted)]">
+															{setupUi('Enter one option per line.')}
+														</span>
+													</label>
+													{#if isChoiceQuestion(question)}
+														<div class="mt-3 grid gap-3 lg:grid-cols-3">
+															<label class="checkbox-field self-end">
+																<input
+																	type="checkbox"
+																	checked={question.choiceAllowOther}
+																	onchange={(event) =>
+																		updateTemplateQuestionRow(index, {
+																			choiceAllowOther: event.currentTarget.checked
+																		})}
+																/>
+																<span>{setupUi('Add an Other write-in option')}</span>
+															</label>
+															<label class="field">
+																<span>{setupUi('Other label')}</span>
+																<input
+																	disabled={!question.choiceAllowOther}
+																	value={question.choiceOtherLabel}
+																	oninput={(event) =>
+																		updateTemplateQuestionRow(index, {
+																			choiceOtherLabel: event.currentTarget.value
+																		})}
+																/>
+															</label>
+															<label class="field">
+																<span>{setupUi('Exclusive option')}</span>
+																<input
+																	placeholder={setupUi('Example: None of these')}
+																	value={question.choiceExclusiveOptionLabel}
+																	oninput={(event) =>
+																		updateTemplateQuestionRow(index, {
+																			choiceExclusiveOptionLabel: event.currentTarget.value
+																		})}
+																/>
+															</label>
+														</div>
+													{/if}
+													{#if question.type === 'ranking'}
+														<div class="mt-3 grid gap-3 lg:grid-cols-3">
+															<label class="field">
+																<span>{setupUi('Ranking rule')}</span>
+																<select
+																	value={question.rankingMode}
+																	onchange={(event) =>
+																		updateTemplateQuestionRow(index, {
+																			rankingMode: event.currentTarget.value as QuestionRankingMode
+																		})}
+																>
+																	<option value="rank_all">{setupUi('Rank all options')}</option>
+																	<option value="top_n">{setupUi('Rank only top N')}</option>
+																</select>
+															</label>
+															<label class="field">
+																<span>{setupUi('Top N')}</span>
+																<input
+																	type="number"
+																	min="1"
+																	disabled={question.rankingMode !== 'top_n'}
+																	value={question.rankingTopN ?? ''}
+																	oninput={(event) =>
+																		updateMetadataNumber(
+																			index,
+																			'rankingTopN',
+																			event.currentTarget.value
+																		)}
+																/>
+															</label>
+														</div>
+													{/if}
+												</details>
+											{/if}
+											{#if question.type === 'matrix'}
+												<details class="record-row" open>
+													<summary class="record-row__title"
+														>{setupUi('Matrix rows and columns')}</summary
+													>
+													<div class="mt-3 grid gap-3 lg:grid-cols-2">
+														<label class="field">
+															<span>{setupUi('Rows')}</span>
+															<textarea
+																rows="4"
+																value={question.matrixRows.join('\n')}
+																oninput={(event) =>
+																	updateMatrixRows(index, event.currentTarget.value)}
+															></textarea>
+															<span class="text-sm text-[var(--color-text-muted)]">
+																{setupUi(
+																	'Enter one row per line. Each row becomes a separate prompt in the grid.'
+																)}
+															</span>
+														</label>
+														<label class="field">
+															<span>{setupUi('Columns')}</span>
+															<textarea
+																rows="4"
+																value={question.matrixColumns.join('\n')}
+																oninput={(event) =>
+																	updateMatrixColumns(index, event.currentTarget.value)}
+															></textarea>
+															<span class="text-sm text-[var(--color-text-muted)]">
+																{setupUi(
+																	'Enter one answer column per line. Respondents choose one column for each row.'
+																)}
+															</span>
+														</label>
+													</div>
+												</details>
+											{/if}
+											{#if true}
+												{@const displaySources = displayLogicSourceQuestions(index)}
+												{@const displayOptions = displayLogicSourceOptions(
+													question.displayLogicSourceQuestionCode
+												)}
+												<details class="record-row">
+													<summary class="record-row__title">{setupUi('Display rule')}</summary>
+													<div class="mt-3 grid gap-3">
+														<label class="checkbox-field">
+															<input
+																type="checkbox"
+																checked={question.displayLogicEnabled}
+																disabled={displaySources.length === 0}
+																onchange={(event) =>
+																	updateDisplayLogicEnabled(index, event.currentTarget.checked)}
+															/>
+															<span
+																>{setupUi('Show this question only after a specific answer')}</span
+															>
+														</label>
+														{#if displaySources.length === 0}
+															<p class="text-sm text-[var(--color-text-muted)]">
+																{setupUi(
+																	'Add an earlier single-choice question before creating a follow-up rule.'
+																)}
+															</p>
+														{:else if question.displayLogicEnabled}
+															<div class="grid gap-3 lg:grid-cols-2">
+																<label class="field">
+																	<span>{setupUi('Source question')}</span>
+																	<select
+																		value={question.displayLogicSourceQuestionCode}
+																		onchange={(event) =>
+																			updateDisplayLogicSource(index, event.currentTarget.value)}
+																	>
+																		{#each displaySources as source (source.code)}
+																			<option value={source.code}>
+																				{source.textDefault.trim() || source.code}
+																			</option>
+																		{/each}
+																	</select>
+																</label>
+																<label class="field">
+																	<span>{setupUi('Source answer')}</span>
+																	<select
+																		value={question.displayLogicSourceOptionCode}
+																		onchange={(event) =>
+																			updateTemplateQuestionRow(index, {
+																				displayLogicSourceOptionCode: event.currentTarget.value
+																			})}
+																	>
+																		{#each displayOptions as option (option.code)}
+																			<option value={option.code}>{option.label}</option>
+																		{/each}
+																	</select>
+																</label>
+															</div>
+															<p class="text-sm text-[var(--color-text-muted)]">
+																{setupUi(
+																	'Hidden follow-up questions are saved as skipped answers and are required only when visible.'
+																)}
+															</p>
+														{/if}
+													</div>
+												</details>
+											{/if}
+											<div class="action-row">
+												<p class="basis-full text-sm text-[var(--color-text-muted)]">
+													{setupUi(
+														'Question order below is the order respondents will see. Scoring stays attached to question meaning, not the visual position.'
+													)}
+												</p>
+												<label class="checkbox-field">
+													<input
+														type="checkbox"
+														checked={question.required}
+														onchange={(event) =>
+															updateTemplateQuestionRow(index, {
+																required: event.currentTarget.checked
+															})}
+													/>
+													<span>{setupUi('Required')}</span>
+												</label>
+												{#if isScaleQuestion(question)}
+													<label class="checkbox-field">
+														<input
+															type="checkbox"
+															checked={question.reverseCoded}
+															onchange={(event) =>
+																updateTemplateQuestionRow(index, {
+																	reverseCoded: event.currentTarget.checked
+																})}
+														/>
+														<span>{setupUi('Reverse score this question')}</span>
+													</label>
+												{/if}
 												<button
 													type="button"
 													class="secondary-button"
-													onclick={() => deleteScoreOutput(output.localId)}
+													disabled={index === 0}
+													title={setupUi('Move question earlier')}
+													onclick={() => reorderTemplateQuestionRow(question.code, 'up')}
+												>
+													<ArrowUp size={16} aria-hidden="true" />
+													<span>{setupUi('Move earlier')}</span>
+												</button>
+												<button
+													type="button"
+													class="secondary-button"
+													disabled={index === templateQuestionRows.length - 1}
+													title={setupUi('Move question later')}
+													onclick={() => reorderTemplateQuestionRow(question.code, 'down')}
+												>
+													<ArrowDown size={16} aria-hidden="true" />
+													<span>{setupUi('Move later')}</span>
+												</button>
+												<button
+													type="button"
+													class="secondary-button"
+													title={setupUi('Duplicate question')}
+													onclick={() => copyTemplateQuestionRow(question.code)}
+												>
+													<Copy size={16} aria-hidden="true" />
+													<span>{setupUi('Duplicate')}</span>
+												</button>
+												<button
+													type="button"
+													class="secondary-button"
+													disabled={templateQuestionRows.length <= 1}
+													title={setupUi('Remove question')}
+													onclick={() => deleteTemplateQuestionRow(question.code)}
 												>
 													<Trash2 size={16} aria-hidden="true" />
-													<span>{setupUi('Remove result')}</span>
+													<span>{setupUi('Remove')}</span>
 												</button>
-											{/if}
-										</div>
-
-										<div class="record-grid">
-											<label class="field">
-												<span>{setupUi('Calculation')}</span>
-												<select
-													value={output.calculation}
-													onchange={(event) =>
-														updateScoreOutput(output.localId, {
-															calculation: event.currentTarget.value as ScoreCalculation
-														})}
-												>
-													<option value="mean">{setupUi('Average selected answers')}</option>
-													<option value="sum">{setupUi('Sum selected answers')}</option>
-												</select>
-											</label>
-											<label class="field">
-												<span>{setupUi('Missing answers')}</span>
-												<select
-													value={output.missingStrategy}
-													onchange={(event) =>
-														updateScoreOutput(output.localId, {
-															missingStrategy: event.currentTarget.value as ScoreMissingStrategy
-														})}
-												>
-													<option value="require_all">{setupUi('Require every selected answer')}</option>
-													<option value="min_valid_count">{setupUi('Allow a score after enough answers')}</option>
-												</select>
-											</label>
-											{#if output.missingStrategy === 'min_valid_count'}
-												<label class="field">
-													<span>{setupUi('Minimum answered')}</span>
-													<input
-														type="number"
-														min="1"
-														max={Math.max(1, output.includedQuestionCodes.length)}
-														value={output.minValidCount}
-														oninput={(event) =>
-															updateScoreOutput(output.localId, {
-																minValidCount: parseScoreMinValidCount(event.currentTarget.value)
-															})}
-													/>
-												</label>
-											{/if}
-										</div>
-
-										<div class="record-row">
-											<h6 class="record-row__title">{setupUi('Question selection')}</h6>
-											<p class="mb-3 text-sm text-[var(--color-text-muted)]">
-												{setupUi(
-													'Unchecked questions stay in the questionnaire, but do not affect this result calculation.'
-												)}
-											</p>
-											{#if scoreableQuestionRows.length}
-												<div class="grid gap-2">
-													{#each scoreableQuestionRows as question (question.code)}
-														<div class="record-field">
-															<label class="checkbox-field">
-																<input
-																	type="checkbox"
-																	checked={output.includedQuestionCodes.includes(question.code)}
-																	onchange={(event) =>
-																		toggleScoreQuestion(
-																			output.localId,
-																			question.code,
-																			event.currentTarget.checked
-																		)}
-																/>
-																<span>{question.textDefault.trim() || question.code}</span>
-															</label>
-															<p class="text-sm text-[var(--color-text-muted)]">
-																{questionPreviewDetail(question)}
-																{#if question.reverseCoded}
-																	<span class="font-semibold"> · {setupUi('Reverse scored')}</span>
-																{/if}
-															</p>
-														</div>
-													{/each}
+											</div>
+											<div class="record-row">
+												<div class="record-row__header">
+													<div>
+														<p class="record-field__label">{setupUi('Answer scale')}</p>
+														<h6 class="record-row__title">{questionScaleIntent(question).label}</h6>
+													</div>
+													<StatusBadge status="neutral" label={questionTypeLabel(question.type)} />
 												</div>
-											{:else}
 												<p class="text-sm text-[var(--color-text-muted)]">
-													{setupUi(
-														'Add a rating scale, recommendation scale, or number question before saving results.'
-													)}
+													{questionScaleIntent(question).detail}
 												</p>
-											{/if}
-										</div>
+											</div>
+											<div class="record-row">
+												<div class="record-row__header">
+													<div>
+														<p class="record-field__label">{setupUi('Scoring meaning')}</p>
+														<h6 class="record-row__title">
+															{questionScoringDetail(question).label}
+														</h6>
+													</div>
+													<StatusBadge
+														status={isMeanScoreEligible(question) ? 'ready' : 'neutral'}
+													/>
+												</div>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{questionScoringDetail(question).detail}
+												</p>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{questionResultUsage(question)}
+												</p>
+											</div>
+										{/if}
 									</div>
 								{/each}
-							{/if}
-						</div>
-
-						{#if scoreOutputs.length > 0}
+							</div>
+							<div class="action-row">
+								<button type="button" class="secondary-button" onclick={addTemplateQuestionRow}>
+									<Plus size={16} aria-hidden="true" />
+									<span>{setupBodyCopy.questionnaire.addQuestion}</span>
+								</button>
+								<button
+									type="button"
+									class="primary-button"
+									disabled={respondentPreviewContract.questionCount === 0}
+									onclick={openRespondentPreview}
+								>
+									<SearchCheck size={16} aria-hidden="true" />
+									<span>{setupUi('Preview as respondent')}</span>
+								</button>
+							</div>
 							<details class="record-row">
-								<summary class="record-row__header">
-									<div>
-										<p class="record-field__label">{setupUi('Advanced result setup')}</p>
-										<h5 class="record-row__title">{setupUi('Result outputs plan')}</h5>
+								<summary class="cursor-pointer">
+									<div class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupUi('Respondent preview')}</p>
+											<h5 class="record-row__title">{setupUi('How respondents will see this')}</h5>
+										</div>
+										<StatusBadge
+											status={respondentPreviewContract.unsupportedCount > 0
+												? 'blocked'
+												: 'neutral'}
+											label={setupQuestionCount(respondentPreviewContract.questionCount)}
+										/>
+									</div>
+								</summary>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{respondentPreviewContract.detail}
+								</p>
+								<div class="record-grid">
+									{#each respondentPreviewContract.controls as control (control.label)}
+										<div class="record-field">
+											<p class="record-field__label">{setupUi('Runtime control')}</p>
+											<p class="record-field__value">{setupUi(control.label)}</p>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupQuestionCount(control.count)}
+											</p>
+										</div>
+									{/each}
+									<div class="record-field">
+										<p class="record-field__label">{setupUi('Runtime notes')}</p>
+										<p class="record-field__value">{respondentPreviewContract.warningCount}</p>
 										<p class="text-sm text-[var(--color-text-muted)]">
-											{setupUi(
-												'Edit result names, export codes, scoring audit, and technical checks.'
-											)}
+											Limitations to review before launch.
 										</p>
 									</div>
-									<StatusBadge status="neutral" label={setupUi('Advanced result setup')} />
-								</summary>
-
-								<div class="mt-4 grid gap-4">
-									<div class="questionnaire-blueprint-review">
-										{#each resultsBlueprintReview.items as item (item.id)}
-											<div class="questionnaire-blueprint-review__item" data-state={item.status}>
-												<p class="record-field__label">{setupUi(item.label)}</p>
-												<p class="record-field__value">{setupUi(item.detail).replace('Total score', setupUi('Total score'))}</p>
-											</div>
+								</div>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{setupUi(
+										'Open the playable preview to answer this draft with the same respondent runner used by live survey links. Preview answers stay local and do not count in results.'
+									)}
+								</p>
+								{#if respondentPreviewContract.warningCount > 0}
+									<ul class="grid gap-1" aria-label={setupUi('Respondent preview warnings')}>
+										{#each respondentPreviewContract.questions as question (question.code)}
+											{#each question.warnings as warning}
+												<li class="text-sm text-[var(--color-text-muted)]">
+													{question.positionLabel}: {warning}
+												</li>
+											{/each}
 										{/each}
+									</ul>
+								{/if}
+							</details>
+							{#if templateQuestionErrors.length > 0}
+								<ul class="grid gap-1" aria-label={setupBodyCopy.questionnaire.errorsLabel}>
+									{#each templateQuestionErrors as error}
+										<li class="error-line">{error}</li>
+									{/each}
+								</ul>
+							{/if}
+							{@render ActionFooter({
+								id: 'template',
+								label: setupUi('Save questionnaire'),
+								icon: 'send',
+								onclick: createTemplateVersion
+							})}
+						{/if}
+					{:else if activeActionIdForView === 'scoring'}
+						{#if activeStep.pathState === 'done'}
+							<div class="record-row">
+								<h5 class="record-row__title">{setupUi('Result outputs ready')}</h5>
+								<div class="record-grid">
+									<div class="record-field">
+										<p class="record-field__label">{setupUi('Results setup')}</p>
+										<p class="record-field__value">{scoreOutputs.length}</p>
 									</div>
-
+									<div class="record-field">
+										<p class="record-field__label">{setupUi('Outputs')}</p>
+										<p class="record-field__value">
+											{scoreOutputs
+												.map((output) => setupUi(output.name.trim() || output.code))
+												.join(', ')}
+										</p>
+									</div>
+									<div class="record-field">
+										<p class="record-field__label">{setupUi('Unique scored questions')}</p>
+										<p class="record-field__value">{selectedScoreQuestionRows.length}</p>
+									</div>
+								</div>
+							</div>
+						{:else}
+							<div class="grid gap-4">
+								{#if scoreOutputs.length === 0}
+									<div class="empty-panel">
+										<p class="record-row__title">{setupUi('No result outputs yet')}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi(
+												'Add a result output, choose the questions it uses, then save the results setup.'
+											)}
+										</p>
+										<button type="button" class="primary-button" onclick={() => addScoreOutput()}>
+											<Plus size={16} aria-hidden="true" />
+											<span>{setupUi('Add result output')}</span>
+										</button>
+									</div>
+								{:else}
 									{#each scoreOutputs as output, outputIndex (output.localId)}
 										<div class="record-row">
-											<div class="record-row__header">
+											<div class="setup-current-task__header">
 												<div>
 													<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
-													<h5 class="record-row__title">{setupUi('Result options')}</h5>
+													<h5 class="record-row__title">
+														{setupUi(output.name.trim()) ||
+															`${setupUi('Result')} ${outputIndex + 1}`}
+													</h5>
+													<p class="setup-current-task__title">
+														{setupSelectedQuestionCount(output.includedQuestionCodes.length)}
+													</p>
 												</div>
 												{#if scoreOutputs.length > 1}
 													<button
@@ -3325,149 +3305,304 @@
 													</button>
 												{/if}
 											</div>
-											<div class="grid gap-4 lg:grid-cols-2">
+
+											<div class="record-grid">
 												<label class="field">
-													<span>{setupUi('Result name')}</span>
-													<input
-														value={output.name}
-														oninput={(event) =>
-															updateScoreOutput(output.localId, { name: event.currentTarget.value })}
-													/>
+													<span>{setupUi('Calculation')}</span>
+													<select
+														value={output.calculation}
+														onchange={(event) =>
+															updateScoreOutput(output.localId, {
+																calculation: event.currentTarget.value as ScoreCalculation
+															})}
+													>
+														<option value="mean">{setupUi('Average selected answers')}</option>
+														<option value="sum">{setupUi('Sum selected answers')}</option>
+													</select>
 												</label>
 												<label class="field">
-													<span>{setupUi('Result code')}</span>
-													<input
-														value={output.code}
-														oninput={(event) =>
-															updateScoreOutput(output.localId, { code: event.currentTarget.value })}
-													/>
-													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-														{setupUi('Used as the report/export dimension code.')}
-													</span>
+													<span>{setupUi('Missing answers')}</span>
+													<select
+														value={output.missingStrategy}
+														onchange={(event) =>
+															updateScoreOutput(output.localId, {
+																missingStrategy: event.currentTarget.value as ScoreMissingStrategy
+															})}
+													>
+														<option value="require_all"
+															>{setupUi('Require every selected answer')}</option
+														>
+														<option value="min_valid_count"
+															>{setupUi('Allow a score after enough answers')}</option
+														>
+													</select>
 												</label>
+												{#if output.missingStrategy === 'min_valid_count'}
+													<label class="field">
+														<span>{setupUi('Minimum answered')}</span>
+														<input
+															type="number"
+															min="1"
+															max={Math.max(1, output.includedQuestionCodes.length)}
+															value={output.minValidCount}
+															oninput={(event) =>
+																updateScoreOutput(output.localId, {
+																	minValidCount: parseScoreMinValidCount(event.currentTarget.value)
+																})}
+														/>
+													</label>
+												{/if}
+											</div>
+
+											<div class="record-row">
+												<h6 class="record-row__title">{setupUi('Question selection')}</h6>
+												<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+													{setupUi(
+														'Unchecked questions stay in the questionnaire, but do not affect this result calculation.'
+													)}
+												</p>
+												{#if scoreableQuestionRows.length}
+													<div class="grid gap-2">
+														{#each scoreableQuestionRows as question (question.code)}
+															<div class="record-field">
+																<label class="checkbox-field">
+																	<input
+																		type="checkbox"
+																		checked={output.includedQuestionCodes.includes(question.code)}
+																		onchange={(event) =>
+																			toggleScoreQuestion(
+																				output.localId,
+																				question.code,
+																				event.currentTarget.checked
+																			)}
+																	/>
+																	<span>{question.textDefault.trim() || question.code}</span>
+																</label>
+																<p class="text-sm text-[var(--color-text-muted)]">
+																	{questionPreviewDetail(question)}
+																	{#if question.reverseCoded}
+																		<span class="font-semibold">
+																			· {setupUi('Reverse scored')}</span
+																		>
+																	{/if}
+																</p>
+															</div>
+														{/each}
+													</div>
+												{:else}
+													<p class="text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Add a rating scale, recommendation scale, or number question before saving results.'
+														)}
+													</p>
+												{/if}
 											</div>
 										</div>
 									{/each}
+								{/if}
+							</div>
 
-									<div class="action-row">
-										<button type="button" class="secondary-button" onclick={() => addScoreOutput()}>
-											<Plus size={16} aria-hidden="true" />
-											<span>{setupUi('Add another result')}</span>
-										</button>
-									</div>
+							{#if scoreOutputs.length > 0}
+								<details class="record-row">
+									<summary class="record-row__header">
+										<div>
+											<p class="record-field__label">{setupUi('Advanced result setup')}</p>
+											<h5 class="record-row__title">{setupUi('Result outputs plan')}</h5>
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{setupUi(
+													'Edit result names, export codes, scoring audit, and technical checks.'
+												)}
+											</p>
+										</div>
+										<StatusBadge status="neutral" label={setupUi('Advanced result setup')} />
+									</summary>
 
-									{#if collectedContextSummaries.length}
+									<div class="mt-4 grid gap-4">
+										<div class="questionnaire-blueprint-review">
+											{#each resultsBlueprintReview.items as item (item.id)}
+												<div class="questionnaire-blueprint-review__item" data-state={item.status}>
+													<p class="record-field__label">{setupUi(item.label)}</p>
+													<p class="record-field__value">
+														{setupUi(item.detail).replace('Total score', setupUi('Total score'))}
+													</p>
+												</div>
+											{/each}
+										</div>
+
+										{#each scoreOutputs as output, outputIndex (output.localId)}
+											<div class="record-row">
+												<div class="record-row__header">
+													<div>
+														<p class="record-field__label">{setupUi('Result')} {outputIndex + 1}</p>
+														<h5 class="record-row__title">{setupUi('Result options')}</h5>
+													</div>
+													{#if scoreOutputs.length > 1}
+														<button
+															type="button"
+															class="secondary-button"
+															onclick={() => deleteScoreOutput(output.localId)}
+														>
+															<Trash2 size={16} aria-hidden="true" />
+															<span>{setupUi('Remove result')}</span>
+														</button>
+													{/if}
+												</div>
+												<div class="grid gap-4 lg:grid-cols-2">
+													<label class="field">
+														<span>{setupUi('Result name')}</span>
+														<input
+															value={output.name}
+															oninput={(event) =>
+																updateScoreOutput(output.localId, {
+																	name: event.currentTarget.value
+																})}
+														/>
+													</label>
+													<label class="field">
+														<span>{setupUi('Result code')}</span>
+														<input
+															value={output.code}
+															oninput={(event) =>
+																updateScoreOutput(output.localId, {
+																	code: event.currentTarget.value
+																})}
+														/>
+														<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+															{setupUi('Used as the report/export dimension code.')}
+														</span>
+													</label>
+												</div>
+											</div>
+										{/each}
+
+										<div class="action-row">
+											<button
+												type="button"
+												class="secondary-button"
+												onclick={() => addScoreOutput()}
+											>
+												<Plus size={16} aria-hidden="true" />
+												<span>{setupUi('Add another result')}</span>
+											</button>
+										</div>
+
+										{#if collectedContextSummaries.length}
+											<div class="record-row">
+												<h5 class="record-row__title">{setupUi('Collected but not scored')}</h5>
+												<div class="grid gap-2">
+													{#each collectedContextSummaries as question (question.code)}
+														<div class="record-field">
+															<p class="record-field__label">
+																{question.dimensionLabel} - {question.typeLabel}
+															</p>
+															<p class="record-field__value">
+																{question.text}
+															</p>
+														</div>
+													{/each}
+												</div>
+											</div>
+										{/if}
+
 										<div class="record-row">
-											<h5 class="record-row__title">{setupUi('Collected but not scored')}</h5>
+											<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
 											<div class="grid gap-2">
-												{#each collectedContextSummaries as question (question.code)}
+												{#each scorePlanSummaries as summary (summary.localId)}
 													<div class="record-field">
-														<p class="record-field__label">
-															{question.dimensionLabel} - {question.typeLabel}
+														<p class="record-field__label">{summary.code}</p>
+														<p class="record-field__value">{setupUi(summary.name)}</p>
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{setupUi('Uses')}
+															{dimensionCoverageLabel(summary.dimensionLabels)}
+															{setupUi('from')}
+															{setupSelectedQuestionCount(summary.includedQuestionCount)}.
 														</p>
-														<p class="record-field__value">
-															{question.text}
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{setupUi(summary.calculationLabel)}. {setupUi(
+																summary.missingPolicyLabel
+															)}.
+															{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
+														</p>
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{scoreOutputMissingDataDetail(summary.localId)}
 														</p>
 													</div>
 												{/each}
 											</div>
 										</div>
-									{/if}
 
-									<div class="record-row">
-										<h5 class="record-row__title">{setupUi('Scoring plan preview')}</h5>
-										<div class="grid gap-2">
-											{#each scorePlanSummaries as summary (summary.localId)}
-												<div class="record-field">
-													<p class="record-field__label">{summary.code}</p>
-													<p class="record-field__value">{setupUi(summary.name)}</p>
-													<p class="text-sm text-[var(--color-text-muted)]">
-														{setupUi('Uses')} {dimensionCoverageLabel(summary.dimensionLabels)}
-														{setupUi('from')} {setupSelectedQuestionCount(summary.includedQuestionCount)}.
-													</p>
-													<p class="text-sm text-[var(--color-text-muted)]">
-														{setupUi(summary.calculationLabel)}. {setupUi(summary.missingPolicyLabel)}.
-														{reverseScoredCountLabel(summary.reverseScoredQuestionCount)}.
-													</p>
-													<p class="text-sm text-[var(--color-text-muted)]">
-														{scoreOutputMissingDataDetail(summary.localId)}
-													</p>
-												</div>
-											{/each}
-										</div>
+										{#if reverseScoringReview.reverseScoredQuestionCount > 0}
+											<div class="record-row">
+												<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{reverseScoringReview.reverseScoredQuestionCount}
+													{reverseScoringReview.reverseScoredQuestionCount === 1
+														? setupUi('question is')
+														: setupUi('questions are')}
+													{setupUi('reversed before scoring')}:
+													{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
+												</p>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels
+														.map((label) => setupUi(label))
+														.join(', ') || setupUi('no result outputs yet')}.
+												</p>
+											</div>
+										{/if}
 									</div>
+								</details>
+							{/if}
 
-									{#if reverseScoringReview.reverseScoredQuestionCount > 0}
-										<div class="record-row">
-											<h5 class="record-row__title">{setupUi('Reverse-scoring review')}</h5>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{reverseScoringReview.reverseScoredQuestionCount}
-												{reverseScoringReview.reverseScoredQuestionCount === 1
-													? setupUi('question is')
-													: setupUi('questions are')}
-												{setupUi('reversed before scoring')}:
-												{reverseScoringReview.reverseScoredQuestionLabels.join(', ')}.
-											</p>
-											<p class="text-sm text-[var(--color-text-muted)]">
-												{setupUi('Affects')}: {reverseScoringReview.affectedResultLabels
-													.map((label) => setupUi(label))
-													.join(', ') ||
-													setupUi('no result outputs yet')}.
-											</p>
-										</div>
-									{/if}
-								</div>
-							</details>
+							{#if scoreOutputs.length > 0 && scoreOutputErrors.length > 0}
+								<ul class="grid gap-1" aria-label={setupBodyCopy.scoring.errorsLabel}>
+									{#each scoreOutputErrors as error}
+										<li class="error-line">{error}</li>
+									{/each}
+								</ul>
+							{/if}
+
+							{@render ActionFooter({
+								id: 'scoring',
+								label: setupUi('Save results setup'),
+								icon: 'send',
+								onclick: createScoringRule
+							})}
 						{/if}
-
-						{#if scoreOutputs.length > 0 && scoreOutputErrors.length > 0}
-							<ul class="grid gap-1" aria-label={setupBodyCopy.scoring.errorsLabel}>
-								{#each scoreOutputErrors as error}
-									<li class="error-line">{error}</li>
-								{/each}
-							</ul>
+					{:else if activeActionIdForView === 'campaign'}
+						{#if activeStep.pathState !== 'done'}
+							<div class="grid gap-4 lg:grid-cols-2">
+								<label class="field">
+									<span>{setupUi('Measurement name')}</span>
+									<input bind:value={campaignForm.name} />
+								</label>
+								<label class="field">
+									<span>{setupUi('Response mode')}</span>
+									<select bind:value={campaignForm.responseIdentityMode}>
+										<option value="anonymous">{responseModeLabel('anonymous')}</option>
+										<option value="anonymous_longitudinal"
+											>{responseModeLabel('anonymous_longitudinal')}</option
+										>
+										<option value="identified">{responseModeLabel('identified')}</option>
+									</select>
+									<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+										{responseModeHelp(campaignForm.responseIdentityMode)}
+									</span>
+								</label>
+								<label class="field">
+									<span>{setupUi('Respondent language')}</span>
+									<input bind:value={campaignForm.defaultLocale} />
+								</label>
+							</div>
+							{@render ActionFooter({
+								id: 'campaign',
+								label: setupUi('Save measurement'),
+								icon: 'send',
+								onclick: createCampaignDraft
+							})}
 						{/if}
-
-						{@render ActionFooter({
-							id: 'scoring',
-							label: setupUi('Save results setup'),
-							icon: 'send',
-							onclick: createScoringRule
-						})}
 					{/if}
-				{:else if activeActionIdForView === 'campaign'}
-					{#if activeStep.pathState !== 'done'}
-						<div class="grid gap-4 lg:grid-cols-2">
-							<label class="field">
-								<span>{setupUi('Measurement name')}</span>
-								<input bind:value={campaignForm.name} />
-							</label>
-							<label class="field">
-								<span>{setupUi('Response mode')}</span>
-								<select bind:value={campaignForm.responseIdentityMode}>
-									<option value="anonymous">{responseModeLabel('anonymous')}</option>
-									<option value="anonymous_longitudinal">{responseModeLabel('anonymous_longitudinal')}</option>
-									<option value="identified">{responseModeLabel('identified')}</option>
-								</select>
-								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-									{responseModeHelp(campaignForm.responseIdentityMode)}
-								</span>
-							</label>
-							<label class="field">
-								<span>{setupUi('Respondent language')}</span>
-								<input bind:value={campaignForm.defaultLocale} />
-							</label>
-						</div>
-						{@render ActionFooter({
-							id: 'campaign',
-							label: setupUi('Save measurement'),
-							icon: 'send',
-							onclick: createCampaignDraft
-						})}
-					{/if}
-				{/if}
-			</div>
-		</section>
+				</div>
+			</section>
 		{:else if readinessResult?.issues.length || actionErrors.readiness}
 			<section class="record-row setup-current-task" aria-label={setupUi('Setup issues')}>
 				{#if readinessResult?.issues.length}
@@ -3490,540 +3625,577 @@
 		{/if}
 
 		{#if lockedSelectedCampaign && activeActionIdForView === 'campaign'}
-		<section class="record-row setup-current-task" aria-labelledby="locked-wave-heading">
-			<div class="setup-current-task__header">
-				<div>
-					<p class="record-field__label">{setupUi('Previous wave')}</p>
-					<h4 id="locked-wave-heading" class="record-row__title">{setupUi('Recipient selection is locked')}</h4>
-					<p class="setup-current-task__title">{lockedSelectedCampaign.name}</p>
-					<p class="text-sm text-[var(--color-text-muted)]">
-						{setupUi(
-							'This measurement is already locked. Recipient selection can only be changed before launch. Save the next draft measurement first, then choose recipients for that draft.'
-						)}
-					</p>
+			<section class="record-row setup-current-task" aria-labelledby="locked-wave-heading">
+				<div class="setup-current-task__header">
+					<div>
+						<p class="record-field__label">{setupUi('Previous wave')}</p>
+						<h4 id="locked-wave-heading" class="record-row__title">
+							{setupUi('Recipient selection is locked')}
+						</h4>
+						<p class="setup-current-task__title">{lockedSelectedCampaign.name}</p>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{setupUi(
+								'This measurement is already locked. Recipient selection can only be changed before launch. Save the next draft measurement first, then choose recipients for that draft.'
+							)}
+						</p>
+					</div>
+					<p class="step-pill" data-state="idle">{setupUi('Locked')}</p>
 				</div>
-				<p class="step-pill" data-state="idle">{setupUi('Locked')}</p>
-			</div>
-		</section>
+			</section>
 		{/if}
 
 		{#if selectedCampaignId && (activeActionIdForView === 'campaign' || activeActionIdForView === 'readiness')}
-		<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
-			<div class="setup-current-task__header">
-				<div>
-					<p class="record-field__label">{setupUi('Recipient selection')}</p>
-					<h4 id="audience-preview-heading" class="record-row__title">
-						{setupUi('Preview recipients, then save the selection')}
-					</h4>
-					<p class="setup-current-task__title">{selectedCampaignLabel}</p>
-				</div>
-				<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
-			</div>
-
-			{#if savedRuleResult?.rules.length}
-				<p class="result-line">
-					<span>{setupUi('Saved for launch')}</span>
-					<span>{savedAudienceSummary()}</span>
-				</p>
-			{:else}
-				<p class="error-line" role="status">
-					{setupUi(
-						'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.'
-					)}
-				</p>
-			{/if}
-
-			<div class="record-row">
-				<div class="record-row__header">
+			<section class="record-row setup-current-task" aria-labelledby="audience-preview-heading">
+				<div class="setup-current-task__header">
 					<div>
-						<p class="record-field__label">{setupUi('Demo/test data')}</p>
-						<h5 class="record-row__title">{setupUi('Create test recipients for this measurement')}</h5>
-						<p class="text-sm text-[var(--color-text-muted)]">
-							{setupUi(
-								"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this measurement's recipient selection."
-							)}
-						</p>
+						<p class="record-field__label">{setupUi('Recipient selection')}</p>
+						<h4 id="audience-preview-heading" class="record-row__title">
+							{setupUi('Preview recipients, then save the selection')}
+						</h4>
+						<p class="setup-current-task__title">{selectedCampaignLabel}</p>
 					</div>
-					<p class="step-pill" data-state={testRecipientState}>{stepLabel(testRecipientState)}</p>
+					<p class="step-pill" data-state={previewState}>{stepLabel(previewState)}</p>
 				</div>
-				<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto]">
-					<label class="field">
-						<span>{setupUi('Group name')}</span>
-						<input
-							value={testRecipientGroupName}
-							disabled={testRecipientState === 'submitting'}
-							oninput={(event) => (testRecipientGroupName = event.currentTarget.value)}
-						/>
-					</label>
-					<label class="field">
-						<span>{setupUi('People')}</span>
-						<input
-							type="number"
-							min="1"
-							max="1000"
-							bind:value={testRecipientCount}
-							disabled={testRecipientState === 'submitting'}
-						/>
-					</label>
-					<button
-						type="button"
-						class="secondary-button self-end"
-						disabled={!canManageSetup || testRecipientState === 'submitting'}
-						onclick={createTestRecipients}
-					>
-						{#if testRecipientState === 'submitting'}
-							<LoaderCircle size={16} aria-hidden="true" />
-						{:else}
-							<Plus size={16} aria-hidden="true" />
-						{/if}
-						<span>{setupUi('Create test recipients')}</span>
-					</button>
-				</div>
-				{#if testRecipientError}
-					<p class="error-line" role="alert">{testRecipientError}</p>
-				{/if}
-				{#if testRecipientResult}
+
+				{#if savedRuleResult?.rules.length}
 					<p class="result-line">
-						<span>{setupUi('Test cohort saved')}</span>
-						<span>
-							{testRecipientResult.groupName} -
-							{formatCount(testRecipientResult.createdSubjectCount)} {setupUi('recipients')}
-						</span>
+						<span>{setupUi('Saved for launch')}</span>
+						<span>{savedAudienceSummary()}</span>
+					</p>
+				{:else}
+					<p class="error-line" role="status">
+						{setupUi(
+							'No recipient selection is saved yet. Preview recipients first, then save the previewed selection before launch.'
+						)}
 					</p>
 				{/if}
-			</div>
 
-			<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
-				<label class="field">
-					<span>{setupUi('Send invitations to')}</span>
-					<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
-						<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
-						<option value="self">{audienceRuleLabel('self')}</option>
-						<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
-						<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
-						<option value="external_emails">{audienceRuleLabel('external_emails')}</option>
-					</select>
-				</label>
-				<details
-					class="rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text-muted)] lg:col-span-2"
-				>
-					<summary class="cursor-pointer font-semibold text-[var(--color-text-strong)]">
-						{setupUi('How to choose')}
-					</summary>
-					<div class="mt-3 grid gap-3 md:grid-cols-2">
+				<div class="record-row">
+					<div class="record-row__header">
 						<div>
-							<p class="font-semibold text-[var(--color-text-strong)]">
-								{audienceRuleLabel('all_in_group')}
-							</p>
-							<p>{audienceRuleHelp('all_in_group')}</p>
-						</div>
-						<div>
-							<p class="font-semibold text-[var(--color-text-strong)]">
-								{audienceRuleLabel('self')}
-							</p>
-							<p>{audienceRuleHelp('self')}</p>
-						</div>
-						<div>
-							<p class="font-semibold text-[var(--color-text-strong)]">
-								{audienceRuleLabel('manager_of_target')}
-							</p>
-							<p>{audienceRuleHelp('manager_of_target')}</p>
-						</div>
-						<div>
-							<p class="font-semibold text-[var(--color-text-strong)]">
-								{audienceRuleLabel('reports_of_target')}
-							</p>
-							<p>{audienceRuleHelp('reports_of_target')}</p>
-						</div>
-						<div>
-							<p class="font-semibold text-[var(--color-text-strong)]">
-								{audienceRuleLabel('external_emails')}
-							</p>
-							<p>{audienceRuleHelp('external_emails')}</p>
-						</div>
-					</div>
-				</details>
-
-				{#if previewUsesExternalEmails}
-					<div class="record-row lg:col-span-2">
-						<div class="record-row__header">
-							<div>
-								<p class="record-field__label">{setupUi('Campaign-local recipients')}</p>
-								<h5 class="record-row__title">{setupUi('Build a one-off recipient list')}</h5>
-							</div>
-							<span
-								class="step-pill"
-								data-state={previewExternalEmailReview.hasBlockingIssues ? 'failed' : 'idle'}
-							>
-								{formatCount(previewExternalEmailReview.validRecipientCount)} {setupUi('ready')}
-							</span>
-						</div>
-						<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-							<label class="field">
-								<span>{setupUi('Name for review')}</span>
-								<input
-									value={previewManualRecipientName}
-									placeholder="Bo Horvat"
-									disabled={previewState === 'submitting'}
-									oninput={(event) => (previewManualRecipientName = event.currentTarget.value)}
-								/>
-							</label>
-							<label class="field">
-								<span>{setupUi('Email')}</span>
-								<input
-									type="email"
-									value={previewManualRecipientEmail}
-									placeholder="bo@example.com"
-									disabled={previewState === 'submitting'}
-									oninput={(event) => (previewManualRecipientEmail = event.currentTarget.value)}
-								/>
-							</label>
-							<button
-								type="button"
-								class="secondary-button self-end"
-								disabled={previewState === 'submitting'}
-								onclick={addPreviewManualRecipient}
-							>
-								<Plus size={16} aria-hidden="true" />
-								<span>{setupUi('Add person')}</span>
-							</button>
-						</div>
-						{#if previewManualRecipientError}
-							<p class="error-line" role="alert">{previewManualRecipientError}</p>
-						{/if}
-						<label class="field">
-							<span>{setupUi('Import recipients')}</span>
-							<input
-								type="file"
-								accept=".csv,.txt,text/csv,text/plain"
-								disabled={previewState === 'submitting'}
-								onchange={(event) => loadPreviewExternalEmailFile(event.currentTarget.files?.[0])}
-							/>
-							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-								Use a class list, cohort list, HR export, or spreadsheet with an email column
-								{setupUi(
-									'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:'
-								)}
-								{formatCount(maxRecipientImportRecipients)} {setupUi('recipients per wave update.')}
-							</span>
-						</label>
-						<details>
-							<summary class="record-row__title">{setupUi('Review or paste source list')}</summary>
-							<label class="field mt-3">
-								<span>{setupUi('Recipient source')}</span>
-								<textarea
-									rows="5"
-									value={previewExternalEmailText}
-									placeholder={'ada@example.com\nBo Horvat <bo@example.com>\ncarla@example.com; diego@example.com'}
-									disabled={previewState === 'submitting'}
-									oninput={(event) => (previewExternalEmailText = event.currentTarget.value)}
-								></textarea>
-								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-									{formatCount(previewExternalEmailReview.validRecipientCount)} {setupUi('ready')},
-									{formatCount(previewExternalEmailReview.invalidCount)} {setupUi('invalid')},
-									{formatCount(previewExternalEmailReview.duplicateCount)} {setupUi('duplicate')}.
-								</span>
-							</label>
-						</details>
-						<div class="action-row">
-							<button
-								type="button"
-								class="secondary-button"
-								disabled={!previewExternalEmailReview.hasBlockingIssues || previewState === 'submitting'}
-								onclick={keepOnlyValidPreviewRecipients}
-							>
-								<RefreshCw size={16} aria-hidden="true" />
-								<span>{setupUi('Keep valid only')}</span>
-							</button>
-							<button
-								type="button"
-								class="secondary-button"
-								disabled={previewExternalEmailReview.rows.length === 0 || previewState === 'submitting'}
-								onclick={clearPreviewRecipients}
-							>
-								<Trash2 size={16} aria-hidden="true" />
-								<span>{setupUi('Clear list')}</span>
-							</button>
-						</div>
-						{#if previewExternalEmailFileError}
-							<p class="error-line" role="alert">{previewExternalEmailFileError}</p>
-						{/if}
-					</div>
-				{:else if previewRequiresGroup}
-					{#if previewGroups.length === 0}
-						<div class="record-field">
-							<p class="record-field__label">{setupUi('Directory group')}</p>
-							<p class="record-field__value">{setupUi('No groups available')}</p>
+							<p class="record-field__label">{setupUi('Demo/test data')}</p>
+							<h5 class="record-row__title">
+								{setupUi('Create test recipients for this measurement')}
+							</h5>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{setupUi(
-									'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.'
+									"Use this in staging or demos when you need realistic recipients without importing a real directory. It creates a marked test cohort and saves it as this measurement's recipient selection."
 								)}
 							</p>
-							<a class="secondary-button mt-3" href="/app/directory">{setupUi('Open Directory')}</a>
 						</div>
-					{:else}
+						<p class="step-pill" data-state={testRecipientState}>{stepLabel(testRecipientState)}</p>
+					</div>
+					<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto]">
 						<label class="field">
-							<span>{setupUi('Directory group')}</span>
+							<span>{setupUi('Group name')}</span>
+							<input
+								value={testRecipientGroupName}
+								disabled={testRecipientState === 'submitting'}
+								oninput={(event) => (testRecipientGroupName = event.currentTarget.value)}
+							/>
+						</label>
+						<label class="field">
+							<span>{setupUi('People')}</span>
+							<input
+								type="number"
+								min="1"
+								max="1000"
+								bind:value={testRecipientCount}
+								disabled={testRecipientState === 'submitting'}
+							/>
+						</label>
+						<button
+							type="button"
+							class="secondary-button self-end"
+							disabled={!canManageSetup || testRecipientState === 'submitting'}
+							onclick={createTestRecipients}
+						>
+							{#if testRecipientState === 'submitting'}
+								<LoaderCircle size={16} aria-hidden="true" />
+							{:else}
+								<Plus size={16} aria-hidden="true" />
+							{/if}
+							<span>{setupUi('Create test recipients')}</span>
+						</button>
+					</div>
+					{#if testRecipientError}
+						<p class="error-line" role="alert">{testRecipientError}</p>
+					{/if}
+					{#if testRecipientResult}
+						<p class="result-line">
+							<span>{setupUi('Test cohort saved')}</span>
+							<span>
+								{testRecipientResult.groupName} -
+								{formatCount(testRecipientResult.createdSubjectCount)}
+								{setupUi('recipients')}
+							</span>
+						</p>
+					{/if}
+				</div>
+
+				<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
+					<label class="field">
+						<span>{setupUi('Send invitations to')}</span>
+						<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
+							<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
+							<option value="self">{audienceRuleLabel('self')}</option>
+							<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
+							<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
+							<option value="external_emails">{audienceRuleLabel('external_emails')}</option>
+						</select>
+					</label>
+					<details
+						class="rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text-muted)] lg:col-span-2"
+					>
+						<summary class="cursor-pointer font-semibold text-[var(--color-text-strong)]">
+							{setupUi('How to choose')}
+						</summary>
+						<div class="mt-3 grid gap-3 md:grid-cols-2">
+							<div>
+								<p class="font-semibold text-[var(--color-text-strong)]">
+									{audienceRuleLabel('all_in_group')}
+								</p>
+								<p>{audienceRuleHelp('all_in_group')}</p>
+							</div>
+							<div>
+								<p class="font-semibold text-[var(--color-text-strong)]">
+									{audienceRuleLabel('self')}
+								</p>
+								<p>{audienceRuleHelp('self')}</p>
+							</div>
+							<div>
+								<p class="font-semibold text-[var(--color-text-strong)]">
+									{audienceRuleLabel('manager_of_target')}
+								</p>
+								<p>{audienceRuleHelp('manager_of_target')}</p>
+							</div>
+							<div>
+								<p class="font-semibold text-[var(--color-text-strong)]">
+									{audienceRuleLabel('reports_of_target')}
+								</p>
+								<p>{audienceRuleHelp('reports_of_target')}</p>
+							</div>
+							<div>
+								<p class="font-semibold text-[var(--color-text-strong)]">
+									{audienceRuleLabel('external_emails')}
+								</p>
+								<p>{audienceRuleHelp('external_emails')}</p>
+							</div>
+						</div>
+					</details>
+
+					{#if previewUsesExternalEmails}
+						<div class="record-row lg:col-span-2">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">{setupUi('Campaign-local recipients')}</p>
+									<h5 class="record-row__title">{setupUi('Build a one-off recipient list')}</h5>
+								</div>
+								<span
+									class="step-pill"
+									data-state={previewExternalEmailReview.hasBlockingIssues ? 'failed' : 'idle'}
+								>
+									{formatCount(previewExternalEmailReview.validRecipientCount)}
+									{setupUi('ready')}
+								</span>
+							</div>
+							<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+								<label class="field">
+									<span>{setupUi('Name for review')}</span>
+									<input
+										value={previewManualRecipientName}
+										placeholder="Bo Horvat"
+										disabled={previewState === 'submitting'}
+										oninput={(event) => (previewManualRecipientName = event.currentTarget.value)}
+									/>
+								</label>
+								<label class="field">
+									<span>{setupUi('Email')}</span>
+									<input
+										type="email"
+										value={previewManualRecipientEmail}
+										placeholder="bo@example.com"
+										disabled={previewState === 'submitting'}
+										oninput={(event) => (previewManualRecipientEmail = event.currentTarget.value)}
+									/>
+								</label>
+								<button
+									type="button"
+									class="secondary-button self-end"
+									disabled={previewState === 'submitting'}
+									onclick={addPreviewManualRecipient}
+								>
+									<Plus size={16} aria-hidden="true" />
+									<span>{setupUi('Add person')}</span>
+								</button>
+							</div>
+							{#if previewManualRecipientError}
+								<p class="error-line" role="alert">{previewManualRecipientError}</p>
+							{/if}
+							<label class="field">
+								<span>{setupUi('Import recipients')}</span>
+								<input
+									type="file"
+									accept=".csv,.txt,text/csv,text/plain"
+									disabled={previewState === 'submitting'}
+									onchange={(event) => loadPreviewExternalEmailFile(event.currentTarget.files?.[0])}
+								/>
+								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+									Use a class list, cohort list, HR export, or spreadsheet with an email column
+									{setupUi(
+										'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:'
+									)}
+									{formatCount(maxRecipientImportRecipients)}
+									{setupUi('recipients per wave update.')}
+								</span>
+							</label>
+							<details>
+								<summary class="record-row__title">{setupUi('Review or paste source list')}</summary
+								>
+								<label class="field mt-3">
+									<span>{setupUi('Recipient source')}</span>
+									<textarea
+										rows="5"
+										value={previewExternalEmailText}
+										placeholder={'ada@example.com\nBo Horvat <bo@example.com>\ncarla@example.com; diego@example.com'}
+										disabled={previewState === 'submitting'}
+										oninput={(event) => (previewExternalEmailText = event.currentTarget.value)}
+									></textarea>
+									<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+										{formatCount(previewExternalEmailReview.validRecipientCount)}
+										{setupUi('ready')},
+										{formatCount(previewExternalEmailReview.invalidCount)}
+										{setupUi('invalid')},
+										{formatCount(previewExternalEmailReview.duplicateCount)}
+										{setupUi('duplicate')}.
+									</span>
+								</label>
+							</details>
+							<div class="action-row">
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={!previewExternalEmailReview.hasBlockingIssues ||
+										previewState === 'submitting'}
+									onclick={keepOnlyValidPreviewRecipients}
+								>
+									<RefreshCw size={16} aria-hidden="true" />
+									<span>{setupUi('Keep valid only')}</span>
+								</button>
+								<button
+									type="button"
+									class="secondary-button"
+									disabled={previewExternalEmailReview.rows.length === 0 ||
+										previewState === 'submitting'}
+									onclick={clearPreviewRecipients}
+								>
+									<Trash2 size={16} aria-hidden="true" />
+									<span>{setupUi('Clear list')}</span>
+								</button>
+							</div>
+							{#if previewExternalEmailFileError}
+								<p class="error-line" role="alert">{previewExternalEmailFileError}</p>
+							{/if}
+						</div>
+					{:else if previewRequiresGroup}
+						{#if previewGroups.length === 0}
+							<div class="record-field">
+								<p class="record-field__label">{setupUi('Directory group')}</p>
+								<p class="record-field__value">{setupUi('No groups available')}</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{setupUi(
+										'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.'
+									)}
+								</p>
+								<a class="secondary-button mt-3" href="/app/directory"
+									>{setupUi('Open Directory')}</a
+								>
+							</div>
+						{:else}
+							<label class="field">
+								<span>{setupUi('Directory group')}</span>
+								<select
+									bind:value={previewGroupId}
+									disabled={previewGroups.length === 0 || previewState === 'submitting'}
+								>
+									{#each previewGroups as group (group.id)}
+										<option value={group.id}>{group.name}</option>
+									{/each}
+								</select>
+							</label>
+						{/if}
+					{:else if previewRequiresTarget}
+						<label class="field">
+							<span>{setupUi('Focus person')}</span>
 							<select
-								bind:value={previewGroupId}
-								disabled={previewGroups.length === 0 || previewState === 'submitting'}
+								bind:value={previewTargetSubjectId}
+								disabled={previewSubjects.length === 0 || previewState === 'submitting'}
 							>
-								{#each previewGroups as group (group.id)}
-									<option value={group.id}>{group.name}</option>
+								{#each previewSubjects as subject (subject.id)}
+									<option value={subject.id}>{previewSubjectLabel(subject)}</option>
 								{/each}
 							</select>
 						</label>
-					{/if}
-				{:else if previewRequiresTarget}
-					<label class="field">
-						<span>{setupUi('Focus person')}</span>
-						<select
-							bind:value={previewTargetSubjectId}
-							disabled={previewSubjects.length === 0 || previewState === 'submitting'}
-						>
-							{#each previewSubjects as subject (subject.id)}
-								<option value={subject.id}>{previewSubjectLabel(subject)}</option>
-							{/each}
-						</select>
-					</label>
-				{:else}
-					<div class="record-field">
-						<p class="record-field__label">{setupUi('Directory people')}</p>
-						<p class="record-field__value">
-							{previewSubjects.length
-								? `${formatCount(previewSubjects.length)} ${setupUi('active people loaded')}`
-								: setupUi('No active people loaded yet')}
-						</p>
-						<p class="text-sm text-[var(--color-text-muted)]">
-							{setupUi(
-								'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.'
-							)}
-						</p>
-					</div>
-				{/if}
-
-				<label class="field">
-					<span>{setupUi('Preview rows')}</span>
-					<input
-						type="number"
-						min="1"
-						max="200"
-						bind:value={previewMaxRows}
-						disabled={previewState === 'submitting'}
-					/>
-				</label>
-			</div>
-
-			<div class="action-row">
-				<button type="button" class="secondary-button" disabled={!canRunPreview} onclick={previewRespondentRule}>
-					{#if previewState === 'submitting'}
-						<LoaderCircle size={17} aria-hidden="true" />
 					{:else}
-						<SearchCheck size={17} aria-hidden="true" />
-					{/if}
-					<span>{setupUi('Preview recipients')}</span>
-				</button>
-				<button
-					type="button"
-					class="secondary-button"
-					disabled={!canSaveCurrentRule}
-					onclick={saveCurrentRespondentRule}
-				>
-					{#if savedRuleState === 'submitting'}
-						<LoaderCircle size={16} aria-hidden="true" />
-					{:else}
-						<Send size={16} aria-hidden="true" />
-					{/if}
-					<span>{setupUi('Save previewed recipients')}</span>
-				</button>
-				<button
-					type="button"
-					class="secondary-button"
-					disabled={previewOptionsLoading || previewState === 'submitting'}
-					onclick={() => {
-						previewOptionsLoadAttempted = false;
-						void loadPreviewOptions();
-					}}
-				>
-					{#if previewOptionsLoading}
-						<LoaderCircle size={16} aria-hidden="true" />
-					{:else}
-						<RefreshCw size={16} aria-hidden="true" />
-					{/if}
-					<span>{setupUi('Refresh directory')}</span>
-				</button>
-			</div>
-
-			{#if previewOptionsError}
-				<p class="error-line" role="alert">{previewOptionsError}</p>
-			{/if}
-			{#if previewError}
-				<p class="error-line" role="alert">{previewError}</p>
-			{/if}
-
-			{#if previewResult}
-				<p class="result-line">
-					<span>{setupUi('Previewed selection')}</span>
-					<span>
-						{audienceRuleLabel(previewRuleKind)} - {previewResult.summary.respondentCount}
-						{setupUi(previewResult.summary.respondentCount === 1 ? 'recipient found' : 'recipients found')}
-					</span>
-				</p>
-				<div class="record-grid">
-					<div class="record-field">
-						<p class="record-field__label">{setupUi('Recipients found')}</p>
-						<p class="record-field__value">{previewResult.summary.respondentCount}</p>
-					</div>
-					<div class="record-field">
-						<p class="record-field__label">{setupUi('Invitation rows')}</p>
-						<p class="record-field__value">{previewResult.summary.assignmentPairCount}</p>
-					</div>
-					<div class="record-field">
-						<p class="record-field__label">{setupUi('Preview capped')}</p>
-						<p class="record-field__value">
-							{previewResult.summary.truncated ? setupUi('Yes') : setupUi('No')}
-						</p>
-					</div>
-				</div>
-
-				{#if previewResult.warnings.length}
-					<ul class="grid gap-2" aria-label={setupUi('Recipient preview warnings')}>
-						{#each previewResult.warnings as warning}
-							<li class="text-sm text-[var(--color-text-muted)]">
-								{audienceWarningLabel(warning)}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-
-				<details class="record-row" open={previewResult.rows.length > 0 && previewResult.rows.length <= 25}>
-					<summary class="record-row__title">
-						{setupUi('Preview rows')} ({formatCount(previewResult.rows.length)})
-					</summary>
-					<div class="mt-3 grid max-h-80 gap-2 overflow-y-auto pr-2">
-					{#if previewResult.rows.length === 0}
-					<p class="text-sm text-[var(--color-text-muted)]">{setupUi('No people to show yet.')}</p>
-					{:else}
-						{#each previewResult.rows as row (row.ordinal)}
-							<div class="record-field">
-								<p class="record-field__label">#{row.ordinal} {recipientRoleLabel(row.role)}</p>
-								<p class="record-field__value">
-									{previewPairLabel(row)}
-								</p>
-								{#if row.respondent?.email || row.respondent?.externalId}
-									<p class="text-sm text-[var(--color-text-muted)]">
-										{row.respondent.email ?? row.respondent.externalId}
-									</p>
-								{/if}
-							</div>
-						{/each}
-					{/if}
-					</div>
-				</details>
-			{/if}
-		</section>
-
-		{#if savedRuleResult?.rules.length || savedRuleError}
-		<section class="record-row setup-current-task" aria-labelledby="saved-recipient-selection-heading">
-			<div class="setup-current-task__header">
-				<div>
-					<p class="record-field__label">{setupUi('Saved recipients')}</p>
-					<h4 id="saved-recipient-selection-heading" class="record-row__title">
-						{setupUi('Saved recipient selection')}
-					</h4>
-					<p class="setup-current-task__title">{savedAudienceSummary()}</p>
-				</div>
-				<p class="step-pill" data-state={savedRuleState}>{stepLabel(savedRuleState)}</p>
-			</div>
-
-			{#if savedRuleError}
-				<p class="error-line" role="alert">{savedRuleError}</p>
-			{:else if savedRuleResult?.rules.length}
-				<div class="grid gap-2">
-					{#each savedRuleResult.rules as rule (rule.id)}
 						<div class="record-field">
-							<p class="record-field__label">{setupUi('Selection')} #{rule.ordinal}</p>
-							<p class="record-field__value">{savedRecipientSelectionLabel(rule)}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{savedRecipientSelectionDetail(rule)}
+							<p class="record-field__label">{setupUi('Directory people')}</p>
+							<p class="record-field__value">
+								{previewSubjects.length
+									? `${formatCount(previewSubjects.length)} ${setupUi('active people loaded')}`
+									: setupUi('No active people loaded yet')}
 							</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
-								{pairCountLabel(rule.assignmentPairCount)}
+								{setupUi(
+									'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.'
+								)}
 							</p>
-							{#if rule.issues.length}
-								<ul class="grid gap-1" aria-label={setupUi('Saved recipient selection issues')}>
-									{#each rule.issues as issue}
-										<li class="error-line">{launchIssueLabel(issue)}</li>
-									{/each}
-								</ul>
+						</div>
+					{/if}
+
+					<label class="field">
+						<span>{setupUi('Preview rows')}</span>
+						<input
+							type="number"
+							min="1"
+							max="200"
+							bind:value={previewMaxRows}
+							disabled={previewState === 'submitting'}
+						/>
+					</label>
+				</div>
+
+				<div class="action-row">
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={!canRunPreview}
+						onclick={previewRespondentRule}
+					>
+						{#if previewState === 'submitting'}
+							<LoaderCircle size={17} aria-hidden="true" />
+						{:else}
+							<SearchCheck size={17} aria-hidden="true" />
+						{/if}
+						<span>{setupUi('Preview recipients')}</span>
+					</button>
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={!canSaveCurrentRule}
+						onclick={saveCurrentRespondentRule}
+					>
+						{#if savedRuleState === 'submitting'}
+							<LoaderCircle size={16} aria-hidden="true" />
+						{:else}
+							<Send size={16} aria-hidden="true" />
+						{/if}
+						<span>{setupUi('Save previewed recipients')}</span>
+					</button>
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={previewOptionsLoading || previewState === 'submitting'}
+						onclick={() => {
+							previewOptionsLoadAttempted = false;
+							void loadPreviewOptions();
+						}}
+					>
+						{#if previewOptionsLoading}
+							<LoaderCircle size={16} aria-hidden="true" />
+						{:else}
+							<RefreshCw size={16} aria-hidden="true" />
+						{/if}
+						<span>{setupUi('Refresh directory')}</span>
+					</button>
+				</div>
+
+				{#if previewOptionsError}
+					<p class="error-line" role="alert">{previewOptionsError}</p>
+				{/if}
+				{#if previewError}
+					<p class="error-line" role="alert">{previewError}</p>
+				{/if}
+
+				{#if previewResult}
+					<p class="result-line">
+						<span>{setupUi('Previewed selection')}</span>
+						<span>
+							{audienceRuleLabel(previewRuleKind)} - {previewResult.summary.respondentCount}
+							{setupUi(
+								previewResult.summary.respondentCount === 1 ? 'recipient found' : 'recipients found'
+							)}
+						</span>
+					</p>
+					<div class="record-grid">
+						<div class="record-field">
+							<p class="record-field__label">{setupUi('Recipients found')}</p>
+							<p class="record-field__value">{previewResult.summary.respondentCount}</p>
+						</div>
+						<div class="record-field">
+							<p class="record-field__label">{setupUi('Invitation rows')}</p>
+							<p class="record-field__value">{previewResult.summary.assignmentPairCount}</p>
+						</div>
+						<div class="record-field">
+							<p class="record-field__label">{setupUi('Preview capped')}</p>
+							<p class="record-field__value">
+								{previewResult.summary.truncated ? setupUi('Yes') : setupUi('No')}
+							</p>
+						</div>
+					</div>
+
+					{#if previewResult.warnings.length}
+						<ul class="grid gap-2" aria-label={setupUi('Recipient preview warnings')}>
+							{#each previewResult.warnings as warning}
+								<li class="text-sm text-[var(--color-text-muted)]">
+									{audienceWarningLabel(warning)}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+
+					<details
+						class="record-row"
+						open={previewResult.rows.length > 0 && previewResult.rows.length <= 25}
+					>
+						<summary class="record-row__title">
+							{setupUi('Preview rows')} ({formatCount(previewResult.rows.length)})
+						</summary>
+						<div class="mt-3 grid max-h-80 gap-2 overflow-y-auto pr-2">
+							{#if previewResult.rows.length === 0}
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{setupUi('No people to show yet.')}
+								</p>
+							{:else}
+								{#each previewResult.rows as row (row.ordinal)}
+									<div class="record-field">
+										<p class="record-field__label">#{row.ordinal} {recipientRoleLabel(row.role)}</p>
+										<p class="record-field__value">
+											{previewPairLabel(row)}
+										</p>
+										{#if row.respondent?.email || row.respondent?.externalId}
+											<p class="text-sm text-[var(--color-text-muted)]">
+												{row.respondent.email ?? row.respondent.externalId}
+											</p>
+										{/if}
+									</div>
+								{/each}
 							{/if}
 						</div>
-					{/each}
-				</div>
-			{:else}
-				<p class="text-sm text-[var(--color-text-muted)]">
-					{setupUi('Save a recipient selection after the preview looks right.')}
-				</p>
+					</details>
+				{/if}
+			</section>
+
+			{#if savedRuleResult?.rules.length || savedRuleError}
+				<section
+					class="record-row setup-current-task"
+					aria-labelledby="saved-recipient-selection-heading"
+				>
+					<div class="setup-current-task__header">
+						<div>
+							<p class="record-field__label">{setupUi('Saved recipients')}</p>
+							<h4 id="saved-recipient-selection-heading" class="record-row__title">
+								{setupUi('Saved recipient selection')}
+							</h4>
+							<p class="setup-current-task__title">{savedAudienceSummary()}</p>
+						</div>
+						<p class="step-pill" data-state={savedRuleState}>{stepLabel(savedRuleState)}</p>
+					</div>
+
+					{#if savedRuleError}
+						<p class="error-line" role="alert">{savedRuleError}</p>
+					{:else if savedRuleResult?.rules.length}
+						<div class="grid gap-2">
+							{#each savedRuleResult.rules as rule (rule.id)}
+								<div class="record-field">
+									<p class="record-field__label">{setupUi('Selection')} #{rule.ordinal}</p>
+									<p class="record-field__value">{savedRecipientSelectionLabel(rule)}</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{savedRecipientSelectionDetail(rule)}
+									</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{pairCountLabel(rule.assignmentPairCount)}
+									</p>
+									{#if rule.issues.length}
+										<ul class="grid gap-1" aria-label={setupUi('Saved recipient selection issues')}>
+											{#each rule.issues as issue}
+												<li class="error-line">{launchIssueLabel(issue)}</li>
+											{/each}
+										</ul>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{setupUi('Save a recipient selection after the preview looks right.')}
+						</p>
+					{/if}
+				</section>
 			{/if}
-		</section>
-		{/if}
 
-		<div class="action-row setup-step-navigation">
-			<button
-				type="button"
-				class="secondary-button"
-				disabled={!canGoPrevious}
-				onclick={goToPreviousSetupAction}
-			>
-				{setupUi('Previous step')}
-			</button>
-			<button
-				type="button"
-				class={activeActionIdForView === 'readiness' ? 'primary-button' : 'secondary-button'}
-				disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
-				onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
-			>
-				{activeActionIdForView === 'readiness' ? launchSurfaceButtonLabel() : setupUi('Next step')}
-			</button>
-		</div>
-
-		{#if assignmentResult?.assignmentCount || assignmentError}
-		<section class="record-row setup-current-task" aria-labelledby="prepared-invitation-roster-heading">
-			<div class="setup-current-task__header">
-				<div>
-					<p class="record-field__label">{setupUi('Invitation roster')}</p>
-					<h4 id="prepared-invitation-roster-heading" class="record-row__title">
-						{setupUi('Prepared invitation roster')}
-					</h4>
-					<p class="setup-current-task__title">{deliveryRosterSummary()}</p>
-				</div>
-				<p class="step-pill" data-state={assignmentState}>{stepLabel(assignmentState)}</p>
+			<div class="action-row setup-step-navigation">
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canGoPrevious}
+					onclick={goToPreviousSetupAction}
+				>
+					{setupUi('Previous step')}
+				</button>
+				<button
+					type="button"
+					class={activeActionIdForView === 'readiness' ? 'primary-button' : 'secondary-button'}
+					disabled={activeActionIdForView === 'readiness' ? !canOpenLaunchSurface() : !canGoNext}
+					onclick={activeActionIdForView === 'readiness' ? openLaunchSurface : goToNextSetupAction}
+				>
+					{activeActionIdForView === 'readiness'
+						? launchSurfaceButtonLabel()
+						: setupUi('Next step')}
+				</button>
 			</div>
 
-			{#if assignmentError}
-				<p class="error-line" role="alert">{assignmentError}</p>
-			{:else if assignmentResult?.assignments.length}
-				<div class="grid gap-2">
-					{#each assignmentResult.assignments as assignment (assignment.id)}
-						<div class="record-field">
-							<p class="record-field__label">{recipientRoleLabel(assignment.role)}</p>
-							<p class="record-field__value">{assignmentPairLabel(assignment)}</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{assignment.respondent?.email ?? assignment.respondent?.externalId ?? setupUi('No contact')}
-							</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{assignment.status}
-							</p>
+			{#if assignmentResult?.assignmentCount || assignmentError}
+				<section
+					class="record-row setup-current-task"
+					aria-labelledby="prepared-invitation-roster-heading"
+				>
+					<div class="setup-current-task__header">
+						<div>
+							<p class="record-field__label">{setupUi('Invitation roster')}</p>
+							<h4 id="prepared-invitation-roster-heading" class="record-row__title">
+								{setupUi('Prepared invitation roster')}
+							</h4>
+							<p class="setup-current-task__title">{deliveryRosterSummary()}</p>
 						</div>
-					{/each}
-				</div>
-			{:else}
-				<p class="text-sm text-[var(--color-text-muted)]">
-					Invitations are prepared after the saved selection resolves to active people.
-				</p>
+						<p class="step-pill" data-state={assignmentState}>{stepLabel(assignmentState)}</p>
+					</div>
+
+					{#if assignmentError}
+						<p class="error-line" role="alert">{assignmentError}</p>
+					{:else if assignmentResult?.assignments.length}
+						<div class="grid gap-2">
+							{#each assignmentResult.assignments as assignment (assignment.id)}
+								<div class="record-field">
+									<p class="record-field__label">{recipientRoleLabel(assignment.role)}</p>
+									<p class="record-field__value">{assignmentPairLabel(assignment)}</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{assignment.respondent?.email ??
+											assignment.respondent?.externalId ??
+											setupUi('No contact')}
+									</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{assignment.status}
+									</p>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-[var(--color-text-muted)]">
+							Invitations are prepared after the saved selection resolves to active people.
+						</p>
+					{/if}
+				</section>
 			{/if}
-		</section>
-		{/if}
 		{/if}
 	{/if}
 </section>
@@ -4050,7 +4222,6 @@
 		{/each}
 	</div>
 {/snippet}
-
 
 {#snippet ActionFooter({
 	id,
@@ -4088,4 +4259,3 @@
 		<p class="error-line">{actionErrors[id]}</p>
 	{/if}
 {/snippet}
-
