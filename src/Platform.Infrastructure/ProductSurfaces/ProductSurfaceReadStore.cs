@@ -518,6 +518,7 @@ public sealed class ProductSurfaceReadStore(
                 subject.TenantId == tenantId &&
                 subject.DeletedAt == null &&
                 !EF.Functions.JsonContains(subject.Attributes, SampleStudyAttributeProbe));
+        subjectsQuery = ApplySubjectDirectoryFilters(subjectsQuery, tenantId, query);
         var totalSubjectCount = await subjectsQuery.CountAsync(cancellationToken);
         var normalizedSearch = NormalizeSearch(query.Search);
         if (normalizedSearch is not null)
@@ -530,9 +531,7 @@ public sealed class ProductSurfaceReadStore(
         }
 
         var filteredSubjectCount = await subjectsQuery.CountAsync(cancellationToken);
-        IQueryable<Subject> orderedSubjectsQuery = subjectsQuery
-            .OrderBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
-            .ThenBy(subject => subject.Id);
+        IQueryable<Subject> orderedSubjectsQuery = ApplySubjectDirectorySort(subjectsQuery, query.Sort);
         if (query.Skip > 0)
         {
             orderedSubjectsQuery = orderedSubjectsQuery.Skip(query.Skip);
@@ -550,7 +549,8 @@ public sealed class ProductSurfaceReadStore(
                 subject.Email,
                 subject.ExternalId,
                 subject.Locale,
-                subject.Attributes))
+                subject.Attributes,
+                subject.UpdatedAt))
             .ToListAsync(cancellationToken);
         var subjectIds = subjects.Select(subject => subject.Id).ToArray();
 
@@ -662,6 +662,7 @@ public sealed class ProductSurfaceReadStore(
             .Select(subject =>
             {
                 managerBySubject.TryGetValue(subject.Id, out var manager);
+                var metadata = SubjectDirectoryMetadata.From(subject.ExternalId, subject.Attributes);
 
                 return new SubjectDirectoryItemResponse(
                     subject.Id,
@@ -673,7 +674,15 @@ public sealed class ProductSurfaceReadStore(
                     manager?.ManagerSubjectId,
                     manager?.ManagerDisplayName,
                     directReportCounts.GetValueOrDefault(subject.Id),
-                    membershipsBySubject.GetValueOrDefault(subject.Id) ?? []);
+                    membershipsBySubject.GetValueOrDefault(subject.Id) ?? [],
+                    metadata.Source,
+                    metadata.SourceLabel,
+                    metadata.Status,
+                    metadata.StatusLabel,
+                    metadata.Department,
+                    metadata.JobTitle,
+                    metadata.EmployeeType,
+                    metadata.OfficeLocation);
             })
             .ToArray();
 
@@ -691,6 +700,125 @@ public sealed class ProductSurfaceReadStore(
                 query.Take ?? 0,
                 query.Take.HasValue && query.Skip + items.Length < filteredSubjectCount),
             items);
+    }
+
+    private IQueryable<Subject> ApplySubjectDirectoryFilters(
+        IQueryable<Subject> subjectsQuery,
+        Guid tenantId,
+        SubjectDirectoryQuery query)
+    {
+        var source = NormalizeDirectoryFilter(query.Source, SubjectDirectorySources.All);
+        if (source == SubjectDirectorySources.MicrosoftGraph)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                subject.ExternalId != null && subject.ExternalId.StartsWith("msgraph:"));
+        }
+        else if (source == SubjectDirectorySources.Manual)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                (subject.ExternalId == null || !subject.ExternalId.StartsWith("msgraph:")) &&
+                !EF.Functions.JsonContains(subject.Attributes, """{"directory_source":"csv"}"""));
+        }
+        else if (source == SubjectDirectorySources.Csv)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                EF.Functions.JsonContains(subject.Attributes, """{"directory_source":"csv"}"""));
+        }
+
+        var status = NormalizeDirectoryFilter(query.Status, SubjectDirectoryStatuses.Active);
+        if (status == SubjectDirectoryStatuses.Active)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                !EF.Functions.JsonContains(subject.Attributes, """{"directory_status":"deactivated"}""") &&
+                !EF.Functions.JsonContains(subject.Attributes, """{"directory_status":"excluded"}"""));
+        }
+        else if (status == SubjectDirectoryStatuses.Deactivated)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                EF.Functions.JsonContains(subject.Attributes, """{"directory_status":"deactivated"}"""));
+        }
+        else if (status == SubjectDirectoryStatuses.Excluded)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                EF.Functions.JsonContains(subject.Attributes, """{"directory_status":"excluded"}"""));
+        }
+
+        if (query.GroupId.HasValue)
+        {
+            var groupId = query.GroupId.Value;
+            subjectsQuery = subjectsQuery.Where(subject =>
+                db.SubjectMemberships.Any(membership =>
+                    membership.SubjectId == subject.Id &&
+                    membership.GroupId == groupId &&
+                    db.SubjectGroups.Any(group =>
+                        group.Id == membership.GroupId &&
+                        group.TenantId == tenantId &&
+                        group.DeletedAt == null)));
+        }
+
+        var manager = NormalizeDirectoryFilter(query.Manager, SubjectDirectoryManagerFilters.Any);
+        if (manager == SubjectDirectoryManagerFilters.Assigned)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                db.SubjectRelationships.Any(relationship =>
+                    relationship.TenantId == tenantId &&
+                    relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
+                    relationship.RelatedSubjectId == subject.Id &&
+                    relationship.ValidTo == null));
+        }
+        else if (manager == SubjectDirectoryManagerFilters.Missing)
+        {
+            subjectsQuery = subjectsQuery.Where(subject =>
+                !db.SubjectRelationships.Any(relationship =>
+                    relationship.TenantId == tenantId &&
+                    relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
+                    relationship.RelatedSubjectId == subject.Id &&
+                    relationship.ValidTo == null));
+        }
+
+        var contact = NormalizeDirectoryFilter(query.Contact, SubjectDirectoryContactFilters.Any);
+        if (contact == SubjectDirectoryContactFilters.HasEmail)
+        {
+            subjectsQuery = subjectsQuery.Where(subject => subject.Email != null);
+        }
+        else if (contact == SubjectDirectoryContactFilters.MissingEmail)
+        {
+            subjectsQuery = subjectsQuery.Where(subject => subject.Email == null);
+        }
+
+        return subjectsQuery;
+    }
+
+    private static IQueryable<Subject> ApplySubjectDirectorySort(
+        IQueryable<Subject> subjectsQuery,
+        string? sort)
+    {
+        return NormalizeDirectoryFilter(sort, SubjectDirectorySorts.NameAsc) switch
+        {
+            SubjectDirectorySorts.NameDesc => subjectsQuery
+                .OrderByDescending(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
+                .ThenBy(subject => subject.Id),
+            SubjectDirectorySorts.DepartmentAsc => subjectsQuery
+                .OrderBy(subject => subject.Attributes)
+                .ThenBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
+                .ThenBy(subject => subject.Id),
+            SubjectDirectorySorts.SourceAsc => subjectsQuery
+                .OrderByDescending(subject => subject.ExternalId != null && subject.ExternalId.StartsWith("msgraph:"))
+                .ThenBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
+                .ThenBy(subject => subject.Id),
+            SubjectDirectorySorts.UpdatedDesc => subjectsQuery
+                .OrderByDescending(subject => subject.UpdatedAt)
+                .ThenBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
+                .ThenBy(subject => subject.Id),
+            _ => subjectsQuery
+                .OrderBy(subject => subject.DisplayName ?? subject.Email ?? subject.ExternalId ?? string.Empty)
+                .ThenBy(subject => subject.Id)
+        };
+    }
+
+    private static string NormalizeDirectoryFilter(string? value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
 
     public async Task<SubjectGroupListResponse> ListSubjectGroupsAsync(
@@ -5973,7 +6101,8 @@ public sealed class ProductSurfaceReadStore(
         string? Email,
         string? ExternalId,
         string Locale,
-        string Attributes);
+        string Attributes,
+        DateTimeOffset UpdatedAt);
 
     private sealed record SubjectDirectoryMembershipRow(
         Guid SubjectId,

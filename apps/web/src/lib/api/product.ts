@@ -166,6 +166,12 @@ export type SubjectDirectoryQuery = {
 	search?: string | null;
 	skip?: number | null;
 	take?: number | null;
+	sort?: string | null;
+	source?: string | null;
+	status?: string | null;
+	groupId?: string | null;
+	manager?: string | null;
+	contact?: string | null;
 };
 
 export type SubjectDirectoryItemResponse = {
@@ -179,6 +185,14 @@ export type SubjectDirectoryItemResponse = {
 	managerDisplayName: string | null;
 	directReportCount: number;
 	groups: SubjectGroupMembershipResponse[];
+	source: string;
+	sourceLabel: string;
+	status: string;
+	statusLabel: string;
+	department: string | null;
+	jobTitle: string | null;
+	employeeType: string | null;
+	officeLocation: string | null;
 };
 
 export type SubjectGroupMembershipResponse = {
@@ -213,6 +227,10 @@ export type CreateSubjectRequest = {
 };
 
 export type UpdateSubjectRequest = CreateSubjectRequest;
+
+export type DeactivateSubjectRequest = {
+	reason?: string | null;
+};
 
 export type SubjectDirectoryCsvImportRequest = {
 	csvContent: string;
@@ -1288,6 +1306,11 @@ export function createProductApi(client: ApiClient) {
 				`/subjects/${encodeURIComponent(subjectId)}`,
 				jsonRequest('PUT', request)
 			),
+		deactivateSubject: (subjectId: string, request: DeactivateSubjectRequest) =>
+			client.request<SubjectDirectoryItemResponse>(
+				`/subjects/${encodeURIComponent(subjectId)}/deactivate`,
+				jsonRequest('POST', request)
+			),
 		listSubjectGroups: () => client.request<SubjectGroupListResponse>('/subject-groups'),
 		createSubjectGroup: (request: CreateSubjectGroupRequest) =>
 			client.request<SubjectGroupResponse>('/subject-groups', jsonRequest('POST', request)),
@@ -1398,6 +1421,12 @@ function withSubjectDirectoryQuery(path: string, query: SubjectDirectoryQuery | 
 	appendQueryValue(parameters, 'search', query.search);
 	appendNumberQueryValue(parameters, 'skip', query.skip);
 	appendNumberQueryValue(parameters, 'take', query.take);
+	appendQueryValue(parameters, 'sort', query.sort);
+	appendQueryValue(parameters, 'source', query.source);
+	appendQueryValue(parameters, 'status', query.status);
+	appendQueryValue(parameters, 'groupId', query.groupId);
+	appendQueryValue(parameters, 'manager', query.manager);
+	appendQueryValue(parameters, 'contact', query.contact);
 
 	const serialized = parameters.toString();
 	return serialized.length > 0 ? `${path}?${serialized}` : path;

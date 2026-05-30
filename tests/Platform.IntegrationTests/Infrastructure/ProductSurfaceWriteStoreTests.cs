@@ -1169,6 +1169,52 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Deactivate_subject_marks_directory_status_without_losing_external_identity()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-deactivate-subject");
+        var subject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:customer-tenant:adele",
+            """{"department":"Retail","job_title":"Store lead","directory_source":"microsoft_graph"}""");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.DeactivateSubjectAsync(
+            tenantId,
+            subject.Id,
+            actorUserId,
+            new DeactivateSubjectRequest("Wrong cohort"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(subject.Id, result.Value.Id);
+        Assert.Equal("msgraph:customer-tenant:adele", result.Value.ExternalId);
+        Assert.Equal("deactivated", result.Value.Status);
+        Assert.Equal("Microsoft 365", result.Value.SourceLabel);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Subjects.SingleAsync(entity => entity.Id == subject.Id);
+        Assert.Null(persisted.DeletedAt);
+        Assert.Equal("msgraph:customer-tenant:adele", persisted.ExternalId);
+        using var attributes = JsonDocument.Parse(persisted.Attributes);
+        Assert.Equal("deactivated", attributes.RootElement.GetProperty("directory_status").GetString());
+        Assert.Equal("Wrong cohort", attributes.RootElement.GetProperty("directory_status_reason").GetString());
+        Assert.Equal(actorUserId.ToString("D"), attributes.RootElement.GetProperty("directory_status_changed_by").GetString());
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Import_subject_directory_csv_upserts_people_groups_and_memberships_under_tenant_scope()
     {
         var tenantId = Guid.NewGuid();
@@ -1926,7 +1972,8 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
         Guid tenantId,
         string displayName,
         string email,
-        string externalId)
+        string externalId,
+        string attributes = """{"source":"test"}""")
     {
         var subject = new Subject(
             Guid.NewGuid(),
@@ -1934,7 +1981,7 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
             externalId: externalId,
             email: email,
             displayName: displayName,
-            attributes: """{"source":"test"}""");
+            attributes: attributes);
 
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);

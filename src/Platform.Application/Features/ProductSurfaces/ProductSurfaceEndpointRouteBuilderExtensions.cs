@@ -80,6 +80,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("UpdateSubject")
             .WithTags("ProductSurfaces");
 
+        app.MapPost("/subjects/{subjectId:guid}/deactivate", DeactivateSubject)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("DeactivateSubject")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/subject-groups", ListSubjectGroups)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -260,10 +266,18 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         string? search,
         int? skip,
         int? take,
+        string? sort,
+        string? source,
+        string? status,
+        Guid? groupId,
+        string? manager,
+        string? contact,
         ISender sender,
         CancellationToken cancellationToken)
     {
-        return Results.Ok(await sender.Send(new ListSubjectsQuery(search, skip ?? 0, take), cancellationToken));
+        return Results.Ok(await sender.Send(
+            new ListSubjectsQuery(search, skip ?? 0, take, sort, source, status, groupId, manager, contact),
+            cancellationToken));
     }
 
     private static async Task<IResult> CreateSubject(
@@ -283,6 +297,17 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new UpdateSubjectCommand(subjectId, request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> DeactivateSubject(
+        Guid subjectId,
+        DeactivateSubjectRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new DeactivateSubjectCommand(subjectId, request), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

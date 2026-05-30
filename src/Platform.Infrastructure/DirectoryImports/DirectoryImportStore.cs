@@ -4,9 +4,11 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Platform.Application.Features.DirectoryImports;
+using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.DirectoryImports;
 using Platform.Domain.Subjects;
 using Platform.Infrastructure.Data;
+using Platform.Infrastructure.ProductSurfaces;
 using Platform.Infrastructure.Tenancy;
 using Platform.SharedKernel;
 
@@ -536,12 +538,14 @@ public sealed class DirectoryImportStore(
             var user = users[index];
             var externalId = BuildSubjectExternalId(executionContext.RuleContext.ExternalTenantId, user.GraphUserId);
             var sourceHash = HashSourceObjectId(tenantId, executionContext.RuleContext.ExternalTenantId, user.GraphUserId);
-            var attributes = BuildSubjectAttributesJson(user);
             var locale = MapLocale(user.PreferredLanguage);
             var action = DirectoryImportRunItemActions.NoChange;
 
             if (!subjectsByExternalId.TryGetValue(externalId, out var subject))
             {
+                var attributes = BuildSubjectAttributesJson(
+                    user,
+                    executionContext.RuleContext.ExternalTenantId);
                 subject = new Subject(
                     Guid.NewGuid(),
                     tenantId,
@@ -557,6 +561,10 @@ public sealed class DirectoryImportStore(
             }
             else if (SubjectDiffers(subject, user) || !string.Equals(subject.Locale, locale, StringComparison.Ordinal))
             {
+                var attributes = BuildSubjectAttributesJson(
+                    user,
+                    executionContext.RuleContext.ExternalTenantId,
+                    subject.Attributes);
                 subject.ChangeDirectoryProfile(
                     user.DisplayName,
                     user.Email,
@@ -895,7 +903,10 @@ public sealed class DirectoryImportStore(
             !StringPropertyEquals(root, "msgraph_user_type", user.UserType);
     }
 
-    private static string BuildSubjectAttributesJson(GraphDirectoryUserCandidate user)
+    private static string BuildSubjectAttributesJson(
+        GraphDirectoryUserCandidate user,
+        string externalTenantId,
+        string? existingAttributesJson = null)
     {
         var attributes = new Dictionary<string, string>();
         AddIfPresent(attributes, "department", user.Department);
@@ -903,8 +914,53 @@ public sealed class DirectoryImportStore(
         AddIfPresent(attributes, "employee_type", user.EmployeeType);
         AddIfPresent(attributes, "office_location", user.OfficeLocation);
         AddIfPresent(attributes, "msgraph_user_type", user.UserType);
+        attributes["directory_source"] = SubjectDirectorySources.MicrosoftGraph;
+        attributes["directory_source_tenant_id"] = externalTenantId;
+        PreserveDirectoryStatus(attributes, existingAttributesJson);
 
         return JsonSerializer.Serialize(attributes, JsonOptions);
+    }
+
+    private static void PreserveDirectoryStatus(
+        Dictionary<string, string> attributes,
+        string? existingAttributesJson)
+    {
+        if (string.IsNullOrWhiteSpace(existingAttributesJson))
+        {
+            return;
+        }
+
+        using var document = JsonDocument.Parse(existingAttributesJson);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("directory_status", out var statusProperty) ||
+            statusProperty.ValueKind != JsonValueKind.String)
+        {
+            return;
+        }
+
+        var status = statusProperty.GetString();
+        if (status is not (SubjectDirectoryStatuses.Deactivated or SubjectDirectoryStatuses.Excluded))
+        {
+            return;
+        }
+
+        attributes["directory_status"] = status;
+        CopyStringProperty(root, attributes, "directory_status_reason");
+        CopyStringProperty(root, attributes, "directory_status_changed_at");
+        CopyStringProperty(root, attributes, "directory_status_changed_by");
+    }
+
+    private static void CopyStringProperty(
+        JsonElement root,
+        Dictionary<string, string> attributes,
+        string propertyName)
+    {
+        if (root.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(property.GetString()))
+        {
+            attributes[propertyName] = property.GetString()!;
+        }
     }
 
     private static void AddIfPresent(Dictionary<string, string> attributes, string key, string? value)

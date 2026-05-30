@@ -559,9 +559,10 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         var tenantId = Guid.NewGuid();
         var store = new FakeProductSurfaceReadStore();
         using var client = CreateClient(store);
+        var groupId = Guid.NewGuid();
         using var request = AuthenticatedRequest(
             HttpMethod.Get,
-            "/subjects?search=ana&skip=25&take=25",
+            $"/subjects?search=ana&skip=25&take=25&sort=department_asc&source=microsoft_graph&status=active&groupId={groupId}&manager=missing&contact=missing_email",
             tenantId);
 
         var httpResponse = await client.SendAsync(request);
@@ -571,6 +572,51 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal("ana", store.SubjectDirectoryQuery.Search);
         Assert.Equal(25, store.SubjectDirectoryQuery.Skip);
         Assert.Equal(25, store.SubjectDirectoryQuery.Take);
+        Assert.Equal("department_asc", store.SubjectDirectoryQuery.Sort);
+        Assert.Equal("microsoft_graph", store.SubjectDirectoryQuery.Source);
+        Assert.Equal("active", store.SubjectDirectoryQuery.Status);
+        Assert.Equal(groupId, store.SubjectDirectoryQuery.GroupId);
+        Assert.Equal("missing", store.SubjectDirectoryQuery.Manager);
+        Assert.Equal("missing_email", store.SubjectDirectoryQuery.Contact);
+    }
+
+    [Fact]
+    public async Task Deactivate_subject_endpoint_maps_safe_status_mutation()
+    {
+        var tenantId = Guid.NewGuid();
+        var subjectId = Guid.NewGuid();
+        var result = Result.Success(new SubjectDirectoryItemResponse(
+            subjectId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:tenant:user",
+            "en",
+            """{"directory_status":"deactivated"}""",
+            null,
+            null,
+            DirectReportCount: 0,
+            [],
+            Source: "microsoft_graph",
+            SourceLabel: "Microsoft 365",
+            Status: "deactivated",
+            StatusLabel: "Deactivated",
+            Department: "Retail",
+            JobTitle: "Store lead",
+            EmployeeType: null,
+            OfficeLocation: null));
+        var writeStore = new FakeProductSurfaceWriteStore(deactivateSubjectResult: result);
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(HttpMethod.Post, $"/subjects/{subjectId}/deactivate", tenantId);
+        request.Content = JsonContent.Create(new DeactivateSubjectRequest("Imported by mistake"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<SubjectDirectoryItemResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("deactivated", payload.Status);
+        Assert.Equal(subjectId, writeStore.DeactivatedSubjectId);
+        Assert.Equal("Imported by mistake", writeStore.DeactivateSubjectRequest?.Reason);
     }
 
     [Fact]
@@ -2485,6 +2531,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<TenantMemberMutationResponse>? changeTenantMemberRoleResult = null,
         Result<SubjectDirectoryItemResponse>? createSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? updateSubjectResult = null,
+        Result<SubjectDirectoryItemResponse>? deactivateSubjectResult = null,
         Result<SubjectDirectoryCsvImportResponse>? importSubjectDirectoryCsvResult = null,
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
@@ -2528,6 +2575,10 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public AddSubjectGroupMemberRequest? AddSubjectGroupMemberRequest { get; private set; }
 
         public SetSubjectManagerRequest? SetSubjectManagerRequest { get; private set; }
+
+        public Guid DeactivatedSubjectId { get; private set; }
+
+        public DeactivateSubjectRequest? DeactivateSubjectRequest { get; private set; }
 
         public int CallCount { get; private set; }
 
@@ -2712,6 +2763,24 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(importSubjectDirectoryCsvResult ??
                 Result.Failure<SubjectDirectoryCsvImportResponse>(
                     Error.Validation("subject_directory_import.invalid", "CSV import is invalid.")));
+        }
+
+        public Task<Result<SubjectDirectoryItemResponse>> DeactivateSubjectAsync(
+            Guid tenantId,
+            Guid subjectId,
+            Guid actorUserId,
+            DeactivateSubjectRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            DeactivatedSubjectId = subjectId;
+            ActorUserId = actorUserId;
+            DeactivateSubjectRequest = request;
+
+            return Task.FromResult(deactivateSubjectResult ??
+                Result.Failure<SubjectDirectoryItemResponse>(
+                    Error.NotFound("subject.not_found", "Subject was not found.")));
         }
 
         public Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(

@@ -118,7 +118,7 @@ describe('createProductApi', () => {
 		expect(calls).toEqual(['/subjects']);
 	});
 
-	it('requests subject directory with search and paging query', async () => {
+	it('requests subject directory with search, paging, filters, and sort query', async () => {
 		const calls: string[] = [];
 		const api = createProductApi({
 			request: async <T>(path: string): Promise<T> => {
@@ -143,9 +143,21 @@ describe('createProductApi', () => {
 			}
 		});
 
-		await api.listSubjects({ search: 'ana', skip: 25, take: 25 });
+		await api.listSubjects({
+			search: 'ana',
+			skip: 25,
+			take: 25,
+			sort: 'department_asc',
+			source: 'microsoft_graph',
+			status: 'active',
+			groupId: 'group-id',
+			manager: 'missing',
+			contact: 'missing_email'
+		});
 
-		expect(calls).toEqual(['/subjects?search=ana&skip=25&take=25']);
+		expect(calls).toEqual([
+			'/subjects?search=ana&skip=25&take=25&sort=department_asc&source=microsoft_graph&status=active&groupId=group-id&manager=missing&contact=missing_email'
+		]);
 	});
 
 	it('creates a subject directory entry', async () => {
@@ -380,6 +392,38 @@ describe('createProductApi', () => {
 						locale: 'hr',
 						attributes: '{}'
 					})
+				}
+			}
+		]);
+	});
+
+	it('deactivates a subject directory entry by encoded subject id', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					...sampleSubject,
+					status: 'deactivated',
+					statusLabel: 'Deactivated'
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.deactivateSubject('subject/id', { reason: 'Imported by mistake' });
+
+		expect(calls).toEqual([
+			{
+				path: '/subjects/subject%2Fid/deactivate',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({ reason: 'Imported by mistake' })
 				}
 			}
 		]);

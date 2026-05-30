@@ -6608,6 +6608,14 @@ const sampleSubjectDirectory: SubjectDirectoryResponse = {
 			managerSubjectId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
 			managerDisplayName: 'Mira Manager',
 			directReportCount: 0,
+			source: 'manual',
+			sourceLabel: 'Manual',
+			status: 'active',
+			statusLabel: 'Active',
+			department: 'Research',
+			jobTitle: 'Analyst',
+			employeeType: null,
+			officeLocation: null,
 			groups: [
 				{
 					groupId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
@@ -6629,6 +6637,14 @@ const sampleSubjectDirectory: SubjectDirectoryResponse = {
 			managerSubjectId: null,
 			managerDisplayName: null,
 			directReportCount: 1,
+			source: 'manual',
+			sourceLabel: 'Manual',
+			status: 'active',
+			statusLabel: 'Active',
+			department: 'Research',
+			jobTitle: 'Manager',
+			employeeType: null,
+			officeLocation: null,
 			groups: []
 		}
 	]

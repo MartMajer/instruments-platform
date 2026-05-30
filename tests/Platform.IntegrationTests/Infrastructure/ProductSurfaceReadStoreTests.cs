@@ -733,6 +733,91 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Subject_directory_filters_sorts_and_projects_people_operations_metadata()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "subject-directory-operations");
+        var manager = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Mira Manager",
+            "mira@example.test",
+            "msgraph:customer-tenant:manager",
+            """{"department":"Leadership","job_title":"Director","directory_source":"microsoft_graph"}""");
+        var adele = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:customer-tenant:adele",
+            """{"department":"Retail","job_title":"Store lead","employee_type":"Staff","office_location":"Zagreb","directory_source":"microsoft_graph","directory_source_tenant_id":"customer-tenant"}""");
+        var noEmail = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "No Email Active",
+            "",
+            "emp-no-email",
+            """{"department":"Operations","job_title":"Coordinator"}""");
+        await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Manual Inactive",
+            "inactive@example.test",
+            "manual-001",
+            """{"directory_status":"deactivated","directory_source":"manual","department":"Archive"}""");
+        var retailGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, adele.Id, retailGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectRelationshipAsync(runtimeOptions, tenantId, manager.Id, adele.Id, SubjectRelationshipTypes.ManagerOf);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var microsoftResult = await store.ListSubjectsAsync(
+            tenantId,
+            new SubjectDirectoryQuery(
+                Sort: "source_asc",
+                Source: "microsoft_graph",
+                Status: "active",
+                GroupId: retailGroup.Id,
+                Manager: "assigned",
+                Take: 25),
+            CancellationToken.None);
+        var missingContactResult = await store.ListSubjectsAsync(
+            tenantId,
+            new SubjectDirectoryQuery(Status: "active", Manager: "missing", Contact: "missing_email"),
+            CancellationToken.None);
+        var inactiveResult = await store.ListSubjectsAsync(
+            tenantId,
+            new SubjectDirectoryQuery(Status: "deactivated"),
+            CancellationToken.None);
+
+        var microsoftSubject = Assert.Single(microsoftResult.Subjects);
+        Assert.Equal(adele.Id, microsoftSubject.Id);
+        Assert.Equal("microsoft_graph", microsoftSubject.Source);
+        Assert.Equal("Microsoft 365", microsoftSubject.SourceLabel);
+        Assert.Equal("active", microsoftSubject.Status);
+        Assert.Equal("Active", microsoftSubject.StatusLabel);
+        Assert.Equal("Retail", microsoftSubject.Department);
+        Assert.Equal("Store lead", microsoftSubject.JobTitle);
+        Assert.Equal("Staff", microsoftSubject.EmployeeType);
+        Assert.Equal("Zagreb", microsoftSubject.OfficeLocation);
+        Assert.Equal(manager.Id, microsoftSubject.ManagerSubjectId);
+
+        var missingContactSubject = Assert.Single(missingContactResult.Subjects);
+        Assert.Equal(noEmail.Id, missingContactSubject.Id);
+        Assert.Equal("manual", missingContactSubject.Source);
+        Assert.Equal("Manual", missingContactSubject.SourceLabel);
+
+        var inactiveSubject = Assert.Single(inactiveResult.Subjects);
+        Assert.Equal("Manual Inactive", inactiveSubject.DisplayName);
+        Assert.Equal("deactivated", inactiveSubject.Status);
+        Assert.Equal("Deactivated", inactiveSubject.StatusLabel);
+    }
+
+    [DockerFact]
     public async Task Subject_groups_list_counts_only_current_tenant_memberships()
     {
         var tenantA = Guid.NewGuid();

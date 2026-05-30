@@ -652,7 +652,9 @@ public sealed class ProductSurfaceWriteStore(
                 email: emailResult.Value,
                 displayName: request.DisplayName,
                 locale: NormalizeLocale(request.Locale),
-                attributes: request.Attributes);
+                attributes: SubjectDirectoryMetadata.EnsureSource(
+                    request.Attributes,
+                    SubjectDirectorySources.Manual));
         }
         catch (ArgumentException exception)
         {
@@ -704,6 +706,49 @@ public sealed class ProductSurfaceWriteStore(
                 request.ExternalId,
                 NormalizeLocale(request.Locale),
                 request.Attributes);
+        }
+        catch (ArgumentException exception)
+        {
+            return Result.Failure<SubjectDirectoryItemResponse>(CreateSubjectValidationError(exception));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        var response = await LoadSubjectDirectoryItemAsync(tenantId, subject.Id, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(response);
+    }
+
+    public async Task<Result<SubjectDirectoryItemResponse>> DeactivateSubjectAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        DeactivateSubjectRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var subject = await db.Subjects.SingleOrDefaultAsync(
+            entity => entity.TenantId == tenantId && entity.Id == subjectId && entity.DeletedAt == null,
+            cancellationToken);
+
+        if (subject is null)
+        {
+            return Result.Failure<SubjectDirectoryItemResponse>(
+                Error.NotFound("subject.not_found", "Subject was not found."));
+        }
+
+        try
+        {
+            subject.ReplaceAttributes(SubjectDirectoryMetadata.MarkDeactivated(
+                subject.Attributes,
+                actorUserId,
+                DateTimeOffset.UtcNow,
+                request.Reason));
         }
         catch (ArgumentException exception)
         {
@@ -813,7 +858,9 @@ public sealed class ProductSurfaceWriteStore(
                     email: values.Email,
                     displayName: values.DisplayName,
                     locale: values.Locale,
-                    attributes: "{}");
+                    attributes: SubjectDirectoryMetadata.EnsureSource(
+                        "{}",
+                        SubjectDirectorySources.Csv));
                 if (!dryRun)
                 {
                     db.Subjects.Add(subject);
@@ -831,7 +878,9 @@ public sealed class ProductSurfaceWriteStore(
                         values.Email ?? subject.Email,
                         values.ExternalId ?? subject.ExternalId,
                         values.Locale,
-                        subject.Attributes);
+                        SubjectDirectoryMetadata.EnsureSource(
+                            subject.Attributes,
+                            SubjectDirectorySources.Csv));
                 }
 
                 updatedSubjectCount++;
@@ -1264,6 +1313,7 @@ public sealed class ProductSurfaceWriteStore(
                     relationship.SubjectId == subjectId &&
                     relationship.ValidTo == null,
                 cancellationToken);
+        var metadata = SubjectDirectoryMetadata.From(subject.ExternalId, subject.Attributes);
 
         return new SubjectDirectoryItemResponse(
             subject.Id,
@@ -1275,7 +1325,15 @@ public sealed class ProductSurfaceWriteStore(
             manager?.Id,
             manager?.DisplayName,
             directReportCount,
-            groups);
+            groups,
+            metadata.Source,
+            metadata.SourceLabel,
+            metadata.Status,
+            metadata.StatusLabel,
+            metadata.Department,
+            metadata.JobTitle,
+            metadata.EmployeeType,
+            metadata.OfficeLocation);
     }
 
     private async Task<SubjectGroupResponse> LoadSubjectGroupResponseAsync(

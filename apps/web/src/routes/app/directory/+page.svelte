@@ -109,7 +109,23 @@
 	const directoryPageSize = 25;
 	let directorySearch = $state('');
 	let activeDirectorySearch = $state('');
+	let directorySort = $state('name_asc');
+	let activeDirectorySort = $state('name_asc');
+	let directorySource = $state('all');
+	let activeDirectorySource = $state('all');
+	let directoryStatus = $state('active');
+	let activeDirectoryStatus = $state('active');
+	let directoryGroupId = $state('all');
+	let activeDirectoryGroupId = $state('all');
+	let directoryManager = $state('any');
+	let activeDirectoryManager = $state('any');
+	let directoryContact = $state('any');
+	let activeDirectoryContact = $state('any');
 	let directoryPageOffset = $state(0);
+	let detailsSubjectId = $state('');
+	let deactivateReason = $state('');
+	let deactivatingSubject = $state(false);
+	let deactivateError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -135,6 +151,9 @@
 	);
 	const selectedSubject = $derived(
 		subjects.find((subject) => subject.id === selectedSubjectId) ?? null
+	);
+	const detailsSubject = $derived(
+		subjects.find((subject) => subject.id === detailsSubjectId) ?? null
 	);
 	const managerOptions = $derived(subjects.filter((subject) => subject.id !== selectedSubjectId));
 	const importHasFailures = $derived(
@@ -183,20 +202,41 @@
 		}
 	});
 
-	async function loadDirectory(search = activeDirectorySearch, skip = directoryPageOffset) {
+	async function loadDirectory(
+		search = activeDirectorySearch,
+		skip = directoryPageOffset,
+		sort = activeDirectorySort,
+		source = activeDirectorySource,
+		status = activeDirectoryStatus,
+		groupId = activeDirectoryGroupId,
+		manager = activeDirectoryManager,
+		contact = activeDirectoryContact
+	) {
 		const requestId = requestGate.next();
 
 		loadState = 'loading';
 		errorMessage = null;
 		const normalizedSearch = search.trim();
 		const normalizedSkip = Math.max(0, skip);
+		const normalizedSort = normalizeSelect(sort, 'name_asc');
+		const normalizedSource = normalizeSelect(source, 'all');
+		const normalizedStatus = normalizeSelect(status, 'active');
+		const normalizedGroupId = normalizeSelect(groupId, 'all');
+		const normalizedManager = normalizeSelect(manager, 'any');
+		const normalizedContact = normalizeSelect(contact, 'any');
 
 		try {
 			const [nextDirectory, nextGroupList] = await Promise.all([
 				productApi.listSubjects({
 					search: normalizedSearch,
 					skip: normalizedSkip,
-					take: directoryPageSize
+					take: directoryPageSize,
+					sort: normalizedSort,
+					source: normalizedSource === 'all' ? null : normalizedSource,
+					status: normalizedStatus === 'all' ? null : normalizedStatus,
+					groupId: normalizedGroupId === 'all' ? null : normalizedGroupId,
+					manager: normalizedManager === 'any' ? null : normalizedManager,
+					contact: normalizedContact === 'any' ? null : normalizedContact
 				}),
 				productApi.listSubjectGroups()
 			]);
@@ -209,9 +249,26 @@
 			groupList = nextGroupList;
 			activeDirectorySearch = normalizedSearch;
 			directorySearch = normalizedSearch;
+			activeDirectorySort = normalizedSort;
+			directorySort = normalizedSort;
+			activeDirectorySource = normalizedSource;
+			directorySource = normalizedSource;
+			activeDirectoryStatus = normalizedStatus;
+			directoryStatus = normalizedStatus;
+			activeDirectoryGroupId = normalizedGroupId;
+			directoryGroupId = normalizedGroupId;
+			activeDirectoryManager = normalizedManager;
+			directoryManager = normalizedManager;
+			activeDirectoryContact = normalizedContact;
+			directoryContact = normalizedContact;
 			directoryPageOffset = nextDirectory.summary.pageOffset;
 			syncSelections(nextDirectory.subjects, nextGroupList.groups);
 			syncSelectedSubjectFields(nextDirectory.subjects);
+			if (detailsSubjectId && !nextDirectory.subjects.some((subject) => subject.id === detailsSubjectId)) {
+				detailsSubjectId = '';
+				deactivateReason = '';
+				deactivateError = null;
+			}
 			loadState = 'ready';
 		} catch (error) {
 			if (!requestGate.isCurrent(requestId)) {
@@ -244,13 +301,28 @@
 		}
 	}
 
-	function submitDirectorySearch() {
-		void loadDirectory(directorySearch, 0);
+	function submitDirectoryFilters() {
+		void loadDirectory(
+			directorySearch,
+			0,
+			directorySort,
+			directorySource,
+			directoryStatus,
+			directoryGroupId,
+			directoryManager,
+			directoryContact
+		);
 	}
 
-	function clearDirectorySearch() {
+	function clearDirectoryFilters() {
 		directorySearch = '';
-		void loadDirectory('', 0);
+		directorySort = 'name_asc';
+		directorySource = 'all';
+		directoryStatus = 'active';
+		directoryGroupId = 'all';
+		directoryManager = 'any';
+		directoryContact = 'any';
+		void loadDirectory('', 0, 'name_asc', 'all', 'active', 'all', 'any', 'any');
 	}
 
 	function loadPreviousDirectoryPage() {
@@ -528,6 +600,27 @@
 		}
 	}
 
+	async function deactivateDetailsSubject() {
+		if (!canManageSetup || !detailsSubject) {
+			return;
+		}
+
+		deactivatingSubject = true;
+		deactivateError = null;
+
+		try {
+			await productApi.deactivateSubject(detailsSubject.id, {
+				reason: optionalText(deactivateReason)
+			});
+			deactivateReason = '';
+			await loadDirectory(activeDirectorySearch, directoryPageOffset);
+		} catch (error) {
+			deactivateError = toProductApiErrorMessage(error, 'Person could not be deactivated.');
+		} finally {
+			deactivatingSubject = false;
+		}
+	}
+
 	async function createSubjectGroup() {
 		if (!canManageSetup) {
 			return;
@@ -716,6 +809,12 @@
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
+	}
+
+	function normalizeSelect(value: string, fallback: string) {
+		const normalized = value.trim();
+
+		return normalized.length > 0 ? normalized : fallback;
 	}
 
 	function groupParentLabel(group: SubjectGroupResponse) {
@@ -1423,30 +1522,107 @@
 						</p>
 					</div>
 					<form
-						class="directory-search"
+						class="directory-search directory-filters"
 						onsubmit={(event) => {
 							event.preventDefault();
-							submitDirectorySearch();
+							submitDirectoryFilters();
 						}}
 					>
 						<label class="field">
 							<span>Search people</span>
 							<input
 								bind:value={directorySearch}
-								placeholder="Name, email, or external id"
+								placeholder="Name, email, department"
 								disabled={loadState === 'loading'}
 							/>
+						</label>
+						<label class="field">
+							<span>Source</span>
+							<select
+								aria-label="Source"
+								bind:value={directorySource}
+								disabled={loadState === 'loading'}
+							>
+								<option value="all">All sources</option>
+								<option value="microsoft_graph">Microsoft 365</option>
+								<option value="manual">Manual</option>
+								<option value="csv">CSV</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Status</span>
+							<select
+								aria-label="Status"
+								bind:value={directoryStatus}
+								disabled={loadState === 'loading'}
+							>
+								<option value="active">Active</option>
+								<option value="deactivated">Deactivated</option>
+								<option value="excluded">Excluded</option>
+								<option value="all">All statuses</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Group</span>
+							<select
+								aria-label="Group"
+								bind:value={directoryGroupId}
+								disabled={loadState === 'loading'}
+							>
+								<option value="all">All groups</option>
+								{#each groups as group (group.id)}
+									<option value={group.id}>{group.name}</option>
+								{/each}
+							</select>
+						</label>
+						<label class="field">
+							<span>Manager</span>
+							<select
+								aria-label="Manager"
+								bind:value={directoryManager}
+								disabled={loadState === 'loading'}
+							>
+								<option value="any">Any manager state</option>
+								<option value="assigned">Has manager</option>
+								<option value="missing">Missing manager</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Contact</span>
+							<select
+								aria-label="Contact"
+								bind:value={directoryContact}
+								disabled={loadState === 'loading'}
+							>
+								<option value="any">Any contact state</option>
+								<option value="has_email">Has email</option>
+								<option value="missing_email">Missing email</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Sort by</span>
+							<select
+								aria-label="Sort by"
+								bind:value={directorySort}
+								disabled={loadState === 'loading'}
+							>
+								<option value="name_asc">Name A-Z</option>
+								<option value="name_desc">Name Z-A</option>
+								<option value="department_asc">Department</option>
+								<option value="source_asc">Source</option>
+								<option value="updated_desc">Recently updated</option>
+							</select>
 						</label>
 						<div class="action-row">
 							<button type="submit" class="secondary-button" disabled={loadState === 'loading'}>
 								<RefreshCcw size={16} aria-hidden="true" />
-								<span>Search</span>
+								<span>Apply filters</span>
 							</button>
 							<button
 								type="button"
 								class="secondary-button"
-								disabled={loadState === 'loading' || !activeDirectorySearch}
-								onclick={clearDirectorySearch}
+								disabled={loadState === 'loading'}
+								onclick={clearDirectoryFilters}
 							>
 								Clear
 							</button>
@@ -1514,9 +1690,12 @@
 								<tr>
 									<th scope="col">Person</th>
 									<th scope="col">Email</th>
+									<th scope="col">Department / role</th>
 									<th scope="col">{text.directory.manager}</th>
 									<th scope="col">{text.directory.groups}</th>
-									<th scope="col">{text.directory.externalId}</th>
+									<th scope="col">Source</th>
+									<th scope="col">Status</th>
+									<th scope="col">Actions</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -1527,6 +1706,10 @@
 											<span>{subject.locale}</span>
 										</td>
 										<td>{subject.email ?? text.directory.notAvailable}</td>
+										<td>
+											<strong>{subject.department ?? text.directory.notAvailable}</strong>
+											<span>{subject.jobTitle ?? subject.employeeType ?? ''}</span>
+										</td>
 										<td>
 											{subject.managerDisplayName ?? text.directory.noManager}
 											{#if subject.directReportCount > 0}
@@ -1552,7 +1735,31 @@
 												</div>
 											{/if}
 										</td>
-										<td>{subject.externalId ?? text.directory.notAvailable}</td>
+										<td>
+											<span class="directory-badge directory-badge--source">{subject.sourceLabel}</span>
+										</td>
+										<td>
+											<span
+												class:directory-badge--muted={subject.status !== 'active'}
+												class="directory-badge"
+											>
+												{subject.statusLabel}
+											</span>
+										</td>
+										<td>
+											<button
+												type="button"
+												class="secondary-button directory-row-action"
+												aria-label={`View ${subjectLabel(subject)}`}
+												onclick={() => {
+													detailsSubjectId = subject.id;
+													deactivateReason = '';
+													deactivateError = null;
+												}}
+											>
+												View
+											</button>
+										</td>
 									</tr>
 								{/each}
 							</tbody>
@@ -1562,6 +1769,121 @@
 			{/if}
 		</LoadingBoundary>
 	</section>
+
+	{#if detailsSubject}
+		<dialog class="person-drawer" aria-label="Person details" open>
+			<div class="person-drawer__header">
+				<div>
+					<p class="product-kicker">{detailsSubject.sourceLabel}</p>
+					<h2 class="product-title">{subjectLabel(detailsSubject)}</h2>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						{detailsSubject.email ?? 'No email'} · {detailsSubject.statusLabel}
+					</p>
+				</div>
+				<button
+					type="button"
+					class="secondary-button"
+					aria-label="Close person details"
+					onclick={() => {
+						detailsSubjectId = '';
+						deactivateReason = '';
+						deactivateError = null;
+					}}
+				>
+					Close
+				</button>
+			</div>
+
+			<div class="person-drawer__grid">
+				<div class="record-field">
+					<p class="record-field__label">Department</p>
+					<p class="record-field__value">{detailsSubject.department ?? text.directory.notAvailable}</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Job title</p>
+					<p class="record-field__value">{detailsSubject.jobTitle ?? text.directory.notAvailable}</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Manager</p>
+					<p class="record-field__value">
+						{detailsSubject.managerDisplayName ?? text.directory.noManager}
+					</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Direct reports</p>
+					<p class="record-field__value">{detailsSubject.directReportCount}</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Office</p>
+					<p class="record-field__value">
+						{detailsSubject.officeLocation ?? text.directory.notAvailable}
+					</p>
+				</div>
+				<div class="record-field">
+					<p class="record-field__label">Employee type</p>
+					<p class="record-field__value">
+						{detailsSubject.employeeType ?? text.directory.notAvailable}
+					</p>
+				</div>
+			</div>
+
+			<div class="person-drawer__section">
+				<h3>Groups</h3>
+				{#if detailsSubject.groups.length === 0}
+					<p class="text-sm text-[var(--color-text-muted)]">{text.directory.noMemberships}</p>
+				{:else}
+					<div class="directory-chip-list">
+						{#each detailsSubject.groups as membership (membership.groupId)}
+							<span class="directory-chip">
+								<UserRound size={13} aria-hidden="true" />
+								{membership.groupName}
+							</span>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<details class="person-drawer__section">
+				<summary>Technical details</summary>
+				<div class="record-field mt-3">
+					<p class="record-field__label">External id</p>
+					<p class="record-field__value">{detailsSubject.externalId ?? text.directory.notAvailable}</p>
+				</div>
+			</details>
+
+			<div class="person-drawer__section person-drawer__danger">
+				<h3>Safe remove</h3>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Deactivate removes this person from the active directory view without deleting their identity
+					link or historical study references.
+				</p>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={deactivatingSubject || detailsSubject.status !== 'active'}
+				>
+					Deactivate person
+				</button>
+				<label class="field">
+					<span>Reason</span>
+					<input bind:value={deactivateReason} disabled={deactivatingSubject} />
+				</label>
+				{#if deactivateError}
+					<p class="error-line" role="alert">{deactivateError}</p>
+				{/if}
+				<div class="action-row">
+					<button
+						type="button"
+						class="secondary-button"
+						disabled={deactivatingSubject || detailsSubject.status !== 'active'}
+						onclick={deactivateDetailsSubject}
+					>
+						{deactivatingSubject ? 'Deactivating...' : 'Confirm deactivate'}
+					</button>
+				</div>
+			</div>
+		</dialog>
+	{/if}
 
 	<section class="product-panel" aria-label="Audience groups">
 		{#if groupList}

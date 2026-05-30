@@ -232,6 +232,83 @@ test('keeps large Microsoft preview and people directory bounded', async ({ page
 	await expect(peopleDirectory.getByText('Person 2000')).toHaveCount(0);
 });
 
+test('presents imported people as an operational directory with details and safe deactivate', async ({
+	page
+}) => {
+	await page.unroute('**/subjects**');
+	const longExternalId = 'msgraph:customer-tenant:00000000-0000-0000-0000-000000000001';
+	const requestedSubjectUrls: string[] = [];
+	let deactivateRequested = false;
+	await routeOperationalSubjectDirectory(page, requestedSubjectUrls, longExternalId);
+	await routeGraphImportWorkspaceWithSavedRule(page);
+	await page.route('**/subjects/*/deactivate', async (route) => {
+		if (route.request().method() !== 'POST') {
+			await route.fallback();
+			return;
+		}
+
+		deactivateRequested = true;
+		await route.fulfill({
+			json: {
+				id: '66666666-6666-4666-8666-000000000001',
+				displayName: 'Adele Vance',
+				email: 'adelev@example.test',
+				externalId: longExternalId,
+				locale: 'en',
+				attributes: '{"directory_status":"deactivated"}',
+				managerSubjectId: null,
+				managerDisplayName: null,
+				directReportCount: 0,
+				source: 'microsoft_graph',
+				sourceLabel: 'Microsoft 365',
+				status: 'deactivated',
+				statusLabel: 'Deactivated',
+				department: 'Retail',
+				jobTitle: 'Store lead',
+				employeeType: 'Staff',
+				officeLocation: 'Zagreb',
+				groups: []
+			}
+		});
+	});
+
+	await page.goto('/app/directory');
+
+	const peopleDirectory = page.getByTestId('workspace-people-directory');
+	await expect(peopleDirectory.getByRole('columnheader', { name: 'External id' })).toHaveCount(0);
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toContainText('Adele Vance');
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toContainText('Microsoft 365');
+	await expect(peopleDirectory.getByTestId('directory-person-row')).toContainText('Retail');
+	await expect(peopleDirectory.getByTestId('directory-person-row')).not.toContainText(longExternalId);
+
+	await peopleDirectory.getByLabel('Source', { exact: true }).selectOption('microsoft_graph');
+	await peopleDirectory.getByLabel('Status', { exact: true }).selectOption('active');
+	await peopleDirectory
+		.getByLabel('Group', { exact: true })
+		.selectOption('77777777-7777-4777-8777-000000000001');
+	await peopleDirectory.getByLabel('Manager', { exact: true }).selectOption('assigned');
+	await peopleDirectory.getByLabel('Contact', { exact: true }).selectOption('has_email');
+	await peopleDirectory.getByLabel('Sort by', { exact: true }).selectOption('department_asc');
+	await peopleDirectory.getByRole('button', { name: 'Apply filters' }).click();
+	await expect.poll(() => requestedSubjectUrls.at(-1) ?? '').toContain('source=microsoft_graph');
+	expect(requestedSubjectUrls.at(-1)).toContain('status=active');
+	expect(requestedSubjectUrls.at(-1)).toContain('groupId=77777777-7777-4777-8777-000000000001');
+	expect(requestedSubjectUrls.at(-1)).toContain('manager=assigned');
+	expect(requestedSubjectUrls.at(-1)).toContain('contact=has_email');
+	expect(requestedSubjectUrls.at(-1)).toContain('sort=department_asc');
+
+	await peopleDirectory.getByRole('button', { name: 'View Adele Vance' }).click();
+	const drawer = page.getByRole('dialog', { name: 'Person details' });
+	await expect(drawer.getByText('Adele Vance')).toBeVisible();
+	await drawer.getByText('Technical details').click();
+	await expect(drawer.getByText(longExternalId)).toBeVisible();
+	await expect(drawer.getByText('Miriam Graham')).toBeVisible();
+	await drawer.getByRole('button', { name: 'Deactivate person' }).click();
+	await drawer.getByLabel('Reason').fill('Wrong cohort');
+	await drawer.getByRole('button', { name: 'Confirm deactivate' }).click();
+	await expect.poll(() => deactivateRequested).toBe(true);
+});
+
 async function routeAuthenticatedSession(page: Page) {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
@@ -348,6 +425,96 @@ async function routeLargeSubjectDirectory(page: Page) {
 		}
 
 		await route.fulfill({ json: { tenantId, groups: [] } });
+	});
+}
+
+async function routeOperationalSubjectDirectory(
+	page: Page,
+	requestedUrls: string[],
+	longExternalId: string
+) {
+	await page.route('**/subjects**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subjects')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		requestedUrls.push(route.request().url());
+		await route.fulfill({
+			json: {
+				tenantId,
+				summary: {
+					subjectCount: 1,
+					filteredSubjectCount: 1,
+					returnedSubjectCount: 1,
+					groupCount: 1,
+					managerRelationshipCount: 1,
+					pageOffset: 0,
+					pageSize: 25,
+					hasMore: false
+				},
+				subjects: [
+					{
+						id: '66666666-6666-4666-8666-000000000001',
+						displayName: 'Adele Vance',
+						email: 'adelev@example.test',
+						externalId: longExternalId,
+						locale: 'en',
+						attributes:
+							'{"department":"Retail","job_title":"Store lead","employee_type":"Staff","office_location":"Zagreb","directory_source":"microsoft_graph"}',
+						managerSubjectId: '66666666-6666-4666-8666-000000000002',
+						managerDisplayName: 'Miriam Graham',
+						directReportCount: 3,
+						source: 'microsoft_graph',
+						sourceLabel: 'Microsoft 365',
+						status: 'active',
+						statusLabel: 'Active',
+						department: 'Retail',
+						jobTitle: 'Store lead',
+						employeeType: 'Staff',
+						officeLocation: 'Zagreb',
+						groups: [
+							{
+								groupId: '77777777-7777-4777-8777-000000000001',
+								groupType: 'department',
+								groupName: 'Retail',
+								roleInGroup: 'member',
+								validFrom: null,
+								validTo: null
+							}
+						]
+					}
+				]
+			}
+		});
+	});
+	await page.route('**/subject-groups', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subject-groups')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				groups: [
+					{
+						id: '77777777-7777-4777-8777-000000000001',
+						type: 'department',
+						name: 'Retail',
+						parentGroupId: null,
+						attributes: '{}',
+						memberCount: 1
+					}
+				]
+			}
+		});
 	});
 }
 

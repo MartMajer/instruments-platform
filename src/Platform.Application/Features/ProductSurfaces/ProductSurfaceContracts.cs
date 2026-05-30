@@ -916,10 +916,80 @@ public sealed record SubjectDirectorySummaryResponse(
     int PageSize,
     bool HasMore);
 
+public static class SubjectDirectorySorts
+{
+    public const string NameAsc = "name_asc";
+    public const string NameDesc = "name_desc";
+    public const string DepartmentAsc = "department_asc";
+    public const string SourceAsc = "source_asc";
+    public const string UpdatedDesc = "updated_desc";
+
+    public static bool IsKnown(string value)
+    {
+        return value is NameAsc or NameDesc or DepartmentAsc or SourceAsc or UpdatedDesc;
+    }
+}
+
+public static class SubjectDirectorySources
+{
+    public const string All = "all";
+    public const string Manual = "manual";
+    public const string Csv = "csv";
+    public const string MicrosoftGraph = "microsoft_graph";
+
+    public static bool IsKnown(string value)
+    {
+        return value is All or Manual or Csv or MicrosoftGraph;
+    }
+}
+
+public static class SubjectDirectoryStatuses
+{
+    public const string All = "all";
+    public const string Active = "active";
+    public const string Deactivated = "deactivated";
+    public const string Excluded = "excluded";
+
+    public static bool IsKnown(string value)
+    {
+        return value is All or Active or Deactivated or Excluded;
+    }
+}
+
+public static class SubjectDirectoryManagerFilters
+{
+    public const string Any = "any";
+    public const string Assigned = "assigned";
+    public const string Missing = "missing";
+
+    public static bool IsKnown(string value)
+    {
+        return value is Any or Assigned or Missing;
+    }
+}
+
+public static class SubjectDirectoryContactFilters
+{
+    public const string Any = "any";
+    public const string HasEmail = "has_email";
+    public const string MissingEmail = "missing_email";
+
+    public static bool IsKnown(string value)
+    {
+        return value is Any or HasEmail or MissingEmail;
+    }
+}
+
 public sealed record SubjectDirectoryQuery(
     string? Search = null,
     int Skip = 0,
-    int? Take = null)
+    int? Take = null,
+    string? Sort = null,
+    string? Source = null,
+    string? Status = null,
+    Guid? GroupId = null,
+    string? Manager = null,
+    string? Contact = null)
 {
     public static SubjectDirectoryQuery All { get; } = new();
 }
@@ -934,7 +1004,15 @@ public sealed record SubjectDirectoryItemResponse(
     Guid? ManagerSubjectId,
     string? ManagerDisplayName,
     int DirectReportCount,
-    IReadOnlyList<SubjectGroupMembershipResponse> Groups);
+    IReadOnlyList<SubjectGroupMembershipResponse> Groups,
+    string Source = SubjectDirectorySources.Manual,
+    string SourceLabel = "Manual",
+    string Status = SubjectDirectoryStatuses.Active,
+    string StatusLabel = "Active",
+    string? Department = null,
+    string? JobTitle = null,
+    string? EmployeeType = null,
+    string? OfficeLocation = null);
 
 public sealed record SubjectGroupMembershipResponse(
     Guid GroupId,
@@ -1012,6 +1090,8 @@ public sealed record UpdateSubjectRequest(
     string? ExternalId,
     string Locale = "en",
     string Attributes = "{}");
+
+public sealed record DeactivateSubjectRequest(string? Reason = null);
 
 public sealed record SubjectDirectoryCsvImportRequest(
     string CsvContent,

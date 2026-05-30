@@ -1572,6 +1572,11 @@ a {
 	min-width: min(100%, 34rem);
 }
 
+.directory-filters {
+	grid-template-columns: repeat(4, minmax(8rem, 1fr)) auto;
+	min-width: min(100%, 56rem);
+}
+
 .directory-pagination {
 	display: grid;
 	justify-items: end;
@@ -1580,7 +1585,7 @@ a {
 }
 
 .directory-people-table {
-	min-width: 58rem;
+	min-width: 72rem;
 }
 
 .directory-groups-table {
@@ -1605,11 +1610,17 @@ a {
 }
 
 .directory-people-table td:first-child span,
-.directory-people-table td:nth-child(3) span {
+.directory-people-table td:nth-child(3) span,
+.directory-people-table td:nth-child(4) span {
 	display: block;
 	margin-top: 0.125rem;
 	font-size: 0.75rem;
 	color: var(--color-text-muted);
+}
+
+.directory-row-action {
+	min-height: 2rem;
+	padding-inline: 0.7rem;
 }
 
 .directory-chip-list {
@@ -1631,6 +1642,76 @@ a {
 	font-size: 0.75rem;
 	font-weight: 650;
 	color: var(--color-text-muted);
+}
+
+.directory-badge {
+	display: inline-flex;
+	align-items: center;
+	min-height: 1.65rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface);
+	padding: 0.125rem 0.5rem;
+	font-size: 0.75rem;
+	font-weight: 750;
+	color: var(--color-text);
+	white-space: nowrap;
+}
+
+.directory-badge--source {
+	border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+	background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+}
+
+.directory-badge--muted {
+	background: var(--color-surface-muted);
+	color: var(--color-text-muted);
+}
+
+.person-drawer {
+	position: static;
+	width: 100%;
+	max-width: none;
+	display: grid;
+	gap: 1rem;
+	margin: 0;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface-raised);
+	padding: clamp(1rem, 2vw, 1.25rem);
+	box-shadow: 0 1rem 2.5rem color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.person-drawer__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 1rem;
+	min-width: 0;
+}
+
+.person-drawer__grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.75rem;
+}
+
+.person-drawer__section {
+	display: grid;
+	gap: 0.75rem;
+	border-top: 1px solid var(--color-border);
+	padding-top: 1rem;
+}
+
+.person-drawer__section h3 {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 800;
+	color: var(--color-text);
+}
+
+.person-drawer__danger {
+	border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border));
 }
 
 .directory-maintenance-panel,
@@ -1694,8 +1775,10 @@ details[open] > .directory-maintenance-summary::after {
 @media (max-width: 760px) {
 	.directory-toolbar,
 	.directory-search,
+	.directory-filters,
 	.directory-compact-row,
-	.directory-compact-row__body {
+	.directory-compact-row__body,
+	.person-drawer__grid {
 		grid-template-columns: 1fr;
 	}
 
