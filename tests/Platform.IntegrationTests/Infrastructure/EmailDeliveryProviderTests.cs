@@ -28,22 +28,20 @@ public sealed class EmailDeliveryProviderTests
     }
 
     [Fact]
-    public void Smtp_options_fail_closed_when_required_config_is_missing()
+    public void Acs_options_fail_closed_when_required_config_is_missing()
     {
         var options = new EmailDeliveryOptions
         {
-            Provider = EmailDeliveryProviderNames.Smtp
+            Provider = EmailDeliveryProviderNames.AzureCommunicationEmail
         };
 
         var exception = Assert.Throws<InvalidOperationException>(
             options.EnsureValidProviderConfiguration);
 
-        Assert.Contains("email_delivery.managed_provider_missing", exception.Message, StringComparison.Ordinal);
         Assert.Contains("email_delivery.sender_domain_unverified", exception.Message, StringComparison.Ordinal);
         Assert.Contains("email_delivery.verified_sender_domain_missing", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("email_delivery.provider_webhook_disabled", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("email_delivery.smtp_host_missing", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("email_delivery.smtp_tls_disabled", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.acs_credentials_missing", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("email_delivery.acs_event_grid_webhook_secret_missing", exception.Message, StringComparison.Ordinal);
         Assert.Contains("email_delivery.from_address_missing", exception.Message, StringComparison.Ordinal);
     }
 

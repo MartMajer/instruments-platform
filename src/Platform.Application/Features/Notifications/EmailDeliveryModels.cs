@@ -4,6 +4,7 @@ public static class EmailDeliveryProviderNames
 {
     public const string LocalDev = "local-dev";
     public const string Smtp = "smtp";
+    public const string AzureCommunicationEmail = "azure-communication-email";
 }
 
 public sealed record EmailDeliveryMessage(

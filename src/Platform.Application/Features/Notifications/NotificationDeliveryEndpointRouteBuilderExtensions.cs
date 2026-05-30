@@ -1176,7 +1176,11 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             configuration["EmailDelivery:Smtp:UserName"],
             configuration["EmailDelivery:Smtp:Password"],
             configuration[ProviderWebhookSecretConfigurationKey],
-            configuration[AwsSesSnsTopicArnConfigurationKey]));
+            configuration[AwsSesSnsTopicArnConfigurationKey],
+            configuration["EmailDelivery:AzureCommunicationServices:ConnectionString"],
+            configuration["EmailDelivery:AzureCommunicationServices:Endpoint"],
+            configuration["EmailDelivery:AzureCommunicationServices:AccessKey"],
+            configuration["EmailDelivery:AzureCommunicationServices:EventGridWebhookSecret"]));
     }
 
     private sealed record AwsSesSnsEnvelope(

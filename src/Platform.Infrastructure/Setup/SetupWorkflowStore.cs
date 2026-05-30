@@ -1788,7 +1788,11 @@ public sealed class SetupWorkflowStore(
             _emailDeliveryOptions.Smtp.UserName,
             _emailDeliveryOptions.Smtp.Password,
             _emailDeliveryOptions.ProviderWebhookSecret,
-            _emailDeliveryOptions.AwsSes.SnsTopicArn));
+            _emailDeliveryOptions.AwsSes.SnsTopicArn,
+            _emailDeliveryOptions.AzureCommunicationServices.ConnectionString,
+            _emailDeliveryOptions.AzureCommunicationServices.Endpoint,
+            _emailDeliveryOptions.AzureCommunicationServices.AccessKey,
+            _emailDeliveryOptions.AzureCommunicationServices.EventGridWebhookSecret));
 
         foreach (var issue in readiness.Issues)
         {
