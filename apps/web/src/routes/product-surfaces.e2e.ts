@@ -742,7 +742,7 @@ test('renders grouped product navigation by intent on the home surface', async (
 	await page.goto('/app');
 
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
-	const studies = nav.getByRole('group', { name: 'Studies' });
+	const studies = nav.getByRole('group', { name: 'Workspace', exact: true });
 	const people = nav.getByRole('group', { name: 'People and access' });
 	const admin = nav.getByRole('group', { name: 'Workspace admin' });
 
@@ -752,9 +752,7 @@ test('renders grouped product navigation by intent on the home surface', async (
 
 	for (const link of [
 		{ label: /^Home\b/, href: '/app' },
-		{ label: /^Studies\b/, href: '/app/campaign-series' },
-		{ label: /^Instrument library\b/, href: '/app/instruments' },
-		{ label: /^Exports\b/, href: '/app/exports' }
+		{ label: /^Studies\b/, href: '/app/campaign-series' }
 	]) {
 		await expect(studies.getByRole('link', { name: link.label })).toHaveAttribute(
 			'href',
@@ -773,6 +771,10 @@ test('renders grouped product navigation by intent on the home surface', async (
 		'href',
 		'/app/settings'
 	);
+	await expect(nav.getByRole('group', { name: /^(Active|Selected) study$/ })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: /^Instrument library\b/ })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: /^Files\b/ })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: /^Exports\b/ })).toHaveCount(0);
 	await expect(nav.getByRole('link', { name: /^Workspace\b/ })).toHaveCount(0);
 	await expect(nav.getByRole('link', { name: /^Campaign series\b/ })).toHaveCount(0);
 	await expect(nav.getByRole('link', { name: /^Demo fixtures\b/ })).toHaveCount(0);
@@ -782,8 +784,8 @@ test('renders selected-study navigation separately from global studies links', a
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
-	const studies = nav.getByRole('group', { name: 'Studies' });
-	const selectedStudy = nav.getByRole('group', { name: 'Selected study' });
+	const studies = nav.getByRole('group', { name: 'Workspace', exact: true });
+	const selectedStudy = nav.getByRole('group', { name: 'Active study' });
 
 	await expect(studies).toBeVisible();
 	await expect(nav.getByRole('group', { name: 'People and access' })).toBeVisible();
@@ -887,20 +889,15 @@ test('renders instrument library summary and visible instruments', async ({ page
 
 	await expect(page.getByRole('heading', { name: 'Instruments', exact: true })).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
-	await expect(nav.getByRole('link', { name: /^Instrument library\b/ })).toHaveAttribute(
-		'aria-current',
-		'page'
-	);
+	await expect(nav.getByRole('link', { name: /^Instrument library\b/ })).toHaveCount(0);
 
-	const library = page.getByRole('region', { name: 'Instrument library' });
+	const library = page.getByRole('region', { name: 'Instruments' });
 	const counts = library.getByRole('group', { name: 'Instrument library counts' });
-	await expect(counts.locator('div').filter({ hasText: 'Instruments' })).toContainText('2');
-	await expect(counts.locator('div').filter({ hasText: 'Launch eligible' })).toContainText(
-		'1'
-	);
-	await expect(counts.locator('div').filter({ hasText: 'Launch blocked' })).toContainText(
-		'1'
-	);
+	await expect(counts).toContainText('Instruments');
+	await expect(counts).toContainText('2');
+	await expect(counts).toContainText('Launch eligible');
+	await expect(counts).toContainText('1');
+	await expect(counts).toContainText('Launch blocked');
 	await expect(library.locator('.metric-card')).toHaveCount(0);
 
 	const visible = library.getByLabel('Visible instruments');
@@ -920,7 +917,7 @@ test('renders instrument library summary and visible instruments', async ({ page
 
 	await expect(
 		library.getByLabel('Instrument management links').getByRole('link', {
-			name: /Campaign series/i
+			name: /Studies/i
 		})
 	).toHaveAttribute('href', '/app/campaign-series');
 });
@@ -928,16 +925,18 @@ test('renders instrument library summary and visible instruments', async ({ page
 test('renders export file library summary and latest artifacts', async ({ page }) => {
 	await page.goto('/app/exports');
 
-	await expect(page.getByRole('heading', { name: 'Use exports', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Download files', exact: true })).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
-	await expect(nav.getByRole('link', { name: 'Exports' })).toHaveAttribute('aria-current', 'page');
+	await expect(nav.getByRole('link', { name: /^Files\b/ })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: /^Exports\b/ })).toHaveCount(0);
 
-	const library = page.getByRole('region', { name: 'Export workspace' });
+	const library = page.getByRole('region', { name: 'Download files' });
 	const overview = library.getByRole('group', { name: 'Export overview' });
 	const artifacts = library.getByLabel('Export files');
-	const reference = library.getByRole('group', { name: 'Export reference' });
 
-	await expect(overview.getByText('Ready downloads', { exact: true })).toBeVisible();
+	await expect(
+		overview.getByRole('heading', { name: 'Downloadable files', exact: true })
+	).toBeVisible();
 	await expect(
 		overview.getByText('1 export file is ready to download.', { exact: true })
 	).toBeVisible();
@@ -946,7 +945,7 @@ test('renders export file library summary and latest artifacts', async ({ page }
 		overview.getByText('1 export file needs attention.', { exact: true })
 	).toBeVisible();
 	await expect(
-		overview.getByText('Exports cover Report summary export and Response dataset export.', {
+		overview.getByText('Exports cover Results matrix export and Response dataset export.', {
 			exact: true
 		})
 	).toBeVisible();
@@ -954,26 +953,21 @@ test('renders export file library summary and latest artifacts', async ({ page }
 		overview.getByText('Export files are tied to Baseline wave and Response study.', { exact: true })
 	).toBeVisible();
 	await expectElementBefore(overview, artifacts);
-
-	const counts = reference.getByRole('group', { name: 'Export file counts' });
-	await expect(counts.locator('div').filter({ hasText: 'Export files' })).toContainText('2');
-	await expect(counts.locator('div').filter({ hasText: 'Downloadable' })).toContainText('1');
-	await expect(counts.locator('div').filter({ hasText: 'Failed' })).toContainText('1');
-	await expect(counts.locator('div').filter({ hasText: 'Pending' })).toContainText('0');
 	await expect(library.locator('.metric-card')).toHaveCount(0);
 
 	const report = artifacts.getByRole('article', { name: 'baseline-report.csv' });
 	await expect(report.getByText('baseline-report.csv', { exact: true })).toBeVisible();
-	await expect(report.getByText('Report summary export', { exact: true })).toBeVisible();
+	await expect(report.getByText('Results matrix export', { exact: true })).toBeVisible();
 	await expect(report.getByText('Closed wave', { exact: true }).first()).toBeVisible();
 	await expect(
-		report.getByText('Use this export for report handoff, summary review, or codebook checks.', {
-			exact: true
-		})
+		report.getByText(
+			'Use this export for aggregate results review, group comparison, measurement comparison, or codebook checks.',
+			{ exact: true }
+		)
 	).toBeVisible();
 	await expect(report.getByText('Baseline wave', { exact: true })).toBeVisible();
 	await expect(report.getByText('Succeeded', { exact: true })).toBeVisible();
-	await expect(report.getByText('Report summary CSV and codebook', { exact: true })).toBeVisible();
+	await expect(report.getByText('Results matrix CSV and codebook', { exact: true })).toBeVisible();
 	await expect(report.getByText('Download')).toBeVisible();
 	await expect(report.getByText('Available', { exact: true })).toBeVisible();
 

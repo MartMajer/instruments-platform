@@ -3,10 +3,8 @@
 	import { page } from '$app/state';
 	import {
 		BarChart3,
-		BookOpen,
 		Building2,
 		ClipboardList,
-		FileDown,
 		FolderKanban,
 		Home,
 		ListChecks,
@@ -43,22 +41,6 @@
 					href: '/app/campaign-series',
 					icon: FolderKanban,
 					description: copy.descriptions.planStudies,
-					isDisabled: false
-				},
-				{
-					id: 'instrument-library',
-					label: copy.surfaces.instrumentLibrary,
-					href: '/app/instruments',
-					icon: BookOpen,
-					description: copy.descriptions.questionSets,
-					isDisabled: false
-				},
-				{
-					id: 'files',
-					label: copy.surfaces.exports,
-					href: '/app/exports',
-					icon: FileDown,
-					description: copy.descriptions.files,
 					isDisabled: false
 				}
 			]
@@ -177,7 +159,7 @@
 
 	const navigationSections = $derived([
 		...globalNavigationSections,
-		selectedSeriesSection,
+		...(activeSeriesId ? [selectedSeriesSection] : []),
 		...utilitySections
 	]);
 </script>
