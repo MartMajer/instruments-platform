@@ -13,7 +13,7 @@
 		type SaveAnswersResponse,
 		type SubmitResponseSessionResponse
 	} from '$lib/api/setup';
-	import { appLocaleFromPageData } from '$lib/i18n/localization';
+	import { appLocaleFromPageData, normalizeAppLocale } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { toRespondentReceiptView } from '$lib/respondent/receipt';
 	import {
@@ -24,7 +24,8 @@
 
 	const routeCredential = page.params.token ?? '';
 	const api = createSetupApi(createApiClient());
-	const locale = $derived(appLocaleFromPageData(page.data));
+	const explicitRouteLocale = $derived(page.url.searchParams.get('locale') ?? page.url.searchParams.get('lang'));
+	const locale = $derived(resolveRespondentLocale());
 	const text = $derived(routePageCopy(locale));
 
 	type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'failed' | 'local-restored';
@@ -162,7 +163,7 @@
 
 		try {
 			const request: CreateOpenLinkSessionRequest = {
-				locale: currentEntry.defaultLocale,
+				locale: localeForEntry(currentEntry),
 				acceptedConsentDocumentId: currentEntry.consentDocument.id,
 				acceptedGrants: selectedAcceptedGrants()
 			};
@@ -508,7 +509,7 @@
 		session = {
 			id: localDraft.sessionId,
 			assignmentId: localDraft.assignmentId,
-			locale: localDraft.entry.defaultLocale,
+			locale: localeForEntry(localDraft.entry),
 			startedAt: null,
 			submittedAt: null,
 			timeTakenMs: null,
@@ -659,6 +660,28 @@
 
 	function isRecord(value: unknown): value is Record<string, unknown> {
 		return typeof value === 'object' && value !== null && !Array.isArray(value);
+	}
+
+	function hasExplicitRouteLocale() {
+		return typeof explicitRouteLocale === 'string' && explicitRouteLocale.trim().length > 0;
+	}
+
+	function resolveRespondentLocale() {
+		const pageLocale = appLocaleFromPageData(page.data);
+		if (hasExplicitRouteLocale()) {
+			return pageLocale;
+		}
+
+		return normalizeAppLocale(session?.locale ?? entry?.defaultLocale ?? pageLocale);
+	}
+
+	function localeForEntry(currentEntry: OpenLinkEntryResponse) {
+		const pageLocale = appLocaleFromPageData(page.data);
+		if (hasExplicitRouteLocale()) {
+			return pageLocale;
+		}
+
+		return normalizeAppLocale(currentEntry.defaultLocale || pageLocale);
 	}
 
 	function sessionPointerKey(currentEntry: OpenLinkEntryResponse) {
@@ -967,7 +990,21 @@
 						{actionError}
 						onAnswersChange={handleAnswersChange}
 						onSaveForReview={saveForReview}
+						backLabel={text.respondent.back}
+						nextLabel={text.respondent.next}
 						reviewLabel={text.respondent.reviewTitle}
+						surveyQuestionsLabel={text.respondent.runnerSurveyQuestions}
+						surveyProgressLabel={text.respondent.runnerProgress}
+						questionLabel={text.respondent.runnerQuestion}
+						ofLabel={text.respondent.runnerOf}
+						leftLabel={text.respondent.runnerLeft}
+						requiredLabel={text.respondent.runnerRequired}
+						chooseAnswerMessage={text.respondent.runnerChooseAnswer}
+						onlyThisLabel={text.respondent.runnerOnlyThis}
+						chooseUpToLabel={text.respondent.runnerChooseUpTo}
+						answerLabel={text.respondent.runnerAnswer}
+						answerWithUnitLabel={text.respondent.runnerAnswerWithUnit}
+						noQuestionsAvailableLabel={text.respondent.runnerNoQuestionsAvailable}
 					/>
 				</form>
 			{/if}

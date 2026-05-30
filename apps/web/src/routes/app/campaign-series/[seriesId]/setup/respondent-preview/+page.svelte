@@ -3,6 +3,8 @@
 	import { page } from '$app/state';
 	import { ArrowLeft, Check, Send } from 'lucide-svelte';
 	import type { RespondentQuestionResponse } from '$lib/api/setup';
+	import { appLocaleFromPageData, normalizeAppLocale } from '$lib/i18n/localization';
+	import { routePageCopy } from '$lib/i18n/route-copy';
 	import RespondentQuestionRunner from '$lib/respondent/RespondentQuestionRunner.svelte';
 	import {
 		isQuestionAnswered,
@@ -22,7 +24,10 @@
 
 	const seriesId = $derived(page.params.seriesId ?? '');
 	const previewId = $derived(page.url.searchParams.get('previewId'));
-	const setupUrl = $derived(resolve(`/app/campaign-series/${seriesId}/setup`));
+	const explicitRouteLocale = $derived(page.url.searchParams.get('locale') ?? page.url.searchParams.get('lang'));
+	const previewLocale = $derived(resolvePreviewLocale());
+	const text = $derived(routePageCopy(previewLocale));
+	const setupUrl = $derived(resolveSetupUrl());
 	let loadState = $state<LoadState>('loading');
 	let loadMessage = $state('');
 	let preview = $state<RespondentPreviewSession | null>(null);
@@ -30,7 +35,12 @@
 	let reviewing = $state(false);
 	let submitted = $state(false);
 	let actionError = $state<string | null>(null);
-	let saveStatusMessage = $state('Preview answers are local only.');
+	let saveStatus = $state<'local-only' | 'ready'>('local-only');
+	let saveStatusMessage = $derived(
+		saveStatus === 'ready'
+			? text.respondent.previewSaveStatusReady
+			: text.respondent.previewSaveStatusLocalOnly
+	);
 
 	const visibleQuestions = $derived(
 		preview ? visibleRespondentQuestions(preview.questions, answers) : []
@@ -64,20 +74,20 @@
 	function previewLoadMessage(status: RespondentPreviewReadResult['status']) {
 		switch (status) {
 			case 'wrong-series':
-				return 'This preview belongs to a different study.';
+				return text.respondent.previewWrongSeries;
 			case 'expired':
-				return 'This preview expired. Return to setup and open a fresh preview.';
+				return text.respondent.previewExpired;
 			case 'invalid':
-				return 'This preview could not be read safely. Return to setup and open it again.';
+				return text.respondent.previewInvalid;
 			default:
-				return 'No preview draft was found. Return to setup and open Preview as respondent.';
+				return text.respondent.previewMissing;
 		}
 	}
 
 	function handleAnswersChange(nextAnswers: Record<string, string>) {
 		answers = nextAnswers;
 		actionError = null;
-		saveStatusMessage = 'Preview answers are local only.';
+		saveStatus = 'local-only';
 	}
 
 	function reviewPreviewAnswers() {
@@ -93,7 +103,7 @@
 
 		actionError = null;
 		reviewing = true;
-		saveStatusMessage = 'Preview answers are ready for local review.';
+		saveStatus = 'ready';
 	}
 
 	function finishPreview() {
@@ -115,7 +125,7 @@
 			const value = normalizeAnswerValue(rawAnswer);
 
 			if (question.required && !isQuestionAnswered(question, rawAnswer)) {
-				return `${question.code} needs an answer before review.`;
+				return text.respondent.questionRequiresAnswer(question.code);
 			}
 
 			if (value !== null && question.type === 'number') {
@@ -123,7 +133,7 @@
 				const constraints = questionInputConstraints(question);
 
 				if (!Number.isFinite(numericValue)) {
-					return `${question.code} must be a number.`;
+					return text.respondent.questionMustBeNumber(question.code);
 				}
 
 				if (
@@ -131,7 +141,7 @@
 					typeof constraints.max === 'number' &&
 					(numericValue < constraints.min || numericValue > constraints.max)
 				) {
-					return `${question.code} must be between ${constraints.min} and ${constraints.max}.`;
+					return text.respondent.questionBetween(question.code, constraints.min, constraints.max);
 				}
 			}
 
@@ -143,11 +153,15 @@
 				const numericValue = Number(value);
 
 				if (!Number.isFinite(numericValue)) {
-					return `${question.code} must be a number.`;
+					return text.respondent.questionMustBeNumber(question.code);
 				}
 
 				if (numericValue < question.scaleMinValue || numericValue > question.scaleMaxValue) {
-					return `${question.code} must be between ${question.scaleMinValue} and ${question.scaleMaxValue}.`;
+					return text.respondent.questionBetween(
+						question.code,
+						question.scaleMinValue,
+						question.scaleMaxValue
+					);
 				}
 			}
 		}
@@ -159,43 +173,69 @@
 		const trimmed = value?.trim() ?? '';
 		return trimmed.length > 0 ? trimmed : null;
 	}
+
+	function hasExplicitRouteLocale() {
+		return typeof explicitRouteLocale === 'string' && explicitRouteLocale.trim().length > 0;
+	}
+
+	function resolvePreviewLocale() {
+		const pageLocale = appLocaleFromPageData(page.data);
+		if (hasExplicitRouteLocale()) {
+			return pageLocale;
+		}
+
+		return normalizeAppLocale(preview?.locale ?? pageLocale);
+	}
+
+	function resolveSetupUrl() {
+		const path = resolve(`/app/campaign-series/${seriesId}/setup`);
+		if (!hasExplicitRouteLocale()) {
+			return path;
+		}
+
+		const url = new URL(path, page.url.origin);
+		url.searchParams.set('locale', previewLocale);
+		return `${url.pathname}${url.search}${url.hash}`;
+	}
 </script>
 
 <svelte:head>
-	<title>{preview?.seriesName ?? 'Respondent preview'} - Validated Scale</title>
+	<title>{preview?.seriesName ?? text.respondent.previewMetaFallback} - Validated Scale</title>
 </svelte:head>
 
 {#if loadState === 'loading'}
-	<section class="product-panel" aria-label="Respondent preview">
-		<p class="text-sm font-semibold text-[var(--color-text-muted)]">Loading respondent preview</p>
+	<section class="product-panel" aria-label={text.respondent.previewAria}>
+		<p class="text-sm font-semibold text-[var(--color-text-muted)]">
+			{text.respondent.previewLoading}
+		</p>
 	</section>
 {:else if loadState === 'missing'}
-	<section class="product-panel" aria-label="Respondent preview unavailable">
+	<section class="product-panel" aria-label={text.respondent.previewUnavailableAria}>
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Respondent preview</p>
-				<h1 class="product-title">Preview unavailable</h1>
+				<p class="product-kicker">{text.respondent.previewKicker}</p>
+				<h1 class="product-title">{text.respondent.previewUnavailableTitle}</h1>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">{loadMessage}</p>
 			</div>
 		</div>
 		<a class="secondary-button" href={setupUrl}>
 			<ArrowLeft size={17} aria-hidden="true" />
-			<span>Back to setup</span>
+			<span>{text.respondent.previewBackToSetup}</span>
 		</a>
 	</section>
 {:else if preview}
-	<section class="product-panel" aria-label="Respondent preview">
+	<section class="product-panel" aria-label={text.respondent.previewAria}>
 		<div class="product-panel__header">
 			<div>
-				<p class="product-kicker">Respondent preview</p>
-				<h1 class="product-title">{preview.seriesName} respondent preview</h1>
+				<p class="product-kicker">{text.respondent.previewKicker}</p>
+				<h1 class="product-title">{text.respondent.previewTitle(preview.seriesName)}</h1>
 				<p class="mt-1 text-sm text-[var(--color-text-muted)]">
-					Preview answers stay in this browser and do not count in results.
+					{text.respondent.previewLocalOnlyBody}
 				</p>
 			</div>
 			<a class="secondary-button" href={setupUrl}>
 				<ArrowLeft size={17} aria-hidden="true" />
-				<span>Back to setup</span>
+				<span>{text.respondent.previewBackToSetup}</span>
 			</a>
 		</div>
 	</section>
@@ -205,17 +245,19 @@
 			<div class="record-row">
 				<div class="record-row__header">
 					<div>
-						<p class="record-field__label">Local preview</p>
-						<h2 id="preview-complete-title" class="record-row__title">Preview complete</h2>
+						<p class="record-field__label">{text.respondent.previewCompleteKicker}</p>
+						<h2 id="preview-complete-title" class="record-row__title">
+							{text.respondent.previewCompleteTitle}
+						</h2>
 					</div>
 					<Check size={18} aria-hidden="true" />
 				</div>
 				<p class="text-sm text-[var(--color-text-muted)]">
-					No response session, answer row, score, or submission was created.
+					{text.respondent.previewNoPersistence}
 				</p>
 			</div>
 			<a class="primary-button" href={setupUrl}>
-				<span>Return to setup</span>
+				<span>{text.respondent.previewReturnToSetup}</span>
 			</a>
 		</section>
 	{:else if reviewing}
@@ -223,14 +265,15 @@
 			<div class="record-row">
 				<div class="record-row__header">
 					<div>
-						<p class="record-field__label">Local review</p>
-						<h2 id="preview-review-title" class="record-row__title">Preview review</h2>
+						<p class="record-field__label">{text.respondent.previewReviewKicker}</p>
+						<h2 id="preview-review-title" class="record-row__title">
+							{text.respondent.previewReviewTitle}
+						</h2>
 					</div>
 					<Check size={18} aria-hidden="true" />
 				</div>
 				<p class="text-sm text-[var(--color-text-muted)]">
-					{answeredVisibleCount} of {visibleQuestions.length} visible questions have answers. These answers
-					are local only.
+					{text.respondent.previewAnsweredVisible(answeredVisibleCount, visibleQuestions.length)}
 				</p>
 			</div>
 			{#if actionError}
@@ -239,11 +282,11 @@
 			<div class="action-row">
 				<button type="button" class="secondary-button" onclick={() => (reviewing = false)}>
 					<ArrowLeft size={17} aria-hidden="true" />
-					<span>Back to edit</span>
+					<span>{text.respondent.previewBackToEdit}</span>
 				</button>
 				<button type="button" class="primary-button" onclick={finishPreview}>
 					<Send size={17} aria-hidden="true" />
-					<span>Finish preview</span>
+					<span>{text.respondent.previewFinish}</span>
 				</button>
 			</div>
 		</section>
@@ -256,7 +299,21 @@
 				{actionError}
 				onAnswersChange={handleAnswersChange}
 				onSaveForReview={reviewPreviewAnswers}
-				reviewLabel="Review response"
+				backLabel={text.respondent.back}
+				nextLabel={text.respondent.next}
+				reviewLabel={text.respondent.reviewTitle}
+				surveyQuestionsLabel={text.respondent.runnerSurveyQuestions}
+				surveyProgressLabel={text.respondent.runnerProgress}
+				questionLabel={text.respondent.runnerQuestion}
+				ofLabel={text.respondent.runnerOf}
+				leftLabel={text.respondent.runnerLeft}
+				requiredLabel={text.respondent.runnerRequired}
+				chooseAnswerMessage={text.respondent.runnerChooseAnswer}
+				onlyThisLabel={text.respondent.runnerOnlyThis}
+				chooseUpToLabel={text.respondent.runnerChooseUpTo}
+				answerLabel={text.respondent.runnerAnswer}
+				answerWithUnitLabel={text.respondent.runnerAnswerWithUnit}
+				noQuestionsAvailableLabel={text.respondent.runnerNoQuestionsAvailable}
 			/>
 		</form>
 	{/if}

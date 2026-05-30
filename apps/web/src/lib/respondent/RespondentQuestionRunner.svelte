@@ -24,7 +24,19 @@
 		onSaveForReview,
 		backLabel = 'Back',
 		nextLabel = 'Next',
-		reviewLabel = 'Review response'
+		reviewLabel = 'Review response',
+		surveyQuestionsLabel = 'Survey questions',
+		surveyProgressLabel = 'Survey progress',
+		questionLabel = 'Question',
+		ofLabel = 'of',
+		leftLabel = 'left',
+		requiredLabel = 'Required',
+		chooseAnswerMessage = 'Choose an answer to continue.',
+		onlyThisLabel = 'Only this',
+		chooseUpToLabel = (count: number) => `Choose up to ${count} options in order.`,
+		answerLabel = 'Answer',
+		answerWithUnitLabel = (unit: string) => `Answer (${unit})`,
+		noQuestionsAvailableLabel = 'No questions available'
 	}: {
 		questions: RespondentQuestionResponse[];
 		answers: Record<string, string>;
@@ -37,6 +49,18 @@
 		backLabel?: string;
 		nextLabel?: string;
 		reviewLabel?: string;
+		surveyQuestionsLabel?: string;
+		surveyProgressLabel?: string;
+		questionLabel?: string;
+		ofLabel?: string;
+		leftLabel?: string;
+		requiredLabel?: string;
+		chooseAnswerMessage?: string;
+		onlyThisLabel?: string;
+		chooseUpToLabel?: (count: number) => string;
+		answerLabel?: string;
+		answerWithUnitLabel?: (unit: string) => string;
+		noQuestionsAvailableLabel?: string;
 	} = $props();
 
 	let currentQuestionId = $state<string | null>(null);
@@ -108,7 +132,7 @@
 		}
 
 		if (!isQuestionAnswered(currentQuestion, answers[currentQuestion.id])) {
-			localError = 'Choose an answer to continue.';
+			localError = chooseAnswerMessage;
 			return;
 		}
 
@@ -202,17 +226,21 @@
 	}
 </script>
 
-<section class="respondent-runner" aria-label="Survey questions" data-testid="respondent-question-runner">
+<section
+	class="respondent-runner"
+	aria-label={surveyQuestionsLabel}
+	data-testid="respondent-question-runner"
+>
 	{#if currentQuestion}
 		<header class="runner-header">
 			<div class="runner-progress-copy">
-				<p>Question {currentIndex + 1} of {visibleQuestions.length}</p>
-				<p>{Math.max(0, visibleQuestions.length - currentIndex - 1)} left</p>
+				<p>{questionLabel} {currentIndex + 1} {ofLabel} {visibleQuestions.length}</p>
+				<p>{Math.max(0, visibleQuestions.length - currentIndex - 1)} {leftLabel}</p>
 			</div>
 			<div
 				class="runner-progress"
 				role="progressbar"
-				aria-label="Survey progress"
+				aria-label={surveyProgressLabel}
 				aria-valuemin="0"
 				aria-valuemax="100"
 				aria-valuenow={progressPercent}
@@ -226,7 +254,7 @@
 				<p class="question-code">{currentQuestion.code}</p>
 				<h2 id={`question-title-${currentQuestion.id}`}>{currentQuestion.textDefault}</h2>
 				{#if currentQuestion.required}
-					<p class="question-required">Required</p>
+					<p class="question-required">{requiredLabel}</p>
 				{/if}
 			</div>
 
@@ -281,7 +309,7 @@
 						>
 							<span>{choice.label}</span>
 							{#if choice.isExclusive}
-								<span class="answer-option__meta">Only this</span>
+								<span class="answer-option__meta">{onlyThisLabel}</span>
 							{/if}
 						</button>
 					{/each}
@@ -290,7 +318,7 @@
 				{@const rankingOptions = rankingQuestionOptions(currentQuestion)}
 				<div class="ranking-answers" role="group" aria-label={currentQuestion.textDefault}>
 					{#if rankingOptions.topN}
-						<p class="control-help">Choose up to {rankingOptions.topN} options in order.</p>
+						<p class="control-help">{chooseUpToLabel(rankingOptions.topN)}</p>
 					{/if}
 					{#each questionChoices(currentQuestion) as choice (choice.value)}
 						{@const position = rankingPosition(currentQuestion, choice.value)}
@@ -333,7 +361,7 @@
 			{:else if currentQuestion.type === 'number'}
 				{@const constraints = questionInputConstraints(currentQuestion)}
 				<label class="runner-field">
-					<span>{constraints.unit ? `Answer (${constraints.unit})` : 'Answer'}</span>
+					<span>{constraints.unit ? answerWithUnitLabel(constraints.unit) : answerLabel}</span>
 					<input
 						type="number"
 						value={scalarInputValue(currentQuestion)}
@@ -347,7 +375,7 @@
 			{:else if currentQuestion.type === 'date'}
 				{@const constraints = questionInputConstraints(currentQuestion)}
 				<label class="runner-field">
-					<span>Answer</span>
+					<span>{answerLabel}</span>
 					<input
 						type="date"
 						value={scalarInputValue(currentQuestion)}
@@ -360,7 +388,7 @@
 			{:else}
 				{@const constraints = questionInputConstraints(currentQuestion)}
 				<label class="runner-field">
-					<span>Answer</span>
+					<span>{answerLabel}</span>
 					{#if constraints.multiline}
 						<textarea
 							value={scalarInputValue(currentQuestion)}
@@ -418,7 +446,7 @@
 		</div>
 	{:else}
 		<section class="question-stage">
-			<h2>No questions available</h2>
+			<h2>{noQuestionsAvailableLabel}</h2>
 		</section>
 	{/if}
 </section>

@@ -926,6 +926,77 @@ test('localizes failed autosave status for Croatian respondents', async ({ page 
 	);
 });
 
+test('uses open-link default locale for respondent chrome when URL has no locale override', async ({
+	page
+}) => {
+	let sessionRequestBody: unknown = null;
+
+	await page.route('**/respondent/open-links/*/sessions', async (route) => {
+		sessionRequestBody = route.request().postDataJSON();
+		await route.fulfill({
+			status: 201,
+			json: {
+				...sampleSession,
+				locale: 'hr-HR'
+			}
+		});
+	});
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({ json: croatianOpenLinkEntry() });
+	});
+
+	await page.goto(`/r/${openLinkToken}`);
+
+	await expect(page.getByRole('button', { name: 'Nastavi' })).toBeVisible();
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Nastavi' }).click();
+
+	const runner = respondentRunner(page);
+	await expect(runner).toContainText('Pitanje 1 od 1');
+	await expect(runner).toContainText('0 preostalo');
+	await expect(runner).toContainText('Obavezno');
+	await expect(runner.getByRole('button', { name: 'Pregled odgovora' })).toBeVisible();
+	await expect(runner).not.toContainText('Question 1 of 1');
+	expect(sessionRequestBody).toMatchObject({ locale: 'hr-HR' });
+});
+
+test('explicit respondent locale override controls display and created session locale', async ({
+	page
+}) => {
+	let sessionRequestBody: unknown = null;
+
+	await page.route('**/respondent/open-links/*/sessions', async (route) => {
+		sessionRequestBody = route.request().postDataJSON();
+		await route.fulfill({
+			status: 201,
+			json: {
+				...sampleSession,
+				locale: 'en'
+			}
+		});
+	});
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({ json: croatianOpenLinkEntry() });
+	});
+
+	await page.goto(`/r/${openLinkToken}?locale=en`);
+
+	await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
+	const runner = respondentRunner(page);
+	await expect(runner).toContainText('Question 1 of 1');
+	await expect(runner).toContainText('Required');
+	await expect(runner.getByRole('button', { name: 'Review response' })).toBeVisible();
+	await expect(runner).not.toContainText('Pitanje 1 od 1');
+	expect(sessionRequestBody).toMatchObject({ locale: 'en' });
+});
+
 test('requires participant code before starting anonymous longitudinal open-link response', async ({
 	page
 }) => {
@@ -1345,6 +1416,17 @@ const sampleOpenLinkEntry = {
 		}
 	]
 };
+
+function croatianOpenLinkEntry() {
+	return {
+		...sampleOpenLinkEntry,
+		defaultLocale: 'hr-HR',
+		consentDocument: {
+			...sampleOpenLinkEntry.consentDocument,
+			locale: 'hr-HR'
+		}
+	};
+}
 
 const sampleIdentifiedEntry = {
 	...sampleOpenLinkEntry,
