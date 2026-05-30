@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import {
 		Check,
 		Copy,
@@ -44,12 +44,21 @@
 		detail: string;
 		status: 'ready' | 'neutral';
 	};
+	type RoleDetailsPlacement = {
+		left: number;
+		top: number;
+		width: number;
+		maxHeight: number;
+	};
 
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
 	const authContext = getProductAuthContext();
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
+	const roleDetailsViewportPadding = 16;
+	const roleDetailsAnchorGap = 12;
+	const roleDetailsPreferredWidth = 352;
 
 	let authSession = $state<AuthSessionResponse | null>(null);
 	let loadState = $state<LoadState>('loading');
@@ -70,10 +79,17 @@
 	let roleSelections = $state<Record<string, string>>({});
 	let addRoleDetailsOpen = $state(false);
 	let memberRoleDetailsOpen = $state<Record<string, boolean>>({});
+	let addRoleDetailsButton = $state<HTMLButtonElement | null>(null);
+	let addRoleDetailsPanel = $state<HTMLDivElement | null>(null);
+	let addRoleDetailsPlacement = $state<RoleDetailsPlacement | null>(null);
+	let memberRoleDetailsPlacements = $state<Record<string, RoleDetailsPlacement>>({});
 	let permissionDetailsOpen = $state<Record<string, boolean>>({});
 	let accessMutationUserId = $state<string | null>(null);
 	let accessMutation = $state<AccessMutation | null>(null);
 	let accessMutationError = $state<string | null>(null);
+	let roleDetailsPlacementFrame: number | null = null;
+	const memberRoleDetailsButtons = new Map<string, HTMLButtonElement>();
+	const memberRoleDetailsPanels = new Map<string, HTMLDivElement>();
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -86,9 +102,44 @@
 		void loadTenantMembers();
 	});
 
+	onDestroy(() => {
+		if (browser && roleDetailsPlacementFrame !== null) {
+			cancelAnimationFrame(roleDetailsPlacementFrame);
+		}
+	});
+
 	$effect(() => {
 		if (canManageTeam && roleLoadState === 'idle') {
 			void loadTenantRoles();
+		}
+	});
+
+	$effect(() => {
+		const hasOpenRoleDetails =
+			addRoleDetailsOpen || Object.values(memberRoleDetailsOpen).some(Boolean);
+
+		if (!browser || !hasOpenRoleDetails) {
+			addRoleDetailsPlacement = null;
+			memberRoleDetailsPlacements = {};
+			return;
+		}
+
+		void refreshRoleDetailsPlacements();
+		const update = () => queueRoleDetailsPlacementUpdate();
+		window.addEventListener('resize', update);
+		window.addEventListener('scroll', update, true);
+
+		return () => {
+			window.removeEventListener('resize', update);
+			window.removeEventListener('scroll', update, true);
+		};
+	});
+
+	$effect(() => {
+		newMemberRoleCode;
+		roleSelections;
+		if (browser && (addRoleDetailsOpen || Object.values(memberRoleDetailsOpen).some(Boolean))) {
+			queueRoleDetailsPlacementUpdate();
 		}
 	});
 
@@ -267,6 +318,7 @@
 			...roleSelections,
 			[member.userId]: roleCode
 		};
+		queueRoleDetailsPlacementUpdate();
 	}
 
 	function togglePermissionDetails(member: TenantMemberResponse) {
@@ -281,6 +333,156 @@
 			...memberRoleDetailsOpen,
 			[member.userId]: !memberRoleDetailsOpen[member.userId]
 		};
+		void refreshRoleDetailsPlacements();
+	}
+
+	function toggleAddRoleDetails() {
+		addRoleDetailsOpen = !addRoleDetailsOpen;
+		void refreshRoleDetailsPlacements();
+	}
+
+	function registerMemberRoleDetailsButton(node: HTMLButtonElement, userId: string) {
+		memberRoleDetailsButtons.set(userId, node);
+		queueRoleDetailsPlacementUpdate();
+
+		return {
+			update(nextUserId: string) {
+				if (nextUserId === userId) {
+					return;
+				}
+
+				memberRoleDetailsButtons.delete(userId);
+				userId = nextUserId;
+				memberRoleDetailsButtons.set(userId, node);
+				queueRoleDetailsPlacementUpdate();
+			},
+			destroy() {
+				memberRoleDetailsButtons.delete(userId);
+			}
+		};
+	}
+
+	function registerMemberRoleDetailsPanel(node: HTMLDivElement, userId: string) {
+		memberRoleDetailsPanels.set(userId, node);
+		void refreshRoleDetailsPlacements();
+
+		return {
+			update(nextUserId: string) {
+				if (nextUserId === userId) {
+					return;
+				}
+
+				memberRoleDetailsPanels.delete(userId);
+				userId = nextUserId;
+				memberRoleDetailsPanels.set(userId, node);
+				void refreshRoleDetailsPlacements();
+			},
+			destroy() {
+				memberRoleDetailsPanels.delete(userId);
+			}
+		};
+	}
+
+	async function refreshRoleDetailsPlacements() {
+		if (!browser) {
+			return;
+		}
+
+		await tick();
+		updateRoleDetailsPlacements();
+		await tick();
+		updateRoleDetailsPlacements();
+	}
+
+	function queueRoleDetailsPlacementUpdate() {
+		if (!browser) {
+			return;
+		}
+
+		if (roleDetailsPlacementFrame !== null) {
+			cancelAnimationFrame(roleDetailsPlacementFrame);
+		}
+
+		roleDetailsPlacementFrame = requestAnimationFrame(() => {
+			roleDetailsPlacementFrame = null;
+			updateRoleDetailsPlacements();
+		});
+	}
+
+	function updateRoleDetailsPlacements() {
+		if (!browser) {
+			return;
+		}
+
+		addRoleDetailsPlacement =
+			addRoleDetailsOpen && addRoleDetailsButton
+				? calculateRoleDetailsPlacement(addRoleDetailsButton, addRoleDetailsPanel)
+				: null;
+
+		const nextMemberPlacements: Record<string, RoleDetailsPlacement> = {};
+		for (const [userId, open] of Object.entries(memberRoleDetailsOpen)) {
+			const button = memberRoleDetailsButtons.get(userId);
+			if (!open || !button) {
+				continue;
+			}
+
+			nextMemberPlacements[userId] = calculateRoleDetailsPlacement(
+				button,
+				memberRoleDetailsPanels.get(userId) ?? null
+			);
+		}
+		memberRoleDetailsPlacements = nextMemberPlacements;
+	}
+
+	function calculateRoleDetailsPlacement(
+		anchor: HTMLElement,
+		panel: HTMLElement | null
+	): RoleDetailsPlacement {
+		const anchorBox = anchor.getBoundingClientRect();
+		const horizontalAnchorBox = anchor.closest('.field')?.getBoundingClientRect() ?? anchorBox;
+		const viewportWidth = window.innerWidth;
+		const viewportHeight = window.innerHeight;
+		const width = Math.min(
+			roleDetailsPreferredWidth,
+			Math.max(0, viewportWidth - roleDetailsViewportPadding * 2)
+		);
+		const maxHeight = Math.max(160, viewportHeight - roleDetailsViewportPadding * 2);
+		const measuredHeight = panel?.getBoundingClientRect().height ?? 320;
+		const expectedHeight = Math.min(measuredHeight, maxHeight);
+
+		const rightCandidate = horizontalAnchorBox.right + roleDetailsAnchorGap;
+		const leftCandidate = horizontalAnchorBox.left - roleDetailsAnchorGap - width;
+		const hasRoomRight = rightCandidate + width <= viewportWidth - roleDetailsViewportPadding;
+		const hasRoomLeft = leftCandidate >= roleDetailsViewportPadding;
+		const preferredLeft = hasRoomRight || !hasRoomLeft ? rightCandidate : leftCandidate;
+		const left = clamp(
+			preferredLeft,
+			roleDetailsViewportPadding,
+			viewportWidth - roleDetailsViewportPadding - width
+		);
+		const top = clamp(
+			anchorBox.top,
+			roleDetailsViewportPadding,
+			viewportHeight - roleDetailsViewportPadding - expectedHeight
+		);
+
+		return { left, top, width, maxHeight };
+	}
+
+	function clamp(value: number, min: number, max: number) {
+		if (max < min) {
+			return min;
+		}
+
+		return Math.min(Math.max(value, min), max);
+	}
+
+	function roleDetailsPlacementStyle(placement: RoleDetailsPlacement | null) {
+		if (!placement) {
+			return 'visibility: hidden;';
+		}
+
+		return `left: ${placement.left}px; top: ${placement.top}px; width: ${placement.width}px; max-height: ${placement.maxHeight}px;`;
 	}
 
 	function syncRoleSelections(nextRoster: TenantMemberRosterResponse | null) {
@@ -626,12 +828,13 @@
 						<label class="label" for="new-member-role">{text.team.memberRole}</label>
 						<button
 							type="button"
+							bind:this={addRoleDetailsButton}
 							class="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
 							aria-label={roleDetailsLabel(selectedNewMemberRole())}
 							aria-expanded={addRoleDetailsOpen}
 							aria-controls="new-member-role-details"
 							disabled={!selectedNewMemberRole()}
-							onclick={() => (addRoleDetailsOpen = !addRoleDetailsOpen)}
+							onclick={toggleAddRoleDetails}
 						>
 							<Info size={16} aria-hidden="true" />
 						</button>
@@ -648,7 +851,9 @@
 					{#if addRoleDetailsOpen && selectedNewMemberRole()}
 						<div
 							id="new-member-role-details"
-							class="absolute top-0 right-10 z-50 grid w-[min(22rem,calc(100vw-2rem))] gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl lg:right-auto lg:left-full lg:ml-2"
+							bind:this={addRoleDetailsPanel}
+							class="fixed z-50 grid gap-2 overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl"
+							style={roleDetailsPlacementStyle(addRoleDetailsPlacement)}
 							role="region"
 							aria-label={roleDetailsLabel(selectedNewMemberRole())}
 						>
@@ -858,6 +1063,7 @@
 													</label>
 													<button
 														type="button"
+														use:registerMemberRoleDetailsButton={member.userId}
 														class="inline-flex h-8 w-8 items-center justify-center rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-strong)]"
 														aria-label="Role details for selected role"
 														aria-expanded={Boolean(memberRoleDetailsOpen[member.userId])}
@@ -882,7 +1088,11 @@
 												{#if memberRoleDetailsOpen[member.userId] && selectedTenantRole(member)}
 													<div
 														id={`member-role-details-${member.userId}`}
-														class="absolute top-0 right-10 z-50 grid w-[min(22rem,calc(100vw-2rem))] gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl lg:right-auto lg:left-full lg:ml-2"
+														use:registerMemberRoleDetailsPanel={member.userId}
+														class="fixed z-50 grid gap-2 overflow-y-auto rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl"
+														style={roleDetailsPlacementStyle(
+															memberRoleDetailsPlacements[member.userId] ?? null
+														)}
 														role="region"
 														aria-label={roleDetailsLabel(selectedTenantRole(member))}
 													>

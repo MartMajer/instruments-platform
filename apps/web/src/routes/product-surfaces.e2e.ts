@@ -1108,9 +1108,14 @@ test('workspace access explains selected operator roles before assignment change
 	const addRoleDetailsBox = await addRoleDetails.boundingBox();
 	expect(addRoleSelectBox).not.toBeNull();
 	expect(addRoleDetailsBox).not.toBeNull();
-	expect(addRoleDetailsBox!.x).toBeGreaterThanOrEqual(
-		addRoleSelectBox!.x + addRoleSelectBox!.width - 1
-	);
+	const addRoleSelectRight = addRoleSelectBox!.x + addRoleSelectBox!.width;
+	const addRoleDetailsRight = addRoleDetailsBox!.x + addRoleDetailsBox!.width;
+	const opensBesideSelector =
+		addRoleDetailsBox!.x >= addRoleSelectRight - 1 ||
+		addRoleDetailsRight <= addRoleSelectBox!.x + 1;
+	expect(opensBesideSelector).toBe(true);
+	expect(addRoleDetailsBox!.y).toBeLessThanOrEqual(addRoleSelectBox!.y + addRoleSelectBox!.height);
+	await expectFloatingElementVisibleWithinViewport(page, addRoleDetails);
 
 	await addOperator.getByLabel('Operator role').selectOption('analyst');
 	const analystAddRoleDetails = addOperator.getByRole('region', {
@@ -1141,6 +1146,18 @@ test('workspace access explains selected operator roles before assignment change
 			.getByRole('region', { name: 'Role details for Tenant Owner' })
 			.getByText('Workspace access management', { exact: true })
 	).toBeVisible();
+});
+
+test('workspace access role info popover is not clipped on narrow screens', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 780 });
+	await page.goto('/app/team');
+
+	const addOperator = page.getByRole('region', { name: 'Add workspace operator' });
+	await addOperator.getByRole('button', { name: 'Role details for Tenant Owner' }).click();
+	const addRoleDetails = addOperator.getByRole('region', { name: 'Role details for Tenant Owner' });
+
+	await expect(addRoleDetails.getByText('Study setup and launch', { exact: true })).toBeVisible();
+	await expectFloatingElementVisibleWithinViewport(page, addRoleDetails);
 });
 
 test('renders tenant member roster read-only without team management permission', async ({
@@ -6220,6 +6237,41 @@ async function expectElementBefore(first: Locator, second: Locator) {
 	expect(firstBox, 'first element should be visible and measurable').not.toBeNull();
 	expect(secondBox, 'second element should be visible and measurable').not.toBeNull();
 	expect(firstBox!.y).toBeLessThan(secondBox!.y);
+}
+
+async function expectFloatingElementVisibleWithinViewport(page: Page, element: Locator) {
+	const box = await element.boundingBox();
+	const viewport = page.viewportSize();
+
+	expect(box, 'floating element should be visible and measurable').not.toBeNull();
+	expect(viewport, 'viewport should be available for floating element bounds').not.toBeNull();
+
+	const right = box!.x + box!.width;
+	const bottom = box!.y + box!.height;
+	expect(box!.x).toBeGreaterThanOrEqual(0);
+	expect(box!.y).toBeGreaterThanOrEqual(0);
+	expect(right).toBeLessThanOrEqual(viewport!.width);
+	expect(bottom).toBeLessThanOrEqual(viewport!.height);
+
+	const inset = Math.min(12, Math.max(4, Math.floor(Math.min(box!.width, box!.height) / 4)));
+	const points = [
+		{ x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 },
+		{ x: right - inset, y: box!.y + box!.height / 2 },
+		{ x: box!.x + inset, y: box!.y + box!.height / 2 },
+		{ x: box!.x + box!.width / 2, y: box!.y + inset },
+		{ x: box!.x + box!.width / 2, y: bottom - inset }
+	];
+
+	for (const point of points) {
+		const visibleAtPoint = await element.evaluate((node, hitPoint) => {
+			const target = document.elementFromPoint(hitPoint.x, hitPoint.y);
+			return target === node || (target !== null && node.contains(target));
+		}, point);
+		expect(
+			visibleAtPoint,
+			`floating element should be hit-testable at ${Math.round(point.x)},${Math.round(point.y)}`
+		).toBe(true);
+	}
 }
 
 async function expectMetricValue(scope: Locator, label: string, value: string) {
