@@ -1,97 +1,60 @@
-using System.Net.Mail;
 using System.Text;
 
 namespace Platform.Application.Features.Notifications;
 
 public static class EmailDeliveryFailureClassifier
 {
-    public const string SmtpUnknown = "smtp_unknown";
-    public const string SmtpAuthFailed = "smtp_auth_failed";
-    public const string SmtpTlsFailed = "smtp_tls_failed";
-    public const string SmtpTransactionFailed = "smtp_transaction_failed";
-    public const string SesIdentityNotVerified = "ses_identity_not_verified";
-    public const string SesSenderIdentityNotVerified = "ses_sender_identity_not_verified";
-    public const string SesSandboxRecipientNotVerified = "ses_sandbox_recipient_not_verified";
-    public const string SesThrottled = "ses_throttled";
+    public const string AzureCommunicationEmailUnknown = "azure_communication_email_unknown";
+    public const string AzureCommunicationEmailAuthFailed = "azure_communication_email_auth_failed";
+    public const string AzureCommunicationEmailRateLimited = "azure_communication_email_rate_limited";
+    public const string AzureCommunicationEmailSenderDomainRejected = "azure_communication_email_sender_domain_rejected";
+    public const string EmailDeliveryUnknown = "email_delivery_unknown";
 
-    public static string Classify(
-        Exception exception,
-        string? provider,
-        string? managedProviderName,
-        string? fromAddress,
-        string? recipient)
+    public static string Classify(Exception exception, string? provider)
     {
         var message = CollectMessages(exception);
-        var isAwsSes = IsAwsSes(provider, managedProviderName, message);
-
-        if (isAwsSes && Contains(message, "email address is not verified"))
+        if (!string.Equals(provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase))
         {
-            if (ContainsAddress(message, fromAddress))
-            {
-                return SesSenderIdentityNotVerified;
-            }
-
-            if (ContainsAddress(message, recipient))
-            {
-                return SesSandboxRecipientNotVerified;
-            }
-
-            return SesIdentityNotVerified;
+            return EmailDeliveryUnknown;
         }
 
-        if (isAwsSes &&
-            (Contains(message, "maximum sending rate exceeded") ||
-             Contains(message, "daily message quota exceeded") ||
-             Contains(message, "throttl")))
+        if (Contains(message, "401") ||
+            Contains(message, "403") ||
+            Contains(message, "authentication") ||
+            Contains(message, "authorization") ||
+            Contains(message, "unauthorized") ||
+            Contains(message, "forbidden") ||
+            Contains(message, "credential") ||
+            Contains(message, "access key"))
         {
-            return SesThrottled;
+            return AzureCommunicationEmailAuthFailed;
         }
 
-        if (Contains(message, "authentication") ||
-            Contains(message, "authenticate") ||
-            Contains(message, "credentials") ||
-            Contains(message, "password"))
+        if (Contains(message, "429") ||
+            Contains(message, "too many requests") ||
+            Contains(message, "rate limit") ||
+            Contains(message, "throttl"))
         {
-            return SmtpAuthFailed;
+            return AzureCommunicationEmailRateLimited;
         }
 
-        if (Contains(message, "starttls") ||
-            Contains(message, "ssl") ||
-            Contains(message, "tls") ||
-            Contains(message, "certificate"))
+        if ((Contains(message, "sender") || Contains(message, "domain")) &&
+            (Contains(message, "verify") || Contains(message, "verified") || Contains(message, "not allowed")))
         {
-            return SmtpTlsFailed;
+            return AzureCommunicationEmailSenderDomainRejected;
         }
 
-        if (exception is SmtpException smtpException &&
-            smtpException.StatusCode == SmtpStatusCode.TransactionFailed)
-        {
-            return SmtpTransactionFailed;
-        }
-
-        return SmtpUnknown;
+        return AzureCommunicationEmailUnknown;
     }
 
     public static bool IsSafeFailureClass(string? value)
     {
         return value is
-            SmtpUnknown or
-            SmtpAuthFailed or
-            SmtpTlsFailed or
-            SmtpTransactionFailed or
-            SesIdentityNotVerified or
-            SesSenderIdentityNotVerified or
-            SesSandboxRecipientNotVerified or
-            SesThrottled;
-    }
-
-    private static bool IsAwsSes(string? provider, string? managedProviderName, string message)
-    {
-        return string.Equals(provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase) &&
-            (string.Equals(managedProviderName, "aws-ses", StringComparison.OrdinalIgnoreCase) ||
-             Contains(message, "amazon ses") ||
-             Contains(message, "amazonses") ||
-             Contains(message, "eu-central-1"));
+            AzureCommunicationEmailUnknown or
+            AzureCommunicationEmailAuthFailed or
+            AzureCommunicationEmailRateLimited or
+            AzureCommunicationEmailSenderDomainRejected or
+            EmailDeliveryUnknown;
     }
 
     private static string CollectMessages(Exception exception)
@@ -108,29 +71,6 @@ public static class EmailDeliveryFailureClassifier
         }
 
         return builder.ToString();
-    }
-
-    private static bool ContainsAddress(string message, string? address)
-    {
-        var normalizedAddress = NormalizeAddress(address);
-        return normalizedAddress is not null && Contains(message, normalizedAddress);
-    }
-
-    private static string? NormalizeAddress(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        try
-        {
-            return new MailAddress(value).Address.Trim().ToLowerInvariant();
-        }
-        catch (FormatException)
-        {
-            return value.Trim().ToLowerInvariant();
-        }
     }
 
     private static bool Contains(string value, string expected)

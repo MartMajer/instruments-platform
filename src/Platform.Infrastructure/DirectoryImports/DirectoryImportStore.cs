@@ -119,7 +119,7 @@ public sealed class DirectoryImportStore(
         }
 
         var connection = new DirectoryConnection(
-            Guid.NewGuid(),
+            PlatformIds.NewId(),
             tenantId,
             DirectoryConnectionProviders.MicrosoftGraph,
             externalTenantId,
@@ -188,7 +188,7 @@ public sealed class DirectoryImportStore(
             ? DateTimeOffset.UtcNow
             : (DateTimeOffset?)null;
         var rule = new DirectoryImportRule(
-            Guid.NewGuid(),
+            PlatformIds.NewId(),
             tenantId,
             request.ConnectionId,
             ruleName,
@@ -299,7 +299,7 @@ public sealed class DirectoryImportStore(
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         var run = new DirectoryImportRun(
-            Guid.NewGuid(),
+            PlatformIds.NewId(),
             tenantId,
             executionContext.RuleId,
             DirectoryImportRunModes.Preview,
@@ -338,7 +338,7 @@ public sealed class DirectoryImportStore(
             }
 
             runItems.Add(new DirectoryImportRunItem(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 run.Id,
                 "user",
@@ -357,7 +357,7 @@ public sealed class DirectoryImportStore(
             {
                 warningCount++;
                 runItems.Add(new DirectoryImportRunItem(
-                    Guid.NewGuid(),
+                    PlatformIds.NewId(),
                     tenantId,
                     run.Id,
                     "user",
@@ -382,7 +382,7 @@ public sealed class DirectoryImportStore(
                 executionContext.ExternalTenantId,
                 $"{manager.UserGraphId}:{manager.ManagerGraphId}");
             runItems.Add(new DirectoryImportRunItem(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 run.Id,
                 "manager",
@@ -509,7 +509,7 @@ public sealed class DirectoryImportStore(
         }
 
         var run = new DirectoryImportRun(
-            Guid.NewGuid(),
+            PlatformIds.NewId(),
             tenantId,
             executionContext.RuleContext.RuleId,
             DirectoryImportRunModes.Apply,
@@ -547,7 +547,7 @@ public sealed class DirectoryImportStore(
                     user,
                     executionContext.RuleContext.ExternalTenantId);
                 subject = new Subject(
-                    Guid.NewGuid(),
+                    PlatformIds.NewId(),
                     tenantId,
                     externalId: externalId,
                     email: user.Email,
@@ -581,7 +581,7 @@ public sealed class DirectoryImportStore(
 
             subjectsByGraphId[user.GraphUserId] = subject;
             runItems.Add(new DirectoryImportRunItem(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 run.Id,
                 "user",
@@ -596,7 +596,7 @@ public sealed class DirectoryImportStore(
             {
                 warningCount++;
                 runItems.Add(new DirectoryImportRunItem(
-                    Guid.NewGuid(),
+                    PlatformIds.NewId(),
                     tenantId,
                     run.Id,
                     "user",
@@ -777,7 +777,7 @@ public sealed class DirectoryImportStore(
             if (!groupsByKey.TryGetValue(groupKey, out var group))
             {
                 group = new SubjectGroup(
-                    Guid.NewGuid(),
+                    PlatformIds.NewId(),
                     tenantId,
                     SubjectGroupTypes.Department,
                     user.Department);
@@ -785,7 +785,7 @@ public sealed class DirectoryImportStore(
                 groupsByKey[groupKey] = group;
                 createdGroupCount++;
                 runItems.Add(new DirectoryImportRunItem(
-                    Guid.NewGuid(),
+                    PlatformIds.NewId(),
                     tenantId,
                     runId,
                     "department",
@@ -808,7 +808,7 @@ public sealed class DirectoryImportStore(
             memberships.Add(membershipKey);
             addedMembershipCount++;
             runItems.Add(new DirectoryImportRunItem(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 runId,
                 "department_membership",
@@ -861,7 +861,7 @@ public sealed class DirectoryImportStore(
             }
 
             var relationship = new SubjectRelationship(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 managerSubject.Id,
                 employee.Id,
@@ -871,7 +871,7 @@ public sealed class DirectoryImportStore(
             activeManagerRelationships.Add(relationship);
             setManagerCount++;
             runItems.Add(new DirectoryImportRunItem(
-                Guid.NewGuid(),
+                PlatformIds.NewId(),
                 tenantId,
                 runId,
                 "manager",

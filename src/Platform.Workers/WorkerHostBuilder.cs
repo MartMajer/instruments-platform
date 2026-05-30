@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Platform.Application;
@@ -16,6 +17,7 @@ public static class WorkerHostBuilder
         var builder = Host.CreateApplicationBuilder(args);
 
         builder.Services.AddPlatformApplication();
+        builder.Services.AddDataProtection();
         builder.Services.AddRouting();
         builder.Services.AddPlatformInfrastructure(builder.Configuration);
         builder.Services.AddOutboxDispatching();

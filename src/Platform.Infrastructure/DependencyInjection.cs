@@ -151,21 +151,8 @@ public static class DependencyInjection
             return new Argon2idParticipantCodeHasher(options);
         });
         services.AddScoped<LocalDevEmailDeliveryProvider>();
-        services.AddScoped<SmtpEmailDeliveryProvider>();
         services.AddScoped<AzureCommunicationEmailDeliveryProvider>();
         services.AddScoped<IAzureCommunicationEmailSender, AzureCommunicationEmailSdkSender>();
-        services
-            .AddHttpClient<IAwsSnsSignatureVerifier, AwsSnsSignatureVerifier>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AllowAutoRedirect = false
-            });
-        services
-            .AddHttpClient<IAwsSnsSubscriptionConfirmer, AwsSnsSubscriptionConfirmer>()
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                AllowAutoRedirect = false
-            });
         services.AddHttpClient<IGraphDirectoryClient, GraphDirectoryClient>();
         services.AddScoped<IEmailDeliveryProvider>(serviceProvider =>
         {

@@ -259,6 +259,19 @@ public sealed class NotificationDeliveryCommandTests
                 DuplicateEvent: false)));
         }
 
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+            RecordProviderDeliveryEventByProviderMessageIdRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        }
+
         public Task<Result<ListProviderDeliveryEventsResponse>> ListProviderDeliveryEventsAsync(
             Guid tenantId,
             int limit,

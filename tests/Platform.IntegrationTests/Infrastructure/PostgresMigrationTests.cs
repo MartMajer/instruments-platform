@@ -5015,7 +5015,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.All(failed.Value.Deliveries, delivery =>
         {
             Assert.Equal(NotificationStatuses.Failed, delivery.Status);
-            Assert.Equal(EmailDeliveryFailureClassifier.SmtpUnknown, delivery.Error);
+            Assert.Equal(EmailDeliveryFailureClassifier.AzureCommunicationEmailUnknown, delivery.Error);
             Assert.Null(delivery.RespondentPath);
             Assert.Null(delivery.ProviderMessageId);
         });
@@ -5089,21 +5089,21 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 $"{attempt.Provider} {attempt.Status} {attempt.Recipient} {attempt.ProviderMessageId} {attempt.Error}"));
         Assert.DoesNotContain("/r/", persistedAttemptText, StringComparison.Ordinal);
         Assert.DoesNotContain("inv_", persistedAttemptText, StringComparison.Ordinal);
-        Assert.DoesNotContain("smtp-secret", persistedAttemptText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("acs-access-key", persistedAttemptText, StringComparison.OrdinalIgnoreCase);
 
         await verificationTransaction.CommitAsync();
     }
 
     private sealed class FailingEmailDeliveryProvider : IEmailDeliveryProvider
     {
-        public string Provider => EmailDeliveryProviderNames.Smtp;
+        public string Provider => EmailDeliveryProviderNames.AzureCommunicationEmail;
 
         public Task<EmailDeliveryResult> SendAsync(
             EmailDeliveryMessage message,
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException(
-                "smtp.example.test smtp-secret inv_secret /r/inv_secret ada@example.com");
+                "validatedscale.communication.azure.com acs-access-key inv_secret /r/inv_secret ada@example.com");
         }
     }
 

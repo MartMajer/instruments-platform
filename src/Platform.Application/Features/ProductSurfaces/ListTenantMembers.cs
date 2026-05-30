@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using MediatR;
 using Platform.Application.Auth;
 using Platform.Application.Tenancy;
@@ -19,15 +20,29 @@ public sealed class ListTenantMembersHandler(
     }
 }
 
-public sealed record TenantMemberRosterResponse(
-    Guid TenantId,
-    TenantMemberResponse[] Members,
-    TenantMemberRosterSummaryResponse Summary)
+public sealed record TenantMemberRosterResponse
 {
+    [JsonConstructor]
+    public TenantMemberRosterResponse(
+        Guid tenantId,
+        TenantMemberResponse[] members,
+        TenantMemberRosterSummaryResponse summary)
+    {
+        TenantId = tenantId;
+        Members = members;
+        Summary = summary;
+    }
+
     public TenantMemberRosterResponse(Guid tenantId, TenantMemberResponse[] members)
         : this(tenantId, members, TenantMemberRosterSummaryResponse.FromMembers(members))
     {
     }
+
+    public Guid TenantId { get; init; }
+
+    public TenantMemberResponse[] Members { get; init; }
+
+    public TenantMemberRosterSummaryResponse Summary { get; init; }
 }
 
 public sealed record TenantMemberRosterSummaryResponse(

@@ -71,8 +71,8 @@ public sealed class NotificationDeliveryContractTests
                 "/r/inv_local"));
         Assert.Null(InvokeStoreContract<string?>(
             "CreateProofRespondentPath",
-            EmailDeliveryProviderNames.Smtp,
-            "/r/inv_smtp"));
+            EmailDeliveryProviderNames.AzureCommunicationEmail,
+            "/r/inv_acs"));
         Assert.Null(InvokeStoreContract<string?>(
             "CreateProofRespondentPath",
             "unknown",
@@ -104,8 +104,9 @@ public sealed class NotificationDeliveryContractTests
             EmailDeliveryProviderNames.LocalDev,
             InvokeStoreContract<string>("SanitizeProvider", EmailDeliveryProviderNames.LocalDev));
         Assert.Equal(
-            EmailDeliveryProviderNames.Smtp,
-            InvokeStoreContract<string>("SanitizeProvider", EmailDeliveryProviderNames.Smtp));
+            EmailDeliveryProviderNames.AzureCommunicationEmail,
+            InvokeStoreContract<string>("SanitizeProvider", EmailDeliveryProviderNames.AzureCommunicationEmail));
+        Assert.Equal("unknown", InvokeStoreContract<string>("SanitizeProvider", "smtp"));
         Assert.Equal("unknown", InvokeStoreContract<string>("SanitizeProvider", "smtp:/r/inv_secret"));
         Assert.Equal("unknown", InvokeStoreContract<string>("SanitizeProvider", " "));
     }
@@ -134,60 +135,6 @@ public sealed class NotificationDeliveryContractTests
         Assert.DoesNotContain("Burnout", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("does not include the study title or topic", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("https://app.example.test/r/inv_example", body, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Smtp_options_require_valid_from_address()
-    {
-        var options = new EmailDeliveryOptions
-        {
-            Provider = EmailDeliveryProviderNames.Smtp,
-            ManagedProviderName = "postmark",
-            SenderDomainVerified = true,
-            VerifiedSenderDomain = "example.test",
-            FromAddress = "not-an-email",
-            PublicAppBaseUrl = "https://app.example.test",
-            InvitationFooterText = "You received this study invitation from the configured workspace.",
-            ProviderWebhookSecret = "test-provider-webhook-secret-32-chars",
-            Smtp = new SmtpEmailDeliveryOptions
-            {
-                Host = "smtp.example.test",
-                Port = 25,
-                EnableSsl = true
-            }
-        };
-
-        var exception = Assert.Throws<InvalidOperationException>(options.EnsureValidProviderConfiguration);
-
-        Assert.Contains("email_delivery.from_address_missing", exception.Message);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(65536)]
-    public void Smtp_options_reject_invalid_port(int port)
-    {
-        var options = new EmailDeliveryOptions
-        {
-            Provider = EmailDeliveryProviderNames.Smtp,
-            ManagedProviderName = "postmark",
-            SenderDomainVerified = true,
-            VerifiedSenderDomain = "example.test",
-            FromAddress = "noreply@example.test",
-            PublicAppBaseUrl = "https://app.example.test",
-            InvitationFooterText = "You received this study invitation from the configured workspace.",
-            ProviderWebhookSecret = "test-provider-webhook-secret-32-chars",
-            Smtp = new SmtpEmailDeliveryOptions
-            {
-                Host = "smtp.example.test",
-                Port = port,
-                EnableSsl = true
-            }
-        };
-
-        var exception = Assert.Throws<InvalidOperationException>(options.EnsureValidProviderConfiguration);
-
-        Assert.Contains("email_delivery.smtp_port_invalid", exception.Message);
     }
 
     private static T InvokeStoreContract<T>(string name, params object?[] args)

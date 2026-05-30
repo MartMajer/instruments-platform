@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -712,59 +711,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task Provider_delivery_webhook_returns_no_content_without_internal_ids()
-    {
-        var tenantId = Guid.NewGuid();
-        var notificationId = Guid.NewGuid();
-        var deliveryAttemptId = Guid.NewGuid();
-        const string webhookSecret = "test-provider-webhook-secret-32-chars";
-        var deliveryStore = new FakeNotificationDeliveryStore(
-            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
-            providerEventResponse: Result.Success(new RecordProviderDeliveryEventResponse(
-                notificationId,
-                deliveryAttemptId,
-                NotificationDeliveryEventTypes.Delivered,
-                "sent",
-                SuppressionCreated: false,
-                DuplicateEvent: false)));
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            deliveryStore,
-            configuration: new Dictionary<string, string?>
-            {
-                ["EmailDelivery:ProviderWebhookSecret"] = webhookSecret
-            });
-        var body = $$"""
-            {
-              "deliveryAttemptKey": "campaign-email:{{tenantId:N}}:pdk_test_delivery_key",
-              "eventType": "delivered",
-              "occurredAt": "2026-05-21T20:15:00Z",
-              "providerEventId": "evt_test_delivery"
-            }
-            """;
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/webhook");
-        request.Headers.Add("X-Platform-Webhook-Timestamp", timestamp);
-        request.Headers.Add(
-            "X-Platform-Webhook-Signature",
-            "sha256=" + ComputeProviderWebhookSignature(webhookSecret, timestamp, body));
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(string.Empty, responseBody);
-        Assert.Equal(tenantId, deliveryStore.ProviderEventTenantId);
-        Assert.NotNull(deliveryStore.ProviderEventRequest);
-        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryStore.ProviderEventRequest!.EventType);
-        Assert.DoesNotContain(notificationId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(deliveryAttemptId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public async Task Provider_delivery_events_endpoint_returns_privacy_minimized_rows()
     {
         var tenantId = Guid.NewGuid();
@@ -1046,12 +992,17 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task Aws_ses_sns_webhook_rejects_unsupported_signature_version()
+    public async Task Legacy_aws_ses_sns_webhook_route_is_not_available()
     {
         const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
         using var client = CreateClient(
             new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn));
+            configuration: new Dictionary<string, string?>
+            {
+                ["EmailDelivery:Provider"] = "smtp",
+                ["EmailDelivery:ManagedProviderName"] = "aws-ses",
+                ["EmailDelivery:AwsSes:SnsTopicArn"] = topicArn
+            });
         var body = $$"""
             {
               "Type": "Notification",
@@ -1070,241 +1021,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
         var response = await client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(payload);
-        Assert.Equal("aws_ses_webhook.signature_version_unsupported", payload.Title);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_rejects_unsafe_signing_cert_url()
-    {
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn));
-        var body = $$"""
-            {
-              "Type": "Notification",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{topicArn}}",
-              "Message": "{}",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "http://localhost/SimpleNotificationService-test.pem"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(payload);
-        Assert.Equal("aws_ses_webhook.signing_cert_url_invalid", payload.Title);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_records_verified_delivery_event_without_internal_ids()
-    {
-        var tenantId = Guid.NewGuid();
-        var notificationId = Guid.NewGuid();
-        var deliveryAttemptId = Guid.NewGuid();
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
-        var deliveryStore = new FakeNotificationDeliveryStore(
-            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
-            providerEventResponse: Result.Success(new RecordProviderDeliveryEventResponse(
-                notificationId,
-                deliveryAttemptId,
-                NotificationDeliveryEventTypes.Delivered,
-                "sent",
-                SuppressionCreated: false,
-                DuplicateEvent: false)));
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            deliveryStore,
-            configuration: AwsSesWebhookConfiguration(topicArn),
-            awsSnsSignatureVerifier: signatureVerifier);
-        var body = $$$"""
-            {
-              "Type": "Notification",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{{topicArn}}}",
-              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[{\"name\":\"X-Platform-Delivery-Key\",\"value\":\"campaign-email:{{{tenantId:N}}}:pdk_test_delivery_key\"}]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
-              "Timestamp": "2026-05-21T20:15:30Z",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(string.Empty, responseBody);
-        Assert.NotNull(signatureVerifier.Request);
-        Assert.Equal(topicArn, signatureVerifier.Request!.TopicArn);
-        Assert.Equal("Notification", signatureVerifier.Request.Type);
-        Assert.Equal(tenantId, deliveryStore.ProviderEventTenantId);
-        Assert.NotNull(deliveryStore.ProviderEventRequest);
-        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryStore.ProviderEventRequest!.EventType);
-        Assert.Equal("sns-message-1", deliveryStore.ProviderEventRequest.ProviderEventId);
-        Assert.Equal("ses-message-1", deliveryStore.ProviderEventRequest.ProviderMessageId);
-        Assert.Equal(DateTimeOffset.Parse("2026-05-21T20:15:00Z"), deliveryStore.ProviderEventRequest.OccurredAt);
-        Assert.DoesNotContain(notificationId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(deliveryAttemptId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_rejects_message_without_platform_delivery_key()
-    {
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn),
-            awsSnsSignatureVerifier: signatureVerifier);
-        var body = $$$"""
-            {
-              "Type": "Notification",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{{topicArn}}}",
-              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
-              "Timestamp": "2026-05-21T20:15:30Z",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(payload);
-        Assert.Equal("aws_ses_webhook.message_invalid", payload.Title);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_rejects_invalid_sns_signature()
-    {
-        var tenantId = Guid.NewGuid();
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: false);
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn),
-            awsSnsSignatureVerifier: signatureVerifier);
-        var body = $$$"""
-            {
-              "Type": "Notification",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{{topicArn}}}",
-              "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2026-05-21T20:14:00Z\",\"messageId\":\"ses-message-1\",\"headers\":[{\"name\":\"X-Platform-Delivery-Key\",\"value\":\"campaign-email:{{{tenantId:N}}}:pdk_test_delivery_key\"}]},\"delivery\":{\"timestamp\":\"2026-05-21T20:15:00Z\",\"recipients\":[\"ada@example.test\"]}}",
-              "Timestamp": "2026-05-21T20:15:30Z",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(payload);
-        Assert.Equal("aws_ses_webhook.signature_invalid", payload.Title);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_confirms_valid_subscription_confirmation()
-    {
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        const string subscribeUrl = "https://sns.eu-central-1.amazonaws.com/?Action=ConfirmSubscription&TopicArn=arn%3Aaws%3Asns%3Aeu-central-1%3A123456789012%3Ases-events&Token=test-token";
-        var signatureVerifier = new FakeAwsSnsSignatureVerifier(IsValid: true);
-        var subscriptionConfirmer = new FakeAwsSnsSubscriptionConfirmer(IsConfirmed: true);
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn),
-            awsSnsSignatureVerifier: signatureVerifier,
-            awsSnsSubscriptionConfirmer: subscriptionConfirmer);
-        var body = $$"""
-            {
-              "Type": "SubscriptionConfirmation",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{topicArn}}",
-              "Message": "Confirm this subscription.",
-              "Timestamp": "2026-05-21T20:15:30Z",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem",
-              "SubscribeURL": "{{subscribeUrl}}",
-              "Token": "test-token"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(string.Empty, responseBody);
-        Assert.Null(signatureVerifier.Request);
-        Assert.Equal(subscribeUrl, subscriptionConfirmer.SubscribeUrl);
-    }
-
-    [Fact]
-    public async Task Aws_ses_sns_webhook_rejects_unsafe_subscription_confirmation_url()
-    {
-        const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
-        using var client = CreateClient(
-            new FakeSetupWorkflowStore(),
-            configuration: AwsSesWebhookConfiguration(topicArn));
-        var body = $$"""
-            {
-              "Type": "SubscriptionConfirmation",
-              "MessageId": "sns-message-1",
-              "TopicArn": "{{topicArn}}",
-              "Message": "Confirm this subscription.",
-              "Timestamp": "2026-05-21T20:15:30Z",
-              "SignatureVersion": "2",
-              "Signature": "test-signature",
-              "SigningCertURL": "https://sns.eu-central-1.amazonaws.com/SimpleNotificationService-test.pem",
-              "SubscribeURL": "http://localhost/?Action=ConfirmSubscription&Token=test-token",
-              "Token": "test-token"
-            }
-            """;
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/notification-deliveries/provider-events/aws-ses-sns");
-        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
-
-        var response = await client.SendAsync(request);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-        Assert.NotNull(payload);
-        Assert.Equal("aws_ses_webhook.subscription_confirmation_invalid", payload.Title);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -1642,8 +1359,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         INotificationDeliveryStore? notificationDeliveryStore = null,
         ICampaignSeriesProofStore? campaignSeriesProofStore = null,
         IOperationalNotificationStore? operationalNotificationStore = null,
-        IAwsSnsSignatureVerifier? awsSnsSignatureVerifier = null,
-        IAwsSnsSubscriptionConfirmer? awsSnsSubscriptionConfirmer = null,
         IReadOnlyDictionary<string, string?>? configuration = null)
     {
         return factory.WithWebHostBuilder(builder =>
@@ -1682,16 +1397,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 {
                     services.AddSingleton(operationalNotificationStore);
                 }
-
-                if (awsSnsSignatureVerifier is not null)
-                {
-                    services.AddSingleton(awsSnsSignatureVerifier);
-                }
-
-                if (awsSnsSubscriptionConfirmer is not null)
-                {
-                    services.AddSingleton(awsSnsSubscriptionConfirmer);
-                }
             });
         }).CreateClient();
     }
@@ -1720,16 +1425,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         return request;
     }
 
-    private static IReadOnlyDictionary<string, string?> AwsSesWebhookConfiguration(string topicArn)
-    {
-        return new Dictionary<string, string?>
-        {
-            ["EmailDelivery:Provider"] = EmailDeliveryProviderNames.Smtp,
-            ["EmailDelivery:ManagedProviderName"] = "aws-ses",
-            ["EmailDelivery:AwsSes:SnsTopicArn"] = topicArn
-        };
-    }
-
     private static IReadOnlyDictionary<string, string?> AzureCommunicationEmailWebhookConfiguration(string webhookSecret)
     {
         return new Dictionary<string, string?>
@@ -1751,43 +1446,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
         request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         return request;
-    }
-
-    private static string ComputeProviderWebhookSignature(
-        string webhookSecret,
-        string timestamp,
-        string body)
-    {
-        var signedPayload = $"{timestamp}.{body}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(webhookSecret));
-        var signature = hmac.ComputeHash(Encoding.UTF8.GetBytes(signedPayload));
-        return Convert.ToHexString(signature).ToLowerInvariant();
-    }
-
-    private sealed class FakeAwsSnsSignatureVerifier(bool IsValid) : IAwsSnsSignatureVerifier
-    {
-        public AwsSnsSignatureVerificationRequest? Request { get; private set; }
-
-        public Task<bool> VerifyAsync(
-            AwsSnsSignatureVerificationRequest request,
-            CancellationToken cancellationToken)
-        {
-            Request = request;
-            return Task.FromResult(IsValid);
-        }
-    }
-
-    private sealed class FakeAwsSnsSubscriptionConfirmer(bool IsConfirmed) : IAwsSnsSubscriptionConfirmer
-    {
-        public string? SubscribeUrl { get; private set; }
-
-        public Task<bool> ConfirmAsync(
-            string subscribeUrl,
-            CancellationToken cancellationToken)
-        {
-            SubscribeUrl = subscribeUrl;
-            return Task.FromResult(IsConfirmed);
-        }
     }
 
     private static CreateTemplateVersionRequest SampleTemplateVersionRequest()

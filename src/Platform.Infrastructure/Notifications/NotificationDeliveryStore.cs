@@ -978,19 +978,13 @@ public sealed class NotificationDeliveryStore(
             var provider = SanitizeProvider(emailDeliveryProvider.Provider);
             var failureClass = EmailDeliveryFailureClassifier.Classify(
                 exception,
-                provider,
-                emailDeliveryOptions?.Value.ManagedProviderName,
-                emailDeliveryOptions?.Value.FromAddress,
-                workItem.Recipient);
+                provider);
             var error = SanitizeDeliveryError(failureClass);
             logger?.LogWarning(
-                "Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
+                "Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; InnerExceptionType={InnerExceptionType}.",
                 provider,
                 failureClass,
                 exception.GetType().Name,
-                exception is SmtpException smtpException
-                    ? smtpException.StatusCode.ToString()
-                    : "none",
                 exception.InnerException?.GetType().Name ?? "none");
             return await FailPreparedDeliveryAsync(
                 tenantId,
@@ -1816,11 +1810,6 @@ public sealed class NotificationDeliveryStore(
         if (string.Equals(provider, EmailDeliveryProviderNames.LocalDev, StringComparison.OrdinalIgnoreCase))
         {
             return EmailDeliveryProviderNames.LocalDev;
-        }
-
-        if (string.Equals(provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase))
-        {
-            return EmailDeliveryProviderNames.Smtp;
         }
 
         if (string.Equals(provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase))

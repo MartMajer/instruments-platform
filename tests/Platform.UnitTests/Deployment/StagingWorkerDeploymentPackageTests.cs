@@ -1419,32 +1419,40 @@ public sealed class StagingWorkerDeploymentPackageTests
         var api = ExtractServiceSection(compose, "api");
 
         Assert.Contains("EmailDelivery__Provider: ${EmailDelivery__Provider:-local-dev}", api);
-        Assert.Contains("EmailDelivery__ManagedProviderName: ${EmailDelivery__ManagedProviderName:-}", api);
         Assert.Contains("EmailDelivery__SenderDomainVerified: ${EmailDelivery__SenderDomainVerified:-false}", api);
         Assert.Contains("EmailDelivery__VerifiedSenderDomain: ${EmailDelivery__VerifiedSenderDomain:-}", api);
         Assert.Contains("EmailDelivery__FromAddress: ${EmailDelivery__FromAddress:-}", api);
-        Assert.Contains("EmailDelivery__AwsSes__SnsTopicArn: ${EmailDelivery__AwsSes__SnsTopicArn:-}", api);
-        Assert.Contains("EmailDelivery__Smtp__Host: ${EmailDelivery__Smtp__Host:-}", api);
-        Assert.Contains("EmailDelivery__Smtp__Port: ${EmailDelivery__Smtp__Port:-25}", api);
-        Assert.Contains("EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-true}", api);
-        Assert.Contains("EmailDelivery__Smtp__UserName: ${EmailDelivery__Smtp__UserName:-}", api);
-        Assert.Contains("EmailDelivery__Smtp__Password: ${EmailDelivery__Smtp__Password:-}", api);
+        Assert.Contains("EmailDelivery__PublicAppBaseUrl: ${EMAIL_DELIVERY_PUBLIC_APP_BASE_URL:-https://validatedscale-staging.croat.dev}", api);
+        Assert.Contains("EmailDelivery__InvitationFooterText: ${EmailDelivery__InvitationFooterText:-}", api);
+        Assert.Contains("EmailDelivery__AzureCommunicationServices__ConnectionString: ${EmailDelivery__AzureCommunicationServices__ConnectionString:-}", api);
+        Assert.Contains("EmailDelivery__AzureCommunicationServices__Endpoint: ${EmailDelivery__AzureCommunicationServices__Endpoint:-}", api);
+        Assert.Contains("EmailDelivery__AzureCommunicationServices__AccessKey: ${EmailDelivery__AzureCommunicationServices__AccessKey:-}", api);
+        Assert.Contains("EmailDelivery__AzureCommunicationServices__EventGridWebhookSecret: ${EmailDelivery__AzureCommunicationServices__EventGridWebhookSecret:-}", api);
+        Assert.Contains("EmailDelivery__AzureCommunicationServices__DisableUserEngagementTracking: ${EmailDelivery__AzureCommunicationServices__DisableUserEngagementTracking:-true}", api);
+        Assert.DoesNotContain("EmailDelivery__ManagedProviderName", api);
+        Assert.DoesNotContain("EmailDelivery__AwsSes", api);
+        Assert.DoesNotContain("EmailDelivery__Smtp", api);
+        Assert.DoesNotContain("EmailDelivery__ProviderWebhookSecret", api);
 
         foreach (var path in new[] { "deploy/staging/env.example", "deploy/staging/vps.env.example" })
         {
             var env = ReadRepoFile(path);
 
             Assert.Contains("EmailDelivery__Provider=local-dev", env);
-            Assert.Contains("EmailDelivery__ManagedProviderName=", env);
             Assert.Contains("EmailDelivery__SenderDomainVerified=false", env);
             Assert.Contains("EmailDelivery__VerifiedSenderDomain=", env);
             Assert.Contains("EmailDelivery__FromAddress=", env);
-            Assert.Contains("EmailDelivery__AwsSes__SnsTopicArn=", env);
-            Assert.Contains("EmailDelivery__Smtp__Host=", env);
-            Assert.Contains("EmailDelivery__Smtp__Port=25", env);
-            Assert.Contains("EmailDelivery__Smtp__EnableSsl=true", env);
-            Assert.Contains("EmailDelivery__Smtp__UserName=", env);
-            Assert.Contains("EmailDelivery__Smtp__Password=", env);
+            Assert.Contains("EmailDelivery__PublicAppBaseUrl=", env);
+            Assert.Contains("EmailDelivery__InvitationFooterText=", env);
+            Assert.Contains("EmailDelivery__AzureCommunicationServices__ConnectionString=", env);
+            Assert.Contains("EmailDelivery__AzureCommunicationServices__Endpoint=", env);
+            Assert.Contains("EmailDelivery__AzureCommunicationServices__AccessKey=", env);
+            Assert.Contains("EmailDelivery__AzureCommunicationServices__EventGridWebhookSecret=", env);
+            Assert.Contains("EmailDelivery__AzureCommunicationServices__DisableUserEngagementTracking=true", env);
+            Assert.DoesNotContain("EmailDelivery__ManagedProviderName=", env);
+            Assert.DoesNotContain("EmailDelivery__AwsSes", env);
+            Assert.DoesNotContain("EmailDelivery__Smtp", env);
+            Assert.DoesNotContain("EmailDelivery__ProviderWebhookSecret", env);
         }
     }
 

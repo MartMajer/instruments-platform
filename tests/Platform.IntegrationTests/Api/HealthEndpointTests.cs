@@ -352,7 +352,7 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task Ready_health_reports_email_delivery_configuration_unready_without_sensitive_smtp_values()
+    public async Task Ready_health_reports_email_delivery_configuration_unready_without_sensitive_acs_values()
     {
         using var client = CreateClientWithUnreachableDatabase(
             "Production",
@@ -360,19 +360,23 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
             oidcAudience: "platform-api",
             objectStoreRootPath: CreateNonTempObjectStoreRoot(),
             pdfBrowserExecutablePath: Environment.ProcessPath ?? typeof(HealthEndpointTests).Assembly.Location,
-            emailDeliveryProvider: "smtp",
+            emailDeliveryProvider: "azure-communication-email",
+            emailDeliverySenderDomainVerified: true,
+            emailDeliveryVerifiedSenderDomain: "example.test",
             emailDeliveryFromAddress: "noreply@example.test",
-            emailDeliverySmtpHost: "smtp.example.test",
-            emailDeliverySmtpUserName: "smtp-user");
+            emailDeliveryPublicAppBaseUrl: "https://app.example.test",
+            emailDeliveryInvitationFooterText: "Workspace invitation footer.",
+            emailDeliveryAcsEndpoint: "https://validatedscale.communication.azure.com/",
+            emailDeliveryAcsAccessKey: "acs-access-key-secret");
 
         var response = await client.GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync();
-        Assert.DoesNotContain("smtp.example.test", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("noreply@example.test", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("smtp-user", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("acs-access-key-secret", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("validatedscale.communication.azure.com", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("EmailDelivery", body, StringComparison.OrdinalIgnoreCase);
 
         var payload = await response.Content.ReadFromJsonAsync<HealthResponse>();
@@ -472,14 +476,14 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
         string? objectStoreRootPath = null,
         string? pdfBrowserExecutablePath = null,
         string? emailDeliveryProvider = null,
-        string? emailDeliveryManagedProviderName = null,
         bool? emailDeliverySenderDomainVerified = null,
+        string? emailDeliveryVerifiedSenderDomain = null,
         string? emailDeliveryFromAddress = null,
-        string? emailDeliverySmtpHost = null,
-        int? emailDeliverySmtpPort = null,
-        bool? emailDeliverySmtpEnableSsl = null,
-        string? emailDeliverySmtpUserName = null,
-        string? emailDeliverySmtpPassword = null)
+        string? emailDeliveryPublicAppBaseUrl = null,
+        string? emailDeliveryInvitationFooterText = null,
+        string? emailDeliveryAcsEndpoint = null,
+        string? emailDeliveryAcsAccessKey = null,
+        string? emailDeliveryAcsEventGridWebhookSecret = null)
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -535,15 +539,15 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
                     settings["EmailDelivery:Provider"] = emailDeliveryProvider;
                 }
 
-                if (emailDeliveryManagedProviderName is not null)
-                {
-                    settings["EmailDelivery:ManagedProviderName"] = emailDeliveryManagedProviderName;
-                }
-
                 if (emailDeliverySenderDomainVerified is not null)
                 {
                     settings["EmailDelivery:SenderDomainVerified"] =
                         emailDeliverySenderDomainVerified.Value.ToString();
+                }
+
+                if (emailDeliveryVerifiedSenderDomain is not null)
+                {
+                    settings["EmailDelivery:VerifiedSenderDomain"] = emailDeliveryVerifiedSenderDomain;
                 }
 
                 if (emailDeliveryFromAddress is not null)
@@ -551,29 +555,30 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
                     settings["EmailDelivery:FromAddress"] = emailDeliveryFromAddress;
                 }
 
-                if (emailDeliverySmtpHost is not null)
+                if (emailDeliveryPublicAppBaseUrl is not null)
                 {
-                    settings["EmailDelivery:Smtp:Host"] = emailDeliverySmtpHost;
+                    settings["EmailDelivery:PublicAppBaseUrl"] = emailDeliveryPublicAppBaseUrl;
                 }
 
-                if (emailDeliverySmtpPort is not null)
+                if (emailDeliveryInvitationFooterText is not null)
                 {
-                    settings["EmailDelivery:Smtp:Port"] = emailDeliverySmtpPort.Value.ToString();
+                    settings["EmailDelivery:InvitationFooterText"] = emailDeliveryInvitationFooterText;
                 }
 
-                if (emailDeliverySmtpEnableSsl is not null)
+                if (emailDeliveryAcsEndpoint is not null)
                 {
-                    settings["EmailDelivery:Smtp:EnableSsl"] = emailDeliverySmtpEnableSsl.Value.ToString();
+                    settings["EmailDelivery:AzureCommunicationServices:Endpoint"] = emailDeliveryAcsEndpoint;
                 }
 
-                if (emailDeliverySmtpUserName is not null)
+                if (emailDeliveryAcsAccessKey is not null)
                 {
-                    settings["EmailDelivery:Smtp:UserName"] = emailDeliverySmtpUserName;
+                    settings["EmailDelivery:AzureCommunicationServices:AccessKey"] = emailDeliveryAcsAccessKey;
                 }
 
-                if (emailDeliverySmtpPassword is not null)
+                if (emailDeliveryAcsEventGridWebhookSecret is not null)
                 {
-                    settings["EmailDelivery:Smtp:Password"] = emailDeliverySmtpPassword;
+                    settings["EmailDelivery:AzureCommunicationServices:EventGridWebhookSecret"] =
+                        emailDeliveryAcsEventGridWebhookSecret;
                 }
 
                 configuration.AddInMemoryCollection(settings);
