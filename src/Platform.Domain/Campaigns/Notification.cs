@@ -84,7 +84,8 @@ public sealed class Notification
         Guid campaignId,
         Guid assignmentId,
         string recipient,
-        DateTimeOffset? scheduledFor = null)
+        DateTimeOffset? scheduledFor = null,
+        string locale = EmailTemplateLocales.English)
     {
         return new Notification(
             id,
@@ -95,7 +96,8 @@ public sealed class Notification
             InvitationTemplateCode,
             NotificationStatuses.Queued,
             recipient,
-            scheduledFor);
+            scheduledFor,
+            locale: locale);
     }
 
     public void MarkSent(DateTimeOffset sentAt)

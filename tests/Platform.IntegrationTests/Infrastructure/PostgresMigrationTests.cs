@@ -4699,7 +4699,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 versionId,
                 "Email invitation wave",
                 ResponseIdentityModes.Anonymous,
-                CampaignSeriesId: seriesId),
+                CampaignSeriesId: seriesId,
+                DefaultLocale: EmailTemplateLocales.Croatian),
             CancellationToken.None);
         var launched = await setupStore.LaunchCampaignAsync(
             tenantId,
@@ -4759,6 +4760,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         {
             Assert.Equal(NotificationChannels.Email, notification.Channel);
             Assert.Equal(Notification.InvitationTemplateCode, notification.TemplateCode);
+            Assert.Equal(EmailTemplateLocales.Croatian, notification.Locale);
             Assert.Equal(NotificationStatuses.Queued, notification.Status);
         });
 
@@ -4780,6 +4782,87 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.DoesNotContain("/r/", outboxPayloads, StringComparison.Ordinal);
         Assert.DoesNotContain("inv_", outboxPayloads, StringComparison.Ordinal);
 
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Campaign_launch_materializes_email_invitation_notifications_with_subject_locale()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Localized audience invitation study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Localized audience invitation wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId,
+                DefaultLocale: EmailTemplateLocales.English),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var respondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Hrvoje Respondent",
+            email: "hrvoje@example.test",
+            locale: EmailTemplateLocales.Croatian);
+        var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(respondent);
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.Add(new AudienceMember(audience.Id, respondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var notification = await tenantDb.Notifications.SingleAsync(entity => entity.CampaignId == campaign.Value.Id);
+        Assert.Equal("hrvoje@example.test", notification.Recipient);
+        Assert.Equal(EmailTemplateLocales.Croatian, notification.Locale);
         await verificationTransaction.CommitAsync();
     }
 

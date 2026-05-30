@@ -142,7 +142,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                 subject.Id,
                 subject.DisplayName,
                 subject.Email,
-                subject.ExternalId))
+                subject.ExternalId,
+                subject.Locale))
             .ToListAsync(cancellationToken);
 
         return Result.Success<IReadOnlyList<RespondentRuleCandidate>>(
@@ -195,7 +196,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                     subject.Id,
                     subject.DisplayName,
                     subject.Email,
-                    subject.ExternalId))
+                    subject.ExternalId,
+                    subject.Locale))
             .Distinct()
             .ToListAsync(cancellationToken);
 
@@ -231,7 +233,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                     manager.Id,
                     manager.DisplayName,
                     manager.Email,
-                    manager.ExternalId))
+                    manager.ExternalId,
+                    manager.Locale))
             .ToListAsync(cancellationToken);
 
         return Result.Success<IReadOnlyList<RespondentRuleCandidate>>(
@@ -266,7 +269,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                     report.Id,
                     report.DisplayName,
                     report.Email,
-                    report.ExternalId))
+                    report.ExternalId,
+                    report.Locale))
             .ToListAsync(cancellationToken);
 
         return Result.Success<IReadOnlyList<RespondentRuleCandidate>>(
@@ -287,7 +291,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                         email,
                         DisplayName: null,
                         Email: email,
-                        ExternalId: null)))
+                        ExternalId: null,
+                        Locale: EmailTemplateLocales.English)))
                 .ToArray());
     }
 
@@ -314,7 +319,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
                 item.Id,
                 item.DisplayName,
                 item.Email,
-                item.ExternalId))
+                item.ExternalId,
+                item.Locale))
             .SingleOrDefaultAsync(cancellationToken);
         if (subject is null)
         {
@@ -530,7 +536,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
             CreateSubjectLabel(subject),
             subject.DisplayName,
             subject.Email,
-            subject.ExternalId);
+            subject.ExternalId,
+            EmailTemplateLocales.Normalize(subject.Locale));
     }
 
     private static string CreateSubjectLabel(RespondentRuleSubjectRow subject)
@@ -585,7 +592,8 @@ public sealed class RespondentRuleResolver(ApplicationDbContext db)
         Guid Id,
         string? DisplayName,
         string? Email,
-        string? ExternalId);
+        string? ExternalId,
+        string Locale);
 }
 
 public sealed record RespondentRuleResolutionRequest(
@@ -614,7 +622,8 @@ public sealed record RespondentRuleSubject(
     string Label,
     string? DisplayName,
     string? Email,
-    string? ExternalId);
+    string? ExternalId,
+    string Locale);
 
 public sealed record RespondentRuleResolutionIssue(
     string Code,

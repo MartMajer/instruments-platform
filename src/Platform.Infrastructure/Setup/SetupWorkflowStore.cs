@@ -1198,7 +1198,8 @@ public sealed class SetupWorkflowStore(
                 tenantId,
                 campaign.Id,
                 assignment.Id,
-                recipient);
+                recipient,
+                locale: campaign.DefaultLocale);
 
             db.InvitationTokens.Add(invitationToken);
             db.Assignments.Add(assignment);
@@ -1904,7 +1905,7 @@ public sealed class SetupWorkflowStore(
         CancellationToken cancellationToken)
     {
         var assignments = new List<Assignment>();
-        var pendingRecipients = new List<(string Recipient, string Role)>();
+        var pendingRecipients = new List<(string Recipient, string Role, string Locale)>();
         var seenRecipients = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var rule in rules)
@@ -1944,7 +1945,7 @@ public sealed class SetupWorkflowStore(
                     continue;
                 }
 
-                pendingRecipients.Add((recipient, resolution.Value.Role));
+                pendingRecipients.Add((recipient, resolution.Value.Role, candidate.Respondent.Locale));
             }
         }
 
@@ -1981,7 +1982,8 @@ public sealed class SetupWorkflowStore(
                 tenantId,
                 campaign.Id,
                 assignment.Id,
-                pendingRecipient.Recipient);
+                pendingRecipient.Recipient,
+                locale: pendingRecipient.Locale);
 
             db.InvitationTokens.Add(invitationToken);
             db.Notifications.Add(notification);

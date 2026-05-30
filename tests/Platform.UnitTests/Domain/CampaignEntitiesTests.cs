@@ -479,9 +479,24 @@ public sealed class CampaignEntitiesTests
         Assert.Equal(NotificationStatuses.Queued, notification.Status);
         Assert.Equal("researcher@example.com", notification.Recipient);
         Assert.Equal("invitation", notification.TemplateCode);
+        Assert.Equal("en", notification.Locale);
         Assert.Equal(DateTimeOffset.Parse("2026-05-07T12:00:00+00:00"), notification.ScheduledFor);
         Assert.Null(notification.SentAt);
         Assert.Null(notification.Error);
+    }
+
+    [Fact]
+    public void Notification_creates_queued_email_delivery_intent_with_resolved_locale()
+    {
+        var notification = Notification.QueueEmailInvitation(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "researcher@example.com",
+            locale: "hr-HR");
+
+        Assert.Equal("hr-HR", notification.Locale);
     }
 
     [Fact]
