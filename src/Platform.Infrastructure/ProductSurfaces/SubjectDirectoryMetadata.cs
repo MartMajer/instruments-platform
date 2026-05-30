@@ -32,8 +32,23 @@ internal static class SubjectDirectoryMetadata
         DateTimeOffset changedAt,
         string? reason)
     {
+        return MarkStatus(
+            attributesJson,
+            SubjectDirectoryStatuses.Deactivated,
+            actorUserId,
+            changedAt,
+            reason);
+    }
+
+    public static string MarkStatus(
+        string attributesJson,
+        string status,
+        Guid actorUserId,
+        DateTimeOffset changedAt,
+        string? reason)
+    {
         var attributes = ParseObject(attributesJson);
-        attributes["directory_status"] = SubjectDirectoryStatuses.Deactivated;
+        attributes["directory_status"] = status;
         attributes["directory_status_changed_at"] = changedAt.ToString("O");
         attributes["directory_status_changed_by"] = actorUserId.ToString("D");
         var normalizedReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();

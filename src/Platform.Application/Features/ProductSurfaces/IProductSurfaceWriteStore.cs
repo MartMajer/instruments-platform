@@ -77,6 +77,13 @@ public interface IProductSurfaceWriteStore
         DeactivateSubjectRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<SubjectDirectoryItemResponse>> SetSubjectDirectoryStatusAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        SetSubjectDirectoryStatusRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<SubjectDirectoryCsvImportResponse>> ImportSubjectDirectoryCsvAsync(
         Guid tenantId,
         Guid actorUserId,

@@ -31,6 +31,7 @@
 	import { toProductApiErrorMessage } from '$lib/product/view-models';
 
 	type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+	type DirectoryPersonStatus = 'active' | 'excluded' | 'deactivated';
 
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
@@ -123,9 +124,9 @@
 	let activeDirectoryContact = $state('any');
 	let directoryPageOffset = $state(0);
 	let detailsSubjectId = $state('');
-	let deactivateReason = $state('');
-	let deactivatingSubject = $state(false);
-	let deactivateError = $state<string | null>(null);
+	let statusMutationReason = $state('');
+	let statusMutatingSubject = $state(false);
+	let statusMutationError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -266,8 +267,8 @@
 			syncSelectedSubjectFields(nextDirectory.subjects);
 			if (detailsSubjectId && !nextDirectory.subjects.some((subject) => subject.id === detailsSubjectId)) {
 				detailsSubjectId = '';
-				deactivateReason = '';
-				deactivateError = null;
+				statusMutationReason = '';
+				statusMutationError = null;
 			}
 			loadState = 'ready';
 		} catch (error) {
@@ -600,24 +601,28 @@
 		}
 	}
 
-	async function deactivateDetailsSubject() {
+	async function setDetailsSubjectStatus(status: DirectoryPersonStatus) {
 		if (!canManageSetup || !detailsSubject) {
 			return;
 		}
 
-		deactivatingSubject = true;
-		deactivateError = null;
+		statusMutatingSubject = true;
+		statusMutationError = null;
 
 		try {
-			await productApi.deactivateSubject(detailsSubject.id, {
-				reason: optionalText(deactivateReason)
+			await productApi.setSubjectStatus(detailsSubject.id, {
+				status,
+				reason: optionalText(statusMutationReason)
 			});
-			deactivateReason = '';
-			await loadDirectory(activeDirectorySearch, directoryPageOffset);
+			statusMutationReason = '';
+			directoryStatus = status;
+			activeDirectoryStatus = status;
+			directoryPageOffset = 0;
+			await loadDirectory(activeDirectorySearch, 0);
 		} catch (error) {
-			deactivateError = toProductApiErrorMessage(error, 'Person could not be deactivated.');
+			statusMutationError = toProductApiErrorMessage(error, 'Person status could not be updated.');
 		} finally {
-			deactivatingSubject = false;
+			statusMutatingSubject = false;
 		}
 	}
 
@@ -1753,8 +1758,8 @@
 												aria-label={`View ${subjectLabel(subject)}`}
 												onclick={() => {
 													detailsSubjectId = subject.id;
-													deactivateReason = '';
-													deactivateError = null;
+													statusMutationReason = '';
+													statusMutationError = null;
 												}}
 											>
 												View
@@ -1786,8 +1791,8 @@
 					aria-label="Close person details"
 					onclick={() => {
 						detailsSubjectId = '';
-						deactivateReason = '';
-						deactivateError = null;
+						statusMutationReason = '';
+						statusMutationError = null;
 					}}
 				>
 					Close
@@ -1851,35 +1856,64 @@
 				</div>
 			</details>
 
-			<div class="person-drawer__section person-drawer__danger">
-				<h3>Safe remove</h3>
+			<div class="person-drawer__section person-drawer__status">
+				<h3>Status management</h3>
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Deactivate removes this person from the active directory view without deleting their identity
-					link or historical study references.
+					Local status controls study eligibility. Deactivation preserves identity links and
+					historical study references.
 				</p>
-				<button
-					type="button"
-					class="secondary-button"
-					disabled={deactivatingSubject || detailsSubject.status !== 'active'}
-				>
-					Deactivate person
-				</button>
 				<label class="field">
 					<span>Reason</span>
-					<input bind:value={deactivateReason} disabled={deactivatingSubject} />
+					<input bind:value={statusMutationReason} disabled={statusMutatingSubject} />
 				</label>
-				{#if deactivateError}
-					<p class="error-line" role="alert">{deactivateError}</p>
+				{#if statusMutationError}
+					<p class="error-line" role="alert">{statusMutationError}</p>
 				{/if}
 				<div class="action-row">
-					<button
-						type="button"
-						class="secondary-button"
-						disabled={deactivatingSubject || detailsSubject.status !== 'active'}
-						onclick={deactivateDetailsSubject}
-					>
-						{deactivatingSubject ? 'Deactivating...' : 'Confirm deactivate'}
-					</button>
+					{#if detailsSubject.status === 'active'}
+						<button
+							type="button"
+							class="secondary-button"
+							disabled={statusMutatingSubject}
+							onclick={() => setDetailsSubjectStatus('excluded')}
+						>
+							{statusMutatingSubject ? 'Updating...' : 'Exclude from audiences'}
+						</button>
+						<button
+							type="button"
+							class="secondary-button"
+							disabled={statusMutatingSubject}
+							onclick={() => setDetailsSubjectStatus('deactivated')}
+						>
+							{statusMutatingSubject ? 'Updating...' : 'Deactivate'}
+						</button>
+					{:else if detailsSubject.status === 'excluded'}
+						<button
+							type="button"
+							class="primary-button"
+							disabled={statusMutatingSubject}
+							onclick={() => setDetailsSubjectStatus('active')}
+						>
+							{statusMutatingSubject ? 'Updating...' : 'Return to active'}
+						</button>
+						<button
+							type="button"
+							class="secondary-button"
+							disabled={statusMutatingSubject}
+							onclick={() => setDetailsSubjectStatus('deactivated')}
+						>
+							{statusMutatingSubject ? 'Updating...' : 'Deactivate'}
+						</button>
+					{:else}
+						<button
+							type="button"
+							class="primary-button"
+							disabled={statusMutatingSubject}
+							onclick={() => setDetailsSubjectStatus('active')}
+						>
+							{statusMutatingSubject ? 'Updating...' : 'Reactivate'}
+						</button>
+					{/if}
 				</div>
 			</div>
 		</dialog>

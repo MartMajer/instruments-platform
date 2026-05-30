@@ -1215,6 +1215,123 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Set_subject_directory_status_reactivates_without_losing_external_identity()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-reactivate-subject");
+        var subject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:customer-tenant:adele",
+            """{"department":"Retail","directory_source":"microsoft_graph","directory_status":"deactivated","directory_status_reason":"Wrong cohort","directory_status_changed_by":"00000000-0000-0000-0000-000000000001","directory_status_changed_at":"2026-05-29T10:00:00.0000000+00:00"}""");
+        var group = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+        var manager = await SeedSubjectAsync(runtimeOptions, tenantId, "Miriam Graham", "miriam@example.test", "mgr-001");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedTenantDbScope = new TenantDbScope(seedDb);
+            await using var seedTransaction = await seedTenantDbScope.BeginTransactionAsync(tenantId);
+            seedDb.SubjectMemberships.Add(new SubjectMembership(subject.Id, group.Id, SubjectGroupRoles.Member));
+            seedDb.SubjectRelationships.Add(new SubjectRelationship(
+                Guid.NewGuid(),
+                tenantId,
+                manager.Id,
+                subject.Id,
+                SubjectRelationshipTypes.ManagerOf));
+            await seedDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.SetSubjectDirectoryStatusAsync(
+            tenantId,
+            subject.Id,
+            actorUserId,
+            new SetSubjectDirectoryStatusRequest(SubjectDirectoryStatuses.Active),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("active", result.Value.Status);
+        Assert.Equal("msgraph:customer-tenant:adele", result.Value.ExternalId);
+        Assert.Single(result.Value.Groups);
+        Assert.Equal(manager.Id, result.Value.ManagerSubjectId);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Subjects.SingleAsync(entity => entity.Id == subject.Id);
+        using var attributes = JsonDocument.Parse(persisted.Attributes);
+        Assert.Equal("active", attributes.RootElement.GetProperty("directory_status").GetString());
+        Assert.False(attributes.RootElement.TryGetProperty("directory_status_reason", out _));
+        Assert.Equal(actorUserId.ToString("D"), attributes.RootElement.GetProperty("directory_status_changed_by").GetString());
+        Assert.Equal("msgraph:customer-tenant:adele", persisted.ExternalId);
+        Assert.Equal(1, await verificationDb.SubjectMemberships.CountAsync(membership => membership.SubjectId == subject.Id));
+        Assert.Equal(1, await verificationDb.SubjectRelationships.CountAsync(relationship => relationship.RelatedSubjectId == subject.Id));
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Set_subject_directory_status_can_exclude_without_losing_relationships()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-exclude-subject");
+        var subject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:customer-tenant:adele",
+            """{"department":"Retail","directory_source":"microsoft_graph"}""");
+        var group = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedTenantDbScope = new TenantDbScope(seedDb);
+            await using var seedTransaction = await seedTenantDbScope.BeginTransactionAsync(tenantId);
+            seedDb.SubjectMemberships.Add(new SubjectMembership(subject.Id, group.Id, SubjectGroupRoles.Member));
+            await seedDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.SetSubjectDirectoryStatusAsync(
+            tenantId,
+            subject.Id,
+            actorUserId,
+            new SetSubjectDirectoryStatusRequest(SubjectDirectoryStatuses.Excluded, "Not part of pilot"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("excluded", result.Value.Status);
+        Assert.Single(result.Value.Groups);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Subjects.SingleAsync(entity => entity.Id == subject.Id);
+        Assert.Null(persisted.DeletedAt);
+        using var attributes = JsonDocument.Parse(persisted.Attributes);
+        Assert.Equal("excluded", attributes.RootElement.GetProperty("directory_status").GetString());
+        Assert.Equal("Not part of pilot", attributes.RootElement.GetProperty("directory_status_reason").GetString());
+        Assert.Equal(1, await verificationDb.SubjectMemberships.CountAsync(membership => membership.SubjectId == subject.Id));
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Import_subject_directory_csv_upserts_people_groups_and_memberships_under_tenant_scope()
     {
         var tenantId = Guid.NewGuid();

@@ -954,6 +954,11 @@ public static class SubjectDirectoryStatuses
     {
         return value is All or Active or Deactivated or Excluded;
     }
+
+    public static bool IsMutable(string value)
+    {
+        return value is Active or Deactivated or Excluded;
+    }
 }
 
 public static class SubjectDirectoryManagerFilters
@@ -1092,6 +1097,10 @@ public sealed record UpdateSubjectRequest(
     string Attributes = "{}");
 
 public sealed record DeactivateSubjectRequest(string? Reason = null);
+
+public sealed record SetSubjectDirectoryStatusRequest(
+    string Status,
+    string? Reason = null);
 
 public sealed record SubjectDirectoryCsvImportRequest(
     string CsvContent,

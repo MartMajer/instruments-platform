@@ -429,6 +429,38 @@ describe('createProductApi', () => {
 		]);
 	});
 
+	it('sets a subject directory status by encoded subject id', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					...sampleSubject,
+					status: 'active',
+					statusLabel: 'Active'
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.setSubjectStatus('subject/id', { status: 'active', reason: 'Undo mistake' });
+
+		expect(calls).toEqual([
+			{
+				path: '/subjects/subject%2Fid/status',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({ status: 'active', reason: 'Undo mistake' })
+				}
+			}
+		]);
+	});
+
 	it('requests subject groups', async () => {
 		const calls: string[] = [];
 		const api = createProductApi({

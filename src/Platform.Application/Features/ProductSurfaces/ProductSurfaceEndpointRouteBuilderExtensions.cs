@@ -80,6 +80,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("UpdateSubject")
             .WithTags("ProductSurfaces");
 
+        app.MapPost("/subjects/{subjectId:guid}/status", SetSubjectDirectoryStatus)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("SetSubjectDirectoryStatus")
+            .WithTags("ProductSurfaces");
+
         app.MapPost("/subjects/{subjectId:guid}/deactivate", DeactivateSubject)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -308,6 +314,17 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new DeactivateSubjectCommand(subjectId, request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> SetSubjectDirectoryStatus(
+        Guid subjectId,
+        SetSubjectDirectoryStatusRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new SetSubjectDirectoryStatusCommand(subjectId, request), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

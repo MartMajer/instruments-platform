@@ -727,6 +727,46 @@ public sealed class ProductSurfaceWriteStore(
         DeactivateSubjectRequest request,
         CancellationToken cancellationToken)
     {
+        return await SetSubjectDirectoryStatusCoreAsync(
+            tenantId,
+            subjectId,
+            actorUserId,
+            SubjectDirectoryStatuses.Deactivated,
+            request.Reason,
+            cancellationToken);
+    }
+
+    public async Task<Result<SubjectDirectoryItemResponse>> SetSubjectDirectoryStatusAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        SetSubjectDirectoryStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var status = request.Status?.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(status) || !SubjectDirectoryStatuses.IsMutable(status))
+        {
+            return Result.Failure<SubjectDirectoryItemResponse>(
+                Error.Validation("subject.status_invalid", "Directory status is not supported."));
+        }
+
+        return await SetSubjectDirectoryStatusCoreAsync(
+            tenantId,
+            subjectId,
+            actorUserId,
+            status,
+            request.Reason,
+            cancellationToken);
+    }
+
+    private async Task<Result<SubjectDirectoryItemResponse>> SetSubjectDirectoryStatusCoreAsync(
+        Guid tenantId,
+        Guid subjectId,
+        Guid actorUserId,
+        string status,
+        string? reason,
+        CancellationToken cancellationToken)
+    {
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
             tenantId,
             actorUserId,
@@ -744,11 +784,12 @@ public sealed class ProductSurfaceWriteStore(
 
         try
         {
-            subject.ReplaceAttributes(SubjectDirectoryMetadata.MarkDeactivated(
+            subject.ReplaceAttributes(SubjectDirectoryMetadata.MarkStatus(
                 subject.Attributes,
+                status,
                 actorUserId,
                 DateTimeOffset.UtcNow,
-                request.Reason));
+                reason));
         }
         catch (ArgumentException exception)
         {

@@ -620,6 +620,62 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Subject_status_endpoint_maps_safe_status_mutation()
+    {
+        var tenantId = Guid.NewGuid();
+        var subjectId = Guid.NewGuid();
+        var result = Result.Success(new SubjectDirectoryItemResponse(
+            subjectId,
+            "Adele Vance",
+            "adelev@example.test",
+            "msgraph:tenant:user",
+            "en",
+            "{}",
+            null,
+            null,
+            DirectReportCount: 0,
+            [],
+            Source: "microsoft_graph",
+            SourceLabel: "Microsoft 365",
+            Status: "active",
+            StatusLabel: "Active",
+            Department: "Retail",
+            JobTitle: "Store lead",
+            EmployeeType: null,
+            OfficeLocation: null));
+        var writeStore = new FakeProductSurfaceWriteStore(setSubjectDirectoryStatusResult: result);
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(HttpMethod.Post, $"/subjects/{subjectId}/status", tenantId);
+        request.Content = JsonContent.Create(new SetSubjectDirectoryStatusRequest("active", "Reactivated by mistake"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<SubjectDirectoryItemResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("active", payload.Status);
+        Assert.Equal(subjectId, writeStore.StatusSubjectId);
+        Assert.Equal("active", writeStore.SetSubjectDirectoryStatusRequest?.Status);
+        Assert.Equal("Reactivated by mistake", writeStore.SetSubjectDirectoryStatusRequest?.Reason);
+    }
+
+    [Fact]
+    public async Task Subject_status_endpoint_rejects_unknown_status()
+    {
+        var tenantId = Guid.NewGuid();
+        var subjectId = Guid.NewGuid();
+        var writeStore = new FakeProductSurfaceWriteStore();
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(HttpMethod.Post, $"/subjects/{subjectId}/status", tenantId);
+        request.Content = JsonContent.Create(new SetSubjectDirectoryStatusRequest("archived", "Not supported"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, httpResponse.StatusCode);
+        Assert.Equal(0, writeStore.CallCount);
+    }
+
+    [Fact]
     public async Task Create_subject_endpoint_maps_validation_failure_to_400()
     {
         var tenantId = Guid.NewGuid();
@@ -2532,6 +2588,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<SubjectDirectoryItemResponse>? createSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? updateSubjectResult = null,
         Result<SubjectDirectoryItemResponse>? deactivateSubjectResult = null,
+        Result<SubjectDirectoryItemResponse>? setSubjectDirectoryStatusResult = null,
         Result<SubjectDirectoryCsvImportResponse>? importSubjectDirectoryCsvResult = null,
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
@@ -2579,6 +2636,10 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public Guid DeactivatedSubjectId { get; private set; }
 
         public DeactivateSubjectRequest? DeactivateSubjectRequest { get; private set; }
+
+        public Guid StatusSubjectId { get; private set; }
+
+        public SetSubjectDirectoryStatusRequest? SetSubjectDirectoryStatusRequest { get; private set; }
 
         public int CallCount { get; private set; }
 
@@ -2779,6 +2840,24 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             DeactivateSubjectRequest = request;
 
             return Task.FromResult(deactivateSubjectResult ??
+                Result.Failure<SubjectDirectoryItemResponse>(
+                    Error.NotFound("subject.not_found", "Subject was not found.")));
+        }
+
+        public Task<Result<SubjectDirectoryItemResponse>> SetSubjectDirectoryStatusAsync(
+            Guid tenantId,
+            Guid subjectId,
+            Guid actorUserId,
+            SetSubjectDirectoryStatusRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            StatusSubjectId = subjectId;
+            ActorUserId = actorUserId;
+            SetSubjectDirectoryStatusRequest = request;
+
+            return Task.FromResult(setSubjectDirectoryStatusResult ??
                 Result.Failure<SubjectDirectoryItemResponse>(
                     Error.NotFound("subject.not_found", "Subject was not found.")));
         }

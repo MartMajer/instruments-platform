@@ -232,22 +232,30 @@ test('keeps large Microsoft preview and people directory bounded', async ({ page
 	await expect(peopleDirectory.getByText('Person 2000')).toHaveCount(0);
 });
 
-test('presents imported people as an operational directory with details and safe deactivate', async ({
+test('presents imported people as an operational directory with reversible status controls', async ({
 	page
 }) => {
 	await page.unroute('**/subjects**');
 	const longExternalId = 'msgraph:customer-tenant:00000000-0000-0000-0000-000000000001';
 	const requestedSubjectUrls: string[] = [];
-	let deactivateRequested = false;
-	await routeOperationalSubjectDirectory(page, requestedSubjectUrls, longExternalId);
+	const statusRequests: Array<Record<string, unknown>> = [];
+	let currentStatus: 'active' | 'excluded' | 'deactivated' = 'active';
+	await routeOperationalSubjectDirectory(
+		page,
+		requestedSubjectUrls,
+		longExternalId,
+		() => currentStatus
+	);
 	await routeGraphImportWorkspaceWithSavedRule(page);
-	await page.route('**/subjects/*/deactivate', async (route) => {
+	await page.route('**/subjects/*/status', async (route) => {
 		if (route.request().method() !== 'POST') {
 			await route.fallback();
 			return;
 		}
 
-		deactivateRequested = true;
+		const requestBody = route.request().postDataJSON();
+		statusRequests.push(requestBody);
+		currentStatus = requestBody.status;
 		await route.fulfill({
 			json: {
 				id: '66666666-6666-4666-8666-000000000001',
@@ -255,14 +263,14 @@ test('presents imported people as an operational directory with details and safe
 				email: 'adelev@example.test',
 				externalId: longExternalId,
 				locale: 'en',
-				attributes: '{"directory_status":"deactivated"}',
+				attributes: `{"directory_status":"${currentStatus}"}`,
 				managerSubjectId: null,
 				managerDisplayName: null,
 				directReportCount: 0,
 				source: 'microsoft_graph',
 				sourceLabel: 'Microsoft 365',
-				status: 'deactivated',
-				statusLabel: 'Deactivated',
+				status: currentStatus,
+				statusLabel: statusLabel(currentStatus),
 				department: 'Retail',
 				jobTitle: 'Store lead',
 				employeeType: 'Staff',
@@ -303,10 +311,27 @@ test('presents imported people as an operational directory with details and safe
 	await drawer.getByText('Technical details').click();
 	await expect(drawer.getByText(longExternalId)).toBeVisible();
 	await expect(drawer.getByText('Miriam Graham')).toBeVisible();
-	await drawer.getByRole('button', { name: 'Deactivate person' }).click();
+	await expect(drawer.getByRole('button', { name: 'Exclude from audiences' })).toBeVisible();
+	await expect(drawer.getByRole('button', { name: 'Deactivate' })).toBeVisible();
+
+	await drawer.getByLabel('Reason').fill('Not part of pilot');
+	await drawer.getByRole('button', { name: 'Exclude from audiences' }).click();
+	await expect.poll(() => statusRequests.at(-1)?.status).toBe('excluded');
+	await expect.poll(() => requestedSubjectUrls.at(-1) ?? '').toContain('status=excluded');
+	await expect(drawer.getByText('Excluded')).toBeVisible();
+	await expect(drawer.getByRole('button', { name: 'Return to active' })).toBeVisible();
+
+	await drawer.getByLabel('Reason').fill('Back in cohort');
+	await drawer.getByRole('button', { name: 'Return to active' }).click();
+	await expect.poll(() => statusRequests.at(-1)?.status).toBe('active');
+	await expect.poll(() => requestedSubjectUrls.at(-1) ?? '').toContain('status=active');
+
 	await drawer.getByLabel('Reason').fill('Wrong cohort');
-	await drawer.getByRole('button', { name: 'Confirm deactivate' }).click();
-	await expect.poll(() => deactivateRequested).toBe(true);
+	await drawer.getByRole('button', { name: 'Deactivate' }).click();
+	await expect.poll(() => statusRequests.at(-1)?.status).toBe('deactivated');
+	await expect.poll(() => requestedSubjectUrls.at(-1) ?? '').toContain('status=deactivated');
+	await expect(drawer.getByText('Deactivated')).toBeVisible();
+	await expect(drawer.getByRole('button', { name: 'Reactivate' })).toBeVisible();
 });
 
 async function routeAuthenticatedSession(page: Page) {
@@ -431,7 +456,8 @@ async function routeLargeSubjectDirectory(page: Page) {
 async function routeOperationalSubjectDirectory(
 	page: Page,
 	requestedUrls: string[],
-	longExternalId: string
+	longExternalId: string,
+	getStatus: () => 'active' | 'excluded' | 'deactivated' = () => 'active'
 ) {
 	await page.route('**/subjects**', async (route) => {
 		if (
@@ -443,6 +469,7 @@ async function routeOperationalSubjectDirectory(
 		}
 
 		requestedUrls.push(route.request().url());
+		const status = getStatus();
 		await route.fulfill({
 			json: {
 				tenantId,
@@ -470,8 +497,8 @@ async function routeOperationalSubjectDirectory(
 						directReportCount: 3,
 						source: 'microsoft_graph',
 						sourceLabel: 'Microsoft 365',
-						status: 'active',
-						statusLabel: 'Active',
+						status,
+						statusLabel: statusLabel(status),
 						department: 'Retail',
 						jobTitle: 'Store lead',
 						employeeType: 'Staff',
@@ -516,6 +543,10 @@ async function routeOperationalSubjectDirectory(
 			}
 		});
 	});
+}
+
+function statusLabel(status: 'active' | 'excluded' | 'deactivated') {
+	return status === 'deactivated' ? 'Deactivated' : status === 'excluded' ? 'Excluded' : 'Active';
 }
 
 async function routeGraphImportWorkspace(page: Page) {

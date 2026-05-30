@@ -232,6 +232,11 @@ export type DeactivateSubjectRequest = {
 	reason?: string | null;
 };
 
+export type SetSubjectDirectoryStatusRequest = {
+	status: 'active' | 'excluded' | 'deactivated';
+	reason?: string | null;
+};
+
 export type SubjectDirectoryCsvImportRequest = {
 	csvContent: string;
 	dryRun?: boolean;
@@ -1309,6 +1314,11 @@ export function createProductApi(client: ApiClient) {
 		deactivateSubject: (subjectId: string, request: DeactivateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>(
 				`/subjects/${encodeURIComponent(subjectId)}/deactivate`,
+				jsonRequest('POST', request)
+			),
+		setSubjectStatus: (subjectId: string, request: SetSubjectDirectoryStatusRequest) =>
+			client.request<SubjectDirectoryItemResponse>(
+				`/subjects/${encodeURIComponent(subjectId)}/status`,
 				jsonRequest('POST', request)
 			),
 		listSubjectGroups: () => client.request<SubjectGroupListResponse>('/subject-groups'),
