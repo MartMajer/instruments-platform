@@ -621,7 +621,7 @@
 					/>
 				</label>
 
-				<div class="field">
+				<div class="field relative overflow-visible">
 					<div class="flex items-center justify-between gap-2">
 						<label class="label" for="new-member-role">{text.team.memberRole}</label>
 						<button
@@ -648,7 +648,7 @@
 					{#if addRoleDetailsOpen && selectedNewMemberRole()}
 						<div
 							id="new-member-role-details"
-							class="grid gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+							class="absolute top-0 right-10 z-50 grid w-[min(22rem,calc(100vw-2rem))] gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl lg:right-auto lg:left-full lg:ml-2"
 							role="region"
 							aria-label={roleDetailsLabel(selectedNewMemberRole())}
 						>
@@ -851,7 +851,7 @@
 												void changeTenantMemberRole(member);
 											}}
 										>
-											<div class="field">
+											<div class="field relative overflow-visible">
 												<div class="flex items-center justify-between gap-2">
 													<label class="label" for={`member-role-${member.userId}`}>
 														{text.team.roleFor(member.email)}
@@ -882,7 +882,7 @@
 												{#if memberRoleDetailsOpen[member.userId] && selectedTenantRole(member)}
 													<div
 														id={`member-role-details-${member.userId}`}
-														class="grid gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+														class="absolute top-0 right-10 z-50 grid w-[min(22rem,calc(100vw-2rem))] gap-2 rounded border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3 shadow-xl lg:right-auto lg:left-full lg:ml-2"
 														role="region"
 														aria-label={roleDetailsLabel(selectedTenantRole(member))}
 													>

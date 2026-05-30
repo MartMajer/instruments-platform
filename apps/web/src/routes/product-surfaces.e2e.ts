@@ -1084,6 +1084,9 @@ test('workspace access explains selected operator roles before assignment change
 
 	const addOperator = page.getByRole('region', { name: 'Add workspace operator' });
 	const addRoleDetails = addOperator.getByRole('region', { name: 'Role details for Tenant Owner' });
+	const addOperatorHeightBefore = await addOperator.evaluate(
+		(element) => element.getBoundingClientRect().height
+	);
 	await expect(addRoleDetails).toHaveCount(0);
 
 	await addOperator.getByRole('button', { name: 'Role details for Tenant Owner' }).click();
@@ -1097,6 +1100,17 @@ test('workspace access explains selected operator roles before assignment change
 			exact: true
 		})
 	).toBeVisible();
+	const addOperatorHeightAfter = await addOperator.evaluate(
+		(element) => element.getBoundingClientRect().height
+	);
+	expect(addOperatorHeightAfter - addOperatorHeightBefore).toBeLessThanOrEqual(8);
+	const addRoleSelectBox = await addOperator.getByLabel('Operator role').boundingBox();
+	const addRoleDetailsBox = await addRoleDetails.boundingBox();
+	expect(addRoleSelectBox).not.toBeNull();
+	expect(addRoleDetailsBox).not.toBeNull();
+	expect(addRoleDetailsBox!.x).toBeGreaterThanOrEqual(
+		addRoleSelectBox!.x + addRoleSelectBox!.width - 1
+	);
 
 	await addOperator.getByLabel('Operator role').selectOption('analyst');
 	const analystAddRoleDetails = addOperator.getByRole('region', {
