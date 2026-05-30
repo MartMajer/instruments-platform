@@ -1679,6 +1679,43 @@ a {
 	color: var(--color-text-muted);
 }
 
+.directory-membership-list {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.directory-membership-row {
+	display: grid;
+	gap: 0.75rem;
+	align-items: start;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-control);
+	background: var(--color-surface-muted);
+	padding: 0.75rem;
+}
+
+.directory-membership-row__title {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin: 0;
+	font-size: 0.9rem;
+	font-weight: 750;
+	color: var(--color-text);
+}
+
+.directory-membership-row__actions {
+	display: flex;
+	justify-content: flex-start;
+}
+
+.directory-membership-confirmation {
+	display: grid;
+	gap: 0.5rem;
+	border-top: 1px solid var(--color-border);
+	padding-top: 0.75rem;
+}
+
 .person-drawer {
 	position: static;
 	width: 100%;
@@ -1802,6 +1839,13 @@ details[open] > .directory-maintenance-summary::after {
 	font-size: 0.875rem;
 	font-weight: 750;
 	color: var(--color-text);
+}
+
+.field .field-help {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	line-height: 1.5;
+	color: var(--color-text-muted);
 }
 
 @media (max-width: 760px) {

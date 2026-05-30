@@ -110,6 +110,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("AddSubjectGroupMember")
             .WithTags("ProductSurfaces");
 
+        app.MapDelete("/subject-groups/{groupId:guid}/members/{subjectId:guid}", RemoveSubjectGroupMember)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("RemoveSubjectGroupMember")
+            .WithTags("ProductSurfaces");
+
         app.MapPut("/subjects/{subjectId:guid}/manager", SetSubjectManager)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -363,6 +369,17 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new AddSubjectGroupMemberCommand(groupId, request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> RemoveSubjectGroupMember(
+        Guid groupId,
+        Guid subjectId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RemoveSubjectGroupMemberCommand(groupId, subjectId), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

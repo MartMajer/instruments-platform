@@ -829,6 +829,36 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Remove_subject_group_member_endpoint_binds_group_and_subject()
+    {
+        var tenantId = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var subjectId = Guid.NewGuid();
+        var result = Result.Success(new SubjectGroupMembershipRemovalResponse(
+            groupId,
+            subjectId,
+            Removed: true));
+        var writeStore = new FakeProductSurfaceWriteStore(removeSubjectGroupMemberResult: result);
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Delete,
+            $"/subject-groups/{groupId}/members/{subjectId}",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<SubjectGroupMembershipRemovalResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(groupId, payload.GroupId);
+        Assert.Equal(subjectId, payload.SubjectId);
+        Assert.True(payload.Removed);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(groupId, writeStore.SubjectGroupId);
+        Assert.Equal(subjectId, writeStore.SubjectId);
+    }
+
+    [Fact]
     public async Task Set_subject_manager_endpoint_binds_subject_and_manager()
     {
         var tenantId = Guid.NewGuid();
@@ -2613,6 +2643,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<SubjectDirectoryCsvImportResponse>? importSubjectDirectoryCsvResult = null,
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
+        Result<SubjectGroupMembershipRemovalResponse>? removeSubjectGroupMemberResult = null,
         Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null)
         : IProductSurfaceWriteStore
     {
@@ -2915,6 +2946,24 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(addSubjectGroupMemberResult ??
                 Result.Failure<SubjectGroupMembershipResponse>(
                     Error.NotFound("subject_group.not_found", "Subject group was not found.")));
+        }
+
+        public Task<Result<SubjectGroupMembershipRemovalResponse>> RemoveSubjectGroupMemberAsync(
+            Guid tenantId,
+            Guid groupId,
+            Guid subjectId,
+            Guid actorUserId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            SubjectGroupId = groupId;
+            SubjectId = subjectId;
+            ActorUserId = actorUserId;
+
+            return Task.FromResult(removeSubjectGroupMemberResult ??
+                Result.Failure<SubjectGroupMembershipRemovalResponse>(
+                    Error.NotFound("subject_membership.not_found", "Subject membership was not found.")));
         }
 
         public Task<Result<SubjectDirectoryItemResponse>> SetSubjectManagerAsync(

@@ -561,6 +561,34 @@ describe('createProductApi', () => {
 		]);
 	});
 
+	it('removes a subject group member by encoded group and subject ids', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					groupId: 'group/id',
+					subjectId: 'subject/id',
+					removed: true
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.removeSubjectGroupMember('group/id', 'subject/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/subject-groups/group%2Fid/members/subject%2Fid',
+				init: {
+					method: 'DELETE'
+				}
+			}
+		]);
+	});
+
 	it('sets a subject manager by encoded subject id', async () => {
 		const calls: Array<{ path: string; init?: RequestInit }> = [];
 		const api = createProductApi({

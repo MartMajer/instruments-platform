@@ -1125,6 +1125,60 @@ public sealed class ProductSurfaceWriteStore(
             membership.ValidTo));
     }
 
+    public async Task<Result<SubjectGroupMembershipRemovalResponse>> RemoveSubjectGroupMemberAsync(
+        Guid tenantId,
+        Guid groupId,
+        Guid subjectId,
+        Guid actorUserId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var groupExists = await db.SubjectGroups.AnyAsync(
+            group =>
+                group.TenantId == tenantId &&
+                group.Id == groupId &&
+                group.DeletedAt == null,
+            cancellationToken);
+        if (!groupExists)
+        {
+            return Result.Failure<SubjectGroupMembershipRemovalResponse>(
+                Error.NotFound("subject_group.not_found", "Subject group was not found."));
+        }
+
+        var subjectExists = await db.Subjects.AnyAsync(
+            subject =>
+                subject.TenantId == tenantId &&
+                subject.Id == subjectId &&
+                subject.DeletedAt == null,
+            cancellationToken);
+        if (!subjectExists)
+        {
+            return Result.Failure<SubjectGroupMembershipRemovalResponse>(
+                Error.NotFound("subject.not_found", "Subject was not found."));
+        }
+
+        var membership = await db.SubjectMemberships.SingleOrDefaultAsync(
+            entity => entity.GroupId == groupId && entity.SubjectId == subjectId,
+            cancellationToken);
+        var removed = membership is not null;
+        if (membership is not null)
+        {
+            db.SubjectMemberships.Remove(membership);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new SubjectGroupMembershipRemovalResponse(
+            groupId,
+            subjectId,
+            removed));
+    }
+
     public async Task<Result<SubjectDirectoryItemResponse>> SetSubjectManagerAsync(
         Guid tenantId,
         Guid subjectId,

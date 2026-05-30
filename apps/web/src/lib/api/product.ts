@@ -204,6 +204,12 @@ export type SubjectGroupMembershipResponse = {
 	validTo: string | null;
 };
 
+export type SubjectGroupMembershipRemovalResponse = {
+	groupId: string;
+	subjectId: string;
+	removed: boolean;
+};
+
 export type SubjectGroupListResponse = {
 	tenantId: string;
 	groups: SubjectGroupResponse[];
@@ -1328,6 +1334,11 @@ export function createProductApi(client: ApiClient) {
 			client.request<SubjectGroupMembershipResponse>(
 				`/subject-groups/${encodeURIComponent(groupId)}/members`,
 				jsonRequest('POST', request)
+			),
+		removeSubjectGroupMember: (groupId: string, subjectId: string) =>
+			client.request<SubjectGroupMembershipRemovalResponse>(
+				`/subject-groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(subjectId)}`,
+				{ method: 'DELETE' }
 			),
 		setSubjectManager: (subjectId: string, request: SetSubjectManagerRequest) =>
 			client.request<SubjectDirectoryItemResponse>(

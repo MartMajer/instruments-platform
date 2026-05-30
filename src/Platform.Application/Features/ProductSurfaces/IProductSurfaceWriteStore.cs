@@ -103,6 +103,13 @@ public interface IProductSurfaceWriteStore
         AddSubjectGroupMemberRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<SubjectGroupMembershipRemovalResponse>> RemoveSubjectGroupMemberAsync(
+        Guid tenantId,
+        Guid groupId,
+        Guid subjectId,
+        Guid actorUserId,
+        CancellationToken cancellationToken);
+
     Task<Result<SubjectDirectoryItemResponse>> SetSubjectManagerAsync(
         Guid tenantId,
         Guid subjectId,

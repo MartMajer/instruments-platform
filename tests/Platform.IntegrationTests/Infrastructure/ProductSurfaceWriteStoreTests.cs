@@ -1485,6 +1485,64 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Remove_subject_group_member_removes_only_the_local_membership()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "directory-member-remove");
+        var subject = await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst", "ana@example.test", "emp-001");
+        var targetGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Research");
+        var retainedGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Field Team");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedTenantDbScope = new TenantDbScope(seedDb);
+            await using var seedTransaction = await seedTenantDbScope.BeginTransactionAsync(tenantId);
+            seedDb.SubjectMemberships.Add(new SubjectMembership(subject.Id, targetGroup.Id, SubjectGroupRoles.Member));
+            seedDb.SubjectMemberships.Add(new SubjectMembership(subject.Id, retainedGroup.Id, SubjectGroupRoles.Member));
+            await seedDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.RemoveSubjectGroupMemberAsync(
+            tenantId,
+            targetGroup.Id,
+            subject.Id,
+            actorUserId,
+            CancellationToken.None);
+        var secondResult = await store.RemoveSubjectGroupMemberAsync(
+            tenantId,
+            targetGroup.Id,
+            subject.Id,
+            actorUserId,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(targetGroup.Id, result.Value.GroupId);
+        Assert.Equal(subject.Id, result.Value.SubjectId);
+        Assert.True(result.Value.Removed);
+        Assert.True(secondResult.IsSuccess, secondResult.Error.ToString());
+        Assert.False(secondResult.Value.Removed);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var verificationTenantDbScope = new TenantDbScope(verificationDb);
+        await using var verificationTransaction = await verificationTenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(1, await verificationDb.Subjects.CountAsync());
+        Assert.Equal(2, await verificationDb.SubjectGroups.CountAsync());
+        Assert.Equal(0, await verificationDb.SubjectMemberships.CountAsync(
+            membership => membership.SubjectId == subject.Id && membership.GroupId == targetGroup.Id));
+        Assert.Equal(1, await verificationDb.SubjectMemberships.CountAsync(
+            membership => membership.SubjectId == subject.Id && membership.GroupId == retainedGroup.Id));
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Set_subject_manager_replaces_and_clears_active_manager()
     {
         var tenantId = Guid.NewGuid();

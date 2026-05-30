@@ -11,6 +11,7 @@
 		SubjectDirectoryCsvImportResponse,
 		SubjectDirectoryItemResponse,
 		SubjectDirectoryResponse,
+		SubjectGroupMembershipResponse,
 		SubjectGroupListResponse,
 		SubjectGroupResponse
 	} from '$lib/api/product';
@@ -73,6 +74,9 @@
 	let membershipRole = $state('');
 	let addingMembership = $state(false);
 	let membershipError = $state<string | null>(null);
+	let pendingMembershipRemovalKey = $state('');
+	let removingMembershipKey = $state('');
+	let membershipRemovalError = $state<string | null>(null);
 	let managerSubjectId = $state('');
 	let managerValidFrom = $state('');
 	let savingManager = $state(false);
@@ -699,6 +703,49 @@
 		}
 	}
 
+	function membershipRemovalKey(subjectId: string, groupId: string) {
+		return `${subjectId}:${groupId}`;
+	}
+
+	function beginMembershipRemoval(subjectId: string, membership: SubjectGroupMembershipResponse) {
+		pendingMembershipRemovalKey = membershipRemovalKey(subjectId, membership.groupId);
+		membershipRemovalError = null;
+	}
+
+	function cancelMembershipRemoval() {
+		pendingMembershipRemovalKey = '';
+		membershipRemovalError = null;
+	}
+
+	async function removeSubjectGroupMember(
+		subjectId: string,
+		membership: SubjectGroupMembershipResponse
+	) {
+		if (!canManageSetup) {
+			return;
+		}
+
+		const removalKey = membershipRemovalKey(subjectId, membership.groupId);
+		removingMembershipKey = removalKey;
+		membershipRemovalError = null;
+
+		try {
+			await productApi.removeSubjectGroupMember(membership.groupId, subjectId);
+			pendingMembershipRemovalKey = '';
+			await loadDirectory();
+			selectedSubjectId = subjectId;
+			detailsSubjectId = detailsSubjectId || subjectId;
+			syncSelectedSubjectFields(directory?.subjects ?? []);
+		} catch (error) {
+			membershipRemovalError = toProductApiErrorMessage(
+				error,
+				'Group membership could not be removed.'
+			);
+		} finally {
+			removingMembershipKey = '';
+		}
+	}
+
 	async function setSubjectManager() {
 		if (!canManageSetup || !selectedSubjectId) {
 			managerError = text.directory.selectPerson;
@@ -1180,7 +1227,20 @@
 						{#if graphRuleMirrorMode}
 							<label class="field">
 								<span>Mirror confirmation</span>
-								<input bind:value={graphRuleMirrorConfirmation} disabled={graphImportBusy} />
+								<input
+									bind:value={graphRuleMirrorConfirmation}
+									disabled={graphImportBusy}
+									placeholder={graphMirrorConfirmationText}
+									aria-describedby="graph-mirror-confirmation-help"
+								/>
+								<span id="graph-mirror-confirmation-help" class="field-help">
+									Type {graphMirrorConfirmationText} to confirm full Microsoft directory
+									mirroring.
+								</span>
+								<span class="field-help">
+									Mirror mode is for broad Microsoft directory refreshes. For normal testing,
+									use department or group filters first.
+								</span>
 							</label>
 						{/if}
 						<button type="submit" class="primary-button" disabled={graphSaveRuleDisabled}>
@@ -1872,17 +1932,72 @@
 				</div>
 			</div>
 
-			<div class="person-drawer__section">
-				<h3>Groups</h3>
+			<div class="person-drawer__section" role="region" aria-label="Current memberships">
+				<h3>Current memberships</h3>
 				{#if detailsSubject.groups.length === 0}
 					<p class="text-sm text-[var(--color-text-muted)]">{text.directory.noMemberships}</p>
 				{:else}
-					<div class="directory-chip-list">
+					<div class="directory-membership-list">
 						{#each detailsSubject.groups as membership (membership.groupId)}
-							<span class="directory-chip">
-								<UserRound size={13} aria-hidden="true" />
-								{membership.groupName}
-							</span>
+							<article class="directory-membership-row">
+								<div>
+									<p class="directory-membership-row__title">
+										<UserRound size={13} aria-hidden="true" />
+										{membership.groupName}
+									</p>
+									<p class="text-xs text-[var(--color-text-muted)]">
+										{membership.groupType}
+										{#if membership.roleInGroup}
+											· {membership.roleInGroup}
+										{/if}
+									</p>
+								</div>
+								<div class="directory-membership-row__actions">
+									<button
+										type="button"
+										class="secondary-button"
+										aria-label={`Remove ${subjectLabel(detailsSubject)} from ${membership.groupName}`}
+										disabled={removingMembershipKey === membershipRemovalKey(detailsSubject.id, membership.groupId)}
+										onclick={() => beginMembershipRemoval(detailsSubject.id, membership)}
+									>
+										Remove
+									</button>
+								</div>
+								{#if pendingMembershipRemovalKey === membershipRemovalKey(detailsSubject.id, membership.groupId)}
+									<div class="directory-membership-confirmation">
+										<p class="text-sm font-semibold text-[var(--color-text)]">
+											Remove {subjectLabel(detailsSubject)} from {membership.groupName}?
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											This only changes ValidatedScale. It does not change Microsoft 365.
+										</p>
+										<div class="action-row">
+											<button
+												type="button"
+												class="secondary-button"
+												disabled={removingMembershipKey === membershipRemovalKey(detailsSubject.id, membership.groupId)}
+												aria-label={`Confirm remove ${subjectLabel(detailsSubject)} from ${membership.groupName}`}
+												onclick={() => void removeSubjectGroupMember(detailsSubject.id, membership)}
+											>
+												{removingMembershipKey === membershipRemovalKey(detailsSubject.id, membership.groupId)
+													? 'Removing...'
+													: 'Remove'}
+											</button>
+											<button
+												type="button"
+												class="secondary-button"
+												disabled={removingMembershipKey === membershipRemovalKey(detailsSubject.id, membership.groupId)}
+												onclick={cancelMembershipRemoval}
+											>
+												Cancel
+											</button>
+										</div>
+										{#if membershipRemovalError}
+											<p class="error-line" role="alert">{membershipRemovalError}</p>
+										{/if}
+									</div>
+								{/if}
+							</article>
 						{/each}
 					</div>
 				{/if}
@@ -2251,8 +2366,84 @@
 			{#if editSubjectError}
 				<p class="error-line" role="alert">{editSubjectError}</p>
 			{/if}
-		</form>
+			</form>
 			</details>
+
+			<section class="directory-membership-list" aria-label="Current memberships">
+				<div>
+					<p class="product-kicker">Current memberships</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">
+						{selectedSubject ? subjectLabel(selectedSubject) : text.directory.noSubjectSelected}
+					</h3>
+				</div>
+				{#if !selectedSubject}
+					<p class="text-sm text-[var(--color-text-muted)]">{text.directory.selectPerson}</p>
+				{:else if selectedSubject.groups.length === 0}
+					<p class="text-sm text-[var(--color-text-muted)]">{text.directory.noMemberships}</p>
+				{:else}
+					{#each selectedSubject.groups as membership (membership.groupId)}
+						<article class="directory-membership-row">
+							<div>
+								<p class="directory-membership-row__title">
+									<UserRound size={13} aria-hidden="true" />
+									{membership.groupName}
+								</p>
+								<p class="text-xs text-[var(--color-text-muted)]">
+									{membership.groupType}
+									{#if membership.roleInGroup}
+										· {membership.roleInGroup}
+									{/if}
+								</p>
+							</div>
+							<div class="directory-membership-row__actions">
+								<button
+									type="button"
+									class="secondary-button"
+									aria-label={`Remove ${subjectLabel(selectedSubject)} from ${membership.groupName}`}
+									disabled={removingMembershipKey === membershipRemovalKey(selectedSubject.id, membership.groupId)}
+									onclick={() => beginMembershipRemoval(selectedSubject.id, membership)}
+								>
+									Remove
+								</button>
+							</div>
+							{#if pendingMembershipRemovalKey === membershipRemovalKey(selectedSubject.id, membership.groupId)}
+								<div class="directory-membership-confirmation">
+									<p class="text-sm font-semibold text-[var(--color-text)]">
+										Remove {subjectLabel(selectedSubject)} from {membership.groupName}?
+									</p>
+									<p class="text-sm text-[var(--color-text-muted)]">
+										This only changes ValidatedScale. It does not change Microsoft 365.
+									</p>
+									<div class="action-row">
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={removingMembershipKey === membershipRemovalKey(selectedSubject.id, membership.groupId)}
+											aria-label={`Confirm remove ${subjectLabel(selectedSubject)} from ${membership.groupName}`}
+											onclick={() => void removeSubjectGroupMember(selectedSubject.id, membership)}
+										>
+											{removingMembershipKey === membershipRemovalKey(selectedSubject.id, membership.groupId)
+												? 'Removing...'
+												: 'Remove'}
+										</button>
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={removingMembershipKey === membershipRemovalKey(selectedSubject.id, membership.groupId)}
+											onclick={cancelMembershipRemoval}
+										>
+											Cancel
+										</button>
+									</div>
+									{#if membershipRemovalError}
+										<p class="error-line" role="alert">{membershipRemovalError}</p>
+									{/if}
+								</div>
+							{/if}
+						</article>
+					{/each}
+				{/if}
+			</section>
 
 			<div class="grid gap-4 xl:grid-cols-2">
 			<form
@@ -2263,8 +2454,8 @@
 				}}
 			>
 				<div>
-					<p class="product-kicker">Group placement</p>
-					<h3 class="text-base font-semibold text-[var(--color-text)]">Place person in group</h3>
+					<p class="product-kicker">Place person in group</p>
+					<h3 class="text-base font-semibold text-[var(--color-text)]">Add to group</h3>
 				</div>
 				<div class="grid gap-3 md:grid-cols-2">
 					<label class="field">

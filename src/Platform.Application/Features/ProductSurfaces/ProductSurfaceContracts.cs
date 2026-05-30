@@ -1027,6 +1027,11 @@ public sealed record SubjectGroupMembershipResponse(
     DateOnly? ValidFrom,
     DateOnly? ValidTo);
 
+public sealed record SubjectGroupMembershipRemovalResponse(
+    Guid GroupId,
+    Guid SubjectId,
+    bool Removed);
+
 public sealed record SubjectGroupListResponse(
     Guid TenantId,
     IReadOnlyList<SubjectGroupResponse> Groups);

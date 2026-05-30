@@ -402,6 +402,51 @@ test('manual maintenance creates a person directly into an existing department g
 	await expect(relationships.locator('label.field:visible').filter({ hasText: 'External id' })).toHaveCount(0);
 });
 
+test('directory maintenance explains mirror confirmation and removes current memberships', async ({
+	page
+}) => {
+	await page.unroute('**/subjects**');
+	await page.unroute('**/subject-groups');
+	const requests: {
+		removed?: { groupId: string; subjectId: string };
+	} = {};
+	await routeMembershipRemovalDirectory(page, requests);
+	await routeGraphImportWorkspace(page);
+
+	await page.goto('/app/directory');
+
+	const graphImport = page.getByRole('region', { name: 'Microsoft Graph directory import' });
+	await graphImport.getByLabel('Mirror Microsoft directory').check();
+	const mirrorConfirmation = graphImport.getByLabel('Mirror confirmation');
+	await expect(mirrorConfirmation).toHaveAttribute('placeholder', 'MIRROR MICROSOFT DIRECTORY');
+	await expect(
+		graphImport.getByText('Type MIRROR MICROSOFT DIRECTORY to confirm full Microsoft directory mirroring.')
+	).toBeVisible();
+
+	const peopleDirectory = page.getByTestId('workspace-people-directory');
+	await peopleDirectory.getByRole('button', { name: 'View Adele Vance' }).click();
+	const drawer = page.getByRole('dialog', { name: 'Person details' });
+	const currentMemberships = drawer.getByRole('region', { name: 'Current memberships' });
+	await expect(currentMemberships.getByText('Retail', { exact: true })).toBeVisible();
+	await currentMemberships.getByRole('button', { name: 'Remove Adele Vance from Retail' }).click();
+	await expect(drawer.getByText('Remove Adele Vance from Retail?')).toBeVisible();
+	await expect(
+		drawer.getByText('This only changes ValidatedScale. It does not change Microsoft 365.')
+	).toBeVisible();
+	await drawer.getByRole('button', { name: 'Confirm remove Adele Vance from Retail' }).click();
+
+	await expect.poll(() => requests.removed).toEqual({
+		groupId: '77777777-7777-4777-8777-000000000001',
+		subjectId: '66666666-6666-4666-8666-000000000001'
+	});
+	await expect(currentMemberships.getByText('No memberships')).toBeVisible();
+
+	await page.locator('details[aria-label="Directory relationships"] > summary').click();
+	const relationships = page.locator('details[aria-label="Directory relationships"]');
+	await expect(relationships.getByRole('region', { name: 'Current memberships' })).toBeVisible();
+	await expect(relationships.getByText('Add to group')).toBeVisible();
+});
+
 async function routeAuthenticatedSession(page: Page) {
 	await page.route('**/auth/session', async (route) => {
 		await route.fulfill({
@@ -713,6 +758,98 @@ async function routeManualMaintenanceDirectory(
 						parentGroupId: null,
 						attributes: '{}',
 						memberCount: createdSubject ? 1 : 0
+					}
+				]
+			}
+		});
+	});
+}
+
+async function routeMembershipRemovalDirectory(
+	page: Page,
+	requests: {
+		removed?: { groupId: string; subjectId: string };
+	}
+) {
+	const subjectId = '66666666-6666-4666-8666-000000000001';
+	const groupId = '77777777-7777-4777-8777-000000000001';
+	let hasMembership = true;
+
+	await page.route('**/subjects**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subjects')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				summary: {
+					subjectCount: 1,
+					filteredSubjectCount: 1,
+					returnedSubjectCount: 1,
+					groupCount: 1,
+					managerRelationshipCount: 0,
+					pageOffset: 0,
+					pageSize: 25,
+					hasMore: false
+				},
+				subjects: [
+					{
+						...directorySubject('000000000001', 'Adele Vance', 'active'),
+						id: subjectId,
+						groups: hasMembership
+							? [
+									{
+										groupId,
+										groupType: 'department',
+										groupName: 'Retail',
+										roleInGroup: 'member',
+										validFrom: null,
+										validTo: null
+									}
+								]
+							: []
+					}
+				]
+			}
+		});
+	});
+
+	await page.route(`**/subject-groups/${groupId}/members/${subjectId}`, async (route) => {
+		if (route.request().method() !== 'DELETE') {
+			await route.fallback();
+			return;
+		}
+
+		hasMembership = false;
+		requests.removed = { groupId, subjectId };
+		await route.fulfill({ json: { groupId, subjectId, removed: true } });
+	});
+
+	await page.route('**/subject-groups', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!isProductApiPath(route.request().url(), '/subject-groups')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: {
+				tenantId,
+				groups: [
+					{
+						id: groupId,
+						type: 'department',
+						name: 'Retail',
+						parentGroupId: null,
+						attributes: '{}',
+						memberCount: hasMembership ? 1 : 0
 					}
 				]
 			}
