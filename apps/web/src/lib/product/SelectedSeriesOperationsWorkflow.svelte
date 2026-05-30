@@ -46,6 +46,7 @@
 	import { toProductApiErrorMessage } from './view-models';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
+	type ShareAccessMode = 'openLink' | 'email' | 'demo';
 	type ReadinessIssue = LaunchReadinessResponse['issues'][number];
 	type ReadinessIssueGuidance = {
 		title: string;
@@ -111,6 +112,7 @@
 	let closeResult = $state<CampaignCloseStateResponse | null>(null);
 	let refreshWarning = $state<string | null>(null);
 	let activeActionId = $state<SelectedSeriesOperationsWorkflowActionId | null>(null);
+	let shareAccessMode = $state<ShareAccessMode>('openLink');
 	let autoReadinessCampaignId = $state<string | null>(null);
 	let actionStates = $state<Record<SelectedSeriesOperationsWorkflowActionId, StepState>>({
 		readiness: 'idle',
@@ -1293,6 +1295,74 @@
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
+								<p class="record-field__label">{operationsBodyCopy.shareAccess.accessMethodLabel}</p>
+								<h5 class="record-row__title">{operationsBodyCopy.shareAccess.chooseAccessMethodTitle}</h5>
+							</div>
+							<StatusBadge
+								status={openLinkAccessActive || emailInviteAccessActive ? 'ready' : 'neutral'}
+								label={
+									openLinkAccessActive || emailInviteAccessActive
+										? operationsBodyCopy.common.ready
+										: operationsBodyCopy.common.notAvailable
+								}
+							/>
+						</div>
+						<div class="action-row" role="group" aria-label={operationsBodyCopy.shareAccess.accessMethodLabel}>
+							<button
+								type="button"
+								class={shareAccessMode === 'openLink' ? 'primary-button' : 'secondary-button'}
+								aria-pressed={shareAccessMode === 'openLink'}
+								onclick={() => (shareAccessMode = 'openLink')}
+							>
+								<Send size={17} aria-hidden="true" />
+								<span>{operationsBodyCopy.shareAccess.openLinkMode}</span>
+							</button>
+							<button
+								type="button"
+								class={shareAccessMode === 'email' ? 'primary-button' : 'secondary-button'}
+								aria-pressed={shareAccessMode === 'email'}
+								onclick={() => (shareAccessMode = 'email')}
+							>
+								<Send size={17} aria-hidden="true" />
+								<span>{operationsBodyCopy.shareAccess.privateEmailMode}</span>
+							</button>
+							<button
+								type="button"
+								class={shareAccessMode === 'demo' ? 'primary-button' : 'secondary-button'}
+								aria-pressed={shareAccessMode === 'demo'}
+								onclick={() => (shareAccessMode = 'demo')}
+							>
+								<Plus size={17} aria-hidden="true" />
+								<span>{operationsBodyCopy.shareAccess.demoMode}</span>
+							</button>
+						</div>
+						<dl class="record-grid">
+							<div class="record-field">
+								<dt class="record-field__label">{operationsBodyCopy.shareAccess.existingAccessTitle}</dt>
+								<dd class="record-field__value">
+									{openLinkAccessActive
+										? operationsBodyCopy.shareAccess.openLinkActive
+										: emailInviteAccessActive
+											? operationsBodyCopy.shareAccess.inviteOnly
+											: operationsBodyCopy.shareAccess.openLinkNotCreated}
+								</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">{operationsBodyCopy.component.queued}</dt>
+								<dd class="record-field__value">{formatCount(locallyQueuedInvitationCount)}</dd>
+							</div>
+							<div class="record-field">
+								<dt class="record-field__label">Sent</dt>
+								<dd class="record-field__value">{formatCount(locallySentInvitationCount)}</dd>
+							</div>
+						</dl>
+					</div>
+					<details class="record-row">
+						<summary class="record-row__title">{operationsBodyCopy.shareAccess.advancedDeliveryControls}</summary>
+						<div class="mt-3 grid gap-3">
+					<div class="record-row">
+						<div class="record-row__header">
+							<div>
 								<p class="record-field__label">{operationsBodyCopy.emailSetup.label}</p>
 								<h5 class="record-row__title">{operationsBodyCopy.emailSetup.title}</h5>
 							</div>
@@ -1457,6 +1527,9 @@
 							</p>
 						{/if}
 					</div>
+						</div>
+					</details>
+					{#if shareAccessMode === 'email'}
 					{#if locallyPreparedInvitationCount > 0}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -1855,6 +1928,8 @@
 							</p>
 						{/if}
 					</div>
+					{/if}
+					{#if shareAccessMode === 'demo'}
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
@@ -1945,6 +2020,8 @@
 							</div>
 						{/if}
 					</div>
+					{/if}
+					{#if shareAccessMode === 'openLink'}
 					<div class="record-row">
 						<div class="record-row__header">
 							<div>
@@ -2045,6 +2122,7 @@
 								<code>{respondentEntry.respondentPath}</code>
 							</p>
 						</div>
+					{/if}
 					{/if}
 				{:else if activeAction.id === 'monitor'}
 					<p class="text-sm leading-6 text-[var(--color-text-muted)]">

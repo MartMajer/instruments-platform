@@ -3351,6 +3351,14 @@ test('operations workflow shows share access after launch even when access is pr
 	await expect(currentTask).not.toContainText('Monitor responses');
 	await expect(workflow.locator('.setup-path__item[data-state="selected"]')).toHaveCount(1);
 	await expect(workflow.locator('.setup-path__item[data-state="next"]')).toHaveCount(1);
+	await expect(workflow.getByRole('button', { name: 'Open link', exact: true })).toBeVisible();
+	await expect(workflow.getByRole('button', { name: 'Private email', exact: true })).toBeVisible();
+	await expect(
+		workflow.getByRole('button', { name: 'Test/demo responses', exact: true })
+	).toBeVisible();
+	await expect(workflow.getByText('Suppress emails before inviting')).toBeHidden();
+	await workflow.getByText('Advanced delivery controls').click();
+	await expect(workflow.getByText('Suppress emails before inviting')).toBeVisible();
 });
 
 test('retries operations workspace with the route series id', async ({ page }) => {

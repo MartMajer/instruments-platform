@@ -1134,6 +1134,13 @@ const en = {
 			shareAccess: {
 				body:
 					'Choose how respondents enter this wave. Saved Directory and group selections become private invitations. Use the one-off importer only to add ad hoc recipients after launch, or create an open respondent link when broad access is acceptable.',
+				accessMethodLabel: 'Access method',
+				chooseAccessMethodTitle: 'Choose access method',
+				openLinkMode: 'Open link',
+				privateEmailMode: 'Private email',
+				demoMode: 'Test/demo responses',
+				existingAccessTitle: 'Existing access',
+				advancedDeliveryControls: 'Advanced delivery controls',
 				identifiedEntryLabel: 'Identified entry',
 				inviteOnlyLabel: 'Invite-only access',
 				openLinkLabel: 'Open respondent link',
@@ -3447,6 +3454,13 @@ const hr: typeof en = {
 			shareAccess: {
 				body:
 					'Odaberite kako sudionici ulaze u ovo mjerenje. Spremljeni odabiri iz Imenika i grupa postaju privatne pozivnice. Jednokratni uvoz koristite samo za dodavanje ad hoc primatelja nakon pokretanja ili izradite otvorenu poveznicu kada je širok pristup prihvatljiv.',
+				accessMethodLabel: 'Način pristupa',
+				chooseAccessMethodTitle: 'Odaberite način pristupa',
+				openLinkMode: 'Otvorena poveznica',
+				privateEmailMode: 'Privatna e-pošta',
+				demoMode: 'Testni/demo odgovori',
+				existingAccessTitle: 'Postojeći pristup',
+				advancedDeliveryControls: 'Napredne kontrole slanja',
 				identifiedEntryLabel: 'Identificirani ulaz',
 				inviteOnlyLabel: 'Pristup samo pozivnicom',
 				openLinkLabel: 'Otvorena poveznica za sudionike',
