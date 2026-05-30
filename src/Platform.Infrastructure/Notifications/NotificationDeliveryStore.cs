@@ -361,6 +361,211 @@ public sealed class NotificationDeliveryStore(
             DuplicateEvent: false));
     }
 
+    public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+        RecordProviderDeliveryEventByProviderMessageIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        return RecordProviderDeliveryEventByProviderMessageIdCoreAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdCoreAsync(
+        RecordProviderDeliveryEventByProviderMessageIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!NotificationDeliveryEventTypes.IsKnown(request.EventType))
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.type_invalid",
+                    "Delivery event type must be accepted, delivered, bounced, or complained."));
+        }
+
+        var provider = SanitizeProvider(request.Provider);
+        if (provider == UnknownProvider)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.provider_invalid",
+                    "Delivery event provider is invalid."));
+        }
+
+        var providerMessageId = NormalizeProviderMessageIdLookupValue(request.ProviderMessageId);
+        if (providerMessageId is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.provider_message_id_invalid",
+                    "Provider message id is invalid."));
+        }
+
+        var resolution = await ResolveProviderMessageIdAsync(
+            provider,
+            providerMessageId,
+            cancellationToken);
+        if (resolution is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.NotFound(
+                    "notification_delivery_event.delivery_attempt_not_found",
+                    "Delivery attempt was not found."));
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            resolution.TenantId,
+            cancellationToken: cancellationToken);
+
+        var attempt = await db.NotificationDeliveryAttempts
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == resolution.TenantId &&
+                    entity.Id == resolution.DeliveryAttemptId,
+                cancellationToken);
+        var notification = attempt is null
+            ? null
+            : await db.Notifications.SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == resolution.TenantId &&
+                    entity.Id == resolution.NotificationId &&
+                    entity.Id == attempt.NotificationId,
+                cancellationToken);
+        if (attempt is null || notification is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.NotFound(
+                    "notification_delivery_event.delivery_attempt_not_found",
+                    "Delivery attempt was not found."));
+        }
+
+        var receivedAt = DateTimeOffset.UtcNow;
+        var occurredAt = request.OccurredAt ?? receivedAt;
+        var timestampValidation = ValidateProviderEventOccurredAt(notification, occurredAt, receivedAt);
+        if (timestampValidation.HasValue)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(timestampValidation.Value);
+        }
+
+        var providerEventId = HashProviderEventId(request.ProviderEventId);
+        if (providerEventId is not null)
+        {
+            var duplicate = await db.NotificationDeliveryEvents
+                .AsNoTracking()
+                .AnyAsync(
+                    deliveryEvent =>
+                        deliveryEvent.TenantId == resolution.TenantId &&
+                        deliveryEvent.Provider == attempt.Provider &&
+                        deliveryEvent.ProviderEventId == providerEventId,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Result.Success(new RecordProviderDeliveryEventResponse(
+                    notification.Id,
+                    attempt.Id,
+                    request.EventType,
+                    notification.Status,
+                    SuppressionCreated: false,
+                    DuplicateEvent: true));
+            }
+        }
+        else
+        {
+            var duplicate = await db.NotificationDeliveryEvents
+                .AsNoTracking()
+                .AnyAsync(
+                    deliveryEvent =>
+                        deliveryEvent.TenantId == resolution.TenantId &&
+                        deliveryEvent.DeliveryAttemptId == attempt.Id &&
+                        deliveryEvent.EventType == request.EventType &&
+                        deliveryEvent.ProviderEventId == null,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Result.Success(new RecordProviderDeliveryEventResponse(
+                    notification.Id,
+                    attempt.Id,
+                    request.EventType,
+                    notification.Status,
+                    SuppressionCreated: false,
+                    DuplicateEvent: true));
+            }
+        }
+
+        var staleForStateReconciliation = await HasNewerProviderDeliveryEventAsync(
+            resolution.TenantId,
+            attempt.Id,
+            request.EventType,
+            occurredAt,
+            cancellationToken);
+        db.NotificationDeliveryEvents.Add(new NotificationDeliveryEvent(
+            PlatformIds.NewId(),
+            resolution.TenantId,
+            notification.Id,
+            attempt.Id,
+            attempt.Provider,
+            request.EventType,
+            occurredAt,
+            receivedAt,
+            providerEventId,
+            providerMessageId,
+            SanitizeProviderEventReason(request.Reason)));
+
+        var suppressionCreated = false;
+        if (staleForStateReconciliation)
+        {
+            suppressionCreated = false;
+        }
+        else if (request.EventType is NotificationDeliveryEventTypes.Accepted or NotificationDeliveryEventTypes.Delivered)
+        {
+            ReconcilePositiveProviderEvent(notification, attempt, providerMessageId, occurredAt);
+        }
+        else if (request.EventType is NotificationDeliveryEventTypes.Bounced or NotificationDeliveryEventTypes.Complained)
+        {
+            var suppressionReason = request.EventType == NotificationDeliveryEventTypes.Complained
+                ? EmailSuppression.ProviderComplainedReason
+                : EmailSuppression.ProviderBouncedReason;
+            if (CanNegativeProviderEventMarkBounced(notification, occurredAt))
+            {
+                notification.MarkBounced(suppressionReason, occurredAt);
+            }
+
+            ReconcileNegativeProviderEvent(attempt, suppressionReason, occurredAt);
+
+            suppressionCreated = await EnsureProviderSuppressionAsync(
+                resolution.TenantId,
+                notification.Recipient,
+                suppressionReason,
+                cancellationToken);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new RecordProviderDeliveryEventResponse(
+            notification.Id,
+            attempt.Id,
+            request.EventType,
+            notification.Status,
+            suppressionCreated,
+            DuplicateEvent: false));
+    }
+
+    private async Task<ProviderMessageIdResolution?> ResolveProviderMessageIdAsync(
+        string provider,
+        string providerMessageId,
+        CancellationToken cancellationToken)
+    {
+        return await db.Database
+            .SqlQueryRaw<ProviderMessageIdResolution>(
+                """
+                SELECT tenant_id AS "TenantId",
+                       notification_id AS "NotificationId",
+                       delivery_attempt_id AS "DeliveryAttemptId"
+                FROM resolve_notification_delivery_attempt_by_provider_message_id({0}, {1})
+                """,
+                provider,
+                providerMessageId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<Result<ProcessCampaignEmailDeliveriesResponse>> ProcessCampaignEmailDeliveriesAsync(
         Guid tenantId,
         Guid campaignId,
@@ -1420,6 +1625,20 @@ public sealed class NotificationDeliveryStore(
             : normalized;
     }
 
+    private static string? NormalizeProviderMessageIdLookupValue(string? providerMessageId)
+    {
+        if (string.IsNullOrWhiteSpace(providerMessageId) ||
+            providerMessageId.Length != providerMessageId.Trim().Length ||
+            providerMessageId.Length > MaxProviderMessageIdLength ||
+            providerMessageId.Any(char.IsControl) ||
+            ContainsSensitiveDeliveryValue(providerMessageId))
+        {
+            return null;
+        }
+
+        return providerMessageId;
+    }
+
     private static string? CreateProofRespondentPath(string provider, string? respondentPath)
     {
         return string.Equals(provider, EmailDeliveryProviderNames.LocalDev, StringComparison.OrdinalIgnoreCase)
@@ -1638,4 +1857,13 @@ public sealed class NotificationDeliveryStore(
         string BodyText,
         string RespondentPath,
         string UnsubscribeUrl);
+
+    private sealed class ProviderMessageIdResolution
+    {
+        public Guid TenantId { get; set; }
+
+        public Guid NotificationId { get; set; }
+
+        public Guid DeliveryAttemptId { get; set; }
+    }
 }

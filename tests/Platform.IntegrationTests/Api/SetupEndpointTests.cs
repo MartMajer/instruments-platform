@@ -871,6 +871,181 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Acs_email_event_grid_webhook_returns_validation_response()
+    {
+        const string webhookSecret = "test-acs-event-grid-webhook-secret-32";
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            configuration: AzureCommunicationEmailWebhookConfiguration(webhookSecret));
+        var body = """
+            [
+              {
+                "id": "validation-event-1",
+                "eventType": "Microsoft.EventGrid.SubscriptionValidationEvent",
+                "eventTime": "2026-05-30T10:00:00Z",
+                "data": {
+                  "validationCode": "validation-code-123"
+                }
+              }
+            ]
+            """;
+        using var request = AcsEventGridRequest(body);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        Assert.NotNull(payload);
+        Assert.Equal("validation-code-123", payload["validationResponse"]);
+    }
+
+    [Fact]
+    public async Task Acs_email_event_grid_webhook_rejects_delivery_events_without_secret()
+    {
+        const string webhookSecret = "test-acs-event-grid-webhook-secret-32";
+        var deliveryStore = new FakeNotificationDeliveryStore(Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: AzureCommunicationEmailWebhookConfiguration(webhookSecret));
+        var body = """
+            [
+              {
+                "id": "event-grid-delivered-1",
+                "eventType": "Microsoft.Communication.EmailDeliveryReportReceived",
+                "eventTime": "2026-05-30T10:15:00Z",
+                "data": {
+                  "messageId": "acs-message-123",
+                  "status": "Delivered"
+                }
+              }
+            ]
+            """;
+        using var request = AcsEventGridRequest(body);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(deliveryStore.ProviderMessageIdEventRequest);
+    }
+
+    [Fact]
+    public async Task Acs_email_event_grid_webhook_records_delivered_report_by_provider_message_id()
+    {
+        var notificationId = Guid.NewGuid();
+        var deliveryAttemptId = Guid.NewGuid();
+        const string webhookSecret = "test-acs-event-grid-webhook-secret-32";
+        var deliveryStore = new FakeNotificationDeliveryStore(
+            Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())),
+            providerEventResponse: Result.Success(new RecordProviderDeliveryEventResponse(
+                notificationId,
+                deliveryAttemptId,
+                NotificationDeliveryEventTypes.Delivered,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: AzureCommunicationEmailWebhookConfiguration(webhookSecret));
+        var body = """
+            [
+              {
+                "id": "event-grid-delivered-1",
+                "eventType": "Microsoft.Communication.EmailDeliveryReportReceived",
+                "eventTime": "2026-05-30T10:15:00Z",
+                "data": {
+                  "messageId": "acs-message-123",
+                  "status": "Delivered",
+                  "recipient": "ada@example.test"
+                }
+              }
+            ]
+            """;
+        using var request = AcsEventGridRequest(body, webhookSecret);
+
+        var response = await client.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(string.Empty, responseBody);
+        Assert.NotNull(deliveryStore.ProviderMessageIdEventRequest);
+        Assert.Equal(
+            EmailDeliveryProviderNames.AzureCommunicationEmail,
+            deliveryStore.ProviderMessageIdEventRequest!.Provider);
+        Assert.Equal("acs-message-123", deliveryStore.ProviderMessageIdEventRequest.ProviderMessageId);
+        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryStore.ProviderMessageIdEventRequest.EventType);
+        Assert.Equal("event-grid-delivered-1", deliveryStore.ProviderMessageIdEventRequest.ProviderEventId);
+        Assert.Equal(DateTimeOffset.Parse("2026-05-30T10:15:00Z"), deliveryStore.ProviderMessageIdEventRequest.OccurredAt);
+        Assert.Equal("acs_email:delivered", deliveryStore.ProviderMessageIdEventRequest.Reason);
+        Assert.DoesNotContain(notificationId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(deliveryAttemptId.ToString(), responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ada@example", responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Acs_email_event_grid_webhook_maps_failed_report_to_bounced()
+    {
+        const string webhookSecret = "test-acs-event-grid-webhook-secret-32";
+        var deliveryStore = new FakeNotificationDeliveryStore(Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: AzureCommunicationEmailWebhookConfiguration(webhookSecret));
+        var body = """
+            [
+              {
+                "id": "event-grid-failed-1",
+                "eventType": "Microsoft.Communication.EmailDeliveryReportReceived",
+                "eventTime": "2026-05-30T10:20:00Z",
+                "data": {
+                  "messageId": "acs-message-456",
+                  "status": "Failed"
+                }
+              }
+            ]
+            """;
+        using var request = AcsEventGridRequest(body, webhookSecret);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.NotNull(deliveryStore.ProviderMessageIdEventRequest);
+        Assert.Equal(NotificationDeliveryEventTypes.Bounced, deliveryStore.ProviderMessageIdEventRequest!.EventType);
+        Assert.Equal("acs_email:failed", deliveryStore.ProviderMessageIdEventRequest.Reason);
+    }
+
+    [Fact]
+    public async Task Acs_email_event_grid_webhook_ignores_engagement_tracking_events()
+    {
+        const string webhookSecret = "test-acs-event-grid-webhook-secret-32";
+        var deliveryStore = new FakeNotificationDeliveryStore(Result.Success(CreateEmptyProcessResponse(Guid.NewGuid())));
+        using var client = CreateClient(
+            new FakeSetupWorkflowStore(),
+            deliveryStore,
+            configuration: AzureCommunicationEmailWebhookConfiguration(webhookSecret));
+        var body = """
+            [
+              {
+                "id": "event-grid-engagement-1",
+                "eventType": "Microsoft.Communication.EmailEngagementTrackingReportReceived",
+                "eventTime": "2026-05-30T10:25:00Z",
+                "data": {
+                  "messageId": "acs-message-789",
+                  "engagementType": "View"
+                }
+              }
+            ]
+            """;
+        using var request = AcsEventGridRequest(body, webhookSecret);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Null(deliveryStore.ProviderMessageIdEventRequest);
+    }
+
+    [Fact]
     public async Task Aws_ses_sns_webhook_rejects_unsupported_signature_version()
     {
         const string topicArn = "arn:aws:sns:eu-central-1:123456789012:ses-events";
@@ -1555,6 +1730,29 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         };
     }
 
+    private static IReadOnlyDictionary<string, string?> AzureCommunicationEmailWebhookConfiguration(string webhookSecret)
+    {
+        return new Dictionary<string, string?>
+        {
+            ["EmailDelivery:Provider"] = EmailDeliveryProviderNames.AzureCommunicationEmail,
+            ["EmailDelivery:AzureCommunicationServices:EventGridWebhookSecret"] = webhookSecret
+        };
+    }
+
+    private static HttpRequestMessage AcsEventGridRequest(string body, string? webhookSecret = null)
+    {
+        var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/notification-deliveries/provider-events/azure-communication-email");
+        if (!string.IsNullOrWhiteSpace(webhookSecret))
+        {
+            request.Headers.Add("Authorization", $"Bearer {webhookSecret}");
+        }
+
+        request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+        return request;
+    }
+
     private static string ComputeProviderWebhookSignature(
         string webhookSecret,
         string timestamp,
@@ -2078,6 +2276,8 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
         public RecordProviderDeliveryEventRequest? ProviderEventRequest { get; private set; }
 
+        public RecordProviderDeliveryEventByProviderMessageIdRequest? ProviderMessageIdEventRequest { get; private set; }
+
         public Guid ProviderEventsTenantId { get; private set; }
 
         public int ProviderEventsLimit { get; private set; }
@@ -2190,6 +2390,21 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         {
             ProviderEventTenantId = tenantId;
             ProviderEventRequest = request;
+
+            return Task.FromResult(providerEventResponse ?? Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        }
+
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+            RecordProviderDeliveryEventByProviderMessageIdRequest request,
+            CancellationToken cancellationToken)
+        {
+            ProviderMessageIdEventRequest = request;
 
             return Task.FromResult(providerEventResponse ?? Result.Success(new RecordProviderDeliveryEventResponse(
                 Guid.NewGuid(),

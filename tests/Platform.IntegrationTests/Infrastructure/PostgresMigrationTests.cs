@@ -5108,6 +5108,170 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Acs_provider_events_resolve_delivery_attempt_by_provider_message_id_idempotently()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+        var deliveryStore = new NotificationDeliveryStore(
+            tenantDb,
+            tenantDbScope,
+            new FixedProviderMessageEmailDeliveryProvider(
+                EmailDeliveryProviderNames.AzureCommunicationEmail,
+                "acs-message-123"));
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "ACS provider event proof study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "ACS provider event proof wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        var batch = await setupStore.CreateCampaignInvitationBatchAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignInvitationBatchRequest(
+            [
+                new InvitationRecipientRequest("ada@example.com")
+            ]),
+            CancellationToken.None);
+
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(batch.IsSuccess, batch.Error.ToString());
+
+        var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 25),
+            CancellationToken.None);
+
+        Assert.True(processed.IsSuccess, processed.Error.ToString());
+        var proof = Assert.Single(processed.Value.Deliveries);
+        Assert.Equal(EmailDeliveryProviderNames.AzureCommunicationEmail, proof.Provider);
+        Assert.Equal("acs-message-123", proof.ProviderMessageId);
+
+        var delivered = await deliveryStore.RecordProviderDeliveryEventByProviderMessageIdAsync(
+            new RecordProviderDeliveryEventByProviderMessageIdRequest(
+                EmailDeliveryProviderNames.AzureCommunicationEmail,
+                "acs-message-123",
+                NotificationDeliveryEventTypes.Delivered,
+                DateTimeOffset.UtcNow,
+                "event-grid-delivered-1",
+                "acs_email:delivered"),
+            CancellationToken.None);
+        var duplicateDelivered = await deliveryStore.RecordProviderDeliveryEventByProviderMessageIdAsync(
+            new RecordProviderDeliveryEventByProviderMessageIdRequest(
+                EmailDeliveryProviderNames.AzureCommunicationEmail,
+                "acs-message-123",
+                NotificationDeliveryEventTypes.Delivered,
+                DateTimeOffset.UtcNow,
+                "event-grid-delivered-1",
+                "acs_email:delivered"),
+            CancellationToken.None);
+
+        Assert.True(delivered.IsSuccess, delivered.Error.ToString());
+        Assert.False(delivered.Value.DuplicateEvent);
+        Assert.True(duplicateDelivered.IsSuccess, duplicateDelivered.Error.ToString());
+        Assert.True(duplicateDelivered.Value.DuplicateEvent);
+
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var notification = await tenantDb.Notifications.SingleAsync(entity => entity.Id == proof.NotificationId);
+        var attempt = await tenantDb.NotificationDeliveryAttempts.SingleAsync(
+            entity => entity.ProviderMessageId == "acs-message-123");
+        var deliveryEvent = await tenantDb.NotificationDeliveryEvents.SingleAsync(
+            entity => entity.ProviderMessageId == "acs-message-123");
+
+        Assert.Equal(NotificationStatuses.Sent, notification.Status);
+        Assert.Equal(NotificationStatuses.Sent, attempt.Status);
+        Assert.Equal(NotificationDeliveryEventTypes.Delivered, deliveryEvent.EventType);
+        Assert.Equal(EmailDeliveryProviderNames.AzureCommunicationEmail, deliveryEvent.Provider);
+        Assert.NotNull(deliveryEvent.ProviderEventId);
+        Assert.NotEqual("event-grid-delivered-1", deliveryEvent.ProviderEventId);
+
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Notification_delivery_attempt_provider_message_id_is_unique_per_provider_when_present()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var fixture = await SeedNotificationFixtureAsync(migratorOptions, tenantId, "acs-unique");
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+
+        tenantDb.NotificationDeliveryAttempts.Add(NotificationDeliveryAttempt.CreateSent(
+            Guid.NewGuid(),
+            tenantId,
+            fixture.NotificationId,
+            EmailDeliveryProviderNames.AzureCommunicationEmail,
+            "ada@example.com",
+            "acs-message-unique",
+            DateTimeOffset.UtcNow));
+        tenantDb.NotificationDeliveryAttempts.Add(NotificationDeliveryAttempt.CreateSent(
+            Guid.NewGuid(),
+            tenantId,
+            fixture.NotificationId,
+            EmailDeliveryProviderNames.AzureCommunicationEmail,
+            "bo@example.com",
+            "acs-message-unique",
+            DateTimeOffset.UtcNow));
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => tenantDb.SaveChangesAsync());
+    }
+
+    private sealed class FixedProviderMessageEmailDeliveryProvider(
+        string provider,
+        string providerMessageId) : IEmailDeliveryProvider
+    {
+        public string Provider => provider;
+
+        public Task<EmailDeliveryResult> SendAsync(
+            EmailDeliveryMessage message,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new EmailDeliveryResult(
+                provider,
+                providerMessageId,
+                DateTimeOffset.UtcNow));
+        }
+    }
+
+    [DockerFact]
     public async Task Campaign_invitation_batch_store_rejects_duplicate_recipients_and_unsupported_identity_modes()
     {
         var tenantId = Guid.NewGuid();

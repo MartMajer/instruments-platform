@@ -43,6 +43,10 @@ public interface INotificationDeliveryStore
         RecordProviderDeliveryEventRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+        RecordProviderDeliveryEventByProviderMessageIdRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<ListProviderDeliveryEventsResponse>> ListProviderDeliveryEventsAsync(
         Guid tenantId,
         int limit,

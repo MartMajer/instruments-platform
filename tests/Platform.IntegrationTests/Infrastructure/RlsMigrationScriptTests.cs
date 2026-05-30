@@ -322,6 +322,20 @@ public sealed class RlsMigrationScriptTests
     }
 
     [Fact]
+    public void Migrations_create_provider_message_id_lookup_for_acs_email_events()
+    {
+        var script = GenerateMigrationScript();
+
+        Assert.Contains("CREATE UNIQUE INDEX ux_notification_delivery_attempt_provider_message_id", script);
+        Assert.Contains("ON notification_delivery_attempt (provider, provider_message_id)", script);
+        Assert.Contains("WHERE provider_message_id IS NOT NULL", script);
+        Assert.Contains("CREATE OR REPLACE FUNCTION resolve_notification_delivery_attempt_by_provider_message_id", script);
+        Assert.Contains("RETURNS TABLE(tenant_id uuid, notification_id uuid, delivery_attempt_id uuid)", script);
+        Assert.Contains("SECURITY DEFINER", script);
+        Assert.Contains("SET search_path = public", script);
+    }
+
+    [Fact]
     public void Migrations_create_campaign_launch_snapshot_with_rls_and_tenant_guard()
     {
         var script = GenerateMigrationScript();

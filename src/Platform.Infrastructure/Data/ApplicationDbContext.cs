@@ -2864,6 +2864,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasDatabaseName("ux_notification_delivery_attempt_tenant_provider_delivery_key")
                 .IsUnique()
                 .HasFilter("provider_delivery_key IS NOT NULL");
+            builder.HasIndex(attempt => new { attempt.Provider, attempt.ProviderMessageId })
+                .HasDatabaseName("ux_notification_delivery_attempt_provider_message_id")
+                .IsUnique()
+                .HasFilter("provider_message_id IS NOT NULL");
 
             builder.HasOne<Tenant>()
                 .WithMany()
