@@ -3203,14 +3203,13 @@ test('operations workflow exposes one current operations task for a draft campai
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
 	const operations = page.getByRole('region', { name: 'Collection workspace' });
-	const workflow = operations.getByRole('group', { name: 'Collection actions' });
-	await expect(workflow.getByRole('heading', { name: 'Current collection task' })).toBeVisible();
-	await expect(workflow.getByRole('region', { name: 'Current collection task' })).toContainText(
-		'Launch readiness'
-	);
-	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Start collection' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Create open link' })).toHaveCount(0);
+	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
+	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
+	await expect(workflow.getByRole('heading', { name: 'Collection flow' })).toBeVisible();
+	await expect(currentTask).toContainText('Start collection');
+	await expect(workflow.getByRole('button', { name: 'Check launch readiness' })).toHaveCount(0);
+	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeVisible();
+	await expect(workflow.getByRole('button', { name: 'Create respondent link' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Queue email invitations' })).toHaveCount(0);
 	await expect(workflow.getByRole('button', { name: 'Process local delivery' })).toHaveCount(0);
 });
@@ -3605,35 +3604,24 @@ test('operations workflow runs primary actions against the selected campaign', a
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
 	const operations = page.getByRole('region', { name: 'Collection workspace' });
-	const workflow = operations.getByRole('group', { name: 'Collection actions' });
-	const currentTask = workflow.getByRole('region', { name: 'Current collection task' });
+	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
+	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
 	await expect(workflow).toBeVisible();
-	await expect(currentTask).toContainText('Launch readiness');
-	await expect(workflow.getByRole('button', { name: 'Start collection' })).toHaveCount(0);
-	await workflow.getByRole('button', { name: 'Check launch readiness' }).click();
 	await expect(currentTask).toContainText('Start collection');
-	await expect(workflow.getByRole('button', { name: 'Start collection' })).toBeEnabled();
-	await workflow.getByRole('button', { name: 'Start collection' }).click();
-	await expect(currentTask).toContainText('Open-link entry');
-	const openLinkButton = workflow.getByRole('button', { name: 'Create open link' });
+	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeEnabled();
+	await workflow.getByRole('button', { name: 'Start collection', exact: true }).click();
+	await expect(currentTask).toContainText('Share access');
+	const openLinkButton = workflow.getByRole('button', { name: 'Create respondent link' });
 	await expect(openLinkButton).toBeEnabled();
 	await openLinkButton.click();
 	await expect(workflow.getByText('/r/opn_test', { exact: true }).first()).toBeVisible();
-	await expect(currentTask).toContainText('Invitation batch');
-	await workflow.getByRole('button', { name: 'Queue email invitations' }).click();
-	await expect(workflow.getByText('ada.ops@example.com', { exact: true })).toBeVisible();
-	await expect(currentTask).toContainText('Local delivery');
-	await workflow.getByRole('button', { name: 'Process local delivery' }).click();
-	await expect(workflow.getByText('local', { exact: true }).first()).toBeVisible();
 
 	expect(readinessCampaignIds).toEqual([selectedCampaignId]);
 	expect(launchCampaignIds).toEqual([selectedCampaignId]);
 	expect(openLinkCampaignIds).toEqual([selectedCampaignId]);
-	expect(invitationCampaignIds).toEqual([selectedCampaignId]);
-	expect(deliveryCampaignIds).toEqual([selectedCampaignId]);
-	await expect.poll(() => operationsWorkspaceRequestCount).toBeGreaterThanOrEqual(6);
-	await expect(operations.getByText('Campaigns', { exact: true }).first()).toBeVisible();
-	await expect(operations.getByText('3', { exact: true }).first()).toBeVisible();
+	expect(invitationCampaignIds).toEqual([]);
+	expect(deliveryCampaignIds).toEqual([]);
+	await expect.poll(() => operationsWorkspaceRequestCount).toBeGreaterThanOrEqual(3);
 });
 
 test('reports workspace loads the dedicated read model and renders report state', async ({
