@@ -30,6 +30,7 @@
 		emailSuppressionSourceCreatedAtLabel,
 		toSelectedSeriesCollectionStatusSummary,
 		toSelectedSeriesOperationsPath,
+		toSelectedSeriesOperationsPathStepDisplay,
 		toRecipientSuppressionReview,
 		type SelectedSeriesOperationsPathStep,
 		type SelectedSeriesOperationsWorkflowActionId
@@ -303,6 +304,7 @@
 
 		if (result) {
 			launchResult = result;
+			activeActionId = 'openLink';
 			openLinkResult = null;
 			identifiedEntryResult = null;
 			invitationBatchResult = null;
@@ -862,8 +864,13 @@
 		return !action.available || actionStates[id] === 'submitting';
 	}
 
-	function displayedPathState(action: SelectedSeriesOperationsPathStep) {
-		return action.id === activeAction.id ? 'current' : action.pathState;
+	function pathStepDisplay(action: SelectedSeriesOperationsPathStep) {
+		return toSelectedSeriesOperationsPathStepDisplay(
+			action,
+			operationsPath.currentActionId,
+			activeAction.id,
+			operationsWorkflowCopy
+		);
 	}
 
 	function stepLabel(state: StepState) {
@@ -880,18 +887,6 @@
 		}
 
 		return operationsBodyCopy.stepStatus.ready;
-	}
-
-	function pathStateLabel(state: 'done' | 'current' | 'blocked') {
-		if (state === 'done') {
-			return operationsBodyCopy.pathStatus.done;
-		}
-
-		if (state === 'current') {
-			return operationsBodyCopy.pathStatus.current;
-		}
-
-		return operationsBodyCopy.pathStatus.blocked;
 	}
 
 	function formatCount(value: number | null | undefined) {
@@ -1221,12 +1216,13 @@
 		</p>
 		<div class="setup-path" role="list" aria-label={operationsBodyCopy.pathAriaLabel}>
 			{#each operationsPath.steps as action, index (action.id)}
+				{@const display = pathStepDisplay(action)}
 				<div role="listitem">
 					<button
 						type="button"
 						class="setup-path__item"
-						data-state={displayedPathState(action)}
-						aria-current={displayedPathState(action) === 'current' ? 'step' : undefined}
+						data-state={display.state}
+						aria-current={action.id === activeAction.id ? 'step' : undefined}
 						onclick={() => selectAction(action.id)}
 					>
 						<span class="setup-path__marker">{index + 1}</span>
@@ -1234,7 +1230,7 @@
 							<span class="setup-path__title">{action.title}</span>
 							<span class="setup-path__description">{action.description}</span>
 						</span>
-						<span class="setup-path__state">{pathStateLabel(displayedPathState(action))}</span>
+						<span class="setup-path__state">{display.label}</span>
 					</button>
 				</div>
 			{/each}

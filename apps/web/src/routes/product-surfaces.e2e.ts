@@ -3215,6 +3215,144 @@ test('operations workflow exposes one current operations task for a draft campai
 	await expect(workflow.getByRole('button', { name: 'Process local delivery' })).toHaveCount(0);
 });
 
+test('operations workflow shows share access after launch even when access is prepared', async ({
+	page
+}) => {
+	const selectedCampaignId = '6d3271db-494f-401d-af8b-a5c86c9293a8';
+	let hasLaunched = false;
+	const draftOperationsWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
+		...sampleOperationsWorkspace,
+		summary: {
+			...sampleOperationsWorkspace.summary,
+			liveCampaignCount: 0,
+			openLinkAssignmentCount: 0,
+			queuedInvitationCount: 0,
+			sentInvitationCount: 0,
+			failedInvitationCount: 0,
+			deliveryAttemptCount: 0,
+			startedResponseCount: 0,
+			draftResponseCount: 0,
+			submittedResponseCount: 0,
+			latestResponseStartedAt: null,
+			latestResponseSubmittedAt: null,
+			collectionStatus: 'not_started',
+			reportVisibilityStatus: 'unknown_policy',
+			collectionGuidance: 'Share the public link or send invitations.'
+		},
+		selectedCampaign: {
+			...sampleOperationsWorkspace.selectedCampaign!,
+			id: selectedCampaignId,
+			name: 'Draft operations wave',
+			status: 'draft',
+			latestLaunchSnapshotId: null,
+			latestLaunchAt: null,
+			launchSnapshot: null,
+			openLinkAssignmentCount: 0,
+			queuedInvitationCount: 0,
+			sentInvitationCount: 0,
+			failedInvitationCount: 0,
+			deliveryAttemptCount: 0,
+			startedResponseCount: 0,
+			draftResponseCount: 0,
+			submittedResponseCount: 0,
+			latestResponseStartedAt: null,
+			latestResponseSubmittedAt: null,
+			collectionStatus: 'closed_or_inactive',
+			reportVisibilityStatus: 'unknown_policy',
+			collectionGuidance:
+				'Report visibility readiness is unknown because disclosure policy is missing.',
+			latestDeliveryAttemptAt: null
+		},
+		campaigns: [
+			{
+				...sampleOperationsWorkspace.campaigns[1],
+				id: selectedCampaignId,
+				name: 'Draft operations wave'
+			}
+		]
+	};
+	const livePreparedAccessWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
+		...draftOperationsWorkspace,
+		summary: {
+			...draftOperationsWorkspace.summary,
+			liveCampaignCount: 1,
+			openLinkAssignmentCount: 1,
+			collectionStatus: 'collecting',
+			reportVisibilityStatus: 'waiting_for_responses',
+			collectionGuidance: 'Share respondent access and wait for submitted responses.'
+		},
+		selectedCampaign: {
+			...draftOperationsWorkspace.selectedCampaign!,
+			status: 'live',
+			latestLaunchSnapshotId: '7a7d76b5-7da2-4c1d-af6a-5d16d52bd672',
+			latestLaunchAt: '2026-05-08T12:00:00Z',
+			openLinkAssignmentCount: 1,
+			collectionStatus: 'collecting',
+			reportVisibilityStatus: 'waiting_for_responses'
+		},
+		campaigns: [
+			{
+				...draftOperationsWorkspace.campaigns[0],
+				status: 'live',
+				latestLaunchSnapshotId: '7a7d76b5-7da2-4c1d-af6a-5d16d52bd672',
+				latestLaunchAt: '2026-05-08T12:00:00Z',
+				openLinkAssignmentCount: 1
+			}
+		]
+	};
+
+	await page.route(`**/campaign-series/${sampleSeriesId}/operations-workspace`, async (route) => {
+		if (
+			!isProductApiPath(
+				route.request().url(),
+				`/campaign-series/${sampleSeriesId}/operations-workspace`
+			)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			json: hasLaunched ? livePreparedAccessWorkspace : draftOperationsWorkspace
+		});
+	});
+	await page.route('**/campaigns/*/launch-readiness', async (route) => {
+		await route.fulfill({
+			json: { campaignId: campaignIdFromPath(route.request().url()), ready: true, issues: [] }
+		});
+	});
+	await page.route('**/campaigns/*/launch', async (route) => {
+		hasLaunched = true;
+		await route.fulfill({
+			json: {
+				campaignId: campaignIdFromPath(route.request().url()),
+				status: 'live',
+				launchSnapshotId: '7a7d76b5-7da2-4c1d-af6a-5d16d52bd672',
+				templateVersionId: 'template-version-id',
+				scoringRuleId: '716b2246-70f7-4728-9f44-150bd3b8da7a',
+				retentionPolicyId: '06e242a5-6fc1-4e51-9af9-0d0cbf8c0872',
+				disclosurePolicyId: 'a0910474-79b6-444d-9d21-8e89c82b6d72',
+				responseIdentityMode: 'anonymous',
+				defaultLocale: 'en',
+				launchedAt: '2026-05-08T12:00:00Z'
+			}
+		});
+	});
+
+	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
+
+	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
+	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
+	await expect(workflow.getByRole('button', { name: 'Start collection', exact: true })).toBeEnabled();
+	await workflow.getByRole('button', { name: 'Start collection', exact: true }).click();
+
+	await expect(currentTask).toContainText('Share access');
+	await expect(currentTask).not.toContainText('Monitor responses');
+	await expect(workflow.locator('.setup-path__item[data-state="selected"]')).toHaveCount(1);
+	await expect(workflow.locator('.setup-path__item[data-state="next"]')).toHaveCount(1);
+});
+
 test('retries operations workspace with the route series id', async ({ page }) => {
 	const requestedProductPaths: string[] = [];
 	let requestCount = 0;
