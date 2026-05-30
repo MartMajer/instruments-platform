@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { ArrowLeft, Check, LoaderCircle, RefreshCw, Save, Send } from 'lucide-svelte';
+	import { ArrowLeft, Check, LoaderCircle, RefreshCw, Send } from 'lucide-svelte';
 	import { ApiError, createApiClient } from '$lib/api/client';
-	import SurveyRuntime from '$lib/respondent/SurveyRuntime.svelte';
+	import RespondentQuestionRunner from '$lib/respondent/RespondentQuestionRunner.svelte';
 	import {
 		createSetupApi,
 		type CreateOpenLinkSessionRequest,
@@ -16,7 +16,11 @@
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import { toRespondentReceiptView } from '$lib/respondent/receipt';
-	import { isRespondentQuestionVisible } from '$lib/respondent/surveyjs-adapter';
+	import {
+		isQuestionAnswered,
+		isRespondentQuestionVisible,
+		questionInputConstraints
+	} from '$lib/respondent/respondent-question-model';
 
 	const routeCredential = page.params.token ?? '';
 	const api = createSetupApi(createApiClient());
@@ -350,10 +354,28 @@
 				continue;
 			}
 
-			const value = normalizeAnswerValue(answers[question.id]);
+			const rawAnswer = answers[question.id];
+			const value = normalizeAnswerValue(rawAnswer);
 
-			if (question.required && value === null) {
+			if (question.required && !isQuestionAnswered(question, rawAnswer)) {
 				return text.respondent.questionRequiresAnswer(question.code);
+			}
+
+			if (value !== null && question.type === 'number') {
+				const numericValue = Number(value);
+				const constraints = questionInputConstraints(question);
+
+				if (!Number.isFinite(numericValue)) {
+					return text.respondent.questionMustBeNumber(question.code);
+				}
+
+				if (
+					typeof constraints.min === 'number' &&
+					typeof constraints.max === 'number' &&
+					(numericValue < constraints.min || numericValue > constraints.max)
+				) {
+					return text.respondent.questionBetween(question.code, constraints.min, constraints.max);
+				}
 			}
 
 			if (
@@ -718,10 +740,6 @@
 	}
 
 	function defaultAnswerFor(question: OpenLinkEntryResponse['questions'][number]) {
-		if (typeof question.scaleMinValue === 'number' && typeof question.scaleMaxValue === 'number') {
-			return String(Math.round((question.scaleMinValue + question.scaleMaxValue) / 2));
-		}
-
 		return '';
 	}
 
@@ -932,37 +950,17 @@
 				</section>
 			{:else}
 				<form class="grid gap-4" onsubmit={(event) => event.preventDefault()}>
-					<SurveyRuntime
+					<RespondentQuestionRunner
 						questions={entry.questions}
 						{answers}
-						disabled={saving}
+						disabled={!session}
+						{saving}
+						{saveStatusMessage}
+						{actionError}
 						onAnswersChange={handleAnswersChange}
-						onRuntimeError={(message) => (actionError = message)}
+						onSaveForReview={saveForReview}
+						reviewLabel={text.respondent.reviewTitle}
 					/>
-
-					{#if session}
-						<p class="text-sm text-[var(--color-text-muted)]" aria-live="polite">
-							{saveStatusMessage}
-						</p>
-					{/if}
-
-					{#if actionError}
-						<p class="error-line" role="alert">{actionError}</p>
-					{/if}
-
-					<button
-						type="button"
-						class="primary-button"
-						disabled={saving || !session}
-						onclick={saveForReview}
-					>
-						{#if saving}
-							<LoaderCircle size={17} aria-hidden="true" />
-						{:else}
-							<Save size={17} aria-hidden="true" />
-						{/if}
-						<span>{text.respondent.saveAndReview}</span>
-					</button>
 				</form>
 			{/if}
 		{/if}
