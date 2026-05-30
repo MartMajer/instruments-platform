@@ -37,6 +37,10 @@
 		selectedBarId = bar.id;
 	}
 
+	function barDisplayLabel(bar: ResultsDashboardBarResponse) {
+		return bar.displayLabel?.trim() || bar.label;
+	}
+
 	function formatValue(value: number | null, disclosure: string) {
 		if (disclosure !== 'visible') {
 			return formatCodeLabel('suppressed', copy);
@@ -62,7 +66,7 @@
 	}
 
 	function barButtonLabel(bar: ResultsDashboardBarResponse) {
-		return `${bar.label}: ${formatValue(bar.value, bar.disclosure)}, ${formatWidgetLabel(
+		return `${barDisplayLabel(bar)}: ${formatValue(bar.value, bar.disclosure)}, ${formatWidgetLabel(
 			'sample',
 			copy
 		)} ${formatCount(bar.count, bar.disclosure)}`;
@@ -87,7 +91,7 @@
 					onclick={() => selectBar(bar)}
 				>
 					<span class="results-bar-chart__label">
-						<span>{bar.label}</span>
+						<span>{barDisplayLabel(bar)}</span>
 						<small>{formatCodeLabel(bar.dimensionCode, copy)}</small>
 					</span>
 					<span class="results-bar-chart__track" aria-hidden="true">
@@ -110,7 +114,7 @@
 			<div class="results-bar-chart__selected" aria-live="polite">
 				<div>
 					<p class="record-field__label">{formatWidgetLabel('selectedChartItem', copy)}</p>
-					<p class="record-row__title">{selectedBar.label}</p>
+					<p class="record-row__title">{barDisplayLabel(selectedBar)}</p>
 					<p class="record-field__label">{formatCodeLabel(selectedBar.dimensionCode, copy)}</p>
 				</div>
 				<dl class="results-bar-chart__selected-grid">
@@ -149,7 +153,7 @@
 					data-selected={selectedBar?.id === bar.id}
 					onclick={() => selectBar(bar)}
 				>
-					<span>{bar.label}</span>
+					<span>{barDisplayLabel(bar)}</span>
 					<span>{formatValue(bar.value, bar.disclosure)}</span>
 					<span>{formatCount(bar.count, bar.disclosure)}</span>
 					<span>{formatCodeLabel(bar.disclosure, copy)}</span>

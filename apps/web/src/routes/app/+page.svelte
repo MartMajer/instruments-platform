@@ -61,8 +61,7 @@
 		loadState = 'loading';
 		errorMessage = null;
 
-		try {
-			await productApi.ensureSampleStudies().catch(() => null);
+	try {
 			overview = await productApi.getWorkspaceOverview();
 			loadState = 'ready';
 		} catch (error) {

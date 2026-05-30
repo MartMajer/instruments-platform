@@ -909,6 +909,7 @@ export type ResultsDashboardMetricResponse = {
 export type ResultsDashboardBarResponse = {
 	id: string;
 	label: string;
+	displayLabel: string;
 	dimensionCode: string;
 	disclosure: string;
 	value: number | null;
@@ -921,6 +922,7 @@ export type ResultsDashboardPointResponse = {
 	id: string;
 	campaignId: string;
 	campaignName: string;
+	displayLabel: string;
 	dimensionCode: string;
 	disclosure: string;
 	value: number | null;
@@ -951,6 +953,7 @@ export type CampaignSeriesResultsAnalyticsResponse = {
 
 export type CampaignSeriesResultsScoreOutputResponse = {
 	dimensionCode: string;
+	displayLabel: string;
 	disclosure: string;
 	submittedResponseCount: number | null;
 	scoreCount: number | null;
@@ -969,6 +972,7 @@ export type CampaignSeriesResultsGroupMatrixRowResponse = {
 	groupType: string;
 	groupName: string;
 	dimensionCode: string;
+	displayLabel: string;
 	disclosure: string;
 	submittedResponseCount: number | null;
 	scoreCount: number | null;
@@ -987,6 +991,7 @@ export type CampaignSeriesResultsWaveMatrixRowResponse = {
 	dataFinality: string;
 	closedAt: string | null;
 	dimensionCode: string;
+	displayLabel: string;
 	disclosure: string;
 	submittedResponseCount: number | null;
 	scoreCount: number | null;

@@ -143,7 +143,7 @@
 
 			switch (sort.key) {
 				case 'result':
-					return compareText(formatResultName(left.dimensionCode), formatResultName(right.dimensionCode), sort.direction);
+					return compareText(formatResultName(left), formatResultName(right), sort.direction);
 				case 'sample':
 					return compareNullableNumber(left.scoreCount, right.scoreCount, sort.direction);
 				case 'mean':
@@ -169,7 +169,7 @@
 				case 'group':
 					return compareText(`${left.groupType} ${left.groupName}`, `${right.groupType} ${right.groupName}`, sort.direction);
 				case 'result':
-					return compareText(formatResultName(left.dimensionCode), formatResultName(right.dimensionCode), sort.direction);
+					return compareText(formatResultName(left), formatResultName(right), sort.direction);
 				case 'sample':
 					return compareNullableNumber(left.scoreCount, right.scoreCount, sort.direction);
 				case 'mean':
@@ -193,7 +193,7 @@
 				case 'campaign':
 					return compareText(left.campaignName, right.campaignName, sort.direction);
 				case 'result':
-					return compareText(formatResultName(left.dimensionCode), formatResultName(right.dimensionCode), sort.direction);
+					return compareText(formatResultName(left), formatResultName(right), sort.direction);
 				case 'sample':
 					return compareNullableNumber(left.scoreCount, right.scoreCount, sort.direction);
 				case 'mean':
@@ -213,7 +213,7 @@
 			const output = highestOutput ?? lowestOutput;
 			return {
 				source: formatWidgetLabel('resultOutputs', copy),
-				value: output ? `${formatResultName(output.dimensionCode)} / ${formatScore(output.mean)}` : copy?.notAvailable ?? 'Not available',
+				value: output ? `${formatResultName(output)} / ${formatScore(output.mean)}` : copy?.notAvailable ?? 'Not available',
 				target: formatWidgetLabel('inspectResultMatrix', copy)
 			};
 		}
@@ -304,7 +304,11 @@
 		return isVisible(disclosure) ? formatDelta(value, state) : formatSuppressed();
 	}
 
-	function formatResultName(value: string) {
+	function formatResultName(value: string | { dimensionCode: string; displayLabel?: string | null }) {
+		if (typeof value !== 'string') {
+			return value.displayLabel?.trim() || formatCodeLabel(value.dimensionCode, copy);
+		}
+
 		return formatCodeLabel(value, copy);
 	}
 
@@ -340,14 +344,14 @@
 					<dt class="metric-card__label">{formatWidgetLabel('highestMean', copy)}</dt>
 					<dd class="metric-card__value">{highestOutput ? formatScore(highestOutput.mean) : copy?.notAvailable ?? 'Not available'}</dd>
 					{#if highestOutput}
-						<dd class="metric-card__label">{formatResultName(highestOutput.dimensionCode)}</dd>
+						<dd class="metric-card__label">{formatResultName(highestOutput)}</dd>
 					{/if}
 				</div>
 				<div class="metric-card">
 					<dt class="metric-card__label">{formatWidgetLabel('lowestMean', copy)}</dt>
 					<dd class="metric-card__value">{lowestOutput ? formatScore(lowestOutput.mean) : copy?.notAvailable ?? 'Not available'}</dd>
 					{#if lowestOutput}
-						<dd class="metric-card__label">{formatResultName(lowestOutput.dimensionCode)}</dd>
+						<dd class="metric-card__label">{formatResultName(lowestOutput)}</dd>
 					{/if}
 				</div>
 				<div class="metric-card">
@@ -359,7 +363,7 @@
 					</dd>
 					{#if largestWaveChange}
 						<dd class="metric-card__label">
-							{largestWaveChange.campaignName} / {formatResultName(largestWaveChange.dimensionCode)}
+							{largestWaveChange.campaignName} / {formatResultName(largestWaveChange)}
 						</dd>
 					{/if}
 				</div>
@@ -443,7 +447,7 @@
 						<tbody>
 							{#each sortedScoreOutputs as row (row.dimensionCode)}
 								<tr data-disclosure={row.disclosure}>
-									<td>{formatResultName(row.dimensionCode)}</td>
+									<td>{formatResultName(row)}</td>
 									<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 									<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 									<td>{formatVisibleScore(row.median, row.disclosure)}</td>
@@ -507,7 +511,7 @@
 									<tr data-disclosure={row.disclosure}>
 										<td>{row.groupName}</td>
 										<td>{formatCodeLabel(row.groupType, copy)}</td>
-										<td>{formatResultName(row.dimensionCode)}</td>
+										<td>{formatResultName(row)}</td>
 										<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.median, row.disclosure)}</td>
@@ -576,7 +580,7 @@
 								{#each sortedWaveRows as row (`${row.campaignId}\u0000${row.dimensionCode}`)}
 									<tr data-disclosure={row.disclosure}>
 										<td>{row.campaignName}</td>
-										<td>{formatResultName(row.dimensionCode)}</td>
+										<td>{formatResultName(row)}</td>
 										<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.median, row.disclosure)}</td>

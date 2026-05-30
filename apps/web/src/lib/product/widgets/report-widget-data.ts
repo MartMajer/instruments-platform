@@ -262,6 +262,7 @@ function isResultsScoreOutputRow(data: unknown): boolean {
 
 	return (
 		typeof data.dimensionCode === 'string' &&
+		isOptionalNullableString(data.displayLabel) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -286,6 +287,7 @@ function isResultsGroupMatrixRow(data: unknown): boolean {
 		typeof data.groupType === 'string' &&
 		typeof data.groupName === 'string' &&
 		typeof data.dimensionCode === 'string' &&
+		isOptionalNullableString(data.displayLabel) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -310,6 +312,7 @@ function isResultsWaveMatrixRow(data: unknown): boolean {
 		typeof data.dataFinality === 'string' &&
 		isNullableString(data.closedAt) &&
 		typeof data.dimensionCode === 'string' &&
+		isOptionalNullableString(data.displayLabel) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -363,6 +366,7 @@ function isResultsDashboardBar(data: unknown): boolean {
 	return (
 		typeof data.id === 'string' &&
 		typeof data.label === 'string' &&
+		isOptionalNullableString(data.displayLabel) &&
 		typeof data.dimensionCode === 'string' &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.value) &&
@@ -386,6 +390,7 @@ function isResultsDashboardPoint(data: unknown): boolean {
 		typeof data.id === 'string' &&
 		typeof data.campaignId === 'string' &&
 		typeof data.campaignName === 'string' &&
+		isOptionalNullableString(data.displayLabel) &&
 		typeof data.dimensionCode === 'string' &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.value) &&

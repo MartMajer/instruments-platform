@@ -23,8 +23,11 @@ public sealed class ProductSurfaceReadStore(
     private const string PreliminaryLiveDataFinality = "preliminary_live";
     private const string ClosedWaveDataFinality = "closed_wave";
     private const string NotReportableDataFinality = "not_reportable";
+    private const string SampleStudyAttributeProbe = """{"sample_study":true}""";
     private const int RespondentRulePreviewMaxRows = 200;
     private const int WorkspaceCommandCenterMaxItems = 8;
+    private static readonly IReadOnlyDictionary<string, string> EmptyResultLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private readonly RespondentRuleResolver _respondentRuleResolver =
         respondentRuleResolver ?? new RespondentRuleResolver(db);
 
@@ -511,7 +514,10 @@ public sealed class ProductSurfaceReadStore(
 
         var subjectsQuery = db.Subjects
             .AsNoTracking()
-            .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null);
+            .Where(subject =>
+                subject.TenantId == tenantId &&
+                subject.DeletedAt == null &&
+                !EF.Functions.JsonContains(subject.Attributes, SampleStudyAttributeProbe));
         var totalSubjectCount = await subjectsQuery.CountAsync(cancellationToken);
         var normalizedSearch = NormalizeSearch(query.Search);
         if (normalizedSearch is not null)
@@ -560,6 +566,7 @@ public sealed class ProductSurfaceReadStore(
                         subject.DeletedAt == null &&
                         subjectGroup.TenantId == tenantId &&
                         subjectGroup.DeletedAt == null &&
+                        !EF.Functions.JsonContains(subjectGroup.Attributes, SampleStudyAttributeProbe) &&
                         subjectIds.Contains(subject.Id)
                     orderby subjectGroup.Name
                     select new SubjectDirectoryMembershipRow(
@@ -596,7 +603,8 @@ public sealed class ProductSurfaceReadStore(
                         relationship.ValidTo == null &&
                         subjectIds.Contains(relationship.RelatedSubjectId) &&
                         manager.TenantId == tenantId &&
-                        manager.DeletedAt == null
+                        manager.DeletedAt == null &&
+                        !EF.Functions.JsonContains(manager.Attributes, SampleStudyAttributeProbe)
                     select new SubjectManagerRow(
                         relationship.RelatedSubjectId,
                         manager.Id,
@@ -607,31 +615,49 @@ public sealed class ProductSurfaceReadStore(
             .ToDictionary(group => group.Key, group => group.First());
         var directReportCounts = subjectIds.Length == 0
             ? new Dictionary<Guid, int>()
-            : await db.SubjectRelationships
-                .AsNoTracking()
-                .Where(relationship =>
-                    relationship.TenantId == tenantId &&
-                    relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
-                    relationship.ValidTo == null &&
-                    subjectIds.Contains(relationship.SubjectId))
-                .GroupBy(relationship => relationship.SubjectId)
-                .Select(group => new
-                {
-                    SubjectId = group.Key,
-                    Count = group.Count()
-                })
+            : await (
+                    from relationship in db.SubjectRelationships.AsNoTracking()
+                    join directReport in db.Subjects.AsNoTracking()
+                        on relationship.RelatedSubjectId equals directReport.Id
+                    where relationship.TenantId == tenantId &&
+                        relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
+                        relationship.ValidTo == null &&
+                        subjectIds.Contains(relationship.SubjectId) &&
+                        directReport.TenantId == tenantId &&
+                        directReport.DeletedAt == null &&
+                        !EF.Functions.JsonContains(directReport.Attributes, SampleStudyAttributeProbe)
+                    group relationship by relationship.SubjectId into relationshipGroup
+                    select new
+                    {
+                        SubjectId = relationshipGroup.Key,
+                        Count = relationshipGroup.Count()
+                    })
                 .ToDictionaryAsync(row => row.SubjectId, row => row.Count, cancellationToken);
         var groupCount = await db.SubjectGroups
             .AsNoTracking()
-            .CountAsync(group => group.TenantId == tenantId && group.DeletedAt == null, cancellationToken);
-        var managerRelationshipCount = await db.SubjectRelationships
-            .AsNoTracking()
             .CountAsync(
-                relationship =>
-                    relationship.TenantId == tenantId &&
-                    relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
-                    relationship.ValidTo == null,
+                group =>
+                    group.TenantId == tenantId &&
+                    group.DeletedAt == null &&
+                    !EF.Functions.JsonContains(group.Attributes, SampleStudyAttributeProbe),
                 cancellationToken);
+        var managerRelationshipCount = await (
+                from relationship in db.SubjectRelationships.AsNoTracking()
+                join manager in db.Subjects.AsNoTracking()
+                    on relationship.SubjectId equals manager.Id
+                join directReport in db.Subjects.AsNoTracking()
+                    on relationship.RelatedSubjectId equals directReport.Id
+                where relationship.TenantId == tenantId &&
+                    relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
+                    relationship.ValidTo == null &&
+                    manager.TenantId == tenantId &&
+                    manager.DeletedAt == null &&
+                    !EF.Functions.JsonContains(manager.Attributes, SampleStudyAttributeProbe) &&
+                    directReport.TenantId == tenantId &&
+                    directReport.DeletedAt == null &&
+                    !EF.Functions.JsonContains(directReport.Attributes, SampleStudyAttributeProbe)
+                select relationship.Id)
+            .CountAsync(cancellationToken);
         var items = subjects
             .Select(subject =>
             {
@@ -677,7 +703,10 @@ public sealed class ProductSurfaceReadStore(
 
         var groups = await db.SubjectGroups
             .AsNoTracking()
-            .Where(group => group.TenantId == tenantId && group.DeletedAt == null)
+            .Where(group =>
+                group.TenantId == tenantId &&
+                group.DeletedAt == null &&
+                !EF.Functions.JsonContains(group.Attributes, SampleStudyAttributeProbe))
             .OrderBy(group => group.Name)
             .ThenBy(group => group.Id)
             .Select(group => new SubjectGroupRow(
@@ -696,7 +725,8 @@ public sealed class ProductSurfaceReadStore(
                         on membership.SubjectId equals subject.Id
                     where groupIds.Contains(membership.GroupId) &&
                         subject.TenantId == tenantId &&
-                        subject.DeletedAt == null
+                        subject.DeletedAt == null &&
+                        !EF.Functions.JsonContains(subject.Attributes, SampleStudyAttributeProbe)
                     group membership by membership.GroupId into membershipGroup
                     select new
                     {
@@ -1388,6 +1418,7 @@ public sealed class ProductSurfaceReadStore(
 
         var campaignById = campaigns.ToDictionary(campaign => campaign.Id);
         var campaignIds = campaignById.Keys.ToArray();
+        var resultLabelsByCampaignId = await LoadResultLabelsByCampaignIdAsync(campaigns, cancellationToken);
         var rawScores = await (
                 from score in db.Scores.AsNoTracking()
                 join session in db.ResponseSessions.AsNoTracking()
@@ -1426,11 +1457,13 @@ public sealed class ProductSurfaceReadStore(
         var selectedScores = latestScores
             .Where(score => score.CampaignId == selectedCampaign.Id)
             .ToArray();
+        var selectedResultLabels = ResultLabelsForCampaign(selectedCampaign, resultLabelsByCampaignId);
         var selectedOutputRows = selectedScores
             .GroupBy(score => score.DimensionCode, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => CreateResultsScoreOutputResponse(
                 group.Key,
+                GetResultDisplayLabel(selectedResultLabels, group.Key),
                 group.ToArray(),
                 selectedCampaign.SubmittedResponseCount,
                 IsCampaignResultVisible(selectedCampaign, group.Count()),
@@ -1439,6 +1472,7 @@ public sealed class ProductSurfaceReadStore(
         var groupRows = await CreateResultsGroupMatrixRowsAsync(
             tenantId,
             selectedCampaign,
+            selectedResultLabels,
             selectedScores,
             cancellationToken);
         var waveRows = AddResultsWaveComparisons(latestScores
@@ -1450,9 +1484,11 @@ public sealed class ProductSurfaceReadStore(
             .Select(group =>
             {
                 var campaign = campaignById[group.Key.CampaignId];
+                var resultLabels = ResultLabelsForCampaign(campaign, resultLabelsByCampaignId);
                 return CreateResultsWaveMatrixRowResponse(
                     campaign,
                     group.Key.DimensionCode,
+                    GetResultDisplayLabel(resultLabels, group.Key.DimensionCode),
                     group.ToArray());
             })
             .ToArray());
@@ -1468,9 +1504,132 @@ public sealed class ProductSurfaceReadStore(
             CreateResultsInsights(selectedCampaign, selectedOutputRows, groupRows, waveRows));
     }
 
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>>> LoadResultLabelsByCampaignIdAsync(
+        IReadOnlyList<CampaignSeriesReportsCampaignResponse> campaigns,
+        CancellationToken cancellationToken)
+    {
+        var scoringRuleIds = campaigns
+            .Select(campaign => campaign.ScoringRuleId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        if (scoringRuleIds.Length == 0)
+        {
+            return new Dictionary<Guid, IReadOnlyDictionary<string, string>>();
+        }
+
+        var scoringRules = await db.ScoringRules
+            .AsNoTracking()
+            .Where(rule => scoringRuleIds.Contains(rule.Id))
+            .Select(rule => new ScoringRuleResultLabelRow(rule.Id, rule.Compatibility, rule.Produces))
+            .ToListAsync(cancellationToken);
+        var labelsByRuleId = scoringRules.ToDictionary(
+            rule => rule.Id,
+            rule => (IReadOnlyDictionary<string, string>)ReadResultOutputLabels(rule.Compatibility, rule.Produces));
+
+        return campaigns
+            .Where(campaign => campaign.ScoringRuleId.HasValue)
+            .ToDictionary(
+                campaign => campaign.Id,
+                campaign => labelsByRuleId.TryGetValue(campaign.ScoringRuleId!.Value, out var labels)
+                    ? labels
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static IReadOnlyDictionary<string, string> ResultLabelsForCampaign(
+        CampaignSeriesReportsCampaignResponse campaign,
+        IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>> labelsByCampaignId)
+    {
+        return labelsByCampaignId.TryGetValue(campaign.Id, out var labels)
+            ? labels
+            : EmptyResultLabels;
+    }
+
+    private static Dictionary<string, string> ReadResultOutputLabels(params string[] documents)
+    {
+        var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var documentJson in documents)
+        {
+            if (string.IsNullOrWhiteSpace(documentJson))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(documentJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                    !document.RootElement.TryGetProperty("outputs", out var outputs) ||
+                    outputs.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var output in outputs.EnumerateArray())
+                {
+                    if (output.ValueKind != JsonValueKind.Object ||
+                        !TryGetJsonStringProperty(output, "code", out var code) ||
+                        !TryGetJsonStringProperty(output, "label", out var label) ||
+                        string.IsNullOrWhiteSpace(code) ||
+                        string.IsNullOrWhiteSpace(label))
+                    {
+                        continue;
+                    }
+
+                    labels[code.Trim()] = label.Trim();
+                }
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+        }
+
+        return labels;
+    }
+
+    private static bool TryGetJsonStringProperty(JsonElement element, string propertyName, out string value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.String &&
+                string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(property.Value.GetString()))
+            {
+                value = property.Value.GetString()!;
+                return true;
+            }
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static string GetResultDisplayLabel(
+        IReadOnlyDictionary<string, string> resultLabels,
+        string dimensionCode)
+    {
+        return resultLabels.TryGetValue(dimensionCode, out var label) && !string.IsNullOrWhiteSpace(label)
+            ? label.Trim()
+            : FormatResultDisplayLabel(dimensionCode);
+    }
+
+    private static string FormatResultDisplayLabel(string dimensionCode)
+    {
+        var normalized = dimensionCode.Replace('_', ' ').Replace('-', ' ').Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return dimensionCode;
+        }
+
+        var lower = normalized.ToLowerInvariant();
+        return char.ToUpperInvariant(lower[0]) + lower[1..];
+    }
+
     private async Task<CampaignSeriesResultsGroupMatrixRowResponse[]> CreateResultsGroupMatrixRowsAsync(
         Guid tenantId,
         CampaignSeriesReportsCampaignResponse selectedCampaign,
+        IReadOnlyDictionary<string, string> resultLabels,
         IReadOnlyList<ResultsScoreObservationRow> selectedScores,
         CancellationToken cancellationToken)
     {
@@ -1546,12 +1705,14 @@ public sealed class ProductSurfaceReadStore(
                 group.Key.GroupType,
                 group.Key.GroupName,
                 group.Key.DimensionCode,
+                GetResultDisplayLabel(resultLabels, group.Key.DimensionCode),
                 group.ToArray()))
             .ToArray();
     }
 
     private static CampaignSeriesResultsScoreOutputResponse CreateResultsScoreOutputResponse(
         string dimensionCode,
+        string displayLabel,
         IReadOnlyList<ResultsScoreObservationRow> scores,
         int submittedResponseCount,
         bool visible,
@@ -1562,6 +1723,7 @@ public sealed class ProductSurfaceReadStore(
         {
             return new CampaignSeriesResultsScoreOutputResponse(
                 dimensionCode,
+                displayLabel,
                 "suppressed",
                 SubmittedResponseCount: null,
                 ScoreCount: null,
@@ -1578,6 +1740,7 @@ public sealed class ProductSurfaceReadStore(
 
         return new CampaignSeriesResultsScoreOutputResponse(
             dimensionCode,
+            displayLabel,
             "visible",
             submittedResponseCount,
             values.Length,
@@ -1597,6 +1760,7 @@ public sealed class ProductSurfaceReadStore(
         string groupType,
         string groupName,
         string dimensionCode,
+        string displayLabel,
         IReadOnlyList<ResultsGroupedScoreObservationRow> scores)
     {
         var values = scores.Select(score => score.Value).ToArray();
@@ -1609,6 +1773,7 @@ public sealed class ProductSurfaceReadStore(
                 groupType,
                 groupName,
                 dimensionCode,
+                displayLabel,
                 "suppressed",
                 SubmittedResponseCount: null,
                 ScoreCount: null,
@@ -1626,6 +1791,7 @@ public sealed class ProductSurfaceReadStore(
             groupType,
             groupName,
             dimensionCode,
+            displayLabel,
             "visible",
             values.Length,
             values.Length,
@@ -1640,6 +1806,7 @@ public sealed class ProductSurfaceReadStore(
     private static CampaignSeriesResultsWaveMatrixRowResponse CreateResultsWaveMatrixRowResponse(
         CampaignSeriesReportsCampaignResponse campaign,
         string dimensionCode,
+        string displayLabel,
         IReadOnlyList<ResultsScoreObservationRow> scores)
     {
         var values = scores.Select(score => score.Value).ToArray();
@@ -1654,6 +1821,7 @@ public sealed class ProductSurfaceReadStore(
                 campaign.DataFinality,
                 campaign.ClosedAt,
                 dimensionCode,
+                displayLabel,
                 "suppressed",
                 SubmittedResponseCount: null,
                 ScoreCount: null,
@@ -1672,6 +1840,7 @@ public sealed class ProductSurfaceReadStore(
             campaign.DataFinality,
             campaign.ClosedAt,
             dimensionCode,
+            displayLabel,
             "visible",
             campaign.SubmittedResponseCount,
             values.Length,
@@ -1844,7 +2013,8 @@ public sealed class ProductSurfaceReadStore(
             .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
             .Select(row => new ResultsDashboardBarResponse(
                 $"output:{row.DimensionCode}",
-                row.DimensionCode,
+                row.DisplayLabel,
+                row.DisplayLabel,
                 row.DimensionCode,
                 row.Disclosure,
                 row.Disclosure == "visible" ? row.Mean : null,
@@ -1864,6 +2034,7 @@ public sealed class ProductSurfaceReadStore(
             .Select(row => new ResultsDashboardBarResponse(
                 $"group:{row.GroupType}:{row.GroupName}:{row.DimensionCode}",
                 row.GroupName,
+                row.DisplayLabel,
                 row.DimensionCode,
                 row.Disclosure,
                 row.Disclosure == "visible" ? row.Mean : null,
@@ -1880,6 +2051,7 @@ public sealed class ProductSurfaceReadStore(
                 $"wave:{row.CampaignId}:{row.DimensionCode}",
                 row.CampaignId,
                 row.CampaignName,
+                row.DisplayLabel,
                 row.DimensionCode,
                 row.Disclosure,
                 row.Disclosure == "visible" ? row.Mean : null,
@@ -5755,6 +5927,11 @@ public sealed class ProductSurfaceReadStore(
         int NValid,
         int NExpected,
         string MissingPolicyStatus);
+
+    private sealed record ScoringRuleResultLabelRow(
+        Guid Id,
+        string Compatibility,
+        string Produces);
 
     private sealed record CampaignSeriesRow(
         Guid Id,

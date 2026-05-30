@@ -16,6 +16,7 @@
 
 	type TrendGroup = {
 		dimensionCode: string;
+		displayLabel: string;
 		points: ResultsDashboardPointResponse[];
 	};
 
@@ -44,6 +45,9 @@
 
 		return [...byDimension.entries()].map(([dimensionCode, groupedPoints]) => ({
 			dimensionCode,
+			displayLabel:
+				groupedPoints.find((point) => point.displayLabel?.trim())?.displayLabel?.trim() ??
+				formatCodeLabel(dimensionCode, copy),
 			points: groupedPoints
 		}));
 	}
@@ -180,10 +184,10 @@
 	<div class="results-trend-chart">
 		{#each groups as group (group.dimensionCode)}
 			{@const selectedPoint = selectedPointForGroup(group)}
-			<section class="results-trend-chart__group" aria-label={formatCodeLabel(group.dimensionCode, copy)}>
+			<section class="results-trend-chart__group" aria-label={group.displayLabel}>
 				<div class="record-row__header">
 					<div>
-						<p class="record-row__title">{formatCodeLabel(group.dimensionCode, copy)}</p>
+						<p class="record-row__title">{group.displayLabel}</p>
 						<p class="record-field__label">
 							{formatWidgetLabel('observedRange', copy)} {formatAxisValue(chartDomain.min)} - {formatAxisValue(
 								chartDomain.max

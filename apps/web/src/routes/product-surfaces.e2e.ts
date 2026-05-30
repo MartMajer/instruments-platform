@@ -118,6 +118,52 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	}
 });
 
+test('workspace home loads without eager sample study seeding', async ({ page }) => {
+	let ensureCallCount = 0;
+	await page.route('**/sample-studies/ensure', async (route) => {
+		if (!isProductApiPath(route.request().url(), '/sample-studies/ensure')) {
+			await route.fallback();
+			return;
+		}
+
+		ensureCallCount++;
+		await route.fulfill({
+			status: 500,
+			json: { detail: 'Workspace home should not create sample studies.' }
+		});
+	});
+
+	await page.goto('/app');
+
+	await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+	expect(ensureCallCount).toBe(0);
+});
+
+test('demo sample library explicitly seeds sample studies', async ({ page }) => {
+	let ensureCallCount = 0;
+	await page.route('**/sample-studies/ensure', async (route) => {
+		if (!isProductApiPath(route.request().url(), '/sample-studies/ensure')) {
+			await route.fallback();
+			return;
+		}
+
+		ensureCallCount++;
+		await route.fulfill({
+			json: {
+				tenantId: sampleSessionTenantId,
+				existingSampleStudyCount: 0,
+				createdSampleStudyCount: 3,
+				createdCampaignSeriesIds: [setupSampleSeriesId, sampleSeriesId, longitudinalSampleSeriesId]
+			}
+		});
+	});
+
+	await page.goto('/app/demo');
+
+	await expect(page.getByRole('heading', { name: 'Sample studies', exact: true })).toBeVisible();
+	expect(ensureCallCount).toBe(1);
+});
+
 test('ui03 product workspace uses quiet section styling instead of raised cards', async ({
 	page
 }) => {
@@ -3544,7 +3590,7 @@ test('reports route leads with result availability, limits, and export next use'
 	await expectElementBefore(workflow, reference);
 });
 
-test('Results summary render known and unsupported manifest widgets before workflow', async ({
+test('Results summary renders primary dashboard labels before workflow', async ({
 	page
 }) => {
 	await page.route(
@@ -3585,15 +3631,14 @@ test('Results summary render known and unsupported manifest widgets before workf
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
-	const widgets = reports.getByRole('region', { name: 'Results summary' });
+	const widgets = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(widgets).toBeVisible();
-	await expect(widgets.getByRole('article', { name: 'Score coverage' })).toBeVisible();
-	await expect(widgets.getByText('Scored', { exact: true })).toBeVisible();
-	const unsupported = widgets.getByRole('article', { name: 'Custom unsupported widget' });
-	await expect(unsupported).toBeVisible();
-	await expect(unsupported.getByText('Unsupported', { exact: true })).toBeVisible();
-	await expect(unsupported.getByText('custom-report-widget/v1', { exact: true })).toBeVisible();
-	await expect(reports.getByRole('group', { name: 'Review and export actions' })).toBeVisible();
+	const dashboard = widgets.getByRole('article', { name: 'Results dashboard' });
+	await expect(dashboard).toBeVisible();
+	await expect(dashboard.getByText('Workload manageability', { exact: true }).first()).toBeVisible();
+	await expect(dashboard.getByText('workload_manageability', { exact: true })).toHaveCount(0);
+	await expect(widgets.getByRole('article', { name: 'Visual analytics' })).toBeVisible();
+	await expect(reports.getByRole('region', { name: 'Results use review' })).toBeVisible();
 });
 
 test('Results summary render the current backend-known manifest without unsupported fallbacks', async ({
@@ -3602,21 +3647,22 @@ test('Results summary render the current backend-known manifest without unsuppor
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
-	const widgets = reports.getByRole('region', { name: 'Results summary' });
+	const widgets = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(widgets).toBeVisible();
 
-	for (const title of [
-		'Report readiness',
-		'Score coverage',
-		'Selected campaign report state',
-		'Export files',
-		'Visual analytics',
-		'Finality and provenance'
-	]) {
+	for (const title of ['Results dashboard', 'Visual analytics']) {
 		await expect(widgets.getByRole('article', { name: title })).toBeVisible();
 	}
 
-	await expect(widgets.getByText('Unsupported', { exact: true })).toHaveCount(0);
+	const details = reports.getByRole('group', { name: 'Results details' });
+	await details.locator('summary').click();
+
+	await expect(details.getByRole('group', { name: 'Score coverage' })).toBeVisible();
+	await expect(details.getByRole('group', { name: 'Results selected campaign' })).toBeVisible();
+	await expect(details.getByRole('group', { name: 'Results source context' })).toBeVisible();
+	await expect(details.getByRole('heading', { name: 'Missing result requirements' })).toBeVisible();
+
+	await expect(reports.getByText('Unsupported', { exact: true })).toHaveCount(0);
 });
 
 test('Results summary manifest delay does not block reports workspace', async ({ page }) => {
@@ -3646,12 +3692,12 @@ test('Results summary manifest delay does not block reports workspace', async ({
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
-	await expect(reports.getByRole('group', { name: 'Report snapshot' })).toBeVisible();
 	await expect(reports.getByRole('group', { name: 'Review and export actions' })).toBeVisible();
+	await expect(reports.getByRole('group', { name: 'Results preview' })).toBeVisible();
 
 	releaseManifest();
-	const widgets = reports.getByRole('region', { name: 'Results summary' });
-	await expect(widgets.getByRole('article', { name: 'Score coverage' })).toBeVisible();
+	const widgets = reports.getByRole('group', { name: 'Review and export actions' });
+	await expect(widgets.getByRole('article', { name: 'Results dashboard' })).toBeVisible();
 });
 
 test('report snapshot renders selected campaign aggregate proof as route content', async ({
@@ -6971,6 +7017,64 @@ const sampleReportsWidgetManifest: CampaignSeriesReportsWidgetManifestResponse =
 		density: 'standard'
 	},
 	widgets: [
+		{
+			id: 'results-dashboard',
+			kind: 'results-dashboard/v1',
+			title: 'Results dashboard',
+			size: 'full',
+			state: 'ready',
+			message: null,
+			data: {
+				dashboard: {
+					selectedCampaignId: sampleReportsWorkspace.selectedCampaign!.id,
+					selectedCampaignName: sampleReportsWorkspace.selectedCampaign!.name,
+					disclosureKMin: 5,
+					disclosureState: 'visible',
+					metrics: [
+						{
+							id: 'visible_outputs',
+							value: 1,
+							unit: 'count',
+							detail: null,
+							tone: 'ready'
+						}
+					],
+					outputBars: [
+						{
+							id: 'output:workload_manageability',
+							label: 'workload_manageability',
+							displayLabel: 'Workload manageability',
+							dimensionCode: 'workload_manageability',
+							disclosure: 'visible',
+							value: 5.3,
+							count: 28,
+							detail: 'median 5.1, range 3-7',
+							suppressionReason: null
+						}
+					],
+					groupBars: [],
+					waveTrendPoints: [
+						{
+							id: `wave:${sampleReportsWorkspace.selectedCampaign!.id}:workload_manageability`,
+							campaignId: sampleReportsWorkspace.selectedCampaign!.id,
+							campaignName: sampleReportsWorkspace.selectedCampaign!.name,
+							displayLabel: 'Workload manageability',
+							dimensionCode: 'workload_manageability',
+							disclosure: 'visible',
+							value: 5.3,
+							deltaFromPrevious: null,
+							comparisonState: 'baseline',
+							dataFinality: 'preliminary_live',
+							count: 28,
+							suppressionReason: null
+						}
+					],
+					notes: []
+				}
+			},
+			dataSource: null,
+			actions: []
+		},
 		{
 			id: 'report-readiness-summary',
 			kind: 'report-readiness-summary/v1',

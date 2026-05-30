@@ -721,6 +721,7 @@ public sealed record ResultsDashboardMetricResponse(
 public sealed record ResultsDashboardBarResponse(
     string Id,
     string Label,
+    string DisplayLabel,
     string DimensionCode,
     string Disclosure,
     decimal? Value,
@@ -732,6 +733,7 @@ public sealed record ResultsDashboardPointResponse(
     string Id,
     Guid CampaignId,
     string CampaignName,
+    string DisplayLabel,
     string DimensionCode,
     string Disclosure,
     decimal? Value,
@@ -759,6 +761,7 @@ public sealed record CampaignSeriesResultsAnalyticsResponse(
 
 public sealed record CampaignSeriesResultsScoreOutputResponse(
     string DimensionCode,
+    string DisplayLabel,
     string Disclosure,
     int? SubmittedResponseCount,
     int? ScoreCount,
@@ -776,6 +779,7 @@ public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
     string GroupType,
     string GroupName,
     string DimensionCode,
+    string DisplayLabel,
     string Disclosure,
     int? SubmittedResponseCount,
     int? ScoreCount,
@@ -793,6 +797,7 @@ public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
     string DataFinality,
     DateTimeOffset? ClosedAt,
     string DimensionCode,
+    string DisplayLabel,
     string Disclosure,
     int? SubmittedResponseCount,
     int? ScoreCount,

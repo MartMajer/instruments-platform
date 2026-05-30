@@ -152,6 +152,10 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.NotNull(reportsWorkspace.Value.ResultsDashboard);
         var dashboard = reportsWorkspace.Value.ResultsDashboard!;
         Assert.True(dashboard.OutputBars.Count >= 4);
+        Assert.Contains(
+            dashboard.OutputBars,
+            bar => bar.DimensionCode == "workload_manageability" &&
+                bar.DisplayLabel == "Workload manageability");
         Assert.True(dashboard.GroupBars.Count >= 12);
         Assert.Contains(dashboard.GroupBars, bar => bar.Disclosure == "visible" && bar.Value.HasValue);
         Assert.Contains(dashboard.GroupBars, bar => bar.Disclosure == "suppressed" && bar.Value is null);
@@ -754,6 +758,48 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal("Research Team", group.Name);
         Assert.Equal(1, group.MemberCount);
         Assert.DoesNotContain(result.Groups, item => item.Id == tenantBGroup.Id);
+    }
+
+    [DockerFact]
+    public async Task Subject_directory_and_groups_hide_sample_study_records()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "subject-directory-sample-boundary");
+        var realSubject = await SeedSubjectAsync(runtimeOptions, tenantId, "Adele Vance", "adele@example.test", "msgraph-user-001");
+        var sampleSubject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Sample respondent 0001",
+            "sample@example.test",
+            "sample-study-001",
+            """{"sample_study":true,"campaign_series_id":"11111111-1111-4111-8111-111111111111"}""");
+        var realGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+        var sampleGroup = await SeedSubjectGroupAsync(
+            runtimeOptions,
+            tenantId,
+            SubjectGroupTypes.Department,
+            "Sample Department",
+            """{"sample_study":true,"campaign_series_id":"11111111-1111-4111-8111-111111111111"}""");
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, realSubject.Id, realGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, sampleSubject.Id, sampleGroup.Id, SubjectGroupRoles.Member);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var directory = await store.ListSubjectsAsync(tenantId, SubjectDirectoryQuery.All, CancellationToken.None);
+        var groups = await store.ListSubjectGroupsAsync(tenantId, CancellationToken.None);
+
+        Assert.Equal(1, directory.Summary.SubjectCount);
+        Assert.Equal(1, directory.Summary.FilteredSubjectCount);
+        Assert.Equal(1, directory.Summary.ReturnedSubjectCount);
+        Assert.Equal(1, directory.Summary.GroupCount);
+        Assert.DoesNotContain(directory.Subjects, subject => subject.DisplayName?.StartsWith("Sample", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Equal("Adele Vance", Assert.Single(directory.Subjects).DisplayName);
+        Assert.DoesNotContain(groups.Groups, group => group.Name.StartsWith("Sample", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Retail", Assert.Single(groups.Groups).Name);
     }
 
     [DockerFact]
@@ -2970,6 +3016,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal("suppressed", result.Value.SelectedCampaign.DisclosureState);
 
         var output = Assert.Single(result.Value.ResultsAnalytics!.ScoreOutputs);
+        Assert.Equal("Total", output.DisplayLabel);
         Assert.Equal("suppressed", output.Disclosure);
         Assert.Null(output.SubmittedResponseCount);
         Assert.Null(output.ScoreCount);
@@ -2977,6 +3024,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal("insufficient_responses", output.SuppressionReason);
         Assert.NotNull(result.Value.ResultsDashboard);
         var dashboardBar = Assert.Single(result.Value.ResultsDashboard!.OutputBars);
+        Assert.Equal("Total", dashboardBar.DisplayLabel);
         Assert.Equal("suppressed", dashboardBar.Disclosure);
         Assert.Null(dashboardBar.Value);
         Assert.Null(dashboardBar.Count);
@@ -3429,6 +3477,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var dashboardData = Assert.IsType<ResultsDashboardWidgetDataResponse>(dashboardWidget.Data);
         Assert.Equal(campaign.Id, dashboardData.Dashboard.SelectedCampaignId);
         var outputBar = Assert.Single(dashboardData.Dashboard.OutputBars);
+        Assert.Equal("Total", outputBar.DisplayLabel);
         Assert.Equal("visible", outputBar.Disclosure);
         Assert.Equal(4.2m, outputBar.Value);
         Assert.Equal(5, outputBar.Count);
@@ -5248,7 +5297,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Guid tenantId,
         string displayName,
         string email,
-        string externalId)
+        string externalId,
+        string attributes = """{"source":"test"}""")
     {
         var subject = new Subject(
             Guid.NewGuid(),
@@ -5256,7 +5306,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             externalId: externalId,
             email: email,
             displayName: displayName,
-            attributes: """{"source":"test"}""");
+            attributes: attributes);
 
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);
@@ -5285,9 +5335,10 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
         string type,
-        string name)
+        string name,
+        string attributes = "{}")
     {
-        var group = new SubjectGroup(Guid.NewGuid(), tenantId, type, name);
+        var group = new SubjectGroup(Guid.NewGuid(), tenantId, type, name, attributes: attributes);
 
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);
