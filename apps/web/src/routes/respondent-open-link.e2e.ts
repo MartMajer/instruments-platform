@@ -76,6 +76,11 @@ test('submits a public open-link response without setup auth headers', async ({ 
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await expect(page.getByTestId('respondent-question-runner')).toBeVisible();
 	await expect(page.getByTestId('surveyjs-runtime')).toHaveCount(0);
+	await expect(respondentRunner(page).locator('.answer-option__label')).toHaveCount(0);
+	await expect(respondentRunner(page).locator('.scale-anchors span')).toContainText([
+		'Strongly disagree',
+		'Strongly agree'
+	]);
 	await expect(page.getByRole('button', { name: 'Complete' })).toHaveCount(0);
 	await answerLikert(page, 4);
 	await page.getByRole('button', { name: 'Review response' }).click();
@@ -633,7 +638,8 @@ test('restores unsaved local answers after failed public-handle save and reload'
 	await page.getByLabel('Participant code').fill(participantCode);
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 5);
-	await expect(page.getByRole('alert')).toContainText('Answers could not be saved.');
+	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
 	const storedValues = await page.evaluate(() => Object.values(sessionStorage).join('\n'));
 	expect(storedValues).not.toContain(openLinkToken);
 	expect(storedValues).not.toContain(participantCode);
@@ -854,12 +860,42 @@ test('failed autosave preserves respondent answers for manual retry', async ({ p
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 5);
 
-	await expect(page.getByRole('alert')).toContainText('Answers could not be saved.');
+	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
 	await expectLikertAnswer(page, 5);
 
 	await page.getByRole('button', { name: 'Review response' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
 	expect(saveRequests).toBe(2);
+});
+
+test('does not expose raw fetch failures after background autosave fails', async ({ page }) => {
+	await page.route('**/respondent/open-links/*/sessions/*/answers', async (route) => {
+		await route.abort('failed');
+	});
+
+	await page.route('**/respondent/open-links/*/sessions', async (route) => {
+		await route.fulfill({ status: 201, json: sampleSession });
+	});
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({ json: sampleOpenLinkEntry });
+	});
+
+	await page.goto(`/r/${openLinkToken}`);
+
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await answerLikert(page, 5);
+
+	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(page.getByText('Failed to fetch')).toHaveCount(0);
+	await expect(page.getByRole('alert')).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Review response' }).click();
+	await expect(page.getByRole('alert')).toContainText('Connection problem. Try again before submitting.');
+	await expect(page.getByText('Failed to fetch')).toHaveCount(0);
 });
 
 test('requires participant code before starting anonymous longitudinal open-link response', async ({
@@ -1273,7 +1309,11 @@ const sampleOpenLinkEntry = {
 			textDefault: 'After work, I need time to recover mentally.',
 			required: true,
 			scaleMinValue: 1,
-			scaleMaxValue: 5
+			scaleMaxValue: 5,
+			scaleAnchors: JSON.stringify([
+				{ value: 1, label: 'Strongly disagree' },
+				{ value: 5, label: 'Strongly agree' }
+			])
 		}
 	]
 };
@@ -1313,7 +1353,11 @@ const sampleTwoQuestionOpenLinkEntry = {
 			textDefault: 'I can detach from work during breaks.',
 			required: true,
 			scaleMinValue: 1,
-			scaleMaxValue: 5
+			scaleMaxValue: 5,
+			scaleAnchors: JSON.stringify([
+				{ value: 1, label: 'Strongly disagree' },
+				{ value: 5, label: 'Strongly agree' }
+			])
 		}
 	]
 };

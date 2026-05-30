@@ -239,13 +239,11 @@
 							class="answer-option scale-answer"
 							class:selected={isScalarSelected(currentQuestion, option.value)}
 							aria-pressed={isScalarSelected(currentQuestion, option.value)}
+							aria-label={option.anchorLabel ? `${option.label} ${option.anchorLabel}` : option.label}
 							disabled={disabled || saving}
 							onclick={() => setAnswer(currentQuestion, option.value, true)}
 						>
 							<span class="answer-option__value">{option.label}</span>
-							{#if option.anchorLabel}
-								<span class="answer-option__label">{option.anchorLabel}</span>
-							{/if}
 						</button>
 					{/each}
 				</div>
@@ -565,7 +563,6 @@
 		line-height: 1;
 	}
 
-	.answer-option__label,
 	.answer-option__meta {
 		font-size: 0.8rem;
 		color: var(--color-text-muted);

@@ -284,6 +284,7 @@
 		}
 
 		answers = nextAnswers;
+		actionError = null;
 		if (session && publicSessionHandle && !submitted && entry) {
 			storeLocalUnsavedDraft(entry, nextAnswers);
 		}
@@ -306,8 +307,8 @@
 	async function autosaveAnswers() {
 		try {
 			await saveCurrentAnswers({ manual: false });
-		} catch (unknownError) {
-			actionError = formatError(unknownError);
+		} catch {
+			// Background saves keep local answers and retry on review; avoid showing transport internals.
 		}
 	}
 
@@ -758,7 +759,7 @@
 			case 'saved':
 				return 'Answers saved';
 			case 'failed':
-				return 'Answers could not be saved.';
+				return 'Answers are not saved yet. Review will retry before submit.';
 			case 'local-restored':
 				return 'Unsaved answers restored on this device';
 			default:
@@ -788,6 +789,13 @@
 					: unknownError.message;
 
 			return detail;
+		}
+
+		if (
+			unknownError instanceof TypeError &&
+			unknownError.message.trim().toLowerCase() === 'failed to fetch'
+		) {
+			return text.respondent.networkRequestFailed;
 		}
 
 		return unknownError instanceof Error ? unknownError.message : text.respondent.requestFailed;

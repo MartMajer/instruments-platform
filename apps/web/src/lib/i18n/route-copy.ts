@@ -680,6 +680,7 @@ const en = {
 		saveBeforeSubmit: 'Save answers before submitting.',
 		responseSessionUnavailable: 'This response session is no longer available.',
 		requestFailed: 'Request failed.',
+		networkRequestFailed: 'Connection problem. Try again before submitting.',
 		questionRequiresAnswer: (code: string) => code + ' requires an answer.',
 		questionMustBeNumber: (code: string) => code + ' must be a number.',
 		questionBetween: (code: string, min: number, max: number) =>
@@ -3044,6 +3045,7 @@ const hr: typeof en = {
 		saveBeforeSubmit: 'Spremite odgovore prije predaje.',
 		responseSessionUnavailable: 'Ova sesija odgovaranja više nije dostupna.',
 		requestFailed: 'Zahtjev nije uspio.',
+		networkRequestFailed: 'Problem s vezom. Pokušajte ponovno prije predaje.',
 		questionRequiresAnswer: (code: string) => code + ' zahtijeva odgovor.',
 		questionMustBeNumber: (code: string) => code + ' mora biti broj.',
 		questionBetween: (code: string, min: number, max: number) =>
