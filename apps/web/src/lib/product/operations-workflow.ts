@@ -34,6 +34,18 @@ export type SelectedSeriesOperationsPathStep = SelectedSeriesOperationsWorkflowA
 	pathState: SelectedSeriesOperationsPathStepState;
 };
 
+export type SelectedSeriesOperationsPathStepDisplayState =
+	| 'done'
+	| 'current'
+	| 'selected'
+	| 'next'
+	| 'blocked';
+
+export type SelectedSeriesOperationsPathStepDisplay = {
+	state: SelectedSeriesOperationsPathStepDisplayState;
+	label: string;
+};
+
 export type SelectedSeriesOperationsPath = {
 	steps: SelectedSeriesOperationsPathStep[];
 	currentActionId: SelectedSeriesOperationsWorkflowActionId;
@@ -98,6 +110,7 @@ export type SelectedSeriesOperationsWorkflowCopy = {
 			description: string;
 		}
 	>;
+	pathDisplay: Record<SelectedSeriesOperationsPathStepDisplayState, string>;
 	disabled: {
 		createWaveBeforeReadiness: string;
 		createWaveBeforeStart: string;
@@ -204,6 +217,13 @@ export const defaultSelectedSeriesOperationsWorkflowCopy: SelectedSeriesOperatio
 			title: 'Close collection',
 			description: 'Stop accepting new responses while keeping submitted data reportable.'
 		}
+	},
+	pathDisplay: {
+		done: 'Done',
+		current: 'Current',
+		selected: 'Selected',
+		next: 'Next',
+		blocked: 'Blocked'
 	},
 	disabled: {
 		createWaveBeforeReadiness: 'Create a collection wave in setup before checking readiness.',
@@ -533,6 +553,34 @@ export function toSelectedSeriesOperationsPath(
 		completedCount: steps.filter((step) => step.pathState === 'done').length,
 		totalCount: steps.length
 	};
+}
+
+export function toSelectedSeriesOperationsPathStepDisplay(
+	step: Pick<SelectedSeriesOperationsPathStep, 'id' | 'pathState'>,
+	currentActionId: SelectedSeriesOperationsWorkflowActionId,
+	selectedActionId: SelectedSeriesOperationsWorkflowActionId,
+	copy: SelectedSeriesOperationsWorkflowCopy = defaultSelectedSeriesOperationsWorkflowCopy
+): SelectedSeriesOperationsPathStepDisplay {
+	const isSelected = step.id === selectedActionId;
+	const isNextUnfinished = step.id === currentActionId && step.pathState === 'current';
+
+	if (isSelected && isNextUnfinished) {
+		return { state: 'current', label: copy.pathDisplay.current };
+	}
+
+	if (isSelected) {
+		return { state: 'selected', label: copy.pathDisplay.selected };
+	}
+
+	if (isNextUnfinished) {
+		return { state: 'next', label: copy.pathDisplay.next };
+	}
+
+	if (step.pathState === 'done') {
+		return { state: 'done', label: copy.pathDisplay.done };
+	}
+
+	return { state: 'blocked', label: copy.pathDisplay.blocked };
 }
 
 export function toSelectedSeriesCollectionStatusSummary(

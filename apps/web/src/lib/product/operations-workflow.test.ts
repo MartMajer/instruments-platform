@@ -6,6 +6,7 @@ import {
 	emailSuppressionSourceLabel,
 	toSelectedSeriesCollectionStatusSummary,
 	toSelectedSeriesOperationsPath,
+	toSelectedSeriesOperationsPathStepDisplay,
 	toRecipientSuppressionReview,
 	toSelectedSeriesOperationsWorkflowActions
 } from './operations-workflow';
@@ -15,12 +16,6 @@ describe('selected-series operations workflow model', () => {
 		const actions = toSelectedSeriesOperationsWorkflowActions(emptyWorkspace);
 
 		expect(actions).toEqual([
-			expect.objectContaining({
-				id: 'readiness',
-				status: 'not_available',
-				available: false,
-				disabledReason: 'Create a collection wave in setup before checking readiness.'
-			}),
 			expect.objectContaining({
 				id: 'launch',
 				status: 'not_available',
@@ -48,19 +43,13 @@ describe('selected-series operations workflow model', () => {
 		]);
 	});
 
-	it('allows readiness for a draft campaign and blocks later operations until readiness passes', () => {
+	it('blocks launch for a draft campaign until readiness passes', () => {
 		const actions = toSelectedSeriesOperationsWorkflowActions(draftWorkspace);
 
-		expect(actions.find((action) => action.id === 'readiness')).toMatchObject({
-			status: 'pending',
-			available: true,
-			disabledReason: null
-		});
 		expect(actions.find((action) => action.id === 'launch')).toMatchObject({
 			status: 'blocked',
 			available: false,
-			disabledReason:
-				'Run the pre-launch check. If it says Blocked, open Setup and finish the listed items first.'
+			disabledReason: 'Finish setup before starting collection.'
 		});
 		expect(actions.find((action) => action.id === 'openLink')).toMatchObject({
 			status: 'blocked',
@@ -77,10 +66,6 @@ describe('selected-series operations workflow model', () => {
 			readinessReady: true
 		});
 
-		expect(actions.find((action) => action.id === 'readiness')).toMatchObject({
-			status: 'ready',
-			available: true
-		});
 		expect(actions.find((action) => action.id === 'launch')).toMatchObject({
 			status: 'pending',
 			available: true,
@@ -185,29 +170,27 @@ describe('selected-series operations workflow model', () => {
 		});
 	});
 
-	it('selects launch readiness as the current task for a draft campaign', () => {
+	it('selects launch as the current task for a draft campaign', () => {
 		const path = toSelectedSeriesOperationsPath(draftWorkspace);
 
-		expect(path.currentActionId).toBe('readiness');
+		expect(path.currentActionId).toBe('launch');
 		expect(path.completedCount).toBe(0);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'current' },
-			{ id: 'launch', state: 'blocked' },
+			{ id: 'launch', state: 'current' },
 			{ id: 'openLink', state: 'blocked' },
 			{ id: 'monitor', state: 'blocked' },
 			{ id: 'close', state: 'blocked' }
 		]);
 	});
 
-	it('advances the current task to launch after local readiness passes', () => {
+	it('keeps launch current after local readiness passes', () => {
 		const path = toSelectedSeriesOperationsPath(draftWorkspace, {
 			readinessReady: true
 		});
 
 		expect(path.currentActionId).toBe('launch');
-		expect(path.completedCount).toBe(1);
+		expect(path.completedCount).toBe(0);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'current' },
 			{ id: 'openLink', state: 'blocked' },
 			{ id: 'monitor', state: 'blocked' },
@@ -229,9 +212,8 @@ describe('selected-series operations workflow model', () => {
 		});
 
 		expect(path.currentActionId).toBe('monitor');
-		expect(path.completedCount).toBe(3);
+		expect(path.completedCount).toBe(2);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
 			{ id: 'monitor', state: 'current' },
@@ -243,9 +225,8 @@ describe('selected-series operations workflow model', () => {
 		const path = toSelectedSeriesOperationsPath(liveWithResponsesWorkspace);
 
 		expect(path.currentActionId).toBe('close');
-		expect(path.completedCount).toBe(4);
+		expect(path.completedCount).toBe(3);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
 			{ id: 'monitor', state: 'done' },
@@ -257,14 +238,37 @@ describe('selected-series operations workflow model', () => {
 		const path = toSelectedSeriesOperationsPath(closedWorkspace);
 
 		expect(path.currentActionId).toBe('close');
-		expect(path.completedCount).toBe(5);
+		expect(path.completedCount).toBe(4);
 		expect(path.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
-			{ id: 'readiness', state: 'done' },
 			{ id: 'launch', state: 'done' },
 			{ id: 'openLink', state: 'done' },
 			{ id: 'monitor', state: 'done' },
 			{ id: 'close', state: 'done' }
 		]);
+	});
+
+	it('labels selected, next, done, and blocked path badges like setup', () => {
+		const path = toSelectedSeriesOperationsPath(liveWorkspace);
+		const selectedActionId = 'launch';
+
+		expect(
+			path.steps.map((step) =>
+				toSelectedSeriesOperationsPathStepDisplay(step, path.currentActionId, selectedActionId)
+			)
+		).toEqual([
+			{ state: 'selected', label: 'Selected' },
+			{ state: 'done', label: 'Done' },
+			{ state: 'next', label: 'Next' },
+			{ state: 'blocked', label: 'Blocked' }
+		]);
+
+		expect(
+			toSelectedSeriesOperationsPathStepDisplay(
+				path.steps[2]!,
+				path.currentActionId,
+				path.currentActionId
+			)
+		).toEqual({ state: 'current', label: 'Current' });
 	});
 
 	it('summarizes live collection with response progress and recipient context', () => {
@@ -479,12 +483,10 @@ describe('selected-series operations workflow model', () => {
 
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
-			title: 'Provjera prije pokretanja',
-			description: 'Potvrdite da su upitnik, postavljanje rezultata, primatelji i pravila spremni.'
+			title: 'Pokretanje prikupljanja',
+			description: 'Otvorite ovo mjerenje za odgovore i zabilježite postavke korištene za izvještavanje.'
 		});
-		expect(path.steps[1]?.disabledReason).toBe(
-			'Pokrenite provjeru prije pokretanja. Ako kaže Blokirano, otvorite Postavljanje i dovršite navedene stavke.'
-		);
+		expect(path.steps[0]?.disabledReason).toBe('Dovršite postavljanje prije pokretanja prikupljanja.');
 		expect(summary).toMatchObject({
 			overallLabel: 'Aktivno',
 			headline: 'Aktivno: prihvaća odgovore; predano: 21 odgovor',

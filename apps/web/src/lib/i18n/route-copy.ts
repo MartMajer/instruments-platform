@@ -1436,6 +1436,13 @@ const en = {
 					description: 'Stop accepting new responses while keeping submitted data reportable.'
 				}
 			},
+			pathDisplay: {
+				done: 'Done',
+				current: 'Current',
+				selected: 'Selected',
+				next: 'Next',
+				blocked: 'Blocked'
+			},
 			disabled: {
 				createWaveBeforeReadiness: 'Create a collection wave in setup before checking readiness.',
 				createWaveBeforeStart: 'Create a collection wave before starting collection.',
@@ -3742,6 +3749,13 @@ const hr: typeof en = {
 					title: 'Zatvaranje prikupljanja',
 					description: 'Zaustavite nove odgovore, a predane podatke zadržite dostupnima za izvještaje.'
 				}
+			},
+			pathDisplay: {
+				done: 'Gotovo',
+				current: 'Trenutno',
+				selected: 'Odabrano',
+				next: 'Sljedeće',
+				blocked: 'Blokirano'
 			},
 			disabled: {
 				createWaveBeforeReadiness: 'Izradite mjerenje u Postavljanju prije provjere spremnosti.',
