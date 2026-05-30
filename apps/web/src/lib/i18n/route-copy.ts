@@ -253,6 +253,18 @@ const en = {
 			readOnlyTitle: 'Read-only example',
 			readOnlyBody:
 				'This sample is for orientation only. It does not create participants, send invitations, or change workspace studies.',
+			loaderKicker: 'Sample setup',
+			loaderTitle: 'Setting up your sample workspace',
+			loaderBody:
+				'Creating read-only synthetic studies so you can inspect setup, collection, results, and exports.',
+			loaderProgressAria: 'Sample workspace setup progress',
+			loaderStepsAria: 'Sample setup steps',
+			loaderSteps: [
+				'Creating sample studies',
+				'Preparing synthetic participants',
+				'Building results snapshots',
+				'Opening sample library'
+			],
 			chooseSample: 'Choose a sample study',
 			chooseSampleBody:
 				'Switch between realistic study types to see how different research contexts move through the same workflow.',
@@ -2546,6 +2558,18 @@ const hr: typeof en = {
 			readOnlyTitle: 'Primjer samo za čitanje',
 			readOnlyBody:
 				'Ovaj primjer služi za orijentaciju. Ne izrađuje sudionike, ne šalje pozivnice i ne mijenja stvarne studije u radnom prostoru.',
+			loaderKicker: 'Postavljanje primjera',
+			loaderTitle: 'Postavljanje oglednog radnog prostora',
+			loaderBody:
+				'Pripremamo sintetičke studije samo za čitanje kako biste mogli pregledati postavljanje, prikupljanje, rezultate i izvoz.',
+			loaderProgressAria: 'Napredak postavljanja oglednog radnog prostora',
+			loaderStepsAria: 'Koraci postavljanja primjera',
+			loaderSteps: [
+				'Izrada oglednih studija',
+				'Priprema sintetičkih sudionika',
+				'Izrada pregleda rezultata',
+				'Otvaranje knjižnice primjera'
+			],
 			chooseSample: 'Odaberite primjer studije',
 			chooseSampleBody:
 				'Prebacujte se između realističnih tipova studija i vidite kako različiti istraživački konteksti prolaze kroz isti tijek rada.',

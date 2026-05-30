@@ -164,6 +164,48 @@ test('demo sample library explicitly seeds sample studies', async ({ page }) => 
 	expect(ensureCallCount).toBe(1);
 });
 
+test('demo sample setup loader describes staged sample workspace setup while seeding is pending', async ({
+	page
+}) => {
+	let releaseSampleSetup!: () => void;
+	const sampleSetupPending = new Promise<void>((resolve) => {
+		releaseSampleSetup = resolve;
+	});
+
+	await page.route('**/sample-studies/ensure', async (route) => {
+		if (!isProductApiPath(route.request().url(), '/sample-studies/ensure')) {
+			await route.fallback();
+			return;
+		}
+
+		await sampleSetupPending;
+		await route.fulfill({
+			json: {
+				tenantId: sampleSessionTenantId,
+				existingSampleStudyCount: 0,
+				createdSampleStudyCount: 3,
+				createdCampaignSeriesIds: [setupSampleSeriesId, sampleSeriesId, longitudinalSampleSeriesId]
+			}
+		});
+	});
+
+	await page.goto('/app/demo');
+
+	await expect(page.getByText('Setting up your sample workspace', { exact: true })).toBeVisible({
+		timeout: 1_000
+	});
+	await expect(
+		page.getByRole('progressbar', { name: 'Sample workspace setup progress' })
+	).toBeVisible();
+
+	releaseSampleSetup();
+
+	await expect(page.getByRole('heading', { name: 'Sample studies', exact: true })).toBeVisible();
+	await expect(
+		page.getByText('Setting up your sample workspace', { exact: true })
+	).toHaveCount(0);
+});
+
 test('ui03 product workspace uses quiet section styling instead of raised cards', async ({
 	page
 }) => {
