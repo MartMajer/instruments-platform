@@ -47,6 +47,43 @@ public sealed class ApplicationDbContextModelTests
     }
 
     [Fact]
+    public void Email_template_and_notification_locale_model_maps_expected_columns_and_indexes()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=instruments_platform;Username=platform_app;Password=not-used")
+            .Options;
+
+        using var db = new ApplicationDbContext(options);
+
+        var model = db.GetService<IDesignTimeModel>().Model;
+        var emailTemplate = model.FindEntityType(typeof(EmailTemplate));
+        var notification = model.FindEntityType(typeof(Notification));
+
+        Assert.NotNull(emailTemplate);
+        Assert.Equal("email_template", emailTemplate.GetTableName());
+        Assert.Equal("template_code", emailTemplate.FindProperty(nameof(EmailTemplate.TemplateCode))!.GetColumnName());
+        Assert.Equal("body_text", emailTemplate.FindProperty(nameof(EmailTemplate.BodyText))!.GetColumnName());
+        Assert.Equal(128, emailTemplate.FindProperty(nameof(EmailTemplate.TemplateCode))!.GetMaxLength());
+        Assert.Equal(16, emailTemplate.FindProperty(nameof(EmailTemplate.Locale))!.GetMaxLength());
+        Assert.Equal(160, emailTemplate.FindProperty(nameof(EmailTemplate.Subject))!.GetMaxLength());
+        Assert.Contains(emailTemplate.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(EmailTemplate.TenantId),
+                    nameof(EmailTemplate.TemplateCode),
+                    nameof(EmailTemplate.Locale)
+                ]));
+        Assert.Contains(emailTemplate.GetForeignKeys(), foreignKey =>
+            foreignKey.Properties.Single().Name == nameof(EmailTemplate.TenantId) &&
+            foreignKey.PrincipalEntityType.ClrType == typeof(Tenant));
+
+        Assert.NotNull(notification);
+        Assert.Equal("locale", notification.FindProperty(nameof(Notification.Locale))!.GetColumnName());
+        Assert.Equal(16, notification.FindProperty(nameof(Notification.Locale))!.GetMaxLength());
+    }
+
+    [Fact]
     public void Score_entity_maps_output_metadata_columns_and_constraints()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

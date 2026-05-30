@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Auth;
+using Platform.Application.Features.Notifications;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
@@ -804,6 +805,178 @@ public sealed class ProductSurfaceWriteStore(
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new TenantMemberRemovalResponse(targetUserId, Removed: true));
+    }
+
+    public async Task<Result<TenantLanguageResponse>> UpdateTenantLanguageAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantLanguageRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!EmailTemplateLocales.IsSupported(request.DefaultLocale))
+        {
+            return Result.Failure<TenantLanguageResponse>(
+                Error.Validation("tenant.locale_invalid", "Workspace language must be en or hr-HR."));
+        }
+
+        var locale = EmailTemplateLocales.Normalize(request.DefaultLocale);
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenant = await db.Tenants.SingleOrDefaultAsync(
+            entity => entity.Id == tenantId && entity.DeletedAt == null,
+            cancellationToken);
+        if (tenant is null)
+        {
+            return Result.Failure<TenantLanguageResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        tenant.ChangeDefaultLocale(locale, DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TenantLanguageResponse(
+            tenant.DefaultLocale,
+            tenant.UpdatedAt));
+    }
+
+    public async Task<Result<TenantEmailTemplateSettingsResponse>> UpdateTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        UpdateEmailTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedTemplateCode = NormalizeEmailTemplateCode(templateCode);
+        if (normalizedTemplateCode is null)
+        {
+            return Result.Failure<TenantEmailTemplateSettingsResponse>(
+                Error.Validation("email_template.template_code_invalid", "Email template code must be invitation or reminder."));
+        }
+
+        if (!EmailTemplateLocales.IsSupported(locale))
+        {
+            return Result.Failure<TenantEmailTemplateSettingsResponse>(
+                Error.Validation("email_template.locale_invalid", "Email template locale must be en or hr-HR."));
+        }
+
+        var normalizedLocale = EmailTemplateLocales.Normalize(locale);
+        var content = new EmailTemplateContent(
+            normalizedTemplateCode,
+            normalizedLocale,
+            request.Subject?.Trim() ?? string.Empty,
+            request.BodyText?.Trim() ?? string.Empty,
+            IsBuiltInDefault: false);
+        var validation = EmailTemplateValidator.Validate(content);
+        if (!validation.IsValid)
+        {
+            return Result.Failure<TenantEmailTemplateSettingsResponse>(
+                CreateEmailTemplateValidationError(validation));
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenantExists = await db.Tenants.AnyAsync(
+            tenant => tenant.Id == tenantId && tenant.DeletedAt == null,
+            cancellationToken);
+        if (!tenantExists)
+        {
+            return Result.Failure<TenantEmailTemplateSettingsResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        var existing = await db.EmailTemplates.SingleOrDefaultAsync(
+            template =>
+                template.TenantId == tenantId &&
+                template.TemplateCode == normalizedTemplateCode &&
+                template.Locale == normalizedLocale,
+            cancellationToken);
+        var updatedAt = DateTimeOffset.UtcNow;
+        if (existing is null)
+        {
+            db.EmailTemplates.Add(new EmailTemplate(
+                PlatformIds.NewId(),
+                tenantId,
+                normalizedTemplateCode,
+                normalizedLocale,
+                content.Subject,
+                content.BodyText));
+        }
+        else
+        {
+            existing.UpdateContent(content.Subject, content.BodyText, updatedAt);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(TenantEmailTemplateSettingsFactory.FromContent(
+            content,
+            isCustom: true));
+    }
+
+    public async Task<Result<ResetEmailTemplateResponse>> ResetTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        CancellationToken cancellationToken)
+    {
+        var normalizedTemplateCode = NormalizeEmailTemplateCode(templateCode);
+        if (normalizedTemplateCode is null)
+        {
+            return Result.Failure<ResetEmailTemplateResponse>(
+                Error.Validation("email_template.template_code_invalid", "Email template code must be invitation or reminder."));
+        }
+
+        if (!EmailTemplateLocales.IsSupported(locale))
+        {
+            return Result.Failure<ResetEmailTemplateResponse>(
+                Error.Validation("email_template.locale_invalid", "Email template locale must be en or hr-HR."));
+        }
+
+        var normalizedLocale = EmailTemplateLocales.Normalize(locale);
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenantExists = await db.Tenants.AnyAsync(
+            tenant => tenant.Id == tenantId && tenant.DeletedAt == null,
+            cancellationToken);
+        if (!tenantExists)
+        {
+            return Result.Failure<ResetEmailTemplateResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        var existing = await db.EmailTemplates.SingleOrDefaultAsync(
+            template =>
+                template.TenantId == tenantId &&
+                template.TemplateCode == normalizedTemplateCode &&
+                template.Locale == normalizedLocale,
+            cancellationToken);
+        if (existing is not null)
+        {
+            db.EmailTemplates.Remove(existing);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new ResetEmailTemplateResponse(
+            TenantEmailTemplateSettingsFactory.FromContent(
+                EmailTemplateDefaults.Get(normalizedTemplateCode, normalizedLocale),
+                isCustom: false)));
     }
 
     public async Task<Result<SubjectDirectoryItemResponse>> CreateSubjectAsync(
@@ -2165,6 +2338,28 @@ public sealed class ProductSurfaceWriteStore(
         return exception.ParamName == "attributes"
             ? Error.Validation("subject_group.attributes_invalid", "Subject group attributes must be a JSON object.")
             : Error.Validation("subject_group.invalid", exception.Message);
+    }
+
+    private static string? NormalizeEmailTemplateCode(string templateCode)
+    {
+        if (string.IsNullOrWhiteSpace(templateCode))
+        {
+            return null;
+        }
+
+        var normalized = templateCode.Trim().ToLowerInvariant();
+        return EmailTemplateCodes.IsKnown(normalized) ? normalized : null;
+    }
+
+    private static Error CreateEmailTemplateValidationError(EmailTemplateValidationResult validation)
+    {
+        var issue = validation.Issues.Count > 0
+            ? validation.Issues[0]
+            : new EmailTemplateValidationIssue(
+                "email_template.invalid",
+                "Email template is invalid.");
+
+        return Error.Validation(issue.Code, issue.Message);
     }
 
     private static DateOnly ClampEndDate(DateOnly? validFrom, DateOnly requestedEnd)

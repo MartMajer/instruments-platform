@@ -114,6 +114,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+
     public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
 
     public DbSet<NotificationDeliveryAttempt> NotificationDeliveryAttempts => Set<NotificationDeliveryAttempt>();
@@ -2737,6 +2739,66 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<EmailTemplate>(builder =>
+        {
+            builder.ToTable("email_template", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_email_template_code",
+                    "template_code IN ('invitation','reminder')");
+                table.HasCheckConstraint(
+                    "ck_email_template_locale",
+                    "locale IN ('en','hr-HR')");
+                table.HasCheckConstraint(
+                    "ck_email_template_status",
+                    "status IN ('active')");
+                table.HasCheckConstraint(
+                    "ck_email_template_subject_length",
+                    "length(trim(subject)) BETWEEN 1 AND 160");
+                table.HasCheckConstraint(
+                    "ck_email_template_body_text_length",
+                    "length(trim(body_text)) BETWEEN 80 AND 4000");
+            });
+
+            builder.HasKey(template => template.Id).HasName("pk_email_template");
+
+            builder.Property(template => template.Id).HasColumnName("id");
+            builder.Property(template => template.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(template => template.TemplateCode)
+                .HasColumnName("template_code")
+                .HasMaxLength(128)
+                .IsRequired();
+            builder.Property(template => template.Locale)
+                .HasColumnName("locale")
+                .HasMaxLength(16)
+                .IsRequired();
+            builder.Property(template => template.Subject)
+                .HasColumnName("subject")
+                .HasMaxLength(EmailTemplate.MaxSubjectLength)
+                .IsRequired();
+            builder.Property(template => template.BodyText)
+                .HasColumnName("body_text")
+                .HasColumnType("text")
+                .HasMaxLength(EmailTemplate.MaxBodyTextLength)
+                .IsRequired();
+            builder.Property(template => template.Status)
+                .HasColumnName("status")
+                .HasMaxLength(32)
+                .IsRequired();
+            builder.Property(template => template.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(template => template.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            builder.HasIndex(template => new { template.TenantId, template.TemplateCode, template.Locale })
+                .HasDatabaseName("ux_email_template_tenant_code_locale")
+                .IsUnique();
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(template => template.TenantId)
+                .HasConstraintName("fk_email_template_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<Notification>(builder =>
         {
             builder.ToTable("notification", table =>
@@ -2758,6 +2820,11 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(notification => notification.TemplateCode).HasColumnName("template_code").HasMaxLength(128).IsRequired();
             builder.Property(notification => notification.Status).HasColumnName("status").HasMaxLength(64).IsRequired();
             builder.Property(notification => notification.Recipient).HasColumnName("recipient").IsRequired();
+            builder.Property(notification => notification.Locale)
+                .HasColumnName("locale")
+                .HasMaxLength(16)
+                .HasDefaultValue(EmailTemplateLocales.English)
+                .IsRequired();
             builder.Property(notification => notification.ScheduledFor).HasColumnName("scheduled_for");
             builder.Property(notification => notification.SentAt).HasColumnName("sent_at");
             builder.Property(notification => notification.Error).HasColumnName("error");

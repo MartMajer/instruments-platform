@@ -363,7 +363,27 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                     "Directory",
                     "Review subjects, groups, and hierarchy.",
                     "/app/directory")
-            ]);
+            ])
+        {
+            SupportedLocales = ["en", "hr-HR"],
+            EmailTemplates =
+            [
+                new TenantEmailTemplateSettingsResponse(
+                    "invitation",
+                    "en",
+                    "Study invitation",
+                    "Open: {{respondent_link}}\nUnsubscribe: {{unsubscribe_link}}\nSent by {{workspace_name}}.",
+                    IsCustom: false,
+                    ValidationIssues: []),
+                new TenantEmailTemplateSettingsResponse(
+                    "reminder",
+                    "hr-HR",
+                    "Podsjetnik na istraživanje",
+                    "Otvorite: {{respondent_link}}\nOdjava: {{unsubscribe_link}}\nPoslao {{workspace_name}}.",
+                    IsCustom: true,
+                    ValidationIssues: [])
+            ]
+        };
         var store = new FakeProductSurfaceReadStore(tenantSettingsResult: Result.Success(response));
         using var client = CreateClient(store);
         using var request = AuthenticatedRequest(
@@ -397,7 +417,130 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             link => Assert.Equal("/app/campaign-series", link.Route),
             link => Assert.Equal("/app/team", link.Route),
             link => Assert.Equal("/app/directory", link.Route));
+        Assert.Equal(["en", "hr-HR"], payload.SupportedLocales);
+        Assert.Collection(
+            payload.EmailTemplates,
+            template =>
+            {
+                Assert.Equal("invitation", template.TemplateCode);
+                Assert.Equal("en", template.Locale);
+                Assert.False(template.IsCustom);
+            },
+            template =>
+            {
+                Assert.Equal("reminder", template.TemplateCode);
+                Assert.Equal("hr-HR", template.Locale);
+                Assert.True(template.IsCustom);
+            });
         Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Tenant_language_endpoint_updates_default_locale()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var updatedAt = DateTimeOffset.Parse("2026-05-31T09:00:00+00:00");
+        var writeStore = new FakeProductSurfaceWriteStore(
+            updateTenantLanguageResult: Result.Success(new TenantLanguageResponse("hr-HR", updatedAt)));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/language",
+            tenantId,
+            actorUserId);
+        request.Content = JsonContent.Create(new UpdateTenantLanguageRequest("hr-HR"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantLanguageResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("hr-HR", payload.DefaultLocale);
+        Assert.Equal(updatedAt, payload.UpdatedAt);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal("hr-HR", writeStore.UpdateTenantLanguageRequest?.DefaultLocale);
+    }
+
+    [Fact]
+    public async Task Tenant_email_template_endpoint_saves_custom_template()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new TenantEmailTemplateSettingsResponse(
+            "invitation",
+            "hr-HR",
+            "Prilagođeni poziv",
+            """
+            Ovo je prilagođeni tekst poziva za radni prostor.
+
+            Otvorite poveznicu:
+            {{respondent_link}}
+
+            Ako ubuduće ne želite primati pozive, odjavite se ovdje:
+            {{unsubscribe_link}}
+
+            Poslao radni prostor {{workspace_name}}.
+            """,
+            IsCustom: true,
+            ValidationIssues: []);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            updateTenantEmailTemplateResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/email-templates/invitation/hr-HR",
+            tenantId,
+            actorUserId);
+        request.Content = JsonContent.Create(new UpdateEmailTemplateRequest(response.Subject, response.BodyText));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantEmailTemplateSettingsResponse>();
+        Assert.NotNull(payload);
+        Assert.True(payload.IsCustom);
+        Assert.Equal("Prilagođeni poziv", payload.Subject);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal("invitation", writeStore.TemplateCode);
+        Assert.Equal("hr-HR", writeStore.TemplateLocale);
+        Assert.Equal(response.Subject, writeStore.UpdateEmailTemplateRequest?.Subject);
+    }
+
+    [Fact]
+    public async Task Tenant_email_template_reset_endpoint_restores_default_template()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new ResetEmailTemplateResponse(
+            new TenantEmailTemplateSettingsResponse(
+                "invitation",
+                "hr-HR",
+                "Poziv na istraživanje",
+                "Otvorite: {{respondent_link}}\nOdjava: {{unsubscribe_link}}\nPoslao {{workspace_name}}.",
+                IsCustom: false,
+                ValidationIssues: []));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            resetTenantEmailTemplateResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Delete,
+            "/tenant-settings/email-templates/invitation/hr-HR",
+            tenantId,
+            actorUserId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<ResetEmailTemplateResponse>();
+        Assert.NotNull(payload);
+        Assert.False(payload.Template.IsCustom);
+        Assert.Equal("Poziv na istraživanje", payload.Template.Subject);
+        Assert.Equal("invitation", writeStore.TemplateCode);
+        Assert.Equal("hr-HR", writeStore.TemplateLocale);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
     }
 
     [Fact]
@@ -2726,7 +2869,10 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
         Result<SubjectGroupMembershipRemovalResponse>? removeSubjectGroupMemberResult = null,
-        Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null)
+        Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null,
+        Result<TenantLanguageResponse>? updateTenantLanguageResult = null,
+        Result<TenantEmailTemplateSettingsResponse>? updateTenantEmailTemplateResult = null,
+        Result<ResetEmailTemplateResponse>? resetTenantEmailTemplateResult = null)
         : IProductSurfaceWriteStore
     {
         public Guid TenantId { get; private set; }
@@ -2766,6 +2912,14 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public AddSubjectGroupMemberRequest? AddSubjectGroupMemberRequest { get; private set; }
 
         public SetSubjectManagerRequest? SetSubjectManagerRequest { get; private set; }
+
+        public UpdateTenantLanguageRequest? UpdateTenantLanguageRequest { get; private set; }
+
+        public UpdateEmailTemplateRequest? UpdateEmailTemplateRequest { get; private set; }
+
+        public string? TemplateCode { get; private set; }
+
+        public string? TemplateLocale { get; private set; }
 
         public Guid DeactivatedSubjectId { get; private set; }
 
@@ -3112,6 +3266,60 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(setSubjectManagerResult ??
                 Result.Failure<SubjectDirectoryItemResponse>(
                     Error.NotFound("subject.not_found", "Subject was not found.")));
+        }
+
+        public Task<Result<TenantLanguageResponse>> UpdateTenantLanguageAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            UpdateTenantLanguageRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            UpdateTenantLanguageRequest = request;
+
+            return Task.FromResult(updateTenantLanguageResult ??
+                Result.Failure<TenantLanguageResponse>(
+                    Error.Validation("tenant.locale_invalid", "Workspace language is not supported.")));
+        }
+
+        public Task<Result<TenantEmailTemplateSettingsResponse>> UpdateTenantEmailTemplateAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            string templateCode,
+            string locale,
+            UpdateEmailTemplateRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            TemplateCode = templateCode;
+            TemplateLocale = locale;
+            UpdateEmailTemplateRequest = request;
+
+            return Task.FromResult(updateTenantEmailTemplateResult ??
+                Result.Failure<TenantEmailTemplateSettingsResponse>(
+                    Error.Validation("email_template.invalid", "Email template is invalid.")));
+        }
+
+        public Task<Result<ResetEmailTemplateResponse>> ResetTenantEmailTemplateAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            string templateCode,
+            string locale,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            TemplateCode = templateCode;
+            TemplateLocale = locale;
+
+            return Task.FromResult(resetTenantEmailTemplateResult ??
+                Result.Failure<ResetEmailTemplateResponse>(
+                    Error.Validation("email_template.invalid", "Email template is invalid.")));
         }
     }
 }

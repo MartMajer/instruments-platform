@@ -32,6 +32,24 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("GetTenantSettings")
             .WithTags("ProductSurfaces");
 
+        app.MapPut("/tenant-settings/language", UpdateTenantLanguage)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UpdateTenantLanguage")
+            .WithTags("ProductSurfaces");
+
+        app.MapPut("/tenant-settings/email-templates/{templateCode}/{locale}", UpdateTenantEmailTemplate)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UpdateTenantEmailTemplate")
+            .WithTags("ProductSurfaces");
+
+        app.MapDelete("/tenant-settings/email-templates/{templateCode}/{locale}", ResetTenantEmailTemplate)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ResetTenantEmailTemplate")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/export-artifacts", ListExportArtifacts)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember)
@@ -256,6 +274,43 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new GetTenantSettingsQuery(), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> UpdateTenantLanguage(
+        UpdateTenantLanguageRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new UpdateTenantLanguageCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> UpdateTenantEmailTemplate(
+        string templateCode,
+        string locale,
+        UpdateEmailTemplateRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new UpdateTenantEmailTemplateCommand(templateCode, locale, request),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ResetTenantEmailTemplate(
+        string templateCode,
+        string locale,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ResetTenantEmailTemplateCommand(templateCode, locale),
+            cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

@@ -75,6 +75,27 @@ public interface IProductSurfaceWriteStore
         Guid actorUserId,
         CancellationToken cancellationToken);
 
+    Task<Result<TenantLanguageResponse>> UpdateTenantLanguageAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantLanguageRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<TenantEmailTemplateSettingsResponse>> UpdateTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        UpdateEmailTemplateRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<ResetEmailTemplateResponse>> ResetTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        CancellationToken cancellationToken);
+
     Task<Result<SubjectDirectoryItemResponse>> CreateSubjectAsync(
         Guid tenantId,
         Guid actorUserId,

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Auth;
+using Platform.Application.Features.Notifications;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
@@ -133,6 +134,20 @@ public sealed class ProductSurfaceReadStore(
             .CountAsync(
                 artifact => artifact.TenantId == tenantId && artifact.DeletedAt == null,
                 cancellationToken);
+        var emailTemplateRows = await db.EmailTemplates
+            .AsNoTracking()
+            .Where(template => template.TenantId == tenantId)
+            .Select(template => new EmailTemplateContent(
+                template.TemplateCode,
+                template.Locale,
+                template.Subject,
+                template.BodyText,
+                false))
+            .ToListAsync(cancellationToken);
+        var emailTemplates = TenantEmailTemplateSettingsFactory.Create(
+            emailTemplateRows.ToDictionary(
+                template => (template.TemplateCode, EmailTemplateLocales.Normalize(template.Locale)),
+                template => template));
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -148,7 +163,10 @@ public sealed class ProductSurfaceReadStore(
                 tenantMemberCount,
                 tenantRoleCount,
                 exportArtifactCount),
-            CreateTenantSettingsManagementLinks()));
+            CreateTenantSettingsManagementLinks())
+        {
+            EmailTemplates = emailTemplates
+        });
     }
 
     public async Task<ExportArtifactLibraryResponse> ListExportArtifactsAsync(

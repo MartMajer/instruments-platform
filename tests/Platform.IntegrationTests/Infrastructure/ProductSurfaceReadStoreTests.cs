@@ -220,6 +220,65 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Tenant_settings_returns_default_email_templates_and_custom_states()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "tenant-settings-email-templates");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(seedDb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+            seedDb.EmailTemplates.Add(new EmailTemplate(
+                Guid.NewGuid(),
+                tenantId,
+                EmailTemplateCodes.Invitation,
+                EmailTemplateLocales.Croatian,
+                "Prilagođeni poziv",
+                """
+                Ovo je prilagođeni tekst poziva za radni prostor.
+
+                Otvorite poveznicu:
+                {{respondent_link}}
+
+                Ako ubuduće ne želite primati pozive, odjavite se ovdje:
+                {{unsubscribe_link}}
+
+                Poslao radni prostor {{workspace_name}}.
+                """));
+            await seedDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetTenantSettingsAsync(tenantId, CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(["en", "hr-HR"], result.Value.SupportedLocales);
+        Assert.Equal(4, result.Value.EmailTemplates.Count);
+        var defaultInvitation = Assert.Single(
+            result.Value.EmailTemplates,
+            template => template.TemplateCode == EmailTemplateCodes.Invitation &&
+                template.Locale == EmailTemplateLocales.English);
+        Assert.False(defaultInvitation.IsCustom);
+        Assert.Contains("{{respondent_link}}", defaultInvitation.BodyText, StringComparison.Ordinal);
+        Assert.Contains("{{unsubscribe_link}}", defaultInvitation.BodyText, StringComparison.Ordinal);
+
+        var customInvitation = Assert.Single(
+            result.Value.EmailTemplates,
+            template => template.TemplateCode == EmailTemplateCodes.Invitation &&
+                template.Locale == EmailTemplateLocales.Croatian);
+        Assert.True(customInvitation.IsCustom);
+        Assert.Equal("Prilagođeni poziv", customInvitation.Subject);
+        Assert.Empty(customInvitation.ValidationIssues);
+    }
+
+    [DockerFact]
     public async Task Export_artifact_library_advertises_pdf_download_and_failed_pdf_retry_safely()
     {
         var tenantId = Guid.NewGuid();
@@ -4563,6 +4622,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 assignment,
                 invitation_token,
                 notification,
+                email_template,
                 notification_delivery_attempt,
                 notification_delivery_event,
                 email_suppression,

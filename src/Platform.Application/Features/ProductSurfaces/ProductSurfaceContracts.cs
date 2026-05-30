@@ -1,3 +1,6 @@
+using Platform.Application.Features.Notifications;
+using Platform.Domain.Campaigns;
+
 namespace Platform.Application.Features.ProductSurfaces;
 
 public sealed record WorkspaceOverviewResponse(
@@ -43,7 +46,12 @@ public sealed record WorkspaceCommandCenterItemResponse(
 public sealed record TenantSettingsWorkspaceResponse(
     TenantSettingsProfileResponse Profile,
     TenantSettingsWorkspaceCountsResponse Counts,
-    IReadOnlyList<TenantSettingsManagementLinkResponse> ManagementLinks);
+    IReadOnlyList<TenantSettingsManagementLinkResponse> ManagementLinks)
+{
+    public IReadOnlyList<string> SupportedLocales { get; init; } = TenantEmailTemplateSettingsFactory.SupportedLocales;
+
+    public IReadOnlyList<TenantEmailTemplateSettingsResponse> EmailTemplates { get; init; } = [];
+}
 
 public sealed record TenantSettingsProfileResponse(
     Guid TenantId,
@@ -71,6 +79,83 @@ public sealed record TenantSettingsManagementLinkResponse(
     string Label,
     string Description,
     string Route);
+
+public sealed record TenantLanguageResponse(
+    string DefaultLocale,
+    DateTimeOffset UpdatedAt);
+
+public sealed record UpdateTenantLanguageRequest(string DefaultLocale);
+
+public sealed record TenantEmailTemplateSettingsResponse(
+    string TemplateCode,
+    string Locale,
+    string Subject,
+    string BodyText,
+    bool IsCustom,
+    IReadOnlyList<EmailTemplateValidationIssueResponse> ValidationIssues);
+
+public sealed record EmailTemplateValidationIssueResponse(
+    string Code,
+    string Message);
+
+public sealed record UpdateEmailTemplateRequest(
+    string Subject,
+    string BodyText);
+
+public sealed record ResetEmailTemplateResponse(
+    TenantEmailTemplateSettingsResponse Template);
+
+public static class TenantEmailTemplateSettingsFactory
+{
+    private static readonly string[] TemplateCodes =
+    [
+        EmailTemplateCodes.Invitation,
+        EmailTemplateCodes.Reminder
+    ];
+
+    public static IReadOnlyList<string> SupportedLocales { get; } = EmailTemplateLocales.Supported;
+
+    public static IReadOnlyList<TenantEmailTemplateSettingsResponse> Create(
+        IReadOnlyDictionary<(string TemplateCode, string Locale), EmailTemplateContent> customTemplates)
+    {
+        var templates = new List<TenantEmailTemplateSettingsResponse>();
+        foreach (var templateCode in TemplateCodes)
+        {
+            foreach (var locale in SupportedLocales)
+            {
+                var key = (templateCode, locale);
+                if (customTemplates.TryGetValue(key, out var custom))
+                {
+                    templates.Add(FromContent(custom, isCustom: true));
+                    continue;
+                }
+
+                templates.Add(FromContent(
+                    EmailTemplateDefaults.Get(templateCode, locale),
+                    isCustom: false));
+            }
+        }
+
+        return templates;
+    }
+
+    public static TenantEmailTemplateSettingsResponse FromContent(
+        EmailTemplateContent content,
+        bool isCustom)
+    {
+        var validation = EmailTemplateValidator.Validate(content);
+
+        return new TenantEmailTemplateSettingsResponse(
+            content.TemplateCode,
+            EmailTemplateLocales.Normalize(content.Locale),
+            content.Subject,
+            content.BodyText,
+            isCustom,
+            validation.Issues
+                .Select(issue => new EmailTemplateValidationIssueResponse(issue.Code, issue.Message))
+                .ToArray());
+    }
+}
 
 public sealed record ExportArtifactLibraryResponse(
     Guid TenantId,

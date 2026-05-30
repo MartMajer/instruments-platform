@@ -35,4 +35,16 @@ public sealed class Tenant
     public DateTimeOffset UpdatedAt { get; private set; }
 
     public DateTimeOffset? DeletedAt { get; private set; }
+
+    public void ChangeDefaultLocale(string defaultLocale, DateTimeOffset updatedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(defaultLocale, nameof(defaultLocale));
+        if (defaultLocale.Length > 16)
+        {
+            throw new ArgumentException("Default locale must be 16 characters or fewer.", nameof(defaultLocale));
+        }
+
+        DefaultLocale = defaultLocale.Trim();
+        UpdatedAt = updatedAt;
+    }
 }

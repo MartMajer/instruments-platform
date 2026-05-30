@@ -140,6 +140,88 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Tenant_language_and_email_template_settings_persist_under_tenant_scope()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "settings-tenant");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var languageResult = await store.UpdateTenantLanguageAsync(
+            tenantId,
+            actorUserId,
+            new UpdateTenantLanguageRequest("hr-HR"),
+            CancellationToken.None);
+
+        Assert.True(languageResult.IsSuccess, languageResult.Error.ToString());
+        Assert.Equal("hr-HR", languageResult.Value.DefaultLocale);
+
+        var firstTemplateResult = await store.UpdateTenantEmailTemplateAsync(
+            tenantId,
+            actorUserId,
+            EmailTemplateCodes.Invitation,
+            EmailTemplateLocales.Croatian,
+            new UpdateEmailTemplateRequest(
+                "Prilagođeni poziv",
+                """
+                Ovo je prilagođeni tekst poziva za radni prostor.
+
+                Otvorite poveznicu:
+                {{respondent_link}}
+
+                Ako ubuduće ne želite primati pozive, odjavite se ovdje:
+                {{unsubscribe_link}}
+
+                Poslao radni prostor {{workspace_name}}.
+                """),
+            CancellationToken.None);
+
+        Assert.True(firstTemplateResult.IsSuccess, firstTemplateResult.Error.ToString());
+        Assert.True(firstTemplateResult.Value.IsCustom);
+        Assert.Equal("Prilagođeni poziv", firstTemplateResult.Value.Subject);
+
+        var updatedTemplateResult = await store.UpdateTenantEmailTemplateAsync(
+            tenantId,
+            actorUserId,
+            EmailTemplateCodes.Invitation,
+            EmailTemplateLocales.Croatian,
+            new UpdateEmailTemplateRequest(
+                "Ažurirani poziv",
+                firstTemplateResult.Value.BodyText.Replace(
+                    "prilagođeni tekst",
+                    "ažurirani tekst",
+                    StringComparison.Ordinal)),
+            CancellationToken.None);
+
+        Assert.True(updatedTemplateResult.IsSuccess, updatedTemplateResult.Error.ToString());
+        Assert.Equal("Ažurirani poziv", updatedTemplateResult.Value.Subject);
+
+        var resetResult = await store.ResetTenantEmailTemplateAsync(
+            tenantId,
+            actorUserId,
+            EmailTemplateCodes.Invitation,
+            EmailTemplateLocales.Croatian,
+            CancellationToken.None);
+
+        Assert.True(resetResult.IsSuccess, resetResult.Error.ToString());
+        Assert.False(resetResult.Value.Template.IsCustom);
+        Assert.Equal("Poziv na istraživanje", resetResult.Value.Template.Subject);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var tenant = await verificationDb.Tenants.SingleAsync(entity => entity.Id == tenantId);
+        Assert.Equal("hr-HR", tenant.DefaultLocale);
+        Assert.Equal(0, await verificationDb.EmailTemplates.CountAsync(template => template.TenantId == tenantId));
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Duplicate_campaign_series_copies_sample_setup_skeleton_without_operational_data()
     {
         var tenantId = Guid.NewGuid();
@@ -1983,6 +2065,7 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
                 retention_policy,
                 disclosure_policy,
                 scoring_rule,
+                email_template,
                 invitation_token,
                 assignment,
                 response_session,

@@ -21,7 +21,8 @@ public sealed class Notification
         string recipient,
         DateTimeOffset? scheduledFor = null,
         DateTimeOffset? sentAt = null,
-        string? error = null)
+        string? error = null,
+        string locale = EmailTemplateLocales.English)
     {
         if (!NotificationChannels.IsKnown(channel))
         {
@@ -41,6 +42,7 @@ public sealed class Notification
         TemplateCode = NormalizeRequired(templateCode, nameof(templateCode));
         Status = status;
         Recipient = NormalizeEmail(recipient, nameof(recipient));
+        Locale = EmailTemplateLocales.Normalize(locale);
         ScheduledFor = scheduledFor;
         SentAt = sentAt;
         Error = error is null ? null : NotificationDeliveryTextSafety.SanitizeFailureError(error);
@@ -63,6 +65,8 @@ public sealed class Notification
     public string Status { get; private set; } = string.Empty;
 
     public string Recipient { get; private set; } = string.Empty;
+
+    public string Locale { get; private set; } = EmailTemplateLocales.English;
 
     public DateTimeOffset? ScheduledFor { get; private set; }
 
