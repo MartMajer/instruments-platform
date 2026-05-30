@@ -866,8 +866,8 @@ public sealed class StagingWorkerDeploymentPackageTests
         var script = ReadRepoFile("deploy/staging/run-vps-release-checks.sh");
 
         Assert.Contains("set -euo pipefail", script);
-        Assert.Contains("validatedscale-api-staging.croat.dev", script);
-        Assert.Contains("validatedscale-staging.croat.dev", script);
+        Assert.Contains("api-staging.validatedscale.com", script);
+        Assert.Contains("staging.validatedscale.com", script);
         Assert.Contains("curl", script);
         Assert.Contains("/health", script);
         Assert.Contains("/auth/session", script);
@@ -899,6 +899,21 @@ public sealed class StagingWorkerDeploymentPackageTests
     }
 
     [Fact]
+    public void Vps_release_check_runner_can_verify_legacy_web_redirects()
+    {
+        var script = ReadRepoFile("deploy/staging/run-vps-release-checks.sh");
+
+        Assert.Contains("--legacy-web-origin", script);
+        Assert.Contains("legacy_web_origin", script);
+        Assert.Contains("legacy_web_redirect_status", script);
+        Assert.Contains("legacy_web_redirect_location", script);
+        Assert.Contains("legacyWebRedirectStatus", script);
+        Assert.Contains("legacyWebRedirectLocation", script);
+        Assert.Contains("curl -sS -D \"$legacy_web_headers\"", script);
+        Assert.Contains("expected $web_origin", script);
+    }
+
+    [Fact]
     public void Vps_redeploy_smoke_records_revision_and_runs_release_checks()
     {
         var script = ReadRepoFile("deploy/staging/redeploy-vps-stack.sh");
@@ -914,8 +929,10 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("run-vps-release-checks.sh", script);
         Assert.Contains("api_origin=\"$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)\"", script);
         Assert.Contains("web_origin=\"$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)\"", script);
+        Assert.Contains("legacy_web_origin=\"$(read_env_value STAGING_LEGACY_WEB_ORIGIN || true)\"", script);
         Assert.Contains("--api-origin \"$api_origin\"", script);
         Assert.Contains("--web-origin \"$web_origin\"", script);
+        Assert.Contains("--legacy-web-origin \"$legacy_web_origin\"", script);
         Assert.Contains("redeploy-evidence.json", script);
         Assert.Contains("release-evidence", script);
         Assert.Contains("redeployProven", script);
@@ -948,8 +965,10 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("run-vps-release-checks.sh", script);
         Assert.Contains("api_origin=\"$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)\"", script);
         Assert.Contains("web_origin=\"$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)\"", script);
+        Assert.Contains("legacy_web_origin=\"$(read_env_value STAGING_LEGACY_WEB_ORIGIN || true)\"", script);
         Assert.Contains("--api-origin \"$api_origin\"", script);
         Assert.Contains("--web-origin \"$web_origin\"", script);
+        Assert.Contains("--legacy-web-origin \"$legacy_web_origin\"", script);
         Assert.Contains("rollback-evidence.json", script);
         Assert.Contains("rollback-release-evidence", script);
         Assert.Contains("restore-release-evidence", script);
@@ -1422,7 +1441,7 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("EmailDelivery__SenderDomainVerified: ${EmailDelivery__SenderDomainVerified:-false}", api);
         Assert.Contains("EmailDelivery__VerifiedSenderDomain: ${EmailDelivery__VerifiedSenderDomain:-}", api);
         Assert.Contains("EmailDelivery__FromAddress: ${EmailDelivery__FromAddress:-}", api);
-        Assert.Contains("EmailDelivery__PublicAppBaseUrl: ${EMAIL_DELIVERY_PUBLIC_APP_BASE_URL:-https://validatedscale-staging.croat.dev}", api);
+        Assert.Contains("EmailDelivery__PublicAppBaseUrl: ${EmailDelivery__PublicAppBaseUrl:-https://staging.validatedscale.com}", api);
         Assert.Contains("EmailDelivery__InvitationFooterText: ${EmailDelivery__InvitationFooterText:-}", api);
         Assert.Contains("EmailDelivery__AzureCommunicationServices__ConnectionString: ${EmailDelivery__AzureCommunicationServices__ConnectionString:-}", api);
         Assert.Contains("EmailDelivery__AzureCommunicationServices__Endpoint: ${EmailDelivery__AzureCommunicationServices__Endpoint:-}", api);

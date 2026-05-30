@@ -8,6 +8,7 @@ Usage: bash deploy/staging/run-vps-release-checks.sh [options]
 Options:
   --api-origin <url>                 API origin. Defaults to validatedscale API staging.
   --web-origin <url>                 Web origin. Defaults to validatedscale web staging.
+  --legacy-web-origin <url>          Optional old web origin that must redirect to --web-origin.
   --tenant-id <id>                   Tenant id for tenant-scoped auth probes.
   --evidence-dir <path>              Evidence directory. Defaults to /tmp/instruments-platform-vps-release-evidence-<utc>.
   --session-cookie-file <path>       Ignored file containing a browser Cookie header for authenticated proof.
@@ -26,8 +27,9 @@ else
 fi
 cd "$repo_root"
 
-api_origin="https://validatedscale-api-staging.croat.dev"
-web_origin="https://validatedscale-staging.croat.dev"
+api_origin="https://api-staging.validatedscale.com"
+web_origin="https://staging.validatedscale.com"
+legacy_web_origin=""
 tenant_id="11111111-1111-4111-8111-111111111111"
 evidence_dir=""
 session_cookie_file=""
@@ -43,6 +45,11 @@ while [[ $# -gt 0 ]]; do
     --web-origin)
       [[ $# -ge 2 ]] || { echo "--web-origin requires a URL." >&2; exit 2; }
       web_origin="$2"
+      shift 2
+      ;;
+    --legacy-web-origin)
+      [[ $# -ge 2 ]] || { echo "--legacy-web-origin requires a URL." >&2; exit 2; }
+      legacy_web_origin="$2"
       shift 2
       ;;
     --tenant-id)
@@ -78,6 +85,7 @@ done
 
 api_origin="${api_origin%/}"
 web_origin="${web_origin%/}"
+legacy_web_origin="${legacy_web_origin%/}"
 
 if [[ -n "$session_cookie_file" && -n "${STAGING_SESSION_COOKIE:-}" ]]; then
   echo "Use either --session-cookie-file or STAGING_SESSION_COOKIE, not both." >&2
@@ -172,6 +180,27 @@ api_health_status="$(wait_for_status "API health" "200" "$api_origin/health" 30 
 
 web_root_status="$(wait_for_status "Web root" "200" "$web_origin/" 15 2)"
 
+legacy_web_redirect_configured=false
+legacy_web_redirect_status_json=null
+legacy_web_redirect_location=""
+if [[ -n "$legacy_web_origin" ]]; then
+  legacy_web_redirect_configured=true
+  legacy_web_probe_path="/r/legacy-redirect-smoke?release=1"
+  legacy_web_headers="$work_dir/legacy-web-redirect.headers"
+  legacy_web_redirect_status="$(curl -sS -D "$legacy_web_headers" -o /dev/null -w '%{http_code}' "$legacy_web_origin$legacy_web_probe_path")"
+  if [[ "$legacy_web_redirect_status" != "301" && "$legacy_web_redirect_status" != "308" ]]; then
+    fail "Legacy web origin returned HTTP $legacy_web_redirect_status; expected 301 or 308 redirect to $web_origin."
+  fi
+
+  legacy_web_redirect_location="$(tr -d '\r' < "$legacy_web_headers" | awk 'BEGIN { IGNORECASE = 1 } /^location:/ { sub(/^[Ll]ocation:[[:space:]]*/, ""); print; exit }')"
+  expected_legacy_web_redirect_location="$web_origin$legacy_web_probe_path"
+  if [[ "$legacy_web_redirect_location" != "$expected_legacy_web_redirect_location" ]]; then
+    fail "Legacy web redirect location was '$legacy_web_redirect_location'; expected $web_origin with the original respondent path preserved."
+  fi
+
+  legacy_web_redirect_status_json="$legacy_web_redirect_status"
+fi
+
 unauthenticated_session_status="$(curl -sS -o "$work_dir/unauthenticated-session.body" -w '%{http_code}' -H "Origin: $web_origin" -H "X-Tenant-Id: $tenant_id" "$api_origin/auth/session")"
 require_status "Unauthenticated session" "401" "$unauthenticated_session_status"
 rm -f "$work_dir/unauthenticated-session.body"
@@ -208,6 +237,8 @@ fi
 
 api_origin_json="$(json_escape "$api_origin")"
 web_origin_json="$(json_escape "$web_origin")"
+legacy_web_origin_json="$(json_escape "$legacy_web_origin")"
+legacy_web_redirect_location_json="$(json_escape "$legacy_web_redirect_location")"
 
 cat >"$remote_evidence_path" <<JSON
 {
@@ -220,6 +251,12 @@ cat >"$remote_evidence_path" <<JSON
     "webOrigin": "$web_origin_json",
     "apiHealthStatus": $api_health_status,
     "webRootStatus": $web_root_status,
+    "legacyWebRedirect": {
+      "configured": $legacy_web_redirect_configured,
+      "legacyWebOrigin": "$legacy_web_origin_json",
+      "legacyWebRedirectStatus": $legacy_web_redirect_status_json,
+      "legacyWebRedirectLocation": "$legacy_web_redirect_location_json"
+    },
     "unauthenticatedSessionStatus": $unauthenticated_session_status,
     "authSessionCorsPreflightStatus": $auth_session_cors_preflight_status,
     "authLoginRedirectStatus": $auth_login_redirect_status,

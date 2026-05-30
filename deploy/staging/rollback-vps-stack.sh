@@ -161,6 +161,7 @@ fi
 
 api_origin="$(read_env_value STAGING_API_ORIGIN || read_env_value PUBLIC_API_BASE_URL || true)"
 web_origin="$(read_env_value STAGING_WEB_ORIGIN || read_env_value Cors__AllowedOrigins__0 || true)"
+legacy_web_origin="$(read_env_value STAGING_LEGACY_WEB_ORIGIN || true)"
 if [[ -z "$api_origin" || -z "$web_origin" ]]; then
   echo "VPS rollback requires STAGING_API_ORIGIN/PUBLIC_API_BASE_URL and STAGING_WEB_ORIGIN/Cors__AllowedOrigins__0 in $env_file." >&2
   exit 1
@@ -180,6 +181,9 @@ release_args_for_dir() {
   printf '%s\n' --evidence-dir "$target_dir"
   printf '%s\n' --api-origin "$api_origin"
   printf '%s\n' --web-origin "$web_origin"
+  if [[ -n "$legacy_web_origin" ]]; then
+    printf '%s\n' --legacy-web-origin "$legacy_web_origin"
+  fi
   if [[ "$require_authenticated_session" == "true" ]]; then
     printf '%s\n' --require-authenticated-session
   fi

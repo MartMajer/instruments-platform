@@ -101,7 +101,7 @@ services:
       EmailDelivery__SenderDomainVerified: ${EmailDelivery__SenderDomainVerified:-false}
       EmailDelivery__VerifiedSenderDomain: ${EmailDelivery__VerifiedSenderDomain:-}
       EmailDelivery__FromAddress: ${EmailDelivery__FromAddress:-}
-      EmailDelivery__PublicAppBaseUrl: ${EMAIL_DELIVERY_PUBLIC_APP_BASE_URL:-https://validatedscale-staging.croat.dev}
+      EmailDelivery__PublicAppBaseUrl: ${EmailDelivery__PublicAppBaseUrl:-https://staging.validatedscale.com}
       EmailDelivery__InvitationFooterText: ${EmailDelivery__InvitationFooterText:-}
       EmailDelivery__AzureCommunicationServices__ConnectionString: ${EmailDelivery__AzureCommunicationServices__ConnectionString:-}
       EmailDelivery__AzureCommunicationServices__Endpoint: ${EmailDelivery__AzureCommunicationServices__Endpoint:-}
