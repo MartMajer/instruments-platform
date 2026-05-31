@@ -66,6 +66,8 @@ public sealed class StagingWorkerDeploymentPackageTests
         Assert.Contains("ALTER ROLE %I LOGIN PASSWORD %L', :'worker_user'", script);
         Assert.Contains("worker_heartbeat", script);
         Assert.Contains("operational_notification", script);
+        Assert.Contains("email_template", ExtractReadWriteGrantBlock(script, "runtime_user"));
+        Assert.Contains("email_template", ExtractReadWriteGrantBlock(script, "worker_user"));
         Assert.Contains("withdrawal_event", script);
         Assert.Contains("withdrawal_request_token", script);
         Assert.Contains("retention_due_batch", script);
@@ -1682,5 +1684,33 @@ public sealed class StagingWorkerDeploymentPackageTests
 
         Assert.NotEmpty(section);
         return string.Join('\n', section);
+    }
+
+    private static string ExtractReadWriteGrantBlock(string script, string grantee)
+    {
+        var normalized = script.Replace("\r\n", "\n", StringComparison.Ordinal);
+        const string startMarker = "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE";
+        var endMarker = $"TO :\"{grantee}\";";
+
+        var searchIndex = 0;
+        while (searchIndex < normalized.Length)
+        {
+            var startIndex = normalized.IndexOf(startMarker, searchIndex, StringComparison.Ordinal);
+            if (startIndex < 0)
+            {
+                break;
+            }
+
+            var endIndex = normalized.IndexOf(endMarker, startIndex, StringComparison.Ordinal);
+            if (endIndex >= 0)
+            {
+                return normalized[startIndex..(endIndex + endMarker.Length)];
+            }
+
+            searchIndex = startIndex + startMarker.Length;
+        }
+
+        Assert.Fail($"Expected read/write grant block for {grantee}.");
+        return string.Empty;
     }
 }

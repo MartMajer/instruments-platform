@@ -41,6 +41,7 @@ public sealed class RlsMigrationScriptTests
         "assignment",
         "invitation_token",
         "notification",
+        "email_template",
         "notification_delivery_attempt",
         "notification_delivery_event",
         "email_suppression",
