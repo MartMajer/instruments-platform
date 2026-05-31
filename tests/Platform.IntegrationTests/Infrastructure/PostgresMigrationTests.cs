@@ -4561,14 +4561,20 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             tenantId,
             SubjectGroupTypes.Team,
             "Research Team");
+        var managerGroup = new SubjectGroup(
+            Guid.NewGuid(),
+            tenantId,
+            SubjectGroupTypes.Team,
+            "Managers");
         var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
         await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
         {
             tenantDb.Subjects.AddRange(manager, ana, ivan);
-            tenantDb.SubjectGroups.Add(group);
+            tenantDb.SubjectGroups.AddRange(group, managerGroup);
             tenantDb.SubjectMemberships.AddRange(
                 new SubjectMembership(ana.Id, group.Id, SubjectGroupRoles.Member),
-                new SubjectMembership(ivan.Id, group.Id, SubjectGroupRoles.Member));
+                new SubjectMembership(ivan.Id, group.Id, SubjectGroupRoles.Member),
+                new SubjectMembership(manager.Id, managerGroup.Id, SubjectGroupRoles.Member));
             tenantDb.SubjectRelationships.AddRange(
                 new SubjectRelationship(
                     Guid.NewGuid(),
@@ -4598,11 +4604,13 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}"""),
                 new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"duplicate_self"}"""),
                 new UpdateCampaignRespondentRuleRequest(
-                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_id":"{{ana.Id:D}}"}"""),
+                    $$"""{"kind":"selected_people","role":"selected_person","subject_ids":["{{ana.Id:D}}","{{ivan.Id:D}}"]}"""),
                 new UpdateCampaignRespondentRuleRequest(
-                    $$"""{"kind":"reports_of_target","role":"direct_report","target_subject_id":"{{manager.Id:D}}"}"""),
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{ana.Id:D}}","{{ivan.Id:D}}"]}"""),
                 new UpdateCampaignRespondentRuleRequest(
-                    $$"""{"kind":"all_in_group","role":"group_member","group_id":"{{group.Id:D}}"}""")
+                    $$"""{"kind":"reports_of_target","role":"direct_report","target_group_ids":["{{managerGroup.Id:D}}"]}"""),
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"all_in_group","role":"group_member","group_ids":["{{group.Id:D}}"]}""")
             ]),
             CancellationToken.None);
 
@@ -4620,8 +4628,9 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
         Assert.True(launch.IsSuccess, launch.Error.ToString());
         Assert.True(roster.IsSuccess, roster.Error.ToString());
-        Assert.Equal(7, roster.Value.AssignmentCount);
+        Assert.Equal(8, roster.Value.AssignmentCount);
         Assert.DoesNotContain(roster.Value.Assignments, assignment => assignment.Role == "duplicate_self");
+        Assert.DoesNotContain(roster.Value.Assignments, assignment => assignment.Role == "selected_person");
         Assert.Contains(
             roster.Value.Assignments,
             assignment =>
@@ -4633,6 +4642,12 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             assignment =>
                 assignment.Role == "manager" &&
                 assignment.TargetSubjectId == ana.Id &&
+                assignment.RespondentSubjectId == manager.Id);
+        Assert.Contains(
+            roster.Value.Assignments,
+            assignment =>
+                assignment.Role == "manager" &&
+                assignment.TargetSubjectId == ivan.Id &&
                 assignment.RespondentSubjectId == manager.Id);
         Assert.Contains(
             roster.Value.Assignments,
@@ -4653,7 +4668,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             .OrderBy(entity => entity.Role)
             .ToListAsync();
 
-        Assert.Equal(7, assignments.Count);
+        Assert.Equal(8, assignments.Count);
         Assert.All(assignments, assignment =>
         {
             Assert.False(assignment.Anonymous);

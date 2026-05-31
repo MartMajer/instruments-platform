@@ -1057,6 +1057,174 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Respondent_rule_preview_all_active_people_returns_active_tenant_subjects()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantA, "preview-all-active");
+        await SeedTenantAsync(runtimeOptions, tenantB, "preview-all-active-other");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantA, "Preview all active series");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantA,
+            template.TemplateVersionId,
+            series.Id,
+            "Preview all active campaign");
+        var ana = await SeedSubjectAsync(runtimeOptions, tenantA, "Ana Analyst", "ana@example.test", "emp-001");
+        var ivan = await SeedSubjectAsync(runtimeOptions, tenantA, "Ivan Intern", "ivan@example.test", "emp-002");
+        await SeedSubjectAsync(runtimeOptions, tenantB, "Other Tenant", "other@example.test", "emp-x");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.PreviewRespondentRuleAsync(
+            tenantA,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest("""{"kind":"all_active_people"}""", MaxRows: 10),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("all_active_people", result.Value.RuleKind);
+        Assert.Equal("self", result.Value.Role);
+        Assert.Equal(2, result.Value.Summary.TargetCount);
+        Assert.Equal(2, result.Value.Summary.RespondentCount);
+        Assert.Equal([ana.Id, ivan.Id], result.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+        Assert.All(result.Value.Rows, row => Assert.Equal(row.Target!.Id, row.Respondent!.Id));
+        Assert.Contains(result.Value.Warnings, warning => warning.Code == "respondent_rule_preview.all_active_people");
+    }
+
+    [DockerFact]
+    public async Task Respondent_rule_preview_excludes_sample_study_subjects_and_groups()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "preview-sample-boundary");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Preview sample boundary series");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Preview sample boundary campaign");
+        var realSubject = await SeedSubjectAsync(runtimeOptions, tenantId, "Adele Vance", "adele@example.test", "msgraph-user-001");
+        var sampleSubject = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Sample respondent 0001",
+            "sample@example.test",
+            "sample-study-001",
+            """{"sample_study":true,"campaign_series_id":"11111111-1111-4111-8111-111111111111"}""");
+        var realGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+        var sampleGroup = await SeedSubjectGroupAsync(
+            runtimeOptions,
+            tenantId,
+            SubjectGroupTypes.Department,
+            "Sample Department",
+            """{"sample_study":true,"campaign_series_id":"11111111-1111-4111-8111-111111111111"}""");
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, realSubject.Id, realGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, sampleSubject.Id, realGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, sampleSubject.Id, sampleGroup.Id, SubjectGroupRoles.Member);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var allActiveResult = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest("""{"kind":"all_active_people"}""", MaxRows: 10),
+            CancellationToken.None);
+        var realGroupResult = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"all_in_group","group_ids":["{{realGroup.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+        var sampleGroupResult = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"all_in_group","group_ids":["{{sampleGroup.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+
+        Assert.True(allActiveResult.IsSuccess, allActiveResult.Error.ToString());
+        Assert.Equal([realSubject.Id], allActiveResult.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+        Assert.DoesNotContain(allActiveResult.Value.Rows, row => row.Respondent!.Id == sampleSubject.Id);
+
+        Assert.True(realGroupResult.IsSuccess, realGroupResult.Error.ToString());
+        Assert.Equal([realSubject.Id], realGroupResult.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+        Assert.DoesNotContain(realGroupResult.Value.Rows, row => row.Respondent!.Id == sampleSubject.Id);
+
+        Assert.True(sampleGroupResult.IsFailure);
+        Assert.Equal("subject_group.not_found", sampleGroupResult.Error.Code);
+    }
+
+    [DockerFact]
+    public async Task Respondent_rule_preview_selected_people_returns_exact_subjects_and_fails_closed_for_cross_tenant_subject()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantA, "preview-selected-people");
+        await SeedTenantAsync(runtimeOptions, tenantB, "preview-selected-people-other");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantA, "Preview selected people series");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantA,
+            template.TemplateVersionId,
+            series.Id,
+            "Preview selected people campaign");
+        var ana = await SeedSubjectAsync(runtimeOptions, tenantA, "Ana Analyst", "ana@example.test", "emp-001");
+        var ivan = await SeedSubjectAsync(runtimeOptions, tenantA, "Ivan Intern", "ivan@example.test", "emp-002");
+        var mira = await SeedSubjectAsync(runtimeOptions, tenantA, "Mira Manager", "mira@example.test", "mgr-001");
+        var other = await SeedSubjectAsync(runtimeOptions, tenantB, "Other Tenant", "other@example.test", "emp-x");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.PreviewRespondentRuleAsync(
+            tenantA,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"selected_people","subject_ids":["{{ivan.Id}}","{{ana.Id}}","{{ivan.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+        var crossTenantResult = await store.PreviewRespondentRuleAsync(
+            tenantA,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"selected_people","subject_ids":["{{ana.Id}}","{{other.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("selected_people", result.Value.RuleKind);
+        Assert.Equal("self", result.Value.Role);
+        Assert.Equal(2, result.Value.Summary.TargetCount);
+        Assert.Equal(2, result.Value.Summary.RespondentCount);
+        Assert.Equal([ana.Id, ivan.Id], result.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+        Assert.DoesNotContain(result.Value.Rows, row => row.Respondent!.Id == mira.Id);
+        Assert.All(result.Value.Rows, row => Assert.Equal(row.Target!.Id, row.Respondent!.Id));
+
+        Assert.True(crossTenantResult.IsFailure);
+        Assert.Equal("subject.not_found", crossTenantResult.Error.Code);
+    }
+
+    [DockerFact]
     public async Task Respondent_rule_preview_all_in_group_returns_active_current_tenant_members()
     {
         var tenantId = Guid.NewGuid();
@@ -1097,6 +1265,49 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(2, result.Value.Summary.RespondentCount);
         Assert.Equal(2, result.Value.Summary.AssignmentPairCount);
         Assert.All(result.Value.Rows, row => Assert.Null(row.Target));
+        Assert.Equal([ana.Id, ivan.Id], result.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+    }
+
+    [DockerFact]
+    public async Task Respondent_rule_preview_all_in_group_accepts_multiple_group_ids_and_dedupes_members()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "preview-multi-group");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Preview multi group series");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Preview multi group campaign");
+        var ana = await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst", "ana@example.test", "emp-001");
+        var ivan = await SeedSubjectAsync(runtimeOptions, tenantId, "Ivan Intern", "ivan@example.test", "emp-002");
+        var research = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Research Team");
+        var retail = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "Retail");
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, ana.Id, research.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, ana.Id, retail.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, ivan.Id, retail.Id, SubjectGroupRoles.Member);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"all_in_group","group_ids":["{{research.Id}}","{{retail.Id}}","{{research.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("all_in_group", result.Value.RuleKind);
+        Assert.Equal(0, result.Value.Summary.TargetCount);
+        Assert.Equal(2, result.Value.Summary.RespondentCount);
+        Assert.Equal(2, result.Value.Summary.AssignmentPairCount);
         Assert.Equal([ana.Id, ivan.Id], result.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
     }
 
@@ -1246,6 +1457,68 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
 
         Assert.True(reportsResult.IsSuccess, reportsResult.Error.ToString());
         Assert.Equal("direct_report", reportsResult.Value.Role);
+        Assert.Equal([ana.Id, ivan.Id], reportsResult.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
+        Assert.All(reportsResult.Value.Rows, row => Assert.Equal(manager.Id, row.Target!.Id));
+    }
+
+    [DockerFact]
+    public async Task Respondent_rule_preview_manager_rules_accept_target_subject_ids_and_target_group_ids()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "preview-manager-multi-target");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Preview manager multi target series");
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Preview manager multi target campaign");
+        var manager = await SeedSubjectAsync(runtimeOptions, tenantId, "Mira Manager", "mira@example.test", "mgr-001");
+        var ana = await SeedSubjectAsync(runtimeOptions, tenantId, "Ana Analyst", "ana@example.test", "emp-001");
+        var ivan = await SeedSubjectAsync(runtimeOptions, tenantId, "Ivan Intern", "ivan@example.test", "emp-002");
+        var analystGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Analysts");
+        var managerGroup = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Team, "Managers");
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, ana.Id, analystGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, ivan.Id, analystGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(runtimeOptions, tenantId, manager.Id, managerGroup.Id, SubjectGroupRoles.Member);
+        await SeedSubjectRelationshipAsync(runtimeOptions, tenantId, manager.Id, ana.Id, SubjectRelationshipTypes.ManagerOf);
+        await SeedSubjectRelationshipAsync(runtimeOptions, tenantId, manager.Id, ivan.Id, SubjectRelationshipTypes.ManagerOf);
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var managerResult = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"manager_of_target","target_subject_ids":["{{ana.Id}}"],"target_group_ids":["{{analystGroup.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+        var reportsResult = await store.PreviewRespondentRuleAsync(
+            tenantId,
+            series.Id,
+            campaign.Id,
+            new RespondentRulePreviewRequest(
+                $$"""{"kind":"reports_of_target","target_group_ids":["{{managerGroup.Id}}"]}""",
+                MaxRows: 10),
+            CancellationToken.None);
+
+        Assert.True(managerResult.IsSuccess, managerResult.Error.ToString());
+        Assert.Equal("manager", managerResult.Value.Role);
+        Assert.Equal(2, managerResult.Value.Summary.TargetCount);
+        Assert.Equal(1, managerResult.Value.Summary.RespondentCount);
+        Assert.Equal(2, managerResult.Value.Summary.AssignmentPairCount);
+        Assert.Equal([ana.Id, ivan.Id], managerResult.Value.Rows.Select(row => row.Target!.Id).ToArray());
+        Assert.All(managerResult.Value.Rows, row => Assert.Equal(manager.Id, row.Respondent!.Id));
+
+        Assert.True(reportsResult.IsSuccess, reportsResult.Error.ToString());
+        Assert.Equal("direct_report", reportsResult.Value.Role);
+        Assert.Equal(1, reportsResult.Value.Summary.TargetCount);
+        Assert.Equal(2, reportsResult.Value.Summary.RespondentCount);
         Assert.Equal([ana.Id, ivan.Id], reportsResult.Value.Rows.Select(row => row.Respondent!.Id).ToArray());
         Assert.All(reportsResult.Value.Rows, row => Assert.Equal(manager.Id, row.Target!.Id));
     }

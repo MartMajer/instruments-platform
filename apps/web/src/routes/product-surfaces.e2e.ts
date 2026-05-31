@@ -886,7 +886,9 @@ test('renders authenticated app shell session profile without exposing technical
 test('renders tenant settings language and email-template controls', async ({ page }) => {
 	await page.goto('/app/settings');
 
-	await expect(page.getByRole('heading', { name: 'Workspace settings', exact: true })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: 'Workspace settings', exact: true })
+	).toBeVisible();
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
 	await expect(nav.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
 
@@ -916,7 +918,9 @@ test('renders tenant settings language and email-template controls', async ({ pa
 	await settings.getByLabel('Subject').fill('Prilagodeni poziv za {{workspace_name}}');
 	await settings.getByRole('button', { name: 'Save template' }).click();
 	await expect(settings.getByText('Email template saved.', { exact: true })).toBeVisible();
-	await expect(settings.getByText('https://staging.validatedscale.com/r/inv_preview')).toBeVisible();
+	await expect(
+		settings.getByText('https://staging.validatedscale.com/r/inv_preview')
+	).toBeVisible();
 
 	await settings.getByRole('button', { name: 'Reset to default' }).click();
 	await expect(settings.getByText('Email template reset.', { exact: true })).toBeVisible();
@@ -5576,19 +5580,20 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 		name: 'Preview recipients, then save the selection'
 	});
 	await expect(preview).toBeVisible();
-	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
-	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
+	await preview.getByRole('button', { name: /Managers of selected people or groups/ }).click();
+	await preview.getByRole('checkbox', { name: /Ana Analyst/ }).check();
 	await preview.getByRole('button', { name: 'Preview recipients' }).click();
 
 	await expect.poll(() => previewBodies).toHaveLength(1);
 	expect(previewBodies[0]).toMatchObject({
-		targetSubjectId: sampleSubjectDirectory.subjects[0].id,
+		targetSubjectId: null,
 		groupId: null,
 		maxRows: 25
 	});
 	expect(JSON.parse((previewBodies[0] as { rule: string }).rule)).toEqual({
 		kind: 'manager_of_target',
-		role: 'manager'
+		role: 'manager',
+		target_subject_ids: [sampleSubjectDirectory.subjects[0].id]
 	});
 	await expect(preview.getByText('Recipients found', { exact: true })).toBeVisible();
 	await expect(preview.getByText('Ana Analyst to Mira Manager', { exact: true })).toBeVisible();
@@ -5613,7 +5618,7 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 				rule: JSON.stringify({
 					kind: 'manager_of_target',
 					role: 'manager',
-					target_subject_id: sampleSubjectDirectory.subjects[0].id
+					target_subject_ids: [sampleSubjectDirectory.subjects[0].id]
 				}),
 				ruleKind: 'manager_of_target',
 				role: 'manager',
@@ -5694,8 +5699,8 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 	const preview = setup.getByRole('region', {
 		name: 'Preview recipients, then save the selection'
 	});
-	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
-	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
+	await preview.getByRole('button', { name: /Managers of selected people or groups/ }).click();
+	await preview.getByRole('checkbox', { name: /Ana Analyst/ }).check();
 	await preview.getByRole('button', { name: 'Save previewed recipients' }).click();
 
 	await expect.poll(() => saveBodies).toHaveLength(1);
@@ -5705,14 +5710,16 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 				rule: JSON.stringify({
 					kind: 'manager_of_target',
 					role: 'manager',
-					target_subject_id: sampleSubjectDirectory.subjects[0].id
+					target_subject_ids: [sampleSubjectDirectory.subjects[0].id]
 				})
 			}
 		]
 	});
 
 	const savedSelection = setup.getByRole('region', { name: 'Saved recipient selection' });
-	await expect(savedSelection.getByText("One person's manager", { exact: true })).toBeVisible();
+	await expect(
+		savedSelection.getByText('Managers of selected people or groups', { exact: true })
+	).toBeVisible();
 	await expect(savedSelection.getByText('Ana Analyst', { exact: true })).toBeVisible();
 	await expect(savedSelection.getByText('1 invitation pair', { exact: true })).toBeVisible();
 	const savedSelectionText = await savedSelection.textContent();

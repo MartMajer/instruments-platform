@@ -59,6 +59,15 @@
 		reviewRecipientImport
 	} from './recipient-import';
 	import {
+		createRecipientBuilderState,
+		parseSavedRecipientRule,
+		recipientBuilderValidation,
+		serializeRecipientBuilderRule,
+		type RecipientBuilderMode,
+		type RecipientBuilderValidationReason,
+		type RecipientBuilderState
+	} from './recipient-builder';
+	import {
 		appendScoreOutputRow,
 		applyQuestionScalePreset,
 		appendTemplateQuestionRow,
@@ -110,13 +119,15 @@
 	} from '$lib/respondent/respondent-preview-session';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
-	type PreviewRuleKind =
-		| 'self'
-		| 'all_in_group'
-		| 'manager_of_target'
-		| 'reports_of_target'
-		| 'external_emails';
+	type PreviewRuleKind = RecipientBuilderMode;
 	type PreviewRuleRow = RespondentRulePreviewResponse['rows'][number];
+	const primaryRecipientModes: RecipientBuilderMode[] = [
+		'all_active_people',
+		'all_in_group',
+		'selected_people',
+		'manager_of_target',
+		'reports_of_target'
+	];
 
 	let {
 		workspace,
@@ -238,9 +249,12 @@
 		defaultLocale: 'en'
 	});
 	let campaignNameInitialized = $state(false);
-	let previewRuleKind = $state<PreviewRuleKind>('all_in_group');
-	let previewTargetSubjectId = $state('');
-	let previewGroupId = $state('');
+	let recipientBuilder = $state<RecipientBuilderState>(
+		createRecipientBuilderState({ mode: 'all_active_people' })
+	);
+	let recipientSubjectSearch = $state('');
+	let recipientGroupSearch = $state('');
+	let recipientTargetSearch = $state('');
 	let previewExternalEmailText = $state('');
 	let previewExternalEmailFileError = $state<string | null>(null);
 	let previewManualRecipientName = $state('');
@@ -370,32 +384,43 @@
 	const waveContext = $derived(
 		toSelectedSeriesSetupWaveContext(workspace, localState, setupWorkflowCopy)
 	);
-	const previewRequiresTarget = $derived(
-		previewRuleKind === 'manager_of_target' || previewRuleKind === 'reports_of_target'
-	);
-	const previewRequiresGroup = $derived(previewRuleKind === 'all_in_group');
-	const previewUsesExternalEmails = $derived(previewRuleKind === 'external_emails');
 	const previewExternalEmailReview = $derived(reviewRecipientImport(previewExternalEmailText));
+	const currentRecipientBuilderState = $derived(
+		createRecipientBuilderState({
+			...recipientBuilder,
+			externalEmails: previewExternalEmailReview.recipients.map((recipient) => recipient.email)
+		})
+	);
+	const currentRecipientBuilderValidation = $derived(
+		recipientBuilderValidation(currentRecipientBuilderState)
+	);
+	const previewUsesExternalEmails = $derived(recipientBuilder.mode === 'external_emails');
+	const filteredRecipientSubjects = $derived(
+		filterRecipientSubjects(previewSubjects, recipientSubjectSearch)
+	);
+	const filteredRecipientGroups = $derived(
+		filterRecipientGroups(previewGroups, recipientGroupSearch)
+	);
+	const filteredRecipientTargets = $derived(
+		filterRecipientSubjects(previewSubjects, recipientTargetSearch)
+	);
+	const visibleRecipientSubjects = $derived(filteredRecipientSubjects.slice(0, 60));
+	const visibleRecipientGroups = $derived(filteredRecipientGroups.slice(0, 60));
+	const visibleRecipientTargets = $derived(filteredRecipientTargets.slice(0, 60));
 	const canRunPreview = $derived(
 		canManageSetup &&
 			!!selectedCampaignId &&
 			previewState !== 'submitting' &&
 			!previewOptionsLoading &&
-			(!previewRequiresTarget || !!previewTargetSubjectId) &&
-			(!previewRequiresGroup || !!previewGroupId) &&
-			(!previewUsesExternalEmails ||
-				(previewExternalEmailReview.validRecipientCount > 0 &&
-					!previewExternalEmailReview.hasBlockingIssues))
+			currentRecipientBuilderValidation.ok &&
+			(!previewUsesExternalEmails || !previewExternalEmailReview.hasBlockingIssues)
 	);
 	const canSaveCurrentRule = $derived(
 		canManageSetup &&
 			!!selectedCampaignId &&
 			savedRuleState !== 'submitting' &&
-			(!previewRequiresTarget || !!previewTargetSubjectId) &&
-			(!previewRequiresGroup || !!previewGroupId) &&
-			(!previewUsesExternalEmails ||
-				(previewExternalEmailReview.validRecipientCount > 0 &&
-					!previewExternalEmailReview.hasBlockingIssues))
+			currentRecipientBuilderValidation.ok &&
+			(!previewUsesExternalEmails || !previewExternalEmailReview.hasBlockingIssues)
 	);
 	const readinessAutoCheckFingerprint = $derived(
 		selectedCampaignId
@@ -654,21 +679,14 @@
 			return;
 		}
 
-		if (previewRequiresGroup && !previewGroupId) {
-			previewError = setupUi('Select a subject group.');
+		if (!currentRecipientBuilderValidation.ok) {
+			previewError = setupUi(
+				recipientBuilderValidationMessage(currentRecipientBuilderValidation.reason)
+			);
 			return;
 		}
 
-		if (previewRequiresTarget && !previewTargetSubjectId) {
-			previewError = setupUi('Select a target subject.');
-			return;
-		}
-
-		if (
-			previewUsesExternalEmails &&
-			(previewExternalEmailReview.validRecipientCount === 0 ||
-				previewExternalEmailReview.hasBlockingIssues)
-		) {
+		if (previewUsesExternalEmails && previewExternalEmailReview.hasBlockingIssues) {
 			previewError = setupUi('Add at least one valid email and remove invalid or duplicate rows.');
 			return;
 		}
@@ -680,8 +698,8 @@
 		try {
 			previewResult = await productApi.previewRespondentRule(workspace.series.id, campaignId, {
 				rule: buildCurrentRespondentRuleJson(),
-				targetSubjectId: previewRequiresTarget ? previewTargetSubjectId : null,
-				groupId: previewRequiresGroup ? previewGroupId : null,
+				targetSubjectId: null,
+				groupId: null,
 				maxRows: normalizePreviewMaxRows(previewMaxRows)
 			});
 			previewState = 'succeeded';
@@ -744,21 +762,14 @@
 			return;
 		}
 
-		if (previewRequiresGroup && !previewGroupId) {
-			savedRuleError = setupUi('Select a subject group.');
+		if (!currentRecipientBuilderValidation.ok) {
+			savedRuleError = setupUi(
+				recipientBuilderValidationMessage(currentRecipientBuilderValidation.reason)
+			);
 			return;
 		}
 
-		if (previewRequiresTarget && !previewTargetSubjectId) {
-			savedRuleError = setupUi('Select a target subject.');
-			return;
-		}
-
-		if (
-			previewUsesExternalEmails &&
-			(previewExternalEmailReview.validRecipientCount === 0 ||
-				previewExternalEmailReview.hasBlockingIssues)
-		) {
+		if (previewUsesExternalEmails && previewExternalEmailReview.hasBlockingIssues) {
 			savedRuleError = setupUi(
 				'Add at least one valid email and remove invalid or duplicate rows.'
 			);
@@ -809,8 +820,11 @@
 				locale: campaignForm.defaultLocale || 'en'
 			});
 			testRecipientResult = result;
-			previewRuleKind = 'all_in_group';
-			previewGroupId = result.groupId;
+			recipientBuilder = createRecipientBuilderState({
+				...recipientBuilder,
+				mode: 'all_in_group',
+				selectedGroupIds: [result.groupId]
+			});
 			previewResult = null;
 			previewGroups = [
 				...previewGroups.filter((group) => group.id !== result.groupId),
@@ -979,17 +993,15 @@
 	}
 
 	function syncPreviewSelections() {
-		if (!previewSubjects.some((subject) => subject.id === previewTargetSubjectId)) {
-			previewTargetSubjectId = previewSubjects[0]?.id ?? '';
-		}
-
-		if (!previewGroups.some((group) => group.id === previewGroupId)) {
-			previewGroupId = previewGroups[0]?.id ?? '';
-		}
-
-		if (previewGroups.length === 0 && previewRuleKind === 'all_in_group') {
-			previewRuleKind = 'external_emails';
-		}
+		const subjectIds = new Set(previewSubjects.map((subject) => subject.id));
+		const groupIds = new Set(previewGroups.map((group) => group.id));
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			selectedSubjectIds: recipientBuilder.selectedSubjectIds.filter((id) => subjectIds.has(id)),
+			targetSubjectIds: recipientBuilder.targetSubjectIds.filter((id) => subjectIds.has(id)),
+			selectedGroupIds: recipientBuilder.selectedGroupIds.filter((id) => groupIds.has(id)),
+			targetGroupIds: recipientBuilder.targetGroupIds.filter((id) => groupIds.has(id))
+		});
 	}
 
 	function isActionDisabled(id: SelectedSeriesSetupWorkflowActionId) {
@@ -1406,51 +1418,8 @@
 		);
 	}
 
-	function defaultPreviewRole(kind: PreviewRuleKind) {
-		if (kind === 'all_in_group') {
-			return 'group_member';
-		}
-
-		if (kind === 'manager_of_target') {
-			return 'manager';
-		}
-
-		if (kind === 'reports_of_target') {
-			return 'direct_report';
-		}
-
-		if (kind === 'external_emails') {
-			return 'email_recipient';
-		}
-
-		return 'self';
-	}
-
 	function buildCurrentRespondentRuleJson() {
-		const rule: {
-			kind: PreviewRuleKind;
-			role: string;
-			target_subject_id?: string;
-			group_id?: string;
-			emails?: string[];
-		} = {
-			kind: previewRuleKind,
-			role: defaultPreviewRole(previewRuleKind)
-		};
-
-		if (previewRequiresTarget) {
-			rule.target_subject_id = previewTargetSubjectId;
-		}
-
-		if (previewRequiresGroup) {
-			rule.group_id = previewGroupId;
-		}
-
-		if (previewUsesExternalEmails) {
-			rule.emails = previewExternalEmailReview.recipients.map((recipient) => recipient.email);
-		}
-
-		return JSON.stringify(rule);
+		return serializeRecipientBuilderRule(currentRecipientBuilderState);
 	}
 
 	function normalizePreviewMaxRows(value: number) {
@@ -1464,6 +1433,153 @@
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
+	}
+
+	function previewGroupLabel(group: SubjectGroupResponse | null | undefined) {
+		if (!group) {
+			return setupUi('No group selected');
+		}
+
+		return group.name;
+	}
+
+	function setRecipientBuilderMode(mode: RecipientBuilderMode) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			mode,
+			confirmedAllActivePeople:
+				mode === 'all_active_people' ? recipientBuilder.confirmedAllActivePeople : false
+		});
+		previewResult = null;
+	}
+
+	function setAllActivePeopleConfirmation(checked: boolean) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			confirmedAllActivePeople: checked
+		});
+		previewResult = null;
+	}
+
+	function toggleSelectedSubject(subjectId: string) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			selectedSubjectIds: toggleStringSelection(recipientBuilder.selectedSubjectIds, subjectId)
+		});
+		previewResult = null;
+	}
+
+	function toggleSelectedGroup(groupId: string) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			selectedGroupIds: toggleStringSelection(recipientBuilder.selectedGroupIds, groupId)
+		});
+		previewResult = null;
+	}
+
+	function toggleTargetSubject(subjectId: string) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			targetSubjectIds: toggleStringSelection(recipientBuilder.targetSubjectIds, subjectId)
+		});
+		previewResult = null;
+	}
+
+	function toggleTargetGroup(groupId: string) {
+		recipientBuilder = createRecipientBuilderState({
+			...recipientBuilder,
+			targetGroupIds: toggleStringSelection(recipientBuilder.targetGroupIds, groupId)
+		});
+		previewResult = null;
+	}
+
+	function toggleStringSelection(values: string[], value: string) {
+		return values.includes(value)
+			? values.filter((candidate) => candidate !== value)
+			: [...values, value];
+	}
+
+	function filterRecipientSubjects(subjects: SubjectDirectoryItemResponse[], search: string) {
+		const query = search.trim().toLowerCase();
+		if (!query) {
+			return subjects;
+		}
+
+		return subjects.filter((subject) =>
+			[
+				subject.displayName,
+				subject.email,
+				subject.externalId,
+				subject.department,
+				subject.jobTitle,
+				subject.sourceLabel
+			].some((value) => value?.toLowerCase().includes(query))
+		);
+	}
+
+	function filterRecipientGroups(groups: SubjectGroupResponse[], search: string) {
+		const query = search.trim().toLowerCase();
+		if (!query) {
+			return groups;
+		}
+
+		return groups.filter((group) =>
+			[group.name, group.type].some((value) => value?.toLowerCase().includes(query))
+		);
+	}
+
+	function recipientBuilderValidationMessage(reason: RecipientBuilderValidationReason) {
+		if (reason === 'confirm_all_active_people') {
+			return 'Confirm that this measurement should include every active person.';
+		}
+
+		if (reason === 'select_people') {
+			return 'Select at least one Directory person.';
+		}
+
+		if (reason === 'select_groups') {
+			return 'Select at least one Directory group or department.';
+		}
+
+		if (reason === 'select_targets') {
+			return 'Select at least one target person, group, or department.';
+		}
+
+		return 'Add at least one valid email and remove invalid or duplicate rows.';
+	}
+
+	function selectedRecipientBuilderCount(mode: RecipientBuilderMode) {
+		if (mode === 'all_active_people') {
+			return recipientBuilder.confirmedAllActivePeople ? previewSubjects.length : 0;
+		}
+
+		if (mode === 'selected_people') {
+			return recipientBuilder.selectedSubjectIds.length;
+		}
+
+		if (mode === 'all_in_group') {
+			return recipientBuilder.selectedGroupIds.length;
+		}
+
+		if (mode === 'manager_of_target' || mode === 'reports_of_target') {
+			return recipientBuilder.targetSubjectIds.length + recipientBuilder.targetGroupIds.length;
+		}
+
+		return previewExternalEmailReview.validRecipientCount;
+	}
+
+	function selectedNamesFromIds(ids: string[], kind: 'subject' | 'group') {
+		const names = ids.map((id) =>
+			kind === 'subject' ? previewSubjectLabelById(id) : previewGroupLabelById(id)
+		);
+		if (names.length === 0) {
+			return setupUi('No selector saved');
+		}
+
+		const visible = names.slice(0, 3).join(', ');
+		return names.length > 3
+			? `${visible} +${formatCount(names.length - 3)} ${setupUi('more')}`
+			: visible;
 	}
 
 	function savedAudienceSummary() {
@@ -1525,21 +1641,34 @@
 	}
 
 	function savedRecipientSelectionLabel(rule: CampaignRespondentRuleResponse) {
-		return audienceRuleLabel(normalizePreviewRuleKind(rule.ruleKind));
+		return audienceRuleLabel(parseSavedRecipientRule(rule.rule).mode);
 	}
 
 	function savedRecipientSelectionDetail(rule: CampaignRespondentRuleResponse) {
-		if (normalizePreviewRuleKind(rule.ruleKind) === 'external_emails') {
+		const saved = parseSavedRecipientRule(rule.rule);
+		if (saved.mode === 'external_emails') {
 			return externalEmailRuleDetail(rule.rule);
 		}
 
-		const selector = rule.groupId
-			? previewGroupLabelById(rule.groupId)
-			: rule.targetSubjectId
-				? previewSubjectLabelById(rule.targetSubjectId)
-				: setupUi('Study recipients');
+		if (saved.mode === 'all_active_people') {
+			return setupUi('Every active Directory person in this workspace.');
+		}
 
-		return selector;
+		if (saved.mode === 'selected_people') {
+			return selectedNamesFromIds(saved.selectedSubjectIds, 'subject');
+		}
+
+		if (saved.mode === 'all_in_group') {
+			return selectedNamesFromIds(saved.selectedGroupIds, 'group');
+		}
+
+		const selectedPeople = selectedNamesFromIds(saved.targetSubjectIds, 'subject');
+		const selectedGroups = selectedNamesFromIds(saved.targetGroupIds, 'group');
+		if (saved.targetSubjectIds.length > 0 && saved.targetGroupIds.length > 0) {
+			return `${selectedPeople}; ${selectedGroups}`;
+		}
+
+		return saved.targetSubjectIds.length > 0 ? selectedPeople : selectedGroups;
 	}
 
 	function externalEmailRuleDetail(rule: string) {
@@ -1566,20 +1695,6 @@
 		}
 
 		return previewGroups.find((group) => group.id === groupId)?.name ?? setupUi('Selected group');
-	}
-
-	function normalizePreviewRuleKind(value: string): PreviewRuleKind {
-		if (
-			value === 'self' ||
-			value === 'all_in_group' ||
-			value === 'manager_of_target' ||
-			value === 'reports_of_target' ||
-			value === 'external_emails'
-		) {
-			return value;
-		}
-
-		return 'self';
 	}
 
 	function pairCountLabel(count: number) {
@@ -1828,16 +1943,20 @@
 	}
 
 	function audienceRuleLabel(rule: PreviewRuleKind): string {
-		if (rule === 'all_in_group') {
-			return setupUi('Everyone in selected groups');
+		if (rule === 'all_active_people') {
+			return setupUi('Everyone in workspace');
 		}
 
-		if (rule === 'self') {
-			return setupUi('Saved people answer for themselves');
+		if (rule === 'selected_people') {
+			return setupUi('Selected people');
+		}
+
+		if (rule === 'all_in_group') {
+			return setupUi('Selected groups or departments');
 		}
 
 		if (rule === 'manager_of_target') {
-			return setupUi('Managers of selected people');
+			return setupUi('Managers of selected people or groups');
 		}
 
 		if (rule === 'reports_of_target') {
@@ -1848,16 +1967,22 @@
 			return setupBodyCopy.recipients.audienceRules.externalEmailsLabel;
 		}
 
-		return setupBodyCopy.recipients.audienceRules.selfLabel;
+		return setupUi('Selected people');
 	}
 
 	function audienceRuleHelp(rule: PreviewRuleKind): string {
-		if (rule === 'all_in_group') {
-			return setupUi('Invite active people from the selected Directory groups.');
+		if (rule === 'all_active_people') {
+			return setupUi(
+				'Invite every active Directory person. Use only when the whole workspace should receive this measurement.'
+			);
 		}
 
-		if (rule === 'self') {
-			return setupUi('Invite the saved people directly. Each person gets one private invitation.');
+		if (rule === 'selected_people') {
+			return setupUi('Invite specific saved Directory people directly.');
+		}
+
+		if (rule === 'all_in_group') {
+			return setupUi('Invite active people from selected Directory groups or departments.');
 		}
 
 		if (rule === 'manager_of_target') {
@@ -1874,7 +1999,7 @@
 			return setupBodyCopy.recipients.audienceRules.externalEmailsHelp;
 		}
 
-		return setupBodyCopy.recipients.audienceRules.selfHelp;
+		return setupUi('Invite specific saved Directory people directly.');
 	}
 
 	function recipientRoleLabel(role: string): string {
@@ -2228,10 +2353,26 @@
 			'Koristite ovo u stagingu ili demo prikazima kada trebate realistične primatelje bez uvoza stvarnog imenika. Izrađuje označenu testnu skupinu i sprema je kao odabir primatelja za ovo mjerenje.',
 		'Group name': 'Naziv grupe',
 		People: 'Osobe',
+		people: 'osoba',
+		more: 'joÅ¡',
 		'Create test recipients': 'Izradi testne primatelje',
 		'Test cohort saved': 'Testna skupina spremljena',
 		'Send invitations to': 'Pošalji pozivnice za',
 		'How to choose': 'Kako odabrati',
+		'Everyone in workspace': 'Svi u radnom prostoru',
+		'Selected people': 'Odabrane osobe',
+		'Selected groups or departments': 'Odabrane grupe ili odjeli',
+		'Managers of selected people or groups': 'Voditelji odabranih osoba ili grupa',
+		'Selection behavior': 'PonaÅ¡anje odabira',
+		'Invite every active Directory person. Use only when the whole workspace should receive this measurement.':
+			'Pozovite svaku aktivnu osobu iz Imenika. Koristite samo kada cijeli radni prostor treba primiti ovo mjerenje.',
+		'Invite specific saved Directory people directly.':
+			'Pozovite izravno odreÄ‘ene spremljene osobe iz Imenika.',
+		'Invite active people from selected Directory groups or departments.':
+			'Pozovite aktivne osobe iz odabranih grupa ili odjela Imenika.',
+		'Fallback recipient import': 'Rezervni uvoz primatelja',
+		'Use this only when the Directory does not have the recipients needed for this measurement.':
+			'Koristite samo kada Imenik nema primatelje potrebne za ovo mjerenje.',
 		'Everyone in selected groups': 'Svi u odabranim grupama',
 		'Invite active people from the selected Directory groups.':
 			'Pozovite aktivne osobe iz odabranih grupa Imenika.',
@@ -2246,6 +2387,34 @@
 			'Pozovite osobe koje rade pod odabranim voditeljima.',
 		'Campaign-local recipients': 'Primatelji samo za ovo mjerenje',
 		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
+		'Whole workspace': 'Cijeli radni prostor',
+		'Every active Directory person': 'Svaka aktivna osoba iz Imenika',
+		'people loaded': 'osoba uÄitano',
+		'I confirm this measurement should include every active Directory person in the workspace.':
+			'PotvrÄ‘ujem da ovo mjerenje treba ukljuÄiti svaku aktivnu osobu iz Imenika u radnom prostoru.',
+		'Choose exact people': 'Odaberite toÄne osobe',
+		'Search people': 'PretraÅ¾i osobe',
+		'Name, email, department, role': 'Ime, email, odjel, uloga',
+		selected: 'odabrano',
+		'Department / group': 'Odjel / grupa',
+		'Choose groups or departments': 'Odaberite grupe ili odjele',
+		'Search groups': 'PretraÅ¾i grupe',
+		'Department, class, cohort, location': 'Odjel, razred, skupina, lokacija',
+		'Create reusable departments, classes, cohorts, or locations in Directory first.':
+			'Najprije u Imeniku izradite ponovno upotrebljive odjele, razrede, skupine ili lokacije.',
+		'Target people': 'Ciljne osobe',
+		'Choose people': 'Odaberite osobe',
+		'Search target people': 'PretraÅ¾i ciljne osobe',
+		'Target groups': 'Ciljne grupe',
+		'Choose groups': 'Odaberite grupe',
+		'Ready to preview': 'Spremno za pregled',
+		'Confirm that this measurement should include every active person.':
+			'Potvrdite da ovo mjerenje treba ukljuÄiti svaku aktivnu osobu.',
+		'Select at least one Directory person.': 'Odaberite barem jednu osobu iz Imenika.',
+		'Select at least one Directory group or department.':
+			'Odaberite barem jednu grupu ili odjel iz Imenika.',
+		'Select at least one target person, group, or department.':
+			'Odaberite barem jednu ciljnu osobu, grupu ili odjel.',
 		ready: 'spremno',
 		invalid: 'nevaljano',
 		duplicate: 'duplikat',
@@ -2297,6 +2466,10 @@
 		'Study recipients': 'Primatelji studije',
 		'No respondent': 'Nema ispitanika',
 		'No subject selected': 'Nije odabrana osoba',
+		'No group selected': 'Nije odabrana grupa',
+		'No selector saved': 'Nema spremljenog odabira',
+		'Every active Directory person in this workspace.':
+			'Svaka aktivna osoba iz Imenika u ovom radnom prostoru.',
 		'No contact': 'Nema kontakta',
 		to: 'prema',
 		'email recipient': 'email primatelj',
@@ -3733,59 +3906,273 @@
 					{/if}
 				</div>
 
-				<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(8rem,12rem)]">
-					<label class="field">
-						<span>{setupUi('Send invitations to')}</span>
-						<select bind:value={previewRuleKind} disabled={previewState === 'submitting'}>
-							<option value="all_in_group">{audienceRuleLabel('all_in_group')}</option>
-							<option value="self">{audienceRuleLabel('self')}</option>
-							<option value="manager_of_target">{audienceRuleLabel('manager_of_target')}</option>
-							<option value="reports_of_target">{audienceRuleLabel('reports_of_target')}</option>
-							<option value="external_emails">{audienceRuleLabel('external_emails')}</option>
-						</select>
-					</label>
-					<details
-						class="rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text-muted)] lg:col-span-2"
-					>
-						<summary class="cursor-pointer font-semibold text-[var(--color-text-strong)]">
-							{setupUi('How to choose')}
-						</summary>
-						<div class="mt-3 grid gap-3 md:grid-cols-2">
-							<div>
-								<p class="font-semibold text-[var(--color-text-strong)]">
-									{audienceRuleLabel('all_in_group')}
-								</p>
-								<p>{audienceRuleHelp('all_in_group')}</p>
-							</div>
-							<div>
-								<p class="font-semibold text-[var(--color-text-strong)]">
-									{audienceRuleLabel('self')}
-								</p>
-								<p>{audienceRuleHelp('self')}</p>
-							</div>
-							<div>
-								<p class="font-semibold text-[var(--color-text-strong)]">
-									{audienceRuleLabel('manager_of_target')}
-								</p>
-								<p>{audienceRuleHelp('manager_of_target')}</p>
-							</div>
-							<div>
-								<p class="font-semibold text-[var(--color-text-strong)]">
-									{audienceRuleLabel('reports_of_target')}
-								</p>
-								<p>{audienceRuleHelp('reports_of_target')}</p>
-							</div>
-							<div>
-								<p class="font-semibold text-[var(--color-text-strong)]">
-									{audienceRuleLabel('external_emails')}
-								</p>
-								<p>{audienceRuleHelp('external_emails')}</p>
-							</div>
+				<div class="grid gap-4">
+					<div class="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+						{#each primaryRecipientModes as mode}
+							<button
+								type="button"
+								class={recipientBuilder.mode === mode
+									? 'primary-button justify-start'
+									: 'secondary-button justify-start'}
+								aria-pressed={recipientBuilder.mode === mode}
+								disabled={previewState === 'submitting'}
+								onclick={() => setRecipientBuilderMode(mode)}
+							>
+								<span>{audienceRuleLabel(mode)}</span>
+								<span class="step-pill" data-state="idle">
+									{formatCount(selectedRecipientBuilderCount(mode))}
+								</span>
+							</button>
+						{/each}
+					</div>
+
+					<details class="record-row" open={recipientBuilder.mode === 'external_emails'}>
+						<summary class="record-row__title">{setupUi('Fallback recipient import')}</summary>
+						<div class="action-row mt-3">
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{setupUi(
+									'Use this only when the Directory does not have the recipients needed for this measurement.'
+								)}
+							</p>
+							<button
+								type="button"
+								class={recipientBuilder.mode === 'external_emails'
+									? 'primary-button'
+									: 'secondary-button'}
+								aria-pressed={recipientBuilder.mode === 'external_emails'}
+								disabled={previewState === 'submitting'}
+								onclick={() => setRecipientBuilderMode('external_emails')}
+							>
+								<span>{audienceRuleLabel('external_emails')}</span>
+								<span class="step-pill" data-state="idle">
+									{formatCount(previewExternalEmailReview.validRecipientCount)}
+								</span>
+							</button>
 						</div>
 					</details>
 
-					{#if previewUsesExternalEmails}
-						<div class="record-row lg:col-span-2">
+					<div class="record-field">
+						<p class="record-field__label">{setupUi('Selection behavior')}</p>
+						<p class="record-field__value">{audienceRuleLabel(recipientBuilder.mode)}</p>
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{audienceRuleHelp(recipientBuilder.mode)}
+						</p>
+					</div>
+
+					{#if recipientBuilder.mode === 'all_active_people'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">{setupUi('Whole workspace')}</p>
+									<h5 class="record-row__title">{setupUi('Every active Directory person')}</h5>
+								</div>
+								<span class="step-pill" data-state="idle">
+									{formatCount(previewSubjects.length)}
+									{setupUi('people loaded')}
+								</span>
+							</div>
+							<label class="checkbox-field">
+								<input
+									type="checkbox"
+									checked={recipientBuilder.confirmedAllActivePeople}
+									disabled={previewState === 'submitting'}
+									onchange={(event) => setAllActivePeopleConfirmation(event.currentTarget.checked)}
+								/>
+								<span>
+									{setupUi(
+										'I confirm this measurement should include every active Directory person in the workspace.'
+									)}
+								</span>
+							</label>
+						</div>
+					{:else if recipientBuilder.mode === 'selected_people'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">{setupUi('Directory people')}</p>
+									<h5 class="record-row__title">{setupUi('Choose exact people')}</h5>
+								</div>
+								<span class="step-pill" data-state="idle">
+									{formatCount(recipientBuilder.selectedSubjectIds.length)}
+									{setupUi('selected')}
+								</span>
+							</div>
+							<label class="field">
+								<span>{setupUi('Search people')}</span>
+								<input
+									value={recipientSubjectSearch}
+									placeholder={setupUi('Name, email, department, role')}
+									disabled={previewState === 'submitting'}
+									oninput={(event) => (recipientSubjectSearch = event.currentTarget.value)}
+								/>
+							</label>
+							<div class="grid max-h-72 gap-2 overflow-y-auto pr-2">
+								{#if visibleRecipientSubjects.length === 0}
+									<p class="text-sm text-[var(--color-text-muted)]">
+										{setupUi('No people to show yet.')}
+									</p>
+								{:else}
+									{#each visibleRecipientSubjects as subject (subject.id)}
+										<label class="checkbox-field">
+											<input
+												type="checkbox"
+												checked={recipientBuilder.selectedSubjectIds.includes(subject.id)}
+												disabled={previewState === 'submitting'}
+												onchange={() => toggleSelectedSubject(subject.id)}
+											/>
+											<span>
+												<strong>{previewSubjectLabel(subject)}</strong>
+												{#if subject.department || subject.jobTitle}
+													<span class="text-[var(--color-text-muted)]">
+														- {subject.department ?? subject.jobTitle}
+													</span>
+												{/if}
+											</span>
+										</label>
+									{/each}
+								{/if}
+							</div>
+						</div>
+					{:else if recipientBuilder.mode === 'all_in_group'}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">{setupUi('Department / group')}</p>
+									<h5 class="record-row__title">{setupUi('Choose groups or departments')}</h5>
+								</div>
+								<span class="step-pill" data-state="idle">
+									{formatCount(recipientBuilder.selectedGroupIds.length)}
+									{setupUi('selected')}
+								</span>
+							</div>
+							<label class="field">
+								<span>{setupUi('Search groups')}</span>
+								<input
+									value={recipientGroupSearch}
+									placeholder={setupUi('Department, class, cohort, location')}
+									disabled={previewState === 'submitting'}
+									oninput={(event) => (recipientGroupSearch = event.currentTarget.value)}
+								/>
+							</label>
+							<div class="grid max-h-72 gap-2 overflow-y-auto pr-2">
+								{#if visibleRecipientGroups.length === 0}
+									<div class="record-field">
+										<p class="record-field__label">{setupUi('No groups available')}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi(
+												'Create reusable departments, classes, cohorts, or locations in Directory first.'
+											)}
+										</p>
+										<a class="secondary-button mt-3" href="/app/directory">
+											{setupUi('Open Directory')}
+										</a>
+									</div>
+								{:else}
+									{#each visibleRecipientGroups as group (group.id)}
+										<label class="checkbox-field">
+											<input
+												type="checkbox"
+												checked={recipientBuilder.selectedGroupIds.includes(group.id)}
+												disabled={previewState === 'submitting'}
+												onchange={() => toggleSelectedGroup(group.id)}
+											/>
+											<span>
+												<strong>{previewGroupLabel(group)}</strong>
+												<span class="text-[var(--color-text-muted)]">
+													- {formatCount(group.memberCount)}
+													{setupUi('people')}
+												</span>
+											</span>
+										</label>
+									{/each}
+								{/if}
+							</div>
+						</div>
+					{:else if recipientBuilder.mode === 'manager_of_target' || recipientBuilder.mode === 'reports_of_target'}
+						<div class="grid gap-4 lg:grid-cols-2">
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Target people')}</p>
+										<h5 class="record-row__title">{setupUi('Choose people')}</h5>
+									</div>
+									<span class="step-pill" data-state="idle">
+										{formatCount(recipientBuilder.targetSubjectIds.length)}
+										{setupUi('selected')}
+									</span>
+								</div>
+								<label class="field">
+									<span>{setupUi('Search target people')}</span>
+									<input
+										value={recipientTargetSearch}
+										placeholder={setupUi('Name, email, department, role')}
+										disabled={previewState === 'submitting'}
+										oninput={(event) => (recipientTargetSearch = event.currentTarget.value)}
+									/>
+								</label>
+								<div class="grid max-h-72 gap-2 overflow-y-auto pr-2">
+									{#if visibleRecipientTargets.length === 0}
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('No people to show yet.')}
+										</p>
+									{:else}
+										{#each visibleRecipientTargets as subject (subject.id)}
+											<label class="checkbox-field">
+												<input
+													type="checkbox"
+													checked={recipientBuilder.targetSubjectIds.includes(subject.id)}
+													disabled={previewState === 'submitting'}
+													onchange={() => toggleTargetSubject(subject.id)}
+												/>
+												<span>{previewSubjectLabel(subject)}</span>
+											</label>
+										{/each}
+									{/if}
+								</div>
+							</div>
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Target groups')}</p>
+										<h5 class="record-row__title">{setupUi('Choose groups')}</h5>
+									</div>
+									<span class="step-pill" data-state="idle">
+										{formatCount(recipientBuilder.targetGroupIds.length)}
+										{setupUi('selected')}
+									</span>
+								</div>
+								<label class="field">
+									<span>{setupUi('Search groups')}</span>
+									<input
+										value={recipientGroupSearch}
+										placeholder={setupUi('Department, class, cohort, location')}
+										disabled={previewState === 'submitting'}
+										oninput={(event) => (recipientGroupSearch = event.currentTarget.value)}
+									/>
+								</label>
+								<div class="grid max-h-72 gap-2 overflow-y-auto pr-2">
+									{#if visibleRecipientGroups.length === 0}
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('No groups available')}
+										</p>
+									{:else}
+										{#each visibleRecipientGroups as group (group.id)}
+											<label class="checkbox-field">
+												<input
+													type="checkbox"
+													checked={recipientBuilder.targetGroupIds.includes(group.id)}
+													disabled={previewState === 'submitting'}
+													onchange={() => toggleTargetGroup(group.id)}
+												/>
+												<span>{previewGroupLabel(group)}</span>
+											</label>
+										{/each}
+									{/if}
+								</div>
+							</div>
+						</div>
+					{:else if previewUsesExternalEmails}
+						<div class="record-row">
 							<div class="record-row__header">
 								<div>
 									<p class="record-field__label">{setupUi('Campaign-local recipients')}</p>
@@ -3841,7 +4228,6 @@
 									onchange={(event) => loadPreviewExternalEmailFile(event.currentTarget.files?.[0])}
 								/>
 								<span class="text-xs leading-5 text-[var(--color-text-muted)]">
-									Use a class list, cohort list, HR export, or spreadsheet with an email column
 									{setupUi(
 										'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:'
 									)}
@@ -3897,71 +4283,32 @@
 								<p class="error-line" role="alert">{previewExternalEmailFileError}</p>
 							{/if}
 						</div>
-					{:else if previewRequiresGroup}
-						{#if previewGroups.length === 0}
-							<div class="record-field">
-								<p class="record-field__label">{setupUi('Directory group')}</p>
-								<p class="record-field__value">{setupUi('No groups available')}</p>
-								<p class="text-sm text-[var(--color-text-muted)]">
-									{setupUi(
-										'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.'
-									)}
-								</p>
-								<a class="secondary-button mt-3" href="/app/directory"
-									>{setupUi('Open Directory')}</a
-								>
-							</div>
-						{:else}
-							<label class="field">
-								<span>{setupUi('Directory group')}</span>
-								<select
-									bind:value={previewGroupId}
-									disabled={previewGroups.length === 0 || previewState === 'submitting'}
-								>
-									{#each previewGroups as group (group.id)}
-										<option value={group.id}>{group.name}</option>
-									{/each}
-								</select>
-							</label>
-						{/if}
-					{:else if previewRequiresTarget}
-						<label class="field">
-							<span>{setupUi('Focus person')}</span>
-							<select
-								bind:value={previewTargetSubjectId}
-								disabled={previewSubjects.length === 0 || previewState === 'submitting'}
-							>
-								{#each previewSubjects as subject (subject.id)}
-									<option value={subject.id}>{previewSubjectLabel(subject)}</option>
-								{/each}
-							</select>
-						</label>
-					{:else}
-						<div class="record-field">
-							<p class="record-field__label">{setupUi('Directory people')}</p>
-							<p class="record-field__value">
-								{previewSubjects.length
-									? `${formatCount(previewSubjects.length)} ${setupUi('active people loaded')}`
-									: setupUi('No active people loaded yet')}
-							</p>
-							<p class="text-sm text-[var(--color-text-muted)]">
-								{setupUi(
-									'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.'
-								)}
-							</p>
-						</div>
 					{/if}
 
-					<label class="field">
-						<span>{setupUi('Preview rows')}</span>
-						<input
-							type="number"
-							min="1"
-							max="200"
-							bind:value={previewMaxRows}
-							disabled={previewState === 'submitting'}
-						/>
-					</label>
+					<div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)]">
+						{#if !currentRecipientBuilderValidation.ok}
+							<p class="error-line" role="status">
+								{setupUi(
+									recipientBuilderValidationMessage(currentRecipientBuilderValidation.reason)
+								)}
+							</p>
+						{:else}
+							<p class="result-line">
+								<span>{setupUi('Ready to preview')}</span>
+								<span>{audienceRuleLabel(recipientBuilder.mode)}</span>
+							</p>
+						{/if}
+						<label class="field">
+							<span>{setupUi('Preview rows')}</span>
+							<input
+								type="number"
+								min="1"
+								max="200"
+								bind:value={previewMaxRows}
+								disabled={previewState === 'submitting'}
+							/>
+						</label>
+					</div>
 				</div>
 
 				<div class="action-row">
@@ -4020,7 +4367,7 @@
 					<p class="result-line">
 						<span>{setupUi('Previewed selection')}</span>
 						<span>
-							{audienceRuleLabel(previewRuleKind)} - {previewResult.summary.respondentCount}
+							{audienceRuleLabel(recipientBuilder.mode)} - {previewResult.summary.respondentCount}
 							{setupUi(
 								previewResult.summary.respondentCount === 1 ? 'recipient found' : 'recipients found'
 							)}
