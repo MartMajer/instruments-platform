@@ -5602,6 +5602,31 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 	expect(previewText).not.toMatch(/manager_of_target|respondent rule|target subject/i);
 });
 
+test('setup workflow localizes recipient builder and labels recipient mode counts clearly', async ({
+	page
+}) => {
+	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup?locale=hr-HR`);
+
+	const setup = page.getByRole('region', { name: 'Radni prostor postavljanja' });
+	const preview = setup.getByRole('region', {
+		name: 'Pregledajte primatelje, zatim spremite odabir'
+	});
+
+	await expect(preview.getByRole('button', { name: /Svi u radnom prostoru\s+2 osobe dostupne/ }))
+		.toBeVisible();
+	await expect(preview.getByRole('button', { name: /Odabrane osobe\s+0 odabrano/ })).toBeVisible();
+
+	await preview.getByRole('button', { name: /Odabrane osobe/ }).click();
+
+	await expect(preview.getByText('Ponašanje odabira', { exact: true })).toBeVisible();
+	await expect(preview.getByText('Odaberite točne osobe', { exact: true })).toBeVisible();
+	await expect(preview.getByLabel('Pretraži osobe')).toBeVisible();
+	await expect(preview.getByText('Ana Analyst', { exact: true })).toBeVisible();
+
+	const previewText = await preview.textContent();
+	expect(previewText).not.toMatch(/[ÃÅÄ]/);
+});
+
 test('setup workflow saves respondent rules and shows safe assignments', async ({ page }) => {
 	const selectedCampaignId = sampleSetupWorkspace.selectedCampaign?.id ?? '';
 	const saveBodies: unknown[] = [];

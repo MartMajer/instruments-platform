@@ -1568,6 +1568,38 @@
 		return previewExternalEmailReview.validRecipientCount;
 	}
 
+	function recipientModeBadgeLabel(mode: RecipientBuilderMode) {
+		if (mode === 'all_active_people') {
+			return `${formatCount(previewSubjects.length)} ${availablePeopleLabel(previewSubjects.length)}`;
+		}
+
+		return `${formatCount(selectedRecipientBuilderCount(mode))} ${setupUi('selected')}`;
+	}
+
+	function availablePeopleLabel(count: number) {
+		if (appLocale !== 'hr-HR') {
+			return count === 1 ? 'person available' : 'people available';
+		}
+
+		const absolute = Math.abs(count);
+		const lastTwoDigits = absolute % 100;
+		const lastDigit = absolute % 10;
+
+		if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+			return 'osoba dostupno';
+		}
+
+		if (lastDigit === 1) {
+			return 'osoba dostupna';
+		}
+
+		if (lastDigit >= 2 && lastDigit <= 4) {
+			return 'osobe dostupne';
+		}
+
+		return 'osoba dostupno';
+	}
+
 	function selectedNamesFromIds(ids: string[], kind: 'subject' | 'group') {
 		const names = ids.map((id) =>
 			kind === 'subject' ? previewSubjectLabelById(id) : previewGroupLabelById(id)
@@ -2354,7 +2386,7 @@
 		'Group name': 'Naziv grupe',
 		People: 'Osobe',
 		people: 'osoba',
-		more: 'joÅ¡',
+		more: 'još',
 		'Create test recipients': 'Izradi testne primatelje',
 		'Test cohort saved': 'Testna skupina spremljena',
 		'Send invitations to': 'Pošalji pozivnice za',
@@ -2363,11 +2395,11 @@
 		'Selected people': 'Odabrane osobe',
 		'Selected groups or departments': 'Odabrane grupe ili odjeli',
 		'Managers of selected people or groups': 'Voditelji odabranih osoba ili grupa',
-		'Selection behavior': 'PonaÅ¡anje odabira',
+		'Selection behavior': 'Ponašanje odabira',
 		'Invite every active Directory person. Use only when the whole workspace should receive this measurement.':
 			'Pozovite svaku aktivnu osobu iz Imenika. Koristite samo kada cijeli radni prostor treba primiti ovo mjerenje.',
 		'Invite specific saved Directory people directly.':
-			'Pozovite izravno odreÄ‘ene spremljene osobe iz Imenika.',
+			'Pozovite izravno određene spremljene osobe iz Imenika.',
 		'Invite active people from selected Directory groups or departments.':
 			'Pozovite aktivne osobe iz odabranih grupa ili odjela Imenika.',
 		'Fallback recipient import': 'Rezervni uvoz primatelja',
@@ -2389,27 +2421,27 @@
 		'Build a one-off recipient list': 'Izradi jednokratni popis primatelja',
 		'Whole workspace': 'Cijeli radni prostor',
 		'Every active Directory person': 'Svaka aktivna osoba iz Imenika',
-		'people loaded': 'osoba uÄitano',
+		'people loaded': 'osoba učitano',
 		'I confirm this measurement should include every active Directory person in the workspace.':
-			'PotvrÄ‘ujem da ovo mjerenje treba ukljuÄiti svaku aktivnu osobu iz Imenika u radnom prostoru.',
-		'Choose exact people': 'Odaberite toÄne osobe',
-		'Search people': 'PretraÅ¾i osobe',
+			'Potvrđujem da ovo mjerenje treba uključiti svaku aktivnu osobu iz Imenika u radnom prostoru.',
+		'Choose exact people': 'Odaberite točne osobe',
+		'Search people': 'Pretraži osobe',
 		'Name, email, department, role': 'Ime, email, odjel, uloga',
 		selected: 'odabrano',
 		'Department / group': 'Odjel / grupa',
 		'Choose groups or departments': 'Odaberite grupe ili odjele',
-		'Search groups': 'PretraÅ¾i grupe',
+		'Search groups': 'Pretraži grupe',
 		'Department, class, cohort, location': 'Odjel, razred, skupina, lokacija',
 		'Create reusable departments, classes, cohorts, or locations in Directory first.':
 			'Najprije u Imeniku izradite ponovno upotrebljive odjele, razrede, skupine ili lokacije.',
 		'Target people': 'Ciljne osobe',
 		'Choose people': 'Odaberite osobe',
-		'Search target people': 'PretraÅ¾i ciljne osobe',
+		'Search target people': 'Pretraži ciljne osobe',
 		'Target groups': 'Ciljne grupe',
 		'Choose groups': 'Odaberite grupe',
 		'Ready to preview': 'Spremno za pregled',
 		'Confirm that this measurement should include every active person.':
-			'Potvrdite da ovo mjerenje treba ukljuÄiti svaku aktivnu osobu.',
+			'Potvrdite da ovo mjerenje treba uključiti svaku aktivnu osobu.',
 		'Select at least one Directory person.': 'Odaberite barem jednu osobu iz Imenika.',
 		'Select at least one Directory group or department.':
 			'Odaberite barem jednu grupu ili odjel iz Imenika.',
@@ -3920,7 +3952,7 @@
 							>
 								<span>{audienceRuleLabel(mode)}</span>
 								<span class="step-pill" data-state="idle">
-									{formatCount(selectedRecipientBuilderCount(mode))}
+									{recipientModeBadgeLabel(mode)}
 								</span>
 							</button>
 						{/each}
