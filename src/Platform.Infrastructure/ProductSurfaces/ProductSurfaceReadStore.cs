@@ -3105,7 +3105,9 @@ public sealed class ProductSurfaceReadStore(
                         : "Results exist, but chart values are not visible yet.",
                 workspace.ResultsDashboard is null
                     ? null
-                    : new ResultsDashboardWidgetDataResponse(workspace.ResultsDashboard),
+                    : new ResultsDashboardWidgetDataResponse(
+                        workspace.ResultsDashboard,
+                        workspace.ResultsAnalytics),
                 DataSource: null,
                 Actions: []),
             new(

@@ -964,6 +964,7 @@ export type VisualAnalyticsEntryWidgetData = {
 
 export type ResultsDashboardWidgetData = {
 	dashboard: CampaignSeriesResultsDashboardResponse;
+	analytics?: CampaignSeriesResultsAnalyticsResponse | null;
 };
 
 export type CampaignSeriesResultsDashboardResponse = {

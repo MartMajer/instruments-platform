@@ -126,7 +126,7 @@ export function isResultsDashboardWidgetData(
 	}
 
 	const record = data as Record<string, unknown>;
-	if (!isRecord(record.dashboard)) {
+	if (!isRecord(record.dashboard) || !isOptionalResultsAnalytics(record.analytics)) {
 		return false;
 	}
 

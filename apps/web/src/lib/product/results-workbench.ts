@@ -2,6 +2,9 @@ import type {
 	CampaignSeriesReportsWorkspaceResponse,
 	CampaignSeriesResultsAnalyticsResponse,
 	CampaignSeriesResultsDashboardResponse,
+	CampaignSeriesResultsGroupMatrixRowResponse,
+	CampaignSeriesResultsWaveMatrixRowResponse,
+	ResultsDashboardPointResponse,
 	ResultsDashboardBarResponse
 } from '$lib/api/product';
 
@@ -46,6 +49,93 @@ export type ResultsWorkbenchModel = {
 	scoreCards: ResultsWorkbenchScoreCard[];
 	comparisons: ResultsWorkbenchComparisonSummary;
 	exports: ResultsWorkbenchExportSummary;
+};
+
+export type ResultsInterpretationCockpit = {
+	header: ResultsInterpretationHeader;
+	attentionCards: ResultsAttentionCard[];
+	radar: ResultsRadarProfile;
+	heatmap: ResultsGroupHeatmap;
+	trend: ResultsTrendSummary | null;
+};
+
+export type ResultsInterpretationHeader = {
+	selectedMeasurementLabel: string;
+	visibleResultCount: number;
+	suppressedResultCount: number;
+	sampleCount: number | null;
+	disclosureState: string;
+	dataFinality: string | null;
+	interpretationStatus: string | null;
+};
+
+export type ResultsAttentionCard = {
+	id: 'lowest_scale_position' | 'highest_scale_position' | 'latest_movement' | 'trust_constraint';
+	title: string;
+	label: string;
+	valueLabel: string;
+	tone: 'attention' | 'strong' | 'up' | 'down' | 'stable' | 'guarded' | 'neutral';
+	detail: string;
+	meta: string[];
+};
+
+export type ResultsRadarProfile = {
+	points: ResultsRadarPoint[];
+	excluded: ResultsExcludedResult[];
+	rangeLabel: string | null;
+};
+
+export type ResultsRadarPoint = {
+	id: string;
+	dimensionCode: string;
+	label: string;
+	valueLabel: string;
+	positionPercent: number;
+	rawValue: number;
+};
+
+export type ResultsExcludedResult = {
+	id: string;
+	label: string;
+	reason: 'suppressed' | 'not_numeric' | 'score_range_missing' | 'difference_range';
+};
+
+export type ResultsGroupHeatmap = {
+	columns: ResultsHeatmapColumn[];
+	rows: ResultsHeatmapRow[];
+};
+
+export type ResultsHeatmapColumn = {
+	id: string;
+	label: string;
+};
+
+export type ResultsHeatmapRow = {
+	id: string;
+	label: string;
+	groupType: string;
+	cells: ResultsHeatmapCell[];
+};
+
+export type ResultsHeatmapCell = {
+	id: string;
+	columnId: string;
+	valueLabel: string;
+	sampleLabel: string;
+	positionPercent: number | null;
+	disclosure: string;
+	tone: 'low' | 'medium' | 'high' | 'suppressed' | 'empty';
+	suppressionReason: string | null;
+};
+
+export type ResultsTrendSummary = {
+	dimensionCode: string;
+	label: string;
+	baselineLabel: string;
+	latestLabel: string;
+	deltaLabel: string;
+	direction: 'up' | 'down' | 'stable' | 'unavailable';
+	points: ResultsDashboardPointResponse[];
 };
 
 export type ResultsFilterOption = {
@@ -130,6 +220,44 @@ export function toResultsWorkbenchModel(
 				: 0
 		},
 		exports: toExportSummary(workspace)
+	};
+}
+
+export function toResultsInterpretationCockpit(
+	dashboard: CampaignSeriesResultsDashboardResponse,
+	analytics: CampaignSeriesResultsAnalyticsResponse | null | undefined,
+	options: {
+		selectedOutputCode?: string | null;
+		labels?: ResultsWorkbenchLabels;
+	} = {}
+): ResultsInterpretationCockpit {
+	const labels = options.labels ?? defaultLabels;
+	const outputBars = dashboard.outputBars;
+	const visibleBars = outputBars.filter((bar) => isVisibleNumeric(bar));
+	const suppressedResultCount = outputBars.filter((bar) => bar.disclosure !== 'visible').length;
+	const sampleCount = maxNullable(outputBars.map((bar) => bar.count));
+	const trend = toResultsTrendSummary(
+		dashboard.waveTrendPoints,
+		outputBars,
+		options.selectedOutputCode,
+		labels
+	);
+
+	return {
+		header: {
+			selectedMeasurementLabel:
+				dashboard.selectedCampaignName ?? analytics?.selectedCampaignName ?? 'Selected measurement',
+			visibleResultCount: visibleBars.length,
+			suppressedResultCount,
+			sampleCount,
+			disclosureState: dashboard.disclosureState,
+			dataFinality: mostRecentFinality(dashboard.waveTrendPoints, analytics?.waveRows ?? []),
+			interpretationStatus: null
+		},
+		attentionCards: toAttentionCards(outputBars, analytics, trend, labels),
+		radar: toRadarProfile(outputBars, labels),
+		heatmap: toGroupHeatmap(analytics?.groupRows ?? [], labels),
+		trend
 	};
 }
 
@@ -311,6 +439,305 @@ export function toScoreCards(
 	});
 }
 
+function toAttentionCards(
+	bars: ResultsDashboardBarResponse[],
+	analytics: CampaignSeriesResultsAnalyticsResponse | null | undefined,
+	trend: ResultsTrendSummary | null,
+	labels: ResultsWorkbenchLabels
+): ResultsAttentionCard[] {
+	const visible = bars
+		.map((bar) => toPositionedResult(bar))
+		.filter((item) => item !== null)
+		.sort((left, right) => left.positionPercent - right.positionPercent);
+	const cards: ResultsAttentionCard[] = [];
+	const lowest = visible[0];
+	const highest = visible.at(-1);
+
+	if (lowest) {
+		cards.push({
+			id: 'lowest_scale_position',
+			title: 'Needs attention',
+			label: lowest.label,
+			valueLabel: formatScoreValue(lowest.rawValue),
+			tone: 'attention',
+			detail: `${formatCompactNumber(lowest.positionPercent)}% of configured score range`,
+			meta: [lowest.rangeLabel]
+		});
+	}
+
+	if (highest && highest.id !== lowest?.id) {
+		cards.push({
+			id: 'highest_scale_position',
+			title: 'Strongest area',
+			label: highest.label,
+			valueLabel: formatScoreValue(highest.rawValue),
+			tone: 'strong',
+			detail: `${formatCompactNumber(highest.positionPercent)}% of configured score range`,
+			meta: [highest.rangeLabel]
+		});
+	}
+
+	const movement = largestWaveMovement(analytics?.waveRows ?? []);
+	if (movement) {
+		cards.push({
+			id: 'latest_movement',
+			title: 'Largest movement',
+			label: movement.displayLabel?.trim() || movement.dimensionCode,
+			valueLabel: formatSignedScoreValue(movement.deltaFromPreviousMean ?? 0),
+			tone: movementTone(movement.deltaFromPreviousMean),
+			detail: movement.campaignName,
+			meta: [movement.dataFinality, movement.comparisonState].filter(Boolean)
+		});
+	} else if (trend && trend.direction !== 'unavailable') {
+		cards.push({
+			id: 'latest_movement',
+			title: 'Latest movement',
+			label: trend.label,
+			valueLabel: trend.deltaLabel,
+			tone: trend.direction,
+			detail: `${trend.baselineLabel} to ${trend.latestLabel}`,
+			meta: []
+		});
+	}
+
+	const suppressedCount = bars.filter((bar) => bar.disclosure !== 'visible').length;
+	if (suppressedCount > 0) {
+		cards.push({
+			id: 'trust_constraint',
+			title: 'Trust constraint',
+			label: `${suppressedCount} ${suppressedCount === 1 ? 'result hidden' : 'results hidden'}`,
+			valueLabel: labels.suppressed,
+			tone: 'guarded',
+			detail: 'Disclosure guardrails are hiding low-sample values.',
+			meta: []
+		});
+	}
+
+	return cards;
+}
+
+function toRadarProfile(
+	bars: ResultsDashboardBarResponse[],
+	labels: ResultsWorkbenchLabels
+): ResultsRadarProfile {
+	const points: ResultsRadarPoint[] = [];
+	const excluded: ResultsExcludedResult[] = [];
+	let sharedRange: ResultsScoreRange | null = null;
+
+	for (const bar of bars) {
+		const positioned = toPositionedResult(bar);
+		if (!positioned) {
+			excluded.push({
+				id: bar.id,
+				label: resultBarDisplayLabel(bar),
+				reason: exclusionReason(bar)
+			});
+			continue;
+		}
+
+		if (sharedRange === null) {
+			sharedRange = positioned.range;
+		}
+
+		if (positioned.range.min !== sharedRange.min || positioned.range.max !== sharedRange.max) {
+			excluded.push({
+				id: bar.id,
+				label: resultBarDisplayLabel(bar),
+				reason: positioned.range.min < 0 ? 'difference_range' : 'score_range_missing'
+			});
+			continue;
+		}
+
+		points.push({
+			id: bar.id,
+			dimensionCode: bar.dimensionCode,
+			label: positioned.label,
+			valueLabel: formatScoreValue(positioned.rawValue),
+			positionPercent: positioned.positionPercent,
+			rawValue: positioned.rawValue
+		});
+	}
+
+	return {
+		points,
+		excluded,
+		rangeLabel: sharedRange
+			? `${labels.scoreRange} ${formatCompactNumber(sharedRange.min)}-${formatCompactNumber(sharedRange.max)}`
+			: null
+	};
+}
+
+function toGroupHeatmap(
+	groupRows: CampaignSeriesResultsGroupMatrixRowResponse[],
+	labels: ResultsWorkbenchLabels
+): ResultsGroupHeatmap {
+	const columnMap = new Map<string, ResultsHeatmapColumn>();
+	const rowMap = new Map<string, ResultsHeatmapRow>();
+
+	for (const row of groupRows) {
+		if (!columnMap.has(row.dimensionCode)) {
+			columnMap.set(row.dimensionCode, {
+				id: row.dimensionCode,
+				label: row.displayLabel?.trim() || row.dimensionCode
+			});
+		}
+
+		const rowKey = groupFilterKey(row.groupType, row.groupName);
+		if (!rowMap.has(rowKey)) {
+			rowMap.set(rowKey, {
+				id: rowKey,
+				label: row.groupName,
+				groupType: row.groupType,
+				cells: []
+			});
+		}
+	}
+
+	const columns = [...columnMap.values()];
+	for (const row of groupRows) {
+		const heatmapRow = rowMap.get(groupFilterKey(row.groupType, row.groupName));
+		if (!heatmapRow) {
+			continue;
+		}
+
+		heatmapRow.cells.push(toHeatmapCell(row, labels));
+	}
+
+	for (const row of rowMap.values()) {
+		const existingColumns = new Set(row.cells.map((cell) => cell.columnId));
+		for (const column of columns) {
+			if (!existingColumns.has(column.id)) {
+				row.cells.push({
+					id: `${row.id}\u0000${column.id}`,
+					columnId: column.id,
+					valueLabel: labels.notAvailable,
+					sampleLabel: labels.notAvailable,
+					positionPercent: null,
+					disclosure: 'missing',
+					tone: 'empty',
+					suppressionReason: null
+				});
+			}
+		}
+		row.cells.sort(
+			(left, right) =>
+				columns.findIndex((column) => column.id === left.columnId) -
+				columns.findIndex((column) => column.id === right.columnId)
+		);
+	}
+
+	return {
+		columns,
+		rows: [...rowMap.values()]
+	};
+}
+
+function toHeatmapCell(
+	row: CampaignSeriesResultsGroupMatrixRowResponse,
+	labels: ResultsWorkbenchLabels
+): ResultsHeatmapCell {
+	const range = configuredScoreRange(row);
+	const positionPercent =
+		row.disclosure === 'visible' && row.mean !== null && range
+			? scoreProgressPercent(row.mean, range, 100)
+			: null;
+
+	return {
+		id: `${groupFilterKey(row.groupType, row.groupName)}\u0000${row.dimensionCode}`,
+		columnId: row.dimensionCode,
+		valueLabel:
+			row.disclosure === 'visible' && row.mean !== null
+				? formatScoreValue(row.mean)
+				: labels.suppressed,
+		sampleLabel:
+			row.disclosure === 'visible' && row.scoreCount !== null
+				? String(row.scoreCount)
+				: labels.suppressed,
+		positionPercent,
+		disclosure: row.disclosure,
+		tone: heatmapTone(row.disclosure, positionPercent),
+		suppressionReason: row.suppressionReason
+	};
+}
+
+function toResultsTrendSummary(
+	points: ResultsDashboardPointResponse[],
+	bars: ResultsDashboardBarResponse[],
+	selectedOutputCode: string | null | undefined,
+	labels: ResultsWorkbenchLabels
+): ResultsTrendSummary | null {
+	const activeOutput =
+		activeFilterValue(selectedOutputCode) ??
+		bars.find((bar) => bar.disclosure === 'visible' && bar.value !== null)?.dimensionCode ??
+		bars[0]?.dimensionCode;
+	if (!activeOutput) {
+		return null;
+	}
+
+	const trendPoints = points.filter((point) => point.dimensionCode === activeOutput);
+	if (trendPoints.length === 0) {
+		return null;
+	}
+
+	const visiblePoints = trendPoints.filter(
+		(point) => point.disclosure === 'visible' && point.value !== null
+	);
+	const baseline = visiblePoints[0] ?? null;
+	const latest = visiblePoints.at(-1) ?? null;
+	const delta =
+		latest?.deltaFromPrevious ??
+		(baseline && latest ? (latest.value ?? 0) - (baseline.value ?? 0) : null);
+
+	return {
+		dimensionCode: activeOutput,
+		label:
+			bars.find((bar) => bar.dimensionCode === activeOutput)?.displayLabel?.trim() ||
+			trendPoints.find((point) => point.displayLabel?.trim())?.displayLabel?.trim() ||
+			activeOutput,
+		baselineLabel:
+			baseline?.value === null || baseline?.value === undefined
+				? labels.notAvailable
+				: formatScoreValue(baseline.value),
+		latestLabel:
+			latest?.value === null || latest?.value === undefined
+				? labels.notAvailable
+				: formatScoreValue(latest.value),
+		deltaLabel:
+			delta === null || delta === undefined ? labels.notAvailable : formatSignedScoreValue(delta),
+		direction: delta === null || delta === undefined ? 'unavailable' : trendDirection(delta),
+		points: trendPoints
+	};
+}
+
+type PositionedResult = {
+	id: string;
+	label: string;
+	rawValue: number;
+	positionPercent: number;
+	range: ResultsScoreRange;
+	rangeLabel: string;
+};
+
+function toPositionedResult(bar: ResultsDashboardBarResponse): PositionedResult | null {
+	const range = configuredScoreRange(bar);
+	if (bar.disclosure !== 'visible' || bar.value === null || !range || range.min < 0) {
+		return null;
+	}
+
+	return {
+		id: bar.id,
+		label: resultBarDisplayLabel(bar),
+		rawValue: bar.value,
+		positionPercent: scoreProgressPercent(bar.value, range, 100),
+		range,
+		rangeLabel: `${formatCompactNumber(range.min)}-${formatCompactNumber(range.max)}`
+	};
+}
+
+function isVisibleNumeric(bar: ResultsDashboardBarResponse) {
+	return bar.disclosure === 'visible' && bar.value !== null;
+}
+
 function sortScoreBars(bars: ResultsDashboardBarResponse[]) {
 	return [...bars].sort((left, right) => {
 		const leftVisible = left.disclosure === 'visible';
@@ -397,8 +824,114 @@ function formatCompactNumber(value: number) {
 	return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
+function formatScoreValue(value: number) {
+	return value.toFixed(2);
+}
+
+function formatSignedNumber(value: number) {
+	if (value > 0) {
+		return `+${formatCompactNumber(value)}`;
+	}
+
+	return formatCompactNumber(value);
+}
+
+function formatSignedScoreValue(value: number) {
+	return value > 0 ? `+${formatScoreValue(value)}` : formatScoreValue(value);
+}
+
 function roundPercent(value: number) {
 	return Math.round(value * 100) / 100;
+}
+
+function maxNullable(values: Array<number | null | undefined>) {
+	const numeric = values.filter((value): value is number => value !== null && value !== undefined);
+	return numeric.length === 0 ? null : Math.max(...numeric);
+}
+
+function exclusionReason(bar: ResultsDashboardBarResponse): ResultsExcludedResult['reason'] {
+	const range = configuredScoreRange(bar);
+	if (bar.disclosure !== 'visible') {
+		return 'suppressed';
+	}
+
+	if (bar.value === null) {
+		return 'not_numeric';
+	}
+
+	if (!range) {
+		return 'score_range_missing';
+	}
+
+	if (range.min < 0) {
+		return 'difference_range';
+	}
+
+	return 'score_range_missing';
+}
+
+function heatmapTone(
+	disclosure: string,
+	positionPercent: number | null
+): ResultsHeatmapCell['tone'] {
+	if (disclosure !== 'visible') {
+		return 'suppressed';
+	}
+
+	if (positionPercent === null) {
+		return 'empty';
+	}
+
+	if (positionPercent < 45) {
+		return 'low';
+	}
+
+	if (positionPercent < 70) {
+		return 'medium';
+	}
+
+	return 'high';
+}
+
+function largestWaveMovement(rows: CampaignSeriesResultsWaveMatrixRowResponse[]) {
+	return [...rows]
+		.filter(
+			(row) =>
+				row.disclosure === 'visible' &&
+				row.deltaFromPreviousMean !== null &&
+				row.comparisonState === 'compared'
+		)
+		.sort(
+			(left, right) =>
+				Math.abs(right.deltaFromPreviousMean ?? 0) - Math.abs(left.deltaFromPreviousMean ?? 0)
+		)[0];
+}
+
+function movementTone(value: number | null | undefined): ResultsAttentionCard['tone'] {
+	if (value === null || value === undefined || Math.abs(value) < 0.01) {
+		return 'stable';
+	}
+
+	return value > 0 ? 'up' : 'down';
+}
+
+function trendDirection(value: number): ResultsTrendSummary['direction'] {
+	if (Math.abs(value) < 0.01) {
+		return 'stable';
+	}
+
+	return value > 0 ? 'up' : 'down';
+}
+
+function mostRecentFinality(
+	points: ResultsDashboardPointResponse[],
+	waveRows: CampaignSeriesResultsWaveMatrixRowResponse[]
+) {
+	return (
+		[...points].reverse().find((point) => point.dataFinality)?.dataFinality ??
+		[...waveRows].reverse().find((row) => row.dataFinality)?.dataFinality ??
+		null
+	);
 }
 
 function toExportSummary(

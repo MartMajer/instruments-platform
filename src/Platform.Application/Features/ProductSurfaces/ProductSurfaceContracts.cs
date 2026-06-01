@@ -783,7 +783,8 @@ public sealed record VisualAnalyticsEntryWidgetDataResponse(
     CampaignSeriesResultsAnalyticsResponse? Analytics = null);
 
 public sealed record ResultsDashboardWidgetDataResponse(
-    CampaignSeriesResultsDashboardResponse Dashboard);
+    CampaignSeriesResultsDashboardResponse Dashboard,
+    CampaignSeriesResultsAnalyticsResponse? Analytics = null);
 
 public sealed record CampaignSeriesResultsDashboardResponse(
     Guid? SelectedCampaignId,

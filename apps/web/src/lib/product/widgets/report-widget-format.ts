@@ -67,6 +67,19 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		reportStatus: 'Report status',
 		resultOutput: 'Result output',
 		resultOutputs: 'Result outputs',
+		interpretationCockpit: 'Results cockpit',
+		attentionSignals: 'Attention signals',
+		resultProfile: 'Result profile',
+		profileRadar: 'Profile radar',
+		excludedFromProfile: 'Excluded from profile',
+		profileUnavailable: 'Profile chart needs at least three compatible visible results.',
+		groupHeatmap: 'Group heatmap',
+		whereItHappens: 'Where it happens',
+		heatmapUnavailable: 'Group heatmap unavailable',
+		currentTrend: 'Current trend',
+		latestResult: 'Latest result',
+		visibleResultOutputs: 'Visible results',
+		hiddenOutputs: 'Hidden results',
 		resultFocus: 'Result focus',
 		allResultOutputs: 'All result outputs',
 		allGroups: 'All groups',
@@ -156,7 +169,14 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		resultsDashboardDataUnavailable: 'Results dashboard data is unavailable.'
 	},
 	codeLabels: {
-		proof_only: 'preview'
+		proof_only: 'preview',
+		up: 'up',
+		down: 'down',
+		stable: 'stable',
+		unavailable: 'unavailable',
+		difference_range: 'difference/gap score',
+		score_range_missing: 'missing comparable score range',
+		not_numeric: 'not numeric'
 	}
 };
 

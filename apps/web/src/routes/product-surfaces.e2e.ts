@@ -4123,6 +4123,16 @@ test('Results summary renders primary dashboard labels before workflow', async (
 	await expect(widgets).toBeVisible();
 	const dashboard = widgets.getByRole('article', { name: 'Results dashboard' });
 	await expect(dashboard).toBeVisible();
+	await expect(dashboard.getByRole('region', { name: 'Results cockpit' })).toBeVisible();
+	await expect(dashboard.getByLabel('Attention signals')).toBeVisible();
+	const resultProfile = dashboard.getByRole('region', { name: 'Result profile' });
+	await expect(resultProfile).toBeVisible();
+	await expect(resultProfile).toContainText('Recovery capacity');
+	await expect(dashboard.getByRole('region', { name: 'Group heatmap' })).toBeVisible();
+	await expect(dashboard.getByRole('table', { name: 'Group heatmap' })).toContainText('Retail');
+	await expect(dashboard.getByRole('region', { name: 'Current trend' })).toContainText(
+		'Workload manageability'
+	);
 	await expect(
 		dashboard.getByText('Workload manageability', { exact: true }).first()
 	).toBeVisible();
@@ -4188,6 +4198,10 @@ test('Results summary controls fit the mobile viewport', async ({ page }) => {
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
+	const dashboard = workflow.getByRole('article', { name: 'Results dashboard' });
+	await expect(dashboard.getByRole('region', { name: 'Results cockpit' })).toBeVisible();
+	await expect(dashboard.getByRole('region', { name: 'Result profile' })).toBeVisible();
+	await expect(dashboard.getByRole('region', { name: 'Group heatmap' })).toBeVisible();
 	await expect(workflow.getByLabel('Result focus', { exact: true })).toBeVisible();
 	await expect(workflow.getByLabel('Results filters')).toBeVisible();
 	await expect(workflow.getByLabel('Export file choices')).toBeVisible();
@@ -8318,6 +8332,29 @@ function createPolishedResultsWidgetManifest(): CampaignSeriesReportsWidgetManif
 			comparisonState: 'compared'
 		}
 	];
+	const analytics = {
+		selectedCampaignId: selectedCampaign.id,
+		selectedCampaignName: selectedCampaign.name,
+		disclosureKMin: 5,
+		disclosureState: 'visible',
+		scoreOutputs: outputRows,
+		groupRows,
+		waveRows,
+		insights: [
+			{
+				kind: 'score_outputs',
+				severity: 'info',
+				title: 'Workload manageability is the strongest visible result.',
+				detail: 'Use the result matrix to inspect means, medians, and missingness.'
+			},
+			{
+				kind: 'group_matrix',
+				severity: 'warning',
+				title: 'Department differences are visible.',
+				detail: 'Use group filters before sharing department-level conclusions.'
+			}
+		]
+	};
 
 	return {
 		...sampleReportsWidgetManifest,
@@ -8392,7 +8429,8 @@ function createPolishedResultsWidgetManifest(): CampaignSeriesReportsWidgetManif
 								suppressionReason: row.suppressionReason
 							})),
 							notes: []
-						}
+						},
+						analytics
 					}
 				};
 			}
@@ -8405,29 +8443,7 @@ function createPolishedResultsWidgetManifest(): CampaignSeriesReportsWidgetManif
 						visibleScoreCount: 2,
 						suppressedScoreCount: 1,
 						reportableCampaignCount: 2,
-						analytics: {
-							selectedCampaignId: selectedCampaign.id,
-							selectedCampaignName: selectedCampaign.name,
-							disclosureKMin: 5,
-							disclosureState: 'visible',
-							scoreOutputs: outputRows,
-							groupRows,
-							waveRows,
-							insights: [
-								{
-									kind: 'score_outputs',
-									severity: 'info',
-									title: 'Workload manageability is the strongest visible result.',
-									detail: 'Use the result matrix to inspect means, medians, and missingness.'
-								},
-								{
-									kind: 'group_matrix',
-									severity: 'warning',
-									title: 'Department differences are visible.',
-									detail: 'Use group filters before sharing department-level conclusions.'
-								}
-							]
-						}
+						analytics
 					}
 				};
 			}

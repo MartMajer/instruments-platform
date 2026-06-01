@@ -6,6 +6,7 @@ import {
 	resultBarDisplayLabel,
 	toAnalyticsFilterModel,
 	toResultFocusOptions,
+	toResultsInterpretationCockpit,
 	toResultsWorkbenchModel,
 	toScoreCards
 } from './results-workbench';
@@ -256,6 +257,128 @@ describe('results workbench model', () => {
 			waveRows: 1,
 			waveRowsTotal: 2
 		});
+	});
+
+	it('builds a decision-oriented cockpit model without inventing official thresholds', () => {
+		const cockpit = toResultsInterpretationCockpit(
+			cockpitWorkspace.resultsDashboard!,
+			cockpitWorkspace.resultsAnalytics!,
+			{ selectedOutputCode: 'all' }
+		);
+
+		expect(cockpit.header).toMatchObject({
+			selectedMeasurementLabel: 'Intervention review',
+			visibleResultCount: 5,
+			suppressedResultCount: 1,
+			sampleCount: 24,
+			disclosureState: 'visible'
+		});
+		expect(cockpit.attentionCards.map((card) => card.id)).toEqual([
+			'lowest_scale_position',
+			'highest_scale_position',
+			'latest_movement',
+			'trust_constraint'
+		]);
+		expect(cockpit.attentionCards[0]).toMatchObject({
+			label: 'Recovery capacity',
+			valueLabel: '54.00',
+			tone: 'attention'
+		});
+		expect(cockpit.attentionCards[1]).toMatchObject({
+			label: 'Readiness index',
+			valueLabel: '68.20',
+			tone: 'strong'
+		});
+		expect(cockpit.attentionCards[2]).toMatchObject({
+			label: 'Readiness index',
+			valueLabel: '+8.00',
+			tone: 'up'
+		});
+		expect(cockpit.attentionCards[3]).toMatchObject({
+			label: '1 result hidden',
+			tone: 'guarded'
+		});
+	});
+
+	it('creates a compatible radar profile and explains excluded outputs', () => {
+		const cockpit = toResultsInterpretationCockpit(
+			cockpitWorkspace.resultsDashboard!,
+			cockpitWorkspace.resultsAnalytics!
+		);
+
+		expect(cockpit.radar.points.map((point) => point.label)).toEqual([
+			'Focus stability',
+			'Recovery capacity',
+			'Support resources',
+			'Readiness index'
+		]);
+		expect(cockpit.radar.points.map((point) => point.positionPercent)).toEqual([64, 54, 58, 68.2]);
+		expect(cockpit.radar.excluded).toEqual([
+			{
+				id: 'output:gap',
+				label: 'Recovery minus focus gap',
+				reason: 'difference_range'
+			},
+			{
+				id: 'output:suppressed',
+				label: 'Small advisory score',
+				reason: 'suppressed'
+			}
+		]);
+	});
+
+	it('creates a disclosure-safe group heatmap', () => {
+		const cockpit = toResultsInterpretationCockpit(
+			cockpitWorkspace.resultsDashboard!,
+			cockpitWorkspace.resultsAnalytics!
+		);
+
+		expect(cockpit.heatmap.columns.map((column) => column.label)).toEqual([
+			'Focus stability',
+			'Recovery capacity',
+			'Readiness index'
+		]);
+		expect(cockpit.heatmap.rows.map((row) => row.label)).toEqual([
+			'Pilot cohort',
+			'Control cohort',
+			'Small advisory cell'
+		]);
+		expect(cockpit.heatmap.rows[0].cells[0]).toMatchObject({
+			columnId: 'focus_stability',
+			valueLabel: '66.00',
+			sampleLabel: '9',
+			positionPercent: 66,
+			tone: 'medium'
+		});
+		expect(cockpit.heatmap.rows[2].cells[0]).toMatchObject({
+			columnId: 'focus_stability',
+			valueLabel: 'Suppressed',
+			sampleLabel: 'Suppressed',
+			disclosure: 'suppressed',
+			positionPercent: null,
+			tone: 'suppressed'
+		});
+	});
+
+	it('summarizes the focused trend by baseline, latest, and direction', () => {
+		const cockpit = toResultsInterpretationCockpit(
+			cockpitWorkspace.resultsDashboard!,
+			cockpitWorkspace.resultsAnalytics!,
+			{ selectedOutputCode: 'readiness_index' }
+		);
+
+		expect(cockpit.trend).toMatchObject({
+			dimensionCode: 'readiness_index',
+			label: 'Readiness index',
+			baselineLabel: '60.20',
+			latestLabel: '68.20',
+			deltaLabel: '+8.00',
+			direction: 'up'
+		});
+		expect(cockpit.trend?.points.map((point) => point.campaignName)).toEqual([
+			'Before intervention',
+			'Intervention review'
+		]);
 	});
 });
 
@@ -523,3 +646,273 @@ const workspaceWithResults: CampaignSeriesReportsWorkspaceResponse = {
 		notes: []
 	}
 };
+
+const cockpitWorkspace: CampaignSeriesReportsWorkspaceResponse = {
+	...workspaceWithResults,
+	selectedCampaign: {
+		...workspaceWithResults.selectedCampaign!,
+		name: 'Intervention review',
+		submittedResponseCount: 24,
+		visibleScoreCount: 96,
+		suppressedScoreCount: 4,
+		dataFinality: 'closed_wave',
+		interpretationStatus: 'not_validated_interpretation'
+	},
+	resultsAnalytics: {
+		selectedCampaignId: 'campaign-2',
+		selectedCampaignName: 'Intervention review',
+		disclosureKMin: 5,
+		disclosureState: 'visible',
+		scoreOutputs: [
+			scoreOutput('focus_stability', 'Focus stability', 64, 24),
+			scoreOutput('recovery_capacity', 'Recovery capacity', 54, 24),
+			scoreOutput('support_resources', 'Support resources', 58, 24),
+			scoreOutput('readiness_index', 'Readiness index', 68.2, 24),
+			scoreOutput('recovery_focus_gap', 'Recovery minus focus gap', 8, 24, -100, 100),
+			{
+				...scoreOutput('small_advisory', 'Small advisory score', null, null),
+				disclosure: 'suppressed',
+				suppressionReason: 'insufficient_responses'
+			}
+		],
+		groupRows: [
+			groupRow('Pilot cohort', 'focus_stability', 'Focus stability', 66, 9),
+			groupRow('Pilot cohort', 'recovery_capacity', 'Recovery capacity', 56, 9),
+			groupRow('Pilot cohort', 'readiness_index', 'Readiness index', 70, 9),
+			groupRow('Control cohort', 'focus_stability', 'Focus stability', 51, 8),
+			groupRow('Control cohort', 'recovery_capacity', 'Recovery capacity', 46, 8),
+			groupRow('Control cohort', 'readiness_index', 'Readiness index', 55, 8),
+			{
+				...groupRow('Small advisory cell', 'focus_stability', 'Focus stability', null, null),
+				disclosure: 'suppressed',
+				suppressionReason: 'insufficient_responses'
+			}
+		],
+		waveRows: [
+			waveRow(
+				'campaign-0',
+				'Before intervention',
+				'readiness_index',
+				'Readiness index',
+				60.2,
+				22,
+				null
+			),
+			waveRow(
+				'campaign-2',
+				'Intervention review',
+				'readiness_index',
+				'Readiness index',
+				68.2,
+				24,
+				8
+			),
+			waveRow(
+				'campaign-0',
+				'Before intervention',
+				'recovery_capacity',
+				'Recovery capacity',
+				50,
+				22,
+				null
+			),
+			waveRow(
+				'campaign-2',
+				'Intervention review',
+				'recovery_capacity',
+				'Recovery capacity',
+				54,
+				24,
+				4
+			)
+		],
+		insights: []
+	},
+	resultsDashboard: {
+		selectedCampaignId: 'campaign-2',
+		selectedCampaignName: 'Intervention review',
+		disclosureKMin: 5,
+		disclosureState: 'visible',
+		metrics: [],
+		outputBars: [
+			dashboardBar('focus_stability', 'Focus stability', 64, 24),
+			dashboardBar('recovery_capacity', 'Recovery capacity', 54, 24),
+			dashboardBar('support_resources', 'Support resources', 58, 24),
+			dashboardBar('readiness_index', 'Readiness index', 68.2, 24),
+			dashboardBar('recovery_focus_gap', 'Recovery minus focus gap', 8, 24, -100, 100),
+			{
+				...dashboardBar('small_advisory', 'Small advisory score', null, null),
+				id: 'output:suppressed',
+				disclosure: 'suppressed',
+				suppressionReason: 'insufficient_responses'
+			}
+		],
+		groupBars: [],
+		waveTrendPoints: [
+			trendPoint(
+				'campaign-0',
+				'Before intervention',
+				'readiness_index',
+				'Readiness index',
+				60.2,
+				22,
+				null
+			),
+			trendPoint(
+				'campaign-2',
+				'Intervention review',
+				'readiness_index',
+				'Readiness index',
+				68.2,
+				24,
+				8
+			)
+		],
+		notes: []
+	}
+};
+
+function scoreOutput(
+	dimensionCode: string,
+	displayLabel: string,
+	mean: number | null,
+	scoreCount: number | null,
+	scoreRangeMin = 0,
+	scoreRangeMax = 100
+) {
+	return {
+		dimensionCode,
+		displayLabel,
+		disclosure: 'visible',
+		submittedResponseCount: scoreCount,
+		scoreCount,
+		mean,
+		median: mean,
+		standardDeviation: 6,
+		min: mean === null ? null : Math.max(scoreRangeMin, mean - 10),
+		max: mean === null ? null : Math.min(scoreRangeMax, mean + 10),
+		nValidTotal: scoreCount === null ? null : scoreCount * 3,
+		nExpectedTotal: scoreCount === null ? null : scoreCount * 3,
+		missingPolicyStatusSummary: scoreCount === null ? null : 'complete',
+		suppressionReason: null,
+		calculation: 'normalized_weighted_mean_0_100',
+		calculationLabel: 'Normalized weighted mean',
+		scoreRangeMin,
+		scoreRangeMax
+	};
+}
+
+function groupRow(
+	groupName: string,
+	dimensionCode: string,
+	displayLabel: string,
+	mean: number | null,
+	scoreCount: number | null
+) {
+	return {
+		groupType: 'team',
+		groupName,
+		dimensionCode,
+		displayLabel,
+		disclosure: 'visible',
+		submittedResponseCount: scoreCount,
+		scoreCount,
+		mean,
+		median: mean,
+		standardDeviation: 5,
+		min: mean === null ? null : Math.max(0, mean - 8),
+		max: mean === null ? null : Math.min(100, mean + 8),
+		suppressionReason: null,
+		calculationLabel: 'Normalized weighted mean',
+		scoreRangeMin: 0,
+		scoreRangeMax: 100
+	};
+}
+
+function waveRow(
+	campaignId: string,
+	campaignName: string,
+	dimensionCode: string,
+	displayLabel: string,
+	mean: number,
+	scoreCount: number,
+	deltaFromPreviousMean: number | null
+) {
+	return {
+		campaignId,
+		campaignName,
+		campaignStatus: 'closed',
+		dataFinality: 'closed_wave',
+		closedAt: '2026-06-01T09:00:00Z',
+		dimensionCode,
+		displayLabel,
+		disclosure: 'visible',
+		submittedResponseCount: scoreCount,
+		scoreCount,
+		mean,
+		median: mean,
+		standardDeviation: 6,
+		min: Math.max(0, mean - 10),
+		max: Math.min(100, mean + 10),
+		suppressionReason: null,
+		deltaFromPreviousMean,
+		deltaFromFirstMean: deltaFromPreviousMean ?? 0,
+		comparisonState: deltaFromPreviousMean === null ? 'baseline' : 'compared',
+		calculationLabel: 'Normalized weighted mean',
+		scoreRangeMin: 0,
+		scoreRangeMax: 100
+	};
+}
+
+function dashboardBar(
+	dimensionCode: string,
+	displayLabel: string,
+	value: number | null,
+	count: number | null,
+	scoreRangeMin = 0,
+	scoreRangeMax = 100
+) {
+	return {
+		id: `output:${dimensionCode === 'recovery_focus_gap' ? 'gap' : dimensionCode}`,
+		label: dimensionCode,
+		displayLabel,
+		dimensionCode,
+		disclosure: 'visible',
+		value,
+		count,
+		detail: null,
+		suppressionReason: null,
+		calculation: 'normalized_weighted_mean_0_100',
+		calculationLabel: 'Normalized weighted mean',
+		scoreRangeMin,
+		scoreRangeMax
+	};
+}
+
+function trendPoint(
+	campaignId: string,
+	campaignName: string,
+	dimensionCode: string,
+	displayLabel: string,
+	value: number,
+	count: number,
+	deltaFromPrevious: number | null
+) {
+	return {
+		id: `trend:${campaignId}:${dimensionCode}`,
+		campaignId,
+		campaignName,
+		displayLabel,
+		dimensionCode,
+		disclosure: 'visible',
+		value,
+		deltaFromPrevious,
+		comparisonState: deltaFromPrevious === null ? 'baseline' : 'compared',
+		dataFinality: 'closed_wave',
+		count,
+		suppressionReason: null,
+		calculationLabel: 'Normalized weighted mean',
+		scoreRangeMin: 0,
+		scoreRangeMax: 100
+	};
+}

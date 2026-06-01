@@ -1,8 +1,10 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
 	import {
+		filterResultsAnalytics,
 		filterResultsDashboard,
 		toResultFocusOptions,
+		toResultsInterpretationCockpit,
 		toScoreCards
 	} from '$lib/product/results-workbench';
 	import { isResultsDashboardWidgetData } from './report-widget-data';
@@ -14,6 +16,8 @@
 	} from './report-widget-format';
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 	import ResultsBarChart from './ResultsBarChart.svelte';
+	import ResultsHeatmap from './ResultsHeatmap.svelte';
+	import ResultsRadarChart from './ResultsRadarChart.svelte';
 	import ResultsTrendChart from './ResultsTrendChart.svelte';
 
 	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
@@ -26,6 +30,27 @@
 	);
 	const focusedDashboard = $derived(
 		dashboard ? filterResultsDashboard(dashboard, selectedResultCode) : null
+	);
+	const analytics = $derived(data?.analytics ?? null);
+	const focusedAnalytics = $derived(
+		analytics
+			? filterResultsAnalytics(analytics, {
+					outputCode: selectedResultCode
+				})
+			: null
+	);
+	const cockpit = $derived(
+		focusedDashboard
+			? toResultsInterpretationCockpit(focusedDashboard, focusedAnalytics, {
+					selectedOutputCode: selectedResultCode,
+					labels: {
+						notAvailable: copy?.notAvailable ?? 'Not available',
+						observedScale: formatWidgetLabel('observedRange', copy),
+						scoreRange: formatWidgetLabel('scoreRange', copy),
+						suppressed: formatWidgetLabel('suppressed', copy)
+					}
+				})
+			: null
 	);
 	const scoreCards = $derived(
 		toScoreCards(focusedDashboard?.outputBars ?? [], {
@@ -91,6 +116,128 @@
 						{/each}
 					</div>
 				</div>
+			{/if}
+
+			{#if cockpit}
+				<section
+					class="results-dashboard-widget__panel results-cockpit"
+					aria-label={formatWidgetLabel('interpretationCockpit', copy)}
+				>
+					<div class="record-row__header">
+						<div>
+							<p class="record-field__label">
+								{formatWidgetLabel('interpretationCockpit', copy)}
+							</p>
+							<p class="record-row__title">{cockpit.header.selectedMeasurementLabel}</p>
+						</div>
+						<span class="status-badge" data-status={cockpit.header.disclosureState}>
+							{formatCodeLabel(cockpit.header.disclosureState, copy)}
+						</span>
+					</div>
+					<dl class="results-cockpit__header">
+						<div>
+							<dt>{formatWidgetLabel('visibleResultOutputs', copy)}</dt>
+							<dd>{cockpit.header.visibleResultCount}</dd>
+						</div>
+						<div>
+							<dt>{formatWidgetLabel('hiddenOutputs', copy)}</dt>
+							<dd>{cockpit.header.suppressedResultCount}</dd>
+						</div>
+						<div>
+							<dt>{formatWidgetLabel('sample', copy)}</dt>
+							<dd>{cockpit.header.sampleCount ?? copy?.notAvailable ?? 'Not available'}</dd>
+						</div>
+						<div>
+							<dt>{formatWidgetLabel('dataFinality', copy)}</dt>
+							<dd>{formatCodeLabel(cockpit.header.dataFinality, copy)}</dd>
+						</div>
+					</dl>
+
+					{#if cockpit.attentionCards.length > 0}
+						<div
+							class="results-attention-grid"
+							aria-label={formatWidgetLabel('attentionSignals', copy)}
+						>
+							{#each cockpit.attentionCards as card (card.id)}
+								<article class="results-attention-card" data-tone={card.tone}>
+									<p class="record-field__label">{formatProductCopy(card.title)}</p>
+									<div>
+										<p class="results-attention-card__label">{card.label}</p>
+										<p class="results-attention-card__value">{card.valueLabel}</p>
+									</div>
+									<p class="text-sm text-[var(--color-text-muted)]">{card.detail}</p>
+									{#if card.meta.length > 0}
+										<div class="response-lab__meta">
+											{#each card.meta as item}
+												<span>{formatCodeLabel(item, copy)}</span>
+											{/each}
+										</div>
+									{/if}
+								</article>
+							{/each}
+						</div>
+					{/if}
+				</section>
+
+				<div class="results-cockpit-layout">
+					<section
+						class="results-dashboard-widget__panel"
+						aria-label={formatWidgetLabel('resultProfile', copy)}
+					>
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">{formatWidgetLabel('resultProfile', copy)}</p>
+								<p class="record-row__title">{formatWidgetLabel('profileRadar', copy)}</p>
+							</div>
+						</div>
+						<ResultsRadarChart profile={cockpit.radar} {copy} />
+					</section>
+
+					<section
+						class="results-dashboard-widget__panel"
+						aria-label={formatWidgetLabel('groupHeatmap', copy)}
+					>
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">{formatWidgetLabel('groupHeatmap', copy)}</p>
+								<p class="record-row__title">{formatWidgetLabel('whereItHappens', copy)}</p>
+							</div>
+						</div>
+						<ResultsHeatmap heatmap={cockpit.heatmap} {copy} />
+					</section>
+				</div>
+
+				{#if cockpit.trend}
+					<section
+						class="results-dashboard-widget__panel"
+						aria-label={formatWidgetLabel('currentTrend', copy)}
+					>
+						<div class="record-row__header">
+							<div>
+								<p class="record-field__label">{formatWidgetLabel('currentTrend', copy)}</p>
+								<p class="record-row__title">{cockpit.trend.label}</p>
+							</div>
+							<span class="status-badge" data-status={cockpit.trend.direction}>
+								{formatCodeLabel(cockpit.trend.direction, copy)}
+							</span>
+						</div>
+						<dl class="results-cockpit__header">
+							<div>
+								<dt>{formatWidgetLabel('baseline', copy)}</dt>
+								<dd>{cockpit.trend.baselineLabel}</dd>
+							</div>
+							<div>
+								<dt>{formatWidgetLabel('latestResult', copy)}</dt>
+								<dd>{cockpit.trend.latestLabel}</dd>
+							</div>
+							<div>
+								<dt>{formatWidgetLabel('change', copy)}</dt>
+								<dd>{cockpit.trend.deltaLabel}</dd>
+							</div>
+						</dl>
+						<ResultsTrendChart points={cockpit.trend.points} {copy} />
+					</section>
+				{/if}
 			{/if}
 
 			{#if scoreCards.length > 0}
