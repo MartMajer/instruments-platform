@@ -1083,17 +1083,17 @@ public sealed class SetupWorkflowStore(
         CreateCampaignIdentifiedQueueAccessRequest request,
         CancellationToken cancellationToken)
     {
+        _ = request;
+
         return CreateCampaignIdentifiedQueueAccessCoreAsync(
             tenantId,
             campaignId,
-            request,
             cancellationToken);
     }
 
     private async Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessCoreAsync(
         Guid tenantId,
         Guid campaignId,
-        CreateCampaignIdentifiedQueueAccessRequest request,
         CancellationToken cancellationToken)
     {
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
@@ -1198,7 +1198,6 @@ public sealed class SetupWorkflowStore(
         var existingByRespondent = existingTokens.ToDictionary(token => token.RespondentSubjectId!.Value);
         var createdCount = 0;
         var existingCount = 0;
-        var rotatedCount = 0;
         var responses = new List<CampaignIdentifiedQueueAccessRespondentResponse>(assignmentGroups.Count);
 
         foreach (var group in assignmentGroups)
@@ -1222,15 +1221,6 @@ public sealed class SetupWorkflowStore(
                 rawToken = issued.RawToken;
                 accessStatus = "created";
                 createdCount++;
-            }
-            else if (request.RotateExisting)
-            {
-                invitationToken = existingToken;
-                var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
-                invitationToken.ReissueHash(issued.TokenHash);
-                rawToken = issued.RawToken;
-                accessStatus = "rotated";
-                rotatedCount++;
             }
             else
             {
@@ -1270,7 +1260,7 @@ public sealed class SetupWorkflowStore(
             assignmentGroups.Sum(group => group.AssignmentCount),
             createdCount,
             existingCount,
-            rotatedCount,
+            RotatedAccessCount: 0,
             responses));
     }
 

@@ -4697,38 +4697,48 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             Assert.Null(respondent.RespondentPath);
         });
 
-        var rotated = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+        var repeatedWithLegacyRotateFlag = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
             tenantId,
             campaign.Value.Id,
-            new CreateCampaignIdentifiedQueueAccessRequest(RotateExisting: true),
+            CreateIdentifiedQueueAccessRequestWithLegacyRotateFlag(),
             CancellationToken.None);
 
-        Assert.True(rotated.IsSuccess, rotated.Error.ToString());
-        Assert.Equal(0, rotated.Value.CreatedAccessCount);
-        Assert.Equal(0, rotated.Value.ExistingAccessCount);
-        Assert.Equal(3, rotated.Value.RotatedAccessCount);
-        Assert.All(rotated.Value.Respondents, respondent =>
+        Assert.True(repeatedWithLegacyRotateFlag.IsSuccess, repeatedWithLegacyRotateFlag.Error.ToString());
+        Assert.Equal(0, repeatedWithLegacyRotateFlag.Value.CreatedAccessCount);
+        Assert.Equal(3, repeatedWithLegacyRotateFlag.Value.ExistingAccessCount);
+        Assert.Equal(0, repeatedWithLegacyRotateFlag.Value.RotatedAccessCount);
+        Assert.All(repeatedWithLegacyRotateFlag.Value.Respondents, respondent =>
         {
-            Assert.Equal("rotated", respondent.AccessStatus);
-            Assert.StartsWith("idq_", respondent.Token, StringComparison.Ordinal);
-            Assert.Equal($"/r/{respondent.Token}", respondent.RespondentPath);
+            Assert.Equal("existing", respondent.AccessStatus);
+            Assert.Null(respondent.Token);
+            Assert.Null(respondent.RespondentPath);
         });
 
-        await using var rotationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
-        var rotatedTokens = await tenantDb.InvitationTokens
+        await using var repeatedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var repeatedTokens = await tenantDb.InvitationTokens
             .Where(token =>
                 token.CampaignId == campaign.Value.Id &&
                 token.Channel == InvitationTokenChannels.IdentifiedQueue)
             .ToListAsync();
 
-        Assert.Equal(3, rotatedTokens.Count);
-        foreach (var token in rotatedTokens)
+        Assert.Equal(3, repeatedTokens.Count);
+        foreach (var token in repeatedTokens)
         {
             Assert.NotNull(token.RespondentSubjectId);
-            Assert.NotEqual(firstHashesBySubject[token.RespondentSubjectId!.Value], token.TokenHash);
+            Assert.Equal(firstHashesBySubject[token.RespondentSubjectId!.Value], token.TokenHash);
         }
 
-        await rotationTransaction.CommitAsync();
+        await repeatedTransaction.CommitAsync();
+
+        static CreateCampaignIdentifiedQueueAccessRequest CreateIdentifiedQueueAccessRequestWithLegacyRotateFlag()
+        {
+            var legacyConstructor = typeof(CreateCampaignIdentifiedQueueAccessRequest)
+                .GetConstructor([typeof(bool)]);
+
+            return legacyConstructor is null
+                ? new CreateCampaignIdentifiedQueueAccessRequest()
+                : (CreateCampaignIdentifiedQueueAccessRequest)legacyConstructor.Invoke([true]);
+        }
     }
 
     [DockerFact]

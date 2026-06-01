@@ -212,7 +212,7 @@ public sealed record CampaignIdentifiedEntryResponse(
     string Token,
     string RespondentPath);
 
-public sealed record CreateCampaignIdentifiedQueueAccessRequest(bool RotateExisting = false);
+public sealed record CreateCampaignIdentifiedQueueAccessRequest;
 
 public sealed record CampaignIdentifiedQueueAccessResponse(
     Guid CampaignId,
