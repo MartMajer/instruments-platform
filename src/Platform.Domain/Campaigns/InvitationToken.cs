@@ -14,11 +14,26 @@ public sealed class InvitationToken
         string channel,
         string? recipient = null,
         DateTimeOffset? expiresAt = null,
-        Guid? assignmentId = null)
+        Guid? assignmentId = null,
+        Guid? respondentSubjectId = null)
     {
         if (!InvitationTokenChannels.IsKnown(channel))
         {
             throw new ArgumentException("Unknown invitation token channel.", nameof(channel));
+        }
+
+        if (channel == InvitationTokenChannels.IdentifiedQueue && !respondentSubjectId.HasValue)
+        {
+            throw new ArgumentException(
+                "Identified queue invitation tokens require a respondent subject id.",
+                nameof(respondentSubjectId));
+        }
+
+        if (channel != InvitationTokenChannels.IdentifiedQueue && respondentSubjectId.HasValue)
+        {
+            throw new ArgumentException(
+                "Respondent subject id is only allowed for identified queue invitation tokens.",
+                nameof(respondentSubjectId));
         }
 
         Id = id;
@@ -29,6 +44,7 @@ public sealed class InvitationToken
         Recipient = NormalizeOptional(recipient);
         ExpiresAt = expiresAt;
         AssignmentId = assignmentId;
+        RespondentSubjectId = respondentSubjectId;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -39,6 +55,8 @@ public sealed class InvitationToken
     public Guid CampaignId { get; private set; }
 
     public Guid? AssignmentId { get; private set; }
+
+    public Guid? RespondentSubjectId { get; private set; }
 
     public string TokenHash { get; private set; } = string.Empty;
 

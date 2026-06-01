@@ -465,6 +465,73 @@ public sealed class CampaignEntitiesTests
     }
 
     [Fact]
+    public void Identified_queue_is_a_known_invitation_token_channel()
+    {
+        Assert.True(InvitationTokenChannels.IsKnown(InvitationTokenChannels.IdentifiedQueue));
+    }
+
+    [Fact]
+    public void Identified_queue_invitation_token_requires_respondent_subject_id()
+    {
+        Assert.Throws<ArgumentException>(() => new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            InvitationTokenChannels.IdentifiedQueue));
+    }
+
+    [Fact]
+    public void Identified_queue_invitation_token_stores_respondent_subject_id()
+    {
+        var respondentSubjectId = Guid.NewGuid();
+
+        var token = new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            InvitationTokenChannels.IdentifiedQueue,
+            respondentSubjectId: respondentSubjectId);
+
+        Assert.Equal(respondentSubjectId, token.RespondentSubjectId);
+        Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
+    }
+
+    [Theory]
+    [InlineData(InvitationTokenChannels.Email)]
+    [InlineData(InvitationTokenChannels.Sms)]
+    [InlineData(InvitationTokenChannels.OpenLink)]
+    [InlineData(InvitationTokenChannels.IdentifiedEntry)]
+    public void Non_queue_invitation_tokens_reject_respondent_subject_id(string channel)
+    {
+        Assert.Throws<ArgumentException>(() => new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            channel,
+            respondentSubjectId: Guid.NewGuid()));
+    }
+
+    [Theory]
+    [InlineData(InvitationTokenChannels.Email)]
+    [InlineData(InvitationTokenChannels.Sms)]
+    [InlineData(InvitationTokenChannels.OpenLink)]
+    [InlineData(InvitationTokenChannels.IdentifiedEntry)]
+    public void Existing_invitation_token_channels_leave_respondent_subject_id_null(string channel)
+    {
+        var token = new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            channel);
+
+        Assert.Null(token.RespondentSubjectId);
+    }
+
+    [Fact]
     public void Notification_creates_queued_email_delivery_intent()
     {
         var notification = Notification.QueueEmailInvitation(

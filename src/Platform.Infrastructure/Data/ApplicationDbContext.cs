@@ -2614,7 +2614,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             {
                 table.HasCheckConstraint(
                     "ck_invitation_token_channel",
-                    "channel IN ('email','sms','open_link','identified_entry')");
+                    "channel IN ('email','sms','open_link','identified_entry','identified_queue')");
+                table.HasCheckConstraint(
+                    "ck_invitation_token_respondent_subject_shape",
+                    "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
             });
             builder.HasKey(token => token.Id).HasName("pk_invitation_token");
 
@@ -2622,6 +2625,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(token => token.TenantId).HasColumnName("tenant_id").IsRequired();
             builder.Property(token => token.CampaignId).HasColumnName("campaign_id").IsRequired();
             builder.Property(token => token.AssignmentId).HasColumnName("assignment_id");
+            builder.Property(token => token.RespondentSubjectId).HasColumnName("respondent_subject_id");
             builder.Property(token => token.TokenHash).HasColumnName("token_hash").IsRequired();
             builder.Property(token => token.Channel).HasColumnName("channel").HasMaxLength(64).IsRequired();
             builder.Property(token => token.Recipient).HasColumnName("recipient");
@@ -2639,6 +2643,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.HasIndex(token => token.AssignmentId)
                 .HasDatabaseName("ix_invitation_token_assignment_id")
                 .HasFilter("assignment_id IS NOT NULL");
+            builder.HasIndex(token => token.RespondentSubjectId)
+                .HasDatabaseName("ix_invitation_token_respondent_subject_id")
+                .HasFilter("respondent_subject_id IS NOT NULL");
 
             builder.HasOne<Tenant>()
                 .WithMany()
@@ -2656,6 +2663,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .WithMany()
                 .HasForeignKey(token => token.AssignmentId)
                 .HasConstraintName("fk_invitation_token_assignment_assignment_id")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<Subject>()
+                .WithMany()
+                .HasForeignKey(token => token.RespondentSubjectId)
+                .HasConstraintName("fk_invitation_token_subject_respondent_subject_id")
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

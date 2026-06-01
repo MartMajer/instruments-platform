@@ -10,6 +10,7 @@ public static class OpenLinkTokens
     public const string Prefix = "opn";
     public const string InvitationPrefix = "inv";
     public const string IdentifiedEntryPrefix = "idn";
+    public const string IdentifiedQueuePrefix = "idq";
 
     public static OpenLinkTokenIssue Issue(Guid tenantId)
     {
@@ -24,6 +25,11 @@ public static class OpenLinkTokens
     public static OpenLinkTokenIssue IssueIdentifiedEntry(Guid tenantId)
     {
         return IssueWithPrefix(tenantId, IdentifiedEntryPrefix);
+    }
+
+    public static OpenLinkTokenIssue IssueIdentifiedQueue(Guid tenantId)
+    {
+        return IssueWithPrefix(tenantId, IdentifiedQueuePrefix);
     }
 
     private static OpenLinkTokenIssue IssueWithPrefix(Guid tenantId, string prefix)
@@ -43,7 +49,7 @@ public static class OpenLinkTokens
 
         var parts = rawToken.Split('_', 3, StringSplitOptions.None);
         if (parts.Length != 3 ||
-            parts[0] is not (Prefix or InvitationPrefix or IdentifiedEntryPrefix) ||
+            parts[0] is not (Prefix or InvitationPrefix or IdentifiedEntryPrefix or IdentifiedQueuePrefix) ||
             !Guid.TryParseExact(parts[1], "N", out var tenantId) ||
             parts[2].Length < 43)
         {

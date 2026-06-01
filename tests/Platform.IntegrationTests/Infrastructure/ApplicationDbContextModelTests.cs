@@ -542,6 +542,9 @@ public sealed class ApplicationDbContextModelTests
         Assert.Equal("jsonb", audience.FindProperty(nameof(Audience.Selector))!.GetColumnType());
         Assert.Equal("jsonb", respondentRule.FindProperty(nameof(RespondentRule.Rule))!.GetColumnType());
         Assert.Equal("jsonb", operationalNotification.FindProperty(nameof(OperationalNotification.PayloadJson))!.GetColumnType());
+        Assert.Equal(
+            "respondent_subject_id",
+            invitationToken.FindProperty(nameof(InvitationToken.RespondentSubjectId))!.GetColumnName());
 
         Assert.Contains(series.GetCheckConstraints(), check => check.Name == "ck_campaign_series_code_salt_length");
         Assert.Contains(campaign.GetCheckConstraints(), check => check.Name == "ck_campaign_status");
@@ -552,6 +555,8 @@ public sealed class ApplicationDbContextModelTests
         Assert.Contains(assignment.GetCheckConstraints(), check => check.Name == "ck_assignment_status");
         Assert.Contains(assignment.GetCheckConstraints(), check => check.Name == "ck_assignment_identity_shape");
         Assert.Contains(invitationToken.GetCheckConstraints(), check => check.Name == "ck_invitation_token_channel");
+        Assert.Contains(invitationToken.GetCheckConstraints(), check =>
+            check.Name == "ck_invitation_token_respondent_subject_shape");
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_channel");
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_status");
         Assert.Contains(notificationDeliveryAttempt.GetCheckConstraints(), check =>
@@ -590,6 +595,10 @@ public sealed class ApplicationDbContextModelTests
         Assert.Contains(invitationToken.GetIndexes(), index =>
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(InvitationToken.AssignmentId)]));
+        Assert.Contains(invitationToken.GetIndexes(), index =>
+            index.GetFilter() == "respondent_subject_id IS NOT NULL" &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(InvitationToken.RespondentSubjectId)]));
         Assert.Contains(notification.GetIndexes(), index =>
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(Notification.TenantId), nameof(Notification.CampaignId)]));
@@ -670,6 +679,9 @@ public sealed class ApplicationDbContextModelTests
         Assert.Contains(invitationToken.GetForeignKeys(), foreignKey =>
             foreignKey.Properties.Single().Name == nameof(InvitationToken.AssignmentId) &&
             foreignKey.PrincipalEntityType.ClrType == typeof(Assignment));
+        Assert.Contains(invitationToken.GetForeignKeys(), foreignKey =>
+            foreignKey.Properties.Single().Name == nameof(InvitationToken.RespondentSubjectId) &&
+            foreignKey.PrincipalEntityType.ClrType == typeof(Subject));
         Assert.Contains(notification.GetForeignKeys(), foreignKey =>
             foreignKey.Properties.Single().Name == nameof(Notification.CampaignId) &&
             foreignKey.PrincipalEntityType.ClrType == typeof(Campaign));
