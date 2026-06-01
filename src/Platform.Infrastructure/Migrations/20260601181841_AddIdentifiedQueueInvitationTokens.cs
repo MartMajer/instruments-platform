@@ -170,6 +170,12 @@ namespace Platform.Infrastructure.Migrations
                 name: "ck_invitation_token_respondent_subject_shape",
                 table: "invitation_token");
 
+            migrationBuilder.Sql(
+                """
+                DELETE FROM invitation_token
+                WHERE channel = 'identified_queue';
+                """);
+
             migrationBuilder.DropColumn(
                 name: "respondent_subject_id",
                 table: "invitation_token");

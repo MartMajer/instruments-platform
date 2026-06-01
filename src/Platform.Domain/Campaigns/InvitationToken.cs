@@ -97,6 +97,7 @@ public sealed class InvitationToken
     public void ScrubForWithdrawal(DateTimeOffset scrubbedAt)
     {
         AssignmentId = null;
+        RespondentSubjectId = null;
         Recipient = null;
         TokenHash = $"withdrawn:{Id:N}";
         ExpiresAt = scrubbedAt;

@@ -775,6 +775,33 @@ public sealed class CampaignEntitiesTests
     }
 
     [Fact]
+    public void Identified_queue_invitation_token_scrub_for_withdrawal_severs_respondent_subject()
+    {
+        var tokenId = Guid.NewGuid();
+        var scrubbedAt = DateTimeOffset.Parse("2026-05-17T15:00:00+00:00");
+        var token = new InvitationToken(
+            tokenId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "queue-token-hash",
+            InvitationTokenChannels.IdentifiedQueue,
+            recipient: "subject@example.com",
+            respondentSubjectId: Guid.NewGuid());
+
+        token.ScrubForWithdrawal(scrubbedAt);
+
+        Assert.Null(token.RespondentSubjectId);
+        Assert.Null(token.AssignmentId);
+        Assert.Null(token.Recipient);
+        Assert.Equal($"withdrawn:{tokenId:N}", token.TokenHash);
+        Assert.Equal(scrubbedAt, token.ExpiresAt);
+        Assert.Equal(scrubbedAt, token.UsedAt);
+        Assert.DoesNotContain(
+            typeof(InvitationToken).GetProperties(),
+            property => property.Name.Contains("Raw", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Notification_rejects_unknown_channel_or_status()
     {
         Assert.Throws<ArgumentException>(() => new Notification(

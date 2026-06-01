@@ -619,10 +619,18 @@ public sealed class RetentionDueBatchStore(
             .Select(assignment => assignment.InviteTokenId!.Value)
             .Distinct()
             .ToArray();
+        var directQueueRespondentSubjectIds = assignments
+            .Where(assignment => assignment.RespondentSubjectId.HasValue)
+            .Select(assignment => assignment.RespondentSubjectId!.Value)
+            .Distinct()
+            .ToArray();
         var invitationTokens = await db.InvitationTokens
             .Where(token =>
                 (token.AssignmentId.HasValue && assignmentIds.Contains(token.AssignmentId.Value)) ||
-                assignmentInviteTokenIds.Contains(token.Id))
+                assignmentInviteTokenIds.Contains(token.Id) ||
+                (token.RespondentSubjectId.HasValue &&
+                    directQueueRespondentSubjectIds.Contains(token.RespondentSubjectId.Value) &&
+                    campaignIds.Contains(token.CampaignId)))
             .ToListAsync(cancellationToken);
         var answers = await db.Answers
             .Where(answer => responseSessionIds.Contains(answer.SessionId))

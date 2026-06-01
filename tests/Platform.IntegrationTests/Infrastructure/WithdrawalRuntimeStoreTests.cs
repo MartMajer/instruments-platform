@@ -2264,6 +2264,61 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Execute_identified_withdrawal_scrubs_identified_queue_token_for_subject()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var fixture = await SeedIdentifiedResponseAsync(runtimeOptions, tenantId);
+        var queueTokenId = Guid.NewGuid();
+
+        await using (var tokenDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(tokenDb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+            tokenDb.InvitationTokens.Add(new InvitationToken(
+                queueTokenId,
+                tenantId,
+                fixture.CampaignId,
+                "identified-queue-token-hash",
+                InvitationTokenChannels.IdentifiedQueue,
+                respondentSubjectId: fixture.SubjectId));
+            await tokenDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new WithdrawalRuntimeStore(db, new TenantDbScope(db), new DeterministicParticipantCodeHasher());
+        var planned = await store.PlanIdentifiedWithdrawalAsync(
+            tenantId,
+            fixture.CampaignSeriesId,
+            fixture.SubjectId,
+            CancellationToken.None);
+
+        var executed = await store.ExecuteWithdrawalAsync(
+            tenantId,
+            planned.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(executed.IsSuccess, executed.Error.ToString());
+        Assert.Equal(1, executed.Value.InviteCredentialScrubbedCount);
+
+        await using var verifyDb = new ApplicationDbContext(runtimeOptions);
+        var verifyScope = new TenantDbScope(verifyDb);
+        await using var verifyTransaction = await verifyScope.BeginTransactionAsync(tenantId);
+        var token = await verifyDb.InvitationTokens.SingleAsync(entity => entity.Id == queueTokenId);
+        Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
+        Assert.Null(token.RespondentSubjectId);
+        Assert.Null(token.AssignmentId);
+        Assert.Null(token.Recipient);
+        Assert.Equal($"withdrawn:{queueTokenId:N}", token.TokenHash);
+        Assert.NotNull(token.ExpiresAt);
+        Assert.NotNull(token.UsedAt);
+        await verifyTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Execute_delete_withdrawal_redacts_sensitive_audit_payloads()
     {
         var tenantId = Guid.NewGuid();
@@ -3521,6 +3576,67 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
         Assert.Null(invitationToken.Recipient);
         Assert.Equal($"withdrawn:{invitationTokenId:N}", invitationToken.TokenHash);
         Assert.Equal(0, await verifyDb.WithdrawalEvents.CountAsync());
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Due_batch_execution_anonymize_scrubs_identified_queue_token_for_due_subject()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var fixture = await SeedIdentifiedResponseAsync(runtimeOptions, tenantId);
+        var queueTokenId = Guid.NewGuid();
+
+        await using (var tokenDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(tokenDb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+            tokenDb.InvitationTokens.Add(new InvitationToken(
+                queueTokenId,
+                tenantId,
+                fixture.CampaignId,
+                "due-identified-queue-token-hash",
+                InvitationTokenChannels.IdentifiedQueue,
+                respondentSubjectId: fixture.SubjectId));
+            await tokenDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(db);
+        var candidateStore = new RetentionDueCandidateStore(db, tenantDbScope);
+        var store = new RetentionDueBatchStore(db, tenantDbScope, candidateStore);
+        var planned = await store.PlanDueBatchAsync(
+            tenantId,
+            fixture.CampaignSeriesId,
+            DateTimeOffset.Parse("2027-05-18T00:00:00+00:00"),
+            CancellationToken.None);
+        Assert.True(planned.IsSuccess, planned.Error.ToString());
+        var claimed = await store.ClaimDueBatchAsync(
+            tenantId,
+            planned.Value.Id,
+            DateTimeOffset.Parse("2027-05-18T00:05:00+00:00"),
+            CancellationToken.None);
+        Assert.True(claimed.IsSuccess, claimed.Error.ToString());
+
+        var executed = await store.ExecuteDueBatchAsync(tenantId, planned.Value.Id, CancellationToken.None);
+
+        Assert.True(executed.IsSuccess, executed.Error.ToString());
+        Assert.Equal(1, executed.Value.InviteCredentialScrubbedCount);
+
+        await using var verifyDb = new ApplicationDbContext(runtimeOptions);
+        var verifyScope = new TenantDbScope(verifyDb);
+        await using var transaction = await verifyScope.BeginTransactionAsync(tenantId);
+        var token = await verifyDb.InvitationTokens.SingleAsync(entity => entity.Id == queueTokenId);
+        Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
+        Assert.Null(token.RespondentSubjectId);
+        Assert.Null(token.AssignmentId);
+        Assert.Null(token.Recipient);
+        Assert.Equal($"withdrawn:{queueTokenId:N}", token.TokenHash);
+        Assert.NotNull(token.ExpiresAt);
+        Assert.NotNull(token.UsedAt);
         await transaction.CommitAsync();
     }
 

@@ -329,7 +329,10 @@ public sealed class RlsMigrationScriptTests
 
         Assert.Contains("ux_invitation_token_identified_queue_respondent", script);
         Assert.Contains("channel = 'identified_queue' AND respondent_subject_id IS NOT NULL", script);
-        Assert.Contains("respondent_subject_id IS NOT NULL AND assignment_id IS NULL", script);
+        Assert.Contains("channel = 'identified_queue' AND assignment_id IS NULL", script);
+        Assert.Contains("token_hash LIKE 'withdrawn:%'", script);
+        Assert.Contains("used_at IS NOT NULL", script);
+        Assert.Contains("expires_at IS NOT NULL", script);
         Assert.Contains("respondent_subject_id IS NULL", script);
         Assert.Contains("subject.id = invitation_token.respondent_subject_id", script);
         Assert.Contains("subject.tenant_id = current_setting('app.current_tenant_id')::uuid", script);
@@ -337,6 +340,32 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains("AND s.tenant_id = NEW.tenant_id", script);
         Assert.Contains("invitation token respondent subject must belong to the same tenant", script);
         Assert.Contains("BEFORE INSERT OR UPDATE OF tenant_id, campaign_id, assignment_id, respondent_subject_id", script);
+    }
+
+    [Fact]
+    public void Migrations_allow_scrubbed_identified_queue_tokens_and_neutralize_them_on_rollback()
+    {
+        var script = GenerateMigrationScript();
+        var uniquenessRollbackScript = GenerateMigrationScript(
+            "20260601185420_AddIdentifiedQueueAccessUniqueness",
+            "20260601181841_AddIdentifiedQueueInvitationTokens");
+        var queueFeatureRollbackScript = GenerateMigrationScript(
+            "20260601181841_AddIdentifiedQueueInvitationTokens",
+            "20260530225220_AddEmailTemplatesAndNotificationLocale");
+
+        Assert.Contains("token_hash LIKE 'withdrawn:%'", script);
+        Assert.Contains("used_at IS NOT NULL", script);
+        Assert.Contains("expires_at IS NOT NULL", script);
+
+        Assert.Contains("DELETE FROM invitation_token", uniquenessRollbackScript);
+        Assert.Contains("WHERE channel = 'identified_queue'", uniquenessRollbackScript);
+
+        Assert.Contains("DELETE FROM invitation_token", queueFeatureRollbackScript);
+        Assert.Contains("WHERE channel = 'identified_queue'", queueFeatureRollbackScript);
+        Assert.Contains("DROP COLUMN respondent_subject_id", queueFeatureRollbackScript);
+        Assert.True(
+            queueFeatureRollbackScript.IndexOf("DELETE FROM invitation_token", StringComparison.Ordinal) <
+            queueFeatureRollbackScript.IndexOf("DROP COLUMN respondent_subject_id", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -553,7 +582,7 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains("storage_key IS NOT NULL", script);
     }
 
-    private static string GenerateMigrationScript()
+    private static string GenerateMigrationScript(string? fromMigration = null, string? toMigration = null)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql("Host=localhost;Database=instruments_platform;Username=platform_app;Password=not-used")
@@ -562,6 +591,6 @@ public sealed class RlsMigrationScriptTests
         using var db = new ApplicationDbContext(options);
 
         return db.Database.GetService<IMigrator>()
-            .GenerateScript(options: MigrationsSqlGenerationOptions.NoTransactions);
+            .GenerateScript(fromMigration, toMigration, MigrationsSqlGenerationOptions.NoTransactions);
     }
 }

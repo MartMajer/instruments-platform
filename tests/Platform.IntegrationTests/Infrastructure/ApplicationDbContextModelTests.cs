@@ -557,6 +557,11 @@ public sealed class ApplicationDbContextModelTests
         Assert.Contains(invitationToken.GetCheckConstraints(), check => check.Name == "ck_invitation_token_channel");
         Assert.Contains(invitationToken.GetCheckConstraints(), check =>
             check.Name == "ck_invitation_token_respondent_subject_shape");
+        Assert.Contains(invitationToken.GetCheckConstraints(), check =>
+            check.Name == "ck_invitation_token_respondent_subject_shape" &&
+            check.Sql!.Contains("token_hash LIKE 'withdrawn:%'", StringComparison.Ordinal) &&
+            check.Sql.Contains("used_at IS NOT NULL", StringComparison.Ordinal) &&
+            check.Sql.Contains("expires_at IS NOT NULL", StringComparison.Ordinal));
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_channel");
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_status");
         Assert.Contains(notificationDeliveryAttempt.GetCheckConstraints(), check =>

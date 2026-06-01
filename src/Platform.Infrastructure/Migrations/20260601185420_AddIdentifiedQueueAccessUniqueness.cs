@@ -24,7 +24,7 @@ namespace Platform.Infrastructure.Migrations
             migrationBuilder.AddCheckConstraint(
                 name: "ck_invitation_token_respondent_subject_shape",
                 table: "invitation_token",
-                sql: "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL AND assignment_id IS NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
+                sql: "(channel = 'identified_queue' AND assignment_id IS NULL AND (respondent_subject_id IS NOT NULL OR (respondent_subject_id IS NULL AND token_hash LIKE 'withdrawn:%' AND used_at IS NOT NULL AND expires_at IS NOT NULL))) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
         }
 
         /// <inheritdoc />
@@ -37,6 +37,13 @@ namespace Platform.Infrastructure.Migrations
             migrationBuilder.DropCheckConstraint(
                 name: "ck_invitation_token_respondent_subject_shape",
                 table: "invitation_token");
+
+            migrationBuilder.Sql(
+                """
+                DELETE FROM invitation_token
+                WHERE channel = 'identified_queue'
+                  AND (respondent_subject_id IS NULL OR assignment_id IS NOT NULL);
+                """);
 
             migrationBuilder.AddCheckConstraint(
                 name: "ck_invitation_token_respondent_subject_shape",

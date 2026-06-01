@@ -1103,10 +1103,19 @@ public sealed class WithdrawalRuntimeStore(
             .Select(assignment => assignment.InviteTokenId!.Value)
             .Distinct()
             .ToArray();
+        Guid[] directQueueRespondentSubjectIds = withdrawal.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+            withdrawal.SubjectId.HasValue
+                ? [withdrawal.SubjectId.Value]
+                : [];
         var invitationTokens = await db.InvitationTokens
             .Where(token =>
                 (token.AssignmentId.HasValue && assignmentIds.Contains(token.AssignmentId.Value)) ||
-                assignmentInviteTokenIds.Contains(token.Id))
+                assignmentInviteTokenIds.Contains(token.Id) ||
+                (token.RespondentSubjectId.HasValue &&
+                    directQueueRespondentSubjectIds.Contains(token.RespondentSubjectId.Value) &&
+                    db.Campaigns.Any(campaign =>
+                        campaign.Id == token.CampaignId &&
+                        campaign.CampaignSeriesId == withdrawal.CampaignSeriesId)))
             .ToListAsync(cancellationToken);
         var answers = await db.Answers
             .Where(answer => responseSessionIds.Contains(answer.SessionId))

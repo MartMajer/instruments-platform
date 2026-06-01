@@ -2617,7 +2617,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "channel IN ('email','sms','open_link','identified_entry','identified_queue')");
                 table.HasCheckConstraint(
                     "ck_invitation_token_respondent_subject_shape",
-                    "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL AND assignment_id IS NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
+                    "(channel = 'identified_queue' AND assignment_id IS NULL AND (respondent_subject_id IS NOT NULL OR (respondent_subject_id IS NULL AND token_hash LIKE 'withdrawn:%' AND used_at IS NOT NULL AND expires_at IS NOT NULL))) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
             });
             builder.HasKey(token => token.Id).HasName("pk_invitation_token");
 
