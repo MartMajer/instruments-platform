@@ -2,8 +2,9 @@
 
 :root {
 	--font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
-	--font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-		'Segoe UI', sans-serif;
+	--font-sans:
+		'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+		sans-serif;
 	--font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 	--color-background: #f4ecdf;
 	--color-surface: #fff8ee;
@@ -506,13 +507,17 @@ a {
 .setup-path__item[data-state='selected'] {
 	border-color: color-mix(in srgb, #b45309 48%, var(--color-border));
 	background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(255, 251, 235, 0.72));
-	box-shadow: 0 0 0 1px rgba(180, 83, 9, 0.08), 0 14px 30px rgba(146, 64, 14, 0.1);
+	box-shadow:
+		0 0 0 1px rgba(180, 83, 9, 0.08),
+		0 14px 30px rgba(146, 64, 14, 0.1);
 }
 
 .setup-path__item[data-state='next'] {
 	border-color: color-mix(in srgb, #2563eb 34%, var(--color-border));
 	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(239, 246, 255, 0.68));
-	box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.06), 0 14px 30px rgba(30, 64, 175, 0.08);
+	box-shadow:
+		0 0 0 1px rgba(37, 99, 235, 0.06),
+		0 14px 30px rgba(30, 64, 175, 0.08);
 }
 
 .setup-path__item[data-state='done'] {
@@ -1078,7 +1083,11 @@ a {
 	border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
 	border-radius: var(--radius-card);
 	background:
-		linear-gradient(135deg, color-mix(in srgb, var(--color-accent-soft) 74%, transparent), transparent 68%),
+		linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--color-accent-soft) 74%, transparent),
+			transparent 68%
+		),
 		var(--color-surface);
 	padding: 1rem;
 	box-shadow: var(--shadow-subtle);
@@ -2480,9 +2489,149 @@ details[open] > .directory-maintenance-summary::after {
 	padding-top: 0.875rem;
 }
 
+.results-score-card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+	gap: 0.75rem;
+}
+
+.results-score-card {
+	display: grid;
+	gap: 0.65rem;
+	min-width: 0;
+	border: 1px solid var(--color-border);
+	border-radius: 0.375rem;
+	background: var(--color-surface);
+	padding: 0.85rem;
+}
+
+.results-score-card[data-disclosure='suppressed'] {
+	background: repeating-linear-gradient(
+		-45deg,
+		var(--color-surface),
+		var(--color-surface) 0.45rem,
+		color-mix(in srgb, var(--color-border) 26%, transparent) 0.45rem,
+		color-mix(in srgb, var(--color-border) 26%, transparent) 0.9rem
+	);
+	color: var(--color-text-muted);
+}
+
+.results-score-card__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	min-width: 0;
+}
+
+.results-score-card__label {
+	overflow-wrap: anywhere;
+	font-size: 0.9rem;
+	font-weight: 750;
+	line-height: 1.25;
+	color: var(--color-text);
+}
+
+.results-score-card__value {
+	font-family: var(--font-mono);
+	font-size: 2rem;
+	font-weight: 750;
+	line-height: 1;
+	color: var(--color-text);
+}
+
+.results-score-card__meter {
+	position: relative;
+	min-height: 0.5rem;
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	background: var(--color-surface-muted);
+}
+
+.results-score-card__meter-fill {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	border-radius: inherit;
+	background: linear-gradient(90deg, var(--color-accent), var(--color-accent-strong));
+}
+
+.results-score-card[data-disclosure='suppressed'] .results-score-card__meter-fill {
+	width: 0 !important;
+}
+
+.results-score-card__meta {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+	gap: 0.5rem;
+	margin: 0;
+}
+
+.results-score-card__meta div {
+	display: grid;
+	gap: 0.15rem;
+	min-width: 0;
+}
+
+.results-score-card__meta dt {
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	color: var(--color-text-muted);
+}
+
+.results-score-card__meta dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+	font-size: 0.82rem;
+	font-weight: 650;
+	color: var(--color-text);
+}
+
 .results-insight-list {
 	display: grid;
 	gap: 0.75rem;
+}
+
+.results-detail-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	border-block: 1px solid var(--color-border);
+	padding-block: 0.625rem;
+}
+
+.results-detail-tabs__button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	padding: 0.45rem 0.7rem;
+	background: var(--color-surface);
+	color: var(--color-text-muted);
+	font-size: 0.82rem;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.results-detail-tabs__button:hover,
+.results-detail-tabs__button:focus-visible,
+.results-detail-tabs__button[data-selected='true'] {
+	border-color: color-mix(in srgb, var(--color-accent-strong) 42%, var(--color-border));
+	background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+	color: var(--color-text);
+}
+
+.results-detail-tabs__button span {
+	display: inline-grid;
+	place-items: center;
+	min-width: 1.45rem;
+	border-radius: 999px;
+	background: var(--color-surface-muted);
+	padding-inline: 0.35rem;
+	font-variant-numeric: tabular-nums;
 }
 
 .results-insight-card {
@@ -2711,7 +2860,7 @@ details[open] > .directory-maintenance-summary::after {
 
 .results-bar-chart__selected-grid {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 0.5rem;
 }
 
@@ -3621,11 +3770,21 @@ button.results-trend-chart__table-row[data-selected='true'] {
 body {
 	min-width: 320px;
 	background:
-		linear-gradient(120deg, color-mix(in srgb, var(--color-accent-soft) 38%, transparent), transparent 36rem),
-		repeating-linear-gradient(90deg, transparent 0 4.5rem, color-mix(in srgb, var(--color-border) 42%, transparent) 4.5rem calc(4.5rem + 1px)),
+		linear-gradient(
+			120deg,
+			color-mix(in srgb, var(--color-accent-soft) 38%, transparent),
+			transparent 36rem
+		),
+		repeating-linear-gradient(
+			90deg,
+			transparent 0 4.5rem,
+			color-mix(in srgb, var(--color-border) 42%, transparent) 4.5rem calc(4.5rem + 1px)
+		),
 		var(--color-background);
 	color: var(--color-text);
-	font-feature-settings: 'kern' 1, 'liga' 1;
+	font-feature-settings:
+		'kern' 1,
+		'liga' 1;
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
 }
@@ -3647,14 +3806,30 @@ pre,
 .app-shell {
 	min-height: 100vh;
 	background:
-		radial-gradient(circle at top left, color-mix(in srgb, var(--color-accent-soft) 66%, transparent), transparent 24rem),
-		linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 80%, transparent), transparent 22rem);
+		radial-gradient(
+			circle at top left,
+			color-mix(in srgb, var(--color-accent-soft) 66%, transparent),
+			transparent 24rem
+		),
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--color-surface) 80%, transparent),
+			transparent 22rem
+		);
 }
 
 .app-shell--entry {
 	background:
-		linear-gradient(135deg, color-mix(in srgb, var(--color-accent-soft) 70%, transparent), transparent 32rem),
-		repeating-linear-gradient(0deg, transparent 0 5rem, color-mix(in srgb, var(--color-border) 44%, transparent) 5rem calc(5rem + 1px)),
+		linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--color-accent-soft) 70%, transparent),
+			transparent 32rem
+		),
+		repeating-linear-gradient(
+			0deg,
+			transparent 0 5rem,
+			color-mix(in srgb, var(--color-border) 44%, transparent) 5rem calc(5rem + 1px)
+		),
 		var(--color-background);
 }
 
@@ -3664,7 +3839,11 @@ pre,
 
 .app-sidebar {
 	background:
-		linear-gradient(180deg, color-mix(in srgb, var(--color-surface-raised) 96%, transparent), color-mix(in srgb, var(--color-surface-muted) 92%, transparent)),
+		linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--color-surface-raised) 96%, transparent),
+			color-mix(in srgb, var(--color-surface-muted) 92%, transparent)
+		),
 		var(--color-surface-raised);
 	border-color: var(--color-border);
 }
@@ -3812,7 +3991,11 @@ pre,
 	font-size: 0.8125rem;
 	font-weight: 600;
 	line-height: 1.2;
-	transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease,
+		transform 120ms ease;
 }
 
 .primary-button {
@@ -3909,7 +4092,11 @@ pre,
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-panel);
 	background:
-		linear-gradient(135deg, color-mix(in srgb, var(--color-accent-soft) 42%, transparent), transparent 36rem),
+		linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--color-accent-soft) 42%, transparent),
+			transparent 36rem
+		),
 		var(--color-surface-raised);
 	padding: clamp(1.1rem, 2.2vw, 1.75rem);
 	box-shadow: var(--shadow-subtle);
@@ -4320,7 +4507,9 @@ pre,
 	min-height: 16rem;
 	background: var(--color-surface-raised);
 	padding: 1.25rem;
-	transition: background 120ms ease, transform 120ms ease;
+	transition:
+		background 120ms ease,
+		transform 120ms ease;
 }
 
 .marketing-card:hover {
@@ -4435,9 +4624,21 @@ pre,
 	min-height: 100vh;
 	padding: clamp(1rem, 2.4vw, 2rem);
 	background:
-		radial-gradient(circle at 78% 14%, color-mix(in srgb, var(--color-accent-soft) 76%, transparent), transparent 24rem),
-		linear-gradient(135deg, color-mix(in srgb, var(--color-surface-raised) 82%, transparent), transparent 42rem),
-		repeating-linear-gradient(90deg, transparent 0 5.5rem, color-mix(in srgb, var(--color-border) 40%, transparent) 5.5rem calc(5.5rem + 1px)),
+		radial-gradient(
+			circle at 78% 14%,
+			color-mix(in srgb, var(--color-accent-soft) 76%, transparent),
+			transparent 24rem
+		),
+		linear-gradient(
+			135deg,
+			color-mix(in srgb, var(--color-surface-raised) 82%, transparent),
+			transparent 42rem
+		),
+		repeating-linear-gradient(
+			90deg,
+			transparent 0 5.5rem,
+			color-mix(in srgb, var(--color-border) 40%, transparent) 5.5rem calc(5.5rem + 1px)
+		),
 		var(--color-background);
 }
 
@@ -4794,7 +4995,9 @@ pre,
 	min-height: 16rem;
 	background: var(--color-surface-raised);
 	padding: 1.25rem;
-	transition: transform 120ms ease, background 120ms ease;
+	transition:
+		transform 120ms ease,
+		background 120ms ease;
 }
 
 .surface-card:hover {
@@ -4893,8 +5096,7 @@ pre,
 	background:
 		linear-gradient(120deg, rgba(11, 35, 63, 0.04), transparent 34rem),
 		radial-gradient(circle at 78% 18%, rgba(55, 112, 221, 0.16), transparent 28rem),
-		radial-gradient(circle at 8% 72%, rgba(20, 132, 123, 0.12), transparent 26rem),
-		#f6f5f0;
+		radial-gradient(circle at 8% 72%, rgba(20, 132, 123, 0.12), transparent 26rem), #f6f5f0;
 }
 
 .launchpad::before {
@@ -4978,7 +5180,9 @@ pre,
 	font-size: 0.72rem;
 	font-weight: 700;
 	color: #f8fbff;
-	box-shadow: inset 0 -8px 18px rgba(255, 255, 255, 0.09), 0 10px 24px rgba(16, 38, 64, 0.2);
+	box-shadow:
+		inset 0 -8px 18px rgba(255, 255, 255, 0.09),
+		0 10px 24px rgba(16, 38, 64, 0.2);
 }
 
 .launchpad-brand span:last-child {
@@ -5032,7 +5236,9 @@ pre,
 	border-radius: 0.7rem;
 	padding: 0.55rem 0.75rem;
 	white-space: nowrap;
-	transition: background 140ms ease, color 140ms ease;
+	transition:
+		background 140ms ease,
+		color 140ms ease;
 }
 
 .public-nav__links a:hover {
@@ -5062,7 +5268,9 @@ pre,
 	font-size: 0.72rem;
 	font-weight: 850;
 	color: rgba(26, 43, 58, 0.64);
-	transition: background 140ms ease, color 140ms ease;
+	transition:
+		background 140ms ease,
+		color 140ms ease;
 }
 
 .public-language-switcher__option:hover {
@@ -5158,7 +5366,10 @@ pre,
 	font-size: 0.9rem;
 	font-weight: 750;
 	white-space: nowrap;
-	transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+	transition:
+		transform 160ms ease,
+		box-shadow 160ms ease,
+		background 160ms ease;
 }
 
 .launchpad-button:hover {
@@ -5270,8 +5481,7 @@ pre,
 	align-content: start;
 	padding: 1.25rem;
 	background:
-		radial-gradient(circle at 100% 0, rgba(49, 88, 183, 0.12), transparent 18rem),
-		#fbfcfd;
+		radial-gradient(circle at 100% 0, rgba(49, 88, 183, 0.12), transparent 18rem), #fbfcfd;
 }
 
 .showcase-main__topline {
@@ -5500,7 +5710,9 @@ pre,
 	background: rgba(255, 255, 255, 0.72);
 	padding: 1.2rem;
 	box-shadow: 0 18px 52px rgba(16, 38, 64, 0.08);
-	transition: transform 160ms ease, box-shadow 160ms ease;
+	transition:
+		transform 160ms ease,
+		box-shadow 160ms ease;
 }
 
 .workflow-lane a::after {
@@ -5720,7 +5932,9 @@ pre,
 	border-radius: 1.1rem;
 	background: rgba(255, 255, 255, 0.09);
 	padding: 0.85rem;
-	transition: transform 150ms ease, background 150ms ease;
+	transition:
+		transform 150ms ease,
+		background 150ms ease;
 }
 
 .module-grid a:hover {
@@ -5812,8 +6026,7 @@ pre,
 	background:
 		linear-gradient(135deg, rgba(16, 38, 64, 0.06), transparent 36rem),
 		radial-gradient(circle at 82% 12%, rgba(49, 88, 183, 0.18), transparent 27rem),
-		radial-gradient(circle at 12% 82%, rgba(8, 127, 123, 0.13), transparent 28rem),
-		#f6f5f0;
+		radial-gradient(circle at 12% 82%, rgba(8, 127, 123, 0.13), transparent 28rem), #f6f5f0;
 }
 
 .registration-page::before {
@@ -5995,7 +6208,10 @@ pre,
 	font: inherit;
 	color: #102640;
 	outline: none;
-	transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+	transition:
+		border-color 140ms ease,
+		box-shadow 140ms ease,
+		background 140ms ease;
 }
 
 .registration-form input:focus {
@@ -6015,7 +6231,10 @@ pre,
 	font-weight: 800;
 	color: #fff;
 	cursor: pointer;
-	transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+	transition:
+		transform 160ms ease,
+		box-shadow 160ms ease,
+		opacity 160ms ease;
 }
 
 .registration-submit:hover:not(:disabled) {
@@ -7080,8 +7299,7 @@ table {
 
 .showcase-main {
 	background:
-		radial-gradient(circle at 100% 0, rgba(185, 99, 59, 0.11), transparent 17rem),
-		#fffaf2;
+		radial-gradient(circle at 100% 0, rgba(185, 99, 59, 0.11), transparent 17rem), #fffaf2;
 }
 
 .showcase-main__topline span,
@@ -7166,8 +7384,7 @@ table {
 .workflow-lane a {
 	min-height: 13.5rem;
 	border-radius: 1.25rem;
-	background:
-		linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(251, 247, 239, 0.78));
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(251, 247, 239, 0.78));
 }
 
 .workflow-lane a::after {
@@ -7226,7 +7443,10 @@ table {
 	border-radius: 1.5rem;
 	padding: 1.2rem;
 	text-decoration: none;
-	transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+	transition:
+		transform 160ms ease,
+		box-shadow 160ms ease,
+		background 160ms ease;
 }
 
 .landing-card::after {
@@ -7666,8 +7886,7 @@ table {
 	border: 1px solid rgba(47, 67, 53, 0.14);
 	border-radius: 1rem;
 	background:
-		linear-gradient(145deg, rgba(255, 250, 242, 0.96), rgba(237, 224, 202, 0.72)),
-		#fffaf2;
+		linear-gradient(145deg, rgba(255, 250, 242, 0.96), rgba(237, 224, 202, 0.72)), #fffaf2;
 	box-shadow: 0 14px 30px rgba(47, 67, 53, 0.14);
 }
 
@@ -8182,7 +8401,10 @@ img.app-mobile-topbar__mark {
 	background: rgba(255, 250, 242, 0.78);
 	color: inherit;
 	text-decoration: none;
-	transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+	transition:
+		transform 160ms ease,
+		border-color 160ms ease,
+		box-shadow 160ms ease;
 }
 
 .workspace-home-action:hover,
@@ -8214,9 +8436,7 @@ img.app-mobile-topbar__mark {
 }
 
 .workspace-home-section--samples {
-	background:
-		linear-gradient(135deg, rgba(47, 67, 53, 0.08), rgba(184, 111, 67, 0.1)),
-		#fffaf2;
+	background: linear-gradient(135deg, rgba(47, 67, 53, 0.08), rgba(184, 111, 67, 0.1)), #fffaf2;
 }
 
 .sample-study-card {
@@ -8885,7 +9105,9 @@ img.app-mobile-topbar__mark {
 .app-shell--product .workspace-home-section__header > p,
 .app-shell--product .workspace-home-note,
 .app-shell--product .workspace-home-action span:last-child,
-.app-shell--product .sample-study-card > span:not(.sample-study-card__kicker):not(.sample-study-card__action),
+.app-shell--product
+	.sample-study-card
+	> span:not(.sample-study-card__kicker):not(.sample-study-card__action),
 .app-shell--product .workspace-home-hero__panel small {
 	color: var(--color-text-muted);
 }

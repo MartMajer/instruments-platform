@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ResultsDashboardBarResponse } from '$lib/api/product';
+	import { configuredScoreRange, scoreProgressPercent } from '$lib/product/results-workbench';
 	import {
 		formatCodeLabel,
 		formatWidgetLabel,
@@ -26,6 +27,7 @@
 				.map((bar) => bar.value ?? 0)
 		)
 	);
+	const sharedConfiguredRange = $derived(sharedScoreRange(bars));
 	const selectedBar = $derived(
 		bars.find((bar) => bar.id === selectedBarId) ??
 			bars.find((bar) => bar.disclosure === 'visible' && bar.value !== null) ??
@@ -62,7 +64,7 @@
 			return '0%';
 		}
 
-		return `${Math.max(5, Math.min(100, (bar.value / visibleMax) * 100))}%`;
+		return `${Math.max(5, scoreProgressPercent(bar.value, configuredScoreRange(bar), visibleMax))}%`;
 	}
 
 	function barButtonLabel(bar: ResultsDashboardBarResponse) {
@@ -71,13 +73,53 @@
 			copy
 		)} ${formatCount(bar.count, bar.disclosure)}`;
 	}
+
+	function rangeLabel(bar: ResultsDashboardBarResponse) {
+		const range = configuredScoreRange(bar);
+		if (!range) {
+			return `${formatWidgetLabel('observedRange', copy)} 0-${formatCompactNumber(visibleMax)}`;
+		}
+
+		return `${formatWidgetLabel('scoreRange', copy)} ${formatCompactNumber(range.min)}-${formatCompactNumber(range.max)}`;
+	}
+
+	function sharedScoreRange(rows: ResultsDashboardBarResponse[]) {
+		const ranges = rows
+			.filter((bar) => bar.disclosure === 'visible')
+			.map((bar) => configuredScoreRange(bar))
+			.filter((range) => range !== null);
+		if (ranges.length === 0) {
+			return null;
+		}
+
+		const first = ranges[0];
+		return ranges.every((range) => range.min === first.min && range.max === first.max)
+			? first
+			: null;
+	}
+
+	function scaleLabel() {
+		if (sharedConfiguredRange) {
+			return `${formatWidgetLabel('scoreRange', copy)} ${formatCompactNumber(sharedConfiguredRange.min)}-${formatCompactNumber(sharedConfiguredRange.max)}`;
+		}
+
+		return `${formatWidgetLabel('chartScale', copy)} ${visibleMax.toFixed(2)}`;
+	}
+
+	function methodLabel(bar: ResultsDashboardBarResponse) {
+		return bar.calculationLabel?.trim() ?? null;
+	}
+
+	function formatCompactNumber(value: number) {
+		return Number.isInteger(value) ? String(value) : value.toFixed(2);
+	}
 </script>
 
 {#if bars.length > 0}
 	<div class="results-bar-chart">
 		<div class="results-bar-chart__scale" aria-hidden="true">
 			<span>0</span>
-			<span>{formatWidgetLabel('chartScale', copy)} {visibleMax.toFixed(2)}</span>
+			<span>{scaleLabel()}</span>
 		</div>
 
 		<div class="results-bar-chart__rows">
@@ -99,13 +141,18 @@
 					</span>
 					<span class="results-bar-chart__value">
 						<strong>{formatValue(bar.value, bar.disclosure)}</strong>
-						<small>{formatWidgetLabel('sample', copy)} {formatCount(bar.count, bar.disclosure)}</small>
+						<small
+							>{formatWidgetLabel('sample', copy)} {formatCount(bar.count, bar.disclosure)}</small
+						>
 					</span>
 					{#if bar.detail || bar.suppressionReason}
 						<span class="results-bar-chart__detail">
 							{bar.detail ?? formatCodeLabel(bar.suppressionReason, copy)}
 						</span>
 					{/if}
+					<span class="results-bar-chart__detail">
+						{rangeLabel(bar)}{methodLabel(bar) ? ` / ${methodLabel(bar)}` : ''}
+					</span>
 				</button>
 			{/each}
 		</div>
@@ -130,7 +177,14 @@
 						<dt>{formatWidgetLabel('disclosure', copy)}</dt>
 						<dd>{formatCodeLabel(selectedBar.disclosure, copy)}</dd>
 					</div>
+					<div>
+						<dt>{formatWidgetLabel('scoreRange', copy)}</dt>
+						<dd>{rangeLabel(selectedBar)}</dd>
+					</div>
 				</dl>
+				{#if methodLabel(selectedBar)}
+					<p class="text-sm text-[var(--color-text-muted)]">{methodLabel(selectedBar)}</p>
+				{/if}
 				{#if selectedBar.detail || selectedBar.suppressionReason}
 					<p class="text-sm text-[var(--color-text-muted)]">
 						{selectedBar.detail ?? formatCodeLabel(selectedBar.suppressionReason, copy)}

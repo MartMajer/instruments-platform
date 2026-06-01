@@ -1,110 +1,152 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  autonomousProductPaths,
-  resolveAutonomousProductApiResponse,
+	autonomousProductPaths,
+	resolveAutonomousProductApiResponse
 } from './autonomous-product-read-models.ts';
 
 describe('autonomous local product read models', () => {
-  it('seeds the normal app cockpit instead of relying on the demo catalog', () => {
-    const response = resolveAutonomousProductApiResponse('GET', '/workspace-overview');
+	it('seeds the normal app cockpit instead of relying on the demo catalog', () => {
+		const response = resolveAutonomousProductApiResponse('GET', '/workspace-overview');
 
-    expect(response?.status).toBe(200);
-    expect(response?.json).toEqual(
-      expect.objectContaining({
-        studyCollections: expect.objectContaining({
-          sampleStudies: expect.arrayContaining([
-            expect.objectContaining({
-              name: 'Setup readiness sample',
-              id: autonomousProductPaths.setupSampleSeriesId,
-            }),
-          ]),
-          ownStudies: expect.arrayContaining([
-            expect.objectContaining({
-              name: 'New team study',
-              id: autonomousProductPaths.ownStudySeriesId,
-            }),
-          ]),
-        }),
-      })
-    );
-  });
+		expect(response?.status).toBe(200);
+		expect(response?.json).toEqual(
+			expect.objectContaining({
+				studyCollections: expect.objectContaining({
+					sampleStudies: expect.arrayContaining([
+						expect.objectContaining({
+							name: 'Setup readiness sample',
+							id: autonomousProductPaths.setupSampleSeriesId
+						})
+					]),
+					ownStudies: expect.arrayContaining([
+						expect.objectContaining({
+							name: 'New team study',
+							id: autonomousProductPaths.ownStudySeriesId
+						})
+					])
+				})
+			})
+		);
+	});
 
-  it('serves selected study workspaces needed by autonomous persona missions', () => {
-    expect(
-      resolveAutonomousProductApiResponse(
-        'GET',
-        `/campaign-series/${autonomousProductPaths.completedSampleSeriesId}/setup-workspace`
-      )?.json
-    ).toEqual(expect.objectContaining({ series: expect.objectContaining({ name: 'Quarterly pulse' }) }));
-    expect(
-      resolveAutonomousProductApiResponse(
-        'GET',
-        `/campaign-series/${autonomousProductPaths.completedSampleSeriesId}/reports-widget-manifest`
-      )?.json
-    ).toEqual(expect.objectContaining({ surface: 'reports' }));
-    expect(
-      resolveAutonomousProductApiResponse(
-        'GET',
-        `/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/waves-workspace`
-      )?.json
-    ).toEqual(expect.objectContaining({ summary: expect.objectContaining({ submittedWaveCount: 2 }) }));
-    expect(
-      resolveAutonomousProductApiResponse(
-        'GET',
-        `/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/reports-workspace`
-      )?.json
-    ).toEqual(
-      expect.objectContaining({
-        series: expect.objectContaining({
-          id: autonomousProductPaths.longitudinalSampleSeriesId,
-          name: 'Longitudinal wave sample',
-        }),
-        campaigns: expect.arrayContaining([
-          expect.objectContaining({
-            id: '6d3271db-494f-401d-af8b-a5c86c9293a8',
-            name: 'Pulse wave 2',
-            responseIdentityMode: 'anonymous_longitudinal',
-          }),
-        ]),
-      })
-    );
-  });
+	it('serves selected study workspaces needed by autonomous persona missions', () => {
+		expect(
+			resolveAutonomousProductApiResponse(
+				'GET',
+				`/campaign-series/${autonomousProductPaths.completedSampleSeriesId}/setup-workspace`
+			)?.json
+		).toEqual(
+			expect.objectContaining({ series: expect.objectContaining({ name: 'Quarterly pulse' }) })
+		);
+		expect(
+			resolveAutonomousProductApiResponse(
+				'GET',
+				`/campaign-series/${autonomousProductPaths.completedSampleSeriesId}/reports-widget-manifest`
+			)?.json
+		).toEqual(
+			expect.objectContaining({
+				surface: 'reports',
+				widgets: expect.arrayContaining([
+					expect.objectContaining({
+						kind: 'results-dashboard/v1',
+						data: expect.objectContaining({
+							dashboard: expect.objectContaining({
+								metrics: expect.arrayContaining([
+									expect.objectContaining({ id: 'visible_outputs' }),
+									expect.objectContaining({ id: 'hidden_outputs' }),
+									expect.objectContaining({ id: 'group_rows' }),
+									expect.objectContaining({ id: 'compared_measurements' })
+								]),
+								outputBars: expect.arrayContaining([
+									expect.objectContaining({
+										dimensionCode: 'burnout.total',
+										calculationLabel: 'Average selected answers',
+										scoreRangeMin: 1,
+										scoreRangeMax: 5
+									})
+								])
+							})
+						})
+					}),
+					expect.objectContaining({
+						kind: 'visual-analytics-entry/v1',
+						data: expect.objectContaining({
+							analytics: expect.objectContaining({
+								scoreOutputs: expect.arrayContaining([
+									expect.objectContaining({
+										dimensionCode: 'burnout.total',
+										calculationLabel: 'Average selected answers',
+										scoreRangeMin: 1,
+										scoreRangeMax: 5
+									})
+								])
+							})
+						})
+					})
+				])
+			})
+		);
+		expect(
+			resolveAutonomousProductApiResponse(
+				'GET',
+				`/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/waves-workspace`
+			)?.json
+		).toEqual(
+			expect.objectContaining({ summary: expect.objectContaining({ submittedWaveCount: 2 }) })
+		);
+		expect(
+			resolveAutonomousProductApiResponse(
+				'GET',
+				`/campaign-series/${autonomousProductPaths.longitudinalSampleSeriesId}/reports-workspace`
+			)?.json
+		).toEqual(
+			expect.objectContaining({
+				series: expect.objectContaining({
+					id: autonomousProductPaths.longitudinalSampleSeriesId,
+					name: 'Longitudinal wave sample'
+				}),
+				campaigns: expect.arrayContaining([
+					expect.objectContaining({
+						id: '6d3271db-494f-401d-af8b-a5c86c9293a8',
+						name: 'Pulse wave 2',
+						responseIdentityMode: 'anonymous_longitudinal'
+					})
+				])
+			})
+		);
+	});
 
-  it('keeps export artifacts tied to the product series a wave mission reviewed', () => {
-    expect(resolveAutonomousProductApiResponse('GET', '/export-artifacts')?.json).toEqual(
-      expect.objectContaining({
-        artifacts: expect.arrayContaining([
-          expect.objectContaining({
-            campaignSeriesId: autonomousProductPaths.longitudinalSampleSeriesId,
-            targetLabel: 'Longitudinal wave sample',
-            fileName: 'longitudinal-wave-comparison.csv',
-          }),
-        ]),
-      })
-    );
-  });
+	it('keeps export artifacts tied to the product series a wave mission reviewed', () => {
+		expect(resolveAutonomousProductApiResponse('GET', '/export-artifacts')?.json).toEqual(
+			expect.objectContaining({
+				artifacts: expect.arrayContaining([
+					expect.objectContaining({
+						campaignSeriesId: autonomousProductPaths.longitudinalSampleSeriesId,
+						targetLabel: 'Longitudinal wave sample',
+						fileName: 'longitudinal-wave-comparison.csv'
+					})
+				])
+			})
+		);
+	});
 
-  it('serves setup support read models needed by recipient selection controls', () => {
-    expect(resolveAutonomousProductApiResponse('GET', '/subjects')?.json).toEqual(
-      expect.objectContaining({
-        summary: expect.objectContaining({ subjectCount: 2 }),
-        subjects: expect.arrayContaining([
-          expect.objectContaining({ displayName: 'Respondent 1' }),
-        ]),
-      })
-    );
-    expect(resolveAutonomousProductApiResponse('GET', '/subject-groups')?.json).toEqual(
-      expect.objectContaining({
-        groups: expect.arrayContaining([
-          expect.objectContaining({ name: 'Research team' }),
-        ]),
-      })
-    );
-  });
+	it('serves setup support read models needed by recipient selection controls', () => {
+		expect(resolveAutonomousProductApiResponse('GET', '/subjects')?.json).toEqual(
+			expect.objectContaining({
+				summary: expect.objectContaining({ subjectCount: 2 }),
+				subjects: expect.arrayContaining([expect.objectContaining({ displayName: 'Respondent 1' })])
+			})
+		);
+		expect(resolveAutonomousProductApiResponse('GET', '/subject-groups')?.json).toEqual(
+			expect.objectContaining({
+				groups: expect.arrayContaining([expect.objectContaining({ name: 'Research team' })])
+			})
+		);
+	});
 
-  it('does not mask unsupported product API calls as successful data', () => {
-    expect(resolveAutonomousProductApiResponse('POST', '/campaign-series')).toBeUndefined();
-    expect(resolveAutonomousProductApiResponse('GET', '/registration/session')).toBeUndefined();
-  });
+	it('does not mask unsupported product API calls as successful data', () => {
+		expect(resolveAutonomousProductApiResponse('POST', '/campaign-series')).toBeUndefined();
+		expect(resolveAutonomousProductApiResponse('GET', '/registration/session')).toBeUndefined();
+	});
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
+	import { toScoreCards } from '$lib/product/results-workbench';
 	import { isResultsDashboardWidgetData } from './report-widget-data';
 	import {
 		formatCodeLabel,
@@ -15,6 +16,14 @@
 
 	const data = $derived(isResultsDashboardWidgetData(widget.data) ? widget.data : null);
 	const dashboard = $derived(data?.dashboard ?? null);
+	const scoreCards = $derived(
+		toScoreCards(dashboard?.outputBars ?? [], {
+			notAvailable: copy?.notAvailable ?? 'Not available',
+			observedScale: formatWidgetLabel('observedRange', copy),
+			scoreRange: formatWidgetLabel('scoreRange', copy),
+			suppressed: formatWidgetLabel('suppressed', copy)
+		})
+	);
 
 	function metricLabel(id: string) {
 		return formatWidgetLabel(`metric_${id}`, copy);
@@ -40,7 +49,71 @@
 				{/each}
 			</dl>
 
-			<section class="results-dashboard-widget__panel" aria-label={formatWidgetLabel('resultBarChart', copy)}>
+			{#if scoreCards.length > 0}
+				<section
+					class="results-dashboard-widget__panel"
+					aria-label={formatWidgetLabel('scoreCards', copy)}
+				>
+					<div class="record-row__header">
+						<div>
+							<p class="record-field__label">{formatWidgetLabel('scoreCards', copy)}</p>
+							<p class="record-row__title">{formatWidgetLabel('resultOutputs', copy)}</p>
+						</div>
+						<span class="record-field__label">
+							{formatWidgetLabel('disclosure', copy)}: {formatCodeLabel(
+								dashboard.disclosureState,
+								copy
+							)}
+						</span>
+					</div>
+					<div class="results-score-card-grid">
+						{#each scoreCards as card (card.id)}
+							<article class="results-score-card" data-disclosure={card.disclosure}>
+								<div class="results-score-card__header">
+									<div>
+										<p class="results-score-card__label">{card.label}</p>
+										<p class="record-field__label">{formatCodeLabel(card.dimensionCode, copy)}</p>
+									</div>
+									<span class="status-badge" data-status={card.disclosure}>
+										{formatCodeLabel(card.disclosure, copy)}
+									</span>
+								</div>
+								<p class="results-score-card__value">{card.valueLabel}</p>
+								<div class="results-score-card__meter" aria-hidden="true">
+									<span
+										class="results-score-card__meter-fill"
+										style={`width: ${card.progressPercent === null ? 0 : Math.max(4, card.progressPercent)}%`}
+									></span>
+								</div>
+								<dl class="results-score-card__meta">
+									<div>
+										<dt>{formatWidgetLabel('sample', copy)}</dt>
+										<dd>{card.countLabel}</dd>
+									</div>
+									<div>
+										<dt>{formatWidgetLabel('scoreRange', copy)}</dt>
+										<dd>{card.rangeLabel}</dd>
+									</div>
+									{#if card.methodLabel}
+										<div>
+											<dt>{formatWidgetLabel('calculation', copy)}</dt>
+											<dd>{card.methodLabel}</dd>
+										</div>
+									{/if}
+								</dl>
+								{#if card.suppressionReason}
+									<p class="record-field__label">{formatCodeLabel(card.suppressionReason, copy)}</p>
+								{/if}
+							</article>
+						{/each}
+					</div>
+				</section>
+			{/if}
+
+			<section
+				class="results-dashboard-widget__panel"
+				aria-label={formatWidgetLabel('resultBarChart', copy)}
+			>
 				<div class="record-row__header">
 					<div>
 						<p class="record-field__label">{formatWidgetLabel('resultBarChart', copy)}</p>
@@ -55,7 +128,10 @@
 				<ResultsBarChart bars={dashboard.outputBars} {copy} />
 			</section>
 
-			<section class="results-dashboard-widget__panel" aria-label={formatWidgetLabel('groupBarChart', copy)}>
+			<section
+				class="results-dashboard-widget__panel"
+				aria-label={formatWidgetLabel('groupBarChart', copy)}
+			>
 				<div class="record-row__header">
 					<div>
 						<p class="record-field__label">{formatWidgetLabel('groupBarChart', copy)}</p>
@@ -65,14 +141,13 @@
 						{formatWidgetLabel('sample', copy)} >= {dashboard.disclosureKMin}
 					</span>
 				</div>
-				<ResultsBarChart
-					bars={dashboard.groupBars}
-					{copy}
-					emptyLabelKey="noGroupBars"
-				/>
+				<ResultsBarChart bars={dashboard.groupBars} {copy} emptyLabelKey="noGroupBars" />
 			</section>
 
-			<section class="results-dashboard-widget__panel" aria-label={formatWidgetLabel('measurementTrendChart', copy)}>
+			<section
+				class="results-dashboard-widget__panel"
+				aria-label={formatWidgetLabel('measurementTrendChart', copy)}
+			>
 				<div class="record-row__header">
 					<div>
 						<p class="record-field__label">{formatWidgetLabel('measurementTrendChart', copy)}</p>
@@ -84,7 +159,10 @@
 			</section>
 
 			{#if dashboard.notes.length > 0}
-				<section class="results-dashboard-widget__panel" aria-label={formatWidgetLabel('dashboardNotes', copy)}>
+				<section
+					class="results-dashboard-widget__panel"
+					aria-label={formatWidgetLabel('dashboardNotes', copy)}
+				>
 					<div class="record-row__header">
 						<p class="record-row__title">{formatWidgetLabel('dashboardNotes', copy)}</p>
 					</div>
@@ -97,7 +175,9 @@
 										{formatCodeLabel(note.severity, copy)}
 									</span>
 								</div>
-								<p class="text-sm text-[var(--color-text-muted)]">{formatProductCopy(note.detail)}</p>
+								<p class="text-sm text-[var(--color-text-muted)]">
+									{formatProductCopy(note.detail)}
+								</p>
 							</article>
 						{/each}
 					</div>

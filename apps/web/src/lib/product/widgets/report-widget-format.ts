@@ -42,13 +42,16 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		exportUseGuideDescription:
 			'Use aggregate exports for the dashboard and group/measurement comparisons. Use response datasets only when you need row-level analysis.',
 		dashboardMatrixExport: 'Dashboard and matrix export',
-		dashboardMatrixExportGuidance: 'Aggregate data behind result charts, group comparison, and measurement comparison.',
+		dashboardMatrixExportGuidance:
+			'Aggregate data behind result charts, group comparison, and measurement comparison.',
 		rowLevelResponseExport: 'Row-level response dataset',
-		rowLevelResponseExportGuidance: 'Analysis-ready respondent rows with variables and score values.',
+		rowLevelResponseExportGuidance:
+			'Analysis-ready respondent rows with variables and score values.',
 		singleMeasurementReportExport: 'Single measurement report export',
 		singleMeasurementReportExportGuidance: 'One measurement summary for review or handoff.',
 		reportPacketExport: 'Report packet export',
-		reportPacketExportGuidance: 'Formatted report file for review or sharing after interpretation checks.',
+		reportPacketExportGuidance:
+			'Formatted report file for review or sharing after interpretation checks.',
 		exportUseUnknownGuidance: 'Review file metadata before using this export.',
 		notConfigured: 'Not configured',
 		notConfiguredState: 'Not configured',
@@ -64,6 +67,7 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		reportStatus: 'Report status',
 		resultOutput: 'Result output',
 		resultOutputs: 'Result outputs',
+		scoreCards: 'Score cards',
 		resultMatrix: 'Results overview',
 		groupMatrix: 'Compare groups',
 		waveTrend: 'Compare measurement rounds',
@@ -105,6 +109,7 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		median: 'Median',
 		standardDeviation: 'Std. dev.',
 		range: 'Range',
+		calculation: 'Calculation',
 		scoreRange: 'Score range',
 		scoreOutput: 'Score output',
 		resultName: 'Result',
@@ -117,13 +122,14 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		noWaveTrendPoints: 'No measurement trend chart is available yet.',
 		ready: 'Ready',
 		readyToRun: 'Ready to run',
-		resultsPreview: 'Results preview',
+		resultsPreview: 'Results workbench',
 		resultsPreviewLoading: 'The results preview is loading.',
 		resultsPreviewUnavailable: 'Results preview unavailable',
 		resultsPreviewUnavailableExport:
 			'The export workflow can still be used while the preview is unavailable.',
-		resultsPreviewWidgets: 'Results preview widgets',
+		resultsPreviewWidgets: 'Results workbench widgets',
 		resultsSummary: 'Results summary',
+		resultsDetailTabs: 'Results detail sections',
 		rows: 'Rows',
 		scoreCoverageDataUnavailable: 'Score coverage data is unavailable.',
 		scored: 'Scored',
@@ -139,8 +145,7 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		unscored: 'Unscored',
 		visible: 'Visible',
 		visibleScores: 'Visible scores',
-		visualAnalyticsDataUnavailable: 'Visual analytics entry data is unavailable.'
-		,
+		visualAnalyticsDataUnavailable: 'Visual analytics entry data is unavailable.',
 		resultsDashboardDataUnavailable: 'Results dashboard data is unavailable.'
 	},
 	codeLabels: {

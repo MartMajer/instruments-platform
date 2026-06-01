@@ -249,9 +249,9 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 	surface: {
 		reviewActionsAria: 'Review and export actions',
 		flowKicker: 'Study flow · Results',
-		title: 'Review and export results',
+		title: 'Results workbench',
 		description:
-			'Review aggregate results, check whether they are ready to share, and create export files when ready.',
+			'Review disclosure-safe result cards, compare groups and measurement rounds, and create governed CSV exports when ready.',
 		useDecisionLabel: 'Use decision',
 		resultsUseReviewAria: 'Results use review',
 		nextActionLabel: 'Next action',
