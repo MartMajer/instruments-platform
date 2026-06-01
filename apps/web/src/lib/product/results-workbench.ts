@@ -83,10 +83,12 @@ export type ResultsRadarProfile = {
 	points: ResultsRadarPoint[];
 	excluded: ResultsExcludedResult[];
 	rangeLabel: string | null;
+	canDrawRadar: boolean;
 };
 
 export type ResultsRadarPoint = {
 	id: string;
+	displayIndex: number;
 	dimensionCode: string;
 	label: string;
 	valueLabel: string;
@@ -550,6 +552,7 @@ function toRadarProfile(
 
 		points.push({
 			id: bar.id,
+			displayIndex: points.length + 1,
 			dimensionCode: bar.dimensionCode,
 			label: positioned.label,
 			valueLabel: formatScoreValue(positioned.rawValue),
@@ -563,7 +566,8 @@ function toRadarProfile(
 		excluded,
 		rangeLabel: sharedRange
 			? `${labels.scoreRange} ${formatCompactNumber(sharedRange.min)}-${formatCompactNumber(sharedRange.max)}`
-			: null
+			: null,
+		canDrawRadar: points.length >= 3
 	};
 }
 

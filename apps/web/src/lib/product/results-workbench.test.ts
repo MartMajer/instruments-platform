@@ -312,6 +312,8 @@ describe('results workbench model', () => {
 			'Support resources',
 			'Readiness index'
 		]);
+		expect(cockpit.radar.canDrawRadar).toBe(true);
+		expect(cockpit.radar.points.map((point) => point.displayIndex)).toEqual([1, 2, 3, 4]);
 		expect(cockpit.radar.points.map((point) => point.positionPercent)).toEqual([64, 54, 58, 68.2]);
 		expect(cockpit.radar.excluded).toEqual([
 			{
@@ -324,6 +326,29 @@ describe('results workbench model', () => {
 				label: 'Small advisory score',
 				reason: 'suppressed'
 			}
+		]);
+	});
+
+	it('marks the radar as a compact profile when fewer than three compatible outputs remain', () => {
+		const focusedDashboard = filterResultsDashboard(
+			cockpitWorkspace.resultsDashboard!,
+			'recovery_capacity'
+		);
+		const focusedAnalytics = filterResultsAnalytics(cockpitWorkspace.resultsAnalytics!, {
+			outputCode: 'recovery_capacity'
+		});
+		const cockpit = toResultsInterpretationCockpit(focusedDashboard, focusedAnalytics, {
+			selectedOutputCode: 'recovery_capacity'
+		});
+
+		expect(cockpit.radar.canDrawRadar).toBe(false);
+		expect(cockpit.radar.points).toEqual([
+			expect.objectContaining({
+				displayIndex: 1,
+				label: 'Recovery capacity',
+				valueLabel: '54.00',
+				positionPercent: 54
+			})
 		]);
 	});
 

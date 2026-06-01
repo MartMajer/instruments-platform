@@ -4127,7 +4127,14 @@ test('Results summary renders primary dashboard labels before workflow', async (
 	await expect(dashboard.getByLabel('Attention signals')).toBeVisible();
 	const resultProfile = dashboard.getByRole('region', { name: 'Result profile' });
 	await expect(resultProfile).toBeVisible();
+	await expect(resultProfile.getByText('0% lower', { exact: true })).toBeVisible();
+	await expect(resultProfile.getByText('50%', { exact: true })).toBeVisible();
+	await expect(resultProfile.getByText('100% higher', { exact: true })).toBeVisible();
+	await expect(resultProfile.getByText('1', { exact: true }).first()).toBeVisible();
 	await expect(resultProfile).toContainText('Recovery capacity');
+	await expect(resultProfile).toContainText(
+		'Profile chart needs at least three compatible visible results'
+	);
 	await expect(dashboard.getByRole('region', { name: 'Group heatmap' })).toBeVisible();
 	await expect(dashboard.getByRole('table', { name: 'Group heatmap' })).toContainText('Retail');
 	await expect(dashboard.getByRole('region', { name: 'Current trend' })).toContainText(
