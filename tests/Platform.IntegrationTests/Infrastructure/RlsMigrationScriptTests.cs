@@ -323,6 +323,20 @@ public sealed class RlsMigrationScriptTests
     }
 
     [Fact]
+    public void Migrations_guard_identified_queue_invitation_token_respondent_subject_tenant()
+    {
+        var script = GenerateMigrationScript();
+
+        Assert.Contains("respondent_subject_id IS NULL", script);
+        Assert.Contains("subject.id = invitation_token.respondent_subject_id", script);
+        Assert.Contains("subject.tenant_id = current_setting('app.current_tenant_id')::uuid", script);
+        Assert.Contains("WHERE s.id = NEW.respondent_subject_id", script);
+        Assert.Contains("AND s.tenant_id = NEW.tenant_id", script);
+        Assert.Contains("invitation token respondent subject must belong to the same tenant", script);
+        Assert.Contains("BEFORE INSERT OR UPDATE OF tenant_id, campaign_id, assignment_id, respondent_subject_id", script);
+    }
+
+    [Fact]
     public void Migrations_create_provider_message_id_lookup_for_acs_email_events()
     {
         var script = GenerateMigrationScript();

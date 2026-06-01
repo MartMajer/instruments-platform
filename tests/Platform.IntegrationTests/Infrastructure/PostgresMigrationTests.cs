@@ -8838,6 +8838,76 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Rls_blocks_identified_queue_invitation_token_respondent_subject_from_another_tenant()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var template = SurveyTemplate.CreateGlobal(Guid.NewGuid(), "Queue token subject guard pulse");
+        var version = TemplateVersion.CreateCanonicalDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        var campaign = CreateCampaign(tenantA, version.Id);
+        var tenantASubject = new Subject(Guid.NewGuid(), tenantA, displayName: "Tenant A subject");
+        var tenantBSubject = new Subject(Guid.NewGuid(), tenantB, displayName: "Tenant B subject");
+        var sameTenantTokenId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantA, "queue-token-tenant-a", "Queue Token Tenant A"));
+            db.Tenants.Add(new Tenant(tenantB, "queue-token-tenant-b", "Queue Token Tenant B"));
+            db.SurveyTemplates.Add(template);
+            db.TemplateVersions.Add(version);
+            db.Campaigns.Add(campaign);
+            db.Subjects.AddRange(tenantASubject, tenantBSubject);
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using (var tenantADb = new ApplicationDbContext(CreateRuntimeOptions()))
+        {
+            var tenantDbScope = new TenantDbScope(tenantADb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantA);
+
+            tenantADb.InvitationTokens.Add(new InvitationToken(
+                sameTenantTokenId,
+                tenantA,
+                campaign.Id,
+                "same-tenant-queue-token",
+                InvitationTokenChannels.IdentifiedQueue,
+                respondentSubjectId: tenantASubject.Id));
+
+            await tenantADb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using (var tenantADb = new ApplicationDbContext(CreateRuntimeOptions()))
+        {
+            var tenantDbScope = new TenantDbScope(tenantADb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantA);
+
+            tenantADb.InvitationTokens.Add(new InvitationToken(
+                Guid.NewGuid(),
+                tenantA,
+                campaign.Id,
+                "cross-tenant-queue-token",
+                InvitationTokenChannels.IdentifiedQueue,
+                respondentSubjectId: tenantBSubject.Id));
+
+            await Assert.ThrowsAsync<DbUpdateException>(() => tenantADb.SaveChangesAsync());
+        }
+
+        await using (var tenantADb = new ApplicationDbContext(CreateRuntimeOptions()))
+        {
+            var tenantDbScope = new TenantDbScope(tenantADb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantA);
+
+            await Assert.ThrowsAsync<PostgresException>(() => tenantADb.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE invitation_token SET respondent_subject_id = {tenantBSubject.Id} WHERE id = {sameTenantTokenId}"));
+        }
+    }
+
+    [DockerFact]
     public async Task Rls_allows_identified_assignment_for_identified_campaign()
     {
         var tenantId = Guid.NewGuid();
