@@ -522,6 +522,37 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Campaign_identified_queue_access_endpoint_returns_raw_queue_paths()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/identified-queue-access",
+            tenantId,
+            new CreateCampaignIdentifiedQueueAccessRequest());
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignIdentifiedQueueAccessResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal(2, payload.RespondentCount);
+        Assert.Equal(3, payload.AssignmentCount);
+        Assert.Equal(2, payload.CreatedAccessCount);
+        Assert.Equal(0, payload.ExistingAccessCount);
+        Assert.Equal(0, payload.RotatedAccessCount);
+        Assert.All(payload.Respondents, respondent =>
+        {
+            Assert.Equal("created", respondent.AccessStatus);
+            Assert.StartsWith("idq_", respondent.Token, StringComparison.Ordinal);
+            Assert.Equal($"/r/{respondent.Token}", respondent.RespondentPath);
+        });
+    }
+
+    [Fact]
     public async Task Campaign_invitation_batch_endpoint_returns_raw_invite_paths()
     {
         var tenantId = Guid.NewGuid();
@@ -1524,6 +1555,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         private readonly Result<InstrumentSummaryResponse>? _createInstrumentResult;
         private readonly Result<CampaignOpenLinkResponse>? _openLinkResult;
         private readonly Result<CampaignIdentifiedEntryResponse>? _identifiedEntryResult;
+        private readonly Result<CampaignIdentifiedQueueAccessResponse>? _identifiedQueueAccessResult;
         private readonly Result<CampaignInvitationBatchResponse>? _invitationBatchResult;
 
         public FakeSetupWorkflowStore(
@@ -1532,6 +1564,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             Result<InstrumentSummaryResponse>? createInstrumentResult = null,
             Result<CampaignOpenLinkResponse>? openLinkResult = null,
             Result<CampaignIdentifiedEntryResponse>? identifiedEntryResult = null,
+            Result<CampaignIdentifiedQueueAccessResponse>? identifiedQueueAccessResult = null,
             Result<CampaignInvitationBatchResponse>? invitationBatchResult = null)
         {
             _templateVersionId = templateVersionId ?? Guid.NewGuid();
@@ -1539,6 +1572,7 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             _createInstrumentResult = createInstrumentResult;
             _openLinkResult = openLinkResult;
             _identifiedEntryResult = identifiedEntryResult;
+            _identifiedQueueAccessResult = identifiedQueueAccessResult;
             _invitationBatchResult = invitationBatchResult;
         }
 
@@ -1828,6 +1862,52 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 Guid.NewGuid(),
                 token,
                 $"/r/{token}")));
+        }
+
+        public Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CreateCampaignIdentifiedQueueAccessRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (_identifiedQueueAccessResult.HasValue)
+            {
+                return Task.FromResult(_identifiedQueueAccessResult.Value);
+            }
+
+            var respondentA = Guid.NewGuid();
+            var respondentB = Guid.NewGuid();
+            var tokenA = $"idq_{tenantId:N}_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+            var tokenB = $"idq_{tenantId:N}_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPR";
+
+            return Task.FromResult(Result.Success(new CampaignIdentifiedQueueAccessResponse(
+                campaignId,
+                RespondentCount: 2,
+                AssignmentCount: 3,
+                CreatedAccessCount: 2,
+                ExistingAccessCount: 0,
+                RotatedAccessCount: 0,
+                Respondents:
+                [
+                    new CampaignIdentifiedQueueAccessRespondentResponse(
+                        respondentA,
+                        "Ana Example",
+                        "ana@example.invalid",
+                        AssignmentCount: 2,
+                        InvitationTokenId: Guid.NewGuid(),
+                        AccessStatus: "created",
+                        tokenA,
+                        $"/r/{tokenA}"),
+                    new CampaignIdentifiedQueueAccessRespondentResponse(
+                        respondentB,
+                        "Bo Example",
+                        "bo@example.invalid",
+                        AssignmentCount: 1,
+                        InvitationTokenId: Guid.NewGuid(),
+                        AccessStatus: "created",
+                        tokenB,
+                        $"/r/{tokenB}")
+                ])));
         }
 
         public Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(

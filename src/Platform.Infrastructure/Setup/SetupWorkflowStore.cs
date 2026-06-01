@@ -1077,6 +1077,203 @@ public sealed class SetupWorkflowStore(
             $"/r/{issued.RawToken}"));
     }
 
+    public Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CreateCampaignIdentifiedQueueAccessRequest request,
+        CancellationToken cancellationToken)
+    {
+        return CreateCampaignIdentifiedQueueAccessCoreAsync(
+            tenantId,
+            campaignId,
+            request,
+            cancellationToken);
+    }
+
+    private async Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessCoreAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CreateCampaignIdentifiedQueueAccessRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
+
+        if (campaign is null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.NotFound("campaign.not_found", "Campaign was not found."));
+        }
+
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
+
+        if (campaign.Status != CampaignStatuses.Live || snapshot is null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "campaign.not_launched",
+                    "Campaign must be launched before creating identified queue access."));
+        }
+
+        if (snapshot.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "identified_queue.identity_mode_not_supported",
+                    "Identified queue access supports identified campaigns only."));
+        }
+
+        var assignmentGroups = await db.Assignments
+            .AsNoTracking()
+            .Where(assignment =>
+                assignment.TenantId == tenantId &&
+                assignment.CampaignId == campaign.Id &&
+                !assignment.Anonymous &&
+                assignment.RespondentSubjectId != null &&
+                assignment.AnonymizedAt == null)
+            .GroupBy(assignment => assignment.RespondentSubjectId!.Value)
+            .Select(group => new IdentifiedQueueAssignmentGroup(
+                group.Key,
+                group.Count()))
+            .OrderBy(group => group.RespondentSubjectId)
+            .ToListAsync(cancellationToken);
+
+        if (assignmentGroups.Count == 0)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "identified_queue.assignment_required",
+                    "Save and launch identified assignments before creating queue access."));
+        }
+
+        var respondentSubjectIds = assignmentGroups
+            .Select(group => group.RespondentSubjectId)
+            .ToArray();
+        var subjects = await db.Subjects
+            .AsNoTracking()
+            .Where(subject =>
+                subject.TenantId == tenantId &&
+                respondentSubjectIds.Contains(subject.Id) &&
+                subject.DeletedAt == null)
+            .ToDictionaryAsync(subject => subject.Id, cancellationToken);
+
+        if (subjects.Count != respondentSubjectIds.Length)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Conflict(
+                    "identified_queue.respondent_missing",
+                    "Every identified queue respondent must exist in the tenant directory."));
+        }
+
+        var existingTokens = await db.InvitationTokens
+            .Where(token =>
+                token.TenantId == tenantId &&
+                token.CampaignId == campaign.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                token.RespondentSubjectId != null &&
+                respondentSubjectIds.Contains(token.RespondentSubjectId.Value))
+            .ToListAsync(cancellationToken);
+        var duplicateAccess = existingTokens
+            .GroupBy(token => token.RespondentSubjectId!.Value)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateAccess is not null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Conflict(
+                    "identified_queue.duplicate_access",
+                    "A respondent has more than one queue access token. Rotate access after cleanup."));
+        }
+
+        var existingByRespondent = existingTokens.ToDictionary(token => token.RespondentSubjectId!.Value);
+        var createdCount = 0;
+        var existingCount = 0;
+        var rotatedCount = 0;
+        var responses = new List<CampaignIdentifiedQueueAccessRespondentResponse>(assignmentGroups.Count);
+
+        foreach (var group in assignmentGroups)
+        {
+            var subject = subjects[group.RespondentSubjectId];
+            string accessStatus;
+            string? rawToken = null;
+            InvitationToken invitationToken;
+
+            if (!existingByRespondent.TryGetValue(group.RespondentSubjectId, out var existingToken))
+            {
+                var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+                invitationToken = new InvitationToken(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    campaign.Id,
+                    issued.TokenHash,
+                    InvitationTokenChannels.IdentifiedQueue,
+                    respondentSubjectId: group.RespondentSubjectId);
+                db.InvitationTokens.Add(invitationToken);
+                rawToken = issued.RawToken;
+                accessStatus = "created";
+                createdCount++;
+            }
+            else if (request.RotateExisting)
+            {
+                invitationToken = existingToken;
+                var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+                invitationToken.ReissueHash(issued.TokenHash);
+                rawToken = issued.RawToken;
+                accessStatus = "rotated";
+                rotatedCount++;
+            }
+            else
+            {
+                invitationToken = existingToken;
+                accessStatus = "existing";
+                existingCount++;
+            }
+
+            responses.Add(new CampaignIdentifiedQueueAccessRespondentResponse(
+                group.RespondentSubjectId,
+                CreateQueueRespondentLabel(subject),
+                NormalizeText(subject.Email),
+                group.AssignmentCount,
+                invitationToken.Id,
+                accessStatus,
+                rawToken,
+                rawToken is null ? null : $"/r/{rawToken}"));
+        }
+
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsIdentifiedQueueAccessDuplicate(exception))
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Conflict(
+                    "identified_queue.concurrent_access_created",
+                    "Identified queue access was created concurrently. Refresh and use the existing access state."));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignIdentifiedQueueAccessResponse(
+            campaign.Id,
+            assignmentGroups.Count,
+            assignmentGroups.Sum(group => group.AssignmentCount),
+            createdCount,
+            existingCount,
+            rotatedCount,
+            responses));
+    }
+
     public async Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
         Guid tenantId,
         Guid campaignId,
@@ -2353,6 +2550,13 @@ public sealed class SetupWorkflowStore(
             subject.ExternalId);
     }
 
+    private static string CreateQueueRespondentLabel(Subject subject)
+    {
+        return NormalizeText(subject.DisplayName) ??
+            NormalizeText(subject.Email) ??
+            "Saved person";
+    }
+
     private static string CreateAssignmentSubjectLabel(Subject subject)
     {
         return NormalizeText(subject.DisplayName) ??
@@ -2391,6 +2595,15 @@ public sealed class SetupWorkflowStore(
         };
     }
 
+    private static bool IsIdentifiedQueueAccessDuplicate(DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ux_invitation_token_identified_queue_respondent"
+        };
+    }
+
     private static string ComputeSha256Hex(string value)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
@@ -2406,6 +2619,8 @@ public sealed class SetupWorkflowStore(
         ConsentDocument? ConsentDocument,
         RetentionPolicy? RetentionPolicy,
         DisclosurePolicy? DisclosurePolicy);
+
+    private sealed record IdentifiedQueueAssignmentGroup(Guid RespondentSubjectId, int AssignmentCount);
 
     private sealed record AssignmentPairKey(Guid? TargetSubjectId, Guid RespondentSubjectId);
 }

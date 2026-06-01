@@ -4533,6 +4533,346 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Campaign_identified_queue_access_store_creates_idempotent_hashed_tokens_per_respondent()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue access study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Identified queue access wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var manager = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Queue Manager",
+            email: "manager@example.test",
+            externalId: "manager-external-id-must-not-leak");
+        var ana = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Queue Ana",
+            email: "ana@example.test",
+            externalId: "ana-external-id-must-not-leak");
+        var ivan = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Queue Ivan",
+            email: "ivan@example.test",
+            externalId: "ivan-external-id-must-not-leak");
+        var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.AddRange(manager, ana, ivan);
+            tenantDb.SubjectRelationships.AddRange(
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ana.Id,
+                    SubjectRelationshipTypes.ManagerOf),
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ivan.Id,
+                    SubjectRelationshipTypes.ManagerOf));
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.AddRange(
+                new AudienceMember(audience.Id, ana.Id),
+                new AudienceMember(audience.Id, ivan.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}"""),
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{ana.Id:D}}","{{ivan.Id:D}}"]}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        var issued = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(issued.IsSuccess, issued.Error.ToString());
+        Assert.Equal(3, issued.Value.RespondentCount);
+        Assert.Equal(4, issued.Value.AssignmentCount);
+        Assert.Equal(3, issued.Value.CreatedAccessCount);
+        Assert.Equal(0, issued.Value.ExistingAccessCount);
+        Assert.Equal(0, issued.Value.RotatedAccessCount);
+        Assert.Contains(
+            issued.Value.Respondents,
+            respondent => respondent.RespondentSubjectId == manager.Id && respondent.AssignmentCount == 2);
+        Assert.All(issued.Value.Respondents, respondent =>
+        {
+            Assert.Equal("created", respondent.AccessStatus);
+            Assert.StartsWith("idq_", respondent.Token, StringComparison.Ordinal);
+            Assert.Equal($"/r/{respondent.Token}", respondent.RespondentPath);
+        });
+
+        var firstHashesBySubject = new Dictionary<Guid, string>();
+        await using (var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var tokens = await tenantDb.InvitationTokens
+                .Where(token =>
+                    token.CampaignId == campaign.Value.Id &&
+                    token.Channel == InvitationTokenChannels.IdentifiedQueue)
+                .OrderBy(token => token.RespondentSubjectId)
+                .ToListAsync();
+
+            Assert.Equal(3, tokens.Count);
+            foreach (var token in tokens)
+            {
+                Assert.NotNull(token.RespondentSubjectId);
+                Assert.Null(token.AssignmentId);
+                Assert.DoesNotContain(
+                    token.TokenHash,
+                    issued.Value.Respondents.Select(respondent => respondent.Token));
+                firstHashesBySubject[token.RespondentSubjectId!.Value] = token.TokenHash;
+            }
+
+            await verificationTransaction.CommitAsync();
+        }
+
+        var idempotent = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        Assert.True(idempotent.IsSuccess, idempotent.Error.ToString());
+        Assert.Equal(0, idempotent.Value.CreatedAccessCount);
+        Assert.Equal(3, idempotent.Value.ExistingAccessCount);
+        Assert.Equal(0, idempotent.Value.RotatedAccessCount);
+        Assert.All(idempotent.Value.Respondents, respondent =>
+        {
+            Assert.Equal("existing", respondent.AccessStatus);
+            Assert.Null(respondent.Token);
+            Assert.Null(respondent.RespondentPath);
+        });
+
+        var rotated = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(RotateExisting: true),
+            CancellationToken.None);
+
+        Assert.True(rotated.IsSuccess, rotated.Error.ToString());
+        Assert.Equal(0, rotated.Value.CreatedAccessCount);
+        Assert.Equal(0, rotated.Value.ExistingAccessCount);
+        Assert.Equal(3, rotated.Value.RotatedAccessCount);
+        Assert.All(rotated.Value.Respondents, respondent =>
+        {
+            Assert.Equal("rotated", respondent.AccessStatus);
+            Assert.StartsWith("idq_", respondent.Token, StringComparison.Ordinal);
+            Assert.Equal($"/r/{respondent.Token}", respondent.RespondentPath);
+        });
+
+        await using var rotationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var rotatedTokens = await tenantDb.InvitationTokens
+            .Where(token =>
+                token.CampaignId == campaign.Value.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue)
+            .ToListAsync();
+
+        Assert.Equal(3, rotatedTokens.Count);
+        foreach (var token in rotatedTokens)
+        {
+            Assert.NotNull(token.RespondentSubjectId);
+            Assert.NotEqual(firstHashesBySubject[token.RespondentSubjectId!.Value], token.TokenHash);
+        }
+
+        await rotationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Campaign_identified_queue_access_store_fails_closed_for_unsupported_or_unready_campaigns()
+    {
+        var tenantId = Guid.NewGuid();
+        var otherTenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue fail-closed study");
+        var draftCampaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Draft identified queue wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        var anonymousCampaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Anonymous queue wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        var liveWithoutAssignmentsCampaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Live identified without assignments wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(draftCampaign.IsSuccess, draftCampaign.Error.ToString());
+        Assert.True(anonymousCampaign.IsSuccess, anonymousCampaign.Error.ToString());
+        Assert.True(liveWithoutAssignmentsCampaign.IsSuccess, liveWithoutAssignmentsCampaign.Error.ToString());
+
+        var draftAccess = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            draftCampaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+        var wrongTenantAccess = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            otherTenantId,
+            draftCampaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        var anonymousLaunch = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            anonymousCampaign.Value.Id,
+            CancellationToken.None);
+        var anonymousAccess = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            anonymousCampaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        var respondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Queue Removed Respondent",
+            email: "removed@example.test");
+        var audience = new Audience(Guid.NewGuid(), liveWithoutAssignmentsCampaign.Value.Id);
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(respondent);
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.Add(new AudienceMember(audience.Id, respondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            liveWithoutAssignmentsCampaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}""")
+            ]),
+            CancellationToken.None);
+        var identifiedLaunch = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            liveWithoutAssignmentsCampaign.Value.Id,
+            CancellationToken.None);
+
+        await using (var cleanupTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var assignments = await tenantDb.Assignments
+                .Where(assignment => assignment.CampaignId == liveWithoutAssignmentsCampaign.Value.Id)
+                .ToListAsync();
+            tenantDb.Assignments.RemoveRange(assignments);
+            await tenantDb.SaveChangesAsync();
+            await cleanupTransaction.CommitAsync();
+        }
+
+        var noAssignmentAccess = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            liveWithoutAssignmentsCampaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        Assert.True(anonymousLaunch.IsSuccess, anonymousLaunch.Error.ToString());
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(identifiedLaunch.IsSuccess, identifiedLaunch.Error.ToString());
+        Assert.True(draftAccess.IsFailure);
+        Assert.Equal("campaign.not_launched", draftAccess.Error.Code);
+        Assert.True(wrongTenantAccess.IsFailure);
+        Assert.Equal("campaign.not_found", wrongTenantAccess.Error.Code);
+        Assert.True(anonymousAccess.IsFailure);
+        Assert.Equal("identified_queue.identity_mode_not_supported", anonymousAccess.Error.Code);
+        Assert.True(noAssignmentAccess.IsFailure);
+        Assert.Equal("identified_queue.assignment_required", noAssignmentAccess.Error.Code);
+    }
+
+    [DockerFact]
     public async Task Campaign_launch_materializes_identified_assignments_from_saved_respondent_rules()
     {
         var tenantId = Guid.NewGuid();

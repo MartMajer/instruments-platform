@@ -29,6 +29,13 @@ public sealed class InvitationToken
                 nameof(respondentSubjectId));
         }
 
+        if (channel == InvitationTokenChannels.IdentifiedQueue && assignmentId.HasValue)
+        {
+            throw new ArgumentException(
+                "Identified queue invitation tokens cannot be assignment scoped.",
+                nameof(assignmentId));
+        }
+
         if (channel != InvitationTokenChannels.IdentifiedQueue && respondentSubjectId.HasValue)
         {
             throw new ArgumentException(

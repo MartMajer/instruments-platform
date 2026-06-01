@@ -2617,7 +2617,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "channel IN ('email','sms','open_link','identified_entry','identified_queue')");
                 table.HasCheckConstraint(
                     "ck_invitation_token_respondent_subject_shape",
-                    "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
+                    "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL AND assignment_id IS NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
             });
             builder.HasKey(token => token.Id).HasName("pk_invitation_token");
 
@@ -2646,6 +2646,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.HasIndex(token => token.RespondentSubjectId)
                 .HasDatabaseName("ix_invitation_token_respondent_subject_id")
                 .HasFilter("respondent_subject_id IS NOT NULL");
+            builder.HasIndex(token => new { token.CampaignId, token.RespondentSubjectId })
+                .HasDatabaseName("ux_invitation_token_identified_queue_respondent")
+                .HasFilter("channel = 'identified_queue' AND respondent_subject_id IS NOT NULL")
+                .IsUnique();
 
             builder.HasOne<Tenant>()
                 .WithMany()

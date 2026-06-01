@@ -82,6 +82,12 @@ public interface ISetupWorkflowStore
         Guid campaignId,
         CancellationToken cancellationToken);
 
+    Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CreateCampaignIdentifiedQueueAccessRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
         Guid tenantId,
         Guid campaignId,

@@ -498,6 +498,19 @@ public sealed class CampaignEntitiesTests
         Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
     }
 
+    [Fact]
+    public void Identified_queue_invitation_token_rejects_assignment_id()
+    {
+        Assert.Throws<ArgumentException>(() => new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            InvitationTokenChannels.IdentifiedQueue,
+            assignmentId: Guid.NewGuid(),
+            respondentSubjectId: Guid.NewGuid()));
+    }
+
     [Theory]
     [InlineData(InvitationTokenChannels.Email)]
     [InlineData(InvitationTokenChannels.Sms)]

@@ -599,6 +599,14 @@ public sealed class ApplicationDbContextModelTests
             index.GetFilter() == "respondent_subject_id IS NOT NULL" &&
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(InvitationToken.RespondentSubjectId)]));
+        Assert.Contains(invitationToken.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "channel = 'identified_queue' AND respondent_subject_id IS NOT NULL" &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(InvitationToken.CampaignId),
+                    nameof(InvitationToken.RespondentSubjectId)
+                ]));
         Assert.Contains(notification.GetIndexes(), index =>
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(Notification.TenantId), nameof(Notification.CampaignId)]));

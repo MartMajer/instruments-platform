@@ -212,6 +212,27 @@ public sealed record CampaignIdentifiedEntryResponse(
     string Token,
     string RespondentPath);
 
+public sealed record CreateCampaignIdentifiedQueueAccessRequest(bool RotateExisting = false);
+
+public sealed record CampaignIdentifiedQueueAccessResponse(
+    Guid CampaignId,
+    int RespondentCount,
+    int AssignmentCount,
+    int CreatedAccessCount,
+    int ExistingAccessCount,
+    int RotatedAccessCount,
+    IReadOnlyList<CampaignIdentifiedQueueAccessRespondentResponse> Respondents);
+
+public sealed record CampaignIdentifiedQueueAccessRespondentResponse(
+    Guid RespondentSubjectId,
+    string RespondentLabel,
+    string? RespondentEmail,
+    int AssignmentCount,
+    Guid InvitationTokenId,
+    string AccessStatus,
+    string? Token,
+    string? RespondentPath);
+
 public sealed record CreateCampaignInvitationBatchRequest(
     IReadOnlyList<InvitationRecipientRequest> Recipients);
 

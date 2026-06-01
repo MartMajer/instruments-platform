@@ -327,6 +327,9 @@ public sealed class RlsMigrationScriptTests
     {
         var script = GenerateMigrationScript();
 
+        Assert.Contains("ux_invitation_token_identified_queue_respondent", script);
+        Assert.Contains("channel = 'identified_queue' AND respondent_subject_id IS NOT NULL", script);
+        Assert.Contains("respondent_subject_id IS NOT NULL AND assignment_id IS NULL", script);
         Assert.Contains("respondent_subject_id IS NULL", script);
         Assert.Contains("subject.id = invitation_token.respondent_subject_id", script);
         Assert.Contains("subject.tenant_id = current_setting('app.current_tenant_id')::uuid", script);
