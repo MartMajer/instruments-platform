@@ -36,6 +36,236 @@ public sealed record ScoreInterpretationBand(
     decimal Min,
     decimal Max);
 
+public sealed record ScoreOutputMetadata(
+    string Code,
+    string Label,
+    string Calculation,
+    string CalculationLabel,
+    decimal? ScoreRangeMin,
+    decimal? ScoreRangeMax);
+
+public static class ScoreOutputMetadataParser
+{
+    public static Result<IReadOnlyDictionary<string, ScoreOutputMetadata>> ParseProduces(string producesJson)
+    {
+        if (string.IsNullOrWhiteSpace(producesJson))
+        {
+            return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(
+                Error.Validation("score.rule_produces_invalid", "Scoring rule produces must be a JSON object."));
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(producesJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(
+                    Error.Validation("score.rule_produces_invalid", "Scoring rule produces must be a JSON object."));
+            }
+
+            var declaredScoreCodes = ReadDeclaredScoreCodes(document.RootElement);
+            if (declaredScoreCodes.IsFailure)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(declaredScoreCodes.Error);
+            }
+
+            return Parse(document.RootElement, declaredScoreCodes.Value);
+        }
+        catch (JsonException)
+        {
+            return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(
+                Error.Validation("score.rule_produces_invalid", "Scoring rule produces must be valid JSON."));
+        }
+    }
+
+    public static Result<IReadOnlyDictionary<string, ScoreOutputMetadata>> Parse(
+        JsonElement produces,
+        IReadOnlyList<string> declaredScoreCodes)
+    {
+        ArgumentNullException.ThrowIfNull(declaredScoreCodes);
+
+        if (!produces.TryGetProperty("outputs", out var outputs))
+        {
+            return Result.Success<IReadOnlyDictionary<string, ScoreOutputMetadata>>(
+                new Dictionary<string, ScoreOutputMetadata>(StringComparer.Ordinal));
+        }
+
+        if (outputs.ValueKind != JsonValueKind.Array)
+        {
+            return OutputFailure("Scoring rule produces.outputs must be an array.");
+        }
+
+        var declaredScoreSet = declaredScoreCodes
+            .Select(ScoreInterpretationMetadata.NormalizeCode)
+            .ToHashSet(StringComparer.Ordinal);
+        var metadata = new Dictionary<string, ScoreOutputMetadata>(StringComparer.Ordinal);
+
+        foreach (var output in outputs.EnumerateArray())
+        {
+            if (output.ValueKind != JsonValueKind.Object)
+            {
+                return OutputFailure("Scoring rule output metadata entries must be JSON objects.");
+            }
+
+            var code = ReadRequiredString(output, "code");
+            if (code.IsFailure)
+            {
+                return OutputFailure("Scoring rule output metadata code is required.");
+            }
+
+            var normalizedCode = ScoreInterpretationMetadata.NormalizeCode(code.Value);
+            if (!declaredScoreSet.Contains(normalizedCode))
+            {
+                return OutputFailure(
+                    $"Scoring rule output metadata score '{normalizedCode}' is not declared in produces.scores.");
+            }
+
+            if (metadata.ContainsKey(normalizedCode))
+            {
+                return OutputFailure($"Scoring rule output metadata score '{normalizedCode}' is duplicated.");
+            }
+
+            var label = ReadRequiredString(output, "label");
+            if (label.IsFailure)
+            {
+                return OutputFailure($"Scoring rule output metadata score '{normalizedCode}' label is required.");
+            }
+
+            var calculation = ReadRequiredString(output, "calculation");
+            if (calculation.IsFailure)
+            {
+                return OutputFailure($"Scoring rule output metadata score '{normalizedCode}' calculation is required.");
+            }
+
+            var calculationLabel = ReadRequiredString(output, "calculation_label");
+            if (calculationLabel.IsFailure)
+            {
+                return OutputFailure(
+                    $"Scoring rule output metadata score '{normalizedCode}' calculation_label is required.");
+            }
+
+            var range = ReadScoreRange(normalizedCode, output);
+            if (range.IsFailure)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(range.Error);
+            }
+
+            metadata.Add(
+                normalizedCode,
+                new ScoreOutputMetadata(
+                    normalizedCode,
+                    label.Value.Trim(),
+                    ScoreInterpretationMetadata.NormalizeCode(calculation.Value),
+                    calculationLabel.Value.Trim(),
+                    range.Value.Min,
+                    range.Value.Max));
+        }
+
+        return Result.Success<IReadOnlyDictionary<string, ScoreOutputMetadata>>(metadata);
+    }
+
+    private static Result<(decimal? Min, decimal? Max)> ReadScoreRange(string scoreCode, JsonElement output)
+    {
+        if (!output.TryGetProperty("score_range", out var range))
+        {
+            return Result.Success<(decimal? Min, decimal? Max)>((null, null));
+        }
+
+        if (range.ValueKind != JsonValueKind.Object)
+        {
+            return OutputRangeFailure(scoreCode, "must be a JSON object.");
+        }
+
+        if (!TryReadDecimal(range, "min", out var min))
+        {
+            return OutputRangeFailure(scoreCode, "min must be numeric.");
+        }
+
+        if (!TryReadDecimal(range, "max", out var max))
+        {
+            return OutputRangeFailure(scoreCode, "max must be numeric.");
+        }
+
+        if (min > max)
+        {
+            return OutputRangeFailure(scoreCode, "min must be less than or equal to max.");
+        }
+
+        return Result.Success<(decimal? Min, decimal? Max)>((min, max));
+    }
+
+    private static Result<IReadOnlyList<string>> ReadDeclaredScoreCodes(JsonElement produces)
+    {
+        if (!produces.TryGetProperty("scores", out var scores) ||
+            scores.ValueKind != JsonValueKind.Array)
+        {
+            return Result.Failure<IReadOnlyList<string>>(
+                Error.Validation("score.rule_produces_invalid", "Scoring rule produces must declare scores."));
+        }
+
+        var values = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in scores.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(item.GetString()))
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation("score.rule_produces_invalid", "Scoring rule score code must be a non-empty string."));
+            }
+
+            var normalized = ScoreInterpretationMetadata.NormalizeCode(item.GetString()!);
+            if (!seen.Add(normalized))
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation("score.rule_produces_invalid", $"Scoring rule score code '{normalized}' is duplicated."));
+            }
+
+            values.Add(normalized);
+        }
+
+        return values.Count == 0
+            ? Result.Failure<IReadOnlyList<string>>(
+                Error.Validation("score.rule_produces_invalid", "Scoring rule produces.scores must not be empty."))
+            : Result.Success<IReadOnlyList<string>>(values);
+    }
+
+    private static Result<string> ReadRequiredString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(property.GetString())
+            ? Result.Success(property.GetString()!)
+            : Result.Failure<string>(
+                Error.Validation(
+                    "score.rule_output_metadata_invalid",
+                    $"Scoring rule output metadata {propertyName} is required."));
+    }
+
+    private static bool TryReadDecimal(JsonElement element, string propertyName, out decimal value)
+    {
+        value = default;
+
+        return element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetDecimal(out value);
+    }
+
+    private static Result<IReadOnlyDictionary<string, ScoreOutputMetadata>> OutputFailure(string message)
+    {
+        return Result.Failure<IReadOnlyDictionary<string, ScoreOutputMetadata>>(
+            Error.Validation("score.rule_output_metadata_invalid", message));
+    }
+
+    private static Result<(decimal? Min, decimal? Max)> OutputRangeFailure(string scoreCode, string reason)
+    {
+        return Result.Failure<(decimal? Min, decimal? Max)>(
+            Error.Validation(
+                "score.rule_output_metadata_invalid",
+                $"Scoring rule output metadata score '{scoreCode}' score_range {reason}"));
+    }
+}
+
 public static class ScoreInterpretationMetadataParser
 {
     public const string TenantAttested = "tenant_attested";

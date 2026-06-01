@@ -312,6 +312,34 @@
 		return formatCodeLabel(value, copy);
 	}
 
+	function formatMethodMetadata(value: {
+		calculationLabel?: string | null;
+		scoreRangeMin?: number | null;
+		scoreRangeMax?: number | null;
+	}) {
+		const parts: string[] = [];
+		if (value.calculationLabel?.trim()) {
+			parts.push(value.calculationLabel.trim());
+		}
+
+		if (
+			value.scoreRangeMin !== null &&
+			value.scoreRangeMin !== undefined &&
+			value.scoreRangeMax !== null &&
+			value.scoreRangeMax !== undefined
+		) {
+			parts.push(
+				`${formatWidgetLabel('scoreRange', copy)} ${formatCompactNumber(value.scoreRangeMin)}-${formatCompactNumber(value.scoreRangeMax)}`
+			);
+		}
+
+		return parts.join(' / ');
+	}
+
+	function formatCompactNumber(value: number) {
+		return Number.isInteger(value) ? String(value) : value.toFixed(2);
+	}
+
 	function formatVisibleMissingness(value: string | null | undefined, disclosure: string) {
 		if (!isVisible(disclosure)) {
 			return formatSuppressed();
@@ -447,7 +475,13 @@
 						<tbody>
 							{#each sortedScoreOutputs as row (row.dimensionCode)}
 								<tr data-disclosure={row.disclosure}>
-									<td>{formatResultName(row)}</td>
+									<td>
+										<span>{formatResultName(row)}</span>
+										{#if formatMethodMetadata(row)}
+											<br />
+											<span class="record-field__label">{formatMethodMetadata(row)}</span>
+										{/if}
+									</td>
 									<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 									<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 									<td>{formatVisibleScore(row.median, row.disclosure)}</td>
@@ -511,7 +545,13 @@
 									<tr data-disclosure={row.disclosure}>
 										<td>{row.groupName}</td>
 										<td>{formatCodeLabel(row.groupType, copy)}</td>
-										<td>{formatResultName(row)}</td>
+										<td>
+											<span>{formatResultName(row)}</span>
+											{#if formatMethodMetadata(row)}
+												<br />
+												<span class="record-field__label">{formatMethodMetadata(row)}</span>
+											{/if}
+										</td>
 										<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.median, row.disclosure)}</td>
@@ -580,7 +620,13 @@
 								{#each sortedWaveRows as row (`${row.campaignId}\u0000${row.dimensionCode}`)}
 									<tr data-disclosure={row.disclosure}>
 										<td>{row.campaignName}</td>
-										<td>{formatResultName(row)}</td>
+										<td>
+											<span>{formatResultName(row)}</span>
+											{#if formatMethodMetadata(row)}
+												<br />
+												<span class="record-field__label">{formatMethodMetadata(row)}</span>
+											{/if}
+										</td>
 										<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
 										<td>{formatVisibleScore(row.median, row.disclosure)}</td>

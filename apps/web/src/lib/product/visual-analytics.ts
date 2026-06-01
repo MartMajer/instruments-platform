@@ -163,12 +163,13 @@ export function toReportVisualAnalyticsView(
 		if (visible && score.mean !== null) {
 			points.push({
 				id: score.dimensionCode,
-				label: score.dimensionCode,
+				label: formatScoreLabel(score),
 				primaryValue: score.mean,
 				primaryDisplay: formatNumber(score.mean),
 				secondaryValue: null,
 				secondaryDisplay: null,
 				meta: [
+					...formatScoreMethodMeta(score),
 					copy.scores(formatNullableCount(score.scoreCount, copy.notAvailable)),
 					copy.submitted(score.submittedResponseCount),
 					copy.range(formatNullableRange(score.min, score.max, copy.notAvailable))
@@ -235,11 +236,21 @@ export function toWaveVisualAnalyticsView(
 	for (const score of comparison.scores) {
 		const visible = score.disclosure === 'visible';
 		const compatible = score.compatibilityStatus === 'compatible';
+		const baselineMethodMeta = formatScoreMethodMeta({
+			calculationLabel: score.baselineCalculationLabel,
+			scoreRangeMin: score.baselineScoreRangeMin,
+			scoreRangeMax: score.baselineScoreRangeMax
+		}).join(' / ');
+		const comparisonMethodMeta = formatScoreMethodMeta({
+			calculationLabel: score.comparisonCalculationLabel,
+			scoreRangeMin: score.comparisonScoreRangeMin,
+			scoreRangeMax: score.comparisonScoreRangeMax
+		}).join(' / ');
 
 		if (visible && compatible && score.aggregateDelta !== null) {
 			points.push({
 				id: score.dimensionCode,
-				label: score.dimensionCode,
+				label: formatScoreLabel(score),
 				primaryValue: score.aggregateDelta,
 				primaryDisplay: formatSignedNumber(score.aggregateDelta),
 				secondaryValue: score.pairedDeltaMean,
@@ -248,6 +259,8 @@ export function toWaveVisualAnalyticsView(
 				meta: [
 					copy.baseline(formatNullableNumber(score.baselineMean, copy.notAvailable)),
 					copy.comparison(formatNullableNumber(score.comparisonMean, copy.notAvailable)),
+					...(baselineMethodMeta ? [copy.baseline(baselineMethodMeta)] : []),
+					...(comparisonMethodMeta ? [copy.comparison(comparisonMethodMeta)] : []),
 					copy.linkedPairs(score.linkedPairCount)
 				]
 			});
@@ -256,7 +269,7 @@ export function toWaveVisualAnalyticsView(
 
 		excludedRows.push({
 			id: score.dimensionCode,
-			label: score.dimensionCode,
+			label: formatScoreLabel(score),
 			state: !visible
 				? score.disclosure
 				: compatible
@@ -294,6 +307,36 @@ function formatNullableRange(min: number | null, max: number | null, fallback: s
 	}
 
 	return `${formatNumber(min)}-${formatNumber(max)}`;
+}
+
+function formatScoreLabel(score: { dimensionCode: string; displayLabel?: string | null }) {
+	return score.displayLabel?.trim() || score.dimensionCode;
+}
+
+function formatScoreMethodMeta(score: {
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
+}) {
+	const meta: string[] = [];
+	if (score.calculationLabel?.trim()) {
+		meta.push(score.calculationLabel.trim());
+	}
+
+	if (
+		score.scoreRangeMin !== null &&
+		score.scoreRangeMin !== undefined &&
+		score.scoreRangeMax !== null &&
+		score.scoreRangeMax !== undefined
+	) {
+		meta.push(`score range ${formatCompactNumber(score.scoreRangeMin)}-${formatCompactNumber(score.scoreRangeMax)}`);
+	}
+
+	return meta;
+}
+
+function formatCompactNumber(value: number) {
+	return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
 function formatNullableNumber(value: number | null, fallback: string) {

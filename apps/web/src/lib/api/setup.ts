@@ -207,6 +207,7 @@ export type ScoreInterpretationResponse = {
 
 export type WaveScoreComparisonResponse = {
 	dimensionCode: string;
+	displayLabel?: string | null;
 	compatibilityStatus: string;
 	disclosure: string;
 	baselineSubmittedResponseCount: number;
@@ -228,6 +229,14 @@ export type WaveScoreComparisonResponse = {
 	compatibilityReason: string | null;
 	baselineInterpretation?: ScoreInterpretationResponse | null;
 	comparisonInterpretation?: ScoreInterpretationResponse | null;
+	baselineCalculation?: string | null;
+	baselineCalculationLabel?: string | null;
+	baselineScoreRangeMin?: number | null;
+	baselineScoreRangeMax?: number | null;
+	comparisonCalculation?: string | null;
+	comparisonCalculationLabel?: string | null;
+	comparisonScoreRangeMin?: number | null;
+	comparisonScoreRangeMax?: number | null;
 };
 
 export type CreateCampaignRequest = {
@@ -707,6 +716,11 @@ export type ReportDisclosurePolicyResponse = {
 
 export type ReportScoreSummaryResponse = {
 	dimensionCode: string;
+	displayLabel?: string | null;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 	disclosure: string;
 	submittedResponseCount: number;
 	scoreCount: number | null;

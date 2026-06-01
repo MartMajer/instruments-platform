@@ -278,4 +278,46 @@ public sealed class LaunchPacketProvenanceContractTests
             Assert.Equal("suppressed_when_result_scope_suppressed", matrixDisclosureMethod?.Invoke(null, [column]));
         }
     }
+
+    [Fact]
+    public void Aggregate_result_export_contracts_include_score_output_definition_columns()
+    {
+        var reportColumnsField = typeof(ReportProofExportStore).GetField(
+            "CsvColumns",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var matrixColumnsField = typeof(ReportProofExportStore).GetField(
+            "ResultsMatrixCsvColumns",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var reportColumns = Assert.IsType<string[]>(reportColumnsField?.GetValue(null));
+        var matrixColumns = Assert.IsType<string[]>(matrixColumnsField?.GetValue(null));
+        var reportSourceMethod = typeof(ReportProofExportStore).GetMethod(
+            "ColumnSource",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var matrixSourceMethod = typeof(ReportProofExportStore).GetMethod(
+            "ResultsMatrixColumnSource",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var reportDisclosureMethod = typeof(ReportProofExportStore).GetMethod(
+            "ColumnDisclosureTreatment",
+            BindingFlags.NonPublic | BindingFlags.Static);
+        var matrixDisclosureMethod = typeof(ReportProofExportStore).GetMethod(
+            "ResultsMatrixColumnDisclosureTreatment",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        foreach (var column in new[]
+                 {
+                     "score_display_label",
+                     "score_calculation",
+                     "score_calculation_label",
+                     "score_range_min",
+                     "score_range_max"
+                 })
+        {
+            Assert.Contains(column, reportColumns);
+            Assert.Contains(column, matrixColumns);
+            Assert.Equal("score_output_metadata", reportSourceMethod?.Invoke(null, [column]));
+            Assert.Equal("score_output_metadata", matrixSourceMethod?.Invoke(null, [column]));
+            Assert.Equal("score_definition_metadata", reportDisclosureMethod?.Invoke(null, [column]));
+            Assert.Equal("score_definition_metadata", matrixDisclosureMethod?.Invoke(null, [column]));
+        }
+    }
 }

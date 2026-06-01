@@ -497,6 +497,11 @@ function Assert-ReportScoreMetadata {
 
     $score = Get-ScoreByDimension $ReportProof.scores 'total' $Context
     Assert-True ($score.disclosure -eq 'visible') "$Context score disclosure was '$($score.disclosure)', expected visible."
+    Assert-True ($score.displayLabel -eq 'Synthetic wellbeing index') "$Context displayLabel was '$($score.displayLabel)', expected Synthetic wellbeing index."
+    Assert-True ($score.calculation -eq 'mean_1_5') "$Context calculation was '$($score.calculation)', expected mean_1_5."
+    Assert-True ($score.calculationLabel -eq 'Mean score') "$Context calculationLabel was '$($score.calculationLabel)', expected Mean score."
+    Assert-True ([decimal]$score.scoreRangeMin -eq 1) "$Context scoreRangeMin was '$($score.scoreRangeMin)', expected 1."
+    Assert-True ([decimal]$score.scoreRangeMax -eq 5) "$Context scoreRangeMax was '$($score.scoreRangeMax)', expected 5."
     Assert-True ([int]$score.scoreCount -eq 5) "$Context scoreCount was '$($score.scoreCount)', expected 5."
     Assert-True ([int]$score.nValidTotal -eq 15) "$Context nValidTotal was '$($score.nValidTotal)', expected 15."
     Assert-True ([int]$score.nExpectedTotal -eq 15) "$Context nExpectedTotal was '$($score.nExpectedTotal)', expected 15."
@@ -508,6 +513,15 @@ function Assert-WaveComparisonScoreMetadata {
 
     $score = Get-ScoreByDimension $WaveComparisonProof.scores 'total' 'Wave-comparison proof'
     Assert-True ($score.disclosure -eq 'visible') "Wave-comparison score disclosure was '$($score.disclosure)', expected visible."
+    Assert-True ($score.displayLabel -eq 'Synthetic wellbeing index') "Wave-comparison displayLabel was '$($score.displayLabel)', expected Synthetic wellbeing index."
+    Assert-True ($score.baselineCalculation -eq 'mean_1_5') "Wave-comparison baselineCalculation was '$($score.baselineCalculation)', expected mean_1_5."
+    Assert-True ($score.comparisonCalculation -eq 'mean_1_5') "Wave-comparison comparisonCalculation was '$($score.comparisonCalculation)', expected mean_1_5."
+    Assert-True ($score.baselineCalculationLabel -eq 'Mean score') "Wave-comparison baselineCalculationLabel was '$($score.baselineCalculationLabel)', expected Mean score."
+    Assert-True ($score.comparisonCalculationLabel -eq 'Mean score') "Wave-comparison comparisonCalculationLabel was '$($score.comparisonCalculationLabel)', expected Mean score."
+    Assert-True ([decimal]$score.baselineScoreRangeMin -eq 1) "Wave-comparison baselineScoreRangeMin was '$($score.baselineScoreRangeMin)', expected 1."
+    Assert-True ([decimal]$score.baselineScoreRangeMax -eq 5) "Wave-comparison baselineScoreRangeMax was '$($score.baselineScoreRangeMax)', expected 5."
+    Assert-True ([decimal]$score.comparisonScoreRangeMin -eq 1) "Wave-comparison comparisonScoreRangeMin was '$($score.comparisonScoreRangeMin)', expected 1."
+    Assert-True ([decimal]$score.comparisonScoreRangeMax -eq 5) "Wave-comparison comparisonScoreRangeMax was '$($score.comparisonScoreRangeMax)', expected 5."
     Assert-True ([int]$score.baselineScoreCount -eq 5) "Wave-comparison baselineScoreCount was '$($score.baselineScoreCount)', expected 5."
     Assert-True ([int]$score.comparisonScoreCount -eq 5) "Wave-comparison comparisonScoreCount was '$($score.comparisonScoreCount)', expected 5."
     Assert-True ([int]$score.baselineNValidTotal -eq 15) "Wave-comparison baselineNValidTotal was '$($score.baselineNValidTotal)', expected 15."
@@ -524,11 +538,16 @@ function Assert-ReportExportScoreMetadata {
         [string]$Context
     )
 
-    Assert-TextContains $Artifact.csvContent 'score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean,min,max' "$Context CSV did not include aggregate score metadata columns."
-    Assert-TextContains $Artifact.csvContent 'total,visible,5,5,15,15,ok' "$Context CSV did not include visible aggregate score metadata values."
+    Assert-TextContains $Artifact.csvContent 'dimension_code,score_display_label,score_calculation,score_calculation_label,score_range_min,score_range_max,disclosure,submitted_response_count,score_count,n_valid_total,n_expected_total,missing_policy_status_summary,mean' "$Context CSV did not include aggregate score definition metadata columns."
+    Assert-TextContains $Artifact.csvContent 'total,Synthetic wellbeing index,mean_1_5,Mean score,1,5,visible,5,5,15,15,ok' "$Context CSV did not include visible aggregate score metadata values."
 
     $codebook = Convert-CodebookJson $Artifact.codebookJson
     Assert-True ($codebook.suppressionBasis -eq 'same_suppression_as_report_proof') "$Context codebook did not document report-proof suppression basis."
+    Assert-CodebookColumn $codebook 'score_display_label' 'score_output_metadata' 'score_definition_metadata'
+    Assert-CodebookColumn $codebook 'score_calculation' 'score_output_metadata' 'score_definition_metadata'
+    Assert-CodebookColumn $codebook 'score_calculation_label' 'score_output_metadata' 'score_definition_metadata'
+    Assert-CodebookColumn $codebook 'score_range_min' 'score_output_metadata' 'score_definition_metadata'
+    Assert-CodebookColumn $codebook 'score_range_max' 'score_output_metadata' 'score_definition_metadata'
     Assert-CodebookColumn $codebook 'n_valid_total' 'score_output_metadata' 'suppressed_when_report_proof_suppressed'
     Assert-CodebookColumn $codebook 'n_expected_total' 'score_output_metadata' 'suppressed_when_report_proof_suppressed'
     Assert-CodebookColumn $codebook 'missing_policy_status_summary' 'score_output_metadata' 'suppressed_when_report_proof_suppressed'
@@ -900,6 +919,18 @@ function New-ScoringDocument {
 function New-ProducesDocument {
     return ConvertTo-JsonPayload @{
         scores = @('total')
+        outputs = @(
+            @{
+                code = 'total'
+                label = 'Synthetic wellbeing index'
+                calculation = 'mean_1_5'
+                calculation_label = 'Mean score'
+                score_range = @{
+                    min = 1
+                    max = 5
+                }
+            }
+        )
         interpretation = @{
             status = 'tenant_attested'
             source = 'tenant_defined'
@@ -1606,6 +1637,7 @@ $productSpineEvidence = [ordered]@{
         closedWaveFinalityProven = $true
         reportExportsProven = $true
         responseExportsProven = $true
+        scoreDefinitionMetadataProven = $true
         reportPdfArtifactsProven = $true
         withdrawalRequestReviewVisibilityProven = $true
         withdrawalExecutionProven = $true

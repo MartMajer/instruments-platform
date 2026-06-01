@@ -2349,6 +2349,38 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Report_proof_store_returns_score_output_method_metadata_for_visible_scores()
+    {
+        var tenantId = Guid.NewGuid();
+        var scenario = await CreateReportProofScenarioAsync(
+            tenantId,
+            submittedResponseCount: 5,
+            produces:
+            """
+            {
+              "scores": ["total"],
+              "outputs": [
+                {
+                  "code": "total",
+                  "label": "Total recovery score",
+                  "calculation": "normalized_weighted_mean_0_100",
+                  "calculation_label": "Normalized 0-100 weighted average",
+                  "score_range": { "min": 0, "max": 100 }
+                }
+              ]
+            }
+            """);
+
+        var score = Assert.Single(scenario.Report.Scores);
+        Assert.Equal("visible", score.Disclosure);
+        Assert.Equal("Total recovery score", score.DisplayLabel);
+        Assert.Equal("normalized_weighted_mean_0_100", score.Calculation);
+        Assert.Equal("Normalized 0-100 weighted average", score.CalculationLabel);
+        Assert.Equal(0m, score.ScoreRangeMin);
+        Assert.Equal(100m, score.ScoreRangeMax);
+    }
+
+    [DockerFact]
     public async Task Report_proof_store_does_not_expose_interpretation_for_suppressed_scores()
     {
         var tenantId = Guid.NewGuid();
@@ -6497,6 +6529,64 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             Assert.Contains("\"schemaVersion\":1", baselineWaveJson);
             Assert.Contains("scoring", baselineWaveJson);
             Assert.Contains("policies", baselineWaveJson);
+        }
+    }
+
+    [DockerFact]
+    public async Task Wave_comparison_proof_store_returns_score_output_method_metadata()
+    {
+        var scenario = await CreateTwoWaveProofScenarioAsync(
+            Guid.NewGuid(),
+            "Wave comparison output metadata",
+            produces:
+            """
+            {
+              "scores": ["total"],
+              "outputs": [
+                {
+                  "code": "total",
+                  "label": "Recovery readiness index",
+                  "calculation": "normalized_weighted_mean_0_100",
+                  "calculation_label": "Normalized 0-100 weighted average",
+                  "score_range": { "min": 0, "max": 100 }
+                }
+              ]
+            }
+            """);
+
+        await using (scenario)
+        {
+            var participantCodes = new[] { "alpha-001", "bravo-002", "charlie-003", "delta-004", "echo-005" };
+            for (var index = 0; index < participantCodes.Length; index++)
+            {
+                await SubmitAndScoreTwoWaveProofResponseAsync(
+                    scenario,
+                    scenario.Wave1,
+                    participantCodes[index],
+                    value: "3");
+                await SubmitAndScoreTwoWaveProofResponseAsync(
+                    scenario,
+                    scenario.Wave2,
+                    participantCodes[index],
+                    value: "4");
+            }
+
+            var proof = await scenario.WaveComparisonProofStore.GetCampaignSeriesWaveComparisonProofAsync(
+                scenario.TenantId,
+                scenario.SeriesId,
+                CancellationToken.None);
+
+            Assert.True(proof.IsSuccess, proof.Error.ToString());
+            var score = Assert.Single(proof.Value.Scores);
+            Assert.Equal("Recovery readiness index", score.DisplayLabel);
+            Assert.Equal("normalized_weighted_mean_0_100", score.BaselineCalculation);
+            Assert.Equal("normalized_weighted_mean_0_100", score.ComparisonCalculation);
+            Assert.Equal("Normalized 0-100 weighted average", score.BaselineCalculationLabel);
+            Assert.Equal("Normalized 0-100 weighted average", score.ComparisonCalculationLabel);
+            Assert.Equal(0m, score.BaselineScoreRangeMin);
+            Assert.Equal(100m, score.BaselineScoreRangeMax);
+            Assert.Equal(0m, score.ComparisonScoreRangeMin);
+            Assert.Equal(100m, score.ComparisonScoreRangeMax);
         }
     }
 

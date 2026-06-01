@@ -215,6 +215,69 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Produces_output_metadata_reads_calculation_labels_and_score_ranges()
+    {
+        var result = ScoreOutputMetadataParser.ParseProduces(
+            """
+            {
+              "scores": ["recovery_index"],
+              "outputs": [
+                {
+                  "code": "recovery_index",
+                  "label": "Recovery index",
+                  "calculation": "normalized_weighted_mean_0_100",
+                  "calculation_label": "Normalized 0-100 weighted average",
+                  "score_range": { "min": 0, "max": 100 }
+                }
+              ]
+            }
+            """);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var metadata = Assert.Single(result.Value);
+        Assert.Equal("recovery_index", metadata.Key);
+        Assert.Equal("Recovery index", metadata.Value.Label);
+        Assert.Equal("normalized_weighted_mean_0_100", metadata.Value.Calculation);
+        Assert.Equal("Normalized 0-100 weighted average", metadata.Value.CalculationLabel);
+        Assert.Equal(0m, metadata.Value.ScoreRangeMin);
+        Assert.Equal(100m, metadata.Value.ScoreRangeMax);
+    }
+
+    [Fact]
+    public void Produces_output_metadata_is_optional_for_legacy_rules()
+    {
+        var result = ScoreOutputMetadataParser.ParseProduces("""{"scores":["total"]}""");
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Empty(result.Value);
+    }
+
+    [Fact]
+    public void Output_metadata_unknown_score_is_rejected()
+    {
+        var produces =
+            """
+            {
+              "scores": ["total"],
+              "outputs": [
+                {
+                  "code": "other",
+                  "label": "Other",
+                  "calculation": "mean",
+                  "calculation_label": "Mean score"
+                }
+              ]
+            }
+            """;
+        var request = ValidGraphRequest(produces: produces);
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.rule_output_metadata_invalid", result.Error.Code);
+    }
+
+    [Fact]
     public void Valid_tenant_attested_interpretation_metadata_passes()
     {
         var request = ValidGraphRequest(produces: ValidInterpretationProduces);

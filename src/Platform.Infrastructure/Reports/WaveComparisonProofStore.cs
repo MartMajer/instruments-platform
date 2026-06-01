@@ -74,11 +74,25 @@ public sealed class WaveComparisonProofStore(
             return Result.Failure<CampaignSeriesWaveComparisonProofResponse>(baselineInterpretationMetadata.Error);
         }
 
+        var baselineOutputMetadata = ScoreOutputMetadataParser.ParseProduces(
+            baselineScoringRule.Produces);
+        if (baselineOutputMetadata.IsFailure)
+        {
+            return Result.Failure<CampaignSeriesWaveComparisonProofResponse>(baselineOutputMetadata.Error);
+        }
+
         var comparisonInterpretationMetadata = ScoreInterpretationMetadataParser.ParseProduces(
             comparisonScoringRule.Produces);
         if (comparisonInterpretationMetadata.IsFailure)
         {
             return Result.Failure<CampaignSeriesWaveComparisonProofResponse>(comparisonInterpretationMetadata.Error);
+        }
+
+        var comparisonOutputMetadata = ScoreOutputMetadataParser.ParseProduces(
+            comparisonScoringRule.Produces);
+        if (comparisonOutputMetadata.IsFailure)
+        {
+            return Result.Failure<CampaignSeriesWaveComparisonProofResponse>(comparisonOutputMetadata.Error);
         }
 
         if (!baselineWave.DisclosurePolicyId.HasValue || !comparisonWave.DisclosurePolicyId.HasValue)
@@ -116,6 +130,8 @@ public sealed class WaveComparisonProofStore(
             comparisonScoringRule,
             baselineInterpretationMetadata.Value,
             comparisonInterpretationMetadata.Value,
+            baselineOutputMetadata.Value,
+            comparisonOutputMetadata.Value,
             submittedSessions,
             latestScores,
             selectedDisclosurePolicy.KMin);
@@ -260,6 +276,8 @@ public sealed class WaveComparisonProofStore(
         ScoringRule comparisonScoringRule,
         ScoreInterpretationMetadata? baselineInterpretationMetadata,
         ScoreInterpretationMetadata? comparisonInterpretationMetadata,
+        IReadOnlyDictionary<string, ScoreOutputMetadata> baselineOutputMetadata,
+        IReadOnlyDictionary<string, ScoreOutputMetadata> comparisonOutputMetadata,
         IReadOnlyList<SubmittedSessionRow> submittedSessions,
         IReadOnlyList<ScoreRow> latestScores,
         int kMin)
@@ -295,6 +313,8 @@ public sealed class WaveComparisonProofStore(
                     dimension),
                 baselineInterpretationMetadata,
                 comparisonInterpretationMetadata,
+                baselineOutputMetadata,
+                comparisonOutputMetadata,
                 kMin))
             .ToArray();
     }
@@ -310,10 +330,15 @@ public sealed class WaveComparisonProofStore(
         ScoringRuleCompatibilityResolution compatibility,
         ScoreInterpretationMetadata? baselineInterpretationMetadata,
         ScoreInterpretationMetadata? comparisonInterpretationMetadata,
+        IReadOnlyDictionary<string, ScoreOutputMetadata> baselineOutputMetadata,
+        IReadOnlyDictionary<string, ScoreOutputMetadata> comparisonOutputMetadata,
         int kMin)
     {
         var baselineScores = ScoresForCampaign(scores, submittedBySession, baselineCampaignId);
         var comparisonScores = ScoresForCampaign(scores, submittedBySession, comparisonCampaignId);
+        var baselineMetadata = FindScoreOutputMetadata(baselineOutputMetadata, dimensionCode);
+        var comparisonMetadata = FindScoreOutputMetadata(comparisonOutputMetadata, dimensionCode);
+        var displayLabel = comparisonMetadata?.Label ?? baselineMetadata?.Label;
         var baselineMean = MeanOrNull(baselineScores.Select(score => score.Value));
         var comparisonMean = MeanOrNull(comparisonScores.Select(score => score.Value));
         var pairedDeltas = CreatePairedDeltas(baselineScores, comparisonScores);
@@ -345,7 +370,16 @@ public sealed class WaveComparisonProofStore(
                 AggregateDelta: null,
                 PairedDeltaMean: null,
                 InsufficientResponses,
-                compatibility.Status == ScoringRuleCompatibilityResolver.Compatible ? null : compatibility.Reason);
+                compatibility.Status == ScoringRuleCompatibilityResolver.Compatible ? null : compatibility.Reason,
+                DisplayLabel: displayLabel,
+                BaselineCalculation: baselineMetadata?.Calculation,
+                BaselineCalculationLabel: baselineMetadata?.CalculationLabel,
+                BaselineScoreRangeMin: baselineMetadata?.ScoreRangeMin,
+                BaselineScoreRangeMax: baselineMetadata?.ScoreRangeMax,
+                ComparisonCalculation: comparisonMetadata?.Calculation,
+                ComparisonCalculationLabel: comparisonMetadata?.CalculationLabel,
+                ComparisonScoreRangeMin: comparisonMetadata?.ScoreRangeMin,
+                ComparisonScoreRangeMax: comparisonMetadata?.ScoreRangeMax);
         }
 
         return new WaveScoreComparisonResponse(
@@ -370,7 +404,31 @@ public sealed class WaveComparisonProofStore(
             SummarizeMissingPolicyStatus(baselineScores.Select(score => score.MissingPolicyStatus)),
             comparisonScores.Sum(score => score.NValid),
             comparisonScores.Sum(score => score.NExpected),
-            SummarizeMissingPolicyStatus(comparisonScores.Select(score => score.MissingPolicyStatus)));
+            SummarizeMissingPolicyStatus(comparisonScores.Select(score => score.MissingPolicyStatus)),
+            displayLabel,
+            baselineMetadata?.Calculation,
+            baselineMetadata?.CalculationLabel,
+            baselineMetadata?.ScoreRangeMin,
+            baselineMetadata?.ScoreRangeMax,
+            comparisonMetadata?.Calculation,
+            comparisonMetadata?.CalculationLabel,
+            comparisonMetadata?.ScoreRangeMin,
+            comparisonMetadata?.ScoreRangeMax);
+    }
+
+    private static ScoreOutputMetadata? FindScoreOutputMetadata(
+        IReadOnlyDictionary<string, ScoreOutputMetadata> metadata,
+        string dimensionCode)
+    {
+        if (metadata.TryGetValue(dimensionCode, out var exact))
+        {
+            return exact;
+        }
+
+        return metadata.FirstOrDefault(pair => string.Equals(
+            pair.Key,
+            dimensionCode,
+            StringComparison.OrdinalIgnoreCase)).Value;
     }
 
     private static IReadOnlyList<ParticipantScore> ScoresForCampaign(

@@ -27,8 +27,8 @@ public sealed class ProductSurfaceReadStore(
     private const string SampleStudyAttributeProbe = """{"sample_study":true}""";
     private const int RespondentRulePreviewMaxRows = 200;
     private const int WorkspaceCommandCenterMaxItems = 8;
-    private static readonly IReadOnlyDictionary<string, string> EmptyResultLabels =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private static readonly IReadOnlyDictionary<string, ResultOutputDisplayMetadata> EmptyResultOutputMetadata =
+        new Dictionary<string, ResultOutputDisplayMetadata>(StringComparer.OrdinalIgnoreCase);
     private readonly RespondentRuleResolver _respondentRuleResolver =
         respondentRuleResolver ?? new RespondentRuleResolver(db);
 
@@ -1573,7 +1573,7 @@ public sealed class ProductSurfaceReadStore(
 
         var campaignById = campaigns.ToDictionary(campaign => campaign.Id);
         var campaignIds = campaignById.Keys.ToArray();
-        var resultLabelsByCampaignId = await LoadResultLabelsByCampaignIdAsync(campaigns, cancellationToken);
+        var resultMetadataByCampaignId = await LoadResultOutputMetadataByCampaignIdAsync(campaigns, cancellationToken);
         var rawScores = await (
                 from score in db.Scores.AsNoTracking()
                 join session in db.ResponseSessions.AsNoTracking()
@@ -1612,13 +1612,14 @@ public sealed class ProductSurfaceReadStore(
         var selectedScores = latestScores
             .Where(score => score.CampaignId == selectedCampaign.Id)
             .ToArray();
-        var selectedResultLabels = ResultLabelsForCampaign(selectedCampaign, resultLabelsByCampaignId);
+        var selectedResultMetadata = ResultMetadataForCampaign(selectedCampaign, resultMetadataByCampaignId);
         var selectedOutputRows = selectedScores
             .GroupBy(score => score.DimensionCode, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .Select(group => CreateResultsScoreOutputResponse(
                 group.Key,
-                GetResultDisplayLabel(selectedResultLabels, group.Key),
+                GetResultDisplayLabel(selectedResultMetadata, group.Key),
+                GetResultDisplayMetadata(selectedResultMetadata, group.Key),
                 group.ToArray(),
                 selectedCampaign.SubmittedResponseCount,
                 IsCampaignResultVisible(selectedCampaign, group.Count()),
@@ -1627,7 +1628,7 @@ public sealed class ProductSurfaceReadStore(
         var groupRows = await CreateResultsGroupMatrixRowsAsync(
             tenantId,
             selectedCampaign,
-            selectedResultLabels,
+            selectedResultMetadata,
             selectedScores,
             cancellationToken);
         var waveRows = AddResultsWaveComparisons(latestScores
@@ -1639,11 +1640,12 @@ public sealed class ProductSurfaceReadStore(
             .Select(group =>
             {
                 var campaign = campaignById[group.Key.CampaignId];
-                var resultLabels = ResultLabelsForCampaign(campaign, resultLabelsByCampaignId);
+                var resultMetadata = ResultMetadataForCampaign(campaign, resultMetadataByCampaignId);
                 return CreateResultsWaveMatrixRowResponse(
                     campaign,
                     group.Key.DimensionCode,
-                    GetResultDisplayLabel(resultLabels, group.Key.DimensionCode),
+                    GetResultDisplayLabel(resultMetadata, group.Key.DimensionCode),
+                    GetResultDisplayMetadata(resultMetadata, group.Key.DimensionCode),
                     group.ToArray());
             })
             .ToArray());
@@ -1659,7 +1661,7 @@ public sealed class ProductSurfaceReadStore(
             CreateResultsInsights(selectedCampaign, selectedOutputRows, groupRows, waveRows));
     }
 
-    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>>> LoadResultLabelsByCampaignIdAsync(
+    private async Task<IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, ResultOutputDisplayMetadata>>> LoadResultOutputMetadataByCampaignIdAsync(
         IReadOnlyList<CampaignSeriesReportsCampaignResponse> campaigns,
         CancellationToken cancellationToken)
     {
@@ -1670,7 +1672,7 @@ public sealed class ProductSurfaceReadStore(
             .ToArray();
         if (scoringRuleIds.Length == 0)
         {
-            return new Dictionary<Guid, IReadOnlyDictionary<string, string>>();
+            return new Dictionary<Guid, IReadOnlyDictionary<string, ResultOutputDisplayMetadata>>();
         }
 
         var scoringRules = await db.ScoringRules
@@ -1678,26 +1680,56 @@ public sealed class ProductSurfaceReadStore(
             .Where(rule => scoringRuleIds.Contains(rule.Id))
             .Select(rule => new ScoringRuleResultLabelRow(rule.Id, rule.Compatibility, rule.Produces))
             .ToListAsync(cancellationToken);
-        var labelsByRuleId = scoringRules.ToDictionary(
+        var metadataByRuleId = scoringRules.ToDictionary(
             rule => rule.Id,
-            rule => (IReadOnlyDictionary<string, string>)ReadResultOutputLabels(rule.Compatibility, rule.Produces));
+            rule => (IReadOnlyDictionary<string, ResultOutputDisplayMetadata>)ReadResultOutputMetadata(
+                rule.Compatibility,
+                rule.Produces));
 
         return campaigns
             .Where(campaign => campaign.ScoringRuleId.HasValue)
             .ToDictionary(
                 campaign => campaign.Id,
-                campaign => labelsByRuleId.TryGetValue(campaign.ScoringRuleId!.Value, out var labels)
-                    ? labels
-                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+                campaign => metadataByRuleId.TryGetValue(campaign.ScoringRuleId!.Value, out var metadata)
+                    ? metadata
+                    : new Dictionary<string, ResultOutputDisplayMetadata>(StringComparer.OrdinalIgnoreCase));
     }
 
-    private static IReadOnlyDictionary<string, string> ResultLabelsForCampaign(
+    private static IReadOnlyDictionary<string, ResultOutputDisplayMetadata> ResultMetadataForCampaign(
         CampaignSeriesReportsCampaignResponse campaign,
-        IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, string>> labelsByCampaignId)
+        IReadOnlyDictionary<Guid, IReadOnlyDictionary<string, ResultOutputDisplayMetadata>> metadataByCampaignId)
     {
-        return labelsByCampaignId.TryGetValue(campaign.Id, out var labels)
-            ? labels
-            : EmptyResultLabels;
+        return metadataByCampaignId.TryGetValue(campaign.Id, out var metadata)
+            ? metadata
+            : EmptyResultOutputMetadata;
+    }
+
+    private static Dictionary<string, ResultOutputDisplayMetadata> ReadResultOutputMetadata(
+        string compatibility,
+        string produces)
+    {
+        var labels = ReadResultOutputLabels(compatibility, produces);
+        var metadata = labels.ToDictionary(
+            pair => pair.Key,
+            pair => new ResultOutputDisplayMetadata(pair.Value, null, null, null, null),
+            StringComparer.OrdinalIgnoreCase);
+        var parsedProduces = ScoreOutputMetadataParser.ParseProduces(produces);
+        if (parsedProduces.IsFailure)
+        {
+            return metadata;
+        }
+
+        foreach (var output in parsedProduces.Value)
+        {
+            metadata[output.Key] = new ResultOutputDisplayMetadata(
+                output.Value.Label,
+                output.Value.Calculation,
+                output.Value.CalculationLabel,
+                output.Value.ScoreRangeMin,
+                output.Value.ScoreRangeMax);
+        }
+
+        return metadata;
     }
 
     private static Dictionary<string, string> ReadResultOutputLabels(params string[] documents)
@@ -1761,12 +1793,20 @@ public sealed class ProductSurfaceReadStore(
     }
 
     private static string GetResultDisplayLabel(
-        IReadOnlyDictionary<string, string> resultLabels,
+        IReadOnlyDictionary<string, ResultOutputDisplayMetadata> resultMetadata,
         string dimensionCode)
     {
-        return resultLabels.TryGetValue(dimensionCode, out var label) && !string.IsNullOrWhiteSpace(label)
-            ? label.Trim()
+        return resultMetadata.TryGetValue(dimensionCode, out var metadata) &&
+            !string.IsNullOrWhiteSpace(metadata.DisplayLabel)
+            ? metadata.DisplayLabel.Trim()
             : FormatResultDisplayLabel(dimensionCode);
+    }
+
+    private static ResultOutputDisplayMetadata? GetResultDisplayMetadata(
+        IReadOnlyDictionary<string, ResultOutputDisplayMetadata> resultMetadata,
+        string dimensionCode)
+    {
+        return resultMetadata.TryGetValue(dimensionCode, out var metadata) ? metadata : null;
     }
 
     private static string FormatResultDisplayLabel(string dimensionCode)
@@ -1784,7 +1824,7 @@ public sealed class ProductSurfaceReadStore(
     private async Task<CampaignSeriesResultsGroupMatrixRowResponse[]> CreateResultsGroupMatrixRowsAsync(
         Guid tenantId,
         CampaignSeriesReportsCampaignResponse selectedCampaign,
-        IReadOnlyDictionary<string, string> resultLabels,
+        IReadOnlyDictionary<string, ResultOutputDisplayMetadata> resultMetadata,
         IReadOnlyList<ResultsScoreObservationRow> selectedScores,
         CancellationToken cancellationToken)
     {
@@ -1860,7 +1900,8 @@ public sealed class ProductSurfaceReadStore(
                 group.Key.GroupType,
                 group.Key.GroupName,
                 group.Key.DimensionCode,
-                GetResultDisplayLabel(resultLabels, group.Key.DimensionCode),
+                GetResultDisplayLabel(resultMetadata, group.Key.DimensionCode),
+                GetResultDisplayMetadata(resultMetadata, group.Key.DimensionCode),
                 group.ToArray()))
             .ToArray();
     }
@@ -1868,6 +1909,7 @@ public sealed class ProductSurfaceReadStore(
     private static CampaignSeriesResultsScoreOutputResponse CreateResultsScoreOutputResponse(
         string dimensionCode,
         string displayLabel,
+        ResultOutputDisplayMetadata? metadata,
         IReadOnlyList<ResultsScoreObservationRow> scores,
         int submittedResponseCount,
         bool visible,
@@ -1890,7 +1932,11 @@ public sealed class ProductSurfaceReadStore(
                 NValidTotal: null,
                 NExpectedTotal: null,
                 MissingPolicyStatusSummary: null,
-                suppressionReason ?? "not_reportable");
+                SuppressionReason: suppressionReason ?? "not_reportable",
+                Calculation: metadata?.Calculation,
+                CalculationLabel: metadata?.CalculationLabel,
+                ScoreRangeMin: metadata?.ScoreRangeMin,
+                ScoreRangeMax: metadata?.ScoreRangeMax);
         }
 
         return new CampaignSeriesResultsScoreOutputResponse(
@@ -1907,7 +1953,11 @@ public sealed class ProductSurfaceReadStore(
             scores.Sum(score => score.NValid),
             scores.Sum(score => score.NExpected),
             SummarizeResultMissingPolicyStatuses(scores.Select(score => score.MissingPolicyStatus)),
-            SuppressionReason: null);
+            SuppressionReason: null,
+            Calculation: metadata?.Calculation,
+            CalculationLabel: metadata?.CalculationLabel,
+            ScoreRangeMin: metadata?.ScoreRangeMin,
+            ScoreRangeMax: metadata?.ScoreRangeMax);
     }
 
     private static CampaignSeriesResultsGroupMatrixRowResponse CreateResultsGroupMatrixRowResponse(
@@ -1916,6 +1966,7 @@ public sealed class ProductSurfaceReadStore(
         string groupName,
         string dimensionCode,
         string displayLabel,
+        ResultOutputDisplayMetadata? metadata,
         IReadOnlyList<ResultsGroupedScoreObservationRow> scores)
     {
         var values = scores.Select(score => score.Value).ToArray();
@@ -1939,7 +1990,11 @@ public sealed class ProductSurfaceReadStore(
                 Max: null,
                 SuppressionReason: selectedCampaign.DisclosureKMin.HasValue
                     ? "insufficient_responses"
-                    : "disclosure_policy_missing");
+                    : "disclosure_policy_missing",
+                Calculation: metadata?.Calculation,
+                CalculationLabel: metadata?.CalculationLabel,
+                ScoreRangeMin: metadata?.ScoreRangeMin,
+                ScoreRangeMax: metadata?.ScoreRangeMax);
         }
 
         return new CampaignSeriesResultsGroupMatrixRowResponse(
@@ -1955,13 +2010,18 @@ public sealed class ProductSurfaceReadStore(
             CalculateResultsStandardDeviation(values),
             values.Min(),
             values.Max(),
-            SuppressionReason: null);
+            SuppressionReason: null,
+            Calculation: metadata?.Calculation,
+            CalculationLabel: metadata?.CalculationLabel,
+            ScoreRangeMin: metadata?.ScoreRangeMin,
+            ScoreRangeMax: metadata?.ScoreRangeMax);
     }
 
     private static CampaignSeriesResultsWaveMatrixRowResponse CreateResultsWaveMatrixRowResponse(
         CampaignSeriesReportsCampaignResponse campaign,
         string dimensionCode,
         string displayLabel,
+        ResultOutputDisplayMetadata? metadata,
         IReadOnlyList<ResultsScoreObservationRow> scores)
     {
         var values = scores.Select(score => score.Value).ToArray();
@@ -1985,7 +2045,11 @@ public sealed class ProductSurfaceReadStore(
                 StandardDeviation: null,
                 Min: null,
                 Max: null,
-                SuppressionReason: DetermineResultsSuppressionReason(campaign, values.Length));
+                SuppressionReason: DetermineResultsSuppressionReason(campaign, values.Length),
+                Calculation: metadata?.Calculation,
+                CalculationLabel: metadata?.CalculationLabel,
+                ScoreRangeMin: metadata?.ScoreRangeMin,
+                ScoreRangeMax: metadata?.ScoreRangeMax);
         }
 
         return new CampaignSeriesResultsWaveMatrixRowResponse(
@@ -2004,7 +2068,11 @@ public sealed class ProductSurfaceReadStore(
             CalculateResultsStandardDeviation(values),
             values.Min(),
             values.Max(),
-            SuppressionReason: null);
+            SuppressionReason: null,
+            Calculation: metadata?.Calculation,
+            CalculationLabel: metadata?.CalculationLabel,
+            ScoreRangeMin: metadata?.ScoreRangeMin,
+            ScoreRangeMax: metadata?.ScoreRangeMax);
     }
 
     private static CampaignSeriesResultsWaveMatrixRowResponse[] AddResultsWaveComparisons(
@@ -2177,7 +2245,11 @@ public sealed class ProductSurfaceReadStore(
                 row.Disclosure == "visible"
                     ? $"median {FormatResultsDashboardDecimal(row.Median)}, range {FormatResultsDashboardDecimal(row.Min)}-{FormatResultsDashboardDecimal(row.Max)}"
                     : null,
-                row.Disclosure == "visible" ? null : row.SuppressionReason))
+                row.Disclosure == "visible" ? null : row.SuppressionReason,
+                row.Calculation,
+                row.CalculationLabel,
+                row.ScoreRangeMin,
+                row.ScoreRangeMax))
             .ToArray();
 
         var groupBars = analytics.GroupRows
@@ -2195,7 +2267,11 @@ public sealed class ProductSurfaceReadStore(
                 row.Disclosure == "visible" ? row.Mean : null,
                 row.Disclosure == "visible" ? row.ScoreCount : null,
                 row.GroupType,
-                row.Disclosure == "visible" ? null : row.SuppressionReason))
+                row.Disclosure == "visible" ? null : row.SuppressionReason,
+                row.Calculation,
+                row.CalculationLabel,
+                row.ScoreRangeMin,
+                row.ScoreRangeMax))
             .ToArray();
 
         var waveTrendPoints = analytics.WaveRows
@@ -2214,7 +2290,11 @@ public sealed class ProductSurfaceReadStore(
                 row.ComparisonState,
                 row.DataFinality,
                 row.Disclosure == "visible" ? row.ScoreCount : null,
-                row.Disclosure == "visible" ? null : row.SuppressionReason))
+                row.Disclosure == "visible" ? null : row.SuppressionReason,
+                row.Calculation,
+                row.CalculationLabel,
+                row.ScoreRangeMin,
+                row.ScoreRangeMax))
             .ToArray();
 
         var visibleOutputCount = analytics.ScoreOutputs.Count(row =>
@@ -6082,6 +6162,13 @@ public sealed class ProductSurfaceReadStore(
         int NValid,
         int NExpected,
         string MissingPolicyStatus);
+
+    private sealed record ResultOutputDisplayMetadata(
+        string DisplayLabel,
+        string? Calculation,
+        string? CalculationLabel,
+        decimal? ScoreRangeMin,
+        decimal? ScoreRangeMax);
 
     private sealed record ScoringRuleResultLabelRow(
         Guid Id,

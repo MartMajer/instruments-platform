@@ -91,4 +91,13 @@ public sealed record WaveScoreComparisonResponse(
     string? BaselineMissingPolicyStatusSummary = null,
     int? ComparisonNValidTotal = null,
     int? ComparisonNExpectedTotal = null,
-    string? ComparisonMissingPolicyStatusSummary = null);
+    string? ComparisonMissingPolicyStatusSummary = null,
+    string? DisplayLabel = null,
+    string? BaselineCalculation = null,
+    string? BaselineCalculationLabel = null,
+    decimal? BaselineScoreRangeMin = null,
+    decimal? BaselineScoreRangeMax = null,
+    string? ComparisonCalculation = null,
+    string? ComparisonCalculationLabel = null,
+    decimal? ComparisonScoreRangeMin = null,
+    decimal? ComparisonScoreRangeMax = null);

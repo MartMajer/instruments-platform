@@ -227,6 +227,39 @@ describe('report widget data guards', () => {
 		).toBe(false);
 	});
 
+	it('rejects results dashboard score metadata with malformed method fields', () => {
+		expect(
+			isResultsDashboardWidgetData({
+				dashboard: {
+					selectedCampaignId: 'campaign-1',
+					selectedCampaignName: 'Wave 1',
+					disclosureKMin: 5,
+					disclosureState: 'visible',
+					metrics: [],
+					outputBars: [
+						{
+							id: 'output:workload',
+							label: 'workload',
+							dimensionCode: 'workload',
+							disclosure: 'visible',
+							value: 4.2,
+							count: 42,
+							detail: 'median 4.1',
+							suppressionReason: null,
+							calculation: 'normalized_weighted_mean_0_100',
+							calculationLabel: 'Normalized 0-100 weighted average',
+							scoreRangeMin: '0',
+							scoreRangeMax: 100
+						}
+					],
+					groupBars: [],
+					waveTrendPoints: [],
+					notes: []
+				}
+			})
+		).toBe(false);
+	});
+
 	it('accepts visual analytics entry data with aggregate matrices', () => {
 		expect(
 			isVisualAnalyticsEntryWidgetData({

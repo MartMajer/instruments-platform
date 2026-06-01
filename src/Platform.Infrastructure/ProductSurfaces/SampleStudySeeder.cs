@@ -40,6 +40,11 @@ public sealed class SampleStudySeeder(
         "group_type",
         "group_name",
         "dimension_code",
+        "score_display_label",
+        "score_calculation",
+        "score_calculation_label",
+        "score_range_min",
+        "score_range_max",
         "disclosure",
         "submitted_response_count",
         "score_count",
@@ -458,27 +463,31 @@ public sealed class SampleStudySeeder(
                 measurementLevel: MeasurementLevels.Ordinal))
             .ToArray();
 
-        var scoringDocument = JsonSerializer.Serialize(new
-        {
-            operations = spec.Scores.Select(score => new
-            {
-                op = "mean",
-                items = score.QuestionCodes.ToArray(),
-                output = score.Code
-            }).ToArray()
-        }, JsonOptions);
+        var scoringDocument = BuildSampleScoringDocument(spec);
         var scoringRule = ScoringRule.CreateDraft(
             PlatformIds.NewId(),
             templateVersion.Id,
             $"{spec.Key}_score",
             "1.0.0",
-            "simple-v1",
+            "graph-v1",
             "1.0.0",
             Sha256Hex(scoringDocument),
             scoringDocument,
             JsonSerializer.Serialize(new
             {
-                scores = spec.Scores.Select(score => score.Code).ToArray()
+                scores = spec.Scores.Select(score => score.Code).ToArray(),
+                outputs = spec.Scores.Select(score => new
+                {
+                    code = score.Code,
+                    label = score.Label,
+                    calculation = score.Calculation,
+                    calculation_label = ScoreCalculationLabel(score.Calculation),
+                    score_range = new
+                    {
+                        min = score.ScoreRangeMin,
+                        max = score.ScoreRangeMax
+                    }
+                }).ToArray()
             }, JsonOptions),
             JsonSerializer.Serialize(new
             {
@@ -745,6 +754,200 @@ public sealed class SampleStudySeeder(
             completedAt,
             cancellationToken));
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string BuildSampleScoringDocument(SampleStudySpec spec)
+    {
+        var questionCodes = spec.Questions
+            .Select(question => question.Code)
+            .ToHashSet(StringComparer.Ordinal);
+        var inputs = new List<object>();
+        var nodes = new List<Dictionary<string, object?>>();
+
+        foreach (var score in spec.Scores)
+        {
+            if (IsQuestionBackedSampleScore(score, questionCodes))
+            {
+                var inputId = $"{score.Code}_items";
+                var answersNodeId = $"{score.Code}_answers";
+                inputs.Add(new
+                {
+                    id = inputId,
+                    kind = "answers",
+                    items = score.QuestionCodes.ToArray()
+                });
+                nodes.Add(new Dictionary<string, object?>
+                {
+                    ["id"] = answersNodeId,
+                    ["op"] = "select_answers",
+                    ["input"] = inputId
+                });
+
+                var aggregateInputId = answersNodeId;
+                if (IsNormalizedQuestionCalculation(score.Calculation))
+                {
+                    var normalizedNodeId = $"{score.Code}_normalized_answers";
+                    nodes.Add(new Dictionary<string, object?>
+                    {
+                        ["id"] = normalizedNodeId,
+                        ["op"] = "normalize_0_100",
+                        ["input"] = answersNodeId,
+                        ["source_scales"] = score.QuestionCodes.ToDictionary(
+                            code => code,
+                            _ => new { min = 1, max = 7 })
+                    });
+                    aggregateInputId = normalizedNodeId;
+                }
+
+                var aggregateNode = new Dictionary<string, object?>
+                {
+                    ["id"] = score.Code,
+                    ["op"] = AggregateOperationForSampleCalculation(score.Calculation),
+                    ["input"] = aggregateInputId
+                };
+                if (UsesSampleWeights(score.Calculation) && score.Weights is not null)
+                {
+                    aggregateNode["weights"] = score.Weights;
+                }
+
+                nodes.Add(aggregateNode);
+
+                if (score.ScoreRangeMin != 0 || score.ScoreRangeMax != 100)
+                {
+                    nodes.Add(new Dictionary<string, object?>
+                    {
+                        ["id"] = $"{score.Code}_0_100",
+                        ["op"] = "normalize_0_100",
+                        ["input"] = score.Code,
+                        ["source_min"] = score.ScoreRangeMin,
+                        ["source_max"] = score.ScoreRangeMax
+                    });
+                }
+
+                continue;
+            }
+
+            if (score.Calculation == "composite_weighted_mean" ||
+                score.Calculation == "composite_weighted_sum")
+            {
+                var combineNode = new Dictionary<string, object?>
+                {
+                    ["id"] = score.Code,
+                    ["op"] = "combine",
+                    ["inputs"] = score.QuestionCodes.ToArray(),
+                    ["method"] = score.Calculation == "composite_weighted_sum"
+                        ? "weighted_sum"
+                        : "weighted_mean"
+                };
+                if (score.Weights is not null)
+                {
+                    combineNode["weights"] = score.Weights;
+                }
+
+                nodes.Add(combineNode);
+                continue;
+            }
+
+            if (score.Calculation == "difference" && score.QuestionCodes.Count == 2)
+            {
+                nodes.Add(new Dictionary<string, object?>
+                {
+                    ["id"] = score.Code,
+                    ["op"] = "difference",
+                    ["left"] = score.QuestionCodes[0],
+                    ["right"] = score.QuestionCodes[1]
+                });
+                continue;
+            }
+
+            throw new InvalidOperationException($"Sample score '{score.Code}' has unsupported calculation '{score.Calculation}'.");
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            schema_version = "1.0.0",
+            engine_min_version = "1.0.0",
+            rule_id = $"sample.{spec.Key}",
+            rule_version = "1.0.0",
+            scale_defaults = new
+            {
+                agreement_1_7 = new
+                {
+                    min = 1,
+                    max = 7
+                }
+            },
+            inputs,
+            nodes,
+            outputs = spec.Scores.Select(score => new
+            {
+                code = score.Code,
+                node = score.Code
+            }).ToArray(),
+            missing_data = new
+            {
+                defaults = new
+                {
+                    strategy = "require_all"
+                }
+            }
+        }, JsonOptions);
+    }
+
+    private static bool IsQuestionBackedSampleScore(
+        SampleScoreSpec score,
+        IReadOnlySet<string> questionCodes)
+    {
+        return score.QuestionCodes.Count > 0 &&
+            score.QuestionCodes.All(code => questionCodes.Contains(code));
+    }
+
+    private static bool IsNormalizedQuestionCalculation(string calculation)
+    {
+        return calculation is "normalized_mean_0_100" or
+            "normalized_sum_0_100" or
+            "normalized_weighted_mean_0_100" or
+            "normalized_weighted_sum_0_100";
+    }
+
+    private static bool UsesSampleWeights(string calculation)
+    {
+        return calculation is "weighted_mean" or
+            "weighted_sum" or
+            "normalized_weighted_mean_0_100" or
+            "normalized_weighted_sum_0_100";
+    }
+
+    private static string AggregateOperationForSampleCalculation(string calculation)
+    {
+        return calculation switch
+        {
+            "mean" or "normalized_mean_0_100" => "mean",
+            "sum" or "normalized_sum_0_100" => "sum",
+            "weighted_mean" or "normalized_weighted_mean_0_100" => "weighted_mean",
+            "weighted_sum" or "normalized_weighted_sum_0_100" => "weighted_sum",
+            _ => throw new InvalidOperationException($"Unsupported sample aggregate calculation '{calculation}'.")
+        };
+    }
+
+    private static string ScoreCalculationLabel(string calculation)
+    {
+        return calculation switch
+        {
+            "mean" => "Mean score",
+            "sum" => "Sum score",
+            "weighted_mean" => "Weighted average",
+            "weighted_sum" => "Weighted sum",
+            "normalized_mean_0_100" => "Normalized 0-100 average",
+            "normalized_sum_0_100" => "Normalized 0-100 sum",
+            "normalized_weighted_mean_0_100" => "Normalized 0-100 weighted average",
+            "normalized_weighted_sum_0_100" => "Normalized 0-100 weighted sum",
+            "composite_weighted_mean" => "Composite weighted average",
+            "composite_weighted_sum" => "Composite weighted sum",
+            "difference" => "Difference score",
+            "count_valid" => "Valid answer count",
+            _ => calculation
+        };
     }
 
     private static IReadOnlyList<ParticipantCode> CreateParticipantCodes(
@@ -1148,6 +1351,7 @@ public sealed class SampleStudySeeder(
                     string.Empty,
                     string.Empty,
                     scoreSpec.Code,
+                    scoreSpec,
                     selectedValues,
                     visible: selectedValues.Length >= SampleDisclosureKMin,
                     string.Empty,
@@ -1215,6 +1419,7 @@ public sealed class SampleStudySeeder(
                         group.Key.GroupType,
                         group.Key.GroupName,
                         scoreSpec.Code,
+                        scoreSpec,
                         values,
                         visible: values.Length >= SampleDisclosureKMin,
                         string.Empty,
@@ -1262,6 +1467,7 @@ public sealed class SampleStudySeeder(
                     string.Empty,
                     string.Empty,
                     scoreSpec.Code,
+                    scoreSpec,
                     values,
                     visible,
                     deltaFromPrevious,
@@ -1327,6 +1533,7 @@ public sealed class SampleStudySeeder(
         string groupType,
         string groupName,
         string dimensionCode,
+        SampleScoreSpec scoreSpec,
         IReadOnlyCollection<decimal> values,
         bool visible,
         string deltaFromPreviousMean,
@@ -1351,6 +1558,11 @@ public sealed class SampleStudySeeder(
             groupType,
             groupName,
             dimensionCode,
+            scoreSpec.Label,
+            scoreSpec.Calculation,
+            ScoreCalculationLabel(scoreSpec.Calculation),
+            FormatSampleDecimal(scoreSpec.ScoreRangeMin),
+            FormatSampleDecimal(scoreSpec.ScoreRangeMax),
             showValues ? "visible" : "suppressed",
             showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
             showValues ? valueArray.Length.ToString(CultureInfo.InvariantCulture) : string.Empty,
@@ -1379,6 +1591,7 @@ public sealed class SampleStudySeeder(
     private static bool IsSampleResultsMatrixExport(ExportArtifact artifact)
     {
         return artifact.Content?.StartsWith("result_scope,result_scope_label,campaign_series_id", StringComparison.Ordinal) == true &&
+            artifact.Content.Contains("score_display_label", StringComparison.Ordinal) &&
             artifact.MetadataJson.Contains("sample_results_matrix", StringComparison.Ordinal);
     }
 
@@ -1700,6 +1913,102 @@ internal static class SampleStudySpecs
                     ["assessment_clarity"] = 4.4,
                     ["recovery_time"] = 4.2
                 })
+            ]),
+        new(
+            "complex-scoring-showcase",
+            "Complex scoring methods showcase",
+            "Read-only sample showing a production-style scoring plan with weighted, normalized, composite, and difference outputs.",
+            "Intervention readiness",
+            CampaignSeriesSampleScenarios.Completed,
+            ResponseIdentityModes.AnonymousLongitudinal,
+            CampaignSeriesStudyDesignTypes.RepeatedLinkedChange,
+            [
+                new(SubjectGroupTypes.Team, "Pilot cohort", 9, -0.1),
+                new(SubjectGroupTypes.Team, "Control cohort", 8, -0.35),
+                new(SubjectGroupTypes.Team, "Coaching cohort", 7, 0.25),
+                new(SubjectGroupTypes.Team, "Small advisory cell", 4, -0.55)
+            ],
+            [
+                new(
+                    "focus_stability",
+                    "Focus stability",
+                    ["q01", "q02", "q03"],
+                    "normalized_weighted_mean_0_100",
+                    0,
+                    100,
+                    new Dictionary<string, decimal>
+                    {
+                        ["q01"] = 2m,
+                        ["q02"] = 1m,
+                        ["q03"] = 1m
+                    }),
+                new(
+                    "recovery_capacity",
+                    "Recovery capacity",
+                    ["q04", "q05"]),
+                new(
+                    "support_resource_total",
+                    "Support resource total",
+                    ["q06", "q07", "q08"],
+                    "weighted_sum",
+                    4,
+                    28,
+                    new Dictionary<string, decimal>
+                    {
+                        ["q06"] = 1m,
+                        ["q07"] = 2m,
+                        ["q08"] = 1m
+                    }),
+                new(
+                    "readiness_index",
+                    "Readiness index",
+                    ["focus_stability", "recovery_capacity_0_100", "support_resource_total_0_100"],
+                    "composite_weighted_mean",
+                    0,
+                    100,
+                    new Dictionary<string, decimal>
+                    {
+                        ["focus_stability"] = 0.45m,
+                        ["recovery_capacity_0_100"] = 0.35m,
+                        ["support_resource_total_0_100"] = 0.20m
+                    }),
+                new(
+                    "recovery_focus_gap",
+                    "Recovery minus focus gap",
+                    ["recovery_capacity_0_100", "focus_stability"],
+                    "difference",
+                    -100,
+                    100)
+            ],
+            [
+                new("q01", "focus_stability", "I can protect focused work time when priorities change."),
+                new("q02", "focus_stability", "Interruptions are handled without losing track of critical tasks."),
+                new("q03", "focus_stability", "I can tell which work should wait when demand exceeds capacity."),
+                new("q04", "recovery_capacity", "I have enough recovery time after high-intensity work periods."),
+                new("q05", "recovery_capacity", "The current rhythm leaves enough energy for the next workday."),
+                new("q06", "support_resource_total", "I have access to practical help when workload increases."),
+                new("q07", "support_resource_total", "The support I receive is strong enough to change outcomes."),
+                new("q08", "support_resource_total", "Barriers are escalated before they become chronic issues.")
+            ],
+            [
+                new("Before intervention", new Dictionary<string, double>
+                {
+                    ["focus_stability"] = 4.0,
+                    ["recovery_capacity"] = 3.6,
+                    ["support_resource_total"] = 3.8
+                }),
+                new("Intervention midpoint", new Dictionary<string, double>
+                {
+                    ["focus_stability"] = 4.7,
+                    ["recovery_capacity"] = 4.2,
+                    ["support_resource_total"] = 4.6
+                }),
+                new("Intervention review", new Dictionary<string, double>
+                {
+                    ["focus_stability"] = 5.3,
+                    ["recovery_capacity"] = 4.9,
+                    ["support_resource_total"] = 5.2
+                })
             ])
     ];
 }
@@ -1729,7 +2038,11 @@ internal sealed record SampleGroupSpec(
 internal sealed record SampleScoreSpec(
     string Code,
     string Label,
-    IReadOnlyList<string> QuestionCodes);
+    IReadOnlyList<string> QuestionCodes,
+    string Calculation = "mean",
+    decimal ScoreRangeMin = 1,
+    decimal ScoreRangeMax = 7,
+    IReadOnlyDictionary<string, decimal>? Weights = null);
 
 internal sealed record SampleQuestionSpec(string Code, string ScoreCode, string Text);
 

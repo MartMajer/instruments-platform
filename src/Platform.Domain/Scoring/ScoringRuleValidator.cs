@@ -70,6 +70,14 @@ public static class ScoringRuleValidator
             return Result.Failure<ScoringRuleValidationSummary>(interpretationResult.Error);
         }
 
+        var outputMetadataResult = ScoreOutputMetadataParser.Parse(
+            produces.RootElement,
+            scoreCodesResult.Value);
+        if (outputMetadataResult.IsFailure)
+        {
+            return Result.Failure<ScoringRuleValidationSummary>(outputMetadataResult.Error);
+        }
+
         Result<ScoringRuleValidationSummary> summaryResult;
         if (IsGraphRule(document.RootElement))
         {

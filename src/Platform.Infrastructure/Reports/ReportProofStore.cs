@@ -90,6 +90,12 @@ public sealed class ReportProofStore(
             return Result.Failure<CampaignReportProofResponse>(interpretationMetadata.Error);
         }
 
+        var scoreOutputMetadata = ScoreOutputMetadataParser.ParseProduces(scoringRule.Produces);
+        if (scoreOutputMetadata.IsFailure)
+        {
+            return Result.Failure<CampaignReportProofResponse>(scoreOutputMetadata.Error);
+        }
+
         var submittedResponseCount = await db.ResponseSessions
             .AsNoTracking()
             .Join(
@@ -128,7 +134,8 @@ public sealed class ReportProofStore(
                 submittedResponseCount,
                 snapshot.ResponseIdentityMode,
                 disclosurePolicy.KMin,
-                interpretationMetadata.Value))
+                interpretationMetadata.Value,
+                scoreOutputMetadata.Value))
             .ToArray();
 
         await transaction.CommitAsync(cancellationToken);
@@ -185,8 +192,10 @@ public sealed class ReportProofStore(
         int submittedResponseCount,
         string responseIdentityMode,
         int disclosureKMin,
-        ScoreInterpretationMetadata? interpretationMetadata)
+        ScoreInterpretationMetadata? interpretationMetadata,
+        IReadOnlyDictionary<string, ScoreOutputMetadata> scoreOutputMetadata)
     {
+        var metadata = FindScoreOutputMetadata(scoreOutputMetadata, dimensionCode);
         var disclosurePasses = ResultOutputDisclosurePasses(
             responseIdentityMode,
             disclosureKMin,
@@ -204,7 +213,12 @@ public sealed class ReportProofStore(
                 StandardDeviation: null,
                 Min: null,
                 Max: null,
-                SuppressionReason: InsufficientResponses);
+                SuppressionReason: InsufficientResponses,
+                DisplayLabel: metadata?.Label,
+                Calculation: metadata?.Calculation,
+                CalculationLabel: metadata?.CalculationLabel,
+                ScoreRangeMin: metadata?.ScoreRangeMin,
+                ScoreRangeMax: metadata?.ScoreRangeMax);
         }
 
         var values = scores.Select(score => score.Value).ToArray();
@@ -226,7 +240,21 @@ public sealed class ReportProofStore(
             ScoreInterpretationProjection.Create(interpretationMetadata, dimensionCode, mean),
             scores.Sum(score => score.NValid),
             scores.Sum(score => score.NExpected),
-            SummarizeMissingPolicyStatus(scores.Select(score => score.MissingPolicyStatus)));
+            SummarizeMissingPolicyStatus(scores.Select(score => score.MissingPolicyStatus)),
+            metadata?.Label,
+            metadata?.Calculation,
+            metadata?.CalculationLabel,
+            metadata?.ScoreRangeMin,
+            metadata?.ScoreRangeMax);
+    }
+
+    private static ScoreOutputMetadata? FindScoreOutputMetadata(
+        IReadOnlyDictionary<string, ScoreOutputMetadata> metadata,
+        string dimensionCode)
+    {
+        var normalized = dimensionCode.Trim().ToLowerInvariant();
+
+        return metadata.TryGetValue(normalized, out var value) ? value : null;
     }
 
     private static bool ResultOutputDisclosurePasses(

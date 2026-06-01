@@ -1146,6 +1146,16 @@ export async function waitForPageReadyForSnapshot(page: Page): Promise<void> {
     .first()
     .waitFor({ state: 'visible', timeout: 2000 })
     .catch(() => undefined);
+  await page
+    .waitForFunction(
+      () =>
+        !/workspace access\s+checking workspace access/i.test(
+          document.body?.innerText ?? ''
+        ),
+      undefined,
+      { timeout: 8000 }
+    )
+    .catch(() => undefined);
   await page.waitForTimeout(125);
 }
 

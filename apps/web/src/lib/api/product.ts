@@ -996,6 +996,10 @@ export type ResultsDashboardBarResponse = {
 	count: number | null;
 	detail: string | null;
 	suppressionReason: string | null;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 };
 
 export type ResultsDashboardPointResponse = {
@@ -1011,6 +1015,10 @@ export type ResultsDashboardPointResponse = {
 	dataFinality: string;
 	count: number | null;
 	suppressionReason: string | null;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 };
 
 export type ResultsDashboardNoteResponse = {
@@ -1046,6 +1054,10 @@ export type CampaignSeriesResultsScoreOutputResponse = {
 	nExpectedTotal: number | null;
 	missingPolicyStatusSummary: string | null;
 	suppressionReason: string | null;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 };
 
 export type CampaignSeriesResultsGroupMatrixRowResponse = {
@@ -1062,6 +1074,10 @@ export type CampaignSeriesResultsGroupMatrixRowResponse = {
 	min: number | null;
 	max: number | null;
 	suppressionReason: string | null;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 };
 
 export type CampaignSeriesResultsWaveMatrixRowResponse = {
@@ -1084,6 +1100,10 @@ export type CampaignSeriesResultsWaveMatrixRowResponse = {
 	deltaFromPreviousMean: number | null;
 	deltaFromFirstMean: number | null;
 	comparisonState: string;
+	calculation?: string | null;
+	calculationLabel?: string | null;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
 };
 
 export type CampaignSeriesResultsInsightResponse = {

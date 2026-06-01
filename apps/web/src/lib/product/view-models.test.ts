@@ -287,12 +287,12 @@ describe('product view models', () => {
 		expect(empty.emptyState).toEqual({
 			title: 'Još nema studija',
 			message:
-				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za ucenje.'
+				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.'
 		});
 		expect(empty.statusOptions.map((option) => option.label)).toEqual([
 			'Sva spremnost',
 			'Nije postavljeno',
-			'Na cekanju',
+			'Na čekanju',
 			'Pregled'
 		]);
 		expect(empty.studySections.map((section) => section.title)).toEqual([
@@ -411,11 +411,11 @@ describe('product view models', () => {
 			'Regija',
 			'Zadani jezik',
 			'Status',
-			'Izradeno',
+			'Izrađeno',
 			'Ažurirano'
 		]);
 		expect(settingsView.metricRows.map((row) => row.label)).toContain('Studije');
-		expect(settingsView.metricRows.map((row) => row.label)).toContain('Clanovi radnog prostora');
+		expect(settingsView.metricRows.map((row) => row.label)).toContain('Članovi radnog prostora');
 
 		const instruments = toInstrumentLibraryView(
 			[
@@ -612,7 +612,7 @@ describe('product view models', () => {
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
 			{ value: 'not_configured', label: 'Nije postavljeno' },
-			{ value: 'pending', label: 'Na cekanju' },
+			{ value: 'pending', label: 'Na čekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
 		expect(listView.items[0].rows).toContainEqual({ label: 'Mjerenja', value: '2' });
@@ -621,7 +621,7 @@ describe('product view models', () => {
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
-		expect(hubView.rows[0].label).toBe('Izradeno');
+		expect(hubView.rows[0].label).toBe('Izrađeno');
 		expect(hubView.studyModel.title).toBe('Pregled studije');
 		expect(hubView.studyModel.items[0].label).toBe('Sažetak studije');
 		expect(hubView.studyModel.items[0].summary).toContain('Svrha studije');
@@ -634,13 +634,13 @@ describe('product view models', () => {
 		});
 		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
 		expect(hubView.campaignRows[0].rows).toContainEqual({
-			label: 'Nacin identiteta',
+			label: 'Način identiteta',
 			value: 'anonimno s ponovljenim sudjelovanjem'
 		});
 
 		expect(setupView.surfaceLabel).toBe('Priprema studije');
 		expect(setupView.summaryRows).toContainEqual({
-			label: 'Nedostajuci preduvjeti',
+			label: 'Nedostajući preduvjeti',
 			value: '1'
 		});
 	});
@@ -1179,7 +1179,7 @@ describe('product view models', () => {
 		});
 		expect(view.lifecycleMap).toMatchObject({
 			title: 'Životni ciklus studije',
-			description: 'Prodite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
+			description: 'Prođite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
 		});
 		expect(view.lifecycleMap.items[0]).toMatchObject({
 			label: 'Priprema',
@@ -1674,15 +1674,15 @@ describe('product view models', () => {
 	it('localizes operations collection read-model cards for Croatian app mode', () => {
 		const view = toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR');
 
-		expect(view.collectionMonitor.title).toBe('Pracenje odgovora');
+		expect(view.collectionMonitor.title).toBe('Praćenje odgovora');
 		expect(view.collectionMonitor.guidance).toBe(
 			'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
 		);
 		expect(view.collectionMonitor.summaryRows).toEqual([
-			{ label: 'Zapoceti odgovori', value: '36' },
+			{ label: 'Započeti odgovori', value: '36' },
 			{ label: 'Odgovori u tijeku', value: '5' },
 			{ label: 'Predani odgovori', value: '31' },
-			{ label: 'Zadnje zapoceto', value: '05. 05. 2026. 12:15' },
+			{ label: 'Zadnje započeto', value: '05. 05. 2026. 12:15' },
 			{ label: 'Zadnje predano', value: '05. 05. 2026. 12:10' }
 		]);
 
@@ -1704,7 +1704,7 @@ describe('product view models', () => {
 			id: 'response_progress',
 			label: 'Napredak odgovora',
 			badgeLabel: 'Predano: 31 odgovor',
-			summary: 'Zapoceto: 36; u tijeku: 5; predano: 31.',
+			summary: 'Započeto: 36; u tijeku: 5; predano: 31.',
 			guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
 		});
 		expect(view.collectionOverview[3]).toMatchObject({
@@ -2477,10 +2477,11 @@ describe('product view models', () => {
 		expect(view.scoreRows).toEqual([
 			{
 				dimensionCode: 'exhaustion',
+				displayLabel: 'Exhaustion risk index',
 				disclosureState: 'visible',
 				submittedResponseCount: 8,
 				scoreCount: '8',
-				scoreMetadata: 'n 7/8 / ok',
+				scoreMetadata: 'Normalized 0-100 weighted average / score range 0-100 / n 7/8 / ok',
 				mean: '3.42',
 				range: '1.00-5.00',
 				interpretationLabel: 'Tenant middle range',
@@ -2489,6 +2490,7 @@ describe('product view models', () => {
 			},
 			{
 				dimensionCode: 'distance',
+				displayLabel: 'distance',
 				disclosureState: 'suppressed',
 				submittedResponseCount: 3,
 				scoreCount: 'Suppressed',
@@ -2846,6 +2848,7 @@ describe('product view models', () => {
 		expect(view.scoreRows).toEqual([
 			{
 				dimensionCode: 'exhaustion',
+				displayLabel: 'Recovery readiness index',
 				disclosureState: 'visible',
 				compatibilityStatus: 'compatible',
 				baselineMean: '3.90',
@@ -2853,8 +2856,8 @@ describe('product view models', () => {
 				aggregateDelta: '+0.30',
 				pairedDeltaMean: '+0.25',
 				linkedPairCount: 6,
-				baselineScoreMetadata: 'n 7/8 / ok',
-				comparisonScoreMetadata: 'n 8/8 / ok',
+				baselineScoreMetadata: 'Normalized 0-100 weighted average / score range 0-100 / n 7/8 / ok',
+				comparisonScoreMetadata: 'Normalized 0-100 weighted average / score range 0-100 / n 8/8 / ok',
 				baselineInterpretationLabel: 'Tenant higher range',
 				comparisonInterpretationLabel: 'Tenant higher range',
 				interpretationMeta: 'tenant attested / tenant defined / not reviewed / not official',
@@ -2862,6 +2865,7 @@ describe('product view models', () => {
 			},
 			{
 				dimensionCode: 'distance',
+				displayLabel: 'distance',
 				disclosureState: 'suppressed',
 				compatibilityStatus: 'incompatible_scoring',
 				baselineMean: 'Suppressed',
@@ -2953,7 +2957,7 @@ describe('product view models', () => {
 			'Koristite izvoze skupa podataka odgovora za analizu.'
 		);
 		expect(view.exportOverview[1].summary).toBe(
-			'Nema neuspjelih izvoznih datoteka ni datoteka na cekanju.'
+			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
 			'Izvozi pokrivaju izvoz matrice rezultata i izvoz skupa podataka odgovora.'
@@ -2964,7 +2968,7 @@ describe('product view models', () => {
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
 		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s izradenim opisom podataka.'
+			'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.'
 		);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});
@@ -3711,12 +3715,17 @@ const sampleReportProof: CampaignReportProofResponse = {
 	scores: [
 		{
 			dimensionCode: 'exhaustion',
+			displayLabel: 'Exhaustion risk index',
 			disclosure: 'visible',
 			submittedResponseCount: 8,
 			scoreCount: 8,
 			nValidTotal: 7,
 			nExpectedTotal: 8,
 			missingPolicyStatusSummary: 'ok',
+			calculation: 'normalized_weighted_mean_0_100',
+			calculationLabel: 'Normalized 0-100 weighted average',
+			scoreRangeMin: 0,
+			scoreRangeMax: 100,
 			mean: 3.42,
 			min: 1,
 			max: 5,
@@ -3785,6 +3794,15 @@ const sampleWaveComparison: CampaignSeriesWaveComparisonProofResponse = {
 	scores: [
 		{
 			dimensionCode: 'exhaustion',
+			displayLabel: 'Recovery readiness index',
+			baselineCalculation: 'normalized_weighted_mean_0_100',
+			baselineCalculationLabel: 'Normalized 0-100 weighted average',
+			baselineScoreRangeMin: 0,
+			baselineScoreRangeMax: 100,
+			comparisonCalculation: 'normalized_weighted_mean_0_100',
+			comparisonCalculationLabel: 'Normalized 0-100 weighted average',
+			comparisonScoreRangeMin: 0,
+			comparisonScoreRangeMax: 100,
 			compatibilityStatus: 'compatible',
 			disclosure: 'visible',
 			baselineSubmittedResponseCount: 8,

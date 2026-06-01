@@ -1780,7 +1780,12 @@
 								? formatScoreOutputMetadata(
 										score.baselineNValidTotal,
 										score.baselineNExpectedTotal,
-										score.baselineMissingPolicyStatusSummary
+										score.baselineMissingPolicyStatusSummary,
+										{
+											calculationLabel: score.baselineCalculationLabel,
+											scoreRangeMin: score.baselineScoreRangeMin,
+											scoreRangeMax: score.baselineScoreRangeMax
+										}
 									)
 								: null}
 						{@const comparisonScoreMetadata =
@@ -1788,12 +1793,17 @@
 								? formatScoreOutputMetadata(
 										score.comparisonNValidTotal,
 										score.comparisonNExpectedTotal,
-										score.comparisonMissingPolicyStatusSummary
+										score.comparisonMissingPolicyStatusSummary,
+										{
+											calculationLabel: score.comparisonCalculationLabel,
+											scoreRangeMin: score.comparisonScoreRangeMin,
+											scoreRangeMax: score.comparisonScoreRangeMax
+										}
 									)
 								: null}
 						<article class="score-card" aria-label={`Wave comparison ${score.dimensionCode}`}>
 							<div>
-								<p class="score-card__label">{score.dimensionCode}</p>
+								<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
 								<p class="score-card__value">{score.compatibilityStatus}</p>
 							</div>
 							<p class="score-card__meta">{score.disclosure}</p>
@@ -1924,16 +1934,19 @@
 						<div class="score-card-list" aria-label="Report proof scores">
 							{#each reportProofResult.scores as score (score.dimensionCode)}
 								{@const scoreMetadata =
-									score.disclosure === 'visible'
-										? formatScoreOutputMetadata(
-												score.nValidTotal,
-												score.nExpectedTotal,
-												score.missingPolicyStatusSummary
-											)
-										: null}
+									formatScoreOutputMetadata(
+										score.disclosure === 'visible' ? score.nValidTotal : null,
+										score.disclosure === 'visible' ? score.nExpectedTotal : null,
+										score.disclosure === 'visible' ? score.missingPolicyStatusSummary : null,
+										{
+											calculationLabel: score.calculationLabel,
+											scoreRangeMin: score.scoreRangeMin,
+											scoreRangeMax: score.scoreRangeMax
+										}
+									)}
 								<article class="score-card" aria-label={`Report score ${score.dimensionCode}`}>
 									<div>
-										<p class="score-card__label">{score.dimensionCode}</p>
+										<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
 										<p
 											class={score.disclosure === 'visible'
 												? 'score-card__value'
@@ -2194,16 +2207,19 @@
 						<div class="score-card-list" aria-label="Report proof scores">
 							{#each reportProofResult.scores as score (score.dimensionCode)}
 								{@const scoreMetadata =
-									score.disclosure === 'visible'
-										? formatScoreOutputMetadata(
-												score.nValidTotal,
-												score.nExpectedTotal,
-												score.missingPolicyStatusSummary
-											)
-										: null}
+									formatScoreOutputMetadata(
+										score.disclosure === 'visible' ? score.nValidTotal : null,
+										score.disclosure === 'visible' ? score.nExpectedTotal : null,
+										score.disclosure === 'visible' ? score.missingPolicyStatusSummary : null,
+										{
+											calculationLabel: score.calculationLabel,
+											scoreRangeMin: score.scoreRangeMin,
+											scoreRangeMax: score.scoreRangeMax
+										}
+									)}
 								<article class="score-card" aria-label={`Report score ${score.dimensionCode}`}>
 									<div>
-										<p class="score-card__label">{score.dimensionCode}</p>
+										<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
 										<p
 											class={score.disclosure === 'visible'
 												? 'score-card__value'

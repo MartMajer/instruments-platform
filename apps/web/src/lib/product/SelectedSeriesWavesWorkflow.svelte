@@ -526,7 +526,12 @@
 							? formatScoreOutputMetadata(
 									score.baselineNValidTotal,
 									score.baselineNExpectedTotal,
-									score.baselineMissingPolicyStatusSummary
+									score.baselineMissingPolicyStatusSummary,
+									{
+										calculationLabel: score.baselineCalculationLabel,
+										scoreRangeMin: score.baselineScoreRangeMin,
+										scoreRangeMax: score.baselineScoreRangeMax
+									}
 								)
 							: null}
 					{@const comparisonScoreMetadata =
@@ -534,12 +539,17 @@
 							? formatScoreOutputMetadata(
 									score.comparisonNValidTotal,
 									score.comparisonNExpectedTotal,
-									score.comparisonMissingPolicyStatusSummary
+									score.comparisonMissingPolicyStatusSummary,
+									{
+										calculationLabel: score.comparisonCalculationLabel,
+										scoreRangeMin: score.comparisonScoreRangeMin,
+										scoreRangeMax: score.comparisonScoreRangeMax
+									}
 								)
 							: null}
 					<article class="score-card" aria-label={wavesUi.waveComparisonScoreAria(score.dimensionCode)}>
 						<div>
-							<p class="score-card__label">{score.dimensionCode}</p>
+							<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
 							<p
 								class={score.disclosure === 'visible'
 									? 'score-card__value'

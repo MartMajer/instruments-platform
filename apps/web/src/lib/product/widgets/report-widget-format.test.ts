@@ -4,6 +4,7 @@ import {
 	formatCodeLabel,
 	formatNullableDate,
 	formatNullableNumber,
+	formatProductCopy,
 	formatWidgetLabel
 } from './report-widget-format';
 
@@ -20,6 +21,11 @@ describe('report widget formatters', () => {
 		expect(formatBooleanLabel(false, hrWidgetFormatCopy)).toBe('Ne');
 		expect(formatWidgetLabel('submitted', hrWidgetFormatCopy)).toBe('Predano');
 		expect(formatWidgetLabel('unknown_label', hrWidgetFormatCopy)).toBe('unknown_label');
+	});
+
+	it('normalizes internal proof wording before primary product display', () => {
+		expect(formatProductCopy('proof only')).toBe('preview');
+		expect(formatProductCopy('Proof only')).toBe('Preview');
 	});
 });
 

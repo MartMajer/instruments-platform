@@ -226,4 +226,14 @@ describe('UX audit browser evidence safety', () => {
     });
     expect(mocks.page.waitForTimeout).toHaveBeenCalledWith(125);
   });
+
+  it('waits for the product auth boundary to leave workspace access checking before snapshots', async () => {
+    await waitForPageReadyForSnapshot(mocks.page as any);
+
+    expect(mocks.page.waitForFunction).toHaveBeenCalledWith(
+      expect.any(Function),
+      undefined,
+      { timeout: 8000 }
+    );
+  });
 });

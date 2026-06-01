@@ -105,6 +105,7 @@ const defaultReportWidgetFormatCopy: ReportWidgetFormatCopy = {
 		median: 'Median',
 		standardDeviation: 'Std. dev.',
 		range: 'Range',
+		scoreRange: 'Score range',
 		scoreOutput: 'Score output',
 		resultName: 'Result',
 		sample: 'Responses',

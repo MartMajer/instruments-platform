@@ -97,4 +97,9 @@ public sealed record ReportScoreSummaryResponse(
     ScoreInterpretationResponse? Interpretation = null,
     int? NValidTotal = null,
     int? NExpectedTotal = null,
-    string? MissingPolicyStatusSummary = null);
+    string? MissingPolicyStatusSummary = null,
+    string? DisplayLabel = null,
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);

@@ -1455,16 +1455,20 @@ export function toReportProofView(report: CampaignReportProofResponse) {
 
 			return {
 				dimensionCode: score.dimensionCode,
+				displayLabel: score.displayLabel?.trim() || score.dimensionCode,
 				disclosureState,
 				submittedResponseCount: score.submittedResponseCount,
 				scoreCount: isVisible ? formatNullableCount(score.scoreCount) : 'Suppressed',
-				scoreMetadata: isVisible
-					? formatScoreOutputMetadata(
-							score.nValidTotal,
-							score.nExpectedTotal,
-							score.missingPolicyStatusSummary
-						)
-					: null,
+				scoreMetadata: formatScoreOutputMetadata(
+					isVisible ? score.nValidTotal : null,
+					isVisible ? score.nExpectedTotal : null,
+					isVisible ? score.missingPolicyStatusSummary : null,
+					{
+						calculationLabel: score.calculationLabel,
+						scoreRangeMin: score.scoreRangeMin,
+						scoreRangeMax: score.scoreRangeMax
+					}
+				),
 				mean: isVisible ? formatNullableNumber(score.mean) : 'Suppressed',
 				range:
 					isVisible && score.min !== null && score.max !== null
@@ -1596,6 +1600,7 @@ export function toWaveComparisonView(comparison: CampaignSeriesWaveComparisonPro
 
 			return {
 				dimensionCode: score.dimensionCode,
+				displayLabel: score.displayLabel?.trim() || score.dimensionCode,
 				disclosureState,
 				compatibilityStatus: score.compatibilityStatus,
 				baselineMean: isVisible ? formatNullableNumber(score.baselineMean) : 'Suppressed',
@@ -1607,14 +1612,24 @@ export function toWaveComparisonView(comparison: CampaignSeriesWaveComparisonPro
 					? formatScoreOutputMetadata(
 							score.baselineNValidTotal,
 							score.baselineNExpectedTotal,
-							score.baselineMissingPolicyStatusSummary
+							score.baselineMissingPolicyStatusSummary,
+							{
+								calculationLabel: score.baselineCalculationLabel,
+								scoreRangeMin: score.baselineScoreRangeMin,
+								scoreRangeMax: score.baselineScoreRangeMax
+							}
 						)
 					: null,
 				comparisonScoreMetadata: isVisible
 					? formatScoreOutputMetadata(
 							score.comparisonNValidTotal,
 							score.comparisonNExpectedTotal,
-							score.comparisonMissingPolicyStatusSummary
+							score.comparisonMissingPolicyStatusSummary,
+							{
+								calculationLabel: score.comparisonCalculationLabel,
+								scoreRangeMin: score.comparisonScoreRangeMin,
+								scoreRangeMax: score.comparisonScoreRangeMax
+							}
 						)
 					: null,
 				baselineInterpretationLabel: baselineInterpretation?.label ?? null,
@@ -4369,9 +4384,23 @@ function formatNullableCount(value: number | null) {
 export function formatScoreOutputMetadata(
 	nValid: number | null | undefined,
 	nExpected: number | null | undefined,
-	missingPolicyStatus: string | null | undefined
+	missingPolicyStatus: string | null | undefined,
+	output?: {
+		calculationLabel?: string | null;
+		scoreRangeMin?: number | null;
+		scoreRangeMax?: number | null;
+	}
 ) {
 	const values = [];
+	if (output?.calculationLabel?.trim()) {
+		values.push(output.calculationLabel.trim());
+	}
+
+	if (output?.scoreRangeMin !== null && output?.scoreRangeMin !== undefined &&
+		output?.scoreRangeMax !== null && output?.scoreRangeMax !== undefined) {
+		values.push(`score range ${formatCompactNumber(output.scoreRangeMin)}-${formatCompactNumber(output.scoreRangeMax)}`);
+	}
+
 	if (nValid !== null && nValid !== undefined && nExpected !== null && nExpected !== undefined) {
 		values.push(`n ${nValid}/${nExpected}`);
 	}
@@ -4381,6 +4410,10 @@ export function formatScoreOutputMetadata(
 	}
 
 	return values.length > 0 ? values.join(' / ') : null;
+}
+
+function formatCompactNumber(value: number) {
+	return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
 function formatNullableNumber(value: number | null) {

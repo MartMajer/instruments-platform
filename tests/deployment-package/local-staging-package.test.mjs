@@ -208,7 +208,14 @@ describe('local staging deployment package', () => {
       'score_total_n_expected',
       'score_total_missing_policy_status',
       'score_output_metadata',
+      'score_display_label',
+      'score_calculation',
+      'score_calculation_label',
+      'score_range_min',
+      'score_range_max',
+      'scoreDefinitionMetadata',
       'suppressed_when_report_proof_suppressed',
+      'score_definition_metadata',
       'per_submitted_response_score_metadata',
       'scoreMetadataDimensionCount'
     ]) {
@@ -338,6 +345,23 @@ describe('local staging deployment package', () => {
     assert.doesNotMatch(script, /Write-Host[^\n]*(token|participant code|ParticipantCode)/i);
     assert.doesNotMatch(script, /OLBI|Maslach|Nordic Musculoskeletal Questionnaire/i);
     assert.doesNotMatch(script, /@gmail\.com|@algebra\.hr|@demo\.test/i);
+  });
+
+  it('keeps workspace sample studies representative of advanced scoring methods', () => {
+    const seeder = read('src/Platform.Infrastructure/ProductSurfaces/SampleStudySeeder.cs');
+
+    for (const required of [
+      'complex-scoring-showcase',
+      'Complex scoring methods showcase',
+      'normalized_weighted_mean_0_100',
+      'weighted_sum',
+      'composite_weighted_mean',
+      'difference',
+      'score_range',
+      'score_calculation_label'
+    ]) {
+      assert.match(seeder, new RegExp(required));
+    }
   });
 
   it('defines source-safe validation demo auth user slots', () => {

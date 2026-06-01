@@ -79,6 +79,11 @@ public sealed class ReportProofExportStore(
         "result_scope_data_finality",
         "result_scope_closed_at",
         "dimension_code",
+        "score_display_label",
+        "score_calculation",
+        "score_calculation_label",
+        "score_range_min",
+        "score_range_max",
         "disclosure",
         "submitted_response_count",
         "score_count",
@@ -118,6 +123,11 @@ public sealed class ReportProofExportStore(
         "group_type",
         "group_name",
         "dimension_code",
+        "score_display_label",
+        "score_calculation",
+        "score_calculation_label",
+        "score_range_min",
+        "score_range_max",
         "disclosure",
         "submitted_response_count",
         "score_count",
@@ -1173,6 +1183,11 @@ public sealed class ReportProofExportStore(
                 report.DataFinality,
                 report.ClosedAt,
                 score.DimensionCode,
+                score.DisplayLabel,
+                score.Calculation,
+                score.CalculationLabel,
+                score.ScoreRangeMin,
+                score.ScoreRangeMax,
                 score.Disclosure,
                 score.SubmittedResponseCount,
                 score.ScoreCount,
@@ -1206,6 +1221,11 @@ public sealed class ReportProofExportStore(
                     report.DataFinality,
                     report.ClosedAt,
                     groupRow.DimensionCode,
+                    groupRow.DisplayLabel,
+                    groupRow.Calculation,
+                    groupRow.CalculationLabel,
+                    groupRow.ScoreRangeMin,
+                    groupRow.ScoreRangeMax,
                     groupRow.Disclosure,
                     groupRow.SubmittedResponseCount,
                     groupRow.ScoreCount,
@@ -1237,6 +1257,11 @@ public sealed class ReportProofExportStore(
                     waveRow.DataFinality,
                     waveRow.ClosedAt,
                     waveRow.DimensionCode,
+                    waveRow.DisplayLabel,
+                    waveRow.Calculation,
+                    waveRow.CalculationLabel,
+                    waveRow.ScoreRangeMin,
+                    waveRow.ScoreRangeMax,
                     waveRow.Disclosure,
                     waveRow.SubmittedResponseCount,
                     waveRow.ScoreCount,
@@ -1270,6 +1295,11 @@ public sealed class ReportProofExportStore(
         string resultScopeDataFinality,
         DateTimeOffset? resultScopeClosedAt,
         string dimensionCode,
+        string? scoreDisplayLabel,
+        string? scoreCalculation,
+        string? scoreCalculationLabel,
+        decimal? scoreRangeMin,
+        decimal? scoreRangeMax,
         string disclosure,
         int? submittedResponseCount,
         int? scoreCount,
@@ -1322,6 +1352,11 @@ public sealed class ReportProofExportStore(
             Escape(resultScopeDataFinality),
             Escape(resultScopeClosedAt?.ToString("O", CultureInfo.InvariantCulture)),
             Escape(dimensionCode),
+            Escape(scoreDisplayLabel),
+            Escape(scoreCalculation),
+            Escape(scoreCalculationLabel),
+            FormatNullableDecimal(scoreRangeMin),
+            FormatNullableDecimal(scoreRangeMax),
             Escape(disclosure),
             FormatNullableInt(submittedResponseCount, resultScopeSuppressed),
             FormatNullableInt(scoreCount, resultScopeSuppressed),
@@ -2845,6 +2880,11 @@ public sealed class ReportProofExportStore(
                 groupType: null,
                 groupName: null,
                 dimensionCode: row.DimensionCode,
+                scoreDisplayLabel: row.DisplayLabel,
+                scoreCalculation: row.Calculation,
+                scoreCalculationLabel: row.CalculationLabel,
+                scoreRangeMin: row.ScoreRangeMin,
+                scoreRangeMax: row.ScoreRangeMax,
                 disclosure: row.Disclosure,
                 submittedResponseCount: row.SubmittedResponseCount,
                 scoreCount: row.ScoreCount,
@@ -2879,6 +2919,11 @@ public sealed class ReportProofExportStore(
                 groupType: row.GroupType,
                 groupName: row.GroupName,
                 dimensionCode: row.DimensionCode,
+                scoreDisplayLabel: row.DisplayLabel,
+                scoreCalculation: row.Calculation,
+                scoreCalculationLabel: row.CalculationLabel,
+                scoreRangeMin: row.ScoreRangeMin,
+                scoreRangeMax: row.ScoreRangeMax,
                 disclosure: row.Disclosure,
                 submittedResponseCount: row.SubmittedResponseCount,
                 scoreCount: row.ScoreCount,
@@ -2913,6 +2958,11 @@ public sealed class ReportProofExportStore(
                 groupType: null,
                 groupName: null,
                 dimensionCode: row.DimensionCode,
+                scoreDisplayLabel: row.DisplayLabel,
+                scoreCalculation: row.Calculation,
+                scoreCalculationLabel: row.CalculationLabel,
+                scoreRangeMin: row.ScoreRangeMin,
+                scoreRangeMax: row.ScoreRangeMax,
                 disclosure: row.Disclosure,
                 submittedResponseCount: row.SubmittedResponseCount,
                 scoreCount: row.ScoreCount,
@@ -3057,6 +3107,11 @@ public sealed class ReportProofExportStore(
         string? groupType,
         string? groupName,
         string dimensionCode,
+        string? scoreDisplayLabel,
+        string? scoreCalculation,
+        string? scoreCalculationLabel,
+        decimal? scoreRangeMin,
+        decimal? scoreRangeMax,
         string disclosure,
         int? submittedResponseCount,
         int? scoreCount,
@@ -3091,6 +3146,11 @@ public sealed class ReportProofExportStore(
                 groupType,
                 groupName,
                 dimensionCode,
+                scoreDisplayLabel,
+                scoreCalculation,
+                scoreCalculationLabel,
+                FormatNullableDecimal(scoreRangeMin),
+                FormatNullableDecimal(scoreRangeMax),
                 disclosure,
                 FormatNullableInt(submittedResponseCount, resultScopeSuppressed),
                 FormatNullableInt(scoreCount, resultScopeSuppressed),
@@ -3147,6 +3207,9 @@ public sealed class ReportProofExportStore(
                 "delta_from_previous_mean" or "delta_from_first_mean" or "comparison_state" or
                 "suppression_reason" =>
                 "campaign_series_results_analytics",
+            "score_display_label" or "score_calculation" or "score_calculation_label" or
+                "score_range_min" or "score_range_max" =>
+                "score_output_metadata",
             _ => "results_matrix_export"
         };
     }
@@ -3157,7 +3220,8 @@ public sealed class ReportProofExportStore(
         {
             "submitted_response_count" or "score_count" or "n_valid_total" or "n_expected_total" or
                 "mean" or "median" or "standard_deviation" or "min" or "max" or
-                "delta_from_previous_mean" or "delta_from_first_mean" =>
+                "delta_from_previous_mean" or "delta_from_first_mean" or
+                "score_range_min" or "score_range_max" =>
                 "scale",
             _ => "nominal"
         };
@@ -3173,6 +3237,9 @@ public sealed class ReportProofExportStore(
                 "suppressed_when_result_scope_suppressed",
             "suppression_reason" or "disclosure" =>
                 "same_suppression_as_result_scope",
+            "score_display_label" or "score_calculation" or "score_calculation_label" or
+                "score_range_min" or "score_range_max" =>
+                "score_definition_metadata",
             "campaign_series_id" or "selected_campaign_id" or "campaign_id" =>
                 "internal_workspace_record_identifier",
             _ => "aggregate_metadata_no_raw_respondent_identifier"
@@ -3370,7 +3437,9 @@ public sealed class ReportProofExportStore(
                 "delta_from_previous_mean" or "delta_from_first_mean" or "comparison_state" or
                 "suppression_reason"
                 => "report_proof_score_summary",
-            "n_valid_total" or "n_expected_total" or "missing_policy_status_summary"
+            "n_valid_total" or "n_expected_total" or "missing_policy_status_summary" or
+                "score_display_label" or "score_calculation" or "score_calculation_label" or
+                "score_range_min" or "score_range_max"
                 => "score_output_metadata",
             "disclosure_policy_version" or "disclosure_k_min" or "suppression_strategy"
                 => "disclosure_policy",
@@ -3390,7 +3459,8 @@ public sealed class ReportProofExportStore(
         {
             "submitted_response_count" or "score_count" or "mean" or "median" or
                 "standard_deviation" or "min" or "max" or "delta_from_previous_mean" or
-                "delta_from_first_mean" or "n_valid_total" or "n_expected_total" or "disclosure_k_min"
+                "delta_from_first_mean" or "n_valid_total" or "n_expected_total" or "disclosure_k_min" or
+                "score_range_min" or "score_range_max"
                 => "scale",
             _ => "nominal"
         };
@@ -3411,6 +3481,9 @@ public sealed class ReportProofExportStore(
                 "suppressed_when_report_proof_suppressed",
             "suppression_reason" or "disclosure" =>
                 "same_suppression_as_report_proof",
+            "score_display_label" or "score_calculation" or "score_calculation_label" or
+                "score_range_min" or "score_range_max" =>
+                "score_definition_metadata",
             "result_scope" or "result_scope_label" or "group_type" or "result_scope_campaign_id" or
                 "result_scope_campaign_status" or "result_scope_data_finality" or
                 "result_scope_closed_at" or "comparison_state" =>

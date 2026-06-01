@@ -230,6 +230,10 @@ function isNullableNumber(data: unknown): data is number | null {
 	return data === null || typeof data === 'number';
 }
 
+function isOptionalNullableNumber(data: unknown): data is number | null | undefined {
+	return data === undefined || isNullableNumber(data);
+}
+
 function isOptionalResultsAnalytics(data: unknown): boolean {
 	if (data === undefined || data === null) {
 		return true;
@@ -263,6 +267,7 @@ function isResultsScoreOutputRow(data: unknown): boolean {
 	return (
 		typeof data.dimensionCode === 'string' &&
 		isOptionalNullableString(data.displayLabel) &&
+		isOptionalScoreOutputMethodMetadata(data) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -288,6 +293,7 @@ function isResultsGroupMatrixRow(data: unknown): boolean {
 		typeof data.groupName === 'string' &&
 		typeof data.dimensionCode === 'string' &&
 		isOptionalNullableString(data.displayLabel) &&
+		isOptionalScoreOutputMethodMetadata(data) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -313,6 +319,7 @@ function isResultsWaveMatrixRow(data: unknown): boolean {
 		isNullableString(data.closedAt) &&
 		typeof data.dimensionCode === 'string' &&
 		isOptionalNullableString(data.displayLabel) &&
+		isOptionalScoreOutputMethodMetadata(data) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.submittedResponseCount) &&
 		isNullableNumber(data.scoreCount) &&
@@ -368,6 +375,7 @@ function isResultsDashboardBar(data: unknown): boolean {
 		typeof data.label === 'string' &&
 		isOptionalNullableString(data.displayLabel) &&
 		typeof data.dimensionCode === 'string' &&
+		isOptionalScoreOutputMethodMetadata(data) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.value) &&
 		isNullableNumber(data.count) &&
@@ -392,6 +400,7 @@ function isResultsDashboardPoint(data: unknown): boolean {
 		typeof data.campaignName === 'string' &&
 		isOptionalNullableString(data.displayLabel) &&
 		typeof data.dimensionCode === 'string' &&
+		isOptionalScoreOutputMethodMetadata(data) &&
 		typeof data.disclosure === 'string' &&
 		isNullableNumber(data.value) &&
 		isNullableNumber(data.deltaFromPrevious) &&
@@ -413,5 +422,14 @@ function isResultsDashboardNote(data: unknown): boolean {
 		typeof data.severity === 'string' &&
 		typeof data.title === 'string' &&
 		typeof data.detail === 'string'
+	);
+}
+
+function isOptionalScoreOutputMethodMetadata(data: Record<string, unknown>) {
+	return (
+		isOptionalNullableString(data.calculation) &&
+		isOptionalNullableString(data.calculationLabel) &&
+		isOptionalNullableNumber(data.scoreRangeMin) &&
+		isOptionalNullableNumber(data.scoreRangeMax)
 	);
 }

@@ -70,8 +70,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var second = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(3, first.Value.CreatedSampleStudyCount);
-        Assert.True(first.Value.CreatedCampaignSeriesIds.Count >= 3);
+        Assert.Equal(4, first.Value.CreatedSampleStudyCount);
+        Assert.True(first.Value.CreatedCampaignSeriesIds.Count >= 4);
         Assert.True(second.IsSuccess);
         Assert.Equal(0, second.Value.CreatedSampleStudyCount);
 
@@ -82,7 +82,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             canManageTeam: true,
             CancellationToken.None);
 
-        Assert.Equal(3, overview.StudyCollections.SampleStudies.Count);
+        Assert.Equal(4, overview.StudyCollections.SampleStudies.Count);
         Assert.Empty(overview.StudyCollections.OwnStudies);
         Assert.All(overview.StudyCollections.SampleStudies, sample =>
         {
@@ -94,7 +94,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         });
 
         await using var inspection = await tenantDbScope.BeginTransactionAsync(tenantId);
-        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 8);
+        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 11);
         Assert.True(await db.Subjects.CountAsync(subject => subject.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.SubjectGroups.CountAsync(group => group.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
@@ -105,7 +105,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 artifact.TenantId == tenantId &&
                 artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook)
             .ToListAsync(CancellationToken.None);
-        Assert.Equal(3, responseExports.Count);
+        Assert.Equal(4, responseExports.Count);
         Assert.All(responseExports, artifact =>
         {
             Assert.True(artifact.RowCount > 20);
@@ -125,12 +125,15 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
                 artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook)
             .ToListAsync(CancellationToken.None);
-        Assert.Equal(3, matrixExports.Count);
+        Assert.Equal(4, matrixExports.Count);
         Assert.All(matrixExports, artifact =>
         {
             Assert.True(artifact.RowCount >= 8);
             Assert.NotNull(artifact.Content);
             Assert.StartsWith("result_scope,result_scope_label,campaign_series_id", artifact.Content);
+            Assert.Contains("score_display_label", artifact.Content);
+            Assert.Contains("score_calculation", artifact.Content);
+            Assert.Contains("score_range_min", artifact.Content);
             Assert.Contains("overall", artifact.Content);
             Assert.Contains("wave", artifact.Content);
             Assert.Contains("visible", artifact.Content);
@@ -139,6 +142,9 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         });
         Assert.Contains(matrixExports, artifact => artifact.Content?.Contains("\"group\"", StringComparison.Ordinal) == true);
         Assert.Contains(matrixExports, artifact => artifact.Content?.Contains("workload_manageability", StringComparison.Ordinal) == true);
+        Assert.Contains(matrixExports, artifact =>
+            artifact.Content?.Contains("readiness_index", StringComparison.Ordinal) == true &&
+            artifact.Content.Contains("composite_weighted_mean", StringComparison.Ordinal));
         await inspection.CommitAsync();
 
         var groupSample = overview.StudyCollections.SampleStudies.Single(sample =>
@@ -3502,6 +3508,85 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Campaign_series_reports_workspace_surfaces_score_output_method_metadata()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-reports-output-metadata");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Output metadata reports series");
+        var scoringRule = await SeedScoringRuleAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            produces:
+            """
+            {
+              "scores": ["total"],
+              "outputs": [
+                {
+                  "code": "total",
+                  "label": "Recovery readiness index",
+                  "calculation": "normalized_weighted_mean_0_100",
+                  "calculation_label": "Normalized 0-100 weighted average",
+                  "score_range": { "min": 0, "max": 100 }
+                }
+              ]
+            }
+            """);
+        var campaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Output metadata wave",
+            status: CampaignStatuses.Live);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            campaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-05-06T09:00:00+00:00"),
+            configured: true);
+
+        for (var index = 0; index < 5; index++)
+        {
+            var session = await SeedSubmittedResponseAsync(
+                runtimeOptions,
+                tenantId,
+                campaign.Id,
+                template.QuestionId,
+                submittedAt: DateTimeOffset.Parse("2026-05-06T10:00:00+00:00").AddMinutes(index));
+            await SeedScoreAsync(runtimeOptions, tenantId, campaign.Id, session.Id, scoringRule.Id);
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesReportsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var output = Assert.Single(result.Value.ResultsAnalytics!.ScoreOutputs);
+        Assert.Equal("Recovery readiness index", output.DisplayLabel);
+        Assert.Equal("normalized_weighted_mean_0_100", output.Calculation);
+        Assert.Equal("Normalized 0-100 weighted average", output.CalculationLabel);
+        Assert.Equal(0m, output.ScoreRangeMin);
+        Assert.Equal(100m, output.ScoreRangeMax);
+
+        var dashboardBar = Assert.Single(result.Value.ResultsDashboard!.OutputBars);
+        Assert.Equal("Recovery readiness index", dashboardBar.DisplayLabel);
+        Assert.Equal("normalized_weighted_mean_0_100", dashboardBar.Calculation);
+        Assert.Equal("Normalized 0-100 weighted average", dashboardBar.CalculationLabel);
+        Assert.Equal(0m, dashboardBar.ScoreRangeMin);
+        Assert.Equal(100m, dashboardBar.ScoreRangeMax);
+    }
+
+    [DockerFact]
     public async Task Campaign_series_reports_workspace_deduplicates_group_memberships_for_results_matrix()
     {
         var tenantId = Guid.NewGuid();
@@ -5227,7 +5312,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     private static async Task<ScoringRule> SeedScoringRuleAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
-        Guid templateVersionId)
+        Guid templateVersionId,
+        string produces = """{"scores":["total"]}""")
     {
         var rule = ScoringRule.CreateDraft(
             Guid.NewGuid(),
@@ -5238,7 +5324,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             "engine/v1",
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             """{"rule_id":"burnout.total","version":"1.0.0"}""",
-            """{"scores":["total"]}""");
+            produces);
 
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);

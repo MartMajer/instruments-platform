@@ -15,6 +15,7 @@
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
+	import { formatProductCopy } from '$lib/product/widgets/report-widget-format';
 	import {
 		toSelectedSeriesExportPreview,
 		toSelectedSeriesScoreMethodReview,
@@ -343,7 +344,7 @@
 	}
 
 	function humanize(value: string | null | undefined) {
-		return value ? value.replaceAll('_', ' ') : reportsUi.notAvailable;
+		return value ? formatProductCopy(value.replaceAll('_', ' ')) : reportsUi.notAvailable;
 	}
 
 	function csvPreview(content: string | null | undefined) {
@@ -667,16 +668,19 @@
 			<div class="score-card-list" aria-label={reportsUi.reportPreviewScoresAria}>
 				{#each reportProofResult.scores as score (score.dimensionCode)}
 					{@const scoreMetadata =
-						score.disclosure === 'visible'
-							? formatScoreOutputMetadata(
-									score.nValidTotal,
-									score.nExpectedTotal,
-									score.missingPolicyStatusSummary
-								)
-							: null}
+						formatScoreOutputMetadata(
+							score.disclosure === 'visible' ? score.nValidTotal : null,
+							score.disclosure === 'visible' ? score.nExpectedTotal : null,
+							score.disclosure === 'visible' ? score.missingPolicyStatusSummary : null,
+							{
+								calculationLabel: score.calculationLabel,
+								scoreRangeMin: score.scoreRangeMin,
+								scoreRangeMax: score.scoreRangeMax
+							}
+						)}
 					<article class="score-card" aria-label={reportsUi.reportScoreAria(score.dimensionCode)}>
 						<div>
-							<p class="score-card__label">{score.dimensionCode}</p>
+							<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
 							<p
 								class={score.disclosure === 'visible'
 									? 'score-card__value'

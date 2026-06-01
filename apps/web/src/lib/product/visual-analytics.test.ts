@@ -30,6 +30,25 @@ describe('selected-series visual analytics view models', () => {
 		]);
 	});
 
+	it('uses score output labels and method metadata in report chart points', () => {
+		const view = toReportVisualAnalyticsView({
+			...sampleReportProof,
+			scores: [
+				{
+					...sampleReportProof.scores[0],
+					displayLabel: 'Recovery readiness index',
+					calculationLabel: 'Normalized 0-100 weighted average',
+					scoreRangeMin: 0,
+					scoreRangeMax: 100
+				}
+			]
+		});
+
+		expect(view.points[0]?.label).toBe('Recovery readiness index');
+		expect(view.points[0]?.meta).toContain('Normalized 0-100 weighted average');
+		expect(view.points[0]?.meta).toContain('score range 0-100');
+	});
+
 	it('keeps suppressed report rows out of numeric chart points', () => {
 		const view = toReportVisualAnalyticsView(sampleReportProof);
 
@@ -75,6 +94,28 @@ describe('selected-series visual analytics view models', () => {
 				meta: ['baseline 3.70', 'comparison 3.40', 'linked pairs 6']
 			}
 		]);
+	});
+
+	it('uses score output labels and method metadata in wave chart points', () => {
+		const view = toWaveVisualAnalyticsView({
+			...sampleWaveComparisonProof,
+			scores: [
+				{
+					...sampleWaveComparisonProof.scores[0],
+					displayLabel: 'Recovery readiness index',
+					baselineCalculationLabel: 'Normalized 0-100 weighted average',
+					baselineScoreRangeMin: 0,
+					baselineScoreRangeMax: 100,
+					comparisonCalculationLabel: 'Normalized 0-100 weighted average',
+					comparisonScoreRangeMin: 0,
+					comparisonScoreRangeMax: 100
+				}
+			]
+		});
+
+		expect(view.points[0]?.label).toBe('Recovery readiness index');
+		expect(view.points[0]?.meta).toContain('baseline Normalized 0-100 weighted average / score range 0-100');
+		expect(view.points[0]?.meta).toContain('comparison Normalized 0-100 weighted average / score range 0-100');
 	});
 
 	it('localizes visual analytics chart chrome and metric labels for Croatian', () => {

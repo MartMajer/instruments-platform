@@ -812,7 +812,11 @@ public sealed record ResultsDashboardBarResponse(
     decimal? Value,
     int? Count,
     string? Detail,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);
 
 public sealed record ResultsDashboardPointResponse(
     string Id,
@@ -826,7 +830,11 @@ public sealed record ResultsDashboardPointResponse(
     string ComparisonState,
     string DataFinality,
     int? Count,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);
 
 public sealed record ResultsDashboardNoteResponse(
     string Kind,
@@ -858,7 +866,11 @@ public sealed record CampaignSeriesResultsScoreOutputResponse(
     int? NValidTotal,
     int? NExpectedTotal,
     string? MissingPolicyStatusSummary,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);
 
 public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
     string GroupType,
@@ -873,7 +885,11 @@ public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
     decimal? StandardDeviation,
     decimal? Min,
     decimal? Max,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);
 
 public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
     Guid CampaignId,
@@ -894,7 +910,11 @@ public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
     string? SuppressionReason,
     decimal? DeltaFromPreviousMean = null,
     decimal? DeltaFromFirstMean = null,
-    string ComparisonState = "not_comparable");
+    string ComparisonState = "not_comparable",
+    string? Calculation = null,
+    string? CalculationLabel = null,
+    decimal? ScoreRangeMin = null,
+    decimal? ScoreRangeMax = null);
 
 public sealed record CampaignSeriesResultsInsightResponse(
     string Kind,
