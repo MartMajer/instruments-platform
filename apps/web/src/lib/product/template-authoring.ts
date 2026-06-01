@@ -83,8 +83,29 @@ export type MeanScoringDocumentOptions = {
 	minValidCount?: number;
 };
 
-export type ScoreCalculation = 'mean' | 'sum';
+export type ScoreCalculation =
+	| 'mean'
+	| 'sum'
+	| 'weighted_mean'
+	| 'weighted_sum'
+	| 'normalized_mean_0_100'
+	| 'normalized_sum_0_100'
+	| 'normalized_weighted_mean_0_100'
+	| 'normalized_weighted_sum_0_100'
+	| 'count_valid'
+	| 'composite_mean'
+	| 'composite_sum'
+	| 'composite_weighted_mean'
+	| 'composite_weighted_sum'
+	| 'difference';
 export type ScoreMissingStrategy = 'require_all' | 'min_valid_count';
+
+export type ScoreInterpretationBandAuthoringRow = {
+	code: string;
+	label: string;
+	min: number;
+	max: number;
+};
 
 export type ScoreOutputAuthoringRow = {
 	localId: string;
@@ -94,6 +115,15 @@ export type ScoreOutputAuthoringRow = {
 	missingStrategy: ScoreMissingStrategy;
 	minValidCount: number;
 	includedQuestionCodes: string[];
+	itemWeights?: Record<string, number>;
+	sourceOutputCodes?: string[];
+	sourceWeights?: Record<string, number>;
+	leftOutputCode?: string;
+	rightOutputCode?: string;
+	scoreRangeMin?: number | null;
+	scoreRangeMax?: number | null;
+	interpretationBands?: ScoreInterpretationBandAuthoringRow[];
+	interpretationProvenance?: string;
 };
 
 export type ScorePlanOutputSummary = {
@@ -921,6 +951,7 @@ export function validateScoreOutputRows(
 	outputs.forEach((output, index) => {
 		const label = output.name.trim() || `Result ${index + 1}`;
 		const code = scoreCode(output.code || output.name);
+		const previousCodes = new Set(seenCodes);
 
 		if (!output.name.trim()) {
 			errors.push(`Result ${index + 1} needs a name.`);
@@ -937,7 +968,7 @@ export function validateScoreOutputRows(
 		const selectedCodes = output.includedQuestionCodes.filter((questionCode) =>
 			eligibleCodeSet.has(questionCode.trim().toLowerCase())
 		);
-		if (!selectedCodes.length) {
+		if (isQuestionBackedCalculation(output.calculation) && !selectedCodes.length) {
 			errors.push(`${label} needs at least one rating, recommendation, or number question.`);
 		}
 
@@ -946,8 +977,71 @@ export function validateScoreOutputRows(
 			errors.push(compatibilityWarning);
 		}
 
+		if (isNormalizedCalculation(output.calculation)) {
+			for (const selectedCode of selectedCodes) {
+				const row = rows.find(
+					(candidate) =>
+						candidate.code.trim().toLowerCase() === selectedCode.trim().toLowerCase()
+				);
+				if (row && !normalizationScaleForQuestion(row)) {
+					errors.push(
+						`${label} needs a numeric source range for ${row.code} before it can normalize to 0-100.`
+					);
+				}
+			}
+		}
+
+		if (usesItemWeights(output.calculation)) {
+			validatePositiveWeights(
+				output.itemWeights,
+				new Set(selectedCodes.map((selectedCode) => scoreCode(selectedCode))),
+				label,
+				'selected question',
+				errors
+			);
+		}
+
+		if (isCompositeCalculation(output.calculation)) {
+			const sourceCodes = normalizeSourceOutputCodes(output);
+			if (sourceCodes.length < 2) {
+				errors.push(`${label} needs at least two earlier result outputs to combine.`);
+			}
+
+			for (const sourceCode of sourceCodes) {
+				if (!previousCodes.has(sourceCode)) {
+					errors.push(`${label} can only combine earlier result outputs.`);
+					break;
+				}
+			}
+
+			validatePositiveWeights(
+				output.sourceWeights,
+				new Set(sourceCodes),
+				label,
+				'source result',
+				errors
+			);
+		}
+
+		if (output.calculation === 'difference') {
+			const { left, right } = normalizeDifferenceSourceCodes(output);
+			if (!left || !right) {
+				errors.push(`${label} needs two earlier result outputs to subtract.`);
+			} else if (left === right) {
+				errors.push(`${label} needs two different result outputs to subtract.`);
+			} else if (!previousCodes.has(left) || !previousCodes.has(right)) {
+				errors.push(`${label} can only subtract earlier result outputs.`);
+			}
+		}
+
+		const bands = normalizeInterpretationBands(output);
+		if ((output.interpretationBands?.length ?? 0) > 0 && bands.length === 0) {
+			errors.push(`${label} interpretation bands need code, label, min, and max values.`);
+		}
+
 		if (
 			output.missingStrategy === 'min_valid_count' &&
+			isQuestionBackedCalculation(output.calculation) &&
 			(!Number.isFinite(output.minValidCount) || Math.trunc(output.minValidCount) < 1)
 		) {
 			errors.push(`${label} needs a positive minimum answered count.`);
@@ -955,6 +1049,7 @@ export function validateScoreOutputRows(
 
 		if (
 			output.missingStrategy === 'min_valid_count' &&
+			isQuestionBackedCalculation(output.calculation) &&
 			selectedCodes.length > 0 &&
 			Math.trunc(output.minValidCount) > selectedCodes.length
 		) {
@@ -977,15 +1072,50 @@ export function buildScoringDocument(
 	const normalizedOutputs = normalizeScoreOutputs(outputs, rows);
 	const reverseCodedRows = rows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
 	const reverseScale = reverseCodedRows[0] ?? rows.find((row) => isScaleBackedType(row.type));
-	const inputs = [];
-	const nodes = [];
-	const outputDefinitions = [];
+	const inputs: Array<{ id: string; kind: 'answers'; items: string[] }> = [];
+	const nodes: Array<Record<string, unknown>> = [];
+	const outputDefinitions: Array<{ code: string; node: string }> = [];
 
 	for (const output of normalizedOutputs) {
+		const scoreNodeId = scoreNodeIdForCode(output.code);
+
+		if (isCompositeCalculation(output.calculation)) {
+			const sourceCodes = normalizeSourceOutputCodes(output);
+			const sourceNodeIds = sourceCodes.map(scoreNodeIdForCode);
+			const method = compositeMethodForCalculation(output.calculation);
+			const node: Record<string, unknown> = {
+				id: scoreNodeId,
+				op: 'combine',
+				inputs: sourceNodeIds,
+				method
+			};
+
+			const weights = normalizeSourceWeights(output.sourceWeights, sourceCodes);
+			if (Object.keys(weights).length > 0) {
+				node.weights = weights;
+			}
+
+			nodes.push(node);
+			outputDefinitions.push({ code: output.code, node: scoreNodeId });
+			continue;
+		}
+
+		if (output.calculation === 'difference') {
+			const { left, right } = normalizeDifferenceSourceCodes(output);
+			nodes.push({
+				id: scoreNodeId,
+				op: 'difference',
+				left: scoreNodeIdForCode(left),
+				right: scoreNodeIdForCode(right)
+			});
+			outputDefinitions.push({ code: output.code, node: scoreNodeId });
+			continue;
+		}
+
 		const inputId = `${output.code}_items`;
 		const answersId = `${output.code}_answers`;
 		const reverseId = `${output.code}_scored_answers`;
-		const scoreNodeId = `${output.code}_score`;
+		const normalizedAnswersId = `${output.code}_normalized_answers`;
 		const outputRows = rows.filter((row) =>
 			output.includedQuestionCodes.some(
 				(code) => code.trim().toLowerCase() === row.code.trim().toLowerCase()
@@ -994,12 +1124,20 @@ export function buildScoringDocument(
 		const outputReverseRows = outputRows.filter(
 			(row) => row.reverseCoded && isScaleBackedType(row.type)
 		);
-		const aggregateInput = reverseScale && outputReverseRows.length > 0 ? reverseId : answersId;
+		let aggregateInput = answersId;
 
 		inputs.push({ id: inputId, kind: 'answers', items: outputRows.map((row) => row.code.trim()) });
 		nodes.push({ id: answersId, op: 'select_answers', input: inputId });
 
-		if (reverseScale && outputReverseRows.length > 0) {
+		if (isNormalizedCalculation(output.calculation)) {
+			nodes.push({
+				id: normalizedAnswersId,
+				op: 'normalize_0_100',
+				input: answersId,
+				source_scales: sourceScalesForRows(outputRows)
+			});
+			aggregateInput = normalizedAnswersId;
+		} else if (reverseScale && outputReverseRows.length > 0) {
 			nodes.push({
 				id: reverseId,
 				op: 'reverse_code',
@@ -1008,14 +1146,25 @@ export function buildScoringDocument(
 				reverse_flag_source: 'explicit_list',
 				explicit_reverse_items: outputReverseRows.map((row) => row.code.trim())
 			});
+			aggregateInput = reverseId;
 		}
 
-		nodes.push({
+		const aggregateNode: Record<string, unknown> = {
 			id: scoreNodeId,
-			op: output.calculation,
-			input: aggregateInput,
-			missing_data: missingPolicyDocument(output)
-		});
+			op: aggregateOperationForCalculation(output.calculation),
+			input: aggregateInput
+		};
+
+		if (output.calculation !== 'count_valid') {
+			aggregateNode.missing_data = missingPolicyDocument(output);
+		}
+
+		const weights = normalizeItemWeights(output.itemWeights, outputRows);
+		if (usesItemWeights(output.calculation) && Object.keys(weights).length > 0) {
+			aggregateNode.weights = weights;
+		}
+
+		nodes.push(aggregateNode);
 		outputDefinitions.push({ code: output.code, node: scoreNodeId });
 	}
 
@@ -1043,9 +1192,44 @@ export function buildScoringDocument(
 }
 
 export function buildScoreProduces(outputs: ScoreOutputAuthoringRow[]): string {
+	const outputMetadata = outputs
+		.map((output) => {
+			const code = scoreCode(output.code || output.name);
+			if (!code) {
+				return null;
+			}
+
+			const range = scoreOutputRange(output);
+			return {
+				code,
+				label: output.name.trim() || code,
+				calculation: output.calculation,
+				calculation_label: scoreCalculationLabel(output.calculation),
+				...(range ? { score_range: range } : {})
+			};
+		})
+		.filter((output): output is NonNullable<typeof output> => output !== null);
+	const interpretationScores = Object.fromEntries(
+		outputs
+			.map((output) => [scoreCode(output.code || output.name), normalizeInterpretationBands(output)] as const)
+			.filter(([code, bands]) => code && bands.length > 0)
+	);
+	const hasInterpretation = Object.keys(interpretationScores).length > 0;
+
 	return JSON.stringify(
 		{
-			scores: normalizeScoreCodes(outputs)
+			scores: normalizeScoreCodes(outputs),
+			outputs: outputMetadata,
+			...(hasInterpretation
+				? {
+						interpretation: {
+							status: 'tenant_attested',
+							source: 'tenant_defined',
+							provenance: interpretationProvenance(outputs),
+							scores: interpretationScores
+						}
+					}
+				: {})
 		},
 		null,
 		2
@@ -1265,7 +1449,7 @@ export function summarizeScorePlan(
 				(row) => row.reverseCoded && isScaleBackedType(row.type)
 			).length,
 			conditionalQuestionCount,
-			calculationLabel: output.calculation === 'sum' ? 'Sum score' : 'Mean score',
+			calculationLabel: scoreCalculationLabel(output.calculation),
 			missingPolicyLabel:
 				output.missingStrategy === 'min_valid_count'
 					? `Requires at least ${Math.max(1, Math.trunc(output.minValidCount || 1))} selected questions`
@@ -1623,10 +1807,247 @@ function normalizeScoreCodes(outputs: ScoreOutputAuthoringRow[]) {
 	return outputs.map((output) => scoreCode(output.code || output.name)).filter(Boolean);
 }
 
+function isQuestionBackedCalculation(calculation: ScoreCalculation): boolean {
+	return !isCompositeCalculation(calculation) && calculation !== 'difference';
+}
+
+function isCompositeCalculation(calculation: ScoreCalculation): boolean {
+	return calculation.startsWith('composite_');
+}
+
+function isNormalizedCalculation(calculation: ScoreCalculation): boolean {
+	return calculation.startsWith('normalized_');
+}
+
+function usesItemWeights(calculation: ScoreCalculation): boolean {
+	return calculation === 'weighted_mean' ||
+		calculation === 'weighted_sum' ||
+		calculation === 'normalized_weighted_mean_0_100' ||
+		calculation === 'normalized_weighted_sum_0_100';
+}
+
+function aggregateOperationForCalculation(calculation: ScoreCalculation): string {
+	switch (calculation) {
+		case 'weighted_mean':
+		case 'normalized_weighted_mean_0_100':
+			return 'weighted_mean';
+		case 'weighted_sum':
+		case 'normalized_weighted_sum_0_100':
+			return 'weighted_sum';
+		case 'normalized_mean_0_100':
+			return 'mean';
+		case 'normalized_sum_0_100':
+			return 'sum';
+		case 'count_valid':
+			return 'count_valid';
+		case 'sum':
+			return 'sum';
+		default:
+			return 'mean';
+	}
+}
+
+function compositeMethodForCalculation(calculation: ScoreCalculation): string {
+	switch (calculation) {
+		case 'composite_sum':
+			return 'sum';
+		case 'composite_weighted_mean':
+			return 'weighted_mean';
+		case 'composite_weighted_sum':
+			return 'weighted_sum';
+		default:
+			return 'mean';
+	}
+}
+
+function scoreCalculationLabel(calculation: ScoreCalculation): string {
+	switch (calculation) {
+		case 'sum':
+			return 'Sum score';
+		case 'weighted_mean':
+			return 'Weighted average';
+		case 'weighted_sum':
+			return 'Weighted sum';
+		case 'normalized_mean_0_100':
+			return 'Normalized 0-100 average';
+		case 'normalized_sum_0_100':
+			return 'Normalized 0-100 sum';
+		case 'normalized_weighted_mean_0_100':
+			return 'Normalized 0-100 weighted average';
+		case 'normalized_weighted_sum_0_100':
+			return 'Normalized 0-100 weighted sum';
+		case 'count_valid':
+			return 'Valid answer count';
+		case 'composite_mean':
+			return 'Composite average';
+		case 'composite_sum':
+			return 'Composite sum';
+		case 'composite_weighted_mean':
+			return 'Composite weighted average';
+		case 'composite_weighted_sum':
+			return 'Composite weighted sum';
+		case 'difference':
+			return 'Difference score';
+		default:
+			return 'Mean score';
+	}
+}
+
+function scoreNodeIdForCode(code: string): string {
+	return `${scoreCode(code)}_score`;
+}
+
+function normalizeSourceOutputCodes(output: ScoreOutputAuthoringRow): string[] {
+	return [...new Set((output.sourceOutputCodes ?? []).map(scoreCode).filter(Boolean))];
+}
+
+function normalizeDifferenceSourceCodes(output: ScoreOutputAuthoringRow): {
+	left: string;
+	right: string;
+} {
+	const sourceCodes = normalizeSourceOutputCodes(output);
+	return {
+		left: scoreCode(output.leftOutputCode ?? sourceCodes[0] ?? ''),
+		right: scoreCode(output.rightOutputCode ?? sourceCodes[1] ?? '')
+	};
+}
+
+function normalizeItemWeights(
+	weights: Record<string, number> | undefined,
+	rows: TemplateQuestionAuthoringRow[]
+): Record<string, number> {
+	const allowedCodes = new Set(rows.map((row) => scoreCode(row.code)));
+	return normalizeWeights(weights, allowedCodes, (code) => code);
+}
+
+function normalizeSourceWeights(
+	weights: Record<string, number> | undefined,
+	sourceCodes: string[]
+): Record<string, number> {
+	const allowedCodes = new Set(sourceCodes);
+	return normalizeWeights(weights, allowedCodes, scoreNodeIdForCode);
+}
+
+function normalizeWeights(
+	weights: Record<string, number> | undefined,
+	allowedCodes: Set<string>,
+	keyMapper: (code: string) => string
+): Record<string, number> {
+	const normalized: Record<string, number> = {};
+	for (const [rawCode, rawValue] of Object.entries(weights ?? {})) {
+		const code = scoreCode(rawCode);
+		if (!allowedCodes.has(code) || !Number.isFinite(rawValue) || rawValue <= 0) {
+			continue;
+		}
+
+		normalized[keyMapper(code)] = rawValue;
+	}
+
+	return normalized;
+}
+
+function validatePositiveWeights(
+	weights: Record<string, number> | undefined,
+	allowedCodes: Set<string>,
+	label: string,
+	subject: string,
+	errors: string[]
+) {
+	for (const [rawCode, rawValue] of Object.entries(weights ?? {})) {
+		const code = scoreCode(rawCode);
+		if (!allowedCodes.has(code)) {
+			errors.push(`${label} weight ${code || rawCode} does not match a ${subject}.`);
+			continue;
+		}
+
+		if (!Number.isFinite(rawValue) || rawValue <= 0) {
+			errors.push(`${label} weight for ${code} must be a positive number.`);
+		}
+	}
+}
+
+function normalizationScaleForQuestion(
+	row: TemplateQuestionAuthoringRow
+): { min: number; max: number; reverse?: boolean } | null {
+	const min = row.type === 'number' ? nullableNumber(row.numberMin) ?? row.scaleMin : row.scaleMin;
+	const max = row.type === 'number' ? nullableNumber(row.numberMax) ?? row.scaleMax : row.scaleMax;
+	if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) {
+		return null;
+	}
+
+	return {
+		min,
+		max,
+		...(row.reverseCoded ? { reverse: true } : {})
+	};
+}
+
+function sourceScalesForRows(rows: TemplateQuestionAuthoringRow[]) {
+	return Object.fromEntries(
+		rows
+			.map((row) => [scoreCode(row.code), normalizationScaleForQuestion(row)] as const)
+			.filter((entry): entry is [string, { min: number; max: number; reverse?: boolean }] =>
+				Boolean(entry[0] && entry[1])
+			)
+	);
+}
+
+function scoreOutputRange(output: ScoreOutputAuthoringRow): { min: number; max: number } | null {
+	const min = nullableNumber(output.scoreRangeMin);
+	const max = nullableNumber(output.scoreRangeMax);
+	if (min !== null && max !== null && min < max) {
+		return { min, max };
+	}
+
+	if (isNormalizedCalculation(output.calculation)) {
+		return { min: 0, max: 100 };
+	}
+
+	return null;
+}
+
+function normalizeInterpretationBands(output: ScoreOutputAuthoringRow) {
+	return (output.interpretationBands ?? [])
+		.map((band) => ({
+			code: scoreCode(band.code),
+			label: band.label.trim(),
+			min: nullableNumber(band.min),
+			max: nullableNumber(band.max)
+		}))
+		.filter(
+			(
+				band
+			): band is {
+				code: string;
+				label: string;
+				min: number;
+				max: number;
+			} =>
+				Boolean(
+					band.code &&
+						band.label &&
+						band.min !== null &&
+						band.max !== null &&
+						band.min <= band.max
+				)
+		);
+}
+
+function interpretationProvenance(outputs: ScoreOutputAuthoringRow[]): string {
+	return (
+		outputs.find((output) => output.interpretationProvenance?.trim())?.interpretationProvenance?.trim() ??
+		'Tenant-defined interpretation bands. Not official norms or validated thresholds.'
+	);
+}
+
 function scoreScaleCompatibilityWarning(
-	output: Pick<ScoreOutputAuthoringRow, 'name' | 'code' | 'includedQuestionCodes'>,
+	output: Pick<ScoreOutputAuthoringRow, 'name' | 'code' | 'calculation' | 'includedQuestionCodes'>,
 	rows: TemplateQuestionAuthoringRow[]
 ): string | null {
+	if (!isQuestionBackedCalculation(output.calculation) || isNormalizedCalculation(output.calculation)) {
+		return null;
+	}
+
 	const rowByCode = new Map(rows.map((row) => [row.code.trim().toLowerCase(), row]));
 	const families = new Map<string, string>();
 
@@ -1647,7 +2068,7 @@ function scoreScaleCompatibilityWarning(
 	const label = output.name.trim() || output.code.trim() || 'Result output';
 	return `${label} mixes incompatible answer scales: ${formatInlineList([
 		...families.values()
-	])}. Create separate result outputs or normalize outside this release.`;
+	])}. Use a normalized 0-100 calculation before combining these scales, or create separate result outputs.`;
 }
 
 function scoreScaleFamilyForQuestion(row: TemplateQuestionAuthoringRow): {

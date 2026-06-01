@@ -352,7 +352,226 @@ describe('template authoring helpers', () => {
 			{ code: 'exhaustion', node: 'exhaustion_score' },
 			{ code: 'recovery', node: 'recovery_score' }
 		]);
-		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({ scores: ['exhaustion', 'recovery'] });
+		expect(JSON.parse(buildScoreProduces(outputs))).toMatchObject({
+			scores: ['exhaustion', 'recovery']
+		});
+	});
+
+	it('builds weighted result outputs with explicit item weights', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Weighted workload',
+				code: 'weighted_workload',
+				calculation: 'weighted_mean' as const,
+				includedQuestionCodes: ['q01', 'q03'],
+				itemWeights: { q01: 2, q03: 1 }
+			}
+		];
+		const document = JSON.parse(buildScoringDocument('tenant-rule.weighted', rows, outputs)) as {
+			nodes: Array<{
+				id: string;
+				op: string;
+				input?: string;
+				weights?: Record<string, number>;
+			}>;
+		};
+
+		expect(validateScoreOutputRows(outputs, rows)).toEqual([]);
+		expect(document.nodes.find((node) => node.id === 'weighted_workload_score')).toMatchObject({
+			op: 'weighted_mean',
+			input: 'weighted_workload_scored_answers',
+			weights: { q01: 2, q03: 1 }
+		});
+	});
+
+	it('normalizes mixed-scale answers to 0-100 before aggregation', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0] = {
+			...rows[0],
+			code: 'posture_frequency',
+			dimensionLabel: 'Exposure',
+			scalePreset: 'frequency_5',
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Always'
+		};
+		rows[1] = {
+			...rows[1],
+			code: 'discomfort',
+			dimensionLabel: 'Discomfort',
+			type: 'number',
+			scalePreset: 'discomfort_0_10',
+			scaleMin: 0,
+			scaleMax: 10,
+			scaleLowLabel: 'No discomfort',
+			scaleHighLabel: 'Worst imaginable discomfort',
+			numberMin: 0,
+			numberMax: 10
+		};
+		rows[2] = {
+			...rows[2],
+			code: 'control',
+			dimensionLabel: 'Control',
+			reverseCoded: true
+		};
+		const outputs = [
+			{
+				localId: 'score-normalized-risk',
+				name: 'Normalized risk index',
+				code: 'normalized_risk_index',
+				calculation: 'normalized_weighted_mean_0_100' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: ['posture_frequency', 'discomfort', 'control'],
+				itemWeights: { posture_frequency: 1, discomfort: 2, control: 1 }
+			}
+		];
+		const document = JSON.parse(buildScoringDocument('tenant-rule.normalized', rows, outputs)) as {
+			nodes: Array<{
+				id: string;
+				op: string;
+				input?: string;
+				source_scales?: Record<string, { min: number; max: number; reverse?: boolean }>;
+				weights?: Record<string, number>;
+			}>;
+		};
+
+		expect(validateScoreOutputRows(outputs, rows)).toEqual([]);
+		expect(
+			document.nodes.find((node) => node.id === 'normalized_risk_index_normalized_answers')
+		).toMatchObject({
+			op: 'normalize_0_100',
+			input: 'normalized_risk_index_answers',
+			source_scales: {
+				posture_frequency: { min: 1, max: 5 },
+				discomfort: { min: 0, max: 10 },
+				control: { min: 1, max: 5, reverse: true }
+			}
+		});
+		expect(document.nodes.find((node) => node.id === 'normalized_risk_index_score')).toMatchObject({
+			op: 'weighted_mean',
+			input: 'normalized_risk_index_normalized_answers',
+			weights: { posture_frequency: 1, discomfort: 2, control: 1 }
+		});
+	});
+
+	it('builds composite and difference outputs from earlier scalar result outputs', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Workload',
+				code: 'workload',
+				includedQuestionCodes: ['q01']
+			},
+			{
+				localId: 'score-recovery',
+				name: 'Recovery',
+				code: 'recovery',
+				calculation: 'mean' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: ['q02']
+			},
+			{
+				localId: 'score-priority',
+				name: 'Priority index',
+				code: 'priority_index',
+				calculation: 'composite_weighted_mean' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: [],
+				sourceOutputCodes: ['workload', 'recovery'],
+				sourceWeights: { workload: 2, recovery: 1 }
+			},
+			{
+				localId: 'score-gap',
+				name: 'Workload recovery gap',
+				code: 'workload_recovery_gap',
+				calculation: 'difference' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: [],
+				leftOutputCode: 'workload',
+				rightOutputCode: 'recovery'
+			}
+		];
+		const document = JSON.parse(buildScoringDocument('tenant-rule.composite', rows, outputs)) as {
+			nodes: Array<{
+				id: string;
+				op: string;
+				inputs?: string[];
+				method?: string;
+				weights?: Record<string, number>;
+				left?: string;
+				right?: string;
+			}>;
+			outputs: Array<{ code: string; node: string }>;
+		};
+
+		expect(validateScoreOutputRows(outputs, rows)).toEqual([]);
+		expect(document.nodes.find((node) => node.id === 'priority_index_score')).toMatchObject({
+			op: 'combine',
+			inputs: ['workload_score', 'recovery_score'],
+			method: 'weighted_mean',
+			weights: { workload_score: 2, recovery_score: 1 }
+		});
+		expect(document.nodes.find((node) => node.id === 'workload_recovery_gap_score')).toMatchObject({
+			op: 'difference',
+			left: 'workload_score',
+			right: 'recovery_score'
+		});
+		expect(document.outputs).toEqual([
+			{ code: 'workload', node: 'workload_score' },
+			{ code: 'recovery', node: 'recovery_score' },
+			{ code: 'priority_index', node: 'priority_index_score' },
+			{ code: 'workload_recovery_gap', node: 'workload_recovery_gap_score' }
+		]);
+	});
+
+	it('includes result output metadata and tenant-defined interpretation bands in produces', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Normalized workload',
+				code: 'normalized_workload',
+				calculation: 'normalized_mean_0_100' as const,
+				scoreRangeMin: 0,
+				scoreRangeMax: 100,
+				interpretationBands: [
+					{ code: 'low', label: 'Lower concern', min: 0, max: 33.33 },
+					{ code: 'moderate', label: 'Moderate concern', min: 33.34, max: 66.66 },
+					{ code: 'high', label: 'Higher concern', min: 66.67, max: 100 }
+				]
+			}
+		];
+
+		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({
+			scores: ['normalized_workload'],
+			outputs: [
+				{
+					code: 'normalized_workload',
+					label: 'Normalized workload',
+					calculation: 'normalized_mean_0_100',
+					calculation_label: 'Normalized 0-100 average',
+					score_range: { min: 0, max: 100 }
+				}
+			],
+			interpretation: {
+				status: 'tenant_attested',
+				source: 'tenant_defined',
+				provenance: 'Tenant-defined interpretation bands. Not official norms or validated thresholds.',
+				scores: {
+					normalized_workload: [
+						{ code: 'low', label: 'Lower concern', min: 0, max: 33.33 },
+						{ code: 'moderate', label: 'Moderate concern', min: 33.34, max: 66.66 },
+						{ code: 'high', label: 'Higher concern', min: 66.67, max: 100 }
+					]
+				}
+			}
+		});
 	});
 
 	it('describes scoring direction and result usage in researcher-facing language', () => {
@@ -588,15 +807,65 @@ describe('scoring plan summaries', () => {
 		];
 
 		expect(validateScoreOutputRows(outputs, rows)).toContain(
-			'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Create separate result outputs or normalize outside this release.'
+			'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Use a normalized 0-100 calculation before combining these scales, or create separate result outputs.'
 		);
 		expect(summarizeResultsBlueprintReview(rows, outputs).items).toContainEqual({
 			id: 'scale_compatibility',
 			label: 'Scale compatibility',
 			status: 'attention',
 			detail:
-				'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Create separate result outputs or normalize outside this release.'
+				'Unsafe total score mixes incompatible answer scales: Frequency scale, Discomfort severity, 0-10, and Agreement scale. Use a normalized 0-100 calculation before combining these scales, or create separate result outputs.'
 		});
+	});
+
+	it('summarizes advanced scoring methods in the result plan', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				name: 'Weighted workload',
+				code: 'weighted_workload',
+				calculation: 'weighted_mean' as const,
+				includedQuestionCodes: ['q01', 'q03']
+			},
+			{
+				localId: 'score-normalized',
+				name: 'Normalized recovery',
+				code: 'normalized_recovery',
+				calculation: 'normalized_mean_0_100' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: ['q02']
+			},
+			{
+				localId: 'score-composite',
+				name: 'Composite priority',
+				code: 'composite_priority',
+				calculation: 'composite_weighted_mean' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: [],
+				sourceOutputCodes: ['weighted_workload', 'normalized_recovery']
+			},
+			{
+				localId: 'score-difference',
+				name: 'Workload recovery gap',
+				code: 'workload_recovery_gap',
+				calculation: 'difference' as const,
+				missingStrategy: 'require_all' as const,
+				minValidCount: 1,
+				includedQuestionCodes: [],
+				leftOutputCode: 'weighted_workload',
+				rightOutputCode: 'normalized_recovery'
+			}
+		];
+
+		expect(summarizeScorePlan(outputs, rows).map((output) => output.calculationLabel)).toEqual([
+			'Weighted average',
+			'Normalized 0-100 average',
+			'Composite weighted average',
+			'Difference score'
+		]);
 	});
 });
 
