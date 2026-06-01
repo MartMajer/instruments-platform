@@ -4739,6 +4739,111 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Campaign_identified_queue_access_store_reports_existing_after_concurrent_create_race()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        var runtimeOptions = CreateRuntimeOptions();
+        await using var tenantDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "queue.race.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"queue.race.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue access race study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Identified queue access race wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var respondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            displayName: "Queue Race Respondent",
+            email: "queue-race@example.test");
+        var audience = new Audience(Guid.NewGuid(), campaign.Value.Id);
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.Add(respondent);
+            tenantDb.Audiences.Add(audience);
+            tenantDb.AudienceMembers.Add(new AudienceMember(audience.Id, respondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+
+        var competingInsertInterceptor = new InsertCompetingIdentifiedQueueTokensInterceptor(runtimeOptions);
+        await using var racingDb = new ApplicationDbContext(CreateRuntimeOptions(competingInsertInterceptor));
+        var racingStore = new SetupWorkflowStore(racingDb, new TenantDbScope(racingDb));
+
+        var result = await racingStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(0, result.Value.CreatedAccessCount);
+        Assert.Equal(1, result.Value.ExistingAccessCount);
+        var response = Assert.Single(result.Value.Respondents);
+        Assert.Equal(respondent.Id, response.RespondentSubjectId);
+        Assert.Equal("existing", response.AccessStatus);
+        Assert.Null(response.Token);
+        Assert.Null(response.RespondentPath);
+
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var tokens = await tenantDb.InvitationTokens
+            .Where(token =>
+                token.CampaignId == campaign.Value.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue)
+            .ToListAsync();
+        var token = Assert.Single(tokens);
+        Assert.Equal(respondent.Id, token.RespondentSubjectId);
+        Assert.NotEqual(token.TokenHash, response.Token);
+        Assert.DoesNotStartWith("idq_", token.TokenHash, StringComparison.Ordinal);
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Campaign_identified_queue_access_store_fails_closed_for_unsupported_or_unready_campaigns()
     {
         var tenantId = Guid.NewGuid();
@@ -10123,6 +10228,66 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _postgres.DisposeAsync();
+    }
+
+    private sealed class InsertCompetingIdentifiedQueueTokensInterceptor(
+        DbContextOptions<ApplicationDbContext> runtimeOptions) : SaveChangesInterceptor
+    {
+        private int _inserted;
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Exchange(ref _inserted, 1) != 0 || eventData.Context is null)
+            {
+                return result;
+            }
+
+            var queueCredentials = eventData.Context.ChangeTracker
+                .Entries<InvitationToken>()
+                .Where(entry =>
+                    entry.State == EntityState.Added &&
+                    entry.Entity.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                    entry.Entity.RespondentSubjectId.HasValue)
+                .Select(entry => new
+                {
+                    entry.Entity.TenantId,
+                    entry.Entity.CampaignId,
+                    RespondentSubjectId = entry.Entity.RespondentSubjectId!.Value
+                })
+                .Distinct()
+                .ToArray();
+
+            if (queueCredentials.Length == 0)
+            {
+                return result;
+            }
+
+            await using var db = new ApplicationDbContext(runtimeOptions);
+            var tenantDbScope = new TenantDbScope(db);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(
+                queueCredentials[0].TenantId,
+                cancellationToken: cancellationToken);
+
+            for (var index = 0; index < queueCredentials.Length; index++)
+            {
+                var credential = queueCredentials[index];
+                db.InvitationTokens.Add(new InvitationToken(
+                    PlatformIds.NewId(),
+                    credential.TenantId,
+                    credential.CampaignId,
+                    $"competing-identified-queue-token-hash-{index}",
+                    InvitationTokenChannels.IdentifiedQueue,
+                    respondentSubjectId: credential.RespondentSubjectId));
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return result;
+        }
     }
 
     private DbContextOptions<ApplicationDbContext> CreateMigratorOptions()

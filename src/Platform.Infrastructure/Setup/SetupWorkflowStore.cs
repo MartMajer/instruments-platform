@@ -1192,7 +1192,7 @@ public sealed class SetupWorkflowStore(
             return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
                 Error.Conflict(
                     "identified_queue.duplicate_access",
-                    "A respondent has more than one queue access token. Rotate access after cleanup."));
+                    "A respondent has more than one queue access token. Clean up duplicate credentials or contact support."));
         }
 
         var existingByRespondent = existingTokens.ToDictionary(token => token.RespondentSubjectId!.Value);
@@ -1246,10 +1246,16 @@ public sealed class SetupWorkflowStore(
         }
         catch (DbUpdateException exception) when (IsIdentifiedQueueAccessDuplicate(exception))
         {
-            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
-                Error.Conflict(
-                    "identified_queue.concurrent_access_created",
-                    "Identified queue access was created concurrently. Refresh and use the existing access state."));
+            await transaction.RollbackAsync(cancellationToken);
+            await transaction.DisposeAsync();
+            db.ChangeTracker.Clear();
+
+            return await ReportExistingIdentifiedQueueAccessAsync(
+                tenantId,
+                campaign.Id,
+                assignmentGroups,
+                subjects,
+                cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -1260,6 +1266,76 @@ public sealed class SetupWorkflowStore(
             assignmentGroups.Sum(group => group.AssignmentCount),
             createdCount,
             existingCount,
+            responses));
+    }
+
+    private async Task<Result<CampaignIdentifiedQueueAccessResponse>> ReportExistingIdentifiedQueueAccessAsync(
+        Guid tenantId,
+        Guid campaignId,
+        IReadOnlyList<IdentifiedQueueAssignmentGroup> assignmentGroups,
+        IReadOnlyDictionary<Guid, Subject> subjects,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var respondentSubjectIds = assignmentGroups
+            .Select(group => group.RespondentSubjectId)
+            .ToArray();
+        var existingTokens = await db.InvitationTokens
+            .AsNoTracking()
+            .Where(token =>
+                token.TenantId == tenantId &&
+                token.CampaignId == campaignId &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                token.RespondentSubjectId != null &&
+                respondentSubjectIds.Contains(token.RespondentSubjectId.Value))
+            .ToListAsync(cancellationToken);
+        var duplicateAccess = existingTokens
+            .GroupBy(token => token.RespondentSubjectId!.Value)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateAccess is not null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Conflict(
+                    "identified_queue.duplicate_access",
+                    "A respondent has more than one queue access token. Clean up duplicate credentials or contact support."));
+        }
+
+        var existingByRespondent = existingTokens.ToDictionary(token => token.RespondentSubjectId!.Value);
+        if (existingByRespondent.Count != assignmentGroups.Count)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Conflict(
+                    "identified_queue.concurrent_access_incomplete",
+                    "Identified queue access was created concurrently, but not all credentials are visible yet. Retry setup."));
+        }
+
+        var responses = new List<CampaignIdentifiedQueueAccessRespondentResponse>(assignmentGroups.Count);
+        foreach (var group in assignmentGroups)
+        {
+            var subject = subjects[group.RespondentSubjectId];
+            var invitationToken = existingByRespondent[group.RespondentSubjectId];
+            responses.Add(new CampaignIdentifiedQueueAccessRespondentResponse(
+                group.RespondentSubjectId,
+                CreateQueueRespondentLabel(subject),
+                NormalizeText(subject.Email),
+                group.AssignmentCount,
+                invitationToken.Id,
+                "existing",
+                Token: null,
+                RespondentPath: null));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignIdentifiedQueueAccessResponse(
+            campaignId,
+            assignmentGroups.Count,
+            assignmentGroups.Sum(group => group.AssignmentCount),
+            CreatedAccessCount: 0,
+            ExistingAccessCount: assignmentGroups.Count,
             responses));
     }
 
