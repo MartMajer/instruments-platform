@@ -543,16 +543,16 @@ public static class ScoringRuleValidator
             : Result.Success<IReadOnlyList<string>>(outputCodes);
     }
 
-    private static Result<Dictionary<string, int>> ReadGraphInputs(JsonElement document)
+    private static Result<Dictionary<string, IReadOnlyList<string>>> ReadGraphInputs(JsonElement document)
     {
         if (!document.TryGetProperty("inputs", out var inputs) ||
             inputs.ValueKind != JsonValueKind.Array)
         {
-            return Result.Failure<Dictionary<string, int>>(
+            return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."));
         }
 
-        var inputItemCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var inputItemsById = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var input in inputs.EnumerateArray())
         {
             var id = ReadRequiredString(
@@ -562,13 +562,13 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare an id.");
             if (id.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(id.Error);
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(id.Error);
             }
 
             var normalizedId = NormalizeCode(id.Value);
-            if (inputItemCounts.ContainsKey(normalizedId))
+            if (inputItemsById.ContainsKey(normalizedId))
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                     Error.Validation("score.input_duplicate", $"Scoring rule input '{normalizedId}' is duplicated."));
             }
 
@@ -579,12 +579,12 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare a kind.");
             if (kind.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(kind.Error);
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(kind.Error);
             }
 
             if (NormalizeCode(kind.Value) != "answers")
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                     Error.Validation(
                         "score.input_kind_unsupported",
                         $"Scoring rule input kind '{kind.Value}' is unsupported."));
@@ -593,34 +593,34 @@ public static class ScoringRuleValidator
             if (!input.TryGetProperty("items", out var items) ||
                 items.ValueKind != JsonValueKind.Array)
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input must declare items."));
             }
 
             var itemCodes = ReadStringArray(items, "score.items_missing", "Scoring rule item code");
             if (itemCodes.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(itemCodes.Error);
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(itemCodes.Error);
             }
 
             if (itemCodes.Value.Count == 0)
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input items must not be empty."));
             }
 
-            inputItemCounts.Add(normalizedId, itemCodes.Value.Count);
+            inputItemsById.Add(normalizedId, itemCodes.Value);
         }
 
-        return inputItemCounts.Count == 0
-            ? Result.Failure<Dictionary<string, int>>(
+        return inputItemsById.Count == 0
+            ? Result.Failure<Dictionary<string, IReadOnlyList<string>>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."))
-            : Result.Success(inputItemCounts);
+            : Result.Success(inputItemsById);
     }
 
     private static Result<Dictionary<string, GraphValueType>> ValidateGraphNodes(
         JsonElement document,
-        Dictionary<string, int> inputItemCounts,
+        Dictionary<string, IReadOnlyList<string>> inputItemsById,
         HashSet<string> scaleIds,
         GraphMissingPolicy defaultMissingPolicy)
     {
@@ -633,6 +633,7 @@ public static class ScoringRuleValidator
 
         var nodeTypes = new Dictionary<string, GraphValueType>(StringComparer.Ordinal);
         var vectorItemCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var vectorItemCodes = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var node in nodes.EnumerateArray())
         {
             var id = ReadRequiredString(
@@ -662,32 +663,36 @@ public static class ScoringRuleValidator
                 return Result.Failure<Dictionary<string, GraphValueType>>(op.Error);
             }
 
-            var input = ReadRequiredString(
-                node,
-                "input",
-                "score.node_unknown",
-                "Scoring rule node must declare an input.");
-            if (input.IsFailure)
-            {
-                return Result.Failure<Dictionary<string, GraphValueType>>(input.Error);
-            }
-
-            var inputRef = NormalizeCode(input.Value);
             var normalizedOp = NormalizeCode(op.Value);
             switch (normalizedOp)
             {
                 case "select_answers":
-                    if (!inputItemCounts.TryGetValue(inputRef, out var selectedItemCount))
+                    var selectedInput = ReadNodeInputRef(node);
+                    if (selectedInput.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(selectedInput.Error);
+                    }
+
+                    var selectedInputRef = selectedInput.Value;
+                    if (!inputItemsById.TryGetValue(selectedInputRef, out var selectedItemCodes))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.input_unknown", $"Scoring rule input '{inputRef}' is unknown."));
+                            Error.Validation("score.input_unknown", $"Scoring rule input '{selectedInputRef}' is unknown."));
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Vector);
-                    vectorItemCounts.Add(normalizedId, selectedItemCount);
+                    vectorItemCounts.Add(normalizedId, selectedItemCodes.Count);
+                    vectorItemCodes.Add(normalizedId, selectedItemCodes);
                     break;
 
                 case "reverse_code":
+                    var reverseInput = ReadNodeInputRef(node);
+                    if (reverseInput.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(reverseInput.Error);
+                    }
+
+                    var reverseInputRef = reverseInput.Value;
                     var scale = ReadRequiredString(
                         node,
                         "scale",
@@ -721,10 +726,10 @@ public static class ScoringRuleValidator
                                 $"Scoring rule reverse flag source '{source}' is unsupported."));
                     }
 
-                    if (!TryReadNodeType(nodeTypes, inputRef, out var reverseInputType))
+                    if (!TryReadNodeType(nodeTypes, reverseInputRef, out var reverseInputType))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{reverseInputRef}' is unknown."));
                     }
 
                     if (reverseInputType != GraphValueType.Vector)
@@ -735,23 +740,34 @@ public static class ScoringRuleValidator
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
                     }
 
-                    if (!vectorItemCounts.TryGetValue(inputRef, out var reverseItemCount))
+                    if (!vectorItemCounts.TryGetValue(reverseInputRef, out var reverseItemCount) ||
+                        !vectorItemCodes.TryGetValue(reverseInputRef, out var reverseItemCodes))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{reverseInputRef}' is unknown."));
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Vector);
                     vectorItemCounts.Add(normalizedId, reverseItemCount);
+                    vectorItemCodes.Add(normalizedId, reverseItemCodes);
                     break;
 
                 case "mean":
                 case "sum":
+                case "weighted_mean":
+                case "weighted_sum":
                 case "count_valid":
-                    if (!TryReadNodeType(nodeTypes, inputRef, out var aggregateInputType))
+                    var aggregateInput = ReadNodeInputRef(node);
+                    if (aggregateInput.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(aggregateInput.Error);
+                    }
+
+                    var aggregateInputRef = aggregateInput.Value;
+                    if (!TryReadNodeType(nodeTypes, aggregateInputRef, out var aggregateInputType))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{aggregateInputRef}' is unknown."));
                     }
 
                     if (aggregateInputType != GraphValueType.Vector)
@@ -762,13 +778,14 @@ public static class ScoringRuleValidator
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
                     }
 
-                    if (!vectorItemCounts.TryGetValue(inputRef, out var aggregateItemCount))
+                    if (!vectorItemCounts.TryGetValue(aggregateInputRef, out var aggregateItemCount) ||
+                        !vectorItemCodes.TryGetValue(aggregateInputRef, out var aggregateItemCodes))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{aggregateInputRef}' is unknown."));
                     }
 
-                    if (normalizedOp is "mean" or "sum")
+                    if (normalizedOp is "mean" or "sum" or "weighted_mean" or "weighted_sum")
                     {
                         var aggregateMissingPolicy = ValidateNodeMissingPolicy(
                             node,
@@ -779,12 +796,142 @@ public static class ScoringRuleValidator
                         {
                             return Result.Failure<Dictionary<string, GraphValueType>>(aggregateMissingPolicy.Error);
                         }
+
+                        if (normalizedOp is "weighted_mean" or "weighted_sum")
+                        {
+                            var weights = ValidateWeights(node, aggregateItemCodes);
+                            if (weights.IsFailure)
+                            {
+                                return Result.Failure<Dictionary<string, GraphValueType>>(weights.Error);
+                            }
+                        }
+                    }
+
+                    nodeTypes.Add(normalizedId, GraphValueType.Scalar);
+                    break;
+
+                case "normalize_0_100":
+                    var normalizationInput = ReadNodeInputRef(node);
+                    if (normalizationInput.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(normalizationInput.Error);
+                    }
+
+                    var normalizationInputRef = normalizationInput.Value;
+                    if (!TryReadNodeType(nodeTypes, normalizationInputRef, out var normalizationInputType))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{normalizationInputRef}' is unknown."));
+                    }
+
+                    if (normalizationInputType == GraphValueType.Vector)
+                    {
+                        if (!vectorItemCounts.TryGetValue(normalizationInputRef, out var normalizationItemCount) ||
+                            !vectorItemCodes.TryGetValue(normalizationInputRef, out var normalizationItemCodes))
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(
+                                Error.Validation("score.node_unknown", $"Scoring rule node '{normalizationInputRef}' is unknown."));
+                        }
+
+                        var normalizationScales = ValidateVectorNormalizationScales(node, normalizationItemCodes);
+                        if (normalizationScales.IsFailure)
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(normalizationScales.Error);
+                        }
+
+                        nodeTypes.Add(normalizedId, GraphValueType.Vector);
+                        vectorItemCounts.Add(normalizedId, normalizationItemCount);
+                        vectorItemCodes.Add(normalizedId, normalizationItemCodes);
+                    }
+                    else
+                    {
+                        var range = ValidateScalarNormalizationRange(node);
+                        if (range.IsFailure)
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(range.Error);
+                        }
+
+                        nodeTypes.Add(normalizedId, GraphValueType.Scalar);
+                    }
+
+                    break;
+
+                case "combine":
+                    var combineInputs = ReadNodeReferenceArray(node, "inputs", "Scoring rule combine node must declare inputs.");
+                    if (combineInputs.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(combineInputs.Error);
+                    }
+
+                    foreach (var combineInput in combineInputs.Value)
+                    {
+                        if (!TryReadNodeType(nodeTypes, combineInput, out var combineInputType))
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(
+                                Error.Validation("score.node_unknown", $"Scoring rule node '{combineInput}' is unknown."));
+                        }
+
+                        if (combineInputType != GraphValueType.Scalar)
+                        {
+                            return Result.Failure<Dictionary<string, GraphValueType>>(
+                                Error.Validation(
+                                    "score.node_type_invalid",
+                                    $"Scoring rule node '{normalizedId}' requires scalar inputs."));
+                        }
+                    }
+
+                    var method = ReadRequiredString(
+                        node,
+                        "method",
+                        "score.method_missing",
+                        "Scoring rule combine node must declare a method.");
+                    if (method.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(method.Error);
+                    }
+
+                    var normalizedMethod = NormalizeCode(method.Value);
+                    if (normalizedMethod is not ("mean" or "sum" or "weighted_mean" or "weighted_sum"))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation(
+                                "score.method_unsupported",
+                                $"Scoring rule combine method '{normalizedMethod}' is unsupported."));
+                    }
+
+                    var combineWeights = ValidateWeights(node, combineInputs.Value);
+                    if (combineWeights.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(combineWeights.Error);
+                    }
+
+                    nodeTypes.Add(normalizedId, GraphValueType.Scalar);
+                    break;
+
+                case "difference":
+                    var left = ValidateScalarReference(node, "left", nodeTypes);
+                    if (left.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(left.Error);
+                    }
+
+                    var right = ValidateScalarReference(node, "right", nodeTypes);
+                    if (right.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(right.Error);
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Scalar);
                     break;
 
                 case "subscale_aggregate":
+                    var subscaleInput = ReadNodeInputRef(node);
+                    if (subscaleInput.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(subscaleInput.Error);
+                    }
+
+                    var subscaleInputRef = subscaleInput.Value;
                     var aggregator = ReadRequiredString(
                         node,
                         "aggregator",
@@ -804,10 +951,10 @@ public static class ScoringRuleValidator
                                 $"Scoring rule subscale aggregator '{normalizedAggregator}' is unsupported."));
                     }
 
-                    if (!TryReadNodeType(nodeTypes, inputRef, out var subscaleInputType))
+                    if (!TryReadNodeType(nodeTypes, subscaleInputRef, out var subscaleInputType))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{subscaleInputRef}' is unknown."));
                     }
 
                     if (subscaleInputType != GraphValueType.Vector)
@@ -818,10 +965,10 @@ public static class ScoringRuleValidator
                                 $"Scoring rule node '{normalizedId}' requires a vector input."));
                     }
 
-                    if (!vectorItemCounts.TryGetValue(inputRef, out var subscaleItemCount))
+                    if (!vectorItemCounts.TryGetValue(subscaleInputRef, out var subscaleItemCount))
                     {
                         return Result.Failure<Dictionary<string, GraphValueType>>(
-                            Error.Validation("score.node_unknown", $"Scoring rule node '{inputRef}' is unknown."));
+                            Error.Validation("score.node_unknown", $"Scoring rule node '{subscaleInputRef}' is unknown."));
                     }
 
                     var subscaleMissingPolicy = ValidateNodeMissingPolicy(
@@ -849,6 +996,201 @@ public static class ScoringRuleValidator
             ? Result.Failure<Dictionary<string, GraphValueType>>(
                 Error.Validation("score.nodes_missing", "Scoring rule graph must declare nodes."))
             : Result.Success(nodeTypes);
+    }
+
+    private static Result<string> ReadNodeInputRef(JsonElement node)
+    {
+        var input = ReadRequiredString(
+            node,
+            "input",
+            "score.node_unknown",
+            "Scoring rule node must declare an input.");
+        return input.IsFailure
+            ? Result.Failure<string>(input.Error)
+            : Result.Success(NormalizeCode(input.Value));
+    }
+
+    private static Result<IReadOnlyList<string>> ReadNodeReferenceArray(
+        JsonElement node,
+        string propertyName,
+        string errorMessage)
+    {
+        if (!node.TryGetProperty(propertyName, out var references) ||
+            references.ValueKind != JsonValueKind.Array)
+        {
+            return Result.Failure<IReadOnlyList<string>>(
+                Error.Validation("score.node_unknown", errorMessage));
+        }
+
+        var values = ReadStringArray(references, "score.node_unknown", "Scoring rule node reference");
+        if (values.IsFailure)
+        {
+            return Result.Failure<IReadOnlyList<string>>(values.Error);
+        }
+
+        return values.Value.Count == 0
+            ? Result.Failure<IReadOnlyList<string>>(Error.Validation("score.node_unknown", errorMessage))
+            : Result.Success<IReadOnlyList<string>>(values.Value);
+    }
+
+    private static Result<bool> ValidateScalarReference(
+        JsonElement node,
+        string propertyName,
+        Dictionary<string, GraphValueType> nodeTypes)
+    {
+        var reference = ReadRequiredString(
+            node,
+            propertyName,
+            "score.node_unknown",
+            $"Scoring rule node must declare {propertyName}.");
+        if (reference.IsFailure)
+        {
+            return Result.Failure<bool>(reference.Error);
+        }
+
+        var normalizedReference = NormalizeCode(reference.Value);
+        if (!TryReadNodeType(nodeTypes, normalizedReference, out var nodeType))
+        {
+            return Result.Failure<bool>(
+                Error.Validation("score.node_unknown", $"Scoring rule node '{normalizedReference}' is unknown."));
+        }
+
+        return nodeType == GraphValueType.Scalar
+            ? Result.Success(true)
+            : Result.Failure<bool>(
+                Error.Validation(
+                    "score.node_type_invalid",
+                    $"Scoring rule node '{normalizedReference}' must produce a scalar score."));
+    }
+
+    private static Result<bool> ValidateWeights(JsonElement node, IReadOnlyCollection<string> allowedCodes)
+    {
+        if (!node.TryGetProperty("weights", out var weights))
+        {
+            return Result.Success(true);
+        }
+
+        if (weights.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<bool>(
+                Error.Validation("score.weight_invalid", "Scoring weights must be a JSON object."));
+        }
+
+        var allowed = allowedCodes.ToHashSet(StringComparer.Ordinal);
+        foreach (var weight in weights.EnumerateObject())
+        {
+            var normalizedName = NormalizeCode(weight.Name);
+            if (!allowed.Contains(normalizedName))
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.weight_unknown",
+                        $"Scoring weight '{normalizedName}' is not declared by the input node."));
+            }
+
+            if (weight.Value.ValueKind != JsonValueKind.Number ||
+                !weight.Value.TryGetDecimal(out var weightValue) ||
+                weightValue <= 0)
+            {
+                return Result.Failure<bool>(
+                    Error.Validation("score.weight_invalid", "Scoring weights must be positive numbers."));
+            }
+        }
+
+        return Result.Success(true);
+    }
+
+    private static Result<bool> ValidateVectorNormalizationScales(
+        JsonElement node,
+        IReadOnlyList<string> itemCodes)
+    {
+        if (!node.TryGetProperty("source_scales", out var sourceScales) ||
+            sourceScales.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.normalization_scale_missing",
+                    "Scoring rule normalize_0_100 vector node must declare source_scales."));
+        }
+
+        var itemCodeSet = itemCodes.ToHashSet(StringComparer.Ordinal);
+        var seenScales = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var scale in sourceScales.EnumerateObject())
+        {
+            var normalizedName = NormalizeCode(scale.Name);
+            if (!itemCodeSet.Contains(normalizedName))
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.normalization_scale_unknown",
+                        $"Scoring rule normalization scale '{normalizedName}' is not declared by the input node."));
+            }
+
+            var range = ValidateNormalizationRange(scale.Value, "Scoring rule normalization scale");
+            if (range.IsFailure)
+            {
+                return Result.Failure<bool>(range.Error);
+            }
+
+            seenScales.Add(normalizedName);
+        }
+
+        var missingScale = itemCodes.FirstOrDefault(item => !seenScales.Contains(item));
+        return missingScale is null
+            ? Result.Success(true)
+            : Result.Failure<bool>(
+                Error.Validation(
+                    "score.normalization_scale_missing",
+                    $"Scoring rule normalization scale for item '{missingScale}' is missing."));
+    }
+
+    private static Result<bool> ValidateScalarNormalizationRange(JsonElement node)
+    {
+        if (!TryReadDecimal(node, "source_min", out var min) ||
+            !TryReadDecimal(node, "source_max", out var max) ||
+            min >= max)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.normalization_range_invalid",
+                    "Scoring rule normalize_0_100 scalar node must declare source_min less than source_max."));
+        }
+
+        return Result.Success(true);
+    }
+
+    private static Result<bool> ValidateNormalizationRange(JsonElement element, string subject)
+    {
+        if (element.ValueKind != JsonValueKind.Object ||
+            !TryReadDecimal(element, "min", out var min) ||
+            !TryReadDecimal(element, "max", out var max) ||
+            min >= max)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.normalization_range_invalid",
+                    $"{subject} must declare numeric min less than max."));
+        }
+
+        if (element.TryGetProperty("reverse", out var reverse) &&
+            reverse.ValueKind is not JsonValueKind.True and not JsonValueKind.False)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.normalization_range_invalid",
+                    $"{subject} reverse must be a boolean when provided."));
+        }
+
+        return Result.Success(true);
+    }
+
+    private static bool TryReadDecimal(JsonElement element, string propertyName, out decimal value)
+    {
+        value = default;
+
+        return element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetDecimal(out value);
     }
 
     private static Result<HashSet<string>> ReadScaleDefinitions(JsonElement document)

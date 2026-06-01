@@ -146,6 +146,208 @@ public sealed class SimpleScoringEngineTests
     }
 
     [Fact]
+    public void Graph_weighted_mean_scores_selected_answers_with_item_weights()
+    {
+        var result = SimpleScoringEngine.Evaluate(
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-scoring.weighted",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "core_items", "kind": "answers", "items": ["q01", "q02", "q03"] }
+              ],
+              "nodes": [
+                { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+                {
+                  "id": "weighted_score",
+                  "op": "weighted_mean",
+                  "input": "core_answers",
+                  "weights": { "q01": 2, "q02": 1, "q03": 1 }
+                }
+              ],
+              "outputs": [
+                { "code": "weighted_score", "node": "weighted_score" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            [
+                new SimpleScoreInput("q01", "2"),
+                new SimpleScoreInput("q02", "4"),
+                new SimpleScoreInput("q03", "5")
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var score = Assert.Single(result.Value);
+        Assert.Equal("weighted_score", score.DimensionCode);
+        Assert.Equal(3.2500m, score.Value);
+        Assert.Equal(3, score.NValid);
+        Assert.Equal(3, score.NExpected);
+    }
+
+    [Fact]
+    public void Graph_weighted_sum_honors_minimum_valid_missing_policy()
+    {
+        var result = SimpleScoringEngine.Evaluate(
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-scoring.weighted-sum",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "core_items", "kind": "answers", "items": ["q01", "q02"] }
+              ],
+              "nodes": [
+                { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+                {
+                  "id": "weighted_total",
+                  "op": "weighted_sum",
+                  "input": "core_answers",
+                  "weights": { "q01": 2, "q02": 10 },
+                  "missing_data": { "strategy": "min_valid_count", "min_valid_count": 1 }
+                }
+              ],
+              "outputs": [
+                { "code": "weighted_total", "node": "weighted_total" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            [
+                new SimpleScoreInput("q01", "3"),
+                new SimpleScoreInput("q02", "", IsSkipped: true)
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var score = Assert.Single(result.Value);
+        Assert.Equal("weighted_total", score.DimensionCode);
+        Assert.Equal(6.0000m, score.Value);
+        Assert.Equal(1, score.NValid);
+        Assert.Equal(2, score.NExpected);
+    }
+
+    [Fact]
+    public void Graph_normalizes_mixed_scale_vector_before_aggregation()
+    {
+        var result = SimpleScoringEngine.Evaluate(
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-scoring.normalized",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "risk_items", "kind": "answers", "items": ["agreement_protective", "discomfort"] }
+              ],
+              "nodes": [
+                { "id": "risk_answers", "op": "select_answers", "input": "risk_items" },
+                {
+                  "id": "normalized_risk_answers",
+                  "op": "normalize_0_100",
+                  "input": "risk_answers",
+                  "source_scales": {
+                    "agreement_protective": { "min": 1, "max": 5, "reverse": true },
+                    "discomfort": { "min": 0, "max": 10 }
+                  }
+                },
+                { "id": "risk_score", "op": "mean", "input": "normalized_risk_answers" }
+              ],
+              "outputs": [
+                { "code": "risk_score", "node": "risk_score" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            [
+                new SimpleScoreInput("agreement_protective", "5"),
+                new SimpleScoreInput("discomfort", "5")
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var score = Assert.Single(result.Value);
+        Assert.Equal("risk_score", score.DimensionCode);
+        Assert.Equal(25.0000m, score.Value);
+        Assert.Equal(2, score.NValid);
+        Assert.Equal(2, score.NExpected);
+    }
+
+    [Fact]
+    public void Graph_normalizes_scalar_scores_and_combines_scalar_nodes()
+    {
+        var result = SimpleScoringEngine.Evaluate(
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "tenant-scoring.composite",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "strain_items", "kind": "answers", "items": ["strain_1", "strain_2"] },
+                { "id": "recovery_items", "kind": "answers", "items": ["recovery_1", "recovery_2"] }
+              ],
+              "nodes": [
+                { "id": "strain_answers", "op": "select_answers", "input": "strain_items" },
+                { "id": "strain_score", "op": "mean", "input": "strain_answers" },
+                {
+                  "id": "strain_0_100",
+                  "op": "normalize_0_100",
+                  "input": "strain_score",
+                  "source_min": 1,
+                  "source_max": 5
+                },
+                { "id": "recovery_answers", "op": "select_answers", "input": "recovery_items" },
+                { "id": "recovery_score", "op": "mean", "input": "recovery_answers" },
+                {
+                  "id": "priority_index",
+                  "op": "combine",
+                  "inputs": ["strain_score", "recovery_score"],
+                  "method": "weighted_mean",
+                  "weights": { "strain_score": 2, "recovery_score": 1 }
+                },
+                {
+                  "id": "strain_recovery_gap",
+                  "op": "difference",
+                  "left": "strain_score",
+                  "right": "recovery_score"
+                }
+              ],
+              "outputs": [
+                { "code": "strain_0_100", "node": "strain_0_100" },
+                { "code": "priority_index", "node": "priority_index" },
+                { "code": "strain_recovery_gap", "node": "strain_recovery_gap" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """,
+            [
+                new SimpleScoreInput("strain_1", "4"),
+                new SimpleScoreInput("strain_2", "5"),
+                new SimpleScoreInput("recovery_1", "2"),
+                new SimpleScoreInput("recovery_2", "3")
+            ]);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(3, result.Value.Count);
+        Assert.Equal("strain_0_100", result.Value[0].DimensionCode);
+        Assert.Equal(87.5000m, result.Value[0].Value);
+        Assert.Equal("priority_index", result.Value[1].DimensionCode);
+        Assert.Equal(3.8333m, result.Value[1].Value);
+        Assert.Equal("strain_recovery_gap", result.Value[2].DimensionCode);
+        Assert.Equal(2.0000m, result.Value[2].Value);
+    }
+
+    [Fact]
     public void Graph_require_all_missing_answer_returns_validation_error()
     {
         var result = SimpleScoringEngine.Evaluate(

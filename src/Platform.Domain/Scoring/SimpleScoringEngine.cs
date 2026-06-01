@@ -276,6 +276,11 @@ public static class SimpleScoringEngine
             "reverse_code" => EvaluateReverseCode(node, scales, nodeValues),
             "mean" => EvaluateAggregateWithNodePolicy(node, "mean", missingPolicy, nodeValues),
             "sum" => EvaluateAggregateWithNodePolicy(node, "sum", missingPolicy, nodeValues),
+            "weighted_mean" => EvaluateAggregateWithNodePolicy(node, "weighted_mean", missingPolicy, nodeValues),
+            "weighted_sum" => EvaluateAggregateWithNodePolicy(node, "weighted_sum", missingPolicy, nodeValues),
+            "normalize_0_100" => EvaluateNormalize0To100(node, nodeValues),
+            "combine" => EvaluateCombine(node, nodeValues),
+            "difference" => EvaluateDifference(node, nodeValues),
             "subscale_aggregate" => EvaluateSubscaleAggregate(node, missingPolicy, nodeValues),
             "count_valid" => EvaluateCountValid(node, nodeValues),
             var op => Result.Failure<ScoreNodeValue>(
@@ -454,14 +459,256 @@ public static class SimpleScoringEngine
                 Error.Validation("score.answer_missing", "Not enough scoreable answers exist for this scoring operation."));
         }
 
-        var value = aggregate == "mean"
-            ? values.Sum() / values.Length
-            : values.Sum();
+        decimal value;
+        if (aggregate is "weighted_mean" or "weighted_sum")
+        {
+            var weights = ReadWeights(node);
+            if (weights.IsFailure)
+            {
+                return Result.Failure<ScoreNodeValue>(weights.Error);
+            }
+
+            var knownItems = entries
+                .Select(entry => entry.ItemCode)
+                .ToHashSet(StringComparer.Ordinal);
+            var unknownWeight = weights.Value.Keys.FirstOrDefault(weight => !knownItems.Contains(weight));
+            if (unknownWeight is not null)
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation(
+                        "score.weight_unknown",
+                        $"Scoring weight '{unknownWeight}' does not match an input item."));
+            }
+
+            var weightedEntries = entries
+                .Where(entry => entry.Value.HasValue)
+                .Select(entry => new
+                {
+                    entry.Value!.Value,
+                    Weight = weights.Value.TryGetValue(entry.ItemCode, out var weight) ? weight : 1m
+                })
+                .ToArray();
+            var weightSum = weightedEntries.Sum(entry => entry.Weight);
+            if (weightSum <= 0)
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation("score.weight_invalid", "Scoring weights must sum to a positive value."));
+            }
+
+            var weightedSum = weightedEntries.Sum(entry => entry.Value * entry.Weight);
+            value = aggregate == "weighted_mean"
+                ? weightedSum / weightSum
+                : weightedSum;
+        }
+        else
+        {
+            value = aggregate == "mean"
+                ? values.Sum() / values.Length
+                : values.Sum();
+        }
 
         return Result.Success<ScoreNodeValue>(new ScoreScalar(
             value,
             values.Length,
             entries.Count,
+            ScoreMissingPolicyStatuses.Ok));
+    }
+
+    private static Result<ScoreNodeValue> EvaluateNormalize0To100(
+        JsonElement node,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var input = ResolveInputNode(node, nodeValues);
+        if (input.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(input.Error);
+        }
+
+        return input.Value switch
+        {
+            ScoreVector vector => EvaluateVectorNormalization(node, vector),
+            ScoreScalar scalar => EvaluateScalarNormalization(node, scalar),
+            _ => Result.Failure<ScoreNodeValue>(
+                Error.Validation("score.input_type_invalid", "Normalization requires a vector or scalar input."))
+        };
+    }
+
+    private static Result<ScoreNodeValue> EvaluateVectorNormalization(JsonElement node, ScoreVector vector)
+    {
+        if (!node.TryGetProperty("source_scales", out var sourceScales) ||
+            sourceScales.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<ScoreNodeValue>(
+                Error.Validation(
+                    "score.normalization_scale_missing",
+                    "Vector normalization must declare source_scales."));
+        }
+
+        var normalizedEntries = new List<ScoreVectorEntry>();
+        foreach (var entry in vector.Entries)
+        {
+            if (!sourceScales.TryGetProperty(entry.ItemCode, out var scale))
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation(
+                        "score.normalization_scale_missing",
+                        $"Normalization scale for item '{entry.ItemCode}' is missing."));
+            }
+
+            var range = ReadNormalizationRange(scale, "Normalization source scale");
+            if (range.IsFailure)
+            {
+                return Result.Failure<ScoreNodeValue>(range.Error);
+            }
+
+            if (!entry.Value.HasValue)
+            {
+                normalizedEntries.Add(entry);
+                continue;
+            }
+
+            var reverse = ReadOptionalBoolean(scale, "reverse");
+            normalizedEntries.Add(entry with
+            {
+                Value = NormalizeTo0To100(entry.Value.Value, range.Value.Min, range.Value.Max, reverse)
+            });
+        }
+
+        return Result.Success<ScoreNodeValue>(new ScoreVector(normalizedEntries));
+    }
+
+    private static Result<ScoreNodeValue> EvaluateScalarNormalization(JsonElement node, ScoreScalar scalar)
+    {
+        var range = ReadScalarNormalizationRange(node);
+        if (range.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(range.Error);
+        }
+
+        var reverse = ReadOptionalBoolean(node, "reverse");
+        return Result.Success<ScoreNodeValue>(scalar with
+        {
+            Value = NormalizeTo0To100(scalar.Value, range.Value.Min, range.Value.Max, reverse)
+        });
+    }
+
+    private static Result<ScoreNodeValue> EvaluateCombine(
+        JsonElement node,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var inputs = ReadNodeReferenceArray(node, "inputs", "combine must declare scalar inputs.");
+        if (inputs.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(inputs.Error);
+        }
+
+        var method = ReadRequiredString(node, "method", "score.method_missing", "combine must declare a method.");
+        if (method.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(method.Error);
+        }
+
+        var normalizedMethod = NormalizeCode(method.Value);
+        if (normalizedMethod is not ("mean" or "sum" or "weighted_mean" or "weighted_sum"))
+        {
+            return Result.Failure<ScoreNodeValue>(
+                Error.Validation(
+                    "score.method_unsupported",
+                    $"Combine method '{normalizedMethod}' is not supported."));
+        }
+
+        var scalars = new List<(string NodeId, ScoreScalar Scalar)>();
+        foreach (var inputRef in inputs.Value)
+        {
+            var resolved = ResolveNodeValue(inputRef, nodeValues);
+            if (resolved.IsFailure)
+            {
+                return Result.Failure<ScoreNodeValue>(resolved.Error);
+            }
+
+            if (resolved.Value is not ScoreScalar scalar)
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation("score.input_type_invalid", "combine inputs must reference scalar nodes."));
+            }
+
+            scalars.Add((NormalizeCode(inputRef), scalar));
+        }
+
+        var weights = ReadWeights(node);
+        if (weights.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(weights.Error);
+        }
+
+        var knownInputs = scalars
+            .Select(entry => entry.NodeId)
+            .ToHashSet(StringComparer.Ordinal);
+        var unknownWeight = weights.Value.Keys.FirstOrDefault(weight => !knownInputs.Contains(weight));
+        if (unknownWeight is not null)
+        {
+            return Result.Failure<ScoreNodeValue>(
+                Error.Validation(
+                    "score.weight_unknown",
+                    $"Scoring weight '{unknownWeight}' does not match a combine input."));
+        }
+
+        decimal value;
+        if (normalizedMethod is "weighted_mean" or "weighted_sum")
+        {
+            var weightedEntries = scalars
+                .Select(entry => new
+                {
+                    entry.Scalar.Value,
+                    Weight = weights.Value.TryGetValue(entry.NodeId, out var weight) ? weight : 1m
+                })
+                .ToArray();
+            var weightedSum = weightedEntries.Sum(entry => entry.Value * entry.Weight);
+            var weightSum = weightedEntries.Sum(entry => entry.Weight);
+            if (weightSum <= 0)
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation("score.weight_invalid", "Scoring weights must sum to a positive value."));
+            }
+
+            value = normalizedMethod == "weighted_mean"
+                ? weightedSum / weightSum
+                : weightedSum;
+        }
+        else
+        {
+            value = normalizedMethod == "mean"
+                ? scalars.Sum(entry => entry.Scalar.Value) / scalars.Count
+                : scalars.Sum(entry => entry.Scalar.Value);
+        }
+
+        return Result.Success<ScoreNodeValue>(new ScoreScalar(
+            value,
+            scalars.Sum(entry => entry.Scalar.N),
+            scalars.Sum(entry => entry.Scalar.NExpected),
+            ScoreMissingPolicyStatuses.Ok));
+    }
+
+    private static Result<ScoreNodeValue> EvaluateDifference(
+        JsonElement node,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var left = ResolveScalarReference(node, "left", nodeValues);
+        if (left.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(left.Error);
+        }
+
+        var right = ResolveScalarReference(node, "right", nodeValues);
+        if (right.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(right.Error);
+        }
+
+        return Result.Success<ScoreNodeValue>(new ScoreScalar(
+            left.Value.Value - right.Value.Value,
+            left.Value.N + right.Value.N,
+            left.Value.NExpected + right.Value.NExpected,
             ScoreMissingPolicyStatuses.Ok));
     }
 
@@ -482,6 +729,23 @@ public static class SimpleScoringEngine
             count,
             input.Value.Entries.Count,
             ScoreMissingPolicyStatuses.Ok));
+    }
+
+    private static Result<ScoreNodeValue> ResolveInputNode(
+        JsonElement node,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var inputResult = ReadRequiredString(
+            node,
+            "input",
+            "score.input_missing",
+            "Scoring operation must reference an input node.");
+        if (inputResult.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(inputResult.Error);
+        }
+
+        return ResolveNodeValue(inputResult.Value, nodeValues);
     }
 
     private static Result<ScoreVector> ResolveInputVector(
@@ -508,6 +772,33 @@ public static class SimpleScoringEngine
             ? Result.Success(vector)
             : Result.Failure<ScoreVector>(
                 Error.Validation("score.input_type_invalid", "Scoring operation must reference a vector node."));
+    }
+
+    private static Result<ScoreScalar> ResolveScalarReference(
+        JsonElement node,
+        string propertyName,
+        IReadOnlyDictionary<string, ScoreNodeValue> nodeValues)
+    {
+        var reference = ReadRequiredString(
+            node,
+            propertyName,
+            "score.node_unknown",
+            $"Scoring operation must declare a {propertyName} scalar node.");
+        if (reference.IsFailure)
+        {
+            return Result.Failure<ScoreScalar>(reference.Error);
+        }
+
+        var resolved = ResolveNodeValue(reference.Value, nodeValues);
+        if (resolved.IsFailure)
+        {
+            return Result.Failure<ScoreScalar>(resolved.Error);
+        }
+
+        return resolved.Value is ScoreScalar scalar
+            ? Result.Success(scalar)
+            : Result.Failure<ScoreScalar>(
+                Error.Validation("score.input_type_invalid", "Scoring operation must reference scalar nodes."));
     }
 
     private static Result<ScoreNodeValue> ResolveNodeValue(
@@ -725,6 +1016,118 @@ public static class SimpleScoringEngine
         return values;
     }
 
+    private static Result<IReadOnlyDictionary<string, decimal>> ReadWeights(JsonElement element)
+    {
+        var weights = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        if (!element.TryGetProperty("weights", out var weightsElement))
+        {
+            return Result.Success<IReadOnlyDictionary<string, decimal>>(weights);
+        }
+
+        if (weightsElement.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<IReadOnlyDictionary<string, decimal>>(
+                Error.Validation("score.weight_invalid", "Scoring weights must be a JSON object."));
+        }
+
+        foreach (var weight in weightsElement.EnumerateObject())
+        {
+            if (weight.Value.ValueKind != JsonValueKind.Number ||
+                !weight.Value.TryGetDecimal(out var parsed) ||
+                parsed <= 0)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, decimal>>(
+                    Error.Validation("score.weight_invalid", "Scoring weights must be positive numbers."));
+            }
+
+            weights[NormalizeCode(weight.Name)] = parsed;
+        }
+
+        return Result.Success<IReadOnlyDictionary<string, decimal>>(weights);
+    }
+
+    private static Result<IReadOnlyList<string>> ReadNodeReferenceArray(
+        JsonElement element,
+        string propertyName,
+        string errorMessage)
+    {
+        if (!element.TryGetProperty(propertyName, out var arrayElement) ||
+            arrayElement.ValueKind != JsonValueKind.Array)
+        {
+            return Result.Failure<IReadOnlyList<string>>(
+                Error.Validation("score.node_unknown", errorMessage));
+        }
+
+        var references = new List<string>();
+        foreach (var item in arrayElement.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(item.GetString()))
+            {
+                return Result.Failure<IReadOnlyList<string>>(
+                    Error.Validation("score.node_unknown", errorMessage));
+            }
+
+            references.Add(NormalizeCode(item.GetString()!));
+        }
+
+        return references.Count == 0
+            ? Result.Failure<IReadOnlyList<string>>(Error.Validation("score.node_unknown", errorMessage))
+            : Result.Success<IReadOnlyList<string>>(references);
+    }
+
+    private static Result<NormalizationRange> ReadScalarNormalizationRange(JsonElement element)
+    {
+        if (!TryReadDecimal(element, "source_min", out var min) ||
+            !TryReadDecimal(element, "source_max", out var max) ||
+            min >= max)
+        {
+            return Result.Failure<NormalizationRange>(
+                Error.Validation(
+                    "score.normalization_range_invalid",
+                    "Scalar normalization must declare source_min less than source_max."));
+        }
+
+        return Result.Success(new NormalizationRange(min, max));
+    }
+
+    private static Result<NormalizationRange> ReadNormalizationRange(JsonElement element, string subject)
+    {
+        if (!TryReadDecimal(element, "min", out var min) ||
+            !TryReadDecimal(element, "max", out var max) ||
+            min >= max)
+        {
+            return Result.Failure<NormalizationRange>(
+                Error.Validation(
+                    "score.normalization_range_invalid",
+                    $"{subject} must declare min less than max."));
+        }
+
+        return Result.Success(new NormalizationRange(min, max));
+    }
+
+    private static bool TryReadDecimal(JsonElement element, string propertyName, out decimal value)
+    {
+        value = default;
+
+        return element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetDecimal(out value);
+    }
+
+    private static bool ReadOptionalBoolean(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.True;
+    }
+
+    private static decimal NormalizeTo0To100(decimal value, decimal min, decimal max, bool reverse)
+    {
+        return reverse
+            ? ((max - value) / (max - min)) * 100m
+            : ((value - min) / (max - min)) * 100m;
+    }
+
     private static Result<string> ReadRequiredString(
         JsonElement element,
         string propertyName,
@@ -788,6 +1191,8 @@ public static class SimpleScoringEngine
     private sealed record ScaleDefinition(decimal Min, decimal Max);
 
     private sealed record MissingPolicy(string Strategy, int? MinValidCount);
+
+    private sealed record NormalizationRange(decimal Min, decimal Max);
 
     private static class MissingPolicyStrategies
     {

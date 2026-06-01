@@ -98,6 +98,101 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Valid_graph_rule_with_advanced_numeric_operations_passes()
+    {
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: AdvancedGraphDocument,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(["strain_0_100", "priority_index", "strain_recovery_gap"], result.Value.ScoreCodes);
+    }
+
+    [Fact]
+    public void Weighted_operation_unknown_item_weight_is_rejected()
+    {
+        var document = ReplaceRequired(
+            AdvancedGraphDocument,
+            "\"weights\": { \"strain_score\": 2, \"recovery_score\": 1 }",
+            "\"weights\": { \"missing_score\": 2, \"recovery_score\": 1 }");
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: document,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.weight_unknown", result.Error.Code);
+    }
+
+    [Fact]
+    public void Weighted_operation_non_positive_weight_is_rejected()
+    {
+        var document = ReplaceRequired(
+            AdvancedGraphDocument,
+            "\"weights\": { \"strain_score\": 2, \"recovery_score\": 1 }",
+            "\"weights\": { \"strain_score\": 0, \"recovery_score\": 1 }");
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: document,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.weight_invalid", result.Error.Code);
+    }
+
+    [Fact]
+    public void Normalization_invalid_range_is_rejected()
+    {
+        var document = ReplaceRequired(AdvancedGraphDocument, "\"source_min\": 1", "\"source_min\": 5");
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: document,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.normalization_range_invalid", result.Error.Code);
+    }
+
+    [Fact]
+    public void Combine_requires_scalar_inputs()
+    {
+        var document = ReplaceRequired(AdvancedGraphDocument, "\"strain_score\", \"recovery_score\"", "\"strain_answers\", \"recovery_score\"");
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: document,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.node_type_invalid", result.Error.Code);
+    }
+
+    [Fact]
+    public void Difference_requires_scalar_inputs()
+    {
+        var document = ReplaceRequired(AdvancedGraphDocument, "\"left\": \"strain_score\"", "\"left\": \"strain_answers\"");
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-scoring.advanced",
+            document: document,
+            produces: """{"scores":["strain_0_100","priority_index","strain_recovery_gap"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.node_type_invalid", result.Error.Code);
+    }
+
+    [Fact]
     public void Produces_interpretation_metadata_matches_score_band()
     {
         var result = ScoreInterpretationMetadataParser.ParseProduces(ValidInterpretationProduces);
@@ -623,6 +718,62 @@ public sealed class ScoringRuleValidatorTests
           ],
           "outputs": [
             { "code": "total", "node": "total" }
+          ],
+          "missing_data": {
+            "defaults": { "strategy": "require_all" }
+          }
+        }
+        """;
+
+    private const string AdvancedGraphDocument = """
+        {
+          "schema_version": "1.0.0",
+          "engine_min_version": "1.0.0",
+          "rule_id": "tenant-scoring.advanced",
+          "rule_version": "1.0.0",
+          "inputs": [
+            { "id": "strain_items", "kind": "answers", "items": ["strain_1", "strain_2"] },
+            { "id": "recovery_items", "kind": "answers", "items": ["recovery_1", "recovery_2"] }
+          ],
+          "nodes": [
+            { "id": "strain_answers", "op": "select_answers", "input": "strain_items" },
+            {
+              "id": "strain_normalized_answers",
+              "op": "normalize_0_100",
+              "input": "strain_answers",
+              "source_scales": {
+                "strain_1": { "min": 1, "max": 5 },
+                "strain_2": { "min": 0, "max": 10, "reverse": true }
+              }
+            },
+            { "id": "strain_score", "op": "weighted_mean", "input": "strain_normalized_answers", "weights": { "strain_1": 2, "strain_2": 1 } },
+            {
+              "id": "strain_0_100",
+              "op": "normalize_0_100",
+              "input": "strain_score",
+              "source_min": 1,
+              "source_max": 5
+            },
+            { "id": "recovery_answers", "op": "select_answers", "input": "recovery_items" },
+            { "id": "recovery_score", "op": "weighted_sum", "input": "recovery_answers", "weights": { "recovery_1": 1, "recovery_2": 1 } },
+            {
+              "id": "priority_index",
+              "op": "combine",
+              "inputs": ["strain_score", "recovery_score"],
+              "method": "weighted_mean",
+              "weights": { "strain_score": 2, "recovery_score": 1 }
+            },
+            {
+              "id": "strain_recovery_gap",
+              "op": "difference",
+              "left": "strain_score",
+              "right": "recovery_score"
+            }
+          ],
+          "outputs": [
+            { "code": "strain_0_100", "node": "strain_0_100" },
+            { "code": "priority_index", "node": "priority_index" },
+            { "code": "strain_recovery_gap", "node": "strain_recovery_gap" }
           ],
           "missing_data": {
             "defaults": { "strategy": "require_all" }
