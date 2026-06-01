@@ -220,7 +220,6 @@ public sealed record CampaignIdentifiedQueueAccessResponse(
     int AssignmentCount,
     int CreatedAccessCount,
     int ExistingAccessCount,
-    int RotatedAccessCount,
     IReadOnlyList<CampaignIdentifiedQueueAccessRespondentResponse> Respondents);
 
 public sealed record CampaignIdentifiedQueueAccessRespondentResponse(

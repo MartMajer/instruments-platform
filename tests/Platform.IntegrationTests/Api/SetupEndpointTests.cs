@@ -543,7 +543,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         Assert.Equal(3, payload.AssignmentCount);
         Assert.Equal(2, payload.CreatedAccessCount);
         Assert.Equal(0, payload.ExistingAccessCount);
-        Assert.Equal(0, payload.RotatedAccessCount);
         Assert.All(payload.Respondents, respondent =>
         {
             Assert.Equal("created", respondent.AccessStatus);
@@ -1886,7 +1885,6 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 AssignmentCount: 3,
                 CreatedAccessCount: 2,
                 ExistingAccessCount: 0,
-                RotatedAccessCount: 0,
                 Respondents:
                 [
                     new CampaignIdentifiedQueueAccessRespondentResponse(

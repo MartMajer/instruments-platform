@@ -4645,7 +4645,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal(4, issued.Value.AssignmentCount);
         Assert.Equal(3, issued.Value.CreatedAccessCount);
         Assert.Equal(0, issued.Value.ExistingAccessCount);
-        Assert.Equal(0, issued.Value.RotatedAccessCount);
         Assert.Contains(
             issued.Value.Respondents,
             respondent => respondent.RespondentSubjectId == manager.Id && respondent.AssignmentCount == 2);
@@ -4689,7 +4688,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(idempotent.IsSuccess, idempotent.Error.ToString());
         Assert.Equal(0, idempotent.Value.CreatedAccessCount);
         Assert.Equal(3, idempotent.Value.ExistingAccessCount);
-        Assert.Equal(0, idempotent.Value.RotatedAccessCount);
         Assert.All(idempotent.Value.Respondents, respondent =>
         {
             Assert.Equal("existing", respondent.AccessStatus);
@@ -4706,7 +4704,6 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(repeatedWithLegacyRotateFlag.IsSuccess, repeatedWithLegacyRotateFlag.Error.ToString());
         Assert.Equal(0, repeatedWithLegacyRotateFlag.Value.CreatedAccessCount);
         Assert.Equal(3, repeatedWithLegacyRotateFlag.Value.ExistingAccessCount);
-        Assert.Equal(0, repeatedWithLegacyRotateFlag.Value.RotatedAccessCount);
         Assert.All(repeatedWithLegacyRotateFlag.Value.Respondents, respondent =>
         {
             Assert.Equal("existing", respondent.AccessStatus);

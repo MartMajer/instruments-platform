@@ -1260,7 +1260,6 @@ public sealed class SetupWorkflowStore(
             assignmentGroups.Sum(group => group.AssignmentCount),
             createdCount,
             existingCount,
-            RotatedAccessCount: 0,
             responses));
     }
 
