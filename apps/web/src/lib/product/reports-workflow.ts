@@ -136,7 +136,26 @@ export type SelectedSeriesExportPreview = {
 	description: string;
 	status: ProductReadModelBadgeStatus;
 	downloadLabel: string;
+	fileProfile: SelectedSeriesExportFileProfile | null;
 	items: SelectedSeriesExportPreviewItem[];
+};
+
+export type SelectedSeriesExportFileKind =
+	| 'results_matrix'
+	| 'response_dataset'
+	| 'single_measurement'
+	| 'unknown';
+
+export type SelectedSeriesExportFileProfile = {
+	fileKind: SelectedSeriesExportFileKind;
+	title: string;
+	status: ProductReadModelBadgeStatus;
+	fileName: string;
+	rowShape: string;
+	columnSummary: string;
+	downloadSummary: string;
+	sampleColumns: string[];
+	readinessItems: SelectedSeriesExportPreviewItem[];
 };
 
 type ExportCodebookColumn = {
@@ -294,7 +313,8 @@ export const defaultSelectedSeriesReportsWorkflowCopy: SelectedSeriesReportsWork
 		createOrSelectWaveBeforeReviewingResults: 'Create or select a wave before reviewing results.',
 		resolveReportPrerequisitesBeforeReviewingResults:
 			'Resolve report prerequisites before reviewing results.',
-		reviewResultsBeforeCreatingReportExport: 'Review results before creating a results matrix export.',
+		reviewResultsBeforeCreatingReportExport:
+			'Review results before creating a results matrix export.',
 		resolveReportPrerequisitesBeforeCreatingReportExport:
 			'Resolve report prerequisites before creating a results matrix export.',
 		reportExportCreatedThisSession: 'Results matrix export was created in this session.',
@@ -536,9 +556,7 @@ export function toSelectedSeriesResultsHandoffStatus(
 	const hasScoredResults = scoreCount > 0 || visibleScores > 0;
 	const hasExport = hasAnyExport(workspace, localState);
 	const hasDownloadableExport = hasAnyDownloadableExport(workspace, localState);
-	const interpretationValidated = isInterpretationValidated(
-		selectedCampaign.interpretationStatus
-	);
+	const interpretationValidated = isInterpretationValidated(selectedCampaign.interpretationStatus);
 	const collectionClosed = isCollectionClosed(selectedCampaign.status);
 	const collectionLive = selectedCampaign.status === 'live';
 	const scoreVisibilityGap = Math.max(0, submittedResponses - visibleScores);
@@ -550,7 +568,8 @@ export function toSelectedSeriesResultsHandoffStatus(
 				label: 'Operational status',
 				title: 'Results are not ready',
 				status: 'blocked',
-				detail: 'Finish setup, launch, submissions, disclosure, and scoring before reviewing results.'
+				detail:
+					'Finish setup, launch, submissions, disclosure, and scoring before reviewing results.'
 			}
 		: hasScoredResults
 			? {
@@ -590,10 +609,10 @@ export function toSelectedSeriesResultsHandoffStatus(
 			: {
 					id: 'interpretation',
 					label: 'Interpretation status',
-				title: 'Needs interpretation validation',
-				status: 'blocked',
-				detail:
-					'Scoring is available, but the meaning, limits, and external claims have not been reviewed.'
+					title: 'Needs interpretation validation',
+					status: 'blocked',
+					detail:
+						'Scoring is available, but the meaning, limits, and external claims have not been reviewed.'
 				};
 
 	const exportLane: SelectedSeriesResultsHandoffLane = hasDownloadableExport
@@ -711,7 +730,10 @@ export function toSelectedSeriesResultsPacketReview(
 		hasVisibleScores && reviewExportReady && interpretationReviewed && collectionClosed;
 	const items: SelectedSeriesResultsPacketReviewItem[] = [
 		toResponsesPacketItem(campaign?.submittedResponseCount ?? null),
-		toScoresPacketItem(campaign?.submittedResponseCount ?? null, campaign?.visibleScoreCount ?? null),
+		toScoresPacketItem(
+			campaign?.submittedResponseCount ?? null,
+			campaign?.visibleScoreCount ?? null
+		),
 		toExportFilesPacketItem(workspace, localState, hasVisibleScores),
 		toUseStatusPacketItem({
 			hasCampaign,
@@ -734,16 +756,19 @@ export function toSelectedSeriesResultsPacketReview(
 				: hasResponses && hasVisibleScores
 					? 'pending'
 					: 'blocked',
-		primaryAction: toResultsPacketPrimaryAction({
-			hasCampaign,
-			hasResponses,
-			hasVisibleScores,
-			responseDatasetReady,
-			resultsMatrixReady,
-			controlledSharingReady,
-			interpretationReviewed,
-			collectionClosed
-		}, copy),
+		primaryAction: toResultsPacketPrimaryAction(
+			{
+				hasCampaign,
+				hasResponses,
+				hasVisibleScores,
+				responseDatasetReady,
+				resultsMatrixReady,
+				controlledSharingReady,
+				interpretationReviewed,
+				collectionClosed
+			},
+			copy
+		),
 		items: items.map((item) => localizeReportsWorkflowItem(item, copy))
 	};
 }
@@ -794,8 +819,10 @@ export function toSelectedSeriesExportPreview(
 			description: copy.exportPreview.description,
 			status: 'not_available',
 			downloadLabel: copy.exportPreview.createOrSelectWaveFirst,
-			items: toPendingExportPreviewItems(copy.exportPreview.selectWavePendingDetail)
-				.map((item) => localizeReportsWorkflowItem(item, copy))
+			fileProfile: null,
+			items: toPendingExportPreviewItems(copy.exportPreview.selectWavePendingDetail).map((item) =>
+				localizeReportsWorkflowItem(item, copy)
+			)
 		};
 	}
 
@@ -805,8 +832,10 @@ export function toSelectedSeriesExportPreview(
 			description: copy.exportPreview.description,
 			status: 'pending',
 			downloadLabel: copy.exportPreview.reviewExportFileFirst,
-			items: toPendingExportPreviewItems(copy.exportPreview.reviewFilePendingDetail)
-				.map((item) => localizeReportsWorkflowItem(item, copy))
+			fileProfile: null,
+			items: toPendingExportPreviewItems(copy.exportPreview.reviewFilePendingDetail).map((item) =>
+				localizeReportsWorkflowItem(item, copy)
+			)
 		};
 	}
 
@@ -831,7 +860,48 @@ export function toSelectedSeriesExportPreview(
 		downloadLabel: responseDataset
 			? copy.exportPreview.downloadResponseDatasetCsv
 			: copy.exportPreview.downloadReportSummaryCsv,
+		fileProfile: toSelectedSeriesExportFileProfile(artifact, copy),
 		items: items.map((item) => localizeReportsWorkflowItem(item, copy))
+	};
+}
+
+export function toSelectedSeriesExportFileProfile(
+	artifact: ReportProofExportArtifactResponse,
+	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
+): SelectedSeriesExportFileProfile {
+	const codebook = parseExportCodebook(artifact.codebookJson);
+	const artifactType = codebook.artifactType ?? artifact.artifactType;
+	const responseDataset = artifactType === 'campaign_series_response_csv_codebook';
+	const reportSummary = isAggregateResultsExport(artifactType);
+	const fileKind = toExportFileKind(artifactType);
+	const csvHeaders = csvHeadersFromContent(artifact.csvContent);
+	const columns = columnsOrCsvHeaders(codebook, artifact);
+	const hasCodebookColumns = codebook.columns.length > 0;
+	const rowShapeItem = toExportRowShapeItem(artifact, codebook, responseDataset, reportSummary);
+	const readinessItems = [
+		toExportFilePurposeItem(artifact, responseDataset, reportSummary),
+		rowShapeItem,
+		toExportVariablesValuesItem(artifact, codebook, responseDataset, reportSummary),
+		toExportMissingnessItem(codebook, responseDataset, reportSummary),
+		toExportScoreOutputsItem(artifact, codebook, responseDataset, reportSummary)
+	].map((item) => localizeReportsWorkflowItem(item, copy));
+
+	return {
+		fileKind,
+		title: localizeReportsWorkflowText(toExportProfileTitle(artifactType, artifact.fileName), copy),
+		status: toExportProfileStatus(artifact, columns),
+		fileName: artifact.fileName,
+		rowShape: localizeReportsWorkflowText(rowShapeItem.summary, copy),
+		columnSummary: localizeReportsWorkflowText(
+			toExportProfileColumnSummary(hasCodebookColumns, codebook.columns.length, csvHeaders.length),
+			copy
+		),
+		downloadSummary: localizeReportsWorkflowText(
+			artifact.canDownload ? 'Download ready' : 'Download unavailable',
+			copy
+		),
+		sampleColumns: sampleExportColumns(columns, fileKind),
+		readinessItems
 	};
 }
 
@@ -841,8 +911,8 @@ export function toSelectedSeriesReportsPath(
 	copy: SelectedSeriesReportsWorkflowCopy = defaultSelectedSeriesReportsWorkflowCopy
 ): SelectedSeriesReportsPath {
 	const actions = toSelectedSeriesReportsWorkflowActions(workspace, localState, copy);
-	const hasRegistryAggregateExport = workspace.exportArtifacts.some(
-		(artifact) => isAggregateResultsExport(artifact.artifactType)
+	const hasRegistryAggregateExport = workspace.exportArtifacts.some((artifact) =>
+		isAggregateResultsExport(artifact.artifactType)
 	);
 	const hasRegistryReportExport = workspace.exportArtifacts.some((artifact) =>
 		isResultsMatrixExport(artifact.artifactType)
@@ -1060,9 +1130,9 @@ function hasAnyExport(
 ) {
 	return Boolean(
 		workspace.selectedCampaign?.latestExportArtifactId ||
-			localState.exportCreated ||
-			localState.responseExportCreated ||
-			workspace.exportArtifacts.length > 0
+		localState.exportCreated ||
+		localState.responseExportCreated ||
+		workspace.exportArtifacts.length > 0
 	);
 }
 
@@ -1072,9 +1142,9 @@ function hasAnyDownloadableExport(
 ) {
 	return Boolean(
 		localState.exportCreated ||
-			localState.responseExportCreated ||
-			workspace.selectedCampaign?.latestExportArtifactCanDownload ||
-			workspace.exportArtifacts.some((artifact) => artifact.canDownload)
+		localState.responseExportCreated ||
+		workspace.selectedCampaign?.latestExportArtifactCanDownload ||
+		workspace.exportArtifacts.some((artifact) => artifact.canDownload)
 	);
 }
 
@@ -1084,11 +1154,10 @@ function hasDownloadableResponseDatasetExport(
 ) {
 	return Boolean(
 		localState.responseExportCreated ||
-			workspace.exportArtifacts.some(
-				(artifact) =>
-					artifact.artifactType === 'campaign_series_response_csv_codebook' &&
-					artifact.canDownload
-			)
+		workspace.exportArtifacts.some(
+			(artifact) =>
+				artifact.artifactType === 'campaign_series_response_csv_codebook' && artifact.canDownload
+		)
 	);
 }
 
@@ -1098,9 +1167,9 @@ function hasDownloadableResultsMatrixExport(
 ) {
 	return Boolean(
 		localState.exportCreated ||
-			workspace.exportArtifacts.some(
-				(artifact) => isResultsMatrixExport(artifact.artifactType) && artifact.canDownload
-			)
+		workspace.exportArtifacts.some(
+			(artifact) => isResultsMatrixExport(artifact.artifactType) && artifact.canDownload
+		)
 	);
 }
 
@@ -1214,7 +1283,8 @@ function toExportFilesPacketItem(
 			label: 'Export files',
 			status: 'ready',
 			summary: 'Response dataset ready',
-			detail: 'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.'
+			detail:
+				'Use this CSV and codebook for analysis. Keep method and interpretation notes with the file.'
 		};
 	}
 
@@ -1489,7 +1559,8 @@ function toScoreMethodMissingnessItem(
 			label: 'Missing answers',
 			status: 'pending',
 			summary: 'Missing-answer metadata available after reviewing results',
-			detail: 'Use Review results to load valid/expected answer contribution counts where available.'
+			detail:
+				'Use Review results to load valid/expected answer contribution counts where available.'
 		};
 	}
 
@@ -1665,8 +1736,7 @@ function toExportRowShapeItem(
 			label: 'Row shape',
 			status: 'ready',
 			summary: `${rowCount} ${pluralize(rowCount, 'row', 'rows')}; one row per submitted response`,
-			detail:
-				'Each row represents one submitted response session in this study export.'
+			detail: 'Each row represents one submitted response session in this study export.'
 		};
 	}
 
@@ -1861,8 +1931,8 @@ function toExportMissingnessItem(
 	responseDataset: boolean,
 	reportSummary: boolean
 ): SelectedSeriesExportPreviewItem {
-	const hasMissingColumns = codebook.columns.some((column) =>
-		column.name.includes('missing') || column.metadataKind?.includes('missing')
+	const hasMissingColumns = codebook.columns.some(
+		(column) => column.name.includes('missing') || column.metadataKind?.includes('missing')
 	);
 	const hasQuestionMissingCodes = codebook.columns.some((column) => column.hasMissingCodes);
 
@@ -1930,7 +2000,9 @@ function toExportScoreOutputsItem(
 
 	if (reportSummary) {
 		const csvHeaders = csvHeadersFromContent(artifact.csvContent);
-		const hasDimensionCode = codebook.columns.some((column) => column.name === 'dimension_code') || csvHeaders.includes('dimension_code');
+		const hasDimensionCode =
+			codebook.columns.some((column) => column.name === 'dimension_code') ||
+			csvHeaders.includes('dimension_code');
 		return {
 			id: 'score_outputs',
 			label: 'Score outputs',
@@ -1970,8 +2042,7 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Results files ready': 'results.packet.resultsFilesReady.summary',
 	'Use the response dataset for row-level analysis and the results matrix for aggregate, group, and measurement comparison.':
 		'results.packet.resultsFilesReady.detail',
-	'Results matrix file ready for aggregate review':
-		'results.packet.resultsMatrixReady.summary',
+	'Results matrix file ready for aggregate review': 'results.packet.resultsMatrixReady.summary',
 	'This file summarizes aggregate results. Create a response dataset when row-level analysis is needed.':
 		'results.packet.resultsMatrixReady.detail',
 	'Export file ready for review': 'results.packet.currentExportNeeded.summary',
@@ -2030,6 +2101,10 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 	'Missingness policy available after file review': 'results.export.pending.missingness.summary',
 	'Score outputs available after file review': 'results.export.pending.scoreOutputs.summary',
 	'Response dataset CSV and codebook': 'results.export.responseDataset.summary',
+	'Results matrix CSV and codebook': 'exports.library.fileType.reportSummary',
+	'Download ready': 'results.export.profile.download.ready',
+	'Download unavailable': 'results.export.profile.download.unavailable',
+	'Review export file to inspect columns': 'results.export.profile.columns.pending',
 	'Use this for row-level analysis. Keep method, disclosure, and interpretation notes with the file.':
 		'results.export.responseDataset.detail',
 	'Results matrix CSV, not row-level response data': 'results.export.reportSummary.summary',
@@ -2037,15 +2112,15 @@ const reportsWorkflowMessageIds: Record<string, AppMessageId> = {
 		'results.export.reportSummary.detail',
 	'Use this for scoped aggregate review. Overall, group, and wave rows stay aggregate-only; create a response dataset when you need submitted-response rows.':
 		'results.export.reportSummary.scoped.detail',
-	'Review this file type before using it outside the workspace.': 'results.export.unknownFile.detail',
+	'Review this file type before using it outside the workspace.':
+		'results.export.unknownFile.detail',
 	'Each row represents one submitted response session in this study export.':
 		'results.export.rowShape.responseRows.detail',
 	'Each row summarizes one score output for the selected wave, not one respondent.':
 		'results.export.rowShape.scoreRows.detail',
 	'Rows can represent overall, group, or wave result scopes. Use result_scope and result_scope_label before interpreting each row.':
 		'results.export.rowShape.scopedRows.detail',
-	'Review the codebook before interpreting row meaning.':
-		'results.export.rowShape.generic.detail',
+	'Review the codebook before interpreting row meaning.': 'results.export.rowShape.generic.detail',
 	'Wave fields included': 'results.export.waveFields.included.summary',
 	'Selected-wave lifecycle fields included': 'results.export.waveFields.reportSummary.summary',
 	'The aggregate file describes result scopes and their finality. Use row scope before comparing measurements.':
@@ -2141,7 +2216,9 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 		});
 	}
 
-	const submittedVisibleMatch = value.match(/^(\d+) submitted responses?, (\d+) visible score rows?$/);
+	const submittedVisibleMatch = value.match(
+		/^(\d+) submitted responses?, (\d+) visible score rows?$/
+	);
 	if (submittedVisibleMatch) {
 		return appMessage(locale, 'results.method.coverage.submittedVisible', {
 			submitted: Number(submittedVisibleMatch[1]),
@@ -2218,6 +2295,20 @@ function localizeReportsWorkflowText(value: string, copy: SelectedSeriesReportsW
 	if (columnsDetectedMatch) {
 		return appMessage(locale, 'results.export.variables.columnsDetected', {
 			count: Number(columnsDetectedMatch[1])
+		});
+	}
+
+	const columnsDocumentedMatch = value.match(/^(\d+) columns documented$/);
+	if (columnsDocumentedMatch) {
+		return appMessage(locale, 'results.export.profile.columnsDocumented', {
+			count: Number(columnsDocumentedMatch[1])
+		});
+	}
+
+	const csvColumnsDetectedMatch = value.match(/^(\d+) CSV columns detected$/);
+	if (csvColumnsDetectedMatch) {
+		return appMessage(locale, 'results.export.profile.csvColumnsDetected', {
+			count: Number(csvColumnsDetectedMatch[1])
 		});
 	}
 
@@ -2331,7 +2422,105 @@ function columnsOrCsvHeaders(
 }
 
 function csvHeadersFromContent(content: string | null | undefined) {
-	return (content ?? '').trim().split(/\r?\n/)[0]?.split(',').map((header) => header.trim()).filter(Boolean) ?? [];
+	return (
+		(content ?? '')
+			.trim()
+			.split(/\r?\n/)[0]
+			?.split(',')
+			.map((header) => header.trim())
+			.filter(Boolean) ?? []
+	);
+}
+
+function toExportFileKind(artifactType: string | null | undefined): SelectedSeriesExportFileKind {
+	if (artifactType === 'campaign_series_response_csv_codebook') {
+		return 'response_dataset';
+	}
+
+	if (artifactType === 'campaign_series_results_matrix_csv_codebook') {
+		return 'results_matrix';
+	}
+
+	if (artifactType === 'report_proof_csv_codebook') {
+		return 'single_measurement';
+	}
+
+	return 'unknown';
+}
+
+function toExportProfileTitle(artifactType: string | null | undefined, fileName: string) {
+	switch (toExportFileKind(artifactType)) {
+		case 'response_dataset':
+			return 'Response dataset CSV and codebook';
+		case 'results_matrix':
+		case 'single_measurement':
+			return 'Results matrix CSV and codebook';
+		case 'unknown':
+			return fileName;
+	}
+}
+
+function toExportProfileStatus(
+	artifact: ReportProofExportArtifactResponse,
+	columns: string[]
+): ProductReadModelBadgeStatus {
+	if (!artifact.canDownload) {
+		return 'blocked';
+	}
+
+	return columns.length > 0 ? 'ready' : 'pending';
+}
+
+function toExportProfileColumnSummary(
+	hasCodebookColumns: boolean,
+	codebookColumnCount: number,
+	csvHeaderCount: number
+) {
+	if (hasCodebookColumns) {
+		return `${codebookColumnCount} columns documented`;
+	}
+
+	if (csvHeaderCount > 0) {
+		return `${csvHeaderCount} CSV columns detected`;
+	}
+
+	return 'Review export file to inspect columns';
+}
+
+function sampleExportColumns(columns: string[], fileKind: SelectedSeriesExportFileKind) {
+	const priorities =
+		fileKind === 'results_matrix' || fileKind === 'single_measurement'
+			? [
+					'result_scope',
+					'result_scope_label',
+					'dimension_code',
+					'disclosure',
+					'mean',
+					'score_count'
+				]
+			: ['response_row_id', 'trajectory_id', 'wave_label'];
+	const selected = new Set<string>();
+	const sample: string[] = [];
+
+	for (const column of priorities) {
+		if (columns.includes(column) && !selected.has(column)) {
+			sample.push(column);
+			selected.add(column);
+		}
+	}
+
+	for (const column of columns) {
+		if (sample.length >= 6) {
+			break;
+		}
+
+		if (!selected.has(column)) {
+			sample.push(column);
+			selected.add(column);
+		}
+	}
+
+	return sample;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -2381,9 +2570,9 @@ function hasResponseDatasetExport(
 ) {
 	return Boolean(
 		localState.responseExportCreated ||
-			workspace.exportArtifacts.some(
-				(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
-			)
+		workspace.exportArtifacts.some(
+			(artifact) => artifact.artifactType === 'campaign_series_response_csv_codebook'
+		)
 	);
 }
 
@@ -2392,21 +2581,22 @@ function isResultsMatrixExport(artifactType: string | null | undefined) {
 }
 
 function isAggregateResultsExport(artifactType: string | null | undefined) {
-	return (
-		isResultsMatrixExport(artifactType) || artifactType === 'report_proof_csv_codebook'
-	);
+	return isResultsMatrixExport(artifactType) || artifactType === 'report_proof_csv_codebook';
 }
 
-function toResultsPacketPrimaryAction(options: {
-	hasCampaign: boolean;
-	hasResponses: boolean;
-	hasVisibleScores: boolean;
-	responseDatasetReady: boolean;
-	resultsMatrixReady: boolean;
-	controlledSharingReady: boolean;
-	interpretationReviewed: boolean;
-	collectionClosed: boolean;
-}, copy: SelectedSeriesReportsWorkflowCopy) {
+function toResultsPacketPrimaryAction(
+	options: {
+		hasCampaign: boolean;
+		hasResponses: boolean;
+		hasVisibleScores: boolean;
+		responseDatasetReady: boolean;
+		resultsMatrixReady: boolean;
+		controlledSharingReady: boolean;
+		interpretationReviewed: boolean;
+		collectionClosed: boolean;
+	},
+	copy: SelectedSeriesReportsWorkflowCopy
+) {
 	if (!options.hasCampaign) {
 		return copy.packetReview.primaryAction.noCampaign;
 	}

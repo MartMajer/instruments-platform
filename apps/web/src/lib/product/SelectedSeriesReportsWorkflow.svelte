@@ -12,6 +12,7 @@
 		ReportProofExportArtifactResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
+	import type { ProductStatus } from '$lib/components/status-badge-labels';
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
@@ -87,8 +88,9 @@
 		) ?? null
 	);
 	const latestLegacyReportExportArtifact = $derived(
-		workspace.exportArtifacts.find((artifact) => artifact.artifactType === 'report_proof_csv_codebook') ??
-			null
+		workspace.exportArtifacts.find(
+			(artifact) => artifact.artifactType === 'report_proof_csv_codebook'
+		) ?? null
 	);
 	const latestReportExportArtifact = $derived(
 		latestResultsMatrixExportArtifact ?? latestLegacyReportExportArtifact
@@ -116,9 +118,7 @@
 			null
 	);
 	const currentExportArtifactId = $derived(
-		preferredExportArtifact?.id ??
-			selectedCampaign?.latestExportArtifactId ??
-			null
+		preferredExportArtifact?.id ?? selectedCampaign?.latestExportArtifactId ?? null
 	);
 	const currentDownloadableExportArtifactId = $derived(
 		preferredDownloadableExportArtifact?.id ??
@@ -128,9 +128,7 @@
 			null
 	);
 	const currentExportFileName = $derived(
-		preferredExportArtifact?.fileName ??
-			selectedCampaign?.latestExportArtifactFileName ??
-			null
+		preferredExportArtifact?.fileName ?? selectedCampaign?.latestExportArtifactFileName ?? null
 	);
 	const currentExportPurpose = $derived(
 		preferredExportArtifact?.artifactType === 'campaign_series_response_csv_codebook'
@@ -150,7 +148,9 @@
 	const methodReview = $derived(
 		toSelectedSeriesScoreMethodReview(workspace, reportProofResult, reportsWorkflowCopy)
 	);
-	const exportPreviewArtifact = $derived(storedExportResult ?? responseExportResult ?? exportResult ?? null);
+	const exportPreviewArtifact = $derived(
+		storedExportResult ?? responseExportResult ?? exportResult ?? null
+	);
 	const exportPreview = $derived(
 		toSelectedSeriesExportPreview(workspace, exportPreviewArtifact, reportsWorkflowCopy)
 	);
@@ -164,7 +164,9 @@
 		canManageSetup && Boolean(workspace.series.id) && actionStates.responseExport !== 'submitting'
 	);
 	const canReviewExportFile = $derived(
-		canManageSetup && Boolean(currentExportArtifactId) && actionStates.fetchArtifact !== 'submitting'
+		canManageSetup &&
+			Boolean(currentExportArtifactId) &&
+			actionStates.fetchArtifact !== 'submitting'
 	);
 	const canDownloadCsv = $derived(
 		canManageSetup &&
@@ -178,6 +180,20 @@
 		preferredDownloadableExportArtifact?.artifactType === 'campaign_series_response_csv_codebook'
 			? reportsWorkflowCopy.actions.downloadCsv.responseDatasetTitle
 			: reportsWorkflowCopy.actions.downloadCsv.reportSummaryTitle
+	);
+	const resultsMatrixChoice = $derived(
+		toExportChoice(
+			reportsUi.reportSummaryCsvCodebook,
+			reportsUi.resultsMatrixUse,
+			exportResult ?? latestResultsMatrixExportArtifact
+		)
+	);
+	const responseDatasetChoice = $derived(
+		toExportChoice(
+			reportsUi.responseCsvCodebook,
+			reportsUi.responseDatasetUse,
+			responseExportResult ?? latestResponseExportArtifact
+		)
 	);
 
 	function scoreInterpretationMeta(
@@ -351,6 +367,32 @@
 		return (content ?? '').trim().split(/\r?\n/).slice(0, 6).join('\n');
 	}
 
+	function toExportChoice(
+		title: string,
+		detail: string,
+		artifact:
+			| {
+					fileName: string | null;
+					rowCount: number;
+					canDownload: boolean;
+			  }
+			| null
+			| undefined
+	) {
+		const status: ProductStatus = artifact
+			? artifact.canDownload
+				? 'ready'
+				: 'pending'
+			: 'not_available';
+		return {
+			title,
+			detail,
+			status,
+			fileName: artifact?.fileName ?? reportsUi.notAvailable,
+			rows: artifact ? reportsUi.rows(artifact.rowCount) : reportsUi.notAvailable
+		};
+	}
+
 	function triggerCsvDownload(result: ExportArtifactDownloadResponse) {
 		if (typeof document === 'undefined') {
 			return;
@@ -371,7 +413,11 @@
 	}
 </script>
 
-<section class="product-panel" role="group" aria-label={reportsWorkflowCopy.surface.reviewActionsAria}>
+<section
+	class="product-panel"
+	role="group"
+	aria-label={reportsWorkflowCopy.surface.reviewActionsAria}
+>
 	<div class="product-panel__header">
 		<div>
 			<p class="product-kicker">{reportsWorkflowCopy.surface.flowKicker}</p>
@@ -425,7 +471,11 @@
 		hideWhenEmpty={true}
 		showChrome={false}
 	/>
-	<article class="overview-command-card" role="region" aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}>
+	<article
+		class="overview-command-card"
+		role="region"
+		aria-label={reportsWorkflowCopy.surface.resultsUseReviewAria}
+	>
 		<div>
 			<p class="product-kicker">{reportsWorkflowCopy.surface.useDecisionLabel}</p>
 			<h4 class="setup-current-task__title">{packetReview.title}</h4>
@@ -458,14 +508,24 @@
 		{@render ReportProofResult()}
 	{/if}
 
-	<article class="record-row" role="region" aria-label={reportsWorkflowCopy.surface.exportPreviewAria}>
+	<article
+		class="record-row"
+		role="region"
+		aria-label={reportsWorkflowCopy.surface.exportPreviewAria}
+	>
 		<div class="record-row__header">
 			<div>
-				<span>{reportsWorkflowCopy.surface.exportPreviewLabel}</span>
-				<strong>{currentExportPurpose}</strong>
+				<p class="product-kicker">{reportsWorkflowCopy.surface.exportPreviewLabel}</p>
+				<h4 class="setup-current-task__title">{exportPreview.title}</h4>
+				<p class="text-sm text-[var(--color-text-muted)]">{exportPreview.description}</p>
+				<p class="record-field__label">{currentExportPurpose}</p>
 			</div>
 			<StatusBadge
-				status={preferredDownloadableExportArtifact ? 'ready' : preferredExportArtifact ? 'pending' : 'not_available'}
+				status={preferredDownloadableExportArtifact
+					? 'ready'
+					: preferredExportArtifact
+						? 'pending'
+						: 'not_available'}
 				label={preferredDownloadableExportArtifact
 					? reportsUi.downloadable
 					: preferredExportArtifact
@@ -493,10 +553,88 @@
 			<div class="record-field">
 				<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
 				<dd class="record-field__value">
-					{currentDownloadableExportArtifactId ? reportsUi.downloadable : exportPreview.downloadLabel}
+					{currentDownloadableExportArtifactId
+						? reportsUi.downloadable
+						: exportPreview.downloadLabel}
 				</dd>
 			</div>
 		</dl>
+
+		<div class="export-choice-grid" aria-label={reportsUi.exportChoicesAria}>
+			{#each [resultsMatrixChoice, responseDatasetChoice] as choice (choice.title)}
+				<article class="export-choice-card" data-status={choice.status}>
+					<div class="record-row__header">
+						<div>
+							<p class="record-row__title">{choice.title}</p>
+							<p class="text-sm text-[var(--color-text-muted)]">{choice.detail}</p>
+						</div>
+						<StatusBadge status={choice.status} />
+					</div>
+					<dl class="record-grid">
+						<div class="record-field">
+							<dt class="record-field__label">{reportsUi.file}</dt>
+							<dd class="record-field__value">{choice.fileName}</dd>
+						</div>
+						<div class="record-field">
+							<dt class="record-field__label">{reportsUi.rowsLabel}</dt>
+							<dd class="record-field__value">{choice.rows}</dd>
+						</div>
+					</dl>
+				</article>
+			{/each}
+		</div>
+
+		{#if exportPreview.fileProfile}
+			{@const profile = exportPreview.fileProfile}
+			<section class="export-file-profile" aria-label={reportsUi.exportProfileAria}>
+				<div class="record-row__header">
+					<div>
+						<p class="product-kicker">{reportsUi.reviewedFile}</p>
+						<h4 class="record-row__title">{profile.title}</h4>
+						<p class="text-sm text-[var(--color-text-muted)]">{profile.fileName}</p>
+					</div>
+					<StatusBadge status={profile.status} label={profile.downloadSummary} />
+				</div>
+				<dl class="record-grid">
+					<div class="record-field">
+						<dt class="record-field__label">{reportsUi.rowShapeLabel}</dt>
+						<dd class="record-field__value">{profile.rowShape}</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">{reportsUi.columnsLabel}</dt>
+						<dd class="record-field__value">{profile.columnSummary}</dd>
+					</div>
+					<div class="record-field">
+						<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
+						<dd class="record-field__value">{profile.downloadSummary}</dd>
+					</div>
+				</dl>
+				<div class="export-file-profile__columns">
+					<p class="record-field__label">{reportsUi.sampleColumnsLabel}</p>
+					{#if profile.sampleColumns.length > 0}
+						<div class="export-column-chip-list">
+							{#each profile.sampleColumns as column (column)}
+								<span>{column}</span>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-[var(--color-text-muted)]">{reportsUi.noSampleColumns}</p>
+					{/if}
+				</div>
+				<div class="export-readiness-list" aria-label={reportsUi.readinessChecks}>
+					{#each profile.readinessItems as item (item.id)}
+						<article class="export-readiness-item" data-state={item.status}>
+							<div class="questionnaire-blueprint-review__item-header">
+								<p class="record-field__label">{item.label}</p>
+								<StatusBadge status={item.status} />
+							</div>
+							<p class="record-row__title">{item.summary}</p>
+							<p class="text-sm leading-6 text-[var(--color-text-muted)]">{item.detail}</p>
+						</article>
+					{/each}
+				</div>
+			</section>
+		{/if}
 
 		{#if canManageSetup}
 			<div class="action-row">
@@ -648,7 +786,8 @@
 			<strong class="record-row__title">{reportsUi.readOnlyTitle}</strong>
 			<span>{reportsUi.readOnlyBody}</span>
 		</p>
-	{/if}</section>
+	{/if}
+</section>
 
 {#snippet ReportProofResult()}
 	{#if reportProofResult}
@@ -662,22 +801,24 @@
 			</div>
 			<div class="response-lab__meta">
 				<span>{reportsUi.internalPreview}</span>
-				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} {reportsUi.responsesSuffix}</span>
+				<span
+					>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)}
+					{reportsUi.responsesSuffix}</span
+				>
 				<span>{reportsUi.minimumGroup(reportProofResult.disclosurePolicy.kMin)}</span>
 			</div>
 			<div class="score-card-list" aria-label={reportsUi.reportPreviewScoresAria}>
 				{#each reportProofResult.scores as score (score.dimensionCode)}
-					{@const scoreMetadata =
-						formatScoreOutputMetadata(
-							score.disclosure === 'visible' ? score.nValidTotal : null,
-							score.disclosure === 'visible' ? score.nExpectedTotal : null,
-							score.disclosure === 'visible' ? score.missingPolicyStatusSummary : null,
-							{
-								calculationLabel: score.calculationLabel,
-								scoreRangeMin: score.scoreRangeMin,
-								scoreRangeMax: score.scoreRangeMax
-							}
-						)}
+					{@const scoreMetadata = formatScoreOutputMetadata(
+						score.disclosure === 'visible' ? score.nValidTotal : null,
+						score.disclosure === 'visible' ? score.nExpectedTotal : null,
+						score.disclosure === 'visible' ? score.missingPolicyStatusSummary : null,
+						{
+							calculationLabel: score.calculationLabel,
+							scoreRangeMin: score.scoreRangeMin,
+							scoreRangeMax: score.scoreRangeMax
+						}
+					)}
 					<article class="score-card" aria-label={reportsUi.reportScoreAria(score.dimensionCode)}>
 						<div>
 							<p class="score-card__label">{score.displayLabel?.trim() || score.dimensionCode}</p>
@@ -721,11 +862,11 @@
 	title: string;
 })}
 	<section class="score-result-panel report-proof-panel" aria-label={ariaLabel}>
-			<div class="score-result-panel__header">
-				<div>
-					<p class="product-kicker">{kicker}</p>
-					<h4 class="record-row__title">{title}</h4>
-				</div>
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">{kicker}</p>
+				<h4 class="record-row__title">{title}</h4>
+			</div>
 			<StatusBadge
 				status={result.canDownload ? 'ready' : 'pending'}
 				label={result.canDownload ? reportsUi.downloadable : reportsUi.exportPreparing}
@@ -759,7 +900,9 @@
 			<div class="record-field">
 				<dt class="record-field__label">{reportsUi.downloadStatus}</dt>
 				<dd class="record-field__value">
-					{storedExportResult.canDownload ? reportsUi.downloadable : humanize(storedExportResult.status)}
+					{storedExportResult.canDownload
+						? reportsUi.downloadable
+						: humanize(storedExportResult.status)}
 				</dd>
 			</div>
 		</dl>
@@ -788,7 +931,3 @@
 		</p>
 	{/if}
 {/snippet}
-
-
-
-

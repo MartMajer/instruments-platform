@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { ReportWidget } from '$lib/api/product';
-	import { toScoreCards } from '$lib/product/results-workbench';
+	import {
+		filterResultsDashboard,
+		toResultFocusOptions,
+		toScoreCards
+	} from '$lib/product/results-workbench';
 	import { isResultsDashboardWidgetData } from './report-widget-data';
 	import {
 		formatCodeLabel,
@@ -13,11 +17,18 @@
 	import ResultsTrendChart from './ResultsTrendChart.svelte';
 
 	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
+	let selectedResultCode = $state('all');
 
 	const data = $derived(isResultsDashboardWidgetData(widget.data) ? widget.data : null);
 	const dashboard = $derived(data?.dashboard ?? null);
+	const resultFocusOptions = $derived(
+		toResultFocusOptions(dashboard?.outputBars ?? [], formatWidgetLabel('allResultOutputs', copy))
+	);
+	const focusedDashboard = $derived(
+		dashboard ? filterResultsDashboard(dashboard, selectedResultCode) : null
+	);
 	const scoreCards = $derived(
-		toScoreCards(dashboard?.outputBars ?? [], {
+		toScoreCards(focusedDashboard?.outputBars ?? [], {
 			notAvailable: copy?.notAvailable ?? 'Not available',
 			observedScale: formatWidgetLabel('observedRange', copy),
 			scoreRange: formatWidgetLabel('scoreRange', copy),
@@ -32,6 +43,19 @@
 	function formatMetricValue(value: number | null) {
 		return value === null ? (copy?.notAvailable ?? 'Not available') : String(value);
 	}
+
+	function selectResultFocus(value: string) {
+		selectedResultCode = value;
+	}
+
+	$effect(() => {
+		if (
+			selectedResultCode !== 'all' &&
+			!resultFocusOptions.some((option) => option.value === selectedResultCode)
+		) {
+			selectedResultCode = 'all';
+		}
+	});
 </script>
 
 <ReportWidgetShell {widget} {copy}>
@@ -49,6 +73,26 @@
 				{/each}
 			</dl>
 
+			{#if resultFocusOptions.length > 2}
+				<div class="results-filter-rail" aria-label={formatWidgetLabel('resultFocus', copy)}>
+					<span class="record-field__label">{formatWidgetLabel('resultFocus', copy)}</span>
+					<div class="results-filter-rail__options">
+						{#each resultFocusOptions as option (option.value)}
+							<button
+								type="button"
+								class="results-filter-chip"
+								data-selected={selectedResultCode === option.value}
+								aria-pressed={selectedResultCode === option.value}
+								onclick={() => selectResultFocus(option.value)}
+							>
+								<span>{option.label}</span>
+								<small>{option.count}</small>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			{#if scoreCards.length > 0}
 				<section
 					class="results-dashboard-widget__panel"
@@ -61,7 +105,7 @@
 						</div>
 						<span class="record-field__label">
 							{formatWidgetLabel('disclosure', copy)}: {formatCodeLabel(
-								dashboard.disclosureState,
+								focusedDashboard?.disclosureState,
 								copy
 							)}
 						</span>
@@ -118,14 +162,15 @@
 					<div>
 						<p class="record-field__label">{formatWidgetLabel('resultBarChart', copy)}</p>
 						<p class="record-row__title">
-							{dashboard.selectedCampaignName ?? formatWidgetLabel('selectedCampaign', copy)}
+							{focusedDashboard?.selectedCampaignName ??
+								formatWidgetLabel('selectedCampaign', copy)}
 						</p>
 					</div>
-					<span class="status-badge" data-status={dashboard.disclosureState}>
-						{formatCodeLabel(dashboard.disclosureState, copy)}
+					<span class="status-badge" data-status={focusedDashboard?.disclosureState}>
+						{formatCodeLabel(focusedDashboard?.disclosureState, copy)}
 					</span>
 				</div>
-				<ResultsBarChart bars={dashboard.outputBars} {copy} />
+				<ResultsBarChart bars={focusedDashboard?.outputBars ?? []} {copy} />
 			</section>
 
 			<section
@@ -138,10 +183,15 @@
 						<p class="record-row__title">{formatWidgetLabel('groupBreakdown', copy)}</p>
 					</div>
 					<span class="record-field__label">
-						{formatWidgetLabel('sample', copy)} >= {dashboard.disclosureKMin}
+						{formatWidgetLabel('sample', copy)} >= {focusedDashboard?.disclosureKMin}
 					</span>
 				</div>
-				<ResultsBarChart bars={dashboard.groupBars} {copy} emptyLabelKey="noGroupBars" />
+				<ResultsBarChart
+					bars={focusedDashboard?.groupBars ?? []}
+					{copy}
+					emptyLabelKey="noGroupBars"
+					labelMode="full"
+				/>
 			</section>
 
 			<section
@@ -155,7 +205,7 @@
 					</div>
 					<span class="record-field__label">{formatWidgetLabel('mean', copy)}</span>
 				</div>
-				<ResultsTrendChart points={dashboard.waveTrendPoints} {copy} />
+				<ResultsTrendChart points={focusedDashboard?.waveTrendPoints ?? []} {copy} />
 			</section>
 
 			{#if dashboard.notes.length > 0}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
-import { toResultsWorkbenchModel, toScoreCards } from './results-workbench';
+import {
+	filterResultsAnalytics,
+	filterResultsDashboard,
+	resultBarDisplayLabel,
+	toAnalyticsFilterModel,
+	toResultFocusOptions,
+	toResultsWorkbenchModel,
+	toScoreCards
+} from './results-workbench';
 
 describe('results workbench model', () => {
 	it('builds disclosure-safe score cards with configured range progress and method metadata', () => {
@@ -111,6 +119,142 @@ describe('results workbench model', () => {
 			valueLabel: 'Skriveno',
 			countLabel: 'Skriveno',
 			rangeLabel: 'Raspon rezultata 1-5'
+		});
+	});
+
+	it('builds stable result focus options from dashboard outputs', () => {
+		const options = toResultFocusOptions(workspaceWithResults.resultsDashboard!.outputBars);
+
+		expect(options).toEqual([
+			{ value: 'all', label: 'All result outputs', count: 2 },
+			{ value: 'workload', label: 'Workload pressure', count: 1 },
+			{ value: 'recovery', label: 'Recovery capacity', count: 1 }
+		]);
+	});
+
+	it('filters dashboard charts by result output while keeping disclosure-safe rows intact', () => {
+		const dashboard = {
+			...workspaceWithResults.resultsDashboard!,
+			groupBars: [
+				{
+					id: 'group:ops:workload',
+					label: 'Operations / Workload pressure',
+					displayLabel: 'Workload pressure',
+					dimensionCode: 'workload',
+					disclosure: 'visible',
+					value: 60,
+					count: 12,
+					detail: 'department',
+					suppressionReason: null
+				},
+				{
+					id: 'group:hr:recovery',
+					label: 'HR / Recovery capacity',
+					displayLabel: 'Recovery capacity',
+					dimensionCode: 'recovery',
+					disclosure: 'suppressed',
+					value: null,
+					count: null,
+					detail: 'department',
+					suppressionReason: 'insufficient_responses'
+				}
+			],
+			waveTrendPoints: [
+				{
+					id: 'wave:may:workload',
+					campaignId: 'campaign-0',
+					campaignName: 'May pulse',
+					displayLabel: 'Workload pressure',
+					dimensionCode: 'workload',
+					disclosure: 'visible',
+					value: 58,
+					count: 22,
+					deltaFromPrevious: null,
+					comparisonState: 'baseline',
+					dataFinality: 'closed_wave',
+					suppressionReason: null
+				},
+				{
+					id: 'wave:june:recovery',
+					campaignId: 'campaign-1',
+					campaignName: 'June pulse',
+					displayLabel: 'Recovery capacity',
+					dimensionCode: 'recovery',
+					disclosure: 'suppressed',
+					value: null,
+					count: null,
+					deltaFromPrevious: null,
+					comparisonState: 'not_comparable',
+					dataFinality: 'closed_wave',
+					suppressionReason: 'insufficient_responses'
+				}
+			]
+		};
+
+		const filtered = filterResultsDashboard(dashboard, 'recovery');
+
+		expect(filtered.outputBars.map((bar) => bar.id)).toEqual(['output:recovery']);
+		expect(filtered.groupBars.map((bar) => bar.id)).toEqual(['group:hr:recovery']);
+		expect(filtered.groupBars[0].disclosure).toBe('suppressed');
+		expect(filtered.waveTrendPoints.map((point) => point.id)).toEqual(['wave:june:recovery']);
+	});
+
+	it('keeps group bar labels distinct from output-only labels', () => {
+		expect(
+			resultBarDisplayLabel(
+				{
+					id: 'group:ops:workload',
+					label: 'Operations / Workload pressure',
+					displayLabel: 'Workload pressure',
+					dimensionCode: 'workload',
+					disclosure: 'visible',
+					value: 60,
+					count: 12,
+					detail: null,
+					suppressionReason: null
+				},
+				'full'
+			)
+		).toBe('Operations / Workload pressure');
+	});
+
+	it('builds and applies visual analytics filters for result, group, and measurement', () => {
+		const analytics = workspaceWithResults.resultsAnalytics!;
+		const filterModel = toAnalyticsFilterModel(analytics);
+
+		expect(filterModel.outputOptions.map((option) => option.label)).toEqual([
+			'All result outputs',
+			'Workload pressure',
+			'Recovery capacity'
+		]);
+		expect(filterModel.groupOptions.map((option) => option.label)).toEqual([
+			'All groups',
+			'Operations',
+			'HR'
+		]);
+		expect(filterModel.measurementOptions.map((option) => option.label)).toEqual([
+			'All measurements',
+			'May pulse',
+			'June pulse'
+		]);
+
+		const filtered = filterResultsAnalytics(analytics, {
+			outputCode: 'workload',
+			groupKey: 'department\u0000Operations',
+			campaignId: 'campaign-1'
+		});
+
+		expect(filtered.scoreOutputs.map((row) => row.dimensionCode)).toEqual(['workload']);
+		expect(filtered.groupRows).toHaveLength(1);
+		expect(filtered.groupRows[0].groupName).toBe('Operations');
+		expect(filtered.waveRows.map((row) => row.campaignName)).toEqual(['June pulse']);
+		expect(filtered.filteredCounts).toEqual({
+			scoreOutputs: 1,
+			scoreOutputsTotal: 2,
+			groupRows: 1,
+			groupRowsTotal: 2,
+			waveRows: 1,
+			waveRowsTotal: 2
 		});
 	});
 });

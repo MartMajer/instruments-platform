@@ -1,7 +1,11 @@
 ﻿import { describe, expect, it } from 'vitest';
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
-import type { CampaignReportProofResponse, ReportProofExportArtifactResponse } from '$lib/api/setup';
+import type {
+	CampaignReportProofResponse,
+	ReportProofExportArtifactResponse
+} from '$lib/api/setup';
 import {
+	toSelectedSeriesExportFileProfile,
 	toSelectedSeriesExportPreview,
 	toSelectedSeriesScoreMethodReview,
 	toSelectedSeriesResultsPacketReview,
@@ -278,7 +282,9 @@ describe('selected-series reports workflow model', () => {
 	});
 
 	it('keeps legacy report exports readable while still asking for a results matrix', () => {
-		const actions = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithLegacyReportExport);
+		const actions = toSelectedSeriesReportsWorkflowActions(
+			reportableWorkspaceWithLegacyReportExport
+		);
 		const path = toSelectedSeriesReportsPath(reportableWorkspaceWithLegacyReportExport);
 
 		expect(actions.find((action) => action.id === 'reportProof')).toMatchObject({
@@ -437,9 +443,9 @@ describe('selected-series reports workflow model', () => {
 	});
 
 	it('labels results matrix downloads as not analysis-ready when no response export exists', () => {
-		const downloadAction = toSelectedSeriesReportsWorkflowActions(reportableWorkspaceWithExport).find(
-			(action) => action.id === 'downloadCsv'
-		);
+		const downloadAction = toSelectedSeriesReportsWorkflowActions(
+			reportableWorkspaceWithExport
+		).find((action) => action.id === 'downloadCsv');
 
 		expect(downloadAction).toMatchObject({
 			title: 'Download results matrix CSV',
@@ -746,7 +752,8 @@ describe('selected-series reports workflow model', () => {
 			expect.objectContaining({
 				id: 'variables_values',
 				status: 'ready',
-				summary: '2 answer variables, 3 score metadata fields, 1 answer metadata field, 8 columns total'
+				summary:
+					'2 answer variables, 3 score metadata fields, 1 answer metadata field, 8 columns total'
 			})
 		);
 		expect(preview.items.find((item) => item.id === 'variables_values')?.detail).toContain(
@@ -766,6 +773,35 @@ describe('selected-series reports workflow model', () => {
 				summary: 'Score metadata for posture_strain'
 			})
 		);
+	});
+
+	it('profiles a response dataset file with codebook columns before download', () => {
+		const profile = toSelectedSeriesExportFileProfile(responseExportArtifact);
+
+		expect(profile).toMatchObject({
+			fileKind: 'response_dataset',
+			title: 'Response dataset CSV and codebook',
+			status: 'ready',
+			fileName: 'campaign-series-responses.csv',
+			rowShape: '12 rows; one row per submitted response',
+			columnSummary: '8 columns documented',
+			downloadSummary: 'Download ready'
+		});
+		expect(profile.sampleColumns).toEqual([
+			'response_row_id',
+			'trajectory_id',
+			'wave_label',
+			'answer_posture',
+			'answer_recovery',
+			'posture_strain_value'
+		]);
+		expect(profile.readinessItems.map((item) => item.id)).toEqual([
+			'file_purpose',
+			'row_shape',
+			'variables_values',
+			'missingness',
+			'score_outputs'
+		]);
 	});
 
 	it('previews a results matrix export as aggregate-only and not analysis-ready', () => {
@@ -823,6 +859,52 @@ describe('selected-series reports workflow model', () => {
 		);
 	});
 
+	it('profiles a results matrix file as aggregate scoped rows', () => {
+		const profile = toSelectedSeriesExportFileProfile(reportSummaryExportArtifact);
+
+		expect(profile).toMatchObject({
+			fileKind: 'results_matrix',
+			title: 'Results matrix CSV and codebook',
+			status: 'ready',
+			rowShape: '4 rows; scoped aggregate rows',
+			columnSummary: '28 columns documented'
+		});
+		expect(profile.sampleColumns).toContain('result_scope');
+		expect(profile.sampleColumns).toContain('dimension_code');
+	});
+
+	it('marks metadata-only exports as needing file review before column claims', () => {
+		const profile = toSelectedSeriesExportFileProfile({
+			...responseExportArtifact,
+			csvContent: '',
+			codebookJson: ''
+		});
+
+		expect(profile).toMatchObject({
+			fileKind: 'response_dataset',
+			status: 'pending',
+			columnSummary: 'Review export file to inspect columns'
+		});
+		expect(profile.sampleColumns).toEqual([]);
+	});
+
+	it('falls back to CSV headers when the codebook is malformed', () => {
+		const profile = toSelectedSeriesExportFileProfile({
+			...responseExportArtifact,
+			codebookJson: '{not valid json}'
+		});
+
+		expect(profile).toMatchObject({
+			status: 'ready',
+			columnSummary: '8 CSV columns detected'
+		});
+		expect(profile.sampleColumns.slice(0, 3)).toEqual([
+			'response_row_id',
+			'trajectory_id',
+			'wave_label'
+		]);
+	});
+
 	it('explains export preview is pending before artifact content is reviewed', () => {
 		const preview = toSelectedSeriesExportPreview(reportableWorkspaceWithResponseExport);
 
@@ -857,14 +939,16 @@ describe('selected-series reports workflow model', () => {
 		expect(path.steps[0]).toMatchObject({
 			step: '1',
 			title: 'Pregled rezultata',
-			description: 'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
+			description:
+				'Pregledajte sažetke rezultata za odabrano mjerenje bez narušavanja pravila prikaza.'
 		});
 		expect(path.steps.find((step) => step.id === 'downloadCsv')).toMatchObject({
 			title: 'Preuzmi CSV skupa odgovora'
 		});
 		expect(packet).toMatchObject({
 			title: 'Mogu li se ovi rezultati koristiti?',
-			primaryAction: 'Izradite izvoz odgovora za analizu ili matricu rezultata za agregirani pregled.'
+			primaryAction:
+				'Izradite izvoz odgovora za analizu ili matricu rezultata za agregirani pregled.'
 		});
 		expect(packet.items).toContainEqual(
 			expect.objectContaining({
@@ -1416,5 +1500,3 @@ const reportSummaryExportArtifact: ReportProofExportArtifactResponse = {
 		]
 	})
 };
-
-

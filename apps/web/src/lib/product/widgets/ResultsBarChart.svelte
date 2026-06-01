@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { ResultsDashboardBarResponse } from '$lib/api/product';
-	import { configuredScoreRange, scoreProgressPercent } from '$lib/product/results-workbench';
+	import {
+		configuredScoreRange,
+		resultBarDisplayLabel,
+		scoreProgressPercent
+	} from '$lib/product/results-workbench';
 	import {
 		formatCodeLabel,
 		formatWidgetLabel,
@@ -10,11 +14,13 @@
 	let {
 		bars,
 		copy,
-		emptyLabelKey = 'noResultBars'
+		emptyLabelKey = 'noResultBars',
+		labelMode = 'display'
 	}: {
 		bars: ResultsDashboardBarResponse[];
 		copy?: ReportWidgetFormatCopy;
 		emptyLabelKey?: string;
+		labelMode?: 'display' | 'full';
 	} = $props();
 
 	let selectedBarId = $state<string | null>(null);
@@ -40,7 +46,7 @@
 	}
 
 	function barDisplayLabel(bar: ResultsDashboardBarResponse) {
-		return bar.displayLabel?.trim() || bar.label;
+		return resultBarDisplayLabel(bar, labelMode);
 	}
 
 	function formatValue(value: number | null, disclosure: string) {

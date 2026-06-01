@@ -1,5 +1,7 @@
 import type {
 	CampaignSeriesReportsWorkspaceResponse,
+	CampaignSeriesResultsAnalyticsResponse,
+	CampaignSeriesResultsDashboardResponse,
 	ResultsDashboardBarResponse
 } from '$lib/api/product';
 
@@ -44,6 +46,35 @@ export type ResultsWorkbenchModel = {
 	scoreCards: ResultsWorkbenchScoreCard[];
 	comparisons: ResultsWorkbenchComparisonSummary;
 	exports: ResultsWorkbenchExportSummary;
+};
+
+export type ResultsFilterOption = {
+	value: string;
+	label: string;
+	count: number;
+};
+
+export type ResultsAnalyticsFilters = {
+	outputCode?: string | null;
+	groupKey?: string | null;
+	campaignId?: string | null;
+};
+
+export type ResultsAnalyticsFilterModel = {
+	outputOptions: ResultsFilterOption[];
+	groupOptions: ResultsFilterOption[];
+	measurementOptions: ResultsFilterOption[];
+};
+
+export type FilteredResultsAnalytics = CampaignSeriesResultsAnalyticsResponse & {
+	filteredCounts: {
+		scoreOutputs: number;
+		scoreOutputsTotal: number;
+		groupRows: number;
+		groupRowsTotal: number;
+		waveRows: number;
+		waveRowsTotal: number;
+	};
 };
 
 export type ResultsWorkbenchLabels = {
@@ -100,6 +131,147 @@ export function toResultsWorkbenchModel(
 		},
 		exports: toExportSummary(workspace)
 	};
+}
+
+export function toResultFocusOptions(
+	bars: ResultsDashboardBarResponse[],
+	allLabel = 'All result outputs'
+): ResultsFilterOption[] {
+	const byDimension = new Map<string, ResultsFilterOption>();
+	for (const bar of bars) {
+		const existing = byDimension.get(bar.dimensionCode);
+		if (existing) {
+			existing.count += 1;
+			continue;
+		}
+
+		byDimension.set(bar.dimensionCode, {
+			value: bar.dimensionCode,
+			label: resultBarDisplayLabel(bar),
+			count: 1
+		});
+	}
+
+	return [
+		{
+			value: 'all',
+			label: allLabel,
+			count: bars.length
+		},
+		...byDimension.values()
+	];
+}
+
+export function filterResultsDashboard(
+	dashboard: CampaignSeriesResultsDashboardResponse,
+	selectedOutputCode: string | null | undefined
+): CampaignSeriesResultsDashboardResponse {
+	if (!selectedOutputCode || selectedOutputCode === 'all') {
+		return dashboard;
+	}
+
+	return {
+		...dashboard,
+		outputBars: dashboard.outputBars.filter((bar) => bar.dimensionCode === selectedOutputCode),
+		groupBars: dashboard.groupBars.filter((bar) => bar.dimensionCode === selectedOutputCode),
+		waveTrendPoints: dashboard.waveTrendPoints.filter(
+			(point) => point.dimensionCode === selectedOutputCode
+		)
+	};
+}
+
+export function toAnalyticsFilterModel(
+	analytics: CampaignSeriesResultsAnalyticsResponse,
+	labels: {
+		allOutputs?: string;
+		allGroups?: string;
+		allMeasurements?: string;
+	} = {}
+): ResultsAnalyticsFilterModel {
+	return {
+		outputOptions: toResultFocusOptionsFromRows(
+			analytics.scoreOutputs,
+			labels.allOutputs ?? 'All result outputs'
+		),
+		groupOptions: toGroupedOptions(
+			analytics.groupRows.map((row) => ({
+				value: groupFilterKey(row.groupType, row.groupName),
+				label: row.groupName
+			})),
+			labels.allGroups ?? 'All groups'
+		),
+		measurementOptions: toGroupedOptions(
+			analytics.waveRows.map((row) => ({
+				value: row.campaignId,
+				label: row.campaignName
+			})),
+			labels.allMeasurements ?? 'All measurements'
+		)
+	};
+}
+
+export function filterResultsAnalytics(
+	analytics: CampaignSeriesResultsAnalyticsResponse,
+	filters: ResultsAnalyticsFilters
+): FilteredResultsAnalytics {
+	const outputCode = activeFilterValue(filters.outputCode);
+	const groupKey = activeFilterValue(filters.groupKey);
+	const campaignId = activeFilterValue(filters.campaignId);
+	const scoreOutputs = outputCode
+		? analytics.scoreOutputs.filter((row) => row.dimensionCode === outputCode)
+		: analytics.scoreOutputs;
+	const groupRows = analytics.groupRows.filter((row) => {
+		if (outputCode && row.dimensionCode !== outputCode) {
+			return false;
+		}
+
+		if (groupKey && groupFilterKey(row.groupType, row.groupName) !== groupKey) {
+			return false;
+		}
+
+		return true;
+	});
+	const waveRows = analytics.waveRows.filter((row) => {
+		if (outputCode && row.dimensionCode !== outputCode) {
+			return false;
+		}
+
+		if (campaignId && row.campaignId !== campaignId) {
+			return false;
+		}
+
+		return true;
+	});
+
+	return {
+		...analytics,
+		scoreOutputs,
+		groupRows,
+		waveRows,
+		filteredCounts: {
+			scoreOutputs: scoreOutputs.length,
+			scoreOutputsTotal: analytics.scoreOutputs.length,
+			groupRows: groupRows.length,
+			groupRowsTotal: analytics.groupRows.length,
+			waveRows: waveRows.length,
+			waveRowsTotal: analytics.waveRows.length
+		}
+	};
+}
+
+export function resultBarDisplayLabel(
+	bar: ResultsDashboardBarResponse,
+	mode: 'display' | 'full' = 'display'
+) {
+	if (mode === 'full') {
+		return bar.label?.trim() || bar.displayLabel?.trim() || bar.dimensionCode;
+	}
+
+	return bar.displayLabel?.trim() || bar.label?.trim() || bar.dimensionCode;
+}
+
+export function groupFilterKey(groupType: string, groupName: string) {
+	return `${groupType}\u0000${groupName}`;
 }
 
 export function toScoreCards(
@@ -267,4 +439,54 @@ function toExportSummary(
 		primaryGuidance:
 			'Create a results matrix for aggregate review, or create a response dataset when row-level analysis is needed.'
 	};
+}
+
+function toResultFocusOptionsFromRows(
+	rows: { dimensionCode: string; displayLabel?: string | null }[],
+	allLabel: string
+): ResultsFilterOption[] {
+	return [
+		{
+			value: 'all',
+			label: allLabel,
+			count: rows.length
+		},
+		...toGroupedOptions(
+			rows.map((row) => ({
+				value: row.dimensionCode,
+				label: row.displayLabel?.trim() || row.dimensionCode
+			})),
+			allLabel
+		).slice(1)
+	];
+}
+
+function toGroupedOptions(values: { value: string; label: string }[], allLabel: string) {
+	const byValue = new Map<string, ResultsFilterOption>();
+	for (const item of values) {
+		const existing = byValue.get(item.value);
+		if (existing) {
+			existing.count += 1;
+			continue;
+		}
+
+		byValue.set(item.value, {
+			value: item.value,
+			label: item.label,
+			count: 1
+		});
+	}
+
+	return [
+		{
+			value: 'all',
+			label: allLabel,
+			count: values.length
+		},
+		...byValue.values()
+	];
+}
+
+function activeFilterValue(value: string | null | undefined) {
+	return !value || value === 'all' ? null : value;
 }

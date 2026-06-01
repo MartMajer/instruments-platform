@@ -4079,6 +4079,8 @@ test('reports route leads with result availability, limits, and export next use'
 });
 
 test('Results summary renders primary dashboard labels before workflow', async ({ page }) => {
+	const polishedManifest = createPolishedResultsWidgetManifest();
+
 	await page.route(
 		`**/campaign-series/${sampleSeriesId}/reports-widget-manifest`,
 		async (route) => {
@@ -4094,9 +4096,9 @@ test('Results summary renders primary dashboard labels before workflow', async (
 
 			await route.fulfill({
 				json: {
-					...sampleReportsWidgetManifest,
+					...polishedManifest,
 					widgets: [
-						...sampleReportsWidgetManifest.widgets,
+						...polishedManifest.widgets,
 						{
 							id: 'unsupported-local-proof',
 							kind: 'custom-report-widget/v1',
@@ -4125,8 +4127,76 @@ test('Results summary renders primary dashboard labels before workflow', async (
 		dashboard.getByText('Workload manageability', { exact: true }).first()
 	).toBeVisible();
 	await expect(dashboard.getByText('workload_manageability', { exact: true })).toHaveCount(0);
-	await expect(widgets.getByRole('article', { name: 'Visual analytics' })).toBeVisible();
+	const resultFocus = dashboard.getByLabel('Result focus');
+	await expect(resultFocus).toBeVisible();
+	await expect(resultFocus.getByRole('button', { name: /Recovery capacity/ })).toBeVisible();
+	await resultFocus.getByRole('button', { name: /Recovery capacity/ }).click();
+	const resultChart = dashboard.getByRole('region', { name: 'Result score chart' });
+	await expect(resultChart.getByRole('button', { name: /Recovery capacity: 4\.60/ })).toBeVisible();
+	await expect(resultChart.getByRole('button', { name: /Workload manageability:/ })).toHaveCount(0);
+	const groupChart = dashboard.getByRole('region', { name: 'Group comparison chart' });
+	await expect(
+		groupChart.getByRole('button', { name: /Retail \/ Recovery capacity: 4\.10/ })
+	).toBeVisible();
+	await expect(
+		groupChart.getByRole('button', { name: /Retail \/ Workload manageability:/ })
+	).toHaveCount(0);
+
+	const analytics = widgets.getByRole('article', { name: 'Visual analytics' });
+	await expect(analytics).toBeVisible();
+	const filters = analytics.getByLabel('Results filters');
+	await expect(filters).toBeVisible();
+	await expect(filters.getByLabel('Result focus')).toHaveValue('all');
+	await filters.getByLabel('Result focus').selectOption('recovery_capacity');
+	await expect(filters.getByLabel('Filtered rows')).toContainText('Result outputs 1 / 3');
+	await expect(filters.getByLabel('Filtered rows')).toContainText('Compare groups 1 / 3');
+	await expect(filters.getByLabel('Filtered rows')).toContainText(
+		'Compare measurement rounds 2 / 4'
+	);
+	await filters.getByLabel('Group').selectOption('department\u0000Retail');
+	await expect(filters.getByLabel('Filtered rows')).toContainText('Compare groups 1 / 3');
+	await filters.getByLabel('Measurement').selectOption('6d3271db-494f-401d-af8b-a5c86c9293a8');
+	await expect(filters.getByLabel('Filtered rows')).toContainText(
+		'Compare measurement rounds 1 / 4'
+	);
+
 	await expect(reports.getByRole('region', { name: 'Results use review' })).toBeVisible();
+});
+
+test('Results summary controls fit the mobile viewport', async ({ page }) => {
+	const polishedManifest = createPolishedResultsWidgetManifest();
+	await page.setViewportSize({ width: 390, height: 900 });
+
+	await page.route(
+		`**/campaign-series/${sampleSeriesId}/reports-widget-manifest`,
+		async (route) => {
+			if (
+				!isProductApiPath(
+					route.request().url(),
+					`/campaign-series/${sampleSeriesId}/reports-widget-manifest`
+				)
+			) {
+				await route.fallback();
+				return;
+			}
+
+			await route.fulfill({ json: polishedManifest });
+		}
+	);
+
+	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
+
+	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
+	await expect(workflow.getByLabel('Result focus', { exact: true })).toBeVisible();
+	await expect(workflow.getByLabel('Results filters')).toBeVisible();
+	await expect(workflow.getByLabel('Export file choices')).toBeVisible();
+
+	const overflow = await page.evaluate(() => ({
+		clientWidth: document.documentElement.clientWidth,
+		scrollWidth: document.documentElement.scrollWidth
+	}));
+	expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
 });
 
 test('Results summary render the current backend-known manifest without unsupported fallbacks', async ({
@@ -4435,7 +4505,7 @@ test('report snapshot keeps endpoint failures local and recovers on retry', asyn
 		]);
 });
 
-test('reports workflow exposes one current reports task for a reportable campaign', async ({
+test('reports workflow exposes review and export actions for a reportable campaign', async ({
 	page
 }) => {
 	const reportableReportsWorkspace = createReportableReportsWorkspaceWithoutExports();
@@ -4458,15 +4528,21 @@ test('reports workflow exposes one current reports task for a reportable campaig
 
 	const reports = page.getByRole('region', { name: 'Results workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
-	const currentTask = workflow.getByRole('region', { name: 'Current review task' });
+	const resultsUseReview = workflow.getByRole('region', { name: 'Results use review' });
+	const exportPreview = workflow.getByRole('region', { name: 'Export preview' });
 
-	await expect(workflow.getByRole('heading', { name: 'Current review task' })).toBeVisible();
-	await expect(currentTask).toContainText('Report preview');
-	await expect(workflow.getByRole('button', { name: 'View report preview' })).toBeVisible();
-	await expect(workflow.getByRole('button', { name: 'Create client export' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Create response export' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Review export file' })).toHaveCount(0);
-	await expect(workflow.getByRole('button', { name: 'Download CSV' })).toHaveCount(0);
+	await expect(workflow.getByRole('heading', { name: 'Current review task' })).toHaveCount(0);
+	await expect(resultsUseReview).toContainText('Can these results be used?');
+	await expect(resultsUseReview.getByRole('button', { name: 'Review results' })).toBeVisible();
+	await expect(exportPreview).toContainText('What is in this export?');
+	await expect(
+		exportPreview.getByRole('button', { name: 'Create results matrix export' })
+	).toBeVisible();
+	await expect(exportPreview.getByRole('button', { name: 'Create response export' })).toBeVisible();
+	await expect(exportPreview.getByRole('button', { name: 'Review export file' })).toBeDisabled();
+	await expect(
+		exportPreview.getByRole('button', { name: 'Download results matrix CSV' })
+	).toBeDisabled();
 });
 
 test('retries reports workspace with the route series id', async ({ page }) => {
@@ -4549,7 +4625,7 @@ test('reports workflow runs primary report and export actions against the select
 }) => {
 	const reportableReportsWorkspace = createReportableReportsWorkspaceWithoutExports();
 	const reportProofCampaignIds: string[] = [];
-	const exportCampaignIds: string[] = [];
+	const resultsMatrixExportSeriesIds: string[] = [];
 	const responseExportSeriesIds: string[] = [];
 	const fetchedArtifactIds: string[] = [];
 	const downloadedArtifactIds: string[] = [];
@@ -4581,31 +4657,31 @@ test('reports workflow runs primary report and export actions against the select
 								? {
 										...reportableReportsWorkspace.selectedCampaign,
 										exportArtifactCount: 1,
-										latestExportArtifactId: sampleReportProofExportArtifact.id,
-										latestExportArtifactFileName: sampleReportProofExportArtifact.fileName,
+										latestExportArtifactId: sampleResultsMatrixExportArtifact.id,
+										latestExportArtifactFileName: sampleResultsMatrixExportArtifact.fileName,
 										latestExportArtifactStatus: 'succeeded',
-										latestExportArtifactCreatedAt: sampleReportProofExportArtifact.createdAt,
-										latestExportArtifactCompletedAt: sampleReportProofExportArtifact.completedAt,
+										latestExportArtifactCreatedAt: sampleResultsMatrixExportArtifact.createdAt,
+										latestExportArtifactCompletedAt: sampleResultsMatrixExportArtifact.completedAt,
 										latestExportArtifactCanDownload: true
 									}
 								: null,
 							exportArtifacts: [
 								{
-									id: sampleReportProofExportArtifact.id,
-									targetKind: 'campaign',
-									targetId: sampleReportsWorkspace.selectedCampaign?.id ?? '',
-									targetLabel: sampleReportsWorkspace.selectedCampaign?.name ?? 'Campaign',
-									campaignId: sampleReportsWorkspace.selectedCampaign?.id ?? '',
-									campaignName: sampleReportsWorkspace.selectedCampaign?.name ?? 'Campaign',
-									artifactType: 'report_proof_csv_codebook',
+									id: sampleResultsMatrixExportArtifact.id,
+									targetKind: 'campaign_series',
+									targetId: sampleSeriesId,
+									targetLabel: sampleReportsWorkspace.series.name,
+									campaignId: null,
+									campaignName: null,
+									artifactType: sampleResultsMatrixExportArtifact.artifactType,
 									status: 'succeeded',
 									format: 'csv_codebook',
-									fileName: sampleReportProofExportArtifact.fileName,
-									rowCount: sampleReportProofExportArtifact.rowCount,
-									byteSize: sampleReportProofExportArtifact.byteSize,
-									checksumSha256: sampleReportProofExportArtifact.checksumSha256,
-									createdAt: sampleReportProofExportArtifact.createdAt,
-									completedAt: sampleReportProofExportArtifact.completedAt,
+									fileName: sampleResultsMatrixExportArtifact.fileName,
+									rowCount: sampleResultsMatrixExportArtifact.rowCount,
+									byteSize: sampleResultsMatrixExportArtifact.byteSize,
+									checksumSha256: sampleResultsMatrixExportArtifact.checksumSha256,
+									createdAt: sampleResultsMatrixExportArtifact.createdAt,
+									completedAt: sampleResultsMatrixExportArtifact.completedAt,
 									startedAt: null,
 									failedAt: null,
 									expiresAt: null,
@@ -4621,9 +4697,9 @@ test('reports workflow runs primary report and export actions against the select
 		reportProofCampaignIds.push(campaignIdFromPath(route.request().url()));
 		await route.fulfill({ json: sampleCampaignReportProof });
 	});
-	await page.route('**/campaigns/*/report-proof/exports', async (route) => {
-		exportCampaignIds.push(campaignIdFromPath(route.request().url()));
-		await route.fulfill({ status: 201, json: sampleReportProofExportArtifact });
+	await page.route('**/campaign-series/*/results-matrix-exports', async (route) => {
+		resultsMatrixExportSeriesIds.push(seriesIdFromPath(route.request().url()));
+		await route.fulfill({ status: 201, json: sampleResultsMatrixExportArtifact });
 	});
 	await page.route('**/campaign-series/*/response-exports', async (route) => {
 		responseExportSeriesIds.push(seriesIdFromPath(route.request().url()));
@@ -4660,7 +4736,7 @@ test('reports workflow runs primary report and export actions against the select
 			json:
 				artifactId === sampleResponseExportArtifact.id
 					? sampleResponseExportArtifact
-					: sampleReportProofExportArtifact
+					: sampleResultsMatrixExportArtifact
 		});
 	});
 
@@ -4669,48 +4745,60 @@ test('reports workflow runs primary report and export actions against the select
 	const reports = page.getByRole('region', { name: 'Results workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
-	const currentTask = workflow.getByRole('region', { name: 'Current review task' });
-	await expect(currentTask).toContainText('Report preview');
-	const reportProofButton = currentTask.getByRole('button', { name: 'View report preview' });
+	const resultsUseReview = workflow.getByRole('region', { name: 'Results use review' });
+	await expect(resultsUseReview).toContainText('Can these results be used?');
+	const reportProofButton = resultsUseReview.getByRole('button', { name: 'Review results' });
 	await expect(reportProofButton).toBeEnabled();
 	await reportProofButton.click();
 	await expect(workflow.getByRole('region', { name: 'Report preview' })).toBeVisible();
 
-	await expect(currentTask).toContainText('Export file');
-	const exportButton = currentTask.getByRole('button', { name: 'Create client export' });
+	const exportPreview = workflow.getByRole('region', { name: 'Export preview' });
+	await expect(exportPreview).toContainText('What is in this export?');
+	const exportButton = exportPreview.getByRole('button', { name: 'Create results matrix export' });
 	await expect(exportButton).toBeEnabled();
 	await exportButton.click();
-	await expect(workflow.getByRole('region', { name: 'Report export result' })).toBeVisible();
+	await expect(
+		workflow.getByRole('region', { name: 'Results matrix export result' })
+	).toBeVisible();
 
-	await expect(currentTask).toContainText('Response export');
-	const responseExportButton = currentTask.getByRole('button', { name: 'Create response export' });
+	const responseExportButton = exportPreview.getByRole('button', {
+		name: 'Create response export'
+	});
 	await expect(responseExportButton).toBeEnabled();
 	await responseExportButton.click();
 	await expect(workflow.getByRole('region', { name: 'Response export result' })).toBeVisible();
 
-	await expect(currentTask).toContainText('Review export file');
-	await currentTask.getByRole('button', { name: 'Review export file' }).click();
-	await expect(currentTask).toContainText('CSV download');
-	await currentTask.getByRole('button', { name: 'Download CSV' }).click();
-	await expect(currentTask.getByText('Downloaded CSV', { exact: true })).toBeVisible();
+	await expect(exportPreview.getByRole('button', { name: 'Review export file' })).toBeEnabled();
+	await exportPreview.getByRole('button', { name: 'Review export file' }).click();
+	const exportChoices = exportPreview.getByLabel('Export file choices');
+	await expect(exportChoices).toContainText('Results matrix CSV and codebook');
+	await expect(exportChoices).toContainText('Response CSV and codebook');
+	const fileProfile = exportPreview.getByRole('region', { name: 'Reviewed export file profile' });
+	await expect(fileProfile).toBeVisible();
 	await expect(
-		currentTask.getByText('response_row_id,trajectory_id', { exact: true })
+		fileProfile.getByRole('heading', { name: 'Response dataset CSV and codebook' })
+	).toBeVisible();
+	await expect(fileProfile).toContainText('campaign-series-responses.csv');
+	await expect(fileProfile).toContainText('10 rows; one row per submitted response');
+	await expect(fileProfile).toContainText('2 CSV columns detected');
+	await expect(fileProfile).toContainText('Download ready');
+	await expect(fileProfile).toContainText('response_row_id');
+	await expect(fileProfile).toContainText('trajectory_id');
+	await exportPreview.getByRole('button', { name: 'Download response dataset CSV' }).click();
+	await expect(exportPreview.getByText('Downloaded CSV', { exact: true })).toBeVisible();
+	await expect(
+		exportPreview.getByText('response_row_id,trajectory_id', { exact: true }).last()
 	).toBeVisible();
 
-	expect(reportProofCampaignIds).toEqual([
-		sampleReportsWorkspace.selectedCampaign?.id,
-		sampleReportsWorkspace.selectedCampaign?.id
-	]);
-	expect(exportCampaignIds).toEqual([sampleReportsWorkspace.selectedCampaign?.id]);
+	expect(reportProofCampaignIds).toEqual([sampleReportsWorkspace.selectedCampaign?.id]);
+	expect(resultsMatrixExportSeriesIds).toEqual([sampleSeriesId]);
 	expect(responseExportSeriesIds).toEqual([sampleSeriesId]);
 	expect(fetchedArtifactIds).toEqual([sampleResponseExportArtifact.id]);
 	expect(downloadedArtifactIds).toEqual([sampleResponseExportArtifact.id]);
 	await expect.poll(() => reportsWorkspaceRequestCount).toBeGreaterThanOrEqual(3);
 	await expect(
-		reports.getByText('updated-report-proof.csv', { exact: true }).first()
+		reports.getByText('campaign-series-results-matrix.csv', { exact: true }).first()
 	).toBeVisible();
-	await expect(reports.getByText('Export files', { exact: true }).first()).toBeVisible();
-	await expect(reports.getByText('1', { exact: true }).first()).toBeVisible();
 });
 
 test('waves workspace loads the dedicated read model and renders wave state', async ({ page }) => {
@@ -5525,9 +5613,7 @@ test('setup template authoring edits question rows and generated scoring default
 			exact: true
 		})
 		.check();
-	await workflow
-		.getByLabel('I can recover focus after a difficult interruption. weight')
-		.fill('2');
+	await workflow.getByLabel('I can recover focus after a difficult interruption. weight').fill('2');
 	await workflow.getByLabel('Score range minimum').fill('0');
 	await workflow.getByLabel('Score range maximum').fill('100');
 	await workflow.getByRole('button', { name: 'Add band' }).click();
@@ -5656,8 +5742,9 @@ test('setup workflow localizes recipient builder and labels recipient mode count
 		name: 'Pregledajte primatelje, zatim spremite odabir'
 	});
 
-	await expect(preview.getByRole('button', { name: /Svi u radnom prostoru\s+2 osobe dostupne/ }))
-		.toBeVisible();
+	await expect(
+		preview.getByRole('button', { name: /Svi u radnom prostoru\s+2 osobe dostupne/ })
+	).toBeVisible();
 	await expect(preview.getByRole('button', { name: /Odabrane osobe\s+0 odabrano/ })).toBeVisible();
 
 	await preview.getByRole('button', { name: /Odabrane osobe/ }).click();
@@ -8005,6 +8092,351 @@ const sampleReportsWidgetManifest: CampaignSeriesReportsWidgetManifestResponse =
 	]
 };
 
+function createPolishedResultsWidgetManifest(): CampaignSeriesReportsWidgetManifestResponse {
+	const selectedCampaign = sampleReportsWorkspace.selectedCampaign!;
+	const comparisonCampaignId = '6d3271db-494f-401d-af8b-a5c86c9293a8';
+	const outputRows = [
+		{
+			dimensionCode: 'workload_manageability',
+			displayLabel: 'Workload manageability',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 28,
+			scoreCount: 28,
+			mean: 5.3,
+			median: 5.1,
+			standardDeviation: 0.7,
+			min: 3,
+			max: 7,
+			nValidTotal: 140,
+			nExpectedTotal: 140,
+			missingPolicyStatusSummary: 'No missing answers',
+			suppressionReason: null
+		},
+		{
+			dimensionCode: 'recovery_capacity',
+			displayLabel: 'Recovery capacity',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 24,
+			scoreCount: 24,
+			mean: 4.6,
+			median: 4.4,
+			standardDeviation: 0.9,
+			min: 2,
+			max: 7,
+			nValidTotal: 120,
+			nExpectedTotal: 120,
+			missingPolicyStatusSummary: 'No missing answers',
+			suppressionReason: null
+		},
+		{
+			dimensionCode: 'role_clarity',
+			displayLabel: 'Role clarity',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'suppressed',
+			submittedResponseCount: 4,
+			scoreCount: null,
+			mean: null,
+			median: null,
+			standardDeviation: null,
+			min: null,
+			max: null,
+			nValidTotal: null,
+			nExpectedTotal: null,
+			missingPolicyStatusSummary: null,
+			suppressionReason: 'cohort_lt_k_min'
+		}
+	];
+	const groupRows = [
+		{
+			groupType: 'department',
+			groupName: 'Retail',
+			dimensionCode: 'workload_manageability',
+			displayLabel: 'Workload manageability',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 16,
+			scoreCount: 16,
+			mean: 5.6,
+			median: 5.4,
+			standardDeviation: 0.6,
+			min: 4,
+			max: 7,
+			suppressionReason: null
+		},
+		{
+			groupType: 'department',
+			groupName: 'Retail',
+			dimensionCode: 'recovery_capacity',
+			displayLabel: 'Recovery capacity',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 16,
+			scoreCount: 16,
+			mean: 4.1,
+			median: 4,
+			standardDeviation: 0.8,
+			min: 2,
+			max: 6,
+			suppressionReason: null
+		},
+		{
+			groupType: 'department',
+			groupName: 'Operations',
+			dimensionCode: 'workload_manageability',
+			displayLabel: 'Workload manageability',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 12,
+			scoreCount: 12,
+			mean: 4.8,
+			median: 4.7,
+			standardDeviation: 0.7,
+			min: 3,
+			max: 6,
+			suppressionReason: null
+		}
+	];
+	const waveRows = [
+		{
+			campaignId: selectedCampaign.id,
+			campaignName: selectedCampaign.name,
+			campaignStatus: selectedCampaign.status,
+			dataFinality: selectedCampaign.dataFinality ?? 'preliminary_live',
+			closedAt: selectedCampaign.closedAt ?? null,
+			dimensionCode: 'workload_manageability',
+			displayLabel: 'Workload manageability',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 28,
+			scoreCount: 28,
+			mean: 5.3,
+			median: 5.1,
+			standardDeviation: 0.7,
+			min: 3,
+			max: 7,
+			suppressionReason: null,
+			deltaFromPreviousMean: null,
+			deltaFromFirstMean: null,
+			comparisonState: 'baseline'
+		},
+		{
+			campaignId: selectedCampaign.id,
+			campaignName: selectedCampaign.name,
+			campaignStatus: selectedCampaign.status,
+			dataFinality: selectedCampaign.dataFinality ?? 'preliminary_live',
+			closedAt: selectedCampaign.closedAt ?? null,
+			dimensionCode: 'recovery_capacity',
+			displayLabel: 'Recovery capacity',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 24,
+			scoreCount: 24,
+			mean: 4.6,
+			median: 4.4,
+			standardDeviation: 0.9,
+			min: 2,
+			max: 7,
+			suppressionReason: null,
+			deltaFromPreviousMean: null,
+			deltaFromFirstMean: null,
+			comparisonState: 'baseline'
+		},
+		{
+			campaignId: comparisonCampaignId,
+			campaignName: 'Pulse wave 2',
+			campaignStatus: 'closed',
+			dataFinality: 'closed_wave',
+			closedAt: '2026-05-14T12:00:00Z',
+			dimensionCode: 'workload_manageability',
+			displayLabel: 'Workload manageability',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 31,
+			scoreCount: 31,
+			mean: 5.5,
+			median: 5.4,
+			standardDeviation: 0.6,
+			min: 4,
+			max: 7,
+			suppressionReason: null,
+			deltaFromPreviousMean: 0.2,
+			deltaFromFirstMean: 0.2,
+			comparisonState: 'compared'
+		},
+		{
+			campaignId: comparisonCampaignId,
+			campaignName: 'Pulse wave 2',
+			campaignStatus: 'closed',
+			dataFinality: 'closed_wave',
+			closedAt: '2026-05-14T12:00:00Z',
+			dimensionCode: 'recovery_capacity',
+			displayLabel: 'Recovery capacity',
+			calculation: 'mean',
+			calculationLabel: 'Average selected answers',
+			scoreRangeMin: 1,
+			scoreRangeMax: 7,
+			disclosure: 'visible',
+			submittedResponseCount: 30,
+			scoreCount: 30,
+			mean: 4.8,
+			median: 4.7,
+			standardDeviation: 0.8,
+			min: 3,
+			max: 7,
+			suppressionReason: null,
+			deltaFromPreviousMean: 0.2,
+			deltaFromFirstMean: 0.2,
+			comparisonState: 'compared'
+		}
+	];
+
+	return {
+		...sampleReportsWidgetManifest,
+		widgets: sampleReportsWidgetManifest.widgets.map((widget) => {
+			if (widget.kind === 'results-dashboard/v1') {
+				return {
+					...widget,
+					data: {
+						dashboard: {
+							selectedCampaignId: selectedCampaign.id,
+							selectedCampaignName: selectedCampaign.name,
+							disclosureKMin: 5,
+							disclosureState: 'visible',
+							metrics: [
+								{
+									id: 'visible_outputs',
+									value: 2,
+									unit: 'count',
+									detail: null,
+									tone: 'ready'
+								}
+							],
+							outputBars: outputRows.map((row) => ({
+								id: `output:${row.dimensionCode}`,
+								label: row.dimensionCode,
+								displayLabel: row.displayLabel,
+								dimensionCode: row.dimensionCode,
+								calculation: row.calculation,
+								calculationLabel: row.calculationLabel,
+								scoreRangeMin: row.scoreRangeMin,
+								scoreRangeMax: row.scoreRangeMax,
+								disclosure: row.disclosure,
+								value: row.mean,
+								count: row.scoreCount,
+								detail:
+									row.disclosure === 'visible'
+										? `median ${row.median}, range ${row.min}-${row.max}`
+										: null,
+								suppressionReason: row.suppressionReason
+							})),
+							groupBars: groupRows.map((row) => ({
+								id: `group:${row.groupType}:${row.groupName}:${row.dimensionCode}`,
+								label: `${row.groupName} / ${row.displayLabel}`,
+								displayLabel: row.displayLabel,
+								dimensionCode: row.dimensionCode,
+								calculation: row.calculation,
+								calculationLabel: row.calculationLabel,
+								scoreRangeMin: row.scoreRangeMin,
+								scoreRangeMax: row.scoreRangeMax,
+								disclosure: row.disclosure,
+								value: row.mean,
+								count: row.scoreCount,
+								detail: `${row.groupType}: ${row.groupName}`,
+								suppressionReason: row.suppressionReason
+							})),
+							waveTrendPoints: waveRows.map((row) => ({
+								id: `wave:${row.campaignId}:${row.dimensionCode}`,
+								campaignId: row.campaignId,
+								campaignName: row.campaignName,
+								displayLabel: row.displayLabel,
+								dimensionCode: row.dimensionCode,
+								calculation: row.calculation,
+								calculationLabel: row.calculationLabel,
+								scoreRangeMin: row.scoreRangeMin,
+								scoreRangeMax: row.scoreRangeMax,
+								disclosure: row.disclosure,
+								value: row.mean,
+								deltaFromPrevious: row.deltaFromPreviousMean,
+								comparisonState: row.comparisonState,
+								dataFinality: row.dataFinality,
+								count: row.scoreCount,
+								suppressionReason: row.suppressionReason
+							})),
+							notes: []
+						}
+					}
+				};
+			}
+
+			if (widget.kind === 'visual-analytics-entry/v1') {
+				return {
+					...widget,
+					data: {
+						selectedCampaignId: selectedCampaign.id,
+						visibleScoreCount: 2,
+						suppressedScoreCount: 1,
+						reportableCampaignCount: 2,
+						analytics: {
+							selectedCampaignId: selectedCampaign.id,
+							selectedCampaignName: selectedCampaign.name,
+							disclosureKMin: 5,
+							disclosureState: 'visible',
+							scoreOutputs: outputRows,
+							groupRows,
+							waveRows,
+							insights: [
+								{
+									kind: 'score_outputs',
+									severity: 'info',
+									title: 'Workload manageability is the strongest visible result.',
+									detail: 'Use the result matrix to inspect means, medians, and missingness.'
+								},
+								{
+									kind: 'group_matrix',
+									severity: 'warning',
+									title: 'Department differences are visible.',
+									detail: 'Use group filters before sharing department-level conclusions.'
+								}
+							]
+						}
+					}
+				};
+			}
+
+			return widget;
+		})
+	};
+}
+
 const sampleWavesWorkspace: CampaignSeriesWavesWorkspaceResponse = {
 	series: {
 		id: sampleSeriesId,
@@ -8277,6 +8709,19 @@ const sampleReportProofExportArtifact = {
 	completedAt: '2026-05-05T12:00:03Z',
 	canDownload: true,
 	csvContent: 'dimension_code,mean\n',
+	codebookJson: '{}'
+};
+
+const sampleResultsMatrixExportArtifact = {
+	...sampleReportProofExportArtifact,
+	targetKind: 'campaign_series',
+	targetId: sampleSeriesId,
+	targetLabel: sampleReportsWorkspace.series.name,
+	campaignId: null,
+	artifactType: 'campaign_series_results_matrix_csv_codebook',
+	fileName: 'campaign-series-results-matrix.csv',
+	rowCount: 6,
+	csvContent: 'result_scope,result_scope_label,dimension_code,disclosure,mean,score_count\n',
 	codebookJson: '{}'
 };
 

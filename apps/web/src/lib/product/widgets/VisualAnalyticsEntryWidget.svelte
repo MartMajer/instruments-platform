@@ -6,6 +6,11 @@
 		CampaignSeriesResultsWaveMatrixRowResponse,
 		ReportWidget
 	} from '$lib/api/product';
+	import {
+		filterResultsAnalytics,
+		groupFilterKey,
+		toAnalyticsFilterModel
+	} from '$lib/product/results-workbench';
 	import { isVisualAnalyticsEntryWidgetData } from './report-widget-data';
 	import {
 		formatCodeLabel,
@@ -15,15 +20,42 @@
 	import ReportWidgetShell from './ReportWidgetShell.svelte';
 
 	let { widget, copy }: { widget: ReportWidget; copy?: ReportWidgetFormatCopy } = $props();
+	let selectedOutputCode = $state('all');
+	let selectedGroupKey = $state('all');
+	let selectedCampaignId = $state('all');
 
 	const data = $derived(isVisualAnalyticsEntryWidgetData(widget.data) ? widget.data : null);
 	const analytics = $derived(data?.analytics ?? null);
-	const groupCount = $derived(
-		new Set(analytics?.groupRows.map((row) => `${row.groupType}\u0000${row.groupName}`) ?? []).size
+	const filterModel = $derived(
+		analytics
+			? toAnalyticsFilterModel(analytics, {
+					allOutputs: formatWidgetLabel('allResultOutputs', copy),
+					allGroups: formatWidgetLabel('allGroups', copy),
+					allMeasurements: formatWidgetLabel('allMeasurements', copy)
+				})
+			: null
 	);
-	const waveCount = $derived(new Set(analytics?.waveRows.map((row) => row.campaignId) ?? []).size);
+	const filteredAnalytics = $derived(
+		analytics
+			? filterResultsAnalytics(analytics, {
+					outputCode: selectedOutputCode,
+					groupKey: selectedGroupKey,
+					campaignId: selectedCampaignId
+				})
+			: null
+	);
+	const groupCount = $derived(
+		new Set(
+			filteredAnalytics?.groupRows.map((row) => groupFilterKey(row.groupType, row.groupName)) ?? []
+		).size
+	);
+	const waveCount = $derived(
+		new Set(filteredAnalytics?.waveRows.map((row) => row.campaignId) ?? []).size
+	);
 	const visibleOutputRows = $derived(
-		analytics?.scoreOutputs.filter((row) => row.disclosure === 'visible' && row.mean !== null) ?? []
+		filteredAnalytics?.scoreOutputs.filter(
+			(row) => row.disclosure === 'visible' && row.mean !== null
+		) ?? []
 	);
 	const highestOutput = $derived(
 		[...visibleOutputRows].sort((left, right) => (right.mean ?? 0) - (left.mean ?? 0))[0] ?? null
@@ -33,7 +65,7 @@
 	);
 	const largestWaveChange = $derived(
 		[
-			...(analytics?.waveRows.filter(
+			...(filteredAnalytics?.waveRows.filter(
 				(row) =>
 					row.disclosure === 'visible' &&
 					row.comparisonState === 'compared' &&
@@ -58,9 +90,11 @@
 	let outputSort = $state<SortState<OutputSortKey>>({ key: 'mean', direction: 'desc' });
 	let groupSort = $state<SortState<GroupSortKey>>({ key: 'mean', direction: 'desc' });
 	let waveSort = $state<SortState<WaveSortKey>>({ key: 'campaign', direction: 'asc' });
-	const sortedScoreOutputs = $derived(sortScoreOutputs(analytics?.scoreOutputs ?? [], outputSort));
-	const sortedGroupRows = $derived(sortGroupRows(analytics?.groupRows ?? [], groupSort));
-	const sortedWaveRows = $derived(sortWaveRows(analytics?.waveRows ?? [], waveSort));
+	const sortedScoreOutputs = $derived(
+		sortScoreOutputs(filteredAnalytics?.scoreOutputs ?? [], outputSort)
+	);
+	const sortedGroupRows = $derived(sortGroupRows(filteredAnalytics?.groupRows ?? [], groupSort));
+	const sortedWaveRows = $derived(sortWaveRows(filteredAnalytics?.waveRows ?? [], waveSort));
 
 	function nextSort<T extends string>(current: SortState<T>, key: T): SortState<T> {
 		if (current.key !== key) {
@@ -96,6 +130,36 @@
 	function setDetailPanel(panel: DetailPanel) {
 		activeDetailPanel = panel;
 	}
+
+	function optionLabel(option: { label: string; count: number }) {
+		return `${option.label} (${option.count})`;
+	}
+
+	function filteredCountLabel(count: number, total: number) {
+		return `${count} / ${total} ${formatWidgetLabel('rows', copy)}`;
+	}
+
+	function resetMissingFilter(
+		value: string,
+		options: { value: string }[],
+		update: (value: string) => void
+	) {
+		if (value !== 'all' && !options.some((option) => option.value === value)) {
+			update('all');
+		}
+	}
+
+	$effect(() => {
+		resetMissingFilter(selectedOutputCode, filterModel?.outputOptions ?? [], (value) => {
+			selectedOutputCode = value;
+		});
+		resetMissingFilter(selectedGroupKey, filterModel?.groupOptions ?? [], (value) => {
+			selectedGroupKey = value;
+		});
+		resetMissingFilter(selectedCampaignId, filterModel?.measurementOptions ?? [], (value) => {
+			selectedCampaignId = value;
+		});
+	});
 
 	function disclosureRank(disclosure: string) {
 		return disclosure === 'visible' ? 0 : 1;
@@ -261,9 +325,9 @@
 
 		if (insight.kind === 'groups') {
 			const visibleRows =
-				analytics?.groupRows.filter((row) => row.disclosure === 'visible').length ?? 0;
+				filteredAnalytics?.groupRows.filter((row) => row.disclosure === 'visible').length ?? 0;
 			const suppressedRows =
-				analytics?.groupRows.filter((row) => row.disclosure !== 'visible').length ?? 0;
+				filteredAnalytics?.groupRows.filter((row) => row.disclosure !== 'visible').length ?? 0;
 			return {
 				source: formatWidgetLabel('groupMatrix', copy),
 				value: `${visibleRows} ${formatWidgetLabel('visible', copy)} / ${suppressedRows} ${formatWidgetLabel('suppressed', copy)}`,
@@ -404,7 +468,7 @@
 			<div class="metric-card">
 				<dt class="metric-card__label">{formatWidgetLabel('resultOutputs', copy)}</dt>
 				<dd class="metric-card__value">
-					{analytics?.scoreOutputs.length ?? data.visibleScoreCount}
+					{filteredAnalytics?.scoreOutputs.length ?? data.visibleScoreCount}
 				</dd>
 			</div>
 			<div class="metric-card">
@@ -418,6 +482,64 @@
 		</dl>
 
 		{#if analytics}
+			<div class="results-filter-panel" aria-label={formatWidgetLabel('resultsFilters', copy)}>
+				<label class="results-filter-field">
+					<span>{formatWidgetLabel('resultFocus', copy)}</span>
+					<select bind:value={selectedOutputCode}>
+						{#each filterModel?.outputOptions ?? [] as option (option.value)}
+							<option value={option.value}>{optionLabel(option)}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="results-filter-field">
+					<span>{formatWidgetLabel('group', copy)}</span>
+					<select
+						bind:value={selectedGroupKey}
+						disabled={(filterModel?.groupOptions.length ?? 0) <= 1}
+					>
+						{#each filterModel?.groupOptions ?? [] as option (option.value)}
+							<option value={option.value}>{optionLabel(option)}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="results-filter-field">
+					<span>{formatWidgetLabel('measurement', copy)}</span>
+					<select
+						bind:value={selectedCampaignId}
+						disabled={(filterModel?.measurementOptions.length ?? 0) <= 1}
+					>
+						{#each filterModel?.measurementOptions ?? [] as option (option.value)}
+							<option value={option.value}>{optionLabel(option)}</option>
+						{/each}
+					</select>
+				</label>
+				{#if filteredAnalytics}
+					<div class="results-filter-summary" aria-label={formatWidgetLabel('filteredRows', copy)}>
+						<span>
+							{formatWidgetLabel('resultOutputs', copy)}
+							{filteredCountLabel(
+								filteredAnalytics.filteredCounts.scoreOutputs,
+								filteredAnalytics.filteredCounts.scoreOutputsTotal
+							)}
+						</span>
+						<span>
+							{formatWidgetLabel('groupMatrix', copy)}
+							{filteredCountLabel(
+								filteredAnalytics.filteredCounts.groupRows,
+								filteredAnalytics.filteredCounts.groupRowsTotal
+							)}
+						</span>
+						<span>
+							{formatWidgetLabel('waveTrend', copy)}
+							{filteredCountLabel(
+								filteredAnalytics.filteredCounts.waveRows,
+								filteredAnalytics.filteredCounts.waveRowsTotal
+							)}
+						</span>
+					</div>
+				{/if}
+			</div>
+
 			<dl class="record-grid" aria-label={formatWidgetLabel('highlights', copy)}>
 				<div class="metric-card">
 					<dt class="metric-card__label">{formatWidgetLabel('highestMean', copy)}</dt>
@@ -473,7 +595,7 @@
 					onclick={() => setDetailPanel('outputs')}
 				>
 					{formatWidgetLabel('resultOutputs', copy)}
-					<span>{analytics.scoreOutputs.length}</span>
+					<span>{filteredAnalytics?.scoreOutputs.length ?? analytics.scoreOutputs.length}</span>
 				</button>
 				<button
 					type="button"
@@ -484,7 +606,7 @@
 					onclick={() => setDetailPanel('groups')}
 				>
 					{formatWidgetLabel('groupMatrix', copy)}
-					<span>{analytics.groupRows.length}</span>
+					<span>{filteredAnalytics?.groupRows.length ?? analytics.groupRows.length}</span>
 				</button>
 				<button
 					type="button"
@@ -495,7 +617,7 @@
 					onclick={() => setDetailPanel('waves')}
 				>
 					{formatWidgetLabel('waveTrend', copy)}
-					<span>{analytics.waveRows.length}</span>
+					<span>{filteredAnalytics?.waveRows.length ?? analytics.waveRows.length}</span>
 				</button>
 				<button
 					type="button"
@@ -554,96 +676,102 @@
 							)}
 						</span>
 					</div>
-					<div class="overflow-x-auto">
-						<table class="results-matrix-table">
-							<thead class="text-xs text-[var(--color-text-muted)] uppercase">
-								<tr>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('result')}
-										>
-											{formatWidgetLabel('resultName', copy)}{sortIndicator(outputSort, 'result')}
-										</button>
-									</th>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('sample')}
-										>
-											{formatWidgetLabel('sample', copy)}{sortIndicator(outputSort, 'sample')}
-										</button>
-									</th>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('mean')}
-										>
-											{formatWidgetLabel('mean', copy)}{sortIndicator(outputSort, 'mean')}
-										</button>
-									</th>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('median')}
-										>
-											{formatWidgetLabel('median', copy)}{sortIndicator(outputSort, 'median')}
-										</button>
-									</th>
-									<th>{formatWidgetLabel('standardDeviation', copy)}</th>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('range')}
-										>
-											{formatWidgetLabel('range', copy)}{sortIndicator(outputSort, 'range')}
-										</button>
-									</th>
-									<th>
-										<button
-											type="button"
-											class="matrix-sort-button"
-											onclick={() => toggleOutputSort('missingness')}
-										>
-											{formatWidgetLabel('missingness', copy)}{sortIndicator(
-												outputSort,
-												'missingness'
-											)}
-										</button>
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each sortedScoreOutputs as row (row.dimensionCode)}
-									<tr data-disclosure={row.disclosure}>
-										<td>
-											<span>{formatResultName(row)}</span>
-											{#if formatMethodMetadata(row)}
-												<br />
-												<span class="record-field__label">{formatMethodMetadata(row)}</span>
-											{/if}
-										</td>
-										<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
-										<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
-										<td>{formatVisibleScore(row.median, row.disclosure)}</td>
-										<td>{formatVisibleScore(row.standardDeviation, row.disclosure)}</td>
-										<td>{formatVisibleRange(row.min, row.max, row.disclosure)}</td>
-										<td
-											>{formatVisibleMissingness(
-												row.missingPolicyStatusSummary,
-												row.disclosure
-											)}</td
-										>
+					{#if sortedScoreOutputs.length > 0}
+						<div class="overflow-x-auto">
+							<table class="results-matrix-table">
+								<thead class="text-xs text-[var(--color-text-muted)] uppercase">
+									<tr>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('result')}
+											>
+												{formatWidgetLabel('resultName', copy)}{sortIndicator(outputSort, 'result')}
+											</button>
+										</th>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('sample')}
+											>
+												{formatWidgetLabel('sample', copy)}{sortIndicator(outputSort, 'sample')}
+											</button>
+										</th>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('mean')}
+											>
+												{formatWidgetLabel('mean', copy)}{sortIndicator(outputSort, 'mean')}
+											</button>
+										</th>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('median')}
+											>
+												{formatWidgetLabel('median', copy)}{sortIndicator(outputSort, 'median')}
+											</button>
+										</th>
+										<th>{formatWidgetLabel('standardDeviation', copy)}</th>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('range')}
+											>
+												{formatWidgetLabel('range', copy)}{sortIndicator(outputSort, 'range')}
+											</button>
+										</th>
+										<th>
+											<button
+												type="button"
+												class="matrix-sort-button"
+												onclick={() => toggleOutputSort('missingness')}
+											>
+												{formatWidgetLabel('missingness', copy)}{sortIndicator(
+													outputSort,
+													'missingness'
+												)}
+											</button>
+										</th>
 									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
+								</thead>
+								<tbody>
+									{#each sortedScoreOutputs as row (row.dimensionCode)}
+										<tr data-disclosure={row.disclosure}>
+											<td>
+												<span>{formatResultName(row)}</span>
+												{#if formatMethodMetadata(row)}
+													<br />
+													<span class="record-field__label">{formatMethodMetadata(row)}</span>
+												{/if}
+											</td>
+											<td>{formatVisibleCount(row.scoreCount, row.disclosure)}</td>
+											<td>{formatVisibleScore(row.mean, row.disclosure)}</td>
+											<td>{formatVisibleScore(row.median, row.disclosure)}</td>
+											<td>{formatVisibleScore(row.standardDeviation, row.disclosure)}</td>
+											<td>{formatVisibleRange(row.min, row.max, row.disclosure)}</td>
+											<td
+												>{formatVisibleMissingness(
+													row.missingPolicyStatusSummary,
+													row.disclosure
+												)}</td
+											>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{:else}
+						<p class="text-sm text-[var(--color-text-muted)]">
+							{formatWidgetLabel('noFilteredRows', copy)}
+						</p>
+					{/if}
 				</section>
 			{/if}
 
@@ -655,7 +783,7 @@
 							{formatWidgetLabel('sample', copy)} >= {analytics.disclosureKMin}
 						</span>
 					</div>
-					{#if analytics.groupRows.length > 0}
+					{#if sortedGroupRows.length > 0}
 						<div class="overflow-x-auto">
 							<table class="results-matrix-table">
 								<thead class="text-xs text-[var(--color-text-muted)] uppercase">
@@ -740,7 +868,9 @@
 						</div>
 					{:else}
 						<p class="text-sm text-[var(--color-text-muted)]">
-							{formatWidgetLabel('noGroupBreakdown', copy)}
+							{analytics.groupRows.length > 0
+								? formatWidgetLabel('noFilteredRows', copy)
+								: formatWidgetLabel('noGroupBreakdown', copy)}
 						</p>
 					{/if}
 				</section>
@@ -752,7 +882,7 @@
 						<p class="record-row__title">{formatWidgetLabel('waveTrend', copy)}</p>
 						<span class="record-field__label">{formatWidgetLabel('waveBreakdown', copy)}</span>
 					</div>
-					{#if analytics.waveRows.length > 0}
+					{#if sortedWaveRows.length > 0}
 						<div class="overflow-x-auto">
 							<table class="results-matrix-table">
 								<thead class="text-xs text-[var(--color-text-muted)] uppercase">
@@ -862,7 +992,9 @@
 						</div>
 					{:else}
 						<p class="text-sm text-[var(--color-text-muted)]">
-							{formatWidgetLabel('noWaveBreakdown', copy)}
+							{analytics.waveRows.length > 0
+								? formatWidgetLabel('noFilteredRows', copy)
+								: formatWidgetLabel('noWaveBreakdown', copy)}
 						</p>
 					{/if}
 				</section>

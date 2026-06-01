@@ -42,10 +42,7 @@ const enMessages = {
 	'overview.subtitle': (values, locale) =>
 		`${formatNumber(locale, numberValue(values, 'campaignCount'))} ${
 			numberValue(values, 'campaignCount') === 1 ? 'campaign' : 'campaigns'
-		}, ${formatNumber(
-			locale,
-			numberValue(values, 'liveCount')
-		)} live`,
+		}, ${formatNumber(locale, numberValue(values, 'liveCount'))} live`,
 	'overview.lifecycle.title': 'Study lifecycle',
 	'overview.lifecycle.description':
 		'Move through this study from preparation to collection, results, and waves.',
@@ -68,8 +65,7 @@ const enMessages = {
 	'overview.studyBrief.badge.ready': 'Defined',
 	'overview.studyBrief.badge.pending': 'Needs brief',
 	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
-	'overview.studyBrief.summary.missing':
-		'The study purpose has not been captured yet.',
+	'overview.studyBrief.summary.missing': 'The study purpose has not been captured yet.',
 	'overview.studyBrief.guidance.ready':
 		'Use this to keep the study purpose and result interpretation aligned.',
 	'overview.studyBrief.guidance.missing':
@@ -396,11 +392,13 @@ const enMessages = {
 		`Session check failed with status ${textValue(values, 'status')}.`,
 	'session.failed.message': 'Session check failed.',
 	'workspace.lifecycle.prepare.label': 'Prepare',
-	'workspace.lifecycle.prepare.description': 'Set up the instrument, questions, scoring, and launch rules.',
+	'workspace.lifecycle.prepare.description':
+		'Set up the instrument, questions, scoring, and launch rules.',
 	'workspace.lifecycle.collect.label': 'Collect',
 	'workspace.lifecycle.collect.description': 'Launch the study and track response progress.',
 	'workspace.lifecycle.review.label': 'Review',
-	'workspace.lifecycle.review.description': 'Inspect coverage, findings, limitations, and comparisons.',
+	'workspace.lifecycle.review.description':
+		'Inspect coverage, findings, limitations, and comparisons.',
 	'workspace.lifecycle.export.label': 'Export',
 	'workspace.lifecycle.export.description': 'Use generated CSV and codebook files for analysis.',
 	'workspace.command.untitled': 'Workspace action',
@@ -444,17 +442,21 @@ const enMessages = {
 	'portfolio.section.sample.title': 'Sample studies',
 	'portfolio.section.sample.description':
 		'Read-only examples you can inspect before creating your own study.',
-	'portfolio.section.sample.empty': 'No sample studies match this view. Clear filters to inspect examples.',
+	'portfolio.section.sample.empty':
+		'No sample studies match this view. Clear filters to inspect examples.',
 	'portfolio.section.own.title': 'Your studies',
 	'portfolio.section.own.description': 'Editable studies owned by this workspace.',
 	'portfolio.section.own.empty':
 		'No own studies match this view. Clear filters or create your study when you have setup access.',
 	'portfolio.lifecycle.needsSetup.label': 'Needs setup',
-	'portfolio.lifecycle.needsSetup.description': 'Studies that need setup before collection is useful.',
+	'portfolio.lifecycle.needsSetup.description':
+		'Studies that need setup before collection is useful.',
 	'portfolio.lifecycle.inCollection.label': 'In collection',
-	'portfolio.lifecycle.inCollection.description': 'Studies with live collection activity to monitor.',
+	'portfolio.lifecycle.inCollection.description':
+		'Studies with live collection activity to monitor.',
 	'portfolio.lifecycle.resultsReady.label': 'Results ready',
-	'portfolio.lifecycle.resultsReady.description': 'Studies with submitted responses ready for review.',
+	'portfolio.lifecycle.resultsReady.description':
+		'Studies with submitted responses ready for review.',
 	'portfolio.lifecycle.archived.label': 'Archived',
 	'portfolio.lifecycle.archived.description': 'Studies kept for reference after active work ended.',
 	'portfolio.lifecycle.open.label': 'Open study',
@@ -553,7 +555,8 @@ const enMessages = {
 					locale,
 					numberValue(values, 'visible')
 				)} visible score rows`,
-	'results.method.coverage.allScored.detail': 'All submitted responses have successful scoring activity.',
+	'results.method.coverage.allScored.detail':
+		'All submitted responses have successful scoring activity.',
 	'results.method.directionScale.pending.summary': 'Direction and scale family need setup context',
 	'results.method.directionScale.pending.detail':
 		'Results can show output rows and missingness, but question-to-output coverage, reverse scoring, and answer scale family still need the Setup scoring plan. Do not infer better/worse meaning from output codes alone.',
@@ -591,8 +594,7 @@ const enMessages = {
 		'Repeat-response key policy available after file review',
 	'results.export.pending.variablesValues.summary':
 		'Variables and values available after file review',
-	'results.export.pending.missingness.summary':
-		'Missingness policy available after file review',
+	'results.export.pending.missingness.summary': 'Missingness policy available after file review',
 	'results.export.pending.scoreOutputs.summary': 'Score outputs available after file review',
 	'results.export.responseDataset.summary': 'Response dataset CSV and codebook',
 	'results.export.responseDataset.detail':
@@ -602,12 +604,11 @@ const enMessages = {
 		'Use this for internal aggregate review. Create a response dataset when you need submitted-response rows.',
 	'results.export.reportSummary.scoped.detail':
 		'Use this for scoped aggregate review. Overall, group, and wave rows stay aggregate-only; create a response dataset when you need submitted-response rows.',
-	'results.export.unknownFile.detail': 'Review this file type before using it outside the workspace.',
+	'results.export.unknownFile.detail':
+		'Review this file type before using it outside the workspace.',
 	'results.export.rowShape.responseRows': (values, locale) =>
 		`${formatCount(locale, numberValue(values, 'count'), 'row')}; ${
-			locale === 'hr-HR'
-				? 'jedan redak po predanom odgovoru'
-				: 'one row per submitted response'
+			locale === 'hr-HR' ? 'jedan redak po predanom odgovoru' : 'one row per submitted response'
 		}`,
 	'results.export.rowShape.responseRows.detail':
 		'Each row represents one submitted response session in this study export.',
@@ -701,8 +702,18 @@ const enMessages = {
 		locale === 'hr-HR'
 			? `Otkriveno ${formatCount(locale, numberValue(values, 'count'), 'column')}`
 			: `${formatCount(locale, numberValue(values, 'count'), 'column')} detected`,
-	'results.export.variables.codebook.detail':
-		'Review the codebook before using column values.',
+	'results.export.profile.columnsDocumented': (values, locale) =>
+		locale === 'hr-HR'
+			? `Dokumentirano ${formatCount(locale, numberValue(values, 'count'), 'column')}`
+			: `${formatCount(locale, numberValue(values, 'count'), 'column')} documented`,
+	'results.export.profile.csvColumnsDetected': (values, locale) =>
+		locale === 'hr-HR'
+			? `Otkriveno ${formatNumber(locale, numberValue(values, 'count'))} stupaca iz CSV-a`
+			: `${formatNumber(locale, numberValue(values, 'count'))} CSV columns detected`,
+	'results.export.profile.columns.pending': 'Review export file to inspect columns',
+	'results.export.profile.download.ready': 'Download ready',
+	'results.export.profile.download.unavailable': 'Download unavailable',
+	'results.export.variables.codebook.detail': 'Review the codebook before using column values.',
 	'results.export.missingness.codesDocumented.summary': 'Missing-answer codes documented',
 	'results.export.missingness.codesNotDetected.summary': 'Missing-answer codes not detected',
 	'results.export.missingness.responseDataset.detail':
@@ -722,8 +733,7 @@ const enMessages = {
 	'results.export.scoreOutputs.noMetadata.summary': 'No score metadata columns detected',
 	'results.export.scoreOutputs.responseDataset.detail':
 		'Response datasets include score metadata fields when scores exist; keep score method notes with analysis.',
-	'results.export.scoreOutputs.dimensionCode.summary':
-		'Score outputs listed in dimension_code',
+	'results.export.scoreOutputs.dimensionCode.summary': 'Score outputs listed in dimension_code',
 	'results.export.scoreOutputs.noColumn.summary': 'Score output column not detected',
 	'results.export.scoreOutputs.dimensionCode.detail':
 		'Use dimension_code with score_count and disclosure fields to understand aggregate score rows.',
@@ -792,12 +802,10 @@ const enMessages = {
 	'waves.review.dataReadiness.comparisonNotReady.detail':
 		'Run the checks below to see whether linked pairs, scoring, or disclosure are blocking review.',
 	'waves.review.claimBoundary.label': 'Claim boundary',
-	'waves.review.claimBoundary.sameReady.summary':
-		'Disclosure-gated custom-study comparison',
+	'waves.review.claimBoundary.sameReady.summary': 'Disclosure-gated custom-study comparison',
 	'waves.review.claimBoundary.sameReady.detail':
 		'Describe this as change in this tenant-provided custom study, not as an official benchmark or clinical threshold.',
-	'waves.review.claimBoundary.groupTrend.summary':
-		'Do not call this same-respondent change',
+	'waves.review.claimBoundary.groupTrend.summary': 'Do not call this same-respondent change',
 	'waves.review.claimBoundary.groupTrend.detail':
 		'Use group-level wording such as aggregate trend between waves unless repeat-participation linking is ready.',
 	'waves.review.claimBoundary.oneWave.summary': 'Current results are wave-level only',
@@ -870,8 +878,7 @@ const enMessages = {
 	'waves.method.missingness.complete.summary': 'No missing-score input gap in comparison preview',
 	'waves.method.missingness.complete.detail':
 		'The compared outputs reported complete valid/expected answer contribution counts.',
-	'waves.method.missingness.incomplete.summary':
-		'Some compared score inputs were incomplete',
+	'waves.method.missingness.incomplete.summary': 'Some compared score inputs were incomplete',
 	'waves.method.missingness.incomplete.baseline': (values, locale) =>
 		locale === 'hr-HR'
 			? `${textValue(values, 'dimension')} u početnom mjerenju koristi ${formatNumber(
@@ -898,8 +905,7 @@ const enMessages = {
 	'waves.method.interpretation.waveOnly.summary': 'Wave-level results only',
 	'waves.method.interpretation.waveOnly.detail':
 		'Do not describe change until a follow-up wave exists.',
-	'waves.method.interpretation.ready.summary':
-		'Interpretation reviewed for this comparison',
+	'waves.method.interpretation.ready.summary': 'Interpretation reviewed for this comparison',
 	'waves.method.interpretation.ready.detail':
 		'Keep disclosure and method notes with any wave-comparison export or report.',
 	'waves.method.interpretation.custom.summary': 'Custom-study change, not a benchmark',
@@ -1043,8 +1049,7 @@ const enMessages = {
 			locale,
 			numberValue(values, 'openLinkCount'),
 			'openRespondentLink'
-		)} ${numberValue(values, 'openLinkCount') === 1 ? 'is' : 'are'} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`
-	,
+		)} ${numberValue(values, 'openLinkCount') === 1 ? 'is' : 'are'} active. Anyone with the link can enter this wave; use saved invitations when access should be limited.`,
 	'operations.suppression.headline': (values, locale) => {
 		const blockedCount = numberValue(values, 'blockedCount');
 		if (blockedCount === 0) {
@@ -1196,8 +1201,7 @@ const hrMessages: AppMessageCatalog = {
 	'overview.studyBrief.badge.ready': 'Postavljeno',
 	'overview.studyBrief.badge.pending': 'Treba opis',
 	'overview.studyBrief.summary.ready': (values) => textValue(values, 'purpose'),
-	'overview.studyBrief.summary.missing':
-		'Svrha studije još nije zabilježena.',
+	'overview.studyBrief.summary.missing': 'Svrha studije još nije zabilježena.',
 	'overview.studyBrief.guidance.ready':
 		'Služi za usklađivanje svrhe studije i tumačenja rezultata.',
 	'overview.studyBrief.guidance.missing':
@@ -1383,11 +1387,7 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.readyDownloads.badge': (values, locale) =>
 		`${formatNumber(locale, numberValue(values, 'count'))} dostupno za preuzimanje`,
 	'exports.library.readyDownloads.summary.ready': (values, locale) =>
-		`${formatCount(
-			locale,
-			numberValue(values, 'count'),
-			'exportFile'
-		)} spremno je za preuzimanje.`,
+		`${formatCount(locale, numberValue(values, 'count'), 'exportFile')} spremno je za preuzimanje.`,
 	'exports.library.readyDownloads.summary.empty':
 		'Još nema izvoznih datoteka spremnih za preuzimanje.',
 	'exports.library.readyDownloads.guidance.withDataset':
@@ -1435,8 +1435,7 @@ const hrMessages: AppMessageCatalog = {
 	'exports.library.context.badge.empty': 'Nema izvora',
 	'exports.library.context.summary.ready': (values) =>
 		`Izvozne datoteke povezane su s ${textValue(values, 'sourceLabels')}.`,
-	'exports.library.context.summary.empty':
-		'Još nema izvoznih datoteka povezanih sa studijom.',
+	'exports.library.context.summary.empty': 'Još nema izvoznih datoteka povezanih sa studijom.',
 	'exports.library.context.guidance.ready':
 		'Otvorite izvornu studiju ili kontekst izvještaja kada trebate razumjeti kako je izvoz izrađen.',
 	'exports.library.context.guidance.empty':
@@ -1449,8 +1448,7 @@ const hrMessages: AppMessageCatalog = {
 		'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.',
 	'exports.library.purpose.other.nextUse':
 		'Ovaj izvoz koristite uz izvorni kontekst i izrađeni opis podataka.',
-	'exports.library.context.campaignSeries': (values) =>
-		`Studija / ${textValue(values, 'label')}`,
+	'exports.library.context.campaignSeries': (values) => `Studija / ${textValue(values, 'label')}`,
 	'exports.library.context.campaign': (values) => `Mjerenje / ${textValue(values, 'label')}`,
 	'exports.library.fileType.reportSummary': 'CSV i opis podataka matrice rezultata',
 	'exports.library.fileType.responseDataset': 'CSV i opis podataka skupa odgovora',
@@ -1488,7 +1486,8 @@ const hrMessages: AppMessageCatalog = {
 	'readModel.surface.setup.referenceDescription':
 		'Detaljni zapisi postavljanja, status pravila, polja odabranog mjerenja i bilješke provjere pokretanja ostaju ovdje za pregled.',
 	'readModel.surface.setup.emptyTitle': 'Još nema mjerenja',
-	'readModel.surface.setup.emptyMessage': 'Izradite nacrt mjerenja prije provjere spremnosti za pokretanje.',
+	'readModel.surface.setup.emptyMessage':
+		'Izradite nacrt mjerenja prije provjere spremnosti za pokretanje.',
 	'readModel.surface.setup.proofTitle': 'Radnje pripreme',
 	'readModel.surface.setup.proofDescription':
 		'Odaberite izvor upitnika, pripremite upitnik i izlaze rezultata, izradite nacrt mjerenja i provjerite spremnost pokretanja.',
@@ -1526,13 +1525,16 @@ const hrMessages: AppMessageCatalog = {
 		`Provjera sesije nije uspjela sa statusom ${textValue(values, 'status')}.`,
 	'session.failed.message': 'Provjera sesije nije uspjela.',
 	'workspace.lifecycle.prepare.label': 'Priprema',
-	'workspace.lifecycle.prepare.description': 'Postavite upitnik, pitanja, rezultate i pravila pokretanja.',
+	'workspace.lifecycle.prepare.description':
+		'Postavite upitnik, pitanja, rezultate i pravila pokretanja.',
 	'workspace.lifecycle.collect.label': 'Prikupljanje',
 	'workspace.lifecycle.collect.description': 'Pokrenite studiju i pratite napredak odgovora.',
 	'workspace.lifecycle.review.label': 'Pregled',
-	'workspace.lifecycle.review.description': 'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
+	'workspace.lifecycle.review.description':
+		'Pregledajte pokrivenost, nalaze, ograničenja i usporedbe.',
 	'workspace.lifecycle.export.label': 'Izvoz',
-	'workspace.lifecycle.export.description': 'Koristite izrađene CSV datoteke i opise podataka za analizu.',
+	'workspace.lifecycle.export.description':
+		'Koristite izrađene CSV datoteke i opise podataka za analizu.',
 	'workspace.command.untitled': 'Radnja radnog prostora',
 	'workspace.command.defaultDescription': 'Otvorite povezanu površinu proizvoda za detalje.',
 	'workspace.command.defaultAction': 'Otvori',
@@ -1581,13 +1583,17 @@ const hrMessages: AppMessageCatalog = {
 	'portfolio.section.own.empty':
 		'Nijedna vlastita studija ne odgovara ovom prikazu. Očistite filtre ili izradite studiju kada imate pristup postavljanju.',
 	'portfolio.lifecycle.needsSetup.label': 'Treba postavljanje',
-	'portfolio.lifecycle.needsSetup.description': 'Studije koje treba postaviti prije smislenog prikupljanja.',
+	'portfolio.lifecycle.needsSetup.description':
+		'Studije koje treba postaviti prije smislenog prikupljanja.',
 	'portfolio.lifecycle.inCollection.label': 'U prikupljanju',
-	'portfolio.lifecycle.inCollection.description': 'Studije s aktivnim prikupljanjem koje treba pratiti.',
+	'portfolio.lifecycle.inCollection.description':
+		'Studije s aktivnim prikupljanjem koje treba pratiti.',
 	'portfolio.lifecycle.resultsReady.label': 'Rezultati spremni',
-	'portfolio.lifecycle.resultsReady.description': 'Studije s predanim odgovorima spremnima za pregled.',
+	'portfolio.lifecycle.resultsReady.description':
+		'Studije s predanim odgovorima spremnima za pregled.',
 	'portfolio.lifecycle.archived.label': 'Arhivirano',
-	'portfolio.lifecycle.archived.description': 'Studije zadržane kao referenca nakon završetka aktivnog rada.',
+	'portfolio.lifecycle.archived.description':
+		'Studije zadržane kao referenca nakon završetka aktivnog rada.',
 	'portfolio.lifecycle.open.label': 'Otvori studiju',
 	'portfolio.lifecycle.open.description': 'Studije dostupne za uobičajeni pregled.',
 	'portfolio.row.campaigns': 'Mjerenja',
@@ -1725,8 +1731,7 @@ const hrMessages: AppMessageCatalog = {
 		'Izvozi matrice rezultata su agregirane datoteke i ne uključuju retke praćenja ispitanika.',
 	'results.export.trajectoryKeys.included.summary':
 		'Uključeni su lokalni ključevi praćenja za ovu datoteku',
-	'results.export.trajectoryKeys.noColumn.summary':
-		'Stupac ključa praćenja nije otkriven',
+	'results.export.trajectoryKeys.noColumn.summary': 'Stupac ključa praćenja nije otkriven',
 	'results.export.trajectoryKeys.none.summary': 'Nema ključeva praćenja',
 	'results.export.trajectoryKeys.usage.detail':
 		'Polja praćenja koristite samo kada postoji anonimno s ponovljenim sudjelovanjem povezivanje i kada pravila prikaza to dopuštaju.',
@@ -1752,14 +1757,12 @@ const hrMessages: AppMessageCatalog = {
 		'Polja nedostajućih vrijednosti rezultata nisu otkrivena',
 	'results.export.missingness.reportSummary.detail':
 		'Nedostajuće vrijednosti u matrici rezultata opisuju važeće/očekivane doprinose rezultatu, a ne preskočene odgovore na razini ispitanika.',
-	'results.export.missingness.fields.summary':
-		'Uključena su polja nedostajućih vrijednosti',
+	'results.export.missingness.fields.summary': 'Uključena su polja nedostajućih vrijednosti',
 	'results.export.missingness.fieldsNotDetected.summary':
 		'Polja nedostajućih vrijednosti nisu otkrivena',
 	'results.export.missingness.review.detail':
 		'Pregledajte polja nedostajućih vrijednosti prije analize.',
-	'results.export.scoreOutputs.noMetadata.summary':
-		'Nisu otkriveni stupci metapodataka rezultata',
+	'results.export.scoreOutputs.noMetadata.summary': 'Nisu otkriveni stupci metapodataka rezultata',
 	'results.export.scoreOutputs.responseDataset.detail':
 		'Skupovi odgovora uključuju metapodatke rezultata kada rezultati postoje; uz analizu zadržite bilješke o metodi rezultata.',
 	'results.export.scoreOutputs.dimensionCode.summary':
@@ -1771,8 +1774,14 @@ const hrMessages: AppMessageCatalog = {
 		'Koristite result_scope s dimension_code, score_count, pravilima prikaza i poljima usporedne promjene za razumijevanje agregiranih redaka rezultata.',
 	'results.export.scoreOutputs.notDetected.summary': 'Izlazi rezultata nisu otkriveni',
 	'results.export.scoreOutputs.review.detail':
-		'Pregledajte polja izlaza rezultata prije tumačenja.'
-	,
+		'Pregledajte polja izlaza rezultata prije tumačenja.',
+	'results.export.profile.columnsDocumented': (values, locale) =>
+		`Dokumentirano ${formatCount(locale, numberValue(values, 'count'), 'column')}`,
+	'results.export.profile.csvColumnsDetected': (values, locale) =>
+		`Otkriveno ${formatNumber(locale, numberValue(values, 'count'))} stupaca iz CSV-a`,
+	'results.export.profile.columns.pending': 'Pregledajte datoteku izvoza za provjeru stupaca',
+	'results.export.profile.download.ready': 'Preuzimanje spremno',
+	'results.export.profile.download.unavailable': 'Preuzimanje nije dostupno',
 	'waves.review.waveSequence.label': 'Redoslijed mjerenja',
 	'waves.review.waveSequence.noWave.summary': 'Još nema mjerenja',
 	'waves.review.waveSequence.noWave.detail':
@@ -1815,8 +1824,7 @@ const hrMessages: AppMessageCatalog = {
 		'Usporedba prilagođene studije uz pravila prikaza',
 	'waves.review.claimBoundary.sameReady.detail':
 		'Opišite ovo kao promjenu u ovoj prilagođenoj studiji radnog prostora, a ne kao službenu usporednu vrijednost ili klinički prag.',
-	'waves.review.claimBoundary.groupTrend.summary':
-		'Nemojte ovo zvati promjenom istih sudionika',
+	'waves.review.claimBoundary.groupTrend.summary': 'Nemojte ovo zvati promjenom istih sudionika',
 	'waves.review.claimBoundary.groupTrend.detail':
 		'Koristite formulacije na razini grupe, npr. agregirani trend između mjerenja, osim ako je ponovljeno sudjelovanje spremno.',
 	'waves.review.claimBoundary.oneWave.summary': 'Trenutni rezultati su samo za jedno mjerenje',
@@ -1864,16 +1872,14 @@ const hrMessages: AppMessageCatalog = {
 		'Nema praznine u ulazima rezultata u pregledu usporedbe',
 	'waves.method.missingness.complete.detail':
 		'Uspoređeni izlazi imaju potpune brojeve važećih i očekivanih doprinosa odgovora.',
-	'waves.method.missingness.incomplete.summary':
-		'Neki uspoređeni ulazi rezultata nisu potpuni',
+	'waves.method.missingness.incomplete.summary': 'Neki uspoređeni ulazi rezultata nisu potpuni',
 	'waves.method.interpretation.noWave.summary': 'Nije odabrano mjerenje',
 	'waves.method.interpretation.noWave.detail':
 		'Izradite mjerenje prije pregleda granica tumačenja.',
 	'waves.method.interpretation.waveOnly.summary': 'Rezultati su samo na razini mjerenja',
 	'waves.method.interpretation.waveOnly.detail':
 		'Ne opisujte promjenu dok ne postoji sljedeće mjerenje.',
-	'waves.method.interpretation.ready.summary':
-		'Tumačenje je pregledano za ovu usporedbu',
+	'waves.method.interpretation.ready.summary': 'Tumačenje je pregledano za ovu usporedbu',
 	'waves.method.interpretation.ready.detail':
 		'Uz svaki izvoz ili izvještaj usporedbe mjerenja zadržite bilješke o prikazu i metodi.',
 	'waves.method.interpretation.custom.summary':
@@ -1995,10 +2001,7 @@ const hrMessages: AppMessageCatalog = {
 			locale,
 			numberValue(values, 'invitationCount'),
 			'emailInvitation'
-		)}. Samo spremljeni primatelji dobivaju privatni pristup, a ${textValue(
-			values,
-			'boundary'
-		)}`,
+		)}. Samo spremljeni primatelji dobivaju privatni pristup, a ${textValue(values, 'boundary')}`,
 	'operations.access.mixedDetail': (values, locale) =>
 		`${formatCount(
 			locale,
@@ -2029,8 +2032,7 @@ const hrMessages: AppMessageCatalog = {
 	},
 	'operations.suppression.guidance.blocked':
 		'Koristite drugu adresu e-pošte, uklonite primatelja ili maknite blokadu samo ako ste sigurni da je budući poziv opravdan.',
-	'operations.suppression.guidance.clear':
-		'Nema aktivnih zabrana kontaktiranja za ove primatelje.',
+	'operations.suppression.guidance.clear': 'Nema aktivnih zabrana kontaktiranja za ove primatelje.',
 	'operations.suppression.reason.recipientUnsubscribed': 'Odjavljeno',
 	'operations.suppression.reason.providerBounced': 'Odbijena isporuka',
 	'operations.suppression.reason.providerComplained': 'Prijava neželjene pošte',
@@ -2050,10 +2052,7 @@ const hrMessages: AppMessageCatalog = {
 	'operations.readModel.collectionState.noSelectedGuidance':
 		'Izradite i pokrenite mjerenje prije prikupljanja odgovora.',
 	'operations.readModel.collectionState.selectedSummary': (values) =>
-		`${textValue(values, 'campaignName')}: prikupljanje je ${textValue(
-			values,
-			'statusLabel'
-		)}.`,
+		`${textValue(values, 'campaignName')}: prikupljanje je ${textValue(values, 'statusLabel')}.`,
 	'operations.readModel.respondentAccess.label': 'Pristup ispitanika',
 	'operations.readModel.respondentAccess.badge.ready': 'Pristup je spreman',
 	'operations.readModel.respondentAccess.badge.pending': 'Priprema pristupa',
@@ -2087,8 +2086,7 @@ const hrMessages: AppMessageCatalog = {
 		'Ima dovoljno predanih odgovora za skupni prikaz rezultata.',
 	'operations.readModel.guidance.collection.unknownDisclosure':
 		'Spremnost prikaza rezultata nije poznata jer nedostaju pravila prikaza.',
-	'operations.readModel.guidance.score.complete':
-		'Svi predani odgovori imaju uspješno bodovanje.',
+	'operations.readModel.guidance.score.complete': 'Svi predani odgovori imaju uspješno bodovanje.',
 	'operations.readModel.guidance.score.partial':
 		'Neki predani odgovori još trebaju bodovanje prije dovršetka izvještaja koji ovise o rezultatima.',
 	'operations.readModel.guidance.score.notConfigured':
