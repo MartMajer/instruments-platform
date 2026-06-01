@@ -82,6 +82,7 @@
 		duplicateTemplateQuestionRow,
 		isMeanScoreEligible,
 		listQuestionnairePaletteOptions,
+		listScoreCalculationOptions,
 		moveTemplateQuestionRow,
 		questionnairePaletteIdFromParam,
 		questionScalePresetOptions,
@@ -128,6 +129,13 @@
 		'manager_of_target',
 		'reports_of_target'
 	];
+	const scoreCalculationOptions = listScoreCalculationOptions();
+	const scoreCalculationGroups = [...new Set(scoreCalculationOptions.map((option) => option.group))].map(
+		(group) => ({
+			group,
+			options: scoreCalculationOptions.filter((option) => option.group === group)
+		})
+	);
 
 	let {
 		workspace,
@@ -1346,9 +1354,209 @@
 		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
 	}
 
+	function toggleScoreSourceOutput(outputLocalId: string, code: string, checked: boolean) {
+		const normalizedCode = scoreCodeFromName(code);
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			const currentCodes = output.sourceOutputCodes ?? [];
+			const sourceOutputCodes = checked
+				? [...currentCodes.filter((candidate) => candidate !== normalizedCode), normalizedCode]
+				: currentCodes.filter((candidate) => candidate !== normalizedCode);
+			const sourceWeights = { ...(output.sourceWeights ?? {}) };
+			if (!checked) {
+				delete sourceWeights[normalizedCode];
+			}
+
+			return {
+				...output,
+				sourceOutputCodes,
+				sourceWeights
+			};
+		});
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function updateScoreItemWeight(outputLocalId: string, code: string, value: string) {
+		const weight = parseScoreWeight(value);
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId
+				? {
+						...output,
+						itemWeights: {
+							...(output.itemWeights ?? {}),
+							[scoreCodeFromName(code)]: weight
+						}
+					}
+				: output
+		);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function updateScoreSourceWeight(outputLocalId: string, code: string, value: string) {
+		const weight = parseScoreWeight(value);
+		const normalizedCode = scoreCodeFromName(code);
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId
+				? {
+						...output,
+						sourceWeights: {
+							...(output.sourceWeights ?? {}),
+							[normalizedCode]: weight
+						}
+					}
+				: output
+		);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function updateScoreDifferenceSide(
+		outputLocalId: string,
+		side: 'leftOutputCode' | 'rightOutputCode',
+		code: string
+	) {
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId ? { ...output, [side]: scoreCodeFromName(code) } : output
+		);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function updateScoreRange(
+		outputLocalId: string,
+		field: 'scoreRangeMin' | 'scoreRangeMax',
+		value: string
+	) {
+		const parsed = parseNullableScoreNumber(value);
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId ? { ...output, [field]: parsed } : output
+		);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function addScoreInterpretationBand(outputLocalId: string) {
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			const nextIndex = (output.interpretationBands?.length ?? 0) + 1;
+			return {
+				...output,
+				interpretationBands: [
+					...(output.interpretationBands ?? []),
+					{
+						code: `band_${nextIndex}`,
+						label: `Band ${nextIndex}`,
+						min: 0,
+						max: 100
+					}
+				]
+			};
+		});
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function removeScoreInterpretationBand(outputLocalId: string, bandIndex: number) {
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === outputLocalId
+				? {
+						...output,
+						interpretationBands: (output.interpretationBands ?? []).filter(
+							(_band, index) => index !== bandIndex
+						)
+					}
+				: output
+		);
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function updateScoreInterpretationBand(
+		outputLocalId: string,
+		bandIndex: number,
+		patch: Partial<{ code: string; label: string; min: number | null; max: number | null }>
+	) {
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			return {
+				...output,
+				interpretationBands: (output.interpretationBands ?? []).map((band, index) =>
+					index === bandIndex
+						? {
+								...band,
+								...Object.fromEntries(
+									Object.entries(patch).filter((entry) => entry[1] !== null)
+								)
+							}
+						: band
+				)
+			};
+		});
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
 	function parseScoreMinValidCount(value: string) {
 		const parsed = Number.parseInt(value, 10);
 		return Number.isFinite(parsed) ? Math.max(1, parsed) : 1;
+	}
+
+	function parseNullableScoreNumber(value: string) {
+		const parsed = Number.parseFloat(value);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+
+	function parseScoreWeight(value: string) {
+		const parsed = Number.parseFloat(value);
+		return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+	}
+
+	function scoreOutputItemWeight(output: ScoreOutputAuthoringRow, code: string) {
+		return output.itemWeights?.[scoreCodeFromName(code)] ?? 1;
+	}
+
+	function scoreOutputSourceWeight(output: ScoreOutputAuthoringRow, code: string) {
+		return output.sourceWeights?.[scoreCodeFromName(code)] ?? 1;
+	}
+
+	function scoreOutputDisplayName(output: ScoreOutputAuthoringRow) {
+		return output.name.trim() || output.code.trim() || setupUi('Untitled result');
+	}
+
+	function previousScoreOutputs(outputIndex: number) {
+		return scoreOutputs.slice(0, outputIndex);
+	}
+
+	function isWeightedQuestionCalculation(value: ScoreCalculation) {
+		return (
+			value === 'weighted_mean' ||
+			value === 'weighted_sum' ||
+			value === 'normalized_weighted_mean_0_100' ||
+			value === 'normalized_weighted_sum_0_100'
+		);
+	}
+
+	function isCompositeCalculation(value: ScoreCalculation) {
+		return value.startsWith('composite_');
+	}
+
+	function isWeightedCompositeCalculation(value: ScoreCalculation) {
+		return value === 'composite_weighted_mean' || value === 'composite_weighted_sum';
+	}
+
+	function isDifferenceCalculation(value: ScoreCalculation) {
+		return value === 'difference';
 	}
 
 	function updateScoringRuleKey(ruleKey: string) {
@@ -1783,7 +1991,9 @@
 	}
 
 	function scoreCalculationLabel(value: ScoreCalculation) {
-		return setupUi(value === 'sum' ? 'sum' : 'average');
+		return setupUi(
+			scoreCalculationOptions.find((option) => option.value === value)?.label ?? String(value)
+		);
 	}
 
 	function missingPolicyLabel(output: ScoreOutputAuthoringRow) {
@@ -3521,9 +3731,21 @@
 																calculation: event.currentTarget.value as ScoreCalculation
 															})}
 													>
-														<option value="mean">{setupUi('Average selected answers')}</option>
-														<option value="sum">{setupUi('Sum selected answers')}</option>
+														{#each scoreCalculationGroups as group (group.group)}
+															<optgroup label={setupUi(group.group)}>
+																{#each group.options as option (option.value)}
+																	<option value={option.value}>{setupUi(option.label)}</option>
+																{/each}
+															</optgroup>
+														{/each}
 													</select>
+													<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+														{setupUi(
+															scoreCalculationOptions.find(
+																(option) => option.value === output.calculation
+															)?.detail ?? 'Choose how this result score is calculated.'
+														)}
+													</span>
 												</label>
 												<label class="field">
 													<span>{setupUi('Missing answers')}</span>
@@ -3559,6 +3781,124 @@
 												{/if}
 											</div>
 
+											{#if isCompositeCalculation(output.calculation)}
+												{@const sourceOutputs = previousScoreOutputs(outputIndex)}
+												<div class="record-row">
+													<h6 class="record-row__title">{setupUi('Source result outputs')}</h6>
+													<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Composite results combine earlier result outputs. Put the component outputs above this result.'
+														)}
+													</p>
+													{#if sourceOutputs.length}
+														<div class="grid gap-2">
+															{#each sourceOutputs as sourceOutput (sourceOutput.localId)}
+																<div class="record-field">
+																	<label class="checkbox-field">
+																		<input
+																			type="checkbox"
+																			checked={(output.sourceOutputCodes ?? []).includes(
+																				scoreCodeFromName(sourceOutput.code || sourceOutput.name)
+																			)}
+																			onchange={(event) =>
+																				toggleScoreSourceOutput(
+																					output.localId,
+																					sourceOutput.code || sourceOutput.name,
+																					event.currentTarget.checked
+																				)}
+																		/>
+																		<span>{setupUi(scoreOutputDisplayName(sourceOutput))}</span>
+																	</label>
+																	<p class="text-sm text-[var(--color-text-muted)]">
+																		{scoreCalculationLabel(sourceOutput.calculation)}
+																	</p>
+																	{#if isWeightedCompositeCalculation(output.calculation)}
+																		<label class="field mt-2 max-w-48">
+																			<span>{setupUi('Weight')}</span>
+																			<input
+																				aria-label={`${scoreOutputDisplayName(sourceOutput)} weight`}
+																				type="number"
+																				min="0.01"
+																				step="0.1"
+																				value={scoreOutputSourceWeight(
+																					output,
+																					sourceOutput.code || sourceOutput.name
+																				)}
+																				oninput={(event) =>
+																					updateScoreSourceWeight(
+																						output.localId,
+																						sourceOutput.code || sourceOutput.name,
+																						event.currentTarget.value
+																					)}
+																			/>
+																		</label>
+																	{/if}
+																</div>
+															{/each}
+														</div>
+													{:else}
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{setupUi('Add at least two component result outputs before this composite result.')}
+														</p>
+													{/if}
+												</div>
+											{:else if isDifferenceCalculation(output.calculation)}
+												{@const sourceOutputs = previousScoreOutputs(outputIndex)}
+												<div class="record-row">
+													<h6 class="record-row__title">{setupUi('Difference inputs')}</h6>
+													<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Difference subtracts the second earlier result from the first earlier result.'
+														)}
+													</p>
+													{#if sourceOutputs.length >= 2}
+														<div class="record-grid">
+															<label class="field">
+																<span>{setupUi('First result')}</span>
+																<select
+																	value={output.leftOutputCode ?? ''}
+																	onchange={(event) =>
+																		updateScoreDifferenceSide(
+																			output.localId,
+																			'leftOutputCode',
+																			event.currentTarget.value
+																		)}
+																>
+																	<option value="">{setupUi('Choose result')}</option>
+																	{#each sourceOutputs as sourceOutput (sourceOutput.localId)}
+																		<option value={scoreCodeFromName(sourceOutput.code || sourceOutput.name)}
+																			>{setupUi(scoreOutputDisplayName(sourceOutput))}</option
+																		>
+																	{/each}
+																</select>
+															</label>
+															<label class="field">
+																<span>{setupUi('Subtract result')}</span>
+																<select
+																	value={output.rightOutputCode ?? ''}
+																	onchange={(event) =>
+																		updateScoreDifferenceSide(
+																			output.localId,
+																			'rightOutputCode',
+																			event.currentTarget.value
+																		)}
+																>
+																	<option value="">{setupUi('Choose result')}</option>
+																	{#each sourceOutputs as sourceOutput (sourceOutput.localId)}
+																		<option value={scoreCodeFromName(sourceOutput.code || sourceOutput.name)}
+																			>{setupUi(scoreOutputDisplayName(sourceOutput))}</option
+																		>
+																	{/each}
+																</select>
+															</label>
+														</div>
+													{:else}
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{setupUi('Add two component result outputs before this difference result.')}
+														</p>
+													{/if}
+												</div>
+											{:else}
 											<div class="record-row">
 												<h6 class="record-row__title">{setupUi('Question selection')}</h6>
 												<p class="mb-3 text-sm text-[var(--color-text-muted)]">
@@ -3591,6 +3931,24 @@
 																		>
 																	{/if}
 																</p>
+																{#if isWeightedQuestionCalculation(output.calculation)}
+																	<label class="field mt-2 max-w-48">
+																		<span>{setupUi('Weight')}</span>
+																		<input
+																			aria-label={`${question.textDefault.trim() || question.code} weight`}
+																			type="number"
+																			min="0.01"
+																			step="0.1"
+																			value={scoreOutputItemWeight(output, question.code)}
+																			oninput={(event) =>
+																				updateScoreItemWeight(
+																					output.localId,
+																					question.code,
+																					event.currentTarget.value
+																				)}
+																		/>
+																	</label>
+																{/if}
 															</div>
 														{/each}
 													</div>
@@ -3602,6 +3960,7 @@
 													</p>
 												{/if}
 											</div>
+											{/if}
 										</div>
 									{/each}
 								{/if}
@@ -3676,6 +4035,133 @@
 															{setupUi('Used as the report/export dimension code.')}
 														</span>
 													</label>
+												</div>
+
+												<div class="record-row mt-4">
+													<h6 class="record-row__title">{setupUi('Score metadata')}</h6>
+													<p class="mb-3 text-sm text-[var(--color-text-muted)]">
+														{setupUi(
+															'Optional range and tenant-defined bands help Results and exports explain what this score means without claiming official norms.'
+														)}
+													</p>
+													<div class="grid gap-4 lg:grid-cols-2">
+														<label class="field">
+															<span>{setupUi('Score range minimum')}</span>
+															<input
+																type="number"
+																step="0.01"
+																value={output.scoreRangeMin ?? ''}
+																oninput={(event) =>
+																	updateScoreRange(
+																		output.localId,
+																		'scoreRangeMin',
+																		event.currentTarget.value
+																	)}
+															/>
+														</label>
+														<label class="field">
+															<span>{setupUi('Score range maximum')}</span>
+															<input
+																type="number"
+																step="0.01"
+																value={output.scoreRangeMax ?? ''}
+																oninput={(event) =>
+																	updateScoreRange(
+																		output.localId,
+																		'scoreRangeMax',
+																		event.currentTarget.value
+																	)}
+															/>
+														</label>
+													</div>
+
+													<div class="mt-4 grid gap-3">
+														<div class="record-row__header">
+															<div>
+																<p class="record-field__label">{setupUi('Interpretation bands')}</p>
+																<p class="text-sm text-[var(--color-text-muted)]">
+																	{setupUi('Bands are tenant-defined labels for internal review only.')}
+																</p>
+															</div>
+															<button
+																type="button"
+																class="secondary-button"
+																onclick={() => addScoreInterpretationBand(output.localId)}
+															>
+																<Plus size={16} aria-hidden="true" />
+																<span>{setupUi('Add band')}</span>
+															</button>
+														</div>
+														{#if output.interpretationBands?.length}
+															{#each output.interpretationBands as band, bandIndex (`${output.localId}-${bandIndex}`)}
+																<div class="record-field">
+																	<div class="grid gap-3 lg:grid-cols-4">
+																		<label class="field">
+																			<span>{setupUi('Band code')}</span>
+																			<input
+																				value={band.code}
+																				oninput={(event) =>
+																					updateScoreInterpretationBand(output.localId, bandIndex, {
+																						code: event.currentTarget.value
+																					})}
+																			/>
+																		</label>
+																		<label class="field">
+																			<span>{setupUi('Band label')}</span>
+																			<input
+																				value={band.label}
+																				oninput={(event) =>
+																					updateScoreInterpretationBand(output.localId, bandIndex, {
+																						label: event.currentTarget.value
+																					})}
+																			/>
+																		</label>
+																		<label class="field">
+																			<span>{setupUi('Band min')}</span>
+																			<input
+																				type="number"
+																				step="0.01"
+																				value={band.min}
+																				oninput={(event) =>
+																					updateScoreInterpretationBand(output.localId, bandIndex, {
+																						min: parseNullableScoreNumber(
+																							event.currentTarget.value
+																						)
+																					})}
+																			/>
+																		</label>
+																		<label class="field">
+																			<span>{setupUi('Band max')}</span>
+																			<input
+																				type="number"
+																				step="0.01"
+																				value={band.max}
+																				oninput={(event) =>
+																					updateScoreInterpretationBand(output.localId, bandIndex, {
+																						max: parseNullableScoreNumber(
+																							event.currentTarget.value
+																						)
+																					})}
+																			/>
+																		</label>
+																	</div>
+																	<button
+																		type="button"
+																		class="secondary-button mt-2"
+																		onclick={() =>
+																			removeScoreInterpretationBand(output.localId, bandIndex)}
+																	>
+																		<Trash2 size={16} aria-hidden="true" />
+																		<span>{setupUi('Remove band')}</span>
+																	</button>
+																</div>
+															{/each}
+														{:else}
+															<p class="text-sm text-[var(--color-text-muted)]">
+																{setupUi('No interpretation bands configured.')}
+															</p>
+														{/if}
+													</div>
 												</div>
 											</div>
 										{/each}

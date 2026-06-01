@@ -19,6 +19,7 @@ import {
 	duplicateTemplateQuestionRow,
 	listStudyAuthoringPresetOptions,
 	listQuestionnairePaletteOptions,
+	listScoreCalculationOptions,
 	moveTemplateQuestionRow,
 	questionScalePresetOptions,
 	removeTemplateQuestionRow,
@@ -134,6 +135,59 @@ describe('template authoring helpers', () => {
 				includedQuestionCodes: ['q01', 'q02', 'q03']
 			})
 		]);
+	});
+
+	it('lists the production scoring calculation palette for setup controls', () => {
+		const options = listScoreCalculationOptions();
+
+		expect(options.map((option) => option.value)).toEqual([
+			'mean',
+			'sum',
+			'count_valid',
+			'weighted_mean',
+			'weighted_sum',
+			'normalized_mean_0_100',
+			'normalized_sum_0_100',
+			'normalized_weighted_mean_0_100',
+			'normalized_weighted_sum_0_100',
+			'composite_mean',
+			'composite_sum',
+			'composite_weighted_mean',
+			'composite_weighted_sum',
+			'difference'
+		]);
+		expect(options).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				value: 'mean',
+				label: 'Average selected answers',
+				group: 'Selected answers'
+			}),
+			expect.objectContaining({
+				value: 'sum',
+				label: 'Sum selected answers',
+				group: 'Selected answers'
+			}),
+			expect.objectContaining({
+				value: 'weighted_mean',
+				label: 'Weighted average',
+				group: 'Weighted selected answers'
+			}),
+			expect.objectContaining({
+				value: 'normalized_weighted_mean_0_100',
+				label: 'Normalize to 0-100, weighted average',
+				group: 'Normalize to 0-100'
+			}),
+			expect.objectContaining({
+				value: 'composite_weighted_mean',
+				label: 'Composite weighted average of earlier results',
+				group: 'Composite results'
+			}),
+			expect.objectContaining({
+				value: 'difference',
+				label: 'Difference between two earlier results',
+				group: 'Composite results'
+			})
+		]));
 	});
 
 	it('creates separate OSH ergonomics result outputs instead of a mixed total score', () => {

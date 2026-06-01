@@ -5510,12 +5510,31 @@ test('setup template authoring edits question rows and generated scoring default
 	await workflow.getByText('Result outputs plan', { exact: true }).click();
 	await workflow.getByLabel('Result name').fill('Recovery');
 	await workflow.getByLabel('Result code').fill('recovery');
-	await workflow.getByLabel('Calculation').selectOption('sum');
+	await workflow.getByLabel('Calculation').selectOption('normalized_weighted_mean_0_100');
 	await workflow.getByLabel('Missing answers').selectOption('min_valid_count');
 	await workflow.getByLabel('Minimum answered').fill('1');
-	await workflow.getByLabel('Write the first question for this study.').uncheck();
-	await workflow.getByLabel('Write the third question for this study.').uncheck();
-	await workflow.getByLabel('I can recover focus after a difficult interruption.').check();
+	await workflow
+		.getByRole('checkbox', { name: 'Write the first question for this study.', exact: true })
+		.uncheck();
+	await workflow
+		.getByRole('checkbox', { name: 'Write the third question for this study.', exact: true })
+		.uncheck();
+	await workflow
+		.getByRole('checkbox', {
+			name: 'I can recover focus after a difficult interruption.',
+			exact: true
+		})
+		.check();
+	await workflow
+		.getByLabel('I can recover focus after a difficult interruption. weight')
+		.fill('2');
+	await workflow.getByLabel('Score range minimum').fill('0');
+	await workflow.getByLabel('Score range maximum').fill('100');
+	await workflow.getByRole('button', { name: 'Add band' }).click();
+	await workflow.getByLabel('Band code').fill('higher_recovery');
+	await workflow.getByLabel('Band label').fill('Higher recovery');
+	await workflow.getByLabel('Band min').fill('67');
+	await workflow.getByLabel('Band max').fill('100');
 
 	await workflow.getByRole('button', { name: 'Save results setup' }).click();
 	await expect.poll(() => scoringBodies).toHaveLength(1);
@@ -5524,7 +5543,10 @@ test('setup template authoring edits question rows and generated scoring default
 		nodes: Array<{
 			id: string;
 			op: string;
+			input?: string;
 			explicit_reverse_items?: string[];
+			source_scales?: Record<string, { min: number; max: number; reverse?: boolean }>;
+			weights?: Record<string, number>;
 			missing_data?: unknown;
 		}>;
 		outputs: Array<{ code: string; node: string }>;
@@ -5533,18 +5555,40 @@ test('setup template authoring edits question rows and generated scoring default
 		submittedScoringDocument.inputs.find((input) => input.id === 'recovery_items')?.items
 	).toEqual(['q04']);
 	expect(
-		submittedScoringDocument.nodes.find((node) => node.id === 'recovery_scored_answers')
-			?.explicit_reverse_items
-	).toEqual(['q04']);
+		submittedScoringDocument.nodes.find((node) => node.id === 'recovery_normalized_answers')
+	).toMatchObject({
+		op: 'normalize_0_100',
+		input: 'recovery_answers',
+		source_scales: { q04: { min: 1, max: 5, reverse: true } }
+	});
 	expect(submittedScoringDocument.nodes.find((node) => node.id === 'recovery_score')).toMatchObject(
 		{
-			op: 'sum',
+			op: 'weighted_mean',
+			input: 'recovery_normalized_answers',
+			weights: { q04: 2 },
 			missing_data: { strategy: 'min_valid_count', min_valid_count: 1 }
 		}
 	);
 	expect(submittedScoringDocument.outputs).toEqual([{ code: 'recovery', node: 'recovery_score' }]);
 	expect(submittedScoringDocument.outputs.map((output) => output.code)).toEqual(['recovery']);
-	expect(JSON.parse(scoringBodies[0].produces)).toEqual({ scores: ['recovery'] });
+	expect(JSON.parse(scoringBodies[0].produces)).toMatchObject({
+		scores: ['recovery'],
+		outputs: [
+			{
+				code: 'recovery',
+				label: 'Recovery',
+				calculation: 'normalized_weighted_mean_0_100',
+				score_range: { min: 0, max: 100 }
+			}
+		],
+		interpretation: {
+			status: 'tenant_attested',
+			source: 'tenant_defined',
+			scores: {
+				recovery: [{ code: 'higher_recovery', label: 'Higher recovery', min: 67, max: 100 }]
+			}
+		}
+	});
 });
 
 test('setup workflow previews respondent-rule audience from the selected campaign', async ({

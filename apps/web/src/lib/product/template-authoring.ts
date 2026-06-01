@@ -107,6 +107,13 @@ export type ScoreInterpretationBandAuthoringRow = {
 	max: number;
 };
 
+export type ScoreCalculationOption = {
+	value: ScoreCalculation;
+	label: string;
+	detail: string;
+	group: string;
+};
+
 export type ScoreOutputAuthoringRow = {
 	localId: string;
 	name: string;
@@ -308,6 +315,93 @@ export const questionScalePresetOptions: QuestionScalePresetOption[] = [
 	}
 ];
 
+const scoreCalculationOptions: ScoreCalculationOption[] = [
+	{
+		value: 'mean',
+		label: 'Average selected answers',
+		detail: 'Use the average of selected numeric answers after reverse scoring.',
+		group: 'Selected answers'
+	},
+	{
+		value: 'sum',
+		label: 'Sum selected answers',
+		detail: 'Use the raw total of selected numeric answers after reverse scoring.',
+		group: 'Selected answers'
+	},
+	{
+		value: 'count_valid',
+		label: 'Count valid answers',
+		detail: 'Count how many selected answers were usable for scoring.',
+		group: 'Selected answers'
+	},
+	{
+		value: 'weighted_mean',
+		label: 'Weighted average',
+		detail: 'Average selected answers after applying per-question weights.',
+		group: 'Weighted selected answers'
+	},
+	{
+		value: 'weighted_sum',
+		label: 'Weighted sum',
+		detail: 'Total selected answers after applying per-question weights.',
+		group: 'Weighted selected answers'
+	},
+	{
+		value: 'normalized_mean_0_100',
+		label: 'Normalize to 0-100, average',
+		detail: 'Convert each selected answer to a 0-100 scale, then average.',
+		group: 'Normalize to 0-100'
+	},
+	{
+		value: 'normalized_sum_0_100',
+		label: 'Normalize to 0-100, sum',
+		detail: 'Convert each selected answer to a 0-100 scale, then total.',
+		group: 'Normalize to 0-100'
+	},
+	{
+		value: 'normalized_weighted_mean_0_100',
+		label: 'Normalize to 0-100, weighted average',
+		detail: 'Convert each selected answer to 0-100, then apply per-question weights.',
+		group: 'Normalize to 0-100'
+	},
+	{
+		value: 'normalized_weighted_sum_0_100',
+		label: 'Normalize to 0-100, weighted sum',
+		detail: 'Convert each selected answer to 0-100, then apply weighted totals.',
+		group: 'Normalize to 0-100'
+	},
+	{
+		value: 'composite_mean',
+		label: 'Composite average of earlier results',
+		detail: 'Average two or more earlier result scores.',
+		group: 'Composite results'
+	},
+	{
+		value: 'composite_sum',
+		label: 'Composite sum of earlier results',
+		detail: 'Total two or more earlier result scores.',
+		group: 'Composite results'
+	},
+	{
+		value: 'composite_weighted_mean',
+		label: 'Composite weighted average of earlier results',
+		detail: 'Average earlier result scores after applying result-level weights.',
+		group: 'Composite results'
+	},
+	{
+		value: 'composite_weighted_sum',
+		label: 'Composite weighted sum of earlier results',
+		detail: 'Total earlier result scores after applying result-level weights.',
+		group: 'Composite results'
+	},
+	{
+		value: 'difference',
+		label: 'Difference between two earlier results',
+		detail: 'Subtract one earlier result score from another.',
+		group: 'Composite results'
+	}
+];
+
 export function createDefaultTemplateQuestionRows(): TemplateQuestionAuthoringRow[] {
 	return defaultQuestionText.map((textDefault, index) =>
 		createQuestionRow({
@@ -339,6 +433,10 @@ export function listStudyAuthoringPresetOptions(): StudyAuthoringPresetOption[] 
 			questionCount: 8
 		}
 	];
+}
+
+export function listScoreCalculationOptions(): ScoreCalculationOption[] {
+	return scoreCalculationOptions.map((option) => ({ ...option }));
 }
 
 export function createTemplateQuestionRowsForStudyPreset(
