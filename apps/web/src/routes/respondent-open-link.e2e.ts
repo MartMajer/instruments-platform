@@ -487,6 +487,8 @@ test('identified entry token uses identified endpoints then public session handl
 
 	await expect(page.getByRole('heading', { name: 'Identified wave' })).toBeVisible();
 	await expect(page.getByText('identified', { exact: true })).toBeVisible();
+	await expect(page.getByTestId('respondent-target-summary')).toContainText('Adele Vance');
+	await expect(page.getByTestId('respondent-target-summary')).toContainText('Manager');
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
@@ -494,18 +496,21 @@ test('identified entry token uses identified endpoints then public session handl
 	await expect
 		.poll(() => new URL(page.url()).pathname)
 		.toBe(`/r/${publicSessionHandle}`);
+	await expect(page.getByTestId('respondent-target-context')).toContainText('Adele Vance');
+	await expect(page.getByTestId('respondent-target-context')).toContainText('Miriam Graham');
 
 	await answerLikert(page, 4);
 	await page.getByRole('button', { name: 'Review response' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
 
 	await expect(page.getByText('Response submitted')).toBeVisible();
-	expect(calls).toEqual([
-		'/respondent/identified-entries/{token}',
-		'/respondent/identified-entries/{token}/sessions',
-		'/respondent/public-sessions/{handle}/answers',
-		'/respondent/public-sessions/{handle}/submit'
-	]);
+	expect(calls[0]).toBe('/respondent/identified-entries/{token}');
+	expect(calls).toContain('/respondent/identified-entries/{token}/sessions');
+	expect(calls).toContain('/respondent/public-sessions/{handle}/answers');
+	expect(calls).toContain('/respondent/public-sessions/{handle}/submit');
+	expect(calls.filter((call) => call === '/respondent/identified-entries/{token}/sessions')).toHaveLength(1);
+	expect(calls.filter((call) => call === '/respondent/public-sessions/{handle}/answers')).toHaveLength(1);
+	expect(calls.filter((call) => call === '/respondent/public-sessions/{handle}/submit')).toHaveLength(1);
 });
 
 test('public session handle route restores draft without raw token entry call', async ({ page }) => {
@@ -1431,7 +1436,20 @@ function croatianOpenLinkEntry() {
 const sampleIdentifiedEntry = {
 	...sampleOpenLinkEntry,
 	name: 'Identified wave',
-	responseIdentityMode: 'identified'
+	responseIdentityMode: 'identified',
+	assignmentRole: 'manager',
+	respondentSubject: {
+		id: '9309f1b6-919d-4143-878b-9c6452f5f98c',
+		displayName: 'Miriam Graham',
+		email: 'miriam@example.test',
+		externalId: 'msgraph:tenant:miriam'
+	},
+	targetSubject: {
+		id: 'b208eafd-3e4d-4bfd-80b7-6d386ff3273a',
+		displayName: 'Adele Vance',
+		email: 'adele@example.test',
+		externalId: 'msgraph:tenant:adele'
+	}
 };
 
 const sampleNumberValidationEntry = {

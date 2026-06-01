@@ -9,6 +9,7 @@
 		type CreateOpenLinkSessionRequest,
 		type OpenLinkEntryResponse,
 		type ResponseSessionResponse,
+		type RespondentSubjectContextResponse,
 		type SavedAnswerResponse,
 		type SaveAnswersResponse,
 		type SubmitResponseSessionResponse
@@ -83,6 +84,10 @@
 			? toRespondentReceiptView({ entry, session, savedAnswers, submitted })
 			: null
 	);
+	let visibleEntryTargetSubject = $derived(entry ? visibleTargetSubject(entry) : null);
+	let visibleEntryTargetName = $derived(subjectDisplayName(visibleEntryTargetSubject));
+	let visibleEntryRespondentName = $derived(subjectDisplayName(entry?.respondentSubject));
+	let visibleEntryRoleName = $derived(formatAssignmentRole(entry?.assignmentRole));
 
 	onMount(() => {
 		window.addEventListener('beforeunload', handleBeforeUnload);
@@ -790,6 +795,38 @@
 		}
 	}
 
+	function visibleTargetSubject(currentEntry: OpenLinkEntryResponse) {
+		const target = currentEntry.targetSubject;
+		if (!target || target.id === currentEntry.respondentSubject?.id) {
+			return null;
+		}
+
+		return target;
+	}
+
+	function subjectDisplayName(subject: RespondentSubjectContextResponse | null | undefined) {
+		return nonEmpty(subject?.displayName) ?? nonEmpty(subject?.email) ?? null;
+	}
+
+	function formatAssignmentRole(value: string | null | undefined) {
+		const normalized = nonEmpty(value);
+		if (!normalized) {
+			return null;
+		}
+
+		return normalized
+			.replace(/[_-]+/g, ' ')
+			.replace(/\s+/g, ' ')
+			.toLowerCase()
+			.replace(/(^|\s)\S/g, (match) => match.toUpperCase());
+	}
+
+	function nonEmpty(value: string | null | undefined) {
+		const trimmed = value?.trim() ?? '';
+
+		return trimmed.length > 0 ? trimmed : null;
+	}
+
 	function grantLabel(grant: string) {
 		const words = grant.replace(/[_-]+/g, ' ').trim().split(/\s+/);
 
@@ -850,6 +887,24 @@
 					{entry.responseIdentityMode}
 				</p>
 				<h1 class="serif-heading text-3xl">{entry.name}</h1>
+				{#if visibleEntryTargetSubject && visibleEntryTargetName}
+					<section
+						class="respondent-target-summary"
+						aria-label={text.respondent.targetContextAria}
+						data-testid="respondent-target-summary"
+					>
+						<div>
+							<p>{text.respondent.targetContextKicker}</p>
+							<strong>{visibleEntryTargetName}</strong>
+							{#if visibleEntryRespondentName}
+								<span>{text.respondent.respondentContextKicker}: {visibleEntryRespondentName}</span>
+							{/if}
+						</div>
+						{#if visibleEntryRoleName}
+							<span>{text.respondent.targetRoleLabel}: {visibleEntryRoleName}</span>
+						{/if}
+					</section>
+				{/if}
 			</header>
 
 			{#if submitted && receiptView}
@@ -984,6 +1039,9 @@
 					<RespondentQuestionRunner
 						questions={entry.questions}
 						{answers}
+						targetSubject={visibleTargetSubject(entry)}
+						respondentSubject={entry.respondentSubject}
+						assignmentRole={entry.assignmentRole}
 						disabled={!session}
 						{saving}
 						{saveStatusMessage}
@@ -1005,9 +1063,65 @@
 						answerLabel={text.respondent.runnerAnswer}
 						answerWithUnitLabel={text.respondent.runnerAnswerWithUnit}
 						noQuestionsAvailableLabel={text.respondent.runnerNoQuestionsAvailable}
+						targetContextLabel={text.respondent.targetContextAria}
+						targetLabel={text.respondent.targetContextKicker}
+						respondentLabel={text.respondent.respondentContextKicker}
+						roleLabel={text.respondent.targetRoleLabel}
 					/>
 				</form>
 			{/if}
 		{/if}
 	</section>
 </main>
+
+<style>
+	.respondent-target-summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.85rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+		padding: 0.8rem 0.9rem;
+	}
+
+	.respondent-target-summary div {
+		display: grid;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	.respondent-target-summary p,
+	.respondent-target-summary span {
+		margin: 0;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+	}
+
+	.respondent-target-summary strong {
+		overflow-wrap: anywhere;
+		font-size: 1.05rem;
+		line-height: 1.15;
+		color: var(--color-text);
+	}
+
+	.respondent-target-summary > span {
+		flex: 0 0 auto;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		padding: 0.35rem 0.55rem;
+		color: var(--color-text);
+	}
+
+	@media (max-width: 520px) {
+		.respondent-target-summary {
+			display: grid;
+		}
+
+		.respondent-target-summary > span {
+			width: fit-content;
+		}
+	}
+</style>

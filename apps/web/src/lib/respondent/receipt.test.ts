@@ -66,6 +66,64 @@ describe('respondent receipt view', () => {
 		expect(view.metrics).not.toContainEqual({ label: 'Answers received', value: '0' });
 		expect(view.metrics).toContainEqual({ label: 'Locale', value: 'en' });
 	});
+
+	it('includes target context for target-aware identified responses', () => {
+		const view = toRespondentReceiptView({
+			entry: sampleEntry({
+				responseIdentityMode: 'identified',
+				assignmentRole: 'manager',
+				respondentSubject: {
+					id: '018f9d3d-7415-7000-9000-000000000006',
+					displayName: 'Miriam Graham',
+					email: 'miriam@example.test',
+					externalId: null
+				},
+				targetSubject: {
+					id: '018f9d3d-7415-7000-9000-000000000007',
+					displayName: 'Adele Vance',
+					email: 'adele@example.test',
+					externalId: null
+				}
+			}),
+			session: sampleSession({ locale: 'en' }),
+			savedAnswers: sampleSavedAnswers(1),
+			submitted: sampleSubmitted()
+		});
+
+		expect(view.metrics).toContainEqual({ label: 'About', value: 'Adele Vance' });
+		expect(view.metrics).toContainEqual({ label: 'Respondent', value: 'Miriam Graham' });
+		expect(view.metrics).toContainEqual({ label: 'Relationship', value: 'Manager' });
+	});
+
+	it('does not expose raw external subject ids in target-aware receipts', () => {
+		const view = toRespondentReceiptView({
+			entry: sampleEntry({
+				responseIdentityMode: 'identified',
+				assignmentRole: 'manager',
+				respondentSubject: {
+					id: '018f9d3d-7415-7000-9000-000000000006',
+					displayName: null,
+					email: null,
+					externalId: 'msgraph:tenant:respondent'
+				},
+				targetSubject: {
+					id: '018f9d3d-7415-7000-9000-000000000007',
+					displayName: null,
+					email: null,
+					externalId: 'msgraph:tenant:target'
+				}
+			}),
+			session: sampleSession({ locale: 'en' }),
+			savedAnswers: sampleSavedAnswers(1),
+			submitted: sampleSubmitted()
+		});
+
+		expect(view.metrics).not.toContainEqual({ label: 'About', value: 'msgraph:tenant:target' });
+		expect(view.metrics).not.toContainEqual({
+			label: 'Respondent',
+			value: 'msgraph:tenant:respondent'
+		});
+	});
 });
 
 function sampleEntry(

@@ -593,7 +593,8 @@ public sealed class ResponseCaptureStore(
             resolved.Value.Snapshot.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal,
             resolved.Value.Snapshot.DefaultLocale,
             ToConsentDocumentResponse(consentDocument),
-            questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray(),
+            resolved.Value.Assignment.Role));
     }
 
     public async Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
@@ -890,6 +891,11 @@ public sealed class ResponseCaptureStore(
             .AsNoTracking()
             .Where(scale => scaleIds.Contains(scale.Id))
             .ToDictionaryAsync(scale => scale.Id, cancellationToken);
+        var subjectContexts = await LoadAssignmentSubjectContextsAsync(
+            parsed.Value.TenantId,
+            resolved.Value.Assignment.RespondentSubjectId,
+            resolved.Value.Assignment.TargetSubjectId,
+            cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -903,7 +909,10 @@ public sealed class ResponseCaptureStore(
             RequiresParticipantCode: false,
             resolved.Value.Snapshot.DefaultLocale,
             ToConsentDocumentResponse(consentDocument),
-            questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray(),
+            resolved.Value.Assignment.Role,
+            subjectContexts.RespondentSubject,
+            subjectContexts.TargetSubject));
     }
 
     public async Task<Result<ResponseSessionResponse>> CreateIdentifiedEntrySessionAsync(
@@ -1552,7 +1561,10 @@ public sealed class ResponseCaptureStore(
             session.SubmittedAt,
             session.TimeTakenMs,
             session.ParticipantCodeId,
-            session.ConsentRecordId));
+            session.ConsentRecordId,
+            resolved.Value.Assignment.Role,
+            resolved.Value.Assignment.RespondentSubjectId,
+            resolved.Value.Assignment.TargetSubjectId));
     }
 
     private async Task<Result<ResolvedOpenLinkSession>> ResolvePublicSessionAsync(
@@ -1602,7 +1614,9 @@ public sealed class ResponseCaptureStore(
                 session.ParticipantCodeId,
                 session.ConsentRecordId,
                 assignment.Anonymous,
+                assignment.Role,
                 assignment.RespondentSubjectId,
+                assignment.TargetSubjectId,
                 Channel = invitationToken == null ? null : invitationToken.Channel,
                 UsedAt = invitationToken == null ? null : invitationToken.UsedAt,
                 ExpiresAt = invitationToken == null ? null : invitationToken.ExpiresAt
@@ -1641,7 +1655,10 @@ public sealed class ResponseCaptureStore(
             resolved.SubmittedAt,
             resolved.TimeTakenMs,
             resolved.ParticipantCodeId,
-            resolved.ConsentRecordId));
+            resolved.ConsentRecordId,
+            resolved.Role,
+            resolved.RespondentSubjectId,
+            resolved.TargetSubjectId));
     }
 
     private static bool IsSupportedPublicSessionShape(
@@ -1893,6 +1910,11 @@ public sealed class ResponseCaptureStore(
             .AsNoTracking()
             .Where(scale => scaleIds.Contains(scale.Id))
             .ToDictionaryAsync(scale => scale.Id, cancellationToken);
+        var subjectContexts = await LoadAssignmentSubjectContextsAsync(
+            resolved.TenantId,
+            resolved.RespondentSubjectId,
+            resolved.TargetSubjectId,
+            cancellationToken);
 
         return new OpenLinkEntryResponse(
             resolved.CampaignId,
@@ -1904,7 +1926,41 @@ public sealed class ResponseCaptureStore(
             resolved.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal,
             resolved.DefaultLocale,
             ToConsentDocumentResponse(consentDocument),
-            questions.Select(question => ToQuestionResponse(question, scales)).ToArray());
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray(),
+            resolved.AssignmentRole,
+            subjectContexts.RespondentSubject,
+            subjectContexts.TargetSubject);
+    }
+
+    private async Task<AssignmentSubjectContexts> LoadAssignmentSubjectContextsAsync(
+        Guid tenantId,
+        Guid? respondentSubjectId,
+        Guid? targetSubjectId,
+        CancellationToken cancellationToken)
+    {
+        var subjectIds = new[] { respondentSubjectId, targetSubjectId }
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        if (subjectIds.Length == 0)
+        {
+            return new AssignmentSubjectContexts(null, null);
+        }
+
+        var subjects = await db.Subjects
+            .AsNoTracking()
+            .Where(subject =>
+                subject.TenantId == tenantId &&
+                subjectIds.Contains(subject.Id))
+            .ToDictionaryAsync(subject => subject.Id, cancellationToken);
+
+        return new AssignmentSubjectContexts(
+            respondentSubjectId.HasValue && subjects.TryGetValue(respondentSubjectId.Value, out var respondent)
+                ? ToSubjectContextResponse(respondent)
+                : null,
+            targetSubjectId.HasValue && subjects.TryGetValue(targetSubjectId.Value, out var target)
+                ? ToSubjectContextResponse(target)
+                : null);
     }
 
     private static RespondentQuestionResponse ToQuestionResponse(
@@ -1957,6 +2013,15 @@ public sealed class ResponseCaptureStore(
             document.BodyMarkdown,
             ParseGrantArray(document.RequiredGrants),
             ParseGrantArray(document.OptionalGrants));
+    }
+
+    private static RespondentSubjectContextResponse ToSubjectContextResponse(Subject subject)
+    {
+        return new RespondentSubjectContextResponse(
+            subject.Id,
+            subject.DisplayName,
+            subject.Email,
+            subject.ExternalId);
     }
 
     private static string[] ParseGrantArray(string grantJson)
@@ -2016,5 +2081,12 @@ public sealed class ResponseCaptureStore(
         DateTimeOffset? SubmittedAt,
         int? TimeTakenMs,
         Guid? ParticipantCodeId,
-        Guid? ConsentRecordId);
+        Guid? ConsentRecordId,
+        string AssignmentRole,
+        Guid? RespondentSubjectId,
+        Guid? TargetSubjectId);
+
+    private sealed record AssignmentSubjectContexts(
+        RespondentSubjectContextResponse? RespondentSubject,
+        RespondentSubjectContextResponse? TargetSubject);
 }

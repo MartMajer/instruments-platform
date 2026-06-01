@@ -39,6 +39,19 @@ export function toRespondentReceiptView({
 		{ label: copy.metrics.locale, value: session.locale || entry.defaultLocale },
 		{ label: copy.metrics.consentVersion, value: entry.consentDocument.version }
 	];
+	const targetName = subjectDisplayName(entry.targetSubject);
+	const respondentName = subjectDisplayName(entry.respondentSubject);
+	const roleName = humanizeAssignmentRole(entry.assignmentRole);
+
+	if (targetName && entry.targetSubject?.id !== entry.respondentSubject?.id) {
+		metrics.splice(1, 0, { label: copy.metrics.about, value: targetName });
+		if (respondentName) {
+			metrics.splice(2, 0, { label: copy.metrics.respondent, value: respondentName });
+		}
+		if (roleName) {
+			metrics.splice(respondentName ? 3 : 2, 0, { label: copy.metrics.relationship, value: roleName });
+		}
+	}
 
 	if (savedAnswers) {
 		metrics.push({ label: copy.metrics.answersReceived, value: String(savedAnswers.savedAnswerCount) });
@@ -71,4 +84,27 @@ function humanizeResponseMode(value: string, locale: AppLocale) {
 	}
 
 	return value.replaceAll('_', ' ');
+}
+
+function subjectDisplayName(subject: OpenLinkEntryResponse['targetSubject']) {
+	return nonEmpty(subject?.displayName) ?? nonEmpty(subject?.email) ?? null;
+}
+
+function humanizeAssignmentRole(value: string | null | undefined) {
+	const normalized = nonEmpty(value);
+	if (!normalized) {
+		return null;
+	}
+
+	return normalized
+		.replace(/[_-]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.toLowerCase()
+		.replace(/(^|\s)\S/g, (match) => match.toUpperCase());
+}
+
+function nonEmpty(value: string | null | undefined) {
+	const trimmed = value?.trim() ?? '';
+
+	return trimmed.length > 0 ? trimmed : null;
 }

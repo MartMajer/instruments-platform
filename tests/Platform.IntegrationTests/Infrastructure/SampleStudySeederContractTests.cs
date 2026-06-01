@@ -1,4 +1,5 @@
 using System.Reflection;
+using Platform.Domain.Campaigns;
 using Platform.Domain.Scoring;
 using Platform.Infrastructure.ProductSurfaces;
 
@@ -6,6 +7,28 @@ namespace Platform.IntegrationTests.Infrastructure;
 
 public sealed class SampleStudySeederContractTests
 {
+    [Fact]
+    public void Target_aware_360_sample_study_is_declared_as_identified_assignment_sample()
+    {
+        var specsType = typeof(SampleStudySeeder).Assembly.GetType(
+            "Platform.Infrastructure.ProductSurfaces.SampleStudySpecs");
+        Assert.NotNull(specsType);
+        var all = Assert.IsAssignableFrom<IEnumerable<object>>(
+            specsType.GetProperty("All", BindingFlags.Public | BindingFlags.Static)?.GetValue(null));
+        var feedback360Spec = all.Single(spec =>
+            string.Equals(
+                spec.GetType().GetProperty("Key")?.GetValue(spec)?.ToString(),
+                "leadership-360-feedback",
+                StringComparison.Ordinal));
+
+        Assert.Equal(
+            ResponseIdentityModes.Identified,
+            feedback360Spec.GetType().GetProperty("ResponseIdentityMode")?.GetValue(feedback360Spec));
+        Assert.Equal(
+            "target_aware_360",
+            feedback360Spec.GetType().GetProperty("AssignmentScenario")?.GetValue(feedback360Spec));
+    }
+
     [Fact]
     public void Complex_sample_study_scoring_document_evaluates_advanced_outputs()
     {

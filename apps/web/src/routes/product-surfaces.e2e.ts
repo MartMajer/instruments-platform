@@ -28,6 +28,7 @@ const sampleSeriesId = '2f2f819f-f6eb-486a-9e0f-872ac30af3d4';
 const setupSampleSeriesId = '019ad5b6-7f00-7000-8a00-000000000101';
 const collectionSampleSeriesId = '019ad5b6-7f00-7000-8a00-000000000102';
 const longitudinalSampleSeriesId = '019ad5b6-7f00-7000-8a00-000000000103';
+const leadership360SampleSeriesId = '019ad5b6-7f00-7000-8a00-000000000104';
 const sampleCampaignId = '1c6fe0ec-6412-4b03-9b87-7613d9bfe0a2';
 const alternateSeriesId = '6a82f6e0-4712-4c3e-9d20-53715d5c96f3';
 const retrySeriesId = 'b79f2bb3-f68f-4b71-9dc9-c344a3730a0e';
@@ -95,7 +96,10 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 		`/app/campaign-series/${sampleSeriesId}/setup`
 	);
 	await expect(commandCenter.getByText('setup.manage', { exact: true })).toHaveCount(0);
-	await expect(sampleStudies.getByText('Sample study', { exact: true })).toHaveCount(4);
+	await expect(sampleStudies.getByText('Sample study', { exact: true })).toHaveCount(5);
+	await expect(
+		sampleStudies.getByRole('link', { name: /360 leadership feedback sample/i })
+	).toHaveAttribute('href', `/app/campaign-series/${leadership360SampleSeriesId}/reports`);
 	await expect(ownStudies.getByText('Your study', { exact: true })).toBeVisible();
 	await overview.getByText('Workspace overview', { exact: true }).click();
 	await expect(totals.getByText('Campaign series', { exact: true })).toBeVisible();
@@ -153,8 +157,14 @@ test('demo sample library explicitly seeds sample studies', async ({ page }) => 
 			json: {
 				tenantId: sampleSessionTenantId,
 				existingSampleStudyCount: 0,
-				createdSampleStudyCount: 3,
-				createdCampaignSeriesIds: [setupSampleSeriesId, sampleSeriesId, longitudinalSampleSeriesId]
+				createdSampleStudyCount: 5,
+				createdCampaignSeriesIds: [
+					setupSampleSeriesId,
+					collectionSampleSeriesId,
+					sampleSeriesId,
+					longitudinalSampleSeriesId,
+					leadership360SampleSeriesId
+				]
 			}
 		});
 	});
@@ -184,8 +194,14 @@ test('demo sample setup loader describes staged sample workspace setup while see
 			json: {
 				tenantId: sampleSessionTenantId,
 				existingSampleStudyCount: 0,
-				createdSampleStudyCount: 3,
-				createdCampaignSeriesIds: [setupSampleSeriesId, sampleSeriesId, longitudinalSampleSeriesId]
+				createdSampleStudyCount: 5,
+				createdCampaignSeriesIds: [
+					setupSampleSeriesId,
+					collectionSampleSeriesId,
+					sampleSeriesId,
+					longitudinalSampleSeriesId,
+					leadership360SampleSeriesId
+				]
 			}
 		});
 	});
@@ -6936,6 +6952,23 @@ const sampleWorkspaceOverview: WorkspaceOverviewResponse = {
 				submittedResponseCount: 12,
 				latestLaunchAt: '2026-05-12T10:15:00Z',
 				latestSubmissionAt: '2026-05-12T11:20:00Z',
+				readinessStatus: 'proof_only',
+				archived: false,
+				archivedAt: null,
+				archivedByUserId: null,
+				archiveReason: null
+			},
+			{
+				id: leadership360SampleSeriesId,
+				name: '360 leadership feedback sample',
+				...sampleStudyOwnership,
+				createdAt: '2026-06-01T08:00:00Z',
+				updatedAt: '2026-06-01T09:30:00Z',
+				campaignCount: 1,
+				liveCampaignCount: 0,
+				submittedResponseCount: 22,
+				latestLaunchAt: '2026-06-01T10:15:00Z',
+				latestSubmissionAt: '2026-06-01T11:20:00Z',
 				readinessStatus: 'proof_only',
 				archived: false,
 				archivedAt: null,

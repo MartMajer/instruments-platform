@@ -70,8 +70,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         var second = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(4, first.Value.CreatedSampleStudyCount);
-        Assert.True(first.Value.CreatedCampaignSeriesIds.Count >= 4);
+        Assert.Equal(5, first.Value.CreatedSampleStudyCount);
+        Assert.True(first.Value.CreatedCampaignSeriesIds.Count >= 5);
         Assert.True(second.IsSuccess);
         Assert.Equal(0, second.Value.CreatedSampleStudyCount);
 
@@ -82,7 +82,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             canManageTeam: true,
             CancellationToken.None);
 
-        Assert.Equal(4, overview.StudyCollections.SampleStudies.Count);
+        Assert.Equal(5, overview.StudyCollections.SampleStudies.Count);
         Assert.Empty(overview.StudyCollections.OwnStudies);
         Assert.All(overview.StudyCollections.SampleStudies, sample =>
         {
@@ -94,18 +94,39 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         });
 
         await using var inspection = await tenantDbScope.BeginTransactionAsync(tenantId);
-        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 11);
+        Assert.True(await db.Campaigns.CountAsync(campaign => campaign.TenantId == tenantId, CancellationToken.None) >= 12);
         Assert.True(await db.Subjects.CountAsync(subject => subject.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.SubjectGroups.CountAsync(group => group.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ResponseSessions.CountAsync(session => session.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.Scores.CountAsync(score => score.TenantId == tenantId, CancellationToken.None) > 0);
         Assert.True(await db.ExportArtifacts.CountAsync(artifact => artifact.TenantId == tenantId, CancellationToken.None) >= 9);
+        var feedback360SeriesId = await db.CampaignSeries
+            .Where(series =>
+                series.TenantId == tenantId &&
+                series.Name == "360 leadership feedback sample")
+            .Select(series => series.Id)
+            .SingleAsync(CancellationToken.None);
+        var targetAwareAssignments = await (
+                from assignment in db.Assignments
+                join campaign in db.Campaigns on assignment.CampaignId equals campaign.Id
+                where campaign.CampaignSeriesId == feedback360SeriesId &&
+                    assignment.RespondentSubjectId.HasValue &&
+                    assignment.TargetSubjectId.HasValue &&
+                    assignment.RespondentSubjectId != assignment.TargetSubjectId
+                select assignment)
+            .ToListAsync(CancellationToken.None);
+        Assert.NotEmpty(targetAwareAssignments);
+        Assert.All(targetAwareAssignments, assignment =>
+        {
+            Assert.False(assignment.Anonymous);
+            Assert.True(assignment.Role is "direct_report" or "peer");
+        });
         var responseExports = await db.ExportArtifacts
             .Where(artifact =>
                 artifact.TenantId == tenantId &&
                 artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResponseCsvCodebook)
             .ToListAsync(CancellationToken.None);
-        Assert.Equal(4, responseExports.Count);
+        Assert.Equal(5, responseExports.Count);
         Assert.All(responseExports, artifact =>
         {
             Assert.True(artifact.RowCount > 20);
@@ -125,7 +146,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 artifact.TargetKind == ExportArtifactTargetKinds.CampaignSeries &&
                 artifact.ArtifactType == ExportArtifactTypes.CampaignSeriesResultsMatrixCsvCodebook)
             .ToListAsync(CancellationToken.None);
-        Assert.Equal(4, matrixExports.Count);
+        Assert.Equal(5, matrixExports.Count);
         Assert.All(matrixExports, artifact =>
         {
             Assert.True(artifact.RowCount >= 8);

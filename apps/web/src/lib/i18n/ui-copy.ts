@@ -160,6 +160,9 @@ export type RespondentReceiptCopy = {
 	notAvailable: string;
 	metrics: {
 		study: string;
+		about: string;
+		respondent: string;
+		relationship: string;
 		responseMode: string;
 		locale: string;
 		consentVersion: string;
@@ -516,6 +519,9 @@ const respondentReceiptCopies: LocaleDictionary<RespondentReceiptCopy> = {
 		notAvailable: 'Not available',
 		metrics: {
 			study: 'Study',
+			about: 'About',
+			respondent: 'Respondent',
+			relationship: 'Relationship',
 			responseMode: 'Response mode',
 			locale: 'Locale',
 			consentVersion: 'Consent version',
@@ -535,6 +541,9 @@ const respondentReceiptCopies: LocaleDictionary<RespondentReceiptCopy> = {
 		notAvailable: 'Nije dostupno',
 		metrics: {
 			study: 'Studija',
+			about: 'O osobi',
+			respondent: 'Ispitanik',
+			relationship: 'Odnos',
 			responseMode: 'Način odgovora',
 			locale: 'Jezik',
 			consentVersion: 'Verzija privole',

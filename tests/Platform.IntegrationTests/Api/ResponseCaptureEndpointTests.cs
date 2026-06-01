@@ -379,6 +379,72 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
     }
 
     [Fact]
+    public async Task Identified_entry_endpoint_returns_assignment_subject_context()
+    {
+        const string token = "idn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var campaignId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var questionId = Guid.NewGuid();
+        var respondentSubjectId = Guid.NewGuid();
+        var targetSubjectId = Guid.NewGuid();
+        var entry = new OpenLinkEntryResponse(
+            campaignId,
+            assignmentId,
+            Guid.NewGuid(),
+            "Leadership feedback",
+            "live",
+            "identified",
+            RequiresParticipantCode: false,
+            "en",
+            new ConsentDocumentResponse(
+                Guid.NewGuid(),
+                "en",
+                "1.0.0",
+                "Default participant disclosure",
+                "Consent body",
+                ["data_processing"],
+                []),
+            [
+                new RespondentQuestionResponse(
+                    questionId,
+                    1,
+                    "leadership_clarity",
+                    "likert",
+                    "This person gives clear direction.",
+                    Required: true)
+            ],
+            AssignmentRole: "manager",
+            RespondentSubject: new RespondentSubjectContextResponse(
+                respondentSubjectId,
+                "Miriam Graham",
+                "miriam@example.test",
+                "msgraph:tenant:miriam"),
+            TargetSubject: new RespondentSubjectContextResponse(
+                targetSubjectId,
+                "Adele Vance",
+                "adele@example.test",
+                "msgraph:tenant:adele"));
+        using var client = CreateClient(new FakeResponseCaptureStore(
+            identifiedEntryToken: token,
+            identifiedEntryResult: Result.Success(entry)));
+
+        var response = await client.GetAsync($"/respondent/identified-entries/{token}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<OpenLinkEntryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("manager", payload.AssignmentRole);
+        Assert.NotNull(payload.RespondentSubject);
+        Assert.Equal(respondentSubjectId, payload.RespondentSubject.Id);
+        Assert.Equal("Miriam Graham", payload.RespondentSubject.DisplayName);
+        Assert.Equal("miriam@example.test", payload.RespondentSubject.Email);
+        Assert.NotNull(payload.TargetSubject);
+        Assert.Equal(targetSubjectId, payload.TargetSubject.Id);
+        Assert.Equal("Adele Vance", payload.TargetSubject.DisplayName);
+        Assert.Equal("msgraph:tenant:adele", payload.TargetSubject.ExternalId);
+    }
+
+    [Fact]
     public async Task Open_link_session_endpoint_maps_missing_required_consent_grants_to_problem_details()
     {
         const string token = "opn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";

@@ -34,7 +34,16 @@ public sealed record OpenLinkEntryResponse(
     bool RequiresParticipantCode,
     string DefaultLocale,
     ConsentDocumentResponse ConsentDocument,
-    IReadOnlyList<RespondentQuestionResponse> Questions);
+    IReadOnlyList<RespondentQuestionResponse> Questions,
+    string? AssignmentRole = null,
+    RespondentSubjectContextResponse? RespondentSubject = null,
+    RespondentSubjectContextResponse? TargetSubject = null);
+
+public sealed record RespondentSubjectContextResponse(
+    Guid Id,
+    string? DisplayName,
+    string? Email,
+    string? ExternalId);
 
 public sealed record EmailInvitationUnsubscribeResponse(string Status);
 

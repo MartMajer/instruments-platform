@@ -7215,6 +7215,116 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Identified_entry_store_returns_target_aware_assignment_context()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+        var responseStore = new ResponseCaptureStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "leadership.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"leadership.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Target aware identified study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Target aware identified wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var manager = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:miriam",
+            email: "miriam@example.test",
+            displayName: "Miriam Graham");
+        var target = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:adele",
+            email: "adele@example.test",
+            displayName: "Adele Vance");
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.AddRange(manager, target);
+            tenantDb.SubjectRelationships.Add(new SubjectRelationship(
+                Guid.NewGuid(),
+                tenantId,
+                manager.Id,
+                target.Id,
+                SubjectRelationshipTypes.ManagerOf));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{target.Id:D}}"]}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+
+        var identifiedEntry = await setupStore.CreateCampaignIdentifiedEntryAsync(
+            tenantId,
+            campaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(identifiedEntry.IsSuccess, identifiedEntry.Error.ToString());
+
+        var entry = await responseStore.GetIdentifiedEntryAsync(
+            identifiedEntry.Value.Token,
+            CancellationToken.None);
+
+        Assert.True(entry.IsSuccess, entry.Error.ToString());
+        Assert.Equal(identifiedEntry.Value.AssignmentId, entry.Value.AssignmentId);
+        Assert.Equal(manager.Id, identifiedEntry.Value.SubjectId);
+        Assert.Equal("identified", entry.Value.ResponseIdentityMode);
+        Assert.Equal("manager", entry.Value.AssignmentRole);
+        Assert.NotNull(entry.Value.RespondentSubject);
+        Assert.Equal(manager.Id, entry.Value.RespondentSubject.Id);
+        Assert.Equal("Miriam Graham", entry.Value.RespondentSubject.DisplayName);
+        Assert.Equal("miriam@example.test", entry.Value.RespondentSubject.Email);
+        Assert.Equal("msgraph:tenant:miriam", entry.Value.RespondentSubject.ExternalId);
+        Assert.NotNull(entry.Value.TargetSubject);
+        Assert.Equal(target.Id, entry.Value.TargetSubject.Id);
+        Assert.Equal("Adele Vance", entry.Value.TargetSubject.DisplayName);
+        Assert.Equal("adele@example.test", entry.Value.TargetSubject.Email);
+        Assert.Equal("msgraph:tenant:adele", entry.Value.TargetSubject.ExternalId);
+    }
+
+    [DockerFact]
     public async Task Email_invite_response_store_resolves_token_and_submits_without_current_tenant()
     {
         var tenantId = Guid.NewGuid();

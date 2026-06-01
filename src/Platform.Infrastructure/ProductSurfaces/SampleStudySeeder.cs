@@ -596,21 +596,22 @@ public sealed class SampleStudySeeder(
 
             for (var respondentIndex = 0; respondentIndex < spec.RespondentCount; respondentIndex++)
             {
-                var respondent = directory.Respondents[respondentIndex];
+                var assignmentPlan = CreateSampleAssignmentPlan(spec, directory, respondentIndex);
+                var respondent = assignmentPlan.Respondent;
                 InvitationToken? token = null;
                 var assignment = spec.ResponseIdentityMode == ResponseIdentityModes.Identified
                     ? Assignment.CreateIdentified(
                         PlatformIds.NewId(),
                         tenantId,
                         campaign.Id,
-                        "respondent",
+                        assignmentPlan.Role,
                         respondent.SubjectId,
-                        targetSubjectId: respondent.SubjectId)
+                        targetSubjectId: assignmentPlan.Target.SubjectId)
                     : Assignment.CreateAnonymous(
                         PlatformIds.NewId(),
                         tenantId,
                         campaign.Id,
-                        "respondent",
+                        assignmentPlan.Role,
                         (token = new InvitationToken(
                             PlatformIds.NewId(),
                             tenantId,
@@ -618,7 +619,7 @@ public sealed class SampleStudySeeder(
                             Sha256Hex($"{tenantId:N}:{spec.Key}:{waveIndex}:{respondentIndex}:token"),
                             InvitationTokenChannels.OpenLink,
                             expiresAt: closedAt.AddDays(30))).Id,
-                        targetSubjectId: respondent.SubjectId);
+                        targetSubjectId: assignmentPlan.Target.SubjectId);
                 var participantCodeId = participantCodes.Count == 0
                     ? (Guid?)null
                     : participantCodes[respondentIndex].Id;
@@ -647,7 +648,7 @@ public sealed class SampleStudySeeder(
                                 respondentIndex,
                                 questionIndex,
                                 waveIndex,
-                                respondent.GroupOffset)),
+                                assignmentPlan.Target.GroupOffset)),
                             answeredAt: session.StartedAt?.AddMinutes(1 + questionIndex));
                     })
                     .ToArray();
@@ -1003,11 +1004,14 @@ public sealed class SampleStudySeeder(
             {
                 respondentIndex++;
                 var subjectId = PlatformIds.NewId();
+                var displayName = respondentIndex <= (spec.SubjectDisplayNames?.Count ?? 0)
+                    ? spec.SubjectDisplayNames![respondentIndex - 1]
+                    : $"Sample respondent {respondentIndex:0000}";
                 var subject = new Subject(
                     subjectId,
                     tenantId,
                     externalId: $"sample-{spec.Key}-{respondentIndex:0000}",
-                    displayName: $"Sample respondent {respondentIndex:0000}",
+                    displayName: displayName,
                     attributes: JsonSerializer.Serialize(new
                     {
                         sample_study = true,
@@ -1030,6 +1034,49 @@ public sealed class SampleStudySeeder(
             groups.Select(group => group.Entity).ToArray(),
             memberships,
             respondents);
+    }
+
+    private static SampleAssignmentPlan CreateSampleAssignmentPlan(
+        SampleStudySpec spec,
+        SampleDirectory directory,
+        int respondentIndex)
+    {
+        var respondent = directory.Respondents[respondentIndex];
+        if (spec.AssignmentScenario != SampleAssignmentScenarios.TargetAware360)
+        {
+            return new SampleAssignmentPlan(
+                respondent,
+                respondent,
+                "respondent");
+        }
+
+        var targetPool = directory.Respondents
+            .GroupBy(profile => profile.GroupName, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToArray();
+        if (targetPool.Length == 0)
+        {
+            return new SampleAssignmentPlan(
+                respondent,
+                respondent,
+                "respondent");
+        }
+
+        var targetIndex = respondentIndex % targetPool.Length;
+        var target = targetPool[targetIndex];
+        if (target.SubjectId == respondent.SubjectId && targetPool.Length > 1)
+        {
+            target = targetPool[(targetIndex + 1) % targetPool.Length];
+        }
+
+        var role = string.Equals(respondent.GroupName, target.GroupName, StringComparison.Ordinal)
+            ? "direct_report"
+            : "peer";
+
+        return new SampleAssignmentPlan(
+            respondent,
+            target,
+            role);
     }
 
     private static int CreateAnswerValue(
@@ -1737,6 +1784,12 @@ public sealed class SampleStudySeeder(
     }
 }
 
+internal static class SampleAssignmentScenarios
+{
+    public const string Self = "self";
+    public const string TargetAware360 = "target_aware_360";
+}
+
 internal static class SampleStudySpecs
 {
     public static IReadOnlyList<SampleStudySpec> All { get; } =
@@ -1915,6 +1968,71 @@ internal static class SampleStudySpecs
                 })
             ]),
         new(
+            "leadership-360-feedback",
+            "360 leadership feedback sample",
+            "Read-only sample showing identified target-aware feedback where respondents answer about another person.",
+            "Leadership behavior",
+            CampaignSeriesSampleScenarios.Completed,
+            ResponseIdentityModes.Identified,
+            CampaignSeriesStudyDesignTypes.SingleWave,
+            [
+                new(SubjectGroupTypes.Department, "Operations leadership", 6, -0.25),
+                new(SubjectGroupTypes.Department, "Academic services leadership", 6, 0.15),
+                new(SubjectGroupTypes.Department, "Student support leadership", 6, 0.35),
+                new(SubjectGroupTypes.Department, "Small executive cell", 4, -0.55)
+            ],
+            [
+                new("direction_clarity", "Direction clarity", ["q01", "q02"]),
+                new("psychological_safety", "Psychological safety", ["q03", "q04"]),
+                new("coaching_support", "Coaching support", ["q05", "q06"]),
+                new("follow_through", "Follow-through", ["q07", "q08"])
+            ],
+            [
+                new("q01", "direction_clarity", "This person sets clear priorities when work is ambiguous."),
+                new("q02", "direction_clarity", "This person explains decisions in a way people can act on."),
+                new("q03", "psychological_safety", "This person makes it safe to raise concerns early."),
+                new("q04", "psychological_safety", "This person responds constructively when people disagree."),
+                new("q05", "coaching_support", "This person gives useful guidance without taking ownership away."),
+                new("q06", "coaching_support", "This person helps people grow through practical feedback."),
+                new("q07", "follow_through", "This person follows through on commitments made to the team."),
+                new("q08", "follow_through", "This person removes blockers before they become chronic.")
+            ],
+            [
+                new("Leadership feedback round", new Dictionary<string, double>
+                {
+                    ["direction_clarity"] = 4.8,
+                    ["psychological_safety"] = 4.4,
+                    ["coaching_support"] = 4.6,
+                    ["follow_through"] = 4.2
+                })
+            ],
+            AssignmentScenario: SampleAssignmentScenarios.TargetAware360,
+            SubjectDisplayNames:
+            [
+                "Adele Vance",
+                "Miriam Graham",
+                "Diego Siciliani",
+                "Megan Bowen",
+                "Joni Sherman",
+                "Isaiah Langer",
+                "Patti Fernandez",
+                "Alex Wilber",
+                "Allan Deyoung",
+                "Lynne Robbins",
+                "Nestor Wilke",
+                "Grady Archie",
+                "Johanna Lorenz",
+                "Pradeep Gupta",
+                "Lee Gu",
+                "Christie Cline",
+                "Aadi Kapoor",
+                "Lidia Holloway",
+                "Cecil Folk",
+                "Elvia Atkins",
+                "Garret Vargas",
+                "Katarina Novak"
+            ]),
+        new(
             "complex-scoring-showcase",
             "Complex scoring methods showcase",
             "Read-only sample showing a production-style scoring plan with weighted, normalized, composite, and difference outputs.",
@@ -2024,7 +2142,9 @@ internal sealed record SampleStudySpec(
     IReadOnlyList<SampleGroupSpec> Groups,
     IReadOnlyList<SampleScoreSpec> Scores,
     IReadOnlyList<SampleQuestionSpec> Questions,
-    IReadOnlyList<SampleWaveSpec> Waves)
+    IReadOnlyList<SampleWaveSpec> Waves,
+    string AssignmentScenario = SampleAssignmentScenarios.Self,
+    IReadOnlyList<string>? SubjectDisplayNames = null)
 {
     public int RespondentCount => Groups.Sum(group => group.RespondentCount);
 }
@@ -2067,6 +2187,11 @@ internal sealed record SampleRespondentProfile(
     string GroupType,
     string GroupName,
     double GroupOffset);
+
+internal sealed record SampleAssignmentPlan(
+    SampleRespondentProfile Respondent,
+    SampleRespondentProfile Target,
+    string Role);
 
 internal sealed record SampleCampaignExportRow(
     Guid Id,

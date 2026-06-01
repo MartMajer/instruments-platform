@@ -1043,9 +1043,9 @@ public sealed class SetupWorkflowStore(
                 entity.TenantId == tenantId &&
                 entity.CampaignId == campaign.Id &&
                 !entity.Anonymous &&
-                entity.Role == "self" &&
                 entity.RespondentSubjectId != null)
-            .OrderBy(entity => entity.CreatedAt)
+            .OrderByDescending(entity => entity.TargetSubjectId.HasValue && entity.TargetSubjectId != entity.RespondentSubjectId)
+            .ThenBy(entity => entity.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (assignment is null)

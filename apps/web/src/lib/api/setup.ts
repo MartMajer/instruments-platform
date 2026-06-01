@@ -578,6 +578,16 @@ export type OpenLinkEntryResponse = {
 	defaultLocale: string;
 	consentDocument: ConsentDocumentResponse;
 	questions: RespondentQuestionResponse[];
+	assignmentRole?: string | null;
+	respondentSubject?: RespondentSubjectContextResponse | null;
+	targetSubject?: RespondentSubjectContextResponse | null;
+};
+
+export type RespondentSubjectContextResponse = {
+	id: string;
+	displayName?: string | null;
+	email?: string | null;
+	externalId?: string | null;
 };
 
 export type EmailInvitationUnsubscribeResponse = {

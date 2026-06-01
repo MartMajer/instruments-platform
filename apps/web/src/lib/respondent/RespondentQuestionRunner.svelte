@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ArrowLeft, ArrowRight, Check, LoaderCircle } from 'lucide-svelte';
-	import type { RespondentQuestionResponse } from '$lib/api/setup';
+	import type { RespondentQuestionResponse, RespondentSubjectContextResponse } from '$lib/api/setup';
 	import {
 		answerToInputValue,
 		inputValueToAnswer,
@@ -36,7 +36,14 @@
 		chooseUpToLabel = (count: number) => `Choose up to ${count} options in order.`,
 		answerLabel = 'Answer',
 		answerWithUnitLabel = (unit: string) => `Answer (${unit})`,
-		noQuestionsAvailableLabel = 'No questions available'
+		noQuestionsAvailableLabel = 'No questions available',
+		targetSubject = null,
+		respondentSubject = null,
+		assignmentRole = null,
+		targetContextLabel = 'Response target',
+		targetLabel = 'You are answering about',
+		respondentLabel = 'Answering as',
+		roleLabel = 'Relationship'
 	}: {
 		questions: RespondentQuestionResponse[];
 		answers: Record<string, string>;
@@ -61,6 +68,13 @@
 		answerLabel?: string;
 		answerWithUnitLabel?: (unit: string) => string;
 		noQuestionsAvailableLabel?: string;
+		targetSubject?: RespondentSubjectContextResponse | null;
+		respondentSubject?: RespondentSubjectContextResponse | null;
+		assignmentRole?: string | null;
+		targetContextLabel?: string;
+		targetLabel?: string;
+		respondentLabel?: string;
+		roleLabel?: string;
 	} = $props();
 
 	let currentQuestionId = $state<string | null>(null);
@@ -71,6 +85,9 @@
 	let progressPercent = $derived(
 		visibleQuestions.length > 0 ? Math.round(((currentIndex + 1) / visibleQuestions.length) * 100) : 0
 	);
+	let targetDisplayName = $derived(subjectDisplayName(targetSubject));
+	let respondentDisplayName = $derived(subjectDisplayName(respondentSubject));
+	let roleDisplayName = $derived(formatAssignmentRole(assignmentRole));
 
 	$effect(() => {
 		if (visibleQuestions.length === 0) {
@@ -150,6 +167,29 @@
 
 	function isLastQuestion() {
 		return currentIndex >= visibleQuestions.length - 1;
+	}
+
+	function subjectDisplayName(subject: RespondentSubjectContextResponse | null | undefined) {
+		return nonEmpty(subject?.displayName) ?? nonEmpty(subject?.email) ?? null;
+	}
+
+	function formatAssignmentRole(value: string | null | undefined) {
+		const normalized = nonEmpty(value);
+		if (!normalized) {
+			return null;
+		}
+
+		return normalized
+			.replace(/[_-]+/g, ' ')
+			.replace(/\s+/g, ' ')
+			.toLowerCase()
+			.replace(/(^|\s)\S/g, (match) => match.toUpperCase());
+	}
+
+	function nonEmpty(value: string | null | undefined) {
+		const trimmed = value?.trim() ?? '';
+
+		return trimmed.length > 0 ? trimmed : null;
 	}
 
 	function scalarInputValue(question: RespondentQuestionResponse) {
@@ -233,6 +273,25 @@
 >
 	{#if currentQuestion}
 		<header class="runner-header">
+			{#if targetDisplayName}
+				<section
+					class="target-context"
+					aria-label={targetContextLabel}
+					data-testid="respondent-target-context"
+				>
+					<div>
+						<p>{targetLabel}</p>
+						<strong>{targetDisplayName}</strong>
+						{#if respondentDisplayName}
+							<span>{respondentLabel}: {respondentDisplayName}</span>
+						{/if}
+					</div>
+					{#if roleDisplayName}
+						<span class="target-context__role">{roleLabel}: {roleDisplayName}</span>
+					{/if}
+				</section>
+			{/if}
+
 			<div class="runner-progress-copy">
 				<p>{questionLabel} {currentIndex + 1} {ofLabel} {visibleQuestions.length}</p>
 				<p>{Math.max(0, visibleQuestions.length - currentIndex - 1)} {leftLabel}</p>
@@ -471,6 +530,46 @@
 		padding: 0.9rem 1rem;
 	}
 
+	.target-context {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.85rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+		padding: 0.8rem 0.9rem;
+	}
+
+	.target-context div {
+		display: grid;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	.target-context p,
+	.target-context span {
+		margin: 0;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+	}
+
+	.target-context strong {
+		overflow-wrap: anywhere;
+		font-size: 1.05rem;
+		line-height: 1.15;
+		color: var(--color-text);
+	}
+
+	.target-context__role {
+		flex: 0 0 auto;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		padding: 0.35rem 0.55rem;
+		color: var(--color-text);
+	}
+
 	.runner-progress-copy {
 		display: flex;
 		justify-content: space-between;
@@ -691,6 +790,14 @@
 	}
 
 	@media (max-width: 520px) {
+		.target-context {
+			display: grid;
+		}
+
+		.target-context__role {
+			width: fit-content;
+		}
+
 		.runner-actions {
 			grid-template-columns: 1fr;
 		}
