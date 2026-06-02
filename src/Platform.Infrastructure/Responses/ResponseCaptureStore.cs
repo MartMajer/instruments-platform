@@ -1050,6 +1050,182 @@ public sealed class ResponseCaptureStore(
             questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
     }
 
+    public async Task<Result<IdentifiedQueueSessionDraftResponse>> CreateIdentifiedQueueAssignmentSessionAsync(
+        string token,
+        Guid assignmentId,
+        CreateOpenLinkSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var parsed = OpenLinkTokens.ParseTenant(token);
+        if (parsed.IsFailure)
+        {
+            return OpenLinkNotAvailable<IdentifiedQueueSessionDraftResponse>();
+        }
+
+        string publicHandle;
+
+        await using (var transaction = await tenantDbScope.BeginTransactionAsync(
+                         parsed.Value.TenantId,
+                         cancellationToken: cancellationToken))
+        {
+            var resolved = await ResolveIdentifiedQueueAsync(
+                parsed.Value.TenantId,
+                token,
+                cancellationToken);
+
+            if (resolved.IsFailure)
+            {
+                return Result.Failure<IdentifiedQueueSessionDraftResponse>(resolved.Error);
+            }
+
+            var tenantContext = EnsureOpenLinkTenantContext(parsed.Value.TenantId);
+            if (tenantContext.IsFailure)
+            {
+                return Result.Failure<IdentifiedQueueSessionDraftResponse>(tenantContext.Error);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ParticipantCode))
+            {
+                return Result.Failure<IdentifiedQueueSessionDraftResponse>(
+                    Error.Validation(
+                        "participant_code.not_allowed",
+                        "Participant code is not allowed for this response mode."));
+            }
+
+            var assignment = await db.Assignments
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    entity =>
+                        entity.TenantId == parsed.Value.TenantId &&
+                        entity.Id == assignmentId &&
+                        entity.CampaignId == resolved.Value.Campaign.Id &&
+                        !entity.Anonymous &&
+                        entity.RespondentSubjectId == resolved.Value.RespondentSubject.Id &&
+                        entity.AnonymizedAt == null,
+                    cancellationToken);
+
+            if (assignment is null)
+            {
+                return QueueAssignmentNotFound<IdentifiedQueueSessionDraftResponse>();
+            }
+
+            var consentDocument = await GetSnapshotConsentDocumentAsync(
+                resolved.Value.Snapshot,
+                cancellationToken);
+
+            if (consentDocument is null)
+            {
+                return OpenLinkNotAvailable<IdentifiedQueueSessionDraftResponse>();
+            }
+
+            var acceptedGrants = ValidateConsentAcceptance(request, consentDocument);
+            if (acceptedGrants.IsFailure)
+            {
+                return Result.Failure<IdentifiedQueueSessionDraftResponse>(acceptedGrants.Error);
+            }
+
+            var existingSessions = await db.ResponseSessions
+                .AsNoTracking()
+                .Where(session =>
+                    session.TenantId == parsed.Value.TenantId &&
+                    session.AssignmentId == assignment.Id)
+                .OrderByDescending(session => session.SubmittedAt.HasValue)
+                .ThenByDescending(session => session.CreatedAt)
+                .Select(session => new
+                {
+                    session.Id,
+                    session.SubmittedAt,
+                    session.ConsentRecordId,
+                    session.CreatedAt
+                })
+                .ToArrayAsync(cancellationToken);
+
+            if (existingSessions.Any(session => session.SubmittedAt.HasValue))
+            {
+                return QueueAssignmentSubmitted<IdentifiedQueueSessionDraftResponse>();
+            }
+
+            var draftSessionId = existingSessions
+                .Where(session => session.ConsentRecordId.HasValue)
+                .OrderByDescending(session => session.CreatedAt)
+                .Select(session => (Guid?)session.Id)
+                .FirstOrDefault();
+
+            if (draftSessionId.HasValue)
+            {
+                var draftSession = await db.ResponseSessions
+                    .SingleAsync(
+                        entity =>
+                            entity.TenantId == parsed.Value.TenantId &&
+                            entity.Id == draftSessionId.Value &&
+                            entity.AssignmentId == assignment.Id,
+                        cancellationToken);
+                var issued = OpenLinkSessionHandles.Issue(parsed.Value.TenantId);
+                var issuedAt = DateTimeOffset.UtcNow;
+                draftSession.RefreshPublicHandle(issued.HandleHash, issuedAt);
+                await db.SaveChangesAsync(cancellationToken);
+
+                publicHandle = issued.RawHandle;
+            }
+            else
+            {
+                var created = await CreateOpenLinkSessionRecordAsync(
+                    parsed.Value.TenantId,
+                    new ResolvedOpenLink(
+                        resolved.Value.Campaign,
+                        resolved.Value.Snapshot,
+                        assignment,
+                        resolved.Value.InvitationTokenId),
+                    consentDocument,
+                    request,
+                    acceptedGrants.Value,
+                    participantCodeId: null,
+                    consentSubjectId: resolved.Value.RespondentSubject.Id,
+                    cancellationToken);
+
+                if (created.IsFailure)
+                {
+                    return Result.Failure<IdentifiedQueueSessionDraftResponse>(created.Error);
+                }
+
+                if (string.IsNullOrWhiteSpace(created.Value.PublicHandle))
+                {
+                    return PublicSessionNotAvailable<IdentifiedQueueSessionDraftResponse>();
+                }
+
+                publicHandle = created.Value.PublicHandle;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        var queue = await GetIdentifiedQueueAsync(token, cancellationToken);
+        if (queue.IsFailure)
+        {
+            return Result.Failure<IdentifiedQueueSessionDraftResponse>(queue.Error);
+        }
+
+        var queueAssignment = queue.Value.Assignments
+            .SingleOrDefault(assignment => assignment.AssignmentId == assignmentId);
+        if (queueAssignment is null)
+        {
+            return QueueAssignmentNotFound<IdentifiedQueueSessionDraftResponse>();
+        }
+
+        var draft = await GetPublicSessionDraftAsync(publicHandle, cancellationToken);
+        if (draft.IsFailure)
+        {
+            return Result.Failure<IdentifiedQueueSessionDraftResponse>(draft.Error);
+        }
+
+        return Result.Success(new IdentifiedQueueSessionDraftResponse(
+            queue.Value,
+            queueAssignment,
+            draft.Value.Session,
+            draft.Value.Answers,
+            draft.Value.SavedAnswerCount));
+    }
+
     public async Task<Result<ResponseSessionResponse>> CreateIdentifiedEntrySessionAsync(
         string token,
         CreateOpenLinkSessionRequest request,
@@ -2284,6 +2460,22 @@ public sealed class ResponseCaptureStore(
             Error.NotFound(
                 "public_session.not_found",
                 "This response session is no longer available."));
+    }
+
+    private static Result<T> QueueAssignmentNotFound<T>()
+    {
+        return Result.Failure<T>(
+            Error.NotFound(
+                "identified_queue.assignment_not_found",
+                "This queue assignment is no longer available."));
+    }
+
+    private static Result<T> QueueAssignmentSubmitted<T>()
+    {
+        return Result.Failure<T>(
+            Error.Conflict(
+                "identified_queue.assignment_submitted",
+                "This queue assignment has already been submitted."));
     }
 
     private sealed record ResolvedOpenLink(

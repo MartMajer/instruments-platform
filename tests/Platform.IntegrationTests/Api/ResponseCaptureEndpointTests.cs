@@ -162,6 +162,8 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
             ["/respondent/identified-entries/{token}"] = "public-respondent-entry",
             ["/respondent/identified-entries/{token}/sessions"] = "public-respondent-entry",
             ["/respondent/identified-queues/{token}"] = "public-respondent-entry",
+            ["/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions"] =
+                "public-respondent-entry",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/draft"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/answers"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/submit"] = "public-respondent-submit",
@@ -480,6 +482,44 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         var serialized = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain("external", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("msgraph", serialized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Identified_queue_assignment_session_endpoint_returns_queue_assignment_session_and_draft()
+    {
+        const string token = "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var campaignId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        const string publicHandle = "rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        using var client = CreateClient(new FakeResponseCaptureStore(
+            campaignId: campaignId,
+            assignmentId: assignmentId,
+            sessionId: sessionId,
+            identifiedQueueToken: token,
+            publicSessionHandle: publicHandle));
+
+        var response = await client.PostAsJsonAsync(
+            $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions",
+            new CreateOpenLinkSessionRequest("en"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var payload = await JsonDocument.ParseAsync(stream);
+        Assert.Equal(
+            sessionId.ToString(),
+            payload.RootElement.GetProperty("session").GetProperty("id").GetString());
+        Assert.Equal(
+            publicHandle,
+            payload.RootElement.GetProperty("session").GetProperty("publicHandle").GetString());
+        Assert.Equal(
+            assignmentId.ToString(),
+            payload.RootElement.GetProperty("assignment").GetProperty("assignmentId").GetString());
+        Assert.Equal("draft", payload.RootElement.GetProperty("assignment").GetProperty("responseStatus").GetString());
+        Assert.Equal(1, payload.RootElement.GetProperty("savedAnswerCount").GetInt32());
+        Assert.Equal(
+            campaignId.ToString(),
+            payload.RootElement.GetProperty("queue").GetProperty("campaignId").GetString());
     }
 
     [Fact]
@@ -1077,6 +1117,87 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                         "I feel depleted after work.",
                         Required: true)
                 ])));
+        }
+
+        public Task<Result<IdentifiedQueueSessionDraftResponse>> CreateIdentifiedQueueAssignmentSessionAsync(
+            string token,
+            Guid assignmentId,
+            CreateOpenLinkSessionRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!string.Equals(token, _identifiedQueueToken, StringComparison.Ordinal) ||
+                assignmentId != _assignmentId)
+            {
+                return Task.FromResult(Result.Failure<IdentifiedQueueSessionDraftResponse>(
+                    Error.NotFound(
+                        "identified_queue.assignment_not_found",
+                        "This queue assignment is no longer available.")));
+            }
+
+            var startedAt = DateTimeOffset.UtcNow;
+            var assignment = new IdentifiedQueueAssignmentResponse(
+                _assignmentId,
+                "manager",
+                "draft",
+                new SafeRespondentSubjectContextResponse(
+                    _queueTargetSubjectId,
+                    "Adele Vance",
+                    "Adele Vance",
+                    "adele@example.test"),
+                _sessionId,
+                startedAt,
+                SubmittedAt: null);
+            var queue = new IdentifiedQueueEntryResponse(
+                _campaignId,
+                Guid.NewGuid(),
+                "Leadership feedback",
+                "live",
+                "identified",
+                "en",
+                SampleConsentDocument(),
+                new SafeRespondentSubjectContextResponse(
+                    _queueRespondentSubjectId,
+                    "Miriam Graham",
+                    "Miriam Graham",
+                    "miriam@example.test"),
+                [assignment],
+                AssignmentCount: 1,
+                StartedCount: 1,
+                SubmittedCount: 0,
+                Questions:
+                [
+                    new RespondentQuestionResponse(
+                        _questionId,
+                        1,
+                        "q01",
+                        "likert",
+                        "I feel depleted after work.",
+                        Required: true)
+                ]);
+            var session = new ResponseSessionResponse(
+                _sessionId,
+                _assignmentId,
+                request.Locale,
+                startedAt,
+                SubmittedAt: null,
+                TimeTakenMs: null,
+                PublicHandle: _publicSessionHandle);
+            var answers = new[]
+            {
+                new SavedAnswerResponse(
+                    _questionId,
+                    "4",
+                    Comment: null,
+                    IsSkipped: false,
+                    IsNa: false)
+            };
+
+            return Task.FromResult(Result.Success(new IdentifiedQueueSessionDraftResponse(
+                queue,
+                assignment,
+                session,
+                answers,
+                answers.Length)));
         }
 
         public Task<Result<ResponseSessionResponse>> CreateIdentifiedEntrySessionAsync(

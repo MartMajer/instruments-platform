@@ -44,6 +44,13 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
             .WithName("GetIdentifiedQueue")
             .WithTags("Responses");
 
+        app.MapPost(
+                "/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions",
+                CreateIdentifiedQueueAssignmentSession)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
+            .WithName("CreateIdentifiedQueueAssignmentSession")
+            .WithTags("Responses");
+
         app.MapPost("/respondent/identified-entries/{token}/sessions", CreateIdentifiedEntrySession)
             .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
             .WithName("CreateIdentifiedEntrySession")
@@ -172,6 +179,24 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
         var result = await sender.Send(new GetIdentifiedQueueQuery(token), cancellationToken);
 
         return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CreateIdentifiedQueueAssignmentSession(
+        string token,
+        Guid assignmentId,
+        CreateOpenLinkSessionRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new CreateIdentifiedQueueAssignmentSessionCommand(token, assignmentId, request),
+            cancellationToken);
+
+        return ResponseCaptureHttpResults.ToCreated(
+            result,
+            value => value.Session.PublicHandle is { Length: > 0 } publicHandle
+                ? $"/respondent/public-sessions/{publicHandle}/draft"
+                : $"/respondent/identified-queues/{token}/assignments/{value.Session.AssignmentId}/sessions/{value.Session.Id}");
     }
 
     private static async Task<IResult> CreateIdentifiedEntrySession(

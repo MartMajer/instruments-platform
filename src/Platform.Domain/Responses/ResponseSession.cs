@@ -88,6 +88,15 @@ public sealed class ResponseSession
         UpdatedAt = submittedAt;
     }
 
+    public void RefreshPublicHandle(string publicHandleHash, DateTimeOffset issuedAt)
+    {
+        EnsureCanAcceptAnswers();
+
+        PublicHandleHash = NormalizeRequired(publicHandleHash, nameof(publicHandleHash));
+        PublicHandleIssuedAt = issuedAt;
+        UpdatedAt = issuedAt;
+    }
+
     public void Anonymize(DateTimeOffset anonymizedAt)
     {
         ParticipantCodeId = null;

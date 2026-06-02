@@ -69,6 +69,13 @@ public sealed record IdentifiedQueueAssignmentResponse(
     DateTimeOffset? StartedAt,
     DateTimeOffset? SubmittedAt);
 
+public sealed record IdentifiedQueueSessionDraftResponse(
+    IdentifiedQueueEntryResponse Queue,
+    IdentifiedQueueAssignmentResponse Assignment,
+    ResponseSessionResponse Session,
+    IReadOnlyList<SavedAnswerResponse> Answers,
+    int SavedAnswerCount);
+
 public sealed record SafeRespondentSubjectContextResponse(
     Guid Id,
     string Label,
