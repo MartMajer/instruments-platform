@@ -2302,11 +2302,13 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.True(executed.IsSuccess, executed.Error.ToString());
-        Assert.Equal(1, executed.Value.InviteCredentialScrubbedCount);
 
         await using var verifyDb = new ApplicationDbContext(runtimeOptions);
         var verifyScope = new TenantDbScope(verifyDb);
         await using var verifyTransaction = await verifyScope.BeginTransactionAsync(tenantId);
+        var withdrawal = await verifyDb.WithdrawalEvents.SingleAsync();
+        using var metadata = JsonDocument.Parse(withdrawal.MetadataJson);
+        Assert.Equal(1, metadata.RootElement.GetProperty("invite_credential_scrubbed_count").GetInt32());
         var token = await verifyDb.InvitationTokens.SingleAsync(entity => entity.Id == queueTokenId);
         Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
         Assert.Null(token.RespondentSubjectId);
@@ -3591,8 +3593,8 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
 
         await using (var tokenDb = new ApplicationDbContext(runtimeOptions))
         {
-            var tenantDbScope = new TenantDbScope(tokenDb);
-            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+            var tokenDbScope = new TenantDbScope(tokenDb);
+            await using var tokenTransaction = await tokenDbScope.BeginTransactionAsync(tenantId);
             tokenDb.InvitationTokens.Add(new InvitationToken(
                 queueTokenId,
                 tenantId,
@@ -3601,7 +3603,7 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
                 InvitationTokenChannels.IdentifiedQueue,
                 respondentSubjectId: fixture.SubjectId));
             await tokenDb.SaveChangesAsync();
-            await transaction.CommitAsync();
+            await tokenTransaction.CommitAsync();
         }
 
         await using var db = new ApplicationDbContext(runtimeOptions);
@@ -3628,7 +3630,7 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
 
         await using var verifyDb = new ApplicationDbContext(runtimeOptions);
         var verifyScope = new TenantDbScope(verifyDb);
-        await using var transaction = await verifyScope.BeginTransactionAsync(tenantId);
+        await using var verifyTransaction = await verifyScope.BeginTransactionAsync(tenantId);
         var token = await verifyDb.InvitationTokens.SingleAsync(entity => entity.Id == queueTokenId);
         Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
         Assert.Null(token.RespondentSubjectId);
@@ -3637,7 +3639,7 @@ public sealed class WithdrawalRuntimeStoreTests : IAsyncLifetime
         Assert.Equal($"withdrawn:{queueTokenId:N}", token.TokenHash);
         Assert.NotNull(token.ExpiresAt);
         Assert.NotNull(token.UsedAt);
-        await transaction.CommitAsync();
+        await verifyTransaction.CommitAsync();
     }
 
     [DockerFact]

@@ -4839,7 +4839,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var token = Assert.Single(tokens);
         Assert.Equal(respondent.Id, token.RespondentSubjectId);
         Assert.NotEqual(token.TokenHash, response.Token);
-        Assert.DoesNotStartWith("idq_", token.TokenHash, StringComparison.Ordinal);
+        Assert.False(token.TokenHash.StartsWith("idq_", StringComparison.Ordinal));
         await verificationTransaction.CommitAsync();
     }
 
@@ -7774,6 +7774,207 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal("Adele Vance", entry.Value.TargetSubject.DisplayName);
         Assert.Equal("adele@example.test", entry.Value.TargetSubject.Email);
         Assert.Equal("msgraph:tenant:adele", entry.Value.TargetSubject.ExternalId);
+    }
+
+    [DockerFact]
+    public async Task Identified_queue_store_returns_safe_assignments_for_token_respondent_only()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+        var responseStore = new ResponseCaptureStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "leadership.queue.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"leadership.queue.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue respondent study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Identified queue respondent wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var manager = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:miriam",
+            email: "miriam@example.test",
+            displayName: "Miriam Graham");
+        var firstTarget = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:adele",
+            email: "adele@example.test",
+            displayName: "Adele Vance");
+        var secondTarget = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:alex",
+            email: "alex@example.test",
+            displayName: "Alex Wilber");
+        var thirdTarget = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:priya",
+            email: "priya@example.test",
+            displayName: "Priya Shah");
+        var otherRespondent = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:tenant:other",
+            email: "other@example.test",
+            displayName: "Other Respondent");
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.AddRange(manager, firstTarget, secondTarget, thirdTarget, otherRespondent);
+            tenantDb.SubjectRelationships.AddRange(
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    firstTarget.Id,
+                    SubjectRelationshipTypes.ManagerOf),
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    secondTarget.Id,
+                    SubjectRelationshipTypes.ManagerOf),
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    thirdTarget.Id,
+                    SubjectRelationshipTypes.ManagerOf));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{firstTarget.Id:D}}","{{secondTarget.Id:D}}","{{thirdTarget.Id:D}}"]}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        var queueAccess = await setupStore.CreateCampaignIdentifiedQueueAccessAsync(
+            tenantId,
+            campaign.Value.Id,
+            new CreateCampaignIdentifiedQueueAccessRequest(),
+            CancellationToken.None);
+
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(queueAccess.IsSuccess, queueAccess.Error.ToString());
+
+        var managerAccess = Assert.Single(queueAccess.Value.Respondents);
+        Assert.Equal(manager.Id, managerAccess.RespondentSubjectId);
+        Assert.NotNull(managerAccess.Token);
+
+        await using (var statusTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var submittedAssignmentId = await tenantDb.Assignments
+                .Where(assignment =>
+                    assignment.CampaignId == campaign.Value.Id &&
+                    assignment.RespondentSubjectId == manager.Id &&
+                    assignment.TargetSubjectId == firstTarget.Id)
+                .Select(assignment => assignment.Id)
+                .SingleAsync();
+            var draftAssignmentId = await tenantDb.Assignments
+                .Where(assignment =>
+                    assignment.CampaignId == campaign.Value.Id &&
+                    assignment.RespondentSubjectId == manager.Id &&
+                    assignment.TargetSubjectId == secondTarget.Id)
+                .Select(assignment => assignment.Id)
+                .SingleAsync();
+            var submittedSession = new ResponseSession(
+                Guid.NewGuid(),
+                tenantId,
+                submittedAssignmentId,
+                "en");
+            submittedSession.Submit(DateTimeOffset.Parse("2026-06-01T12:00:00+00:00"), timeTakenMs: 1200);
+            tenantDb.ResponseSessions.AddRange(
+                submittedSession,
+                new ResponseSession(
+                    Guid.NewGuid(),
+                    tenantId,
+                    draftAssignmentId,
+                    "en"));
+            tenantDb.Assignments.Add(Assignment.CreateIdentified(
+                Guid.NewGuid(),
+                tenantId,
+                campaign.Value.Id,
+                "self",
+                otherRespondent.Id));
+            await tenantDb.SaveChangesAsync();
+            await statusTransaction.CommitAsync();
+        }
+
+        var entry = await responseStore.GetIdentifiedQueueAsync(
+            managerAccess.Token!,
+            CancellationToken.None);
+
+        Assert.True(entry.IsSuccess, entry.Error.ToString());
+        Assert.Equal(campaign.Value.Id, entry.Value.CampaignId);
+        Assert.Equal("identified", entry.Value.ResponseIdentityMode);
+        Assert.Equal(manager.Id, entry.Value.RespondentSubject.Id);
+        Assert.Equal("Miriam Graham", entry.Value.RespondentSubject.Label);
+        Assert.Equal("miriam@example.test", entry.Value.RespondentSubject.Email);
+        Assert.Equal(3, entry.Value.AssignmentCount);
+        Assert.Equal(2, entry.Value.StartedCount);
+        Assert.Equal(1, entry.Value.SubmittedCount);
+        Assert.Equal(3, entry.Value.Assignments.Count);
+        Assert.Contains(entry.Value.Assignments, assignment =>
+            assignment.TargetSubject?.Id == firstTarget.Id &&
+            assignment.ResponseStatus == "submitted" &&
+            assignment.SessionId.HasValue &&
+            assignment.SubmittedAt.HasValue);
+        Assert.Contains(entry.Value.Assignments, assignment =>
+            assignment.TargetSubject?.Id == secondTarget.Id &&
+            assignment.ResponseStatus == "draft" &&
+            assignment.SessionId.HasValue &&
+            !assignment.SubmittedAt.HasValue);
+        Assert.Contains(entry.Value.Assignments, assignment =>
+            assignment.TargetSubject?.Id == thirdTarget.Id &&
+            assignment.ResponseStatus == "not_started" &&
+            !assignment.SessionId.HasValue);
+        Assert.DoesNotContain(entry.Value.Assignments, assignment =>
+            assignment.TargetSubject?.Id == otherRespondent.Id ||
+            assignment.AssignmentId == otherRespondent.Id);
+
+        var serialized = JsonSerializer.Serialize(entry.Value);
+        Assert.DoesNotContain("msgraph", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("external", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
     [DockerFact]

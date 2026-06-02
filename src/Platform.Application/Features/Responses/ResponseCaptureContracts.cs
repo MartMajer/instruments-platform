@@ -45,6 +45,36 @@ public sealed record RespondentSubjectContextResponse(
     string? Email,
     string? ExternalId);
 
+public sealed record IdentifiedQueueEntryResponse(
+    Guid CampaignId,
+    Guid TemplateVersionId,
+    string Name,
+    string Status,
+    string ResponseIdentityMode,
+    string DefaultLocale,
+    ConsentDocumentResponse ConsentDocument,
+    SafeRespondentSubjectContextResponse RespondentSubject,
+    IReadOnlyList<IdentifiedQueueAssignmentResponse> Assignments,
+    int AssignmentCount,
+    int StartedCount,
+    int SubmittedCount,
+    IReadOnlyList<RespondentQuestionResponse> Questions);
+
+public sealed record IdentifiedQueueAssignmentResponse(
+    Guid AssignmentId,
+    string Role,
+    string ResponseStatus,
+    SafeRespondentSubjectContextResponse? TargetSubject,
+    Guid? SessionId,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? SubmittedAt);
+
+public sealed record SafeRespondentSubjectContextResponse(
+    Guid Id,
+    string Label,
+    string? DisplayName,
+    string? Email);
+
 public sealed record EmailInvitationUnsubscribeResponse(string Status);
 
 public sealed record UnsubscribeEmailInvitationRequest(bool Confirmed);

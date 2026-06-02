@@ -161,6 +161,7 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
             ["/respondent/open-links/{token}/sessions"] = "public-respondent-entry",
             ["/respondent/identified-entries/{token}"] = "public-respondent-entry",
             ["/respondent/identified-entries/{token}/sessions"] = "public-respondent-entry",
+            ["/respondent/identified-queues/{token}"] = "public-respondent-entry",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/draft"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/answers"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/submit"] = "public-respondent-submit",
@@ -442,6 +443,43 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Assert.Equal(targetSubjectId, payload.TargetSubject.Id);
         Assert.Equal("Adele Vance", payload.TargetSubject.DisplayName);
         Assert.Equal("msgraph:tenant:adele", payload.TargetSubject.ExternalId);
+    }
+
+    [Fact]
+    public async Task Identified_queue_endpoint_returns_safe_assignment_queue_without_tenant_auth_headers()
+    {
+        const string token = "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var campaignId = Guid.NewGuid();
+        var respondentSubjectId = Guid.NewGuid();
+        var targetSubjectId = Guid.NewGuid();
+        var assignmentId = Guid.NewGuid();
+        using var client = CreateClient(new FakeResponseCaptureStore(
+            campaignId: campaignId,
+            assignmentId: assignmentId,
+            identifiedQueueToken: token,
+            queueRespondentSubjectId: respondentSubjectId,
+            queueTargetSubjectId: targetSubjectId));
+
+        var response = await client.GetAsync($"/respondent/identified-queues/{token}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<IdentifiedQueueEntryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal("identified", payload.ResponseIdentityMode);
+        Assert.Equal(respondentSubjectId, payload.RespondentSubject.Id);
+        Assert.Equal("Miriam Graham", payload.RespondentSubject.DisplayName);
+        var assignment = Assert.Single(payload.Assignments);
+        Assert.Equal(assignmentId, assignment.AssignmentId);
+        Assert.Equal("manager", assignment.Role);
+        Assert.Equal("not_started", assignment.ResponseStatus);
+        Assert.NotNull(assignment.TargetSubject);
+        Assert.Equal(targetSubjectId, assignment.TargetSubject.Id);
+        Assert.Equal("Adele Vance", assignment.TargetSubject.DisplayName);
+
+        var serialized = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("external", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("msgraph", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -816,6 +854,10 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Result<OpenLinkSessionDraftResponse>? openLinkDraftResult = null,
         string? identifiedEntryToken = null,
         Result<OpenLinkEntryResponse>? identifiedEntryResult = null,
+        string? identifiedQueueToken = null,
+        Result<IdentifiedQueueEntryResponse>? identifiedQueueResult = null,
+        Guid? queueRespondentSubjectId = null,
+        Guid? queueTargetSubjectId = null,
         string? publicSessionHandle = null) : IResponseCaptureStore
     {
         private readonly Guid _campaignId = campaignId ?? Guid.NewGuid();
@@ -824,6 +866,9 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         private readonly Guid _questionId = Guid.NewGuid();
         private readonly string _openLinkToken = openLinkToken ?? "opn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
         private readonly string _identifiedEntryToken = identifiedEntryToken ?? "idn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        private readonly string _identifiedQueueToken = identifiedQueueToken ?? "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        private readonly Guid _queueRespondentSubjectId = queueRespondentSubjectId ?? Guid.NewGuid();
+        private readonly Guid _queueTargetSubjectId = queueTargetSubjectId ?? Guid.NewGuid();
         private readonly string _publicSessionHandle = publicSessionHandle ?? "rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
 
         public CreateOpenLinkSessionRequest? LastOpenLinkSessionRequest { get; private set; }
@@ -964,6 +1009,65 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                 RequiresParticipantCode: false,
                 "en",
                 SampleConsentDocument(),
+                [
+                    new RespondentQuestionResponse(
+                        _questionId,
+                        1,
+                        "q01",
+                        "likert",
+                        "I feel depleted after work.",
+                        Required: true)
+                ])));
+        }
+
+        public Task<Result<IdentifiedQueueEntryResponse>> GetIdentifiedQueueAsync(
+            string token,
+            CancellationToken cancellationToken)
+        {
+            if (identifiedQueueResult.HasValue)
+            {
+                return Task.FromResult(identifiedQueueResult.Value);
+            }
+
+            if (!string.Equals(token, _identifiedQueueToken, StringComparison.Ordinal))
+            {
+                return Task.FromResult(Result.Failure<IdentifiedQueueEntryResponse>(
+                    Error.NotFound(
+                        "identified_queue.not_available",
+                        "This queue link is no longer available.")));
+            }
+
+            return Task.FromResult(Result.Success(new IdentifiedQueueEntryResponse(
+                _campaignId,
+                Guid.NewGuid(),
+                "Leadership feedback",
+                "live",
+                "identified",
+                "en",
+                SampleConsentDocument(),
+                new SafeRespondentSubjectContextResponse(
+                    _queueRespondentSubjectId,
+                    "Miriam Graham",
+                    "Miriam Graham",
+                    "miriam@example.test"),
+                [
+                    new IdentifiedQueueAssignmentResponse(
+                        _assignmentId,
+                        "manager",
+                        "not_started",
+                        new SafeRespondentSubjectContextResponse(
+                            _queueTargetSubjectId,
+                            "Adele Vance",
+                            "Adele Vance",
+                            "adele@example.test"),
+                        SessionId: null,
+                        StartedAt: null,
+                        SubmittedAt: null)
+                ],
+                AssignmentCount: 1,
+                StartedCount: 0,
+                SubmittedCount: 0,
+                Questions:
                 [
                     new RespondentQuestionResponse(
                         _questionId,

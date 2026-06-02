@@ -915,6 +915,141 @@ public sealed class ResponseCaptureStore(
             subjectContexts.TargetSubject));
     }
 
+    public async Task<Result<IdentifiedQueueEntryResponse>> GetIdentifiedQueueAsync(
+        string token,
+        CancellationToken cancellationToken)
+    {
+        var parsed = OpenLinkTokens.ParseTenant(token);
+        if (parsed.IsFailure)
+        {
+            return OpenLinkNotAvailable<IdentifiedQueueEntryResponse>();
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            parsed.Value.TenantId,
+            cancellationToken: cancellationToken);
+
+        var resolved = await ResolveIdentifiedQueueAsync(
+            parsed.Value.TenantId,
+            token,
+            cancellationToken);
+
+        if (resolved.IsFailure)
+        {
+            return Result.Failure<IdentifiedQueueEntryResponse>(resolved.Error);
+        }
+
+        var tenantContext = EnsureOpenLinkTenantContext(parsed.Value.TenantId);
+        if (tenantContext.IsFailure)
+        {
+            return Result.Failure<IdentifiedQueueEntryResponse>(tenantContext.Error);
+        }
+
+        var consentDocument = await GetSnapshotConsentDocumentAsync(
+            resolved.Value.Snapshot,
+            cancellationToken);
+
+        if (consentDocument is null)
+        {
+            return OpenLinkNotAvailable<IdentifiedQueueEntryResponse>();
+        }
+
+        var questions = await db.TemplateQuestions
+            .AsNoTracking()
+            .Where(question => question.TemplateVersionId == resolved.Value.Snapshot.TemplateVersionId)
+            .OrderBy(question => question.Ordinal)
+            .ToListAsync(cancellationToken);
+        var scaleIds = questions
+            .Select(question => question.ScaleId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        var scales = await db.QuestionScales
+            .AsNoTracking()
+            .Where(scale => scaleIds.Contains(scale.Id))
+            .ToDictionaryAsync(scale => scale.Id, cancellationToken);
+        var assignments = await db.Assignments
+            .AsNoTracking()
+            .Where(assignment =>
+                assignment.TenantId == parsed.Value.TenantId &&
+                assignment.CampaignId == resolved.Value.Campaign.Id &&
+                !assignment.Anonymous &&
+                assignment.RespondentSubjectId == resolved.Value.RespondentSubject.Id &&
+                assignment.AnonymizedAt == null)
+            .OrderBy(assignment => assignment.CreatedAt)
+            .ThenBy(assignment => assignment.Id)
+            .ToListAsync(cancellationToken);
+
+        if (assignments.Count == 0)
+        {
+            return OpenLinkNotAvailable<IdentifiedQueueEntryResponse>();
+        }
+
+        var assignmentIds = assignments.Select(assignment => assignment.Id).ToArray();
+        var sessions = await db.ResponseSessions
+            .AsNoTracking()
+            .Where(session => assignmentIds.Contains(session.AssignmentId))
+            .OrderBy(session => session.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var sessionsByAssignment = sessions
+            .GroupBy(session => session.AssignmentId)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(session => session.SubmittedAt.HasValue)
+                    .ThenByDescending(session => session.CreatedAt)
+                    .First());
+        var targetSubjectIds = assignments
+            .Select(assignment => assignment.TargetSubjectId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+        var targets = await db.Subjects
+            .AsNoTracking()
+            .Where(subject =>
+                subject.TenantId == parsed.Value.TenantId &&
+                targetSubjectIds.Contains(subject.Id))
+            .ToDictionaryAsync(subject => subject.Id, cancellationToken);
+        var assignmentResponses = assignments
+            .Select(assignment =>
+            {
+                sessionsByAssignment.TryGetValue(assignment.Id, out var session);
+                SafeRespondentSubjectContextResponse? target = null;
+                if (assignment.TargetSubjectId.HasValue &&
+                    targets.TryGetValue(assignment.TargetSubjectId.Value, out var targetSubject))
+                {
+                    target = ToSafeSubjectContextResponse(targetSubject);
+                }
+
+                return new IdentifiedQueueAssignmentResponse(
+                    assignment.Id,
+                    assignment.Role,
+                    GetQueueAssignmentResponseStatus(session),
+                    target,
+                    session?.Id,
+                    session?.StartedAt,
+                    session?.SubmittedAt);
+            })
+            .ToArray();
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new IdentifiedQueueEntryResponse(
+            resolved.Value.Campaign.Id,
+            resolved.Value.Snapshot.TemplateVersionId,
+            resolved.Value.Campaign.Name,
+            resolved.Value.Campaign.Status,
+            resolved.Value.Snapshot.ResponseIdentityMode,
+            resolved.Value.Snapshot.DefaultLocale,
+            ToConsentDocumentResponse(consentDocument),
+            ToSafeSubjectContextResponse(resolved.Value.RespondentSubject),
+            assignmentResponses,
+            assignmentResponses.Length,
+            assignmentResponses.Count(assignment => assignment.StartedAt.HasValue),
+            assignmentResponses.Count(assignment => assignment.SubmittedAt.HasValue),
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
+    }
+
     public async Task<Result<ResponseSessionResponse>> CreateIdentifiedEntrySessionAsync(
         string token,
         CreateOpenLinkSessionRequest request,
@@ -1833,6 +1968,67 @@ public sealed class ResponseCaptureStore(
             invitationToken.Id));
     }
 
+    private async Task<Result<ResolvedIdentifiedQueue>> ResolveIdentifiedQueueAsync(
+        Guid tenantId,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        var tokenHash = OpenLinkTokens.Hash(token);
+        var invitationToken = await db.InvitationTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == tenantId &&
+                    entity.TokenHash == tokenHash &&
+                    entity.Channel == InvitationTokenChannels.IdentifiedQueue,
+                cancellationToken);
+
+        if (invitationToken is null ||
+            invitationToken.RespondentSubjectId is null ||
+            invitationToken.AssignmentId is not null ||
+            invitationToken.UsedAt.HasValue ||
+            invitationToken.ExpiresAt <= DateTimeOffset.UtcNow)
+        {
+            return OpenLinkNotAvailable<ResolvedIdentifiedQueue>();
+        }
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == invitationToken.CampaignId,
+                cancellationToken);
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == invitationToken.CampaignId,
+                cancellationToken);
+        var respondentSubject = await db.Subjects
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == tenantId &&
+                    entity.Id == invitationToken.RespondentSubjectId.Value &&
+                    entity.DeletedAt == null,
+                cancellationToken);
+
+        if (campaign is null ||
+            snapshot is null ||
+            respondentSubject is null ||
+            campaign.TenantId != tenantId ||
+            invitationToken.TenantId != tenantId ||
+            campaign.Status != CampaignStatuses.Live ||
+            snapshot.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return OpenLinkNotAvailable<ResolvedIdentifiedQueue>();
+        }
+
+        return Result.Success(new ResolvedIdentifiedQueue(
+            campaign,
+            snapshot,
+            respondentSubject,
+            invitationToken.Id));
+    }
+
     private async Task<Result<bool>> MarkIdentifiedEntryTokenUsedAsync(
         Guid tenantId,
         Guid invitationTokenId,
@@ -2024,6 +2220,37 @@ public sealed class ResponseCaptureStore(
             subject.ExternalId);
     }
 
+    private static SafeRespondentSubjectContextResponse ToSafeSubjectContextResponse(Subject subject)
+    {
+        return new SafeRespondentSubjectContextResponse(
+            subject.Id,
+            CreateSafeSubjectLabel(subject),
+            NormalizeText(subject.DisplayName),
+            NormalizeText(subject.Email));
+    }
+
+    private static string CreateSafeSubjectLabel(Subject subject)
+    {
+        return NormalizeText(subject.DisplayName) ??
+            NormalizeText(subject.Email) ??
+            "Person";
+    }
+
+    private static string GetQueueAssignmentResponseStatus(ResponseSession? session)
+    {
+        if (session is null)
+        {
+            return "not_started";
+        }
+
+        return session.SubmittedAt.HasValue ? "submitted" : "draft";
+    }
+
+    private static string? NormalizeText(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     private static string[] ParseGrantArray(string grantJson)
     {
         return JsonSerializer.Deserialize<string[]>(grantJson) ?? [];
@@ -2063,6 +2290,12 @@ public sealed class ResponseCaptureStore(
         Campaign Campaign,
         CampaignLaunchSnapshot Snapshot,
         Assignment Assignment,
+        Guid InvitationTokenId);
+
+    private sealed record ResolvedIdentifiedQueue(
+        Campaign Campaign,
+        CampaignLaunchSnapshot Snapshot,
+        Subject RespondentSubject,
         Guid InvitationTokenId);
 
     private sealed record ResolvedOpenLinkSession(

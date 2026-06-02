@@ -39,6 +39,11 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
             .WithName("GetIdentifiedEntry")
             .WithTags("Responses");
 
+        app.MapGet("/respondent/identified-queues/{token}", GetIdentifiedQueue)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
+            .WithName("GetIdentifiedQueue")
+            .WithTags("Responses");
+
         app.MapPost("/respondent/identified-entries/{token}/sessions", CreateIdentifiedEntrySession)
             .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
             .WithName("CreateIdentifiedEntrySession")
@@ -155,6 +160,16 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new GetIdentifiedEntryQuery(token), cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> GetIdentifiedQueue(
+        string token,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetIdentifiedQueueQuery(token), cancellationToken);
 
         return ResponseCaptureHttpResults.ToOk(result);
     }
