@@ -583,6 +583,47 @@ export type OpenLinkEntryResponse = {
 	targetSubject?: RespondentSubjectContextResponse | null;
 };
 
+export type SafeRespondentSubjectContextResponse = {
+	id: string;
+	label: string;
+	displayName?: string | null;
+	email?: string | null;
+};
+
+export type IdentifiedQueueAssignmentResponse = {
+	assignmentId: string;
+	role?: string | null;
+	responseStatus: string;
+	targetSubject?: SafeRespondentSubjectContextResponse | null;
+	sessionId?: string | null;
+	startedAt?: string | null;
+	submittedAt?: string | null;
+};
+
+export type IdentifiedQueueEntryResponse = {
+	campaignId: string;
+	templateVersionId: string;
+	name: string;
+	status: string;
+	responseIdentityMode: string;
+	defaultLocale: string;
+	consentDocument: ConsentDocumentResponse;
+	respondentSubject?: SafeRespondentSubjectContextResponse | null;
+	assignments: IdentifiedQueueAssignmentResponse[];
+	assignmentCount: number;
+	startedCount: number;
+	submittedCount: number;
+	questions: RespondentQuestionResponse[];
+};
+
+export type IdentifiedQueueSessionDraftResponse = {
+	queue: IdentifiedQueueEntryResponse;
+	assignment: IdentifiedQueueAssignmentResponse;
+	session: ResponseSessionResponse;
+	answers: SavedAnswerResponse[];
+	savedAnswerCount: number;
+};
+
 export type RespondentSubjectContextResponse = {
 	id: string;
 	displayName?: string | null;
@@ -876,19 +917,13 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost(request)
 			);
 		},
-		createCampaignTestRecipients(
-			campaignId: string,
-			request: CreateCampaignTestRecipientsRequest
-		) {
+		createCampaignTestRecipients(campaignId: string, request: CreateCampaignTestRecipientsRequest) {
 			return client.request<CreateCampaignTestRecipientsResponse>(
 				`/test-data/campaigns/${campaignId}/recipients`,
 				jsonPost(request)
 			);
 		},
-		createCampaignTestResponses(
-			campaignId: string,
-			request: CreateCampaignTestResponsesRequest
-		) {
+		createCampaignTestResponses(campaignId: string, request: CreateCampaignTestResponsesRequest) {
 			return client.request<CreateCampaignTestResponsesResponse>(
 				`/test-data/campaigns/${campaignId}/responses`,
 				jsonPost(request)
@@ -965,6 +1000,9 @@ export function createSetupApi(client: ApiClient) {
 		getIdentifiedEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/identified-entries/${token}`);
 		},
+		getIdentifiedQueue(token: string) {
+			return client.request<IdentifiedQueueEntryResponse>(`/respondent/identified-queues/${token}`);
+		},
 		createOpenLinkSession(token: string, request: CreateOpenLinkSessionRequest) {
 			return client.request<ResponseSessionResponse>(
 				`/respondent/open-links/${token}/sessions`,
@@ -974,6 +1012,16 @@ export function createSetupApi(client: ApiClient) {
 		createIdentifiedEntrySession(token: string, request: CreateOpenLinkSessionRequest) {
 			return client.request<ResponseSessionResponse>(
 				`/respondent/identified-entries/${token}/sessions`,
+				jsonPost(request)
+			);
+		},
+		createIdentifiedQueueAssignmentSession(
+			token: string,
+			assignmentId: string,
+			request: CreateOpenLinkSessionRequest
+		) {
+			return client.request<IdentifiedQueueSessionDraftResponse>(
+				`/respondent/identified-queues/${token}/assignments/${assignmentId}/sessions`,
 				jsonPost(request)
 			);
 		},

@@ -1,15 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { ArrowLeft, Check, LoaderCircle, RefreshCw, Send } from 'lucide-svelte';
+	import { ArrowLeft, Check, LoaderCircle, Play, RefreshCw, Send } from 'lucide-svelte';
 	import { ApiError, createApiClient } from '$lib/api/client';
 	import RespondentQuestionRunner from '$lib/respondent/RespondentQuestionRunner.svelte';
 	import {
 		createSetupApi,
 		type CreateOpenLinkSessionRequest,
+		type ConsentDocumentResponse,
+		type IdentifiedQueueAssignmentResponse,
+		type IdentifiedQueueEntryResponse,
+		type IdentifiedQueueSessionDraftResponse,
 		type OpenLinkEntryResponse,
 		type ResponseSessionResponse,
 		type RespondentSubjectContextResponse,
+		type SafeRespondentSubjectContextResponse,
 		type SavedAnswerResponse,
 		type SaveAnswersResponse,
 		type SubmitResponseSessionResponse
@@ -25,7 +30,9 @@
 
 	const routeCredential = page.params.token ?? '';
 	const api = createSetupApi(createApiClient());
-	const explicitRouteLocale = $derived(page.url.searchParams.get('locale') ?? page.url.searchParams.get('lang'));
+	const explicitRouteLocale = $derived(
+		page.url.searchParams.get('locale') ?? page.url.searchParams.get('lang')
+	);
 	const locale = $derived(resolveRespondentLocale());
 	const text = $derived(routePageCopy(locale));
 
@@ -42,6 +49,7 @@
 	};
 
 	let entry = $state<OpenLinkEntryResponse | null>(null);
+	let queue = $state<IdentifiedQueueEntryResponse | null>(null);
 	let session = $state<ResponseSessionResponse | null>(null);
 	let savedAnswers = $state<SaveAnswersResponse | null>(null);
 	let submitted = $state<SubmitResponseSessionResponse | null>(null);
@@ -53,6 +61,7 @@
 	);
 	let loading = $state(true);
 	let consentSubmitting = $state(false);
+	let startingAssignmentId = $state<string | null>(null);
 	let saving = $state(false);
 	let submitting = $state(false);
 	let reviewing = $state(false);
@@ -60,19 +69,20 @@
 	let loadError = $state<string | null>(null);
 	let actionError = $state<string | null>(null);
 	let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let activeConsentDocument = $derived(entry?.consentDocument ?? queue?.consentDocument ?? null);
 	let allConsentGrants = $derived(
-		entry
+		activeConsentDocument
 			? Array.from(
 					new Set([
-						...entry.consentDocument.requiredGrants,
-						...entry.consentDocument.optionalGrants
+						...activeConsentDocument.requiredGrants,
+						...activeConsentDocument.optionalGrants
 					])
 				)
 			: []
 	);
 	let requiredConsentAccepted = $derived(
-		entry
-			? entry.consentDocument.requiredGrants.every((grant) => acceptedGrants[grant])
+		activeConsentDocument
+			? activeConsentDocument.requiredGrants.every((grant) => acceptedGrants[grant])
 			: false
 	);
 	let participantCodeReady = $derived(
@@ -116,10 +126,27 @@
 				return;
 			}
 
+			if (isIdentifiedQueueToken(routeCredential)) {
+				const loadedQueue = await api.getIdentifiedQueue(routeCredential);
+				entry = null;
+				queue = loadedQueue;
+				session = null;
+				savedAnswers = null;
+				submitted = null;
+				reviewing = false;
+				saveStatus = 'idle';
+				publicSessionHandle = null;
+				participantCode = '';
+				acceptedGrants = consentGrantState(loadedQueue.consentDocument);
+				answers = {};
+				return;
+			}
+
 			const loaded = isIdentifiedEntryToken(routeCredential)
 				? await api.getIdentifiedEntry(routeCredential)
 				: await api.getOpenLinkEntry(routeCredential);
 			entry = loaded;
+			queue = null;
 			session = null;
 			savedAnswers = null;
 			submitted = null;
@@ -127,14 +154,7 @@
 			saveStatus = 'idle';
 			publicSessionHandle = null;
 			participantCode = '';
-			acceptedGrants = Object.fromEntries(
-				Array.from(
-					new Set([
-						...loaded.consentDocument.requiredGrants,
-						...loaded.consentDocument.optionalGrants
-					])
-				).map((grant) => [grant, false])
-			);
+			acceptedGrants = consentGrantState(loaded.consentDocument);
 			answers = Object.fromEntries(
 				loaded.questions.map((question) => [question.id, defaultAnswerFor(question)])
 			);
@@ -194,6 +214,40 @@
 			actionError = formatError(unknownError);
 		} finally {
 			consentSubmitting = false;
+		}
+	}
+
+	async function startQueueAssignment(assignment: IdentifiedQueueAssignmentResponse) {
+		const currentQueue = queue;
+		if (!currentQueue) {
+			loadError = text.respondent.linkUnavailable;
+			return;
+		}
+
+		if (!requiredConsentAccepted) {
+			actionError = text.respondent.requiredConsent;
+			return;
+		}
+
+		startingAssignmentId = assignment.assignmentId;
+		actionError = null;
+
+		try {
+			const request: CreateOpenLinkSessionRequest = {
+				locale: localeForQueue(currentQueue),
+				acceptedConsentDocumentId: currentQueue.consentDocument.id,
+				acceptedGrants: selectedAcceptedGrants()
+			};
+			const draft = await api.createIdentifiedQueueAssignmentSession(
+				routeCredential,
+				assignment.assignmentId,
+				request
+			);
+			applyQueueAssignmentDraft(draft);
+		} catch (unknownError) {
+			actionError = formatError(unknownError);
+		} finally {
+			startingAssignmentId = null;
 		}
 	}
 
@@ -347,11 +401,11 @@
 	function hasUnsavedAnswers() {
 		return Boolean(
 			session &&
-				!submitted &&
-				(saveStatus === 'dirty' ||
-					saveStatus === 'saving' ||
-					saveStatus === 'failed' ||
-					saveStatus === 'local-restored')
+			!submitted &&
+			(saveStatus === 'dirty' ||
+				saveStatus === 'saving' ||
+				saveStatus === 'failed' ||
+				saveStatus === 'local-restored')
 		);
 	}
 
@@ -397,7 +451,11 @@
 				}
 
 				if (numericValue < question.scaleMinValue || numericValue > question.scaleMaxValue) {
-					return text.respondent.questionBetween(question.code, question.scaleMinValue, question.scaleMaxValue);
+					return text.respondent.questionBetween(
+						question.code,
+						question.scaleMinValue,
+						question.scaleMaxValue
+					);
 				}
 			}
 		}
@@ -434,14 +492,8 @@
 		}
 
 		entry = draft.entry;
-		acceptedGrants = Object.fromEntries(
-			Array.from(
-				new Set([
-					...draft.entry.consentDocument.requiredGrants,
-					...draft.entry.consentDocument.optionalGrants
-				])
-			).map((grant) => [grant, false])
-		);
+		queue = null;
+		acceptedGrants = consentGrantState(draft.entry.consentDocument);
 		applyDraft(draft.entry, draft, handle);
 		if (!draft.session.submittedAt) {
 			applyLocalUnsavedDraft(readLocalUnsavedDraft(handle));
@@ -482,7 +534,11 @@
 
 	function applyDraft(
 		currentEntry: OpenLinkEntryResponse,
-		draft: { session: ResponseSessionResponse; answers: SavedAnswerResponse[]; savedAnswerCount: number },
+		draft: {
+			session: ResponseSessionResponse;
+			answers: SavedAnswerResponse[];
+			savedAnswerCount: number;
+		},
 		handle: string | null
 	) {
 		session = draft.session;
@@ -505,12 +561,61 @@
 		}
 	}
 
+	function applyQueueAssignmentDraft(draft: IdentifiedQueueSessionDraftResponse) {
+		const selectedEntry = entryFromQueueAssignment(draft.queue, draft.assignment);
+		queue = draft.queue;
+		entry = selectedEntry;
+		acceptedGrants = consentGrantState(draft.queue.consentDocument);
+		applyDraft(selectedEntry, draft, draft.session.publicHandle ?? null);
+		storeSessionPointer(selectedEntry, {
+			sessionId: draft.session.id,
+			publicHandle: publicSessionHandle
+		});
+		scrubTokenUrl(publicSessionHandle);
+	}
+
+	function entryFromQueueAssignment(
+		currentQueue: IdentifiedQueueEntryResponse,
+		assignment: IdentifiedQueueAssignmentResponse
+	): OpenLinkEntryResponse {
+		return {
+			campaignId: currentQueue.campaignId,
+			assignmentId: assignment.assignmentId,
+			templateVersionId: currentQueue.templateVersionId,
+			name: currentQueue.name,
+			status: currentQueue.status,
+			responseIdentityMode: currentQueue.responseIdentityMode,
+			requiresParticipantCode: false,
+			defaultLocale: currentQueue.defaultLocale,
+			consentDocument: currentQueue.consentDocument,
+			questions: currentQueue.questions,
+			assignmentRole: assignment.role,
+			respondentSubject: toRespondentSubjectContext(currentQueue.respondentSubject),
+			targetSubject: toRespondentSubjectContext(assignment.targetSubject)
+		};
+	}
+
+	function toRespondentSubjectContext(
+		subject: SafeRespondentSubjectContextResponse | null | undefined
+	): RespondentSubjectContextResponse | null {
+		if (!subject) {
+			return null;
+		}
+
+		return {
+			id: subject.id,
+			displayName: nonEmpty(subject.displayName) ?? nonEmpty(subject.label),
+			email: subject.email ?? null
+		};
+	}
+
 	function applyLocalUnsavedDraft(localDraft: LocalUnsavedDraft | null) {
 		if (!localDraft) {
 			return;
 		}
 
 		entry = localDraft.entry;
+		queue = null;
 		session = {
 			id: localDraft.sessionId,
 			assignmentId: localDraft.assignmentId,
@@ -521,14 +626,7 @@
 			publicHandle: localDraft.publicHandle
 		};
 		publicSessionHandle = localDraft.publicHandle;
-		acceptedGrants = Object.fromEntries(
-			Array.from(
-				new Set([
-					...localDraft.entry.consentDocument.requiredGrants,
-					...localDraft.entry.consentDocument.optionalGrants
-				])
-			).map((grant) => [grant, false])
-		);
+		acceptedGrants = consentGrantState(localDraft.entry.consentDocument);
 		answers = { ...localDraft.answers };
 		savedAnswers = null;
 		submitted = null;
@@ -677,7 +775,9 @@
 			return pageLocale;
 		}
 
-		return normalizeAppLocale(session?.locale ?? entry?.defaultLocale ?? pageLocale);
+		return normalizeAppLocale(
+			session?.locale ?? entry?.defaultLocale ?? queue?.defaultLocale ?? pageLocale
+		);
 	}
 
 	function localeForEntry(currentEntry: OpenLinkEntryResponse) {
@@ -689,6 +789,15 @@
 		return normalizeAppLocale(currentEntry.defaultLocale || pageLocale);
 	}
 
+	function localeForQueue(currentQueue: IdentifiedQueueEntryResponse) {
+		const pageLocale = appLocaleFromPageData(page.data);
+		if (hasExplicitRouteLocale()) {
+			return pageLocale;
+		}
+
+		return normalizeAppLocale(currentQueue.defaultLocale || pageLocale);
+	}
+
 	function sessionPointerKey(currentEntry: OpenLinkEntryResponse) {
 		return `respondent-session:${currentEntry.assignmentId}`;
 	}
@@ -698,7 +807,9 @@
 		publicHandle: string | null;
 	};
 
-	function readStoredSessionPointer(currentEntry: OpenLinkEntryResponse): StoredSessionPointer | null {
+	function readStoredSessionPointer(
+		currentEntry: OpenLinkEntryResponse
+	): StoredSessionPointer | null {
 		try {
 			const stored = sessionStorage.getItem(sessionPointerKey(currentEntry));
 			if (!stored || stored.trim().length === 0) {
@@ -758,6 +869,10 @@
 		return value.startsWith('idn_');
 	}
 
+	function isIdentifiedQueueToken(value: string) {
+		return value.startsWith('idq_');
+	}
+
 	function setGrantAccepted(grant: string, accepted: boolean) {
 		acceptedGrants = { ...acceptedGrants, [grant]: accepted };
 	}
@@ -766,6 +881,49 @@
 		return Object.entries(acceptedGrants)
 			.filter(([, accepted]) => accepted)
 			.map(([grant]) => grant);
+	}
+
+	function consentGrantState(consentDocument: ConsentDocumentResponse) {
+		return Object.fromEntries(
+			Array.from(
+				new Set([...consentDocument.requiredGrants, ...consentDocument.optionalGrants])
+			).map((grant) => [grant, false])
+		);
+	}
+
+	function queueAssignmentName(assignment: IdentifiedQueueAssignmentResponse) {
+		return (
+			nonEmpty(assignment.targetSubject?.displayName) ??
+			nonEmpty(assignment.targetSubject?.label) ??
+			nonEmpty(assignment.targetSubject?.email) ??
+			text.respondent.queueAssignmentFallback
+		);
+	}
+
+	function queueAssignmentStatusLabel(assignment: IdentifiedQueueAssignmentResponse) {
+		switch (assignment.responseStatus) {
+			case 'submitted':
+				return text.respondent.queueSubmittedStatus;
+			case 'draft':
+			case 'started':
+			case 'in_progress':
+				return text.respondent.queueDraftStatus;
+			default:
+				return text.respondent.queueNotStartedStatus;
+		}
+	}
+
+	function queueAssignmentActionLabel(assignment: IdentifiedQueueAssignmentResponse) {
+		const target = queueAssignmentName(assignment);
+		return assignment.responseStatus === 'draft' ||
+			assignment.responseStatus === 'started' ||
+			assignment.responseStatus === 'in_progress'
+			? text.respondent.queueContinue(target)
+			: text.respondent.queueStart(target);
+	}
+
+	function queueAssignmentSubmitted(assignment: IdentifiedQueueAssignmentResponse) {
+		return assignment.responseStatus === 'submitted';
 	}
 
 	function defaultAnswerFor(question: OpenLinkEntryResponse['questions'][number]) {
@@ -863,7 +1021,7 @@
 </script>
 
 <svelte:head>
-	<title>{entry?.name ?? text.respondent.metaFallback} - Validated Scale</title>
+	<title>{entry?.name ?? queue?.name ?? text.respondent.metaFallback} - Validated Scale</title>
 </svelte:head>
 
 <main class="min-h-screen bg-[var(--color-background)] px-4 py-6 text-[var(--color-text)] sm:px-6">
@@ -880,6 +1038,109 @@
 					<RefreshCw size={17} aria-hidden="true" />
 					<span>{text.respondent.tryAgain}</span>
 				</button>
+			</section>
+		{:else if queue && !entry}
+			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
+				<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
+					{text.respondent.queueKicker}
+				</p>
+				<h1 class="serif-heading text-3xl">{queue.name}</h1>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					{text.respondent.queueProgress(queue.submittedCount, queue.assignmentCount)}
+				</p>
+			</header>
+
+			<section
+				class="setup-panel respondent-queue"
+				aria-label={text.respondent.queueAria}
+				data-testid="respondent-queue"
+			>
+				<div class="respondent-queue__identity">
+					<div>
+						<p>{text.respondent.respondentContextKicker}</p>
+						<strong>
+							{nonEmpty(queue.respondentSubject?.displayName) ??
+								nonEmpty(queue.respondentSubject?.label) ??
+								nonEmpty(queue.respondentSubject?.email) ??
+								text.respondent.queueRespondentFallback}
+						</strong>
+					</div>
+					<span>{queue.submittedCount}/{queue.assignmentCount}</span>
+				</div>
+
+				<div class="respondent-queue__consent" aria-labelledby="queue-consent-title">
+					<div class="grid gap-1">
+						<h2 id="queue-consent-title" class="setup-panel__title">
+							{text.respondent.queueConsentTitle}
+						</h2>
+						<p class="text-sm whitespace-pre-wrap text-[var(--color-text-muted)]">
+							{queue.consentDocument.bodyMarkdown}
+						</p>
+					</div>
+
+					<div class="respondent-queue__grants">
+						{#each allConsentGrants as grant (grant)}
+							<label class="checkbox-field">
+								<input
+									type="checkbox"
+									checked={acceptedGrants[grant] ?? false}
+									onchange={(event) => setGrantAccepted(grant, event.currentTarget.checked)}
+								/>
+								<span>{grantLabel(grant)}</span>
+							</label>
+						{/each}
+					</div>
+				</div>
+
+				<div class="respondent-queue__assignments" aria-label={text.respondent.queueAssignments}>
+					{#each queue.assignments as assignment (assignment.assignmentId)}
+						<section
+							class="respondent-queue-card"
+							aria-label={queueAssignmentName(assignment)}
+							data-testid="respondent-queue-assignment"
+						>
+							<div class="respondent-queue-card__main">
+								<div>
+									<p>{text.respondent.targetContextKicker}</p>
+									<h2>{queueAssignmentName(assignment)}</h2>
+								</div>
+								<span
+									class:respondent-queue-card__status--done={queueAssignmentSubmitted(assignment)}
+									class="respondent-queue-card__status"
+								>
+									{queueAssignmentStatusLabel(assignment)}
+								</span>
+							</div>
+
+							{#if assignment.role}
+								<p class="respondent-queue-card__meta">
+									{text.respondent.targetRoleLabel}: {formatAssignmentRole(assignment.role)}
+								</p>
+							{/if}
+
+							{#if !queueAssignmentSubmitted(assignment)}
+								<button
+									type="button"
+									class="primary-button"
+									disabled={startingAssignmentId !== null || !requiredConsentAccepted}
+									onclick={() => startQueueAssignment(assignment)}
+								>
+									{#if startingAssignmentId === assignment.assignmentId}
+										<LoaderCircle size={17} aria-hidden="true" />
+										<span>{text.respondent.queueStarting}</span>
+									{:else}
+										<Play size={17} aria-hidden="true" />
+										<span>{queueAssignmentActionLabel(assignment)}</span>
+									{/if}
+								</button>
+							{/if}
+						</section>
+					{/each}
+				</div>
+
+				{#if actionError}
+					<p class="error-line" role="alert">{actionError}</p>
+				{/if}
 			</section>
 		{:else if entry}
 			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
@@ -937,7 +1198,7 @@
 				<section class="setup-panel" aria-labelledby="consent-title">
 					<div class="grid gap-2">
 						<h2 id="consent-title" class="setup-panel__title">{entry.consentDocument.title}</h2>
-						<p class="whitespace-pre-wrap text-sm text-[var(--color-text-muted)]">
+						<p class="text-sm whitespace-pre-wrap text-[var(--color-text-muted)]">
 							{entry.consentDocument.bodyMarkdown}
 						</p>
 					</div>
@@ -1075,6 +1336,96 @@
 </main>
 
 <style>
+	.primary-button,
+	.secondary-button {
+		width: 100%;
+	}
+
+	.respondent-queue {
+		gap: 1rem;
+	}
+
+	.respondent-queue__identity,
+	.respondent-queue-card__main {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.85rem;
+	}
+
+	.respondent-queue__identity {
+		border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+		padding: 0.8rem 0.9rem;
+	}
+
+	.respondent-queue__identity div,
+	.respondent-queue-card__main div {
+		display: grid;
+		gap: 0.2rem;
+		min-width: 0;
+	}
+
+	.respondent-queue__identity p,
+	.respondent-queue-card__main p,
+	.respondent-queue-card__meta {
+		margin: 0;
+		font-size: 0.78rem;
+		font-weight: 700;
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+	}
+
+	.respondent-queue__identity strong,
+	.respondent-queue-card__main h2 {
+		margin: 0;
+		overflow-wrap: anywhere;
+		font-size: 1.05rem;
+		line-height: 1.15;
+		color: var(--color-text);
+	}
+
+	.respondent-queue__identity > span,
+	.respondent-queue-card__status {
+		flex: 0 0 auto;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		padding: 0.35rem 0.55rem;
+		font-size: 0.78rem;
+		font-weight: 800;
+		color: var(--color-text);
+		text-transform: uppercase;
+	}
+
+	.respondent-queue-card__status--done {
+		border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+		background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface));
+		color: var(--color-success);
+	}
+
+	.respondent-queue__consent,
+	.respondent-queue__assignments,
+	.respondent-queue-card {
+		display: grid;
+		gap: 0.8rem;
+	}
+
+	.respondent-queue__grants {
+		display: grid;
+		gap: 0.45rem;
+	}
+
+	.respondent-queue-card {
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		padding: 0.9rem;
+	}
+
+	.respondent-queue-card .primary-button {
+		width: 100%;
+		min-height: 2.75rem;
+	}
+
 	.respondent-target-summary {
 		display: flex;
 		align-items: center;
@@ -1116,6 +1467,16 @@
 	}
 
 	@media (max-width: 520px) {
+		.respondent-queue__identity,
+		.respondent-queue-card__main {
+			display: grid;
+		}
+
+		.respondent-queue__identity > span,
+		.respondent-queue-card__status {
+			width: fit-content;
+		}
+
 		.respondent-target-summary {
 			display: grid;
 		}

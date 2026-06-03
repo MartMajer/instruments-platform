@@ -97,7 +97,9 @@ test('submits a public open-link response without setup auth headers', async ({ 
 	await expect(receipt.getByText('1.0.0')).toBeVisible();
 	await expect(receipt.getByText('Answers received')).toBeVisible();
 	await expect(receipt.getByText('1', { exact: true })).toBeVisible();
-	await expect(receipt.getByText('This page does not show scores or interpretation.')).toBeVisible();
+	await expect(
+		receipt.getByText('This page does not show scores or interpretation.')
+	).toBeVisible();
 	expect(calls).toEqual([
 		'/respondent/open-links/{token}',
 		'/respondent/open-links/{token}/sessions',
@@ -416,9 +418,7 @@ test('public session handle scrubs raw token URL and uses handle endpoints', asy
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
-	await expect
-		.poll(() => new URL(page.url()).pathname)
-		.toBe(`/r/${publicSessionHandle}`);
+	await expect.poll(() => new URL(page.url()).pathname).toBe(`/r/${publicSessionHandle}`);
 
 	await answerLikert(page, 4);
 	await page.getByRole('button', { name: 'Review response' }).click();
@@ -433,7 +433,9 @@ test('public session handle scrubs raw token URL and uses handle endpoints', asy
 	]);
 });
 
-test('identified entry token uses identified endpoints then public session handle', async ({ page }) => {
+test('identified entry token uses identified endpoints then public session handle', async ({
+	page
+}) => {
 	const calls: string[] = [];
 
 	await page.route('**/respondent/open-links/*', async (route) => {
@@ -493,9 +495,7 @@ test('identified entry token uses identified endpoints then public session handl
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
-	await expect
-		.poll(() => new URL(page.url()).pathname)
-		.toBe(`/r/${publicSessionHandle}`);
+	await expect.poll(() => new URL(page.url()).pathname).toBe(`/r/${publicSessionHandle}`);
 	await expect(page.getByTestId('respondent-target-context')).toContainText('Adele Vance');
 	await expect(page.getByTestId('respondent-target-context')).toContainText('Miriam Graham');
 
@@ -508,12 +508,102 @@ test('identified entry token uses identified endpoints then public session handl
 	expect(calls).toContain('/respondent/identified-entries/{token}/sessions');
 	expect(calls).toContain('/respondent/public-sessions/{handle}/answers');
 	expect(calls).toContain('/respondent/public-sessions/{handle}/submit');
-	expect(calls.filter((call) => call === '/respondent/identified-entries/{token}/sessions')).toHaveLength(1);
-	expect(calls.filter((call) => call === '/respondent/public-sessions/{handle}/answers')).toHaveLength(1);
-	expect(calls.filter((call) => call === '/respondent/public-sessions/{handle}/submit')).toHaveLength(1);
+	expect(
+		calls.filter((call) => call === '/respondent/identified-entries/{token}/sessions')
+	).toHaveLength(1);
+	expect(
+		calls.filter((call) => call === '/respondent/public-sessions/{handle}/answers')
+	).toHaveLength(1);
+	expect(
+		calls.filter((call) => call === '/respondent/public-sessions/{handle}/submit')
+	).toHaveLength(1);
 });
 
-test('public session handle route restores draft without raw token entry call', async ({ page }) => {
+test('identified queue token shows target queue and starts selected target through public session handle', async ({
+	page
+}) => {
+	const calls: string[] = [];
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({
+			status: 500,
+			json: {
+				title: 'Unexpected open-link call',
+				detail: 'Identified queue should not resolve through open-link endpoints.'
+			}
+		});
+	});
+
+	await page.route('**/respondent/public-sessions/*/answers', async (route) => {
+		calls.push('/respondent/public-sessions/{handle}/answers');
+		assertNoSetupAuthHeaders(route.request().headers());
+		expect(route.request().url()).toContain(publicSessionHandle);
+		await route.fulfill({ json: { sessionId, savedAnswerCount: 1 } });
+	});
+
+	await page.route('**/respondent/public-sessions/*/submit', async (route) => {
+		calls.push('/respondent/public-sessions/{handle}/submit');
+		assertNoSetupAuthHeaders(route.request().headers());
+		expect(route.request().url()).toContain(publicSessionHandle);
+		await route.fulfill({ json: { id: sessionId, submittedAt: '2026-05-07T12:05:00Z' } });
+	});
+
+	await page.route('**/respondent/identified-queues/*/assignments/*/sessions', async (route) => {
+		calls.push('/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions');
+		assertNoSetupAuthHeaders(route.request().headers());
+		expect(route.request().postDataJSON()).toEqual({
+			locale: 'en',
+			acceptedConsentDocumentId: consentDocumentId,
+			acceptedGrants: ['data_processing', 'research_participation']
+		});
+		expect(route.request().url()).toContain(queueAssignments[0].assignmentId);
+		await route.fulfill({ status: 201, json: sampleIdentifiedQueueSessionDraft });
+	});
+
+	await page.route('**/respondent/identified-queues/*', async (route) => {
+		if (route.request().method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+		calls.push('/respondent/identified-queues/{token}');
+		assertNoSetupAuthHeaders(route.request().headers());
+		await route.fulfill({ json: sampleIdentifiedQueue });
+	});
+
+	await page.goto(`/r/${identifiedQueueToken}`);
+
+	await expect(page.getByRole('heading', { name: 'Leadership feedback' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Response queue' })).toContainText('Miriam Graham');
+	await expect(page.getByRole('region', { name: 'Adele Vance' })).toContainText('Not started');
+	await expect(page.getByRole('region', { name: 'Alex Wilber' })).toContainText('Submitted');
+	await expect(page.getByRole('region', { name: 'Alex Wilber' }).getByRole('button')).toHaveCount(
+		0
+	);
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+
+	await page.getByRole('button', { name: 'Start Adele Vance' }).click();
+
+	await expect.poll(() => new URL(page.url()).pathname).toBe(`/r/${publicSessionHandle}`);
+	await expect(page.getByTestId('respondent-question-runner')).toBeVisible();
+	await expect(page.getByTestId('respondent-target-context')).toContainText('Adele Vance');
+	await expect(page.getByTestId('respondent-target-context')).toContainText('Miriam Graham');
+
+	await answerLikert(page, 4);
+	await page.getByRole('button', { name: 'Review response' }).click();
+	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
+	await expect(page.getByText('Response submitted')).toBeVisible();
+	expect(calls).toEqual([
+		'/respondent/identified-queues/{token}',
+		'/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions',
+		'/respondent/public-sessions/{handle}/answers',
+		'/respondent/public-sessions/{handle}/submit'
+	]);
+});
+
+test('public session handle route restores draft without raw token entry call', async ({
+	page
+}) => {
 	let rawEntryRequests = 0;
 
 	await page.route('**/respondent/open-links/*', async (route) => {
@@ -643,7 +733,9 @@ test('restores unsaved local answers after failed public-handle save and reload'
 	await page.getByLabel('Participant code').fill(participantCode);
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 5);
-	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(
+		page.getByText('Answers are not saved yet. Review will retry before submit.')
+	).toBeVisible();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	const storedValues = await page.evaluate(() => Object.values(sessionStorage).join('\n'));
 	expect(storedValues).not.toContain(openLinkToken);
@@ -662,23 +754,20 @@ test('restores unsaved local answers after failed public-handle save and reload'
 test('restores local unsaved draft when public draft read fails', async ({ page }) => {
 	let rawEntryRequests = 0;
 
-	await page.addInitScript(
-		({ key, draft }) => sessionStorage.setItem(key, JSON.stringify(draft)),
-		{
-			key: `respondent-unsaved-draft:${publicSessionHandle}`,
-			draft: {
-				version: 1,
-				publicHandle: publicSessionHandle,
-				sessionId,
-				assignmentId,
-				updatedAt: '2026-05-07T12:04:00Z',
-				entry: sampleOpenLinkEntry,
-				answers: {
-					[sampleOpenLinkEntry.questions[0].id]: '5'
-				}
+	await page.addInitScript(({ key, draft }) => sessionStorage.setItem(key, JSON.stringify(draft)), {
+		key: `respondent-unsaved-draft:${publicSessionHandle}`,
+		draft: {
+			version: 1,
+			publicHandle: publicSessionHandle,
+			sessionId,
+			assignmentId,
+			updatedAt: '2026-05-07T12:04:00Z',
+			entry: sampleOpenLinkEntry,
+			answers: {
+				[sampleOpenLinkEntry.questions[0].id]: '5'
 			}
 		}
-	);
+	});
 
 	await page.route('**/respondent/open-links/*', async (route) => {
 		rawEntryRequests += 1;
@@ -737,17 +826,19 @@ test('autosaves changed respondent answers after session creation', async ({ pag
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 4);
 
-	await expect.poll(() => savedPayloads).toEqual([
-		{
-			answers: [
-				{
-					questionId: sampleOpenLinkEntry.questions[0].id,
-					value: '4',
-					isSkipped: false
-				}
-			]
-		}
-	]);
+	await expect
+		.poll(() => savedPayloads)
+		.toEqual([
+			{
+				answers: [
+					{
+						questionId: sampleOpenLinkEntry.questions[0].id,
+						value: '4',
+						isSkipped: false
+					}
+				]
+			}
+		]);
 	await expect(page.getByText('Answers saved')).toBeVisible();
 });
 
@@ -815,15 +906,17 @@ test('invalidates reviewed answers after editing', async ({ page }) => {
 	await expect(page.getByText('Unsaved changes')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Submit reviewed response' })).toHaveCount(0);
 	await expect(page.getByText('Answers saved')).toBeVisible();
-	await expect.poll(() => savedPayloads.at(-1)).toEqual({
-		answers: [
-			{
-				questionId: sampleOpenLinkEntry.questions[0].id,
-				value: '5',
-				isSkipped: false
-			}
-		]
-	});
+	await expect
+		.poll(() => savedPayloads.at(-1))
+		.toEqual({
+			answers: [
+				{
+					questionId: sampleOpenLinkEntry.questions[0].id,
+					value: '5',
+					isSkipped: false
+				}
+			]
+		});
 
 	await page.getByRole('button', { name: 'Review response' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
@@ -865,7 +958,9 @@ test('failed autosave preserves respondent answers for manual retry', async ({ p
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 5);
 
-	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(
+		page.getByText('Answers are not saved yet. Review will retry before submit.')
+	).toBeVisible();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	await expectLikertAnswer(page, 5);
 
@@ -894,12 +989,16 @@ test('does not expose raw fetch failures after background autosave fails', async
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await answerLikert(page, 5);
 
-	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toBeVisible();
+	await expect(
+		page.getByText('Answers are not saved yet. Review will retry before submit.')
+	).toBeVisible();
 	await expect(page.getByText('Failed to fetch')).toHaveCount(0);
 	await expect(page.getByRole('alert')).toHaveCount(0);
 
 	await page.getByRole('button', { name: 'Review response' }).click();
-	await expect(page.getByRole('alert')).toContainText('Connection problem. Try again before submitting.');
+	await expect(page.getByRole('alert')).toContainText(
+		'Connection problem. Try again before submitting.'
+	);
 	await expect(page.getByText('Failed to fetch')).toHaveCount(0);
 });
 
@@ -926,9 +1025,9 @@ test('localizes failed autosave status for Croatian respondents', async ({ page 
 	await expect(
 		page.getByText('Odgovori još nisu spremljeni. Pregled će pokušati ponovno prije predaje.')
 	).toBeVisible();
-	await expect(page.getByText('Answers are not saved yet. Review will retry before submit.')).toHaveCount(
-		0
-	);
+	await expect(
+		page.getByText('Answers are not saved yet. Review will retry before submit.')
+	).toHaveCount(0);
 });
 
 test('uses open-link default locale for respondent chrome when URL has no locale override', async ({
@@ -1384,6 +1483,13 @@ const identifiedEntryToken =
 	'idn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
 const publicSessionHandle =
 	'rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+const identifiedQueueToken =
+	'idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+const queueRespondentSubjectId = '9309f1b6-919d-4143-878b-9c6452f5f98c';
+const firstQueueTargetSubjectId = 'b208eafd-3e4d-4bfd-80b7-6d386ff3273a';
+const secondQueueTargetSubjectId = 'd29efce7-ef6d-45f3-9bed-2524b252a781';
+const secondAssignmentId = 'c4eb91cb-8f8a-4d35-8732-2e76b7e0beaa';
+const submittedSessionId = 'fdb40f83-94b8-4ca3-a70e-4c47eeb76ca5';
 
 const sampleOpenLinkEntry = {
 	campaignId,
@@ -1450,6 +1556,86 @@ const sampleIdentifiedEntry = {
 		email: 'adele@example.test',
 		externalId: 'msgraph:tenant:adele'
 	}
+};
+
+const queueAssignments = [
+	{
+		assignmentId,
+		role: 'manager',
+		responseStatus: 'not_started',
+		targetSubject: {
+			id: firstQueueTargetSubjectId,
+			label: 'Adele Vance',
+			displayName: 'Adele Vance',
+			email: 'adele@example.test'
+		},
+		sessionId: null,
+		startedAt: null,
+		submittedAt: null
+	},
+	{
+		assignmentId: secondAssignmentId,
+		role: 'peer',
+		responseStatus: 'submitted',
+		targetSubject: {
+			id: secondQueueTargetSubjectId,
+			label: 'Alex Wilber',
+			displayName: 'Alex Wilber',
+			email: 'alex@example.test'
+		},
+		sessionId: submittedSessionId,
+		startedAt: '2026-05-07T11:00:00Z',
+		submittedAt: '2026-05-07T11:15:00Z'
+	}
+];
+
+const sampleIdentifiedQueue = {
+	campaignId,
+	templateVersionId,
+	name: 'Leadership feedback',
+	status: 'live',
+	responseIdentityMode: 'identified',
+	defaultLocale: 'en',
+	consentDocument: sampleOpenLinkEntry.consentDocument,
+	respondentSubject: {
+		id: queueRespondentSubjectId,
+		label: 'Miriam Graham',
+		displayName: 'Miriam Graham',
+		email: 'miriam@example.test'
+	},
+	assignments: queueAssignments,
+	assignmentCount: 2,
+	startedCount: 1,
+	submittedCount: 1,
+	questions: sampleOpenLinkEntry.questions
+};
+
+const startedQueueAssignment = {
+	...queueAssignments[0],
+	responseStatus: 'draft',
+	sessionId,
+	startedAt: '2026-05-07T12:00:00Z'
+};
+
+const sampleIdentifiedQueueSessionDraft = {
+	queue: {
+		...sampleIdentifiedQueue,
+		startedCount: 2,
+		submittedCount: 1,
+		assignments: [startedQueueAssignment, queueAssignments[1]]
+	},
+	assignment: startedQueueAssignment,
+	session: {
+		id: sessionId,
+		assignmentId,
+		locale: 'en',
+		startedAt: '2026-05-07T12:00:00Z',
+		submittedAt: null,
+		timeTakenMs: null,
+		publicHandle: publicSessionHandle
+	},
+	answers: [],
+	savedAnswerCount: 0
 };
 
 const sampleNumberValidationEntry = {
