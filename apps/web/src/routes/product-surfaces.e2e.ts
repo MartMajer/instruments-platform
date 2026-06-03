@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import type {
 	CampaignSeriesHubResponse,
 	CampaignSeriesDuplicateResponse,
@@ -3950,6 +3951,190 @@ test('operations workflow runs primary actions against the selected campaign', a
 	expect(invitationCampaignIds).toEqual([]);
 	expect(deliveryCampaignIds).toEqual([]);
 	await expect.poll(() => operationsWorkspaceRequestCount).toBeGreaterThanOrEqual(3);
+});
+
+test('operations workflow creates identified queue links for respondents', async ({ page }) => {
+	const selectedCampaignId = '36bd8b9e-4f3e-46de-a5f2-2cc2bd57f214';
+	const queueCampaignIds: string[] = [];
+	let operationsWorkspaceRequestCount = 0;
+	await page.addInitScript(() => {
+		Object.defineProperty(navigator, 'clipboard', {
+			value: {
+				writeText: async (value: string) => {
+					(window as Window & { __copiedQueueLink?: string }).__copiedQueueLink = value;
+				}
+			},
+			configurable: true
+		});
+	});
+
+	const identifiedOperationsWorkspace: CampaignSeriesOperationsWorkspaceResponse = {
+		...sampleOperationsWorkspace,
+		summary: {
+			...sampleOperationsWorkspace.summary,
+			liveCampaignCount: 1,
+			openLinkAssignmentCount: 0,
+			queuedInvitationCount: 0,
+			sentInvitationCount: 0,
+			failedInvitationCount: 0,
+			deliveryAttemptCount: 0,
+			startedResponseCount: 0,
+			draftResponseCount: 0,
+			submittedResponseCount: 0,
+			latestResponseStartedAt: null,
+			latestResponseSubmittedAt: null,
+			collectionStatus: 'collecting',
+			reportVisibilityStatus: 'waiting_for_responses',
+			collectionGuidance: 'Create respondent queue links and wait for submissions.'
+		},
+		selectedCampaign: {
+			...sampleOperationsWorkspace.selectedCampaign!,
+			id: selectedCampaignId,
+			name: 'Leadership 360 wave',
+			status: 'live',
+			responseIdentityMode: 'identified',
+			latestLaunchSnapshotId: 'identified-launch-snapshot-id',
+			latestLaunchAt: '2026-06-03T12:00:00Z',
+			launchSnapshot: {
+				...sampleOperationsWorkspace.selectedCampaign!.launchSnapshot!,
+				id: 'identified-launch-snapshot-id',
+				responseIdentityMode: 'identified',
+				launchedAt: '2026-06-03T12:00:00Z'
+			},
+			openLinkAssignmentCount: 0,
+			queuedInvitationCount: 0,
+			sentInvitationCount: 0,
+			failedInvitationCount: 0,
+			deliveryAttemptCount: 0,
+			startedResponseCount: 0,
+			draftResponseCount: 0,
+			submittedResponseCount: 0,
+			latestResponseStartedAt: null,
+			latestResponseSubmittedAt: null,
+			collectionStatus: 'collecting',
+			reportVisibilityStatus: 'waiting_for_responses',
+			collectionGuidance: 'Create respondent queue links and wait for submissions.',
+			latestDeliveryAttemptAt: null
+		},
+		campaigns: [
+			{
+				...sampleOperationsWorkspace.campaigns[0],
+				id: selectedCampaignId,
+				name: 'Leadership 360 wave',
+				responseIdentityMode: 'identified',
+				openLinkAssignmentCount: 0,
+				queuedInvitationCount: 0,
+				sentInvitationCount: 0,
+				failedInvitationCount: 0,
+				deliveryAttemptCount: 0,
+				startedResponseCount: 0,
+				draftResponseCount: 0,
+				submittedResponseCount: 0,
+				latestResponseStartedAt: null,
+				latestResponseSubmittedAt: null,
+				latestDeliveryAttemptAt: null
+			}
+		]
+	};
+
+	await page.route(`**/campaign-series/${sampleSeriesId}/operations-workspace`, async (route) => {
+		if (
+			!isProductApiPath(
+				route.request().url(),
+				`/campaign-series/${sampleSeriesId}/operations-workspace`
+			)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		operationsWorkspaceRequestCount += 1;
+		await route.fulfill({ json: identifiedOperationsWorkspace });
+	});
+	await page.route('**/campaigns/*/identified-queue-access', async (route) => {
+		queueCampaignIds.push(campaignIdFromPath(route.request().url()));
+		await route.fulfill({
+			status: 201,
+			json: {
+				campaignId: campaignIdFromPath(route.request().url()),
+				respondentCount: 2,
+				assignmentCount: 5,
+				createdAccessCount: 2,
+				existingAccessCount: 0,
+				respondents: [
+					{
+						respondentSubjectId: '1a929f69-c9dc-48b1-b55c-f72f49cf2e19',
+						respondentLabel: 'Ada Lovelace',
+						respondentEmail: 'ada.ops@example.test',
+						assignmentCount: 3,
+						invitationTokenId: 'cb26f10f-ac76-4815-8c2d-09e7d10ce901',
+						accessStatus: 'created',
+						token: 'idq_ops_ada',
+						respondentPath: '/r/idq_ops_ada'
+					},
+					{
+						respondentSubjectId: 'fa02b26c-bd46-4c9b-99fa-02483c33111c',
+						respondentLabel: 'Miriam Graham',
+						respondentEmail: 'miriam.ops@example.test',
+						assignmentCount: 2,
+						invitationTokenId: '32fba85b-00f2-44c9-bfab-0c6594c3c6f7',
+						accessStatus: 'created',
+						token: 'idq_ops_miriam',
+						respondentPath: '/r/idq_ops_miriam'
+					}
+				]
+			}
+		});
+	});
+
+	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
+
+	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
+	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
+	const queueManager = workflow.getByRole('region', {
+		name: 'Identified respondent queue links'
+	});
+	await expect(currentTask).toContainText('Share access');
+	await expect(queueManager).toBeVisible();
+	await expect(queueManager.getByText('Respondent queue links', { exact: true })).toBeVisible();
+	await expect(
+		queueManager.getByText('One queue link per respondent', { exact: true })
+	).toBeVisible();
+	await expect(workflow.getByRole('button', { name: 'Create identified access link' })).toHaveCount(
+		0
+	);
+
+	await queueManager.getByRole('button', { name: 'Create respondent queue links' }).click();
+
+	await expect(queueManager.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+	await expect(queueManager.getByText('Miriam Graham', { exact: true })).toBeVisible();
+	await expect(queueManager.getByText('3 assignments', { exact: true })).toBeVisible();
+	await expect(queueManager.getByText('2 assignments', { exact: true })).toBeVisible();
+	await expect(queueManager.getByText('/r/idq_ops_ada', { exact: true })).toBeVisible();
+	await expect(queueManager.getByText('/r/idq_ops_miriam', { exact: true })).toBeVisible();
+
+	await queueManager.getByRole('button', { name: 'Copy link for Ada Lovelace' }).click();
+	await expect
+		.poll(() =>
+			page.evaluate(() => (window as Window & { __copiedQueueLink?: string }).__copiedQueueLink)
+		)
+		.toContain('/r/idq_ops_ada');
+
+	const downloadPromise = page.waitForEvent('download');
+	await queueManager.getByRole('button', { name: 'Download queue links CSV' }).click();
+	const download = await downloadPromise;
+	const path = await download.path();
+	expect(path).not.toBeNull();
+	const csv = readFileSync(path!, 'utf8');
+	expect(csv).toContain(
+		'respondent_label,respondent_email,assignment_count,access_status,respondent_path'
+	);
+	expect(csv).toContain('Ada Lovelace,ada.ops@example.test,3,created,/r/idq_ops_ada');
+	expect(csv).toContain('Miriam Graham,miriam.ops@example.test,2,created,/r/idq_ops_miriam');
+
+	expect(queueCampaignIds).toEqual([selectedCampaignId]);
+	await expect.poll(() => operationsWorkspaceRequestCount).toBeGreaterThanOrEqual(2);
 });
 
 test('reports workspace loads the dedicated read model and renders report state', async ({

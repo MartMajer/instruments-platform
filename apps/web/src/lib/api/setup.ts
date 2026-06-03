@@ -351,6 +351,26 @@ export type CampaignIdentifiedEntryResponse = {
 	respondentPath: string;
 };
 
+export type CampaignIdentifiedQueueAccessResponse = {
+	campaignId: string;
+	respondentCount: number;
+	assignmentCount: number;
+	createdAccessCount: number;
+	existingAccessCount: number;
+	respondents: CampaignIdentifiedQueueAccessRespondentResponse[];
+};
+
+export type CampaignIdentifiedQueueAccessRespondentResponse = {
+	respondentSubjectId: string;
+	respondentLabel: string;
+	respondentEmail?: string | null;
+	assignmentCount: number;
+	invitationTokenId: string;
+	accessStatus: string;
+	token?: string | null;
+	respondentPath?: string | null;
+};
+
 export type CreateCampaignInvitationBatchRequest = {
 	recipients: InvitationRecipientRequest[];
 };
@@ -905,6 +925,12 @@ export function createSetupApi(client: ApiClient) {
 		createCampaignIdentifiedEntry(campaignId: string) {
 			return client.request<CampaignIdentifiedEntryResponse>(
 				`/campaigns/${campaignId}/identified-entry`,
+				jsonPost({})
+			);
+		},
+		createCampaignIdentifiedQueueAccess(campaignId: string) {
+			return client.request<CampaignIdentifiedQueueAccessResponse>(
+				`/campaigns/${campaignId}/identified-queue-access`,
 				jsonPost({})
 			);
 		},

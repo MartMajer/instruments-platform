@@ -1256,30 +1256,57 @@ const en = {
 				accessMethodLabel: 'Access method',
 				chooseAccessMethodTitle: 'Choose access method',
 				openLinkMode: 'Open link',
+				queueLinksMode: 'Queue links',
 				privateEmailMode: 'Private email',
 				demoMode: 'Test/demo responses',
 				existingAccessTitle: 'Existing access',
 				advancedDeliveryControls: 'Advanced delivery controls',
 				identifiedEntryLabel: 'Identified entry',
+				identifiedQueueAria: 'Identified respondent queue links',
+				identifiedQueueLabel: 'One queue link per respondent',
 				inviteOnlyLabel: 'Invite-only access',
 				openLinkLabel: 'Open respondent link',
 				identifiedEntryTitle: 'Create an identified respondent entry',
+				respondentQueueLinks: 'Respondent queue links',
 				privateInvitationsTitle: 'Private invitations are active',
 				openLinkReadyTitle: 'Open link already created',
 				createShareableLinkTitle: 'Create a shareable link',
 				openLinkDisabled: 'Open link disabled',
 				openLinkActive: 'Open link active',
 				openLinkNotCreated: 'Not created',
+				queueLinksReady: 'Queue links ready',
 				inviteOnly: 'Invite-only',
 				replaceLostLink: 'Replace lost link',
 				replaced: 'Replaced',
 				oneActiveLink: 'One active link',
 				createIdentifiedAccessLink: 'Create identified access link',
+				createIdentifiedQueueLinks: 'Create respondent queue links',
+				downloadQueueLinksCsv: 'Download queue links CSV',
 				createRespondentLink: 'Create respondent link',
 				shareLink: 'Share link',
 				respondentLinkReady: 'Respondent link ready',
 				identifiedHelp:
 					'Use this only when respondents should be connected to known subject records.',
+				identifiedQueueHelp:
+					'Each known respondent receives one private queue link. Opening it shows all target assignments that person needs to answer.',
+				queueLinksOneTimeNotice:
+					'Fresh links are shown here for export and copy after creation. Existing raw links are not re-displayed later.',
+				queueLinksExistingNotice:
+					'Some respondents already had queue access. Existing raw links stay hidden because only token hashes are stored.',
+				queueLinksNoRows: 'No respondent queue rows were returned.',
+				respondents: 'Respondents',
+				assignments: 'Assignments',
+				createdLinks: 'Created links',
+				existingLinks: 'Existing links',
+				respondentCount: (count: number, formatted: string) =>
+					`${formatted} respondent${count === 1 ? '' : 's'}`,
+				assignmentCount: (count: number, formatted: string) =>
+					`${formatted} assignment${count === 1 ? '' : 's'}`,
+				linkNotDisplayed: 'Already created; link is not displayed again',
+				copy: 'Copy',
+				copied: 'Copied',
+				copyFailed: 'Link could not be copied.',
+				copyLinkFor: (label: string) => `Copy link for ${label}`,
 				inviteOnlyHelp:
 					'This wave already has private email invitations. Open links are disabled so participation stays limited to invited recipients.',
 				openLinkReadyHelp:
@@ -1412,6 +1439,8 @@ const en = {
 						'Create a collection wave before running the pre-launch check.',
 					createWaveBeforeStart: 'Create a collection wave before starting collection.',
 					createWaveBeforeAccess: 'Create a collection wave before creating respondent access.',
+					identifiedQueueRequiresIdentified:
+						'Respondent queue links are available for identified collection waves only.',
 					privateInvitationsAlreadyActive:
 						'This wave already uses private email invitations. Open links are disabled so access stays invite-only.',
 					openLinkAlreadyActive:
@@ -3770,30 +3799,57 @@ const hr: typeof en = {
 				accessMethodLabel: 'Način pristupa',
 				chooseAccessMethodTitle: 'Odaberite način pristupa',
 				openLinkMode: 'Otvorena poveznica',
+				queueLinksMode: 'Poveznice reda',
 				privateEmailMode: 'Privatna e-pošta',
 				demoMode: 'Testni/demo odgovori',
 				existingAccessTitle: 'Postojeći pristup',
 				advancedDeliveryControls: 'Napredne kontrole slanja',
 				identifiedEntryLabel: 'Identificirani ulaz',
+				identifiedQueueAria: 'Poveznice reda za identificirane sudionike',
+				identifiedQueueLabel: 'Jedna poveznica reda po sudioniku',
 				inviteOnlyLabel: 'Pristup samo pozivnicom',
 				openLinkLabel: 'Otvorena poveznica za sudionike',
 				identifiedEntryTitle: 'Izradi identificirani ulaz za sudionika',
+				respondentQueueLinks: 'Poveznice reda za sudionike',
 				privateInvitationsTitle: 'Privatne pozivnice su aktivne',
 				openLinkReadyTitle: 'Otvorena poveznica je izrađena',
 				createShareableLinkTitle: 'Izradi poveznicu za dijeljenje',
 				openLinkDisabled: 'Otvorena poveznica isključena',
 				openLinkActive: 'Otvorena poveznica aktivna',
 				openLinkNotCreated: 'Nije izrađena',
+				queueLinksReady: 'Poveznice reda spremne',
 				inviteOnly: 'Samo pozivnice',
 				replaceLostLink: 'Zamijeni izgubljenu poveznicu',
 				replaced: 'Zamijenjeno',
 				oneActiveLink: 'Jedna aktivna poveznica',
 				createIdentifiedAccessLink: 'Izradi identificiranu pristupnu poveznicu',
+				createIdentifiedQueueLinks: 'Izradi poveznice reda za sudionike',
+				downloadQueueLinksCsv: 'Preuzmi CSV poveznica reda',
 				createRespondentLink: 'Izradi poveznicu za sudionika',
 				shareLink: 'Poveznica za dijeljenje',
 				respondentLinkReady: 'Poveznica za sudionika spremna',
 				identifiedHelp:
 					'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
+				identifiedQueueHelp:
+					'Svaki poznati sudionik dobiva jednu privatnu poveznicu reda. Otvaranjem vidi sve ciljne zadatke na koje treba odgovoriti.',
+				queueLinksOneTimeNotice:
+					'Nove poveznice prikazuju se ovdje za kopiranje i izvoz nakon izrade. Postojeće sirove poveznice ne prikazuju se ponovno kasnije.',
+				queueLinksExistingNotice:
+					'Neki sudionici već su imali pristup redu. Postojeće sirove poveznice ostaju skrivene jer se spremaju samo hash vrijednosti tokena.',
+				queueLinksNoRows: 'Nisu vraćeni redovi poveznica za sudionike.',
+				respondents: 'Sudionici',
+				assignments: 'Zadaci',
+				createdLinks: 'Izrađene poveznice',
+				existingLinks: 'Postojeće poveznice',
+				respondentCount: (count: number, formatted: string) =>
+					count === 1 ? `${formatted} sudionik` : `${formatted} sudionika`,
+				assignmentCount: (count: number, formatted: string) =>
+					count === 1 ? `${formatted} zadatak` : `${formatted} zadataka`,
+				linkNotDisplayed: 'Već izrađeno; poveznica se ne prikazuje ponovno',
+				copy: 'Kopiraj',
+				copied: 'Kopirano',
+				copyFailed: 'Poveznicu nije moguće kopirati.',
+				copyLinkFor: (label: string) => `Kopiraj poveznicu za ${label}`,
 				inviteOnlyHelp:
 					'Ovo mjerenje već ima privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi sudjelovanje ostalo ograničeno na pozvane primatelje.',
 				openLinkReadyHelp:
@@ -3926,6 +3982,8 @@ const hr: typeof en = {
 						'Izradite mjerenje prije pokretanja provjere prije pokretanja.',
 					createWaveBeforeStart: 'Izradite mjerenje prije pokretanja prikupljanja.',
 					createWaveBeforeAccess: 'Izradite mjerenje prije izrade pristupa sudionicima.',
+					identifiedQueueRequiresIdentified:
+						'Poveznice reda za sudionike dostupne su samo za identificirana mjerenja.',
 					privateInvitationsAlreadyActive:
 						'Ovo mjerenje već koristi privatne pozivnice e-poštom. Otvorene poveznice su isključene kako bi pristup ostao samo pozivnicom.',
 					openLinkAlreadyActive:

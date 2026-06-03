@@ -46,6 +46,7 @@ describe('createSetupApi', () => {
 		});
 
 		const created = await api.createCampaignIdentifiedEntry('campaign-id');
+		const queueAccess = await api.createCampaignIdentifiedQueueAccess('campaign-id');
 		const entry = await api.getIdentifiedEntry('identified-token');
 		const session = await api.createIdentifiedEntrySession('identified-token', {
 			locale: 'en',
@@ -60,10 +61,12 @@ describe('createSetupApi', () => {
 		);
 		expect(request).toHaveBeenNthCalledWith(
 			2,
-			'/respondent/identified-entries/identified-token'
+			'/campaigns/campaign-id/identified-queue-access',
+			expect.objectContaining({ method: 'POST' })
 		);
+		expect(request).toHaveBeenNthCalledWith(3, '/respondent/identified-entries/identified-token');
 		expect(request).toHaveBeenNthCalledWith(
-			3,
+			4,
 			'/respondent/identified-entries/identified-token/sessions',
 			expect.objectContaining({
 				method: 'POST',
@@ -75,6 +78,8 @@ describe('createSetupApi', () => {
 			})
 		);
 		expect(created.subjectId).toBe('subject-id');
+		expect(queueAccess.respondentCount).toBe(1);
+		expect(queueAccess.respondents[0].respondentPath).toBe('/r/idq-token');
 		expect(entry.responseIdentityMode).toBe('identified');
 		expect(session.publicHandle).toBe('public-session-handle');
 	});
@@ -601,6 +606,28 @@ function responseFor(path: string) {
 			subjectId: 'subject-id',
 			token: 'identified-token',
 			respondentPath: '/r/identified-token'
+		};
+	}
+
+	if (path === '/campaigns/campaign-id/identified-queue-access') {
+		return {
+			campaignId: 'campaign-id',
+			respondentCount: 1,
+			assignmentCount: 3,
+			createdAccessCount: 1,
+			existingAccessCount: 0,
+			respondents: [
+				{
+					respondentSubjectId: 'subject-id',
+					respondentLabel: 'Ana Analyst',
+					respondentEmail: 'ana@example.test',
+					assignmentCount: 3,
+					invitationTokenId: 'queue-token-id',
+					accessStatus: 'created',
+					token: 'idq-token',
+					respondentPath: '/r/idq-token'
+				}
+			]
 		};
 	}
 
