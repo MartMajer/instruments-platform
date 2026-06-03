@@ -364,6 +364,20 @@ describe('local staging deployment package', () => {
     }
   });
 
+  it('does not cap the sample study library below the seeded sample catalog', () => {
+    const seeder = read('src/Platform.Infrastructure/ProductSurfaces/SampleStudySeeder.cs');
+    const readStore = read('src/Platform.Infrastructure/ProductSurfaces/ProductSurfaceReadStore.cs');
+
+    const sampleSpecCount = Array.from(seeder.matchAll(/new\(\r?\n\s+"[a-z0-9-]+",/g)).length;
+
+    assert.ok(sampleSpecCount > 4, 'sample catalog should include more than four studies');
+    assert.doesNotMatch(
+      readStore,
+      /allItems\.Where\(item => item\.IsSample\)\.Take\(4\)/,
+      'workspace sample study collection must not hide newer samples such as 360 leadership feedback'
+    );
+  });
+
   it('defines source-safe validation demo auth user slots', () => {
     const usersText = read('deploy/staging/validation-demo-fixtures/validation-demo-auth-users.example.json');
     const users = JSON.parse(usersText);
@@ -557,7 +571,7 @@ describe('local staging deployment package', () => {
     assert.match(script, /\$lastFailure/);
     assert.match(script, /Set-Content -Path \$EvidencePath/);
     const scriptWithoutEvidenceWriter = script.replace(
-      /function Write-RemotePreflightEvidence \{[\s\S]*?\n}\n\nfunction Invoke-Http/,
+      /function Write-RemotePreflightEvidence \{[\s\S]*?\n}\r?\n\r?\nfunction Invoke-Http/,
       'function Invoke-Http'
     );
     assert.doesNotMatch(script, /catch\s*\{\s*\}\s*Start-Sleep/s);

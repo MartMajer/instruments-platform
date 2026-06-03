@@ -56,7 +56,7 @@ public sealed class ProductSurfaceReadStore(
             canManageTeam,
             cancellationToken);
         var studyCollections = new WorkspaceStudyCollectionsResponse(
-            allItems.Where(item => item.IsSample).Take(4).ToArray(),
+            allItems.Where(item => item.IsSample).ToArray(),
             allItems.Where(item => !item.IsSample).Take(4).ToArray());
         var response = new WorkspaceOverviewResponse(tenantId, totals, items, commandCenter, studyCollections);
 
