@@ -552,6 +552,36 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Campaign_identified_queue_invitation_batch_endpoint_queues_respondent_queue_invitations()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(campaignId: campaignId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/campaigns/{campaignId}/identified-queue-invitation-batches",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<CampaignInvitationBatchResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignId, payload.CampaignId);
+        Assert.Equal(2, payload.RequestedRecipientCount);
+        Assert.Equal(2, payload.CreatedInvitationCount);
+        Assert.All(payload.Invitations, invitation =>
+        {
+            Assert.True(string.IsNullOrEmpty(invitation.Token));
+            Assert.True(string.IsNullOrEmpty(invitation.RespondentPath));
+            Assert.Equal("queued", invitation.Status);
+        });
+        Assert.Equal(
+            ["ana@example.invalid", "bo@example.invalid"],
+            payload.Invitations.Select(invitation => invitation.Recipient).ToArray());
+    }
+
+    [Fact]
     public async Task Campaign_invitation_batch_endpoint_returns_raw_invite_paths()
     {
         var tenantId = Guid.NewGuid();
@@ -1939,6 +1969,38 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 campaignId,
                 request.Recipients.Count,
                 invitations.Length,
+                invitations)));
+        }
+
+        public Task<Result<CampaignInvitationBatchResponse>> CreateCampaignIdentifiedQueueInvitationBatchAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            var invitations = new[]
+            {
+                new CampaignInvitationResponse(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "ana@example.invalid",
+                    Token: null,
+                    RespondentPath: null,
+                    "queued"),
+                new CampaignInvitationResponse(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    "bo@example.invalid",
+                    Token: null,
+                    RespondentPath: null,
+                    "queued")
+            };
+
+            return Task.FromResult(Result.Success(new CampaignInvitationBatchResponse(
+                campaignId,
+                RequestedRecipientCount: invitations.Length,
+                CreatedInvitationCount: invitations.Length,
                 invitations)));
         }
 

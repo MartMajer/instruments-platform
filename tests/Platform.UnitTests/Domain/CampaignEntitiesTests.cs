@@ -499,6 +499,43 @@ public sealed class CampaignEntitiesTests
     }
 
     [Fact]
+    public void Identified_queue_invitation_token_can_attach_recipient_and_reissue_email_hash()
+    {
+        var token = new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "old-token-hash",
+            InvitationTokenChannels.IdentifiedQueue,
+            respondentSubjectId: Guid.NewGuid());
+
+        token.SetIdentifiedQueueRecipient("  ANA@Example.Test  ");
+        token.MarkUsed(DateTimeOffset.Parse("2026-06-04T12:00:00+00:00"));
+        token.ReissueIdentifiedQueueEmailHash("new-token-hash", "BO@Example.Test");
+
+        Assert.Equal("new-token-hash", token.TokenHash);
+        Assert.Equal("bo@example.test", token.Recipient);
+        Assert.Null(token.UsedAt);
+    }
+
+    [Fact]
+    public void Non_queue_invitation_token_rejects_identified_queue_email_mutation()
+    {
+        var token = new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            InvitationTokenChannels.Email,
+            recipient: "researcher@example.test");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            token.SetIdentifiedQueueRecipient("researcher@example.test"));
+        Assert.Throws<InvalidOperationException>(() =>
+            token.ReissueIdentifiedQueueEmailHash("new-hash", "researcher@example.test"));
+    }
+
+    [Fact]
     public void Identified_queue_invitation_token_rejects_assignment_id()
     {
         Assert.Throws<ArgumentException>(() => new InvitationToken(

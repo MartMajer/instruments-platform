@@ -1275,12 +1275,15 @@ const en = {
 				openLinkActive: 'Open link active',
 				openLinkNotCreated: 'Not created',
 				queueLinksReady: 'Queue links ready',
+				queueEmailInvitationsReady: 'Email invitations queued',
 				inviteOnly: 'Invite-only',
 				replaceLostLink: 'Replace lost link',
 				replaced: 'Replaced',
 				oneActiveLink: 'One active link',
 				createIdentifiedAccessLink: 'Create identified access link',
+				queueIdentifiedEmailInvitations: 'Queue email invitations',
 				createIdentifiedQueueLinks: 'Create respondent queue links',
+				manualQueueLinkFallback: 'Manual queue-link fallback',
 				downloadQueueLinksCsv: 'Download queue links CSV',
 				createRespondentLink: 'Create respondent link',
 				shareLink: 'Share link',
@@ -1289,6 +1292,12 @@ const en = {
 					'Use this only when respondents should be connected to known subject records.',
 				identifiedQueueHelp:
 					'Each known respondent receives one private queue link. Opening it shows all target assignments that person needs to answer.',
+				identifiedQueueEmailHelp:
+					'Normal path: queue private email invitations for each respondent, then use delivery controls to send the queued batch.',
+				identifiedQueueEmailQueued: (count: number, formatted: string) =>
+					`${formatted} queue invitation${count === 1 ? '' : 's'} queued for email delivery.`,
+				manualQueueLinkFallbackHelp:
+					'Use manual links only if email setup or delivery fails, or when a customer asks for a secure hand-delivered link list.',
 				queueLinksOneTimeNotice:
 					'Fresh links are shown here for export and copy after creation. Existing raw links are not re-displayed later.',
 				queueLinksExistingNotice:
@@ -3818,12 +3827,15 @@ const hr: typeof en = {
 				openLinkActive: 'Otvorena poveznica aktivna',
 				openLinkNotCreated: 'Nije izrađena',
 				queueLinksReady: 'Poveznice reda spremne',
+				queueEmailInvitationsReady: 'Pozivnice e-poštom su u redu čekanja',
 				inviteOnly: 'Samo pozivnice',
 				replaceLostLink: 'Zamijeni izgubljenu poveznicu',
 				replaced: 'Zamijenjeno',
 				oneActiveLink: 'Jedna aktivna poveznica',
 				createIdentifiedAccessLink: 'Izradi identificiranu pristupnu poveznicu',
+				queueIdentifiedEmailInvitations: 'Stavi pozivnice u red',
 				createIdentifiedQueueLinks: 'Izradi poveznice reda za sudionike',
+				manualQueueLinkFallback: 'Ručna rezerva poveznica reda',
 				downloadQueueLinksCsv: 'Preuzmi CSV poveznica reda',
 				createRespondentLink: 'Izradi poveznicu za sudionika',
 				shareLink: 'Poveznica za dijeljenje',
@@ -3832,6 +3844,14 @@ const hr: typeof en = {
 					'Koristite samo kada odgovori trebaju biti povezani s poznatim zapisima osoba.',
 				identifiedQueueHelp:
 					'Svaki poznati sudionik dobiva jednu privatnu poveznicu reda. Otvaranjem vidi sve ciljne zadatke na koje treba odgovoriti.',
+				identifiedQueueEmailHelp:
+					'Uobičajeni put: stavite privatne pozivnice e-poštom u red za svakog sudionika, zatim ih pošaljite kroz kontrole dostave.',
+				identifiedQueueEmailQueued: (count: number, formatted: string) =>
+					count === 1
+						? `${formatted} pozivnica reda čeka slanje e-poštom.`
+						: `${formatted} pozivnica reda čeka slanje e-poštom.`,
+				manualQueueLinkFallbackHelp:
+					'Ručne poveznice koristite samo ako postavljanje ili dostava e-pošte ne uspije, ili kada korisnik traži sigurno ručno predan popis poveznica.',
 				queueLinksOneTimeNotice:
 					'Nove poveznice prikazuju se ovdje za kopiranje i izvoz nakon izrade. Postojeće sirove poveznice ne prikazuju se ponovno kasnije.',
 				queueLinksExistingNotice:

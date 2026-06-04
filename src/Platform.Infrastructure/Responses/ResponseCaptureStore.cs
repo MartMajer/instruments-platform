@@ -618,7 +618,8 @@ public sealed class ResponseCaptureStore(
                 entity =>
                     entity.TenantId == parsed.Value.TenantId &&
                     entity.TokenHash == tokenHash &&
-                    entity.Channel == InvitationTokenChannels.Email &&
+                    (entity.Channel == InvitationTokenChannels.Email ||
+                        entity.Channel == InvitationTokenChannels.IdentifiedQueue) &&
                     entity.Recipient != null,
                 cancellationToken);
 

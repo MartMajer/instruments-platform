@@ -5,6 +5,7 @@
 		CircleStop,
 		Copy,
 		Download,
+		Link,
 		LoaderCircle,
 		Plus,
 		RefreshCw,
@@ -184,6 +185,9 @@
 	);
 	const respondentEntry = $derived(identifiedEntryResult ?? openLinkResult);
 	const identifiedQueueRespondents = $derived(identifiedQueueAccessResult?.respondents ?? []);
+	const identifiedQueueInvitationBatchResult = $derived(
+		selectedCampaignIsIdentified ? invitationBatchResult : null
+	);
 	const preparedInvitationCount = $derived(
 		(selectedCampaign?.queuedInvitationCount ?? 0) +
 			(selectedCampaign?.sentInvitationCount ?? 0) +
@@ -234,7 +238,10 @@
 		selectedCampaignSupportsEmailInvites && locallyPreparedInvitationCount > 0
 	);
 	const respondentAccessPrepared = $derived(
-		openLinkAccessActive || emailInviteAccessActive || Boolean(identifiedQueueAccessResult)
+		openLinkAccessActive ||
+			emailInviteAccessActive ||
+			Boolean(identifiedQueueAccessResult) ||
+			Boolean(identifiedQueueInvitationBatchResult)
 	);
 	const recipientImportReview = $derived(reviewRecipientImport(recipientImportText));
 	const canCreateEmailInvitations = $derived(
@@ -427,6 +434,36 @@
 			identifiedEntryResult = null;
 			openLinkResult = null;
 			copiedQueueRespondentId = null;
+		}
+	}
+
+	async function createIdentifiedQueueEmailInvitations() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				openLink: operationsBodyCopy.component.errors.createWaveBeforeInvitations
+			};
+			return;
+		}
+
+		if (!selectedCampaignIsIdentified) {
+			actionErrors = {
+				...actionErrors,
+				openLink: operationsBodyCopy.component.errors.identifiedQueueRequiresIdentified
+			};
+			return;
+		}
+
+		const result = await runAction('openLink', () =>
+			setupApi.createCampaignIdentifiedQueueInvitationBatch(selectedCampaign.id)
+		);
+
+		if (result) {
+			activeActionId = 'openLink';
+			invitationBatchResult = result;
+			deliveryResult = null;
+			localQueuedInvitationOverride =
+				(localQueuedInvitationOverride ?? queuedInvitationCount) + result.createdInvitationCount;
 		}
 	}
 
@@ -1516,13 +1553,15 @@
 									{operationsBodyCopy.shareAccess.existingAccessTitle}
 								</dt>
 								<dd class="record-field__value">
-									{selectedCampaignIsIdentified && identifiedQueueAccessResult
-										? operationsBodyCopy.shareAccess.queueLinksReady
-										: openLinkAccessActive
-											? operationsBodyCopy.shareAccess.openLinkActive
-											: emailInviteAccessActive
-												? operationsBodyCopy.shareAccess.inviteOnly
-												: operationsBodyCopy.shareAccess.openLinkNotCreated}
+									{selectedCampaignIsIdentified && identifiedQueueInvitationBatchResult
+										? operationsBodyCopy.shareAccess.queueEmailInvitationsReady
+										: selectedCampaignIsIdentified && identifiedQueueAccessResult
+											? operationsBodyCopy.shareAccess.queueLinksReady
+											: openLinkAccessActive
+												? operationsBodyCopy.shareAccess.openLinkActive
+												: emailInviteAccessActive
+													? operationsBodyCopy.shareAccess.inviteOnly
+													: operationsBodyCopy.shareAccess.openLinkNotCreated}
 								</dd>
 							</div>
 							<div class="record-field">
@@ -2280,120 +2319,35 @@
 										</h5>
 									</div>
 									<StatusBadge
-										status={identifiedQueueAccessResult ? 'ready' : 'neutral'}
-										label={identifiedQueueAccessResult
-											? operationsBodyCopy.shareAccess.queueLinksReady
-											: operationsBodyCopy.shareAccess.openLinkNotCreated}
+										status={identifiedQueueInvitationBatchResult || identifiedQueueAccessResult
+											? 'ready'
+											: 'neutral'}
+										label={identifiedQueueInvitationBatchResult
+											? operationsBodyCopy.shareAccess.queueEmailInvitationsReady
+											: identifiedQueueAccessResult
+												? operationsBodyCopy.shareAccess.queueLinksReady
+												: operationsBodyCopy.shareAccess.openLinkNotCreated}
 									/>
 								</div>
 								<p class="text-sm text-[var(--color-text-muted)]">
 									{operationsBodyCopy.shareAccess.identifiedQueueHelp}
 								</p>
 								<p class="text-sm text-[var(--color-text-muted)]">
-									{operationsBodyCopy.shareAccess.queueLinksOneTimeNotice}
+									{operationsBodyCopy.shareAccess.identifiedQueueEmailHelp}
 								</p>
 
-								{#if identifiedQueueAccessResult}
-									<dl class="record-grid">
-										<div class="record-field">
-											<dt class="record-field__label">
-												{operationsBodyCopy.shareAccess.respondents}
-											</dt>
-											<dd class="record-field__value">
-												{operationsBodyCopy.shareAccess.respondentCount(
-													identifiedQueueAccessResult.respondentCount,
-													formatCount(identifiedQueueAccessResult.respondentCount)
-												)}
-											</dd>
-										</div>
-										<div class="record-field">
-											<dt class="record-field__label">
-												{operationsBodyCopy.shareAccess.assignments}
-											</dt>
-											<dd class="record-field__value">
-												{operationsBodyCopy.shareAccess.assignmentCount(
-													identifiedQueueAccessResult.assignmentCount,
-													formatCount(identifiedQueueAccessResult.assignmentCount)
-												)}
-											</dd>
-										</div>
-										<div class="record-field">
-											<dt class="record-field__label">
-												{operationsBodyCopy.shareAccess.createdLinks}
-											</dt>
-											<dd class="record-field__value">
-												{formatCount(identifiedQueueAccessResult.createdAccessCount)}
-											</dd>
-										</div>
-										<div class="record-field">
-											<dt class="record-field__label">
-												{operationsBodyCopy.shareAccess.existingLinks}
-											</dt>
-											<dd class="record-field__value">
-												{formatCount(identifiedQueueAccessResult.existingAccessCount)}
-											</dd>
-										</div>
-									</dl>
-
-									{#if identifiedQueueAccessResult.existingAccessCount > 0}
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{operationsBodyCopy.shareAccess.queueLinksExistingNotice}
+								{#if identifiedQueueInvitationBatchResult}
+									<div class="record-field">
+										<p class="record-field__label">
+											{operationsBodyCopy.shareAccess.queueEmailInvitationsReady}
 										</p>
-									{/if}
-
-									{#if identifiedQueueRespondents.length > 0}
-										<div class="grid gap-2" role="list">
-											{#each identifiedQueueRespondents as respondent (respondent.respondentSubjectId)}
-												<div class="record-field" role="listitem">
-													<div class="flex flex-wrap items-start justify-between gap-3">
-														<div class="min-w-0">
-															<p class="record-field__value">{respondent.respondentLabel}</p>
-															<p class="text-sm text-[var(--color-text-muted)]">
-																{respondent.respondentEmail ??
-																	operationsBodyCopy.component.noEmailFound}
-															</p>
-														</div>
-														<div class="flex flex-wrap items-center gap-2">
-															<span class="step-pill" data-state="succeeded">
-																{formatAssignmentCount(respondent.assignmentCount)}
-															</span>
-															<span
-																class="step-pill"
-																data-state={respondent.respondentPath ? 'succeeded' : 'idle'}
-															>
-																{humanize(respondent.accessStatus)}
-															</span>
-														</div>
-													</div>
-													<div class="mt-2 flex flex-wrap items-center gap-2">
-														<code>{queueRespondentPath(respondent)}</code>
-														{#if respondent.respondentPath}
-															<button
-																type="button"
-																class="secondary-button"
-																disabled={actionStates.openLink === 'submitting'}
-																aria-label={operationsBodyCopy.shareAccess.copyLinkFor(
-																	respondent.respondentLabel
-																)}
-																onclick={() => copyIdentifiedQueueLink(respondent)}
-															>
-																<Copy size={16} aria-hidden="true" />
-																<span>
-																	{copiedQueueRespondentId === respondent.respondentSubjectId
-																		? operationsBodyCopy.shareAccess.copied
-																		: operationsBodyCopy.shareAccess.copy}
-																</span>
-															</button>
-														{/if}
-													</div>
-												</div>
-											{/each}
-										</div>
-									{:else}
-										<p class="text-sm text-[var(--color-text-muted)]">
-											{operationsBodyCopy.shareAccess.queueLinksNoRows}
+										<p class="record-field__value">
+											{operationsBodyCopy.shareAccess.identifiedQueueEmailQueued(
+												identifiedQueueInvitationBatchResult.createdInvitationCount,
+												formatCount(identifiedQueueInvitationBatchResult.createdInvitationCount)
+											)}
 										</p>
-									{/if}
+									</div>
 								{/if}
 
 								<div class="action-row">
@@ -2402,29 +2356,163 @@
 										class="primary-button"
 										disabled={isActionDisabled('openLink')}
 										title={workflowAction('openLink').disabledReason ?? undefined}
-										onclick={createIdentifiedQueueAccess}
+										onclick={createIdentifiedQueueEmailInvitations}
 									>
 										{#if actionStates.openLink === 'submitting'}
 											<LoaderCircle size={17} aria-hidden="true" />
 										{:else}
 											<Send size={17} aria-hidden="true" />
 										{/if}
-										<span>{operationsBodyCopy.shareAccess.createIdentifiedQueueLinks}</span>
-									</button>
-									<button
-										type="button"
-										class="secondary-button"
-										disabled={!identifiedQueueAccessResult ||
-											actionStates.openLink === 'submitting'}
-										onclick={downloadIdentifiedQueueCsv}
-									>
-										<Download size={17} aria-hidden="true" />
-										<span>{operationsBodyCopy.shareAccess.downloadQueueLinksCsv}</span>
+										<span>{operationsBodyCopy.shareAccess.queueIdentifiedEmailInvitations}</span>
 									</button>
 									<p class="step-pill" data-state={actionStates.openLink}>
 										{stepLabel(actionStates.openLink)}
 									</p>
 								</div>
+
+								<details class="manual-fallback-panel">
+									<summary class="manual-fallback-panel__summary">
+										{operationsBodyCopy.shareAccess.manualQueueLinkFallback}
+									</summary>
+									<div class="mt-3 grid gap-3">
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{operationsBodyCopy.shareAccess.manualQueueLinkFallbackHelp}
+										</p>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{operationsBodyCopy.shareAccess.queueLinksOneTimeNotice}
+										</p>
+
+										{#if identifiedQueueAccessResult}
+											<dl class="record-grid">
+												<div class="record-field">
+													<dt class="record-field__label">
+														{operationsBodyCopy.shareAccess.respondents}
+													</dt>
+													<dd class="record-field__value">
+														{operationsBodyCopy.shareAccess.respondentCount(
+															identifiedQueueAccessResult.respondentCount,
+															formatCount(identifiedQueueAccessResult.respondentCount)
+														)}
+													</dd>
+												</div>
+												<div class="record-field">
+													<dt class="record-field__label">
+														{operationsBodyCopy.shareAccess.assignments}
+													</dt>
+													<dd class="record-field__value">
+														{operationsBodyCopy.shareAccess.assignmentCount(
+															identifiedQueueAccessResult.assignmentCount,
+															formatCount(identifiedQueueAccessResult.assignmentCount)
+														)}
+													</dd>
+												</div>
+												<div class="record-field">
+													<dt class="record-field__label">
+														{operationsBodyCopy.shareAccess.createdLinks}
+													</dt>
+													<dd class="record-field__value">
+														{formatCount(identifiedQueueAccessResult.createdAccessCount)}
+													</dd>
+												</div>
+												<div class="record-field">
+													<dt class="record-field__label">
+														{operationsBodyCopy.shareAccess.existingLinks}
+													</dt>
+													<dd class="record-field__value">
+														{formatCount(identifiedQueueAccessResult.existingAccessCount)}
+													</dd>
+												</div>
+											</dl>
+
+											{#if identifiedQueueAccessResult.existingAccessCount > 0}
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{operationsBodyCopy.shareAccess.queueLinksExistingNotice}
+												</p>
+											{/if}
+
+											{#if identifiedQueueRespondents.length > 0}
+												<div class="grid gap-2" role="list">
+													{#each identifiedQueueRespondents as respondent (respondent.respondentSubjectId)}
+														<div class="record-field" role="listitem">
+															<div class="flex flex-wrap items-start justify-between gap-3">
+																<div class="min-w-0">
+																	<p class="record-field__value">{respondent.respondentLabel}</p>
+																	<p class="text-sm text-[var(--color-text-muted)]">
+																		{respondent.respondentEmail ??
+																			operationsBodyCopy.component.noEmailFound}
+																	</p>
+																</div>
+																<div class="flex flex-wrap items-center gap-2">
+																	<span class="step-pill" data-state="succeeded">
+																		{formatAssignmentCount(respondent.assignmentCount)}
+																	</span>
+																	<span
+																		class="step-pill"
+																		data-state={respondent.respondentPath ? 'succeeded' : 'idle'}
+																	>
+																		{humanize(respondent.accessStatus)}
+																	</span>
+																</div>
+															</div>
+															<div class="mt-2 flex flex-wrap items-center gap-2">
+																<code>{queueRespondentPath(respondent)}</code>
+																{#if respondent.respondentPath}
+																	<button
+																		type="button"
+																		class="secondary-button"
+																		disabled={actionStates.openLink === 'submitting'}
+																		aria-label={operationsBodyCopy.shareAccess.copyLinkFor(
+																			respondent.respondentLabel
+																		)}
+																		onclick={() => copyIdentifiedQueueLink(respondent)}
+																	>
+																		<Copy size={16} aria-hidden="true" />
+																		<span>
+																			{copiedQueueRespondentId === respondent.respondentSubjectId
+																				? operationsBodyCopy.shareAccess.copied
+																				: operationsBodyCopy.shareAccess.copy}
+																		</span>
+																	</button>
+																{/if}
+															</div>
+														</div>
+													{/each}
+												</div>
+											{:else}
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{operationsBodyCopy.shareAccess.queueLinksNoRows}
+												</p>
+											{/if}
+										{/if}
+
+										<div class="action-row">
+											<button
+												type="button"
+												class="secondary-button"
+												disabled={isActionDisabled('openLink')}
+												title={workflowAction('openLink').disabledReason ?? undefined}
+												onclick={createIdentifiedQueueAccess}
+											>
+												{#if actionStates.openLink === 'submitting'}
+													<LoaderCircle size={17} aria-hidden="true" />
+												{:else}
+													<Link size={17} aria-hidden="true" />
+												{/if}
+												<span>{operationsBodyCopy.shareAccess.createIdentifiedQueueLinks}</span>
+											</button>
+											<button
+												type="button"
+												class="secondary-button"
+												disabled={!identifiedQueueAccessResult ||
+													actionStates.openLink === 'submitting'}
+												onclick={downloadIdentifiedQueueCsv}
+											>
+												<Download size={17} aria-hidden="true" />
+												<span>{operationsBodyCopy.shareAccess.downloadQueueLinksCsv}</span>
+											</button>
+										</div>
+									</div>
+								</details>
 								{#if actionErrors.openLink}
 									<p class="error-line">{actionErrors.openLink}</p>
 								{/if}

@@ -84,6 +84,26 @@ public sealed class InvitationToken
         UsedAt = null;
     }
 
+    public void SetIdentifiedQueueRecipient(string recipient)
+    {
+        EnsureIdentifiedQueue();
+
+        Recipient = NormalizeRecipient(recipient, nameof(recipient));
+    }
+
+    public void ReissueIdentifiedQueueEmailHash(
+        string tokenHash,
+        string recipient,
+        DateTimeOffset? expiresAt = null)
+    {
+        EnsureIdentifiedQueue();
+
+        TokenHash = NormalizeRequired(tokenHash, nameof(tokenHash));
+        Recipient = NormalizeRecipient(recipient, nameof(recipient));
+        ExpiresAt = expiresAt;
+        UsedAt = null;
+    }
+
     public void MarkUsed(DateTimeOffset usedAt)
     {
         if (UsedAt.HasValue)
@@ -104,11 +124,31 @@ public sealed class InvitationToken
         UsedAt ??= scrubbedAt;
     }
 
+    private void EnsureIdentifiedQueue()
+    {
+        if (Channel != InvitationTokenChannels.IdentifiedQueue)
+        {
+            throw new InvalidOperationException(
+                "Only identified queue invitation tokens can carry identified queue email recipients.");
+        }
+    }
+
     private static string NormalizeRequired(string value, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
 
         return value.Trim();
+    }
+
+    private static string NormalizeRecipient(string value, string parameterName)
+    {
+        var normalized = NormalizeRequired(value, parameterName).ToLowerInvariant();
+        if (!normalized.Contains('@', StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Recipient must be an email address.", parameterName);
+        }
+
+        return normalized;
     }
 
     private static string? NormalizeOptional(string? value)

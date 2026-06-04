@@ -1339,6 +1339,232 @@ public sealed class SetupWorkflowStore(
             responses));
     }
 
+    public async Task<Result<CampaignInvitationBatchResponse>> CreateCampaignIdentifiedQueueInvitationBatchAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
+
+        if (campaign is null)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.NotFound("campaign.not_found", "Campaign was not found."));
+        }
+
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
+
+        if (campaign.Status != CampaignStatuses.Live || snapshot is null)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Validation(
+                    "campaign.not_launched",
+                    "Campaign must be launched before sending identified queue invitations."));
+        }
+
+        if (snapshot.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Validation(
+                    "identified_queue_invitation.identity_mode_not_supported",
+                    "Identified queue invitations support identified campaigns only."));
+        }
+
+        var assignmentRows = await db.Assignments
+            .AsNoTracking()
+            .Where(assignment =>
+                assignment.TenantId == tenantId &&
+                assignment.CampaignId == campaign.Id &&
+                !assignment.Anonymous &&
+                assignment.RespondentSubjectId != null &&
+                assignment.AnonymizedAt == null)
+            .Select(assignment => new IdentifiedQueueInvitationAssignment(
+                assignment.Id,
+                assignment.RespondentSubjectId!.Value))
+            .OrderBy(assignment => assignment.RespondentSubjectId)
+            .ThenBy(assignment => assignment.AssignmentId)
+            .ToListAsync(cancellationToken);
+
+        if (assignmentRows.Count == 0)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Validation(
+                    "identified_queue_invitation.assignment_required",
+                    "Save and launch identified assignments before sending queue invitations."));
+        }
+
+        var assignmentGroups = assignmentRows
+            .GroupBy(assignment => assignment.RespondentSubjectId)
+            .Select(group => new IdentifiedQueueInvitationGroup(
+                group.Key,
+                group.Count(),
+                group.Select(assignment => assignment.AssignmentId).Order().First()))
+            .OrderBy(group => group.RespondentSubjectId)
+            .ToList();
+        var respondentSubjectIds = assignmentGroups
+            .Select(group => group.RespondentSubjectId)
+            .ToArray();
+        var subjects = await db.Subjects
+            .AsNoTracking()
+            .Where(subject =>
+                subject.TenantId == tenantId &&
+                respondentSubjectIds.Contains(subject.Id) &&
+                subject.DeletedAt == null)
+            .ToDictionaryAsync(subject => subject.Id, cancellationToken);
+
+        if (subjects.Count != respondentSubjectIds.Length)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "identified_queue_invitation.respondent_missing",
+                    "Every identified queue respondent must exist in the tenant directory."));
+        }
+
+        var candidates = new List<IdentifiedQueueInvitationCandidate>(assignmentGroups.Count);
+        foreach (var group in assignmentGroups)
+        {
+            var subject = subjects[group.RespondentSubjectId];
+            if (!TryNormalizeEmail(subject.Email, out var recipient))
+            {
+                return Result.Failure<CampaignInvitationBatchResponse>(
+                    Error.Validation(
+                        "identified_queue_invitation.email_required",
+                        "Every identified queue respondent needs an email address before email invitations can be sent."));
+            }
+
+            candidates.Add(new IdentifiedQueueInvitationCandidate(
+                group.RespondentSubjectId,
+                group.RepresentativeAssignmentId,
+                group.AssignmentCount,
+                recipient,
+                EmailTemplateLocales.Normalize(subject.Locale)));
+        }
+
+        var candidateRecipients = candidates
+            .Select(candidate => candidate.Recipient)
+            .ToArray();
+        var suppressedRecipients = await LoadSuppressedEmailRecipientsAsync(
+            tenantId,
+            candidateRecipients,
+            cancellationToken);
+        if (suppressedRecipients.Count > 0)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "identified_queue_invitation.recipient_suppressed",
+                    $"{FormatCountLabel(suppressedRecipients.Count, "recipient")} suppressed and cannot be invited: {FormatRecipientListForError(suppressedRecipients)}."));
+        }
+
+        var duplicateRecipients = await db.Notifications
+            .AsNoTracking()
+            .Where(notification =>
+                notification.TenantId == tenantId &&
+                notification.CampaignId == campaignId &&
+                notification.Channel == NotificationChannels.Email &&
+                notification.TemplateCode == Notification.InvitationTemplateCode &&
+                (notification.Status == NotificationStatuses.Queued ||
+                    notification.Status == NotificationStatuses.Sent ||
+                    notification.Status == NotificationStatuses.Failed) &&
+                candidateRecipients.Contains(notification.Recipient))
+            .Select(notification => notification.Recipient)
+            .Distinct()
+            .OrderBy(recipient => recipient)
+            .ToListAsync(cancellationToken);
+
+        if (duplicateRecipients.Count > 0)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "identified_queue_invitation.recipient_already_exists",
+                    $"{FormatCountLabel(duplicateRecipients.Count, "recipient")} already have identified queue invitations: {FormatRecipientListForError(duplicateRecipients)}. Use invitation status or retry failed delivery instead of creating another queue email."));
+        }
+
+        var existingTokens = await db.InvitationTokens
+            .Where(token =>
+                token.TenantId == tenantId &&
+                token.CampaignId == campaign.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                token.RespondentSubjectId != null &&
+                respondentSubjectIds.Contains(token.RespondentSubjectId.Value))
+            .ToListAsync(cancellationToken);
+        var duplicateAccess = existingTokens
+            .GroupBy(token => token.RespondentSubjectId!.Value)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateAccess is not null)
+        {
+            return Result.Failure<CampaignInvitationBatchResponse>(
+                Error.Conflict(
+                    "identified_queue_invitation.duplicate_access",
+                    "A respondent has more than one queue access token. Clean up duplicate credentials or contact support."));
+        }
+
+        var existingByRespondent = existingTokens.ToDictionary(token => token.RespondentSubjectId!.Value);
+        var invitations = new List<CampaignInvitationResponse>(candidates.Count);
+        foreach (var candidate in candidates.OrderBy(candidate => candidate.Recipient, StringComparer.Ordinal))
+        {
+            if (!existingByRespondent.TryGetValue(candidate.RespondentSubjectId, out var invitationToken))
+            {
+                var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+                invitationToken = new InvitationToken(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    campaign.Id,
+                    issued.TokenHash,
+                    InvitationTokenChannels.IdentifiedQueue,
+                    candidate.Recipient,
+                    respondentSubjectId: candidate.RespondentSubjectId);
+                db.InvitationTokens.Add(invitationToken);
+            }
+            else
+            {
+                invitationToken.SetIdentifiedQueueRecipient(candidate.Recipient);
+            }
+
+            var notification = Notification.QueueEmailInvitation(
+                PlatformIds.NewId(),
+                tenantId,
+                campaign.Id,
+                candidate.RepresentativeAssignmentId,
+                candidate.Recipient,
+                locale: candidate.Locale);
+            db.Notifications.Add(notification);
+            outboxEventBuffer?.Enqueue(CreateInvitationEmailQueuedMessage(
+                notification,
+                invitationToken,
+                candidate.RepresentativeAssignmentId));
+
+            invitations.Add(new CampaignInvitationResponse(
+                candidate.RepresentativeAssignmentId,
+                invitationToken.Id,
+                notification.Id,
+                candidate.Recipient,
+                Token: null,
+                RespondentPath: null,
+                notification.Status));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignInvitationBatchResponse(
+            campaign.Id,
+            candidates.Count,
+            invitations.Count,
+            invitations));
+    }
+
     public async Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
         Guid tenantId,
         Guid campaignId,
@@ -1872,6 +2098,14 @@ public sealed class SetupWorkflowStore(
         InvitationToken invitationToken,
         Assignment assignment)
     {
+        return CreateInvitationEmailQueuedMessage(notification, invitationToken, assignment.Id);
+    }
+
+    private static OutboxMessage CreateInvitationEmailQueuedMessage(
+        Notification notification,
+        InvitationToken invitationToken,
+        Guid assignmentId)
+    {
         return new OutboxMessage(
             notification.Id,
             NotificationAggregateType,
@@ -1881,7 +2115,7 @@ public sealed class SetupWorkflowStore(
                 ["schema_version"] = 1,
                 ["notification_id"] = notification.Id,
                 ["campaign_id"] = notification.CampaignId,
-                ["assignment_id"] = assignment.Id,
+                ["assignment_id"] = assignmentId,
                 ["invitation_token_id"] = invitationToken.Id,
                 ["channel"] = notification.Channel,
                 ["template_code"] = notification.TemplateCode
@@ -2686,6 +2920,22 @@ public sealed class SetupWorkflowStore(
         DisclosurePolicy? DisclosurePolicy);
 
     private sealed record IdentifiedQueueAssignmentGroup(Guid RespondentSubjectId, int AssignmentCount);
+
+    private sealed record IdentifiedQueueInvitationAssignment(
+        Guid AssignmentId,
+        Guid RespondentSubjectId);
+
+    private sealed record IdentifiedQueueInvitationGroup(
+        Guid RespondentSubjectId,
+        int AssignmentCount,
+        Guid RepresentativeAssignmentId);
+
+    private sealed record IdentifiedQueueInvitationCandidate(
+        Guid RespondentSubjectId,
+        Guid RepresentativeAssignmentId,
+        int AssignmentCount,
+        string Recipient,
+        string Locale);
 
     private sealed record AssignmentPairKey(Guid? TargetSubjectId, Guid RespondentSubjectId);
 }

@@ -934,6 +934,12 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost({})
 			);
 		},
+		createCampaignIdentifiedQueueInvitationBatch(campaignId: string) {
+			return client.request<CampaignInvitationBatchResponse>(
+				`/campaigns/${campaignId}/identified-queue-invitation-batches`,
+				jsonPost({})
+			);
+		},
 		createCampaignInvitationBatch(
 			campaignId: string,
 			request: CreateCampaignInvitationBatchRequest

@@ -905,8 +905,8 @@ public sealed class NotificationDeliveryStore(
                 continue;
             }
 
-            var issued = OpenLinkTokens.IssueInvitation(tenantId);
-            var respondentPath = $"/r/{issued.RawToken}";
+            var deliveryLink = IssueInvitationDeliveryLink(tenantId, assignment);
+            var respondentPath = deliveryLink.RespondentPath;
             var respondentUrl = BuildPublicAppUrl(respondentPath);
             var unsubscribeUrl = BuildPublicAppUrl($"{respondentPath}/unsubscribe");
             var renderedEmail = RenderDeliveryEmailMessage(
@@ -942,14 +942,12 @@ public sealed class NotificationDeliveryStore(
                 continue;
             }
 
-            db.InvitationTokens.Add(new InvitationToken(
-                PlatformIds.NewId(),
+            await PersistInvitationDeliveryTokenAsync(
                 tenantId,
-                notification.CampaignId,
-                issued.TokenHash,
-                InvitationTokenChannels.Email,
-                notification.Recipient,
-                assignmentId: assignment.Id));
+                notification,
+                assignment,
+                deliveryLink,
+                cancellationToken);
 
             var attemptId = PlatformIds.NewId();
             var providerDeliveryKey = GenerateProviderDeliveryKey();
@@ -1205,14 +1203,100 @@ public sealed class NotificationDeliveryStore(
         }
 
         if (assignment.TenantId != notification.TenantId ||
-            assignment.CampaignId != notification.CampaignId ||
-            !assignment.Anonymous ||
-            !assignment.InviteTokenId.HasValue)
+            assignment.CampaignId != notification.CampaignId)
         {
-            throw new InvalidOperationException("Notification assignment is not an anonymous invitation.");
+            throw new InvalidOperationException("Notification assignment belongs to a different notification scope.");
         }
 
-        return assignment;
+        if (IsAnonymousEmailInvitationAssignment(assignment) ||
+            IsIdentifiedQueueInvitationAssignment(assignment))
+        {
+            return assignment;
+        }
+
+        throw new InvalidOperationException("Notification assignment is not an invitation delivery assignment.");
+    }
+
+    private static PreparedInvitationDeliveryLink IssueInvitationDeliveryLink(
+        Guid tenantId,
+        Assignment assignment)
+    {
+        if (IsIdentifiedQueueInvitationAssignment(assignment))
+        {
+            var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+            return new PreparedInvitationDeliveryLink(
+                InvitationTokenChannels.IdentifiedQueue,
+                issued.TokenHash,
+                $"/r/{issued.RawToken}");
+        }
+
+        var anonymousIssued = OpenLinkTokens.IssueInvitation(tenantId);
+        return new PreparedInvitationDeliveryLink(
+            InvitationTokenChannels.Email,
+            anonymousIssued.TokenHash,
+            $"/r/{anonymousIssued.RawToken}");
+    }
+
+    private async Task PersistInvitationDeliveryTokenAsync(
+        Guid tenantId,
+        Notification notification,
+        Assignment assignment,
+        PreparedInvitationDeliveryLink deliveryLink,
+        CancellationToken cancellationToken)
+    {
+        if (deliveryLink.Channel == InvitationTokenChannels.Email)
+        {
+            db.InvitationTokens.Add(new InvitationToken(
+                PlatformIds.NewId(),
+                tenantId,
+                notification.CampaignId,
+                deliveryLink.TokenHash,
+                InvitationTokenChannels.Email,
+                notification.Recipient,
+                assignmentId: assignment.Id));
+            return;
+        }
+
+        if (!assignment.RespondentSubjectId.HasValue)
+        {
+            throw new InvalidOperationException("Identified queue invitation assignment has no respondent subject.");
+        }
+
+        var invitationToken = await db.InvitationTokens
+            .SingleOrDefaultAsync(
+                token =>
+                    token.TenantId == tenantId &&
+                    token.CampaignId == notification.CampaignId &&
+                    token.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                    token.RespondentSubjectId == assignment.RespondentSubjectId.Value,
+                cancellationToken);
+
+        if (invitationToken is null)
+        {
+            db.InvitationTokens.Add(new InvitationToken(
+                PlatformIds.NewId(),
+                tenantId,
+                notification.CampaignId,
+                deliveryLink.TokenHash,
+                InvitationTokenChannels.IdentifiedQueue,
+                notification.Recipient,
+                respondentSubjectId: assignment.RespondentSubjectId.Value));
+            return;
+        }
+
+        invitationToken.ReissueIdentifiedQueueEmailHash(
+            deliveryLink.TokenHash,
+            notification.Recipient);
+    }
+
+    private static bool IsAnonymousEmailInvitationAssignment(Assignment assignment)
+    {
+        return assignment.Anonymous && assignment.InviteTokenId.HasValue;
+    }
+
+    private static bool IsIdentifiedQueueInvitationAssignment(Assignment assignment)
+    {
+        return !assignment.Anonymous && assignment.RespondentSubjectId.HasValue;
     }
 
     private async Task<Dictionary<Guid, Assignment>> LoadAssignmentsAsync(
@@ -1929,6 +2013,7 @@ public sealed class NotificationDeliveryStore(
         return value.Contains("/r/", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("campaign-email:", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("inv_", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("idq_", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("opn_", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("wdr_", StringComparison.OrdinalIgnoreCase) ||
             value.Contains("token", StringComparison.OrdinalIgnoreCase) ||
@@ -1950,6 +2035,11 @@ public sealed class NotificationDeliveryStore(
         string BodyText,
         string RespondentPath,
         string UnsubscribeUrl);
+
+    private sealed record PreparedInvitationDeliveryLink(
+        string Channel,
+        string TokenHash,
+        string RespondentPath);
 
     private sealed class ProviderMessageIdResolution
     {

@@ -47,6 +47,7 @@ describe('createSetupApi', () => {
 
 		const created = await api.createCampaignIdentifiedEntry('campaign-id');
 		const queueAccess = await api.createCampaignIdentifiedQueueAccess('campaign-id');
+		const queueInvitations = await api.createCampaignIdentifiedQueueInvitationBatch('campaign-id');
 		const entry = await api.getIdentifiedEntry('identified-token');
 		const session = await api.createIdentifiedEntrySession('identified-token', {
 			locale: 'en',
@@ -64,9 +65,14 @@ describe('createSetupApi', () => {
 			'/campaigns/campaign-id/identified-queue-access',
 			expect.objectContaining({ method: 'POST' })
 		);
-		expect(request).toHaveBeenNthCalledWith(3, '/respondent/identified-entries/identified-token');
 		expect(request).toHaveBeenNthCalledWith(
-			4,
+			3,
+			'/campaigns/campaign-id/identified-queue-invitation-batches',
+			expect.objectContaining({ method: 'POST' })
+		);
+		expect(request).toHaveBeenNthCalledWith(4, '/respondent/identified-entries/identified-token');
+		expect(request).toHaveBeenNthCalledWith(
+			5,
 			'/respondent/identified-entries/identified-token/sessions',
 			expect.objectContaining({
 				method: 'POST',
@@ -80,6 +86,8 @@ describe('createSetupApi', () => {
 		expect(created.subjectId).toBe('subject-id');
 		expect(queueAccess.respondentCount).toBe(1);
 		expect(queueAccess.respondents[0].respondentPath).toBe('/r/idq-token');
+		expect(queueInvitations.createdInvitationCount).toBe(1);
+		expect(queueInvitations.invitations[0].respondentPath).toBeNull();
 		expect(entry.responseIdentityMode).toBe('identified');
 		expect(session.publicHandle).toBe('public-session-handle');
 	});
@@ -626,6 +634,25 @@ function responseFor(path: string) {
 					accessStatus: 'created',
 					token: 'idq-token',
 					respondentPath: '/r/idq-token'
+				}
+			]
+		};
+	}
+
+	if (path === '/campaigns/campaign-id/identified-queue-invitation-batches') {
+		return {
+			campaignId: 'campaign-id',
+			requestedRecipientCount: 1,
+			createdInvitationCount: 1,
+			invitations: [
+				{
+					assignmentId: 'identified-assignment-1',
+					invitationTokenId: 'queue-token-id',
+					notificationId: 'queue-notification-1',
+					recipient: 'ana@example.test',
+					token: null,
+					respondentPath: null,
+					status: 'queued'
 				}
 			]
 		};

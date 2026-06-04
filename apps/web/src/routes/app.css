@@ -2215,6 +2215,46 @@ details[open] > .directory-maintenance-summary::after {
 	background: color-mix(in srgb, var(--color-surface-muted) 60%, transparent);
 }
 
+.manual-fallback-panel {
+	display: grid;
+	gap: 0.625rem;
+	min-width: 0;
+	border-top: 1px solid var(--color-border);
+	padding-top: 0.75rem;
+}
+
+.manual-fallback-panel__summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	cursor: pointer;
+	list-style: none;
+	font-size: 0.92rem;
+	font-weight: 700;
+	color: var(--color-text);
+}
+
+.manual-fallback-panel__summary::-webkit-details-marker {
+	display: none;
+}
+
+.manual-fallback-panel__summary::after {
+	display: inline-grid;
+	flex: 0 0 auto;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: 1px solid var(--color-border);
+	border-radius: 999px;
+	content: '+';
+	color: var(--color-text-muted);
+}
+
+.manual-fallback-panel[open] > .manual-fallback-panel__summary::after {
+	content: '-';
+}
+
 .portfolio-toolbar {
 	display: grid;
 	grid-template-columns:

@@ -3956,6 +3956,7 @@ test('operations workflow runs primary actions against the selected campaign', a
 test('operations workflow creates identified queue links for respondents', async ({ page }) => {
 	const selectedCampaignId = '36bd8b9e-4f3e-46de-a5f2-2cc2bd57f214';
 	const queueCampaignIds: string[] = [];
+	const queueInvitationCampaignIds: string[] = [];
 	let operationsWorkspaceRequestCount = 0;
 	await page.addInitScript(() => {
 		Object.defineProperty(navigator, 'clipboard', {
@@ -4086,6 +4087,37 @@ test('operations workflow creates identified queue links for respondents', async
 			}
 		});
 	});
+	await page.route('**/campaigns/*/identified-queue-invitation-batches', async (route) => {
+		queueInvitationCampaignIds.push(campaignIdFromPath(route.request().url()));
+		await route.fulfill({
+			status: 201,
+			json: {
+				campaignId: campaignIdFromPath(route.request().url()),
+				requestedRecipientCount: 2,
+				createdInvitationCount: 2,
+				invitations: [
+					{
+						assignmentId: 'identified-assignment-1',
+						invitationTokenId: 'cb26f10f-ac76-4815-8c2d-09e7d10ce901',
+						notificationId: 'queue-notification-1',
+						recipient: 'ada.ops@example.test',
+						token: null,
+						respondentPath: null,
+						status: 'queued'
+					},
+					{
+						assignmentId: 'identified-assignment-2',
+						invitationTokenId: '32fba85b-00f2-44c9-bfab-0c6594c3c6f7',
+						notificationId: 'queue-notification-2',
+						recipient: 'miriam.ops@example.test',
+						token: null,
+						respondentPath: null,
+						status: 'queued'
+					}
+				]
+			}
+		});
+	});
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
@@ -4104,7 +4136,19 @@ test('operations workflow creates identified queue links for respondents', async
 	await expect(workflow.getByRole('button', { name: 'Create identified access link' })).toHaveCount(
 		0
 	);
+	await expect(queueManager.getByText('Manual queue-link fallback', { exact: true })).toBeVisible();
 
+	await queueManager.getByRole('button', { name: 'Queue email invitations' }).click();
+
+	await expect(
+		queueManager.getByText('Email invitations queued', { exact: true }).first()
+	).toBeVisible();
+	await expect(
+		queueManager.getByText('2 queue invitations queued for email delivery.', { exact: true })
+	).toBeVisible();
+	await expect(queueManager.getByText('/r/idq_ops_ada', { exact: true })).toHaveCount(0);
+
+	await queueManager.getByText('Manual queue-link fallback', { exact: true }).click();
 	await queueManager.getByRole('button', { name: 'Create respondent queue links' }).click();
 
 	await expect(queueManager.getByText('Ada Lovelace', { exact: true })).toBeVisible();
@@ -4134,6 +4178,7 @@ test('operations workflow creates identified queue links for respondents', async
 	expect(csv).toContain('Miriam Graham,miriam.ops@example.test,2,created,/r/idq_ops_miriam');
 
 	expect(queueCampaignIds).toEqual([selectedCampaignId]);
+	expect(queueInvitationCampaignIds).toEqual([selectedCampaignId]);
 	await expect.poll(() => operationsWorkspaceRequestCount).toBeGreaterThanOrEqual(2);
 });
 

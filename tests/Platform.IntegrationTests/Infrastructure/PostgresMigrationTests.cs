@@ -4844,6 +4844,176 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Campaign_identified_queue_invitation_batch_queues_one_email_per_identified_respondent()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var outboxBuffer = new OutboxEventBuffer();
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, outboxBuffer);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "queue.email.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"queue.email.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue email study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Identified queue email wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var manager = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:manager",
+            email: "manager@example.test",
+            displayName: "Miriam Manager",
+            locale: EmailTemplateLocales.Croatian);
+        var ana = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:ana",
+            email: "ana@example.test",
+            displayName: "Ana Analyst",
+            locale: EmailTemplateLocales.English);
+        var ivan = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:ivan",
+            email: "ivan@example.test",
+            displayName: "Ivan Inspector",
+            locale: EmailTemplateLocales.English);
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.AddRange(manager, ana, ivan);
+            tenantDb.SubjectRelationships.AddRange(
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ana.Id,
+                    SubjectRelationshipTypes.ManagerOf),
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ivan.Id,
+                    SubjectRelationshipTypes.ManagerOf));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}"""),
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{ana.Id:D}}","{{ivan.Id:D}}"]}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        var batch = await setupStore.CreateCampaignIdentifiedQueueInvitationBatchAsync(
+            tenantId,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(batch.IsSuccess, batch.Error.ToString());
+        Assert.Equal(campaign.Value.Id, batch.Value.CampaignId);
+        Assert.Equal(3, batch.Value.RequestedRecipientCount);
+        Assert.Equal(3, batch.Value.CreatedInvitationCount);
+        Assert.Equal(
+            ["ana@example.test", "ivan@example.test", "manager@example.test"],
+            batch.Value.Invitations
+                .Select(invitation => invitation.Recipient)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.All(batch.Value.Invitations, invitation =>
+        {
+            Assert.True(string.IsNullOrEmpty(invitation.Token));
+            Assert.True(string.IsNullOrEmpty(invitation.RespondentPath));
+            Assert.Equal(NotificationStatuses.Queued, invitation.Status);
+        });
+
+        await using var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var tokens = await tenantDb.InvitationTokens
+            .Where(token =>
+                token.CampaignId == campaign.Value.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue)
+            .OrderBy(token => token.Recipient)
+            .ToListAsync();
+        var notifications = await tenantDb.Notifications
+            .Where(notification => notification.CampaignId == campaign.Value.Id)
+            .OrderBy(notification => notification.Recipient)
+            .ToListAsync();
+
+        Assert.Equal(3, tokens.Count);
+        Assert.All(tokens, token =>
+        {
+            Assert.NotNull(token.RespondentSubjectId);
+            Assert.Null(token.AssignmentId);
+            Assert.NotNull(token.Recipient);
+            Assert.DoesNotContain("idq_", token.TokenHash, StringComparison.Ordinal);
+        });
+        Assert.Equal(
+            ["ana@example.test", "ivan@example.test", "manager@example.test"],
+            tokens.Select(token => token.Recipient!).ToArray());
+
+        Assert.Equal(3, notifications.Count);
+        Assert.All(notifications, notification =>
+        {
+            Assert.Equal(NotificationChannels.Email, notification.Channel);
+            Assert.Equal(Notification.InvitationTemplateCode, notification.TemplateCode);
+            Assert.Equal(NotificationStatuses.Queued, notification.Status);
+        });
+        Assert.Equal(EmailTemplateLocales.Croatian, notifications.Single(notification => notification.Recipient == "manager@example.test").Locale);
+        Assert.All(
+            notifications.Where(notification => notification.Recipient != "manager@example.test"),
+            notification => Assert.Equal(EmailTemplateLocales.English, notification.Locale));
+
+        Assert.Equal(3, outboxBuffer.PendingMessages.Count);
+        var outboxPayloads = string.Join(
+            Environment.NewLine,
+            outboxBuffer.PendingMessages.Select(message => message.Payload.RootElement.GetRawText()));
+        Assert.DoesNotContain("@example.test", outboxPayloads, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/r/", outboxPayloads, StringComparison.Ordinal);
+        Assert.DoesNotContain("idq_", outboxPayloads, StringComparison.Ordinal);
+
+        await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Campaign_identified_queue_access_store_fails_closed_for_unsupported_or_unready_campaigns()
     {
         var tenantId = Guid.NewGuid();
@@ -5517,6 +5687,210 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.DoesNotContain("inv_", persistedAttemptText, StringComparison.Ordinal);
 
         await verificationTransaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Email_delivery_processor_sends_identified_queue_invitations_with_queue_tokens_and_unsubscribe()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantTemplateVersionAsync(migratorOptions, tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope, new OutboxEventBuffer());
+        var deliveryStore = new NotificationDeliveryStore(
+            tenantDb,
+            tenantDbScope,
+            new LocalDevEmailDeliveryProvider());
+        var responseStore = new ResponseCaptureStore(tenantDb, tenantDbScope);
+
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "queue.delivery.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"queue.delivery.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var seriesId = await CreateSetupCampaignSeriesAsync(
+            setupStore,
+            tenantId,
+            "Identified queue delivery study");
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Identified queue delivery wave",
+                ResponseIdentityModes.Identified,
+                CampaignSeriesId: seriesId),
+            CancellationToken.None);
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var manager = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:delivery-manager",
+            email: "manager-delivery@example.test",
+            displayName: "Miriam Delivery Manager");
+        var ana = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:delivery-ana",
+            email: "ana-delivery@example.test",
+            displayName: "Ana Delivery Analyst");
+        var ivan = new Subject(
+            Guid.NewGuid(),
+            tenantId,
+            externalId: "msgraph:test-tenant:delivery-ivan",
+            email: "ivan-delivery@example.test",
+            displayName: "Ivan Delivery Inspector");
+
+        await using (var seedTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            tenantDb.Subjects.AddRange(manager, ana, ivan);
+            tenantDb.SubjectRelationships.AddRange(
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ana.Id,
+                    SubjectRelationshipTypes.ManagerOf),
+                new SubjectRelationship(
+                    Guid.NewGuid(),
+                    tenantId,
+                    manager.Id,
+                    ivan.Id,
+                    SubjectRelationshipTypes.ManagerOf));
+            await tenantDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var savedRules = await setupStore.UpdateCampaignRespondentRulesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new UpdateCampaignRespondentRulesRequest(
+            [
+                new UpdateCampaignRespondentRuleRequest("""{"kind":"self","role":"self"}"""),
+                new UpdateCampaignRespondentRuleRequest(
+                    $$"""{"kind":"manager_of_target","role":"manager","target_subject_ids":["{{ana.Id:D}}","{{ivan.Id:D}}"]}""")
+            ]),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        var batch = await setupStore.CreateCampaignIdentifiedQueueInvitationBatchAsync(
+            tenantId,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(savedRules.IsSuccess, savedRules.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.True(batch.IsSuccess, batch.Error.ToString());
+        Dictionary<Guid, string> oldHashesByTokenId;
+        await using (var tokenSnapshotTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            oldHashesByTokenId = await tenantDb.InvitationTokens
+                .Where(token =>
+                    token.CampaignId == campaign.Value.Id &&
+                    token.Channel == InvitationTokenChannels.IdentifiedQueue)
+                .ToDictionaryAsync(token => token.Id, token => token.TokenHash);
+            await tokenSnapshotTransaction.CommitAsync();
+        }
+
+        var processed = await deliveryStore.ProcessCampaignEmailDeliveriesAsync(
+            tenantId,
+            campaign.Value.Id,
+            new ProcessCampaignEmailDeliveriesRequest(BatchSize: 25),
+            CancellationToken.None);
+
+        Assert.True(processed.IsSuccess, processed.Error.ToString());
+        Assert.Equal(3, processed.Value.SentCount);
+        Assert.All(processed.Value.Deliveries, delivery =>
+        {
+            Assert.Equal(NotificationStatuses.Sent, delivery.Status);
+            Assert.StartsWith("/r/idq_", delivery.RespondentPath, StringComparison.Ordinal);
+            Assert.Null(delivery.Error);
+        });
+
+        await using (var verificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var notifications = await tenantDb.Notifications
+                .Where(notification => notification.CampaignId == campaign.Value.Id)
+                .ToListAsync();
+            var notificationIds = notifications.Select(notification => notification.Id).ToArray();
+            var assignments = await tenantDb.Assignments
+                .Where(assignment => assignment.CampaignId == campaign.Value.Id)
+                .ToListAsync();
+            var queueTokens = await tenantDb.InvitationTokens
+                .Where(token =>
+                    token.CampaignId == campaign.Value.Id &&
+                    token.Channel == InvitationTokenChannels.IdentifiedQueue)
+                .ToListAsync();
+            var emailTokens = await tenantDb.InvitationTokens
+                .Where(token =>
+                    token.CampaignId == campaign.Value.Id &&
+                    token.Channel == InvitationTokenChannels.Email)
+                .ToListAsync();
+            var attempts = await tenantDb.NotificationDeliveryAttempts
+                .Where(attempt => notificationIds.Contains(attempt.NotificationId))
+                .ToListAsync();
+
+            Assert.Empty(emailTokens);
+            Assert.Equal(3, queueTokens.Count);
+            Assert.All(queueTokens, token =>
+            {
+                Assert.NotNull(token.RespondentSubjectId);
+                Assert.Null(token.AssignmentId);
+                Assert.NotNull(token.Recipient);
+                Assert.DoesNotContain(token.TokenHash, oldHashesByTokenId.Values);
+            });
+
+            var tokensByNotification = (
+                from notification in notifications
+                join assignment in assignments on notification.AssignmentId equals assignment.Id
+                let token = queueTokens.Single(token => token.RespondentSubjectId == assignment.RespondentSubjectId)
+                select new { notification.Id, Token = token })
+                .ToDictionary(item => item.Id, item => item.Token);
+
+            foreach (var delivery in processed.Value.Deliveries)
+            {
+                var rawToken = delivery.RespondentPath!["/r/".Length..];
+                var token = tokensByNotification[delivery.NotificationId];
+
+                Assert.Equal(OpenLinkTokens.Hash(rawToken), token.TokenHash);
+            }
+
+            var persistedAttemptText = string.Join(
+                Environment.NewLine,
+                attempts.Select(attempt =>
+                    $"{attempt.Provider} {attempt.Status} {attempt.Recipient} {attempt.ProviderMessageId} {attempt.Error}"));
+            Assert.DoesNotContain("/r/", persistedAttemptText, StringComparison.Ordinal);
+            Assert.DoesNotContain("idq_", persistedAttemptText, StringComparison.Ordinal);
+
+            await verificationTransaction.CommitAsync();
+        }
+
+        var unsubscribeToken = processed.Value.Deliveries[0].RespondentPath!["/r/".Length..];
+        var unsubscribed = await responseStore.UnsubscribeEmailInvitationAsync(
+            unsubscribeToken,
+            CancellationToken.None);
+
+        Assert.True(unsubscribed.IsSuccess, unsubscribed.Error.ToString());
+        await using var unsubscribeVerificationTransaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        Assert.Equal(1, await tenantDb.EmailSuppressions.CountAsync(suppression =>
+            suppression.TenantId == tenantId &&
+            suppression.ReleasedAt == null));
+        await unsubscribeVerificationTransaction.CommitAsync();
     }
 
     [DockerFact]
