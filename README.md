@@ -72,6 +72,15 @@ The stack runs Postgres, a one-shot EF migrator, a one-shot seed step, the API, 
 
 For portable VPS staging adaptation, see `docs/v2/40-ops/vps-staging-runbook.md`. The VPS package uses subdomain routing through nginx and keeps API/web services bound to loopback host ports.
 
+### Staging deployment command (single-line workflow)
+
+After changes are pushed, run:
+
+```bash
+git add -A && git commit -m "chore: staging workflow test" && git push origin main
+bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env
+```
+
 ## Verification
 
 ```powershell
