@@ -14,6 +14,20 @@ $env:PUBLIC_AUTH_LOGOUT_URL='/auth/logout'
 npm run dev --prefix apps/web -- --host 127.0.0.1
 ```
 
+```bash
+PUBLIC_DEV_AUTH_ENABLED=true \
+PUBLIC_AUTH_LOGIN_URL='/auth/login' \
+PUBLIC_AUTH_LOGOUT_URL='/auth/logout' \
+PUBLIC_API_BASE_URL='http://localhost:5055' \
+npm run dev --prefix apps/web -- --host 127.0.0.1
+```
+
+If you keep local toolchain shims in `tools/frameworks/bin`, run:
+
+```bash
+source tools/frameworks/activate.sh
+```
+
 Useful optional environment variables:
 
 ```powershell
@@ -21,6 +35,13 @@ $env:PUBLIC_API_BASE_URL='http://localhost:5055'
 $env:PUBLIC_DEV_TENANT_ID='11111111-1111-4111-8111-111111111111'
 $env:PUBLIC_DEV_USER_ID='22222222-2222-4222-8222-222222222222'
 $env:PUBLIC_DEMO_SURFACES_ENABLED='true'
+```
+
+```bash
+export PUBLIC_API_BASE_URL='http://localhost:5055'
+export PUBLIC_DEV_TENANT_ID='11111111-1111-4111-8111-111111111111'
+export PUBLIC_DEV_USER_ID='22222222-2222-4222-8222-222222222222'
+export PUBLIC_DEMO_SURFACES_ENABLED='true'
 ```
 
 The setup workspace checks `/auth/session` before showing tenant controls. The dev auth headers are only sent when `PUBLIC_DEV_AUTH_ENABLED=true`. `PUBLIC_AUTH_LOGIN_URL` and `PUBLIC_AUTH_LOGOUT_URL` are provider-neutral placeholders until Q-020 chooses the production provider-specific auth path.
