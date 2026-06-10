@@ -84,7 +84,7 @@ bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env
 Or if you need to redeploy the VPS directly:
 
 ```bash
-ssh codex@147.93.120.10 -p 23146 "cd /home/codex/instruments-platform && git pull --ff-only && bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env"
+ssh codex@147.93.120.10 -p 23146 "cd /opt/instruments-platform && git pull --ff-only && bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env"
 ```
 
 ## Verification
