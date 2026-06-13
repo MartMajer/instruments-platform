@@ -4,6 +4,13 @@
 	import { onDestroy } from 'svelte';
 	import { Link2, LoaderCircle, Plus, RefreshCcw, Save, Upload, UserRound } from 'lucide-svelte';
 	import type {
+		DirectoryConnectionStateResponse,
+		DirectoryImportRuleListResponse,
+		DirectoryImportRuleResponse,
+		DirectoryImportRunHistoryResponse,
+		DirectoryImportRunListItemResponse,
+		MicrosoftGraphConsentRequestResponse,
+		MicrosoftGraphImportRulePreviewResponse,
 		SubjectDirectoryCsvImportResponse,
 		SubjectDirectoryItemResponse,
 		SubjectDirectoryResponse,
@@ -38,6 +45,9 @@
 	let loadState = $state<LoadState>('idle');
 	let directory = $state<SubjectDirectoryResponse | null>(null);
 	let groupList = $state<SubjectGroupListResponse | null>(null);
+	let graphConnection = $state<DirectoryConnectionStateResponse | null>(null);
+	let graphImportRules = $state<DirectoryImportRuleListResponse | null>(null);
+	let graphImportRuns = $state<DirectoryImportRunHistoryResponse | null>(null);
 	let errorMessage = $state<string | null>(null);
 	let newSubjectDisplayName = $state('');
 	let newSubjectEmail = $state('');
@@ -74,6 +84,18 @@
 	let applyingCsv = $state(false);
 	let importResult = $state<SubjectDirectoryCsvImportResponse | null>(null);
 	let importError = $state<string | null>(null);
+	let graphConsentPreparing = $state(false);
+	let graphConsentRequest = $state<MicrosoftGraphConsentRequestResponse | null>(null);
+	let graphConsentError = $state<string | null>(null);
+	let graphConsentCallbackHandled = $state(false);
+	let graphRuleName = $state('All employees');
+	let graphRuleMarkMissingSubjectsStale = $state(true);
+	let graphRuleSaving = $state(false);
+	let graphRuleArchivingId = $state<string | null>(null);
+	let graphRulePreviewingId = $state<string | null>(null);
+	let graphRuleApplyingId = $state<string | null>(null);
+	let graphRulePreview = $state<MicrosoftGraphImportRulePreviewResponse | null>(null);
+	let graphRuleError = $state<string | null>(null);
 
 	const unsubscribeAuth = authContext.session.subscribe((value) => {
 		authSession = value;
@@ -105,6 +127,28 @@
 	});
 
 	$effect(() => {
+		if (!canManageSetup || graphConsentCallbackHandled) {
+			return;
+		}
+
+		const state = page.url.searchParams.get('state');
+		const adminConsent = page.url.searchParams.get('admin_consent');
+		const error = page.url.searchParams.get('error');
+		if (!state || (adminConsent === null && error === null)) {
+			return;
+		}
+
+		graphConsentCallbackHandled = true;
+		void completeMicrosoftGraphConsentRedirect(
+			state,
+			adminConsent,
+			page.url.searchParams.get('tenant'),
+			error,
+			page.url.searchParams.get('error_description')
+		);
+	});
+
+	$effect(() => {
 		if ((selectedSubject?.id ?? '') !== editSubjectSourceId) {
 			syncSelectedSubjectFields(subjects);
 		}
@@ -117,9 +161,18 @@
 		errorMessage = null;
 
 		try {
-			const [nextDirectory, nextGroupList] = await Promise.all([
+			const [
+				nextDirectory,
+				nextGroupList,
+				nextGraphConnection,
+				nextGraphImportRules,
+				nextGraphImportRuns
+			] = await Promise.all([
 				productApi.listSubjects(),
-				productApi.listSubjectGroups()
+				productApi.listSubjectGroups(),
+				productApi.getMicrosoftGraphDirectoryConnectionState(),
+				productApi.listMicrosoftGraphDirectoryImportRules(),
+				productApi.listMicrosoftGraphDirectoryImportRuns()
 			]);
 
 			if (!requestGate.isCurrent(requestId)) {
@@ -128,6 +181,9 @@
 
 			directory = nextDirectory;
 			groupList = nextGroupList;
+			graphConnection = nextGraphConnection;
+			graphImportRules = nextGraphImportRules;
+			graphImportRuns = nextGraphImportRuns;
 			syncSelections(nextDirectory.subjects, nextGroupList.groups);
 			syncSelectedSubjectFields(nextDirectory.subjects);
 			loadState = 'ready';
@@ -138,6 +194,9 @@
 
 			directory = null;
 			groupList = null;
+			graphConnection = null;
+			graphImportRules = null;
+			graphImportRuns = null;
 			errorMessage = toProductApiErrorMessage(error, text.directory.loadFailed);
 			loadState = 'error';
 		}
@@ -210,7 +269,8 @@
 		try {
 			importResult = await productApi.importSubjectDirectoryCsv({
 				csvContent: importCsvContent,
-				dryRun
+				dryRun,
+				previewImportRunId: dryRun ? null : importResult?.importRunId ?? null
 			});
 			if (!dryRun) {
 				await loadDirectory();
@@ -221,6 +281,169 @@
 			previewingCsv = false;
 			applyingCsv = false;
 		}
+	}
+
+	async function prepareMicrosoftGraphConsent() {
+		if (!canManageSetup || graphConsentPreparing) {
+			return;
+		}
+
+		graphConsentPreparing = true;
+		graphConsentError = null;
+		graphConsentRequest = null;
+
+		try {
+			graphConsentRequest = await productApi.createMicrosoftGraphConsentRequest();
+			graphConnection = await productApi.getMicrosoftGraphDirectoryConnectionState();
+		} catch (error) {
+			graphConsentError = toProductApiErrorMessage(error, text.directory.graphConsentFailed);
+		} finally {
+			graphConsentPreparing = false;
+		}
+	}
+
+	async function completeMicrosoftGraphConsentRedirect(
+		state: string,
+		adminConsentValue: string | null,
+		microsoftTenantId: string | null,
+		error: string | null,
+		errorDescription: string | null
+	) {
+		graphConsentPreparing = true;
+		graphConsentError = null;
+		graphConsentRequest = null;
+
+		try {
+			const callback = await productApi.completeMicrosoftGraphConsentCallback({
+				state,
+				nonce: null,
+				adminConsent: microsoftAdminConsentGranted(adminConsentValue),
+				microsoftTenantId,
+				error,
+				errorDescription
+			});
+			graphConnection = await productApi.getMicrosoftGraphDirectoryConnectionState();
+			if (!callback.connected) {
+				graphConsentError = text.directory.graphConsentFailed;
+			}
+		} catch (callbackError) {
+			graphConsentError = toProductApiErrorMessage(
+				callbackError,
+				text.directory.graphConsentFailed
+			);
+		} finally {
+			graphConsentPreparing = false;
+			clearMicrosoftGraphConsentRedirectParams();
+		}
+	}
+
+	async function saveMicrosoftGraphImportRule() {
+		if (!canManageSetup || graphRuleSaving) {
+			return;
+		}
+
+		if (!graphRuleName.trim()) {
+			graphRuleError = text.directory.graphImportRuleNameRequired;
+			return;
+		}
+
+		graphRuleSaving = true;
+		graphRuleError = null;
+
+		try {
+			await productApi.saveMicrosoftGraphDirectoryImportRule({
+				name: graphRuleName.trim(),
+				markMissingSubjectsStale: graphRuleMarkMissingSubjectsStale
+			});
+			const [nextGraphConnection, nextGraphImportRules] = await Promise.all([
+				productApi.getMicrosoftGraphDirectoryConnectionState(),
+				productApi.listMicrosoftGraphDirectoryImportRules()
+			]);
+			graphConnection = nextGraphConnection;
+			graphImportRules = nextGraphImportRules;
+		} catch (error) {
+			graphRuleError = toProductApiErrorMessage(error, text.directory.graphImportRuleSaveFailed);
+		} finally {
+			graphRuleSaving = false;
+		}
+	}
+
+	async function archiveMicrosoftGraphImportRule(rule: DirectoryImportRuleResponse) {
+		if (!canManageSetup || graphRuleArchivingId) {
+			return;
+		}
+
+		graphRuleArchivingId = rule.id;
+		graphRuleError = null;
+
+		try {
+			await productApi.archiveMicrosoftGraphDirectoryImportRule(rule.id);
+			graphImportRules = await productApi.listMicrosoftGraphDirectoryImportRules();
+		} catch (error) {
+			graphRuleError = toProductApiErrorMessage(error, text.directory.graphImportRuleArchiveFailed);
+		} finally {
+			graphRuleArchivingId = null;
+		}
+	}
+
+	async function previewLiveMicrosoftGraphImportRule(rule: DirectoryImportRuleResponse) {
+		if (!canManageSetup || graphRulePreviewingId || graphRuleApplyingId) {
+			return;
+		}
+
+		graphRulePreviewingId = rule.id;
+		graphRuleError = null;
+
+		try {
+			graphRulePreview = await productApi.previewLiveMicrosoftGraphDirectoryImportRule(rule.id);
+			graphImportRuns = await productApi.listMicrosoftGraphDirectoryImportRuns();
+		} catch (error) {
+			graphRuleError = toProductApiErrorMessage(error, text.directory.graphImportRulePreviewFailed);
+		} finally {
+			graphRulePreviewingId = null;
+		}
+	}
+
+	async function applyLiveMicrosoftGraphImportRule(rule: DirectoryImportRuleResponse) {
+		if (!canManageSetup || graphRuleApplyingId || graphRulePreviewingId) {
+			return;
+		}
+
+		const previewRunId =
+			graphRulePreview?.directoryImportRuleId === rule.id ? graphRulePreview.import.importRunId : null;
+		if (!previewRunId) {
+			graphRuleError = text.directory.graphImportRulePreviewRequired;
+			return;
+		}
+
+		graphRuleApplyingId = rule.id;
+		graphRuleError = null;
+
+		try {
+			await productApi.applyLiveMicrosoftGraphDirectoryImportRule(rule.id, {
+				previewImportRunId: previewRunId
+			});
+			graphRulePreview = null;
+			await loadDirectory();
+		} catch (error) {
+			graphRuleError = toProductApiErrorMessage(error, text.directory.graphImportRuleApplyFailed);
+		} finally {
+			graphRuleApplyingId = null;
+		}
+	}
+
+	async function rerunMicrosoftGraphImportRun(run: DirectoryImportRunListItemResponse) {
+		if (!canManageSetup || graphRulePreviewingId || graphRuleApplyingId) {
+			return;
+		}
+
+		const rule = graphImportRuleForRun(run);
+		if (!rule) {
+			graphRuleError = text.directory.graphImportRunRerunUnavailable;
+			return;
+		}
+
+		await previewLiveMicrosoftGraphImportRule(rule);
 	}
 
 	async function loadCsvFile(event: Event) {
@@ -387,12 +610,94 @@
 		return trimmed.length > 0 ? trimmed : null;
 	}
 
+	function graphImportRuleForRun(run: DirectoryImportRunListItemResponse) {
+		if (!run.directoryImportRuleId) {
+			return null;
+		}
+
+		return (
+			graphImportRules?.rules.find(
+				(rule) => rule.id === run.directoryImportRuleId && rule.status === 'active'
+			) ?? null
+		);
+	}
+
+	function microsoftAdminConsentGranted(value: string | null) {
+		const normalized = value?.trim().toLowerCase();
+		return normalized === 'true' || normalized === '1';
+	}
+
+	function clearMicrosoftGraphConsentRedirectParams() {
+		const url = new URL(window.location.href);
+		let changed = false;
+		for (const key of ['admin_consent', 'tenant', 'state', 'error', 'error_description']) {
+			if (url.searchParams.has(key)) {
+				url.searchParams.delete(key);
+				changed = true;
+			}
+		}
+
+		if (changed) {
+			window.history.replaceState(
+				window.history.state,
+				'',
+				`${url.pathname}${url.search}${url.hash}`
+			);
+		}
+	}
+
 	function subjectLabel(subject: SubjectDirectoryItemResponse | null) {
 		if (!subject) {
 			return text.directory.noSubjectSelected;
 		}
 
 		return subject.displayName || subject.email || subject.externalId || subject.id;
+	}
+
+	function graphConnectionStatusLabel(status: string) {
+		switch (status) {
+			case 'active':
+				return text.directory.graphStatusActive;
+			case 'pending_consent':
+				return text.directory.graphStatusPendingConsent;
+			case 'consent_required':
+				return text.directory.graphStatusConsentRequired;
+			case 'revoked':
+				return text.directory.graphStatusRevoked;
+			case 'failed':
+				return text.directory.graphStatusFailed;
+			default:
+				return text.directory.graphStatusDisconnected;
+		}
+	}
+
+	function graphConnectionStatusTone(status: string) {
+		return status === 'active' ? 'ready' : status === 'disconnected' ? 'neutral' : 'warning';
+	}
+
+	function graphConnectionActionLabel(status: string) {
+		switch (status) {
+			case 'active':
+				return text.directory.graphReconnect;
+			case 'pending_consent':
+				return text.directory.graphRetryConsent;
+			default:
+				return text.directory.graphConnect;
+		}
+	}
+
+	function graphImportRunStatusTone(run: DirectoryImportRunListItemResponse) {
+		if (run.status === 'succeeded') {
+			return 'ready';
+		}
+
+		return run.status === 'failed' ? 'warning' : 'neutral';
+	}
+
+	function graphImportRuleStalePolicyLabel(stalePolicy: string) {
+		return stalePolicy === 'mark_stale'
+			? text.directory.graphImportRuleMarkStale
+			: text.directory.graphImportRuleNoStale;
 	}
 
 	function groupParentLabel(group: SubjectGroupResponse) {
@@ -471,6 +776,346 @@
 	</section>
 
 	<section class="product-panel" aria-label="Import audience CSV">
+		{#if graphConnection}
+			<section
+				class="mb-5 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4"
+				aria-label={text.directory.graphConnectionAria}
+			>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{text.directory.graphConnectionKicker}</p>
+						<h2 class="product-title">{text.directory.graphConnectionTitle}</h2>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							{text.directory.graphConnectionBody}
+						</p>
+					</div>
+					<span class="status-badge" data-status={graphConnectionStatusTone(graphConnection.status)}>
+						{graphConnectionStatusLabel(graphConnection.status)}
+					</span>
+				</div>
+				<dl class="mt-3 grid gap-2 text-sm md:grid-cols-2">
+					<div>
+						<dt class="text-[var(--color-text-muted)]">{text.directory.graphWorkspace}</dt>
+						<dd class="font-semibold">
+							{graphConnection.primaryDomain ?? graphConnection.displayName}
+						</dd>
+					</div>
+					<div>
+						<dt class="text-[var(--color-text-muted)]">{text.directory.graphGrantedScopes}</dt>
+						<dd class="font-semibold">
+							{graphConnection.grantedScopes.length > 0
+								? graphConnection.grantedScopes.join(', ')
+								: text.directory.graphNoGrantedScopes}
+						</dd>
+					</div>
+					<div>
+						<dt class="text-[var(--color-text-muted)]">{text.directory.graphLastConsent}</dt>
+						<dd class="font-semibold">{graphConnection.lastConsentAt ?? text.directory.notAvailable}</dd>
+					</div>
+					<div>
+						<dt class="text-[var(--color-text-muted)]">{text.directory.graphLastImport}</dt>
+						<dd class="font-semibold">
+							{graphConnection.lastSuccessfulImportAt ?? text.directory.notAvailable}
+						</dd>
+					</div>
+				</dl>
+				<div class="action-row mt-3">
+					<button
+						type="button"
+						class="primary-button"
+						disabled={graphConsentPreparing}
+						onclick={prepareMicrosoftGraphConsent}
+					>
+						{#if graphConsentPreparing}
+							<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+						{:else}
+							<Link2 size={17} aria-hidden="true" />
+						{/if}
+						<span>
+							{graphConsentPreparing
+								? text.directory.graphConsentPreparing
+								: graphConnectionActionLabel(graphConnection.status)}
+						</span>
+					</button>
+				</div>
+				{#if graphConsentError}
+					<p class="error-line mt-3" role="alert">{graphConsentError}</p>
+				{/if}
+				{#if graphConsentRequest}
+					<div class="mt-3">
+						<InlineAlert
+							variant="info"
+							title={text.directory.graphConsentPreparedTitle}
+							message={text.directory.graphConsentPreparedMessage}
+						/>
+						<dl class="mt-3 grid gap-2 text-sm md:grid-cols-2">
+							<div>
+								<dt class="text-[var(--color-text-muted)]">
+									{text.directory.graphConsentExpires}
+								</dt>
+								<dd class="font-semibold">{graphConsentRequest.expiresAt}</dd>
+							</div>
+							<div>
+								<dt class="text-[var(--color-text-muted)]">
+									{text.directory.graphConsentCallbackPath}
+								</dt>
+								<dd class="font-semibold">{graphConsentRequest.callbackPath}</dd>
+							</div>
+						</dl>
+						{#if graphConsentRequest.adminConsentUrl}
+							<a
+								class="primary-button mt-3 inline-flex"
+								href={graphConsentRequest.adminConsentUrl}
+								rel="noreferrer"
+							>
+								<Link2 size={17} aria-hidden="true" />
+								<span>{text.directory.graphConsentOpenMicrosoft}</span>
+							</a>
+						{/if}
+					</div>
+				{/if}
+				<p class="mt-3 text-sm text-[var(--color-text-muted)]">
+					{text.directory.graphConnectionActionNext}
+				</p>
+			</section>
+		{/if}
+
+		{#if graphImportRuns && graphImportRuns.runs.length > 0}
+			<section
+				class="mb-5 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4"
+				aria-label={text.directory.graphImportRunsAria}
+			>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{text.directory.graphConnectionKicker}</p>
+						<h2 class="product-title">{text.directory.graphImportRunsTitle}</h2>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							{text.directory.graphImportRunsBody}
+						</p>
+						<p class="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
+							{text.directory.graphImportRunsRecovery}
+						</p>
+					</div>
+				</div>
+				<div class="record-list">
+					{#each graphImportRuns.runs as run (run.id)}
+						<article class="record-row" aria-label={`${run.mode} ${run.status}`}>
+							<span class="record-row__header">
+								<span class="record-row__title">{run.mode}</span>
+								<span class="status-badge" data-status={graphImportRunStatusTone(run)}>
+									{run.status}
+								</span>
+							</span>
+							<span class="record-grid">
+								<span class="record-field">
+									<span class="record-field__label">{text.directory.graphImportRunRows}</span>
+									<span class="record-field__value">
+										{run.importedRowCount}/{run.rowCount}
+									</span>
+								</span>
+								<span class="record-field">
+									<span class="record-field__label">{text.directory.graphImportRunWarnings}</span>
+									<span class="record-field__value">{run.warningCategoryCount}</span>
+								</span>
+								<span class="record-field">
+									<span class="record-field__label">{text.directory.graphImportRunCompleted}</span>
+									<span class="record-field__value">
+										{run.completedAt ?? text.directory.notAvailable}
+									</span>
+								</span>
+								<span class="record-field">
+									<span class="record-field__label">{text.directory.importRunId}</span>
+									<span class="record-field__value font-mono text-xs">{run.id}</span>
+								</span>
+							</span>
+							{#if graphImportRuleForRun(run)}
+								<div class="action-row mt-3">
+									<button
+										type="button"
+										class="secondary-button"
+										disabled={graphRulePreviewingId === run.directoryImportRuleId ||
+											graphRuleApplyingId !== null}
+										onclick={() => rerunMicrosoftGraphImportRun(run)}
+									>
+										{#if graphRulePreviewingId === run.directoryImportRuleId}
+											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+											<span>{text.directory.graphImportRulePreviewLive}</span>
+										{:else}
+											<RefreshCcw size={16} aria-hidden="true" />
+											<span>{text.directory.graphImportRunRerunLive}</span>
+										{/if}
+									</button>
+								</div>
+							{/if}
+						</article>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if graphImportRules}
+			<section
+				class="mb-5 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4"
+				aria-label={text.directory.graphImportRulesAria}
+			>
+				<div class="product-panel__header">
+					<div>
+						<p class="product-kicker">{text.directory.graphConnectionKicker}</p>
+						<h2 class="product-title">{text.directory.graphImportRulesTitle}</h2>
+						<p class="text-sm leading-6 text-[var(--color-text-muted)]">
+							{text.directory.graphImportRulesBody}
+						</p>
+					</div>
+				</div>
+
+				<form
+					class="grid gap-3 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+					onsubmit={(event) => {
+						event.preventDefault();
+						void saveMicrosoftGraphImportRule();
+					}}
+				>
+					<label class="field">
+						<span>{text.directory.graphImportRuleName}</span>
+						<input bind:value={graphRuleName} disabled={graphRuleSaving} />
+					</label>
+					<label class="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+						<input
+							type="checkbox"
+							bind:checked={graphRuleMarkMissingSubjectsStale}
+							disabled={graphRuleSaving}
+						/>
+						<span>{text.directory.graphImportRuleMarkMissing}</span>
+					</label>
+					<button type="submit" class="primary-button" disabled={graphRuleSaving}>
+						{#if graphRuleSaving}
+							<LoaderCircle size={17} aria-hidden="true" class="animate-spin" />
+						{:else}
+							<Save size={17} aria-hidden="true" />
+						{/if}
+						<span>
+							{graphRuleSaving
+								? text.directory.graphImportRuleSaving
+								: text.directory.graphImportRuleSave}
+						</span>
+					</button>
+				</form>
+
+				{#if graphRuleError}
+					<p class="error-line mt-3" role="alert">{graphRuleError}</p>
+				{/if}
+
+				{#if graphImportRules.rules.length === 0}
+					<div class="mt-3">
+						<InlineAlert
+							variant="info"
+							title={text.directory.graphImportRulesEmptyTitle}
+							message={text.directory.graphImportRulesEmptyMessage}
+						/>
+					</div>
+				{:else}
+					<div class="record-list mt-4">
+						{#each graphImportRules.rules as rule (rule.id)}
+							<article class="record-row" aria-label={rule.name}>
+								<span class="record-row__header">
+									<span class="record-row__title">{rule.name}</span>
+									<span class="status-badge" data-status="ready">{rule.status}</span>
+								</span>
+								<span class="record-grid">
+									<span class="record-field">
+										<span class="record-field__label">{text.directory.graphImportRuleStalePolicy}</span>
+										<span class="record-field__value">
+											{graphImportRuleStalePolicyLabel(rule.stalePolicy)}
+										</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">{text.directory.graphImportRuleRetainedFields}</span>
+										<span class="record-field__value">{rule.retainedFields.join(', ')}</span>
+									</span>
+									<span class="record-field">
+										<span class="record-field__label">{text.directory.graphImportRuleUpdated}</span>
+										<span class="record-field__value">{rule.updatedAt}</span>
+									</span>
+								</span>
+								<div class="action-row">
+									<button
+										type="button"
+										class="primary-button"
+										disabled={graphRulePreviewingId === rule.id || graphRuleApplyingId === rule.id}
+										onclick={() => previewLiveMicrosoftGraphImportRule(rule)}
+									>
+										{#if graphRulePreviewingId === rule.id}
+											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+										{/if}
+										<span>{text.directory.graphImportRulePreviewLive}</span>
+									</button>
+									<button
+										type="button"
+										class="secondary-button"
+										disabled={
+											graphRuleApplyingId === rule.id ||
+											graphRulePreviewingId === rule.id ||
+											graphRulePreview?.directoryImportRuleId !== rule.id ||
+											!graphRulePreview.import.importRunId
+										}
+										onclick={() => applyLiveMicrosoftGraphImportRule(rule)}
+									>
+										{#if graphRuleApplyingId === rule.id}
+											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+										{/if}
+										<span>{text.directory.graphImportRuleApplyLive}</span>
+									</button>
+									<button
+										type="button"
+										class="secondary-button"
+										disabled={graphRuleArchivingId === rule.id}
+										onclick={() => archiveMicrosoftGraphImportRule(rule)}
+									>
+										{#if graphRuleArchivingId === rule.id}
+											<LoaderCircle size={16} aria-hidden="true" class="animate-spin" />
+										{/if}
+										<span>{text.directory.graphImportRuleArchive}</span>
+									</button>
+								</div>
+								{#if graphRulePreview?.directoryImportRuleId === rule.id}
+									<div class="mt-3 rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 text-sm">
+										<p class="font-semibold text-[var(--color-text)]">
+											{text.directory.graphImportRulePreviewReady}
+										</p>
+										<dl class="mt-2 grid gap-2 md:grid-cols-3">
+											<div>
+												<dt class="text-[var(--color-text-muted)]">
+													{text.directory.graphImportRulePreviewRows}
+												</dt>
+												<dd class="font-semibold">
+													{graphRulePreview.import.importedRowCount}/{graphRulePreview.import.rowCount}
+												</dd>
+											</div>
+											<div>
+												<dt class="text-[var(--color-text-muted)]">
+													{text.directory.graphImportRulePreviewWarnings}
+												</dt>
+												<dd class="font-semibold">{graphRulePreview.warnings.length}</dd>
+											</div>
+											<div>
+												<dt class="text-[var(--color-text-muted)]">{text.directory.importRunId}</dt>
+												<dd class="font-mono text-xs">
+													{graphRulePreview.import.importRunId ?? text.directory.notAvailable}
+												</dd>
+											</div>
+										</dl>
+									</div>
+								{/if}
+							</article>
+						{/each}
+					</div>
+				{/if}
+				<p class="mt-3 text-sm text-[var(--color-text-muted)]">
+					{text.directory.graphImportRulesRunNext}
+				</p>
+			</section>
+		{/if}
+
 		<div class="product-panel__header">
 			<div>
 				<p class="product-kicker">{text.directory.csvImport}</p>
@@ -538,8 +1183,8 @@
 			{#if importResult?.dryRun && !importHasFailures}
 				<InlineAlert
 					variant="info"
-					title="Preview only"
-					message="Nothing has been saved yet. Review the actions below, then apply the import."
+					title={text.directory.previewOnlyTitle}
+					message={text.directory.previewOnlyMessage}
 				/>
 			{/if}
 			{#if applyingCsv}
@@ -590,6 +1235,42 @@
 							<dt class="text-[var(--color-text-muted)]">{text.directory.membershipsPresent}</dt>
 							<dd class="font-semibold">{importResult.skippedMembershipCount}</dd>
 						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">
+								{importResult.dryRun
+									? text.directory.managerLinksToSet
+									: text.directory.managerLinksSet}
+							</dt>
+							<dd class="font-semibold">{importResult.setManagerRelationshipCount ?? 0}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">
+								{text.directory.managerLinksAlreadyCurrent}
+							</dt>
+							<dd class="font-semibold">{importResult.skippedManagerRelationshipCount ?? 0}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">
+								{text.directory.managerLinksNeedingAttention}
+							</dt>
+							<dd class="font-semibold">{importResult.missingManagerReferenceCount ?? 0}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">{text.directory.peopleMarkedStale}</dt>
+							<dd class="font-semibold">{importResult.markedStaleSubjectCount ?? 0}</dd>
+						</div>
+						<div>
+							<dt class="text-[var(--color-text-muted)]">
+								{text.directory.peopleReturnedFromStale}
+							</dt>
+							<dd class="font-semibold">{importResult.clearedStaleSubjectCount ?? 0}</dd>
+						</div>
+						{#if importResult.importRunId}
+							<div>
+								<dt class="text-[var(--color-text-muted)]">{text.directory.importRunId}</dt>
+								<dd class="font-mono text-xs">{importResult.importRunId}</dd>
+							</div>
+						{/if}
 					</dl>
 					{#if importResult.rows.some((row) => row.status === 'failed')}
 						<div class="mt-4 grid gap-2" aria-label="CSV import row issues">
@@ -610,17 +1291,17 @@
 						</div>
 					{:else}
 						<p class="mt-4 text-sm text-[var(--color-text-muted)]">
-							All imported rows were accepted.
+							{text.directory.allRowsAccepted}
 						</p>
 					{/if}
 					<details class="mt-3">
 						<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
-							Import actions
+							{text.directory.importActions}
 						</summary>
 						<div class="mt-2 grid gap-2">
 							{#each importResult.rows.filter((row) => row.status === 'imported') as row}
 								<p class="text-sm text-[var(--color-text-muted)]">
-									Row {row.rowNumber}: {row.displayName ?? row.email ?? row.externalId}
+									{text.directory.row} {row.rowNumber}: {row.displayName ?? row.email ?? row.externalId}
 									- {formatImportAction(row.action)}
 								</p>
 							{/each}
@@ -673,16 +1354,29 @@
 							<article class="record-row" aria-label={subjectLabel(subject)}>
 								<span class="record-row__header">
 									<span class="record-row__title">{subjectLabel(subject)}</span>
-									<span
-										class="status-badge"
-										data-status={subject.managerSubjectId ? 'ready' : 'pending'}
-									>
-										{subject.managerSubjectId ? text.directory.managed : text.directory.noManager}
+									<span class="inline-flex flex-wrap items-center justify-end gap-2">
+										{#if subject.directoryImportStale}
+											<span
+												class="status-badge"
+												data-status="warning"
+												title={subject.directoryImportStaleAt
+													? text.directory.staleImportMarkedAt(subject.directoryImportStaleAt)
+													: text.directory.staleImportTitle}
+											>
+												{text.directory.staleImport}
+											</span>
+										{/if}
+										<span
+											class="status-badge"
+											data-status={subject.managerSubjectId ? 'ready' : 'pending'}
+										>
+											{subject.managerSubjectId ? text.directory.managed : text.directory.noManager}
+										</span>
 									</span>
 								</span>
 								<span class="record-grid">
 									<span class="record-field">
-										<span class="record-field__label">Email</span>
+										<span class="record-field__label">{text.directory.email}</span>
 										<span class="record-field__value">{subject.email ?? text.directory.notAvailable}</span>
 									</span>
 									<span class="record-field">
@@ -695,7 +1389,9 @@
 									</span>
 									<span class="record-field">
 										<span class="record-field__label">{text.directory.manager}</span>
-										<span class="record-field__value">{subject.managerDisplayName ?? 'None'}</span>
+										<span class="record-field__value">
+											{subject.managerDisplayName ?? text.directory.noManager}
+										</span>
 									</span>
 									<span class="record-field">
 										<span class="record-field__label">{text.directory.directReports}</span>
@@ -1072,5 +1768,3 @@
 		</div>
 	</section>
 {/if}
-
-

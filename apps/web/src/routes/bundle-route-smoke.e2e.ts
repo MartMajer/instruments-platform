@@ -473,6 +473,7 @@ const sampleSetupWorkspace = {
 	},
 	scoring: {
 		id: '716b2246-70f7-4728-9f44-150bd3b8da7a',
+		templateVersionId: setupCampaign.templateVersionId,
 		ruleKey: 'burnout.total',
 		ruleVersion: '1.0.0',
 		status: 'attested_by_tenant',

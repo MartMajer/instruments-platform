@@ -161,9 +161,14 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
             ["/respondent/open-links/{token}/sessions"] = "public-respondent-entry",
             ["/respondent/identified-entries/{token}"] = "public-respondent-entry",
             ["/respondent/identified-entries/{token}/sessions"] = "public-respondent-entry",
+            ["/respondent/identified-queues/{token}"] = "public-respondent-entry",
+            ["/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions"] = "public-respondent-entry",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/draft"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/answers"] = "public-respondent-session",
             ["/respondent/open-links/{token}/sessions/{sessionId:guid}/submit"] = "public-respondent-submit",
+            ["/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/draft"] = "public-respondent-session",
+            ["/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/answers"] = "public-respondent-session",
+            ["/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/submit"] = "public-respondent-submit",
             ["/respondent/public-sessions/{handle}/draft"] = "public-respondent-session",
             ["/respondent/public-sessions/{handle}/answers"] = "public-respondent-session",
             ["/respondent/public-sessions/{handle}/submit"] = "public-respondent-submit"
@@ -379,6 +384,26 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
     }
 
     [Fact]
+    public async Task Identified_queue_endpoint_does_not_require_tenant_auth_headers()
+    {
+        const string token = "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var store = new FakeResponseCaptureStore(identifiedQueueToken: token);
+        using var client = CreateClient(store);
+
+        var response = await client.GetAsync($"/respondent/identified-queues/{token}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<IdentifiedQueueResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("identified", payload.ResponseIdentityMode);
+        Assert.Equal("Self", payload.Respondent.Label);
+        var assignment = Assert.Single(payload.Assignments);
+        Assert.NotEqual(Guid.Empty, assignment.AssignmentId);
+        Assert.NotNull(assignment.Target);
+        Assert.Equal(token, store.LastIdentifiedQueueToken);
+    }
+
+    [Fact]
     public async Task Open_link_session_endpoint_maps_missing_required_consent_grants_to_problem_details()
     {
         const string token = "opn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
@@ -516,6 +541,66 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Assert.Equal(sessionId, session.Id);
         Assert.Equal(publicHandle, session.PublicHandle);
         Assert.Equal(entry.ConsentDocument.Id, store.LastIdentifiedEntrySessionRequest?.AcceptedConsentDocumentId);
+    }
+
+    [Fact]
+    public async Task Identified_queue_assignment_endpoints_create_session_draft_save_and_submit_without_tenant_auth_headers()
+    {
+        const string token = "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var assignmentId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+        const string publicHandle = "rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        var store = new FakeResponseCaptureStore(
+            assignmentId: assignmentId,
+            sessionId: sessionId,
+            publicSessionHandle: publicHandle,
+            identifiedQueueToken: token);
+        using var client = CreateClient(store);
+
+        var queueResponse = await client.GetAsync($"/respondent/identified-queues/{token}");
+        var queue = await queueResponse.Content.ReadFromJsonAsync<IdentifiedQueueResponse>();
+        Assert.NotNull(queue);
+
+        var sessionResponse = await client.PostAsJsonAsync(
+            $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions",
+            new CreateOpenLinkSessionRequest(
+                "en",
+                queue.ConsentDocument.Id,
+                queue.ConsentDocument.RequiredGrants));
+        var draftResponse = await client.GetAsync(
+            $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions/{sessionId}/draft");
+        var saveResponse = await client.PutAsJsonAsync(
+            $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions/{sessionId}/answers",
+            new SaveAnswersRequest(
+            [
+                new SaveAnswerRequest(Guid.NewGuid(), "4")
+            ]));
+        var submitResponse = await client.PostAsJsonAsync(
+            $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions/{sessionId}/submit",
+            new SubmitResponseSessionRequest(TimeTakenMs: 1200));
+
+        Assert.Equal(HttpStatusCode.Created, sessionResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, saveResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, submitResponse.StatusCode);
+        var session = await sessionResponse.Content.ReadFromJsonAsync<ResponseSessionResponse>();
+        var draft = await draftResponse.Content.ReadFromJsonAsync<OpenLinkSessionDraftResponse>();
+        var saved = await saveResponse.Content.ReadFromJsonAsync<SaveAnswersResponse>();
+        var submitted = await submitResponse.Content.ReadFromJsonAsync<SubmitResponseSessionResponse>();
+        Assert.NotNull(session);
+        Assert.NotNull(draft);
+        Assert.NotNull(saved);
+        Assert.NotNull(submitted);
+        Assert.Equal(sessionId, session.Id);
+        Assert.Equal(publicHandle, session.PublicHandle);
+        Assert.Equal(sessionId, draft.Session.Id);
+        Assert.Equal(sessionId, saved.SessionId);
+        Assert.Equal(sessionId, submitted.Id);
+        Assert.Equal(queue.ConsentDocument.Id, store.LastIdentifiedQueueSessionRequest?.AcceptedConsentDocumentId);
+        Assert.Equal((token, assignmentId), store.LastIdentifiedQueueSessionScope);
+        Assert.Equal((token, assignmentId, sessionId), store.LastIdentifiedQueueDraftScope);
+        Assert.Equal((token, assignmentId, sessionId), store.LastIdentifiedQueueSaveScope);
+        Assert.Equal((token, assignmentId, sessionId), store.LastIdentifiedQueueSubmitScope);
     }
 
     [Fact]
@@ -678,6 +763,8 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
     {
         return factory.WithWebHostBuilder(builder =>
         {
+            builder.UseContentRoot(ResolveApiContentRoot());
+
             if (configuration is not null)
             {
                 foreach (var (key, value) in configuration)
@@ -715,6 +802,26 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         });
     }
 
+    private static string ResolveApiContentRoot()
+    {
+        var candidates = new[]
+        {
+            Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "src/Platform.Api")),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Platform.Api"))
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new DirectoryNotFoundException(
+            $"Could not locate Platform.Api content root. Tried: {string.Join(", ", candidates)}");
+    }
+
     private static HttpRequestMessage AuthenticatedRequest(
         HttpMethod method,
         string url,
@@ -750,7 +857,10 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         Result<OpenLinkSessionDraftResponse>? openLinkDraftResult = null,
         string? identifiedEntryToken = null,
         Result<OpenLinkEntryResponse>? identifiedEntryResult = null,
-        string? publicSessionHandle = null) : IResponseCaptureStore
+        string? publicSessionHandle = null,
+        string? identifiedQueueToken = null,
+        Result<IdentifiedQueueResponse>? identifiedQueueResult = null,
+        Result<OpenLinkSessionDraftResponse>? identifiedQueueDraftResult = null) : IResponseCaptureStore
     {
         private readonly Guid _campaignId = campaignId ?? Guid.NewGuid();
         private readonly Guid _assignmentId = assignmentId ?? Guid.NewGuid();
@@ -758,11 +868,18 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
         private readonly Guid _questionId = Guid.NewGuid();
         private readonly string _openLinkToken = openLinkToken ?? "opn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
         private readonly string _identifiedEntryToken = identifiedEntryToken ?? "idn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+        private readonly string _identifiedQueueToken = identifiedQueueToken ?? "idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
         private readonly string _publicSessionHandle = publicSessionHandle ?? "rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
 
         public CreateOpenLinkSessionRequest? LastOpenLinkSessionRequest { get; private set; }
         public CreateOpenLinkSessionRequest? LastIdentifiedEntrySessionRequest { get; private set; }
+        public string? LastIdentifiedQueueToken { get; private set; }
+        public CreateOpenLinkSessionRequest? LastIdentifiedQueueSessionRequest { get; private set; }
         public (string Token, Guid SessionId)? LastOpenLinkDraftRequest { get; private set; }
+        public (string Token, Guid AssignmentId)? LastIdentifiedQueueSessionScope { get; private set; }
+        public (string Token, Guid AssignmentId, Guid SessionId)? LastIdentifiedQueueDraftScope { get; private set; }
+        public (string Token, Guid AssignmentId, Guid SessionId)? LastIdentifiedQueueSaveScope { get; private set; }
+        public (string Token, Guid AssignmentId, Guid SessionId)? LastIdentifiedQueueSubmitScope { get; private set; }
         public string? LastPublicSessionDraftHandle { get; private set; }
         public string? LastPublicSessionSaveHandle { get; private set; }
         public string? LastPublicSessionSubmitHandle { get; private set; }
@@ -926,6 +1043,100 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                 PublicHandle: _publicSessionHandle)));
         }
 
+        public Task<Result<IdentifiedQueueResponse>> GetIdentifiedQueueAsync(
+            string token,
+            CancellationToken cancellationToken)
+        {
+            LastIdentifiedQueueToken = token;
+
+            if (identifiedQueueResult.HasValue)
+            {
+                return Task.FromResult(identifiedQueueResult.Value);
+            }
+
+            return Task.FromResult(Result.Success(SampleIdentifiedQueue()));
+        }
+
+        public Task<Result<ResponseSessionResponse>> CreateIdentifiedQueueAssignmentSessionAsync(
+            string token,
+            Guid assignmentId,
+            CreateOpenLinkSessionRequest request,
+            CancellationToken cancellationToken)
+        {
+            LastIdentifiedQueueSessionScope = (token, assignmentId);
+            LastIdentifiedQueueSessionRequest = request;
+
+            return Task.FromResult(Result.Success(new ResponseSessionResponse(
+                _sessionId,
+                assignmentId,
+                request.Locale,
+                DateTimeOffset.UtcNow,
+                SubmittedAt: null,
+                TimeTakenMs: null,
+                PublicHandle: _publicSessionHandle)));
+        }
+
+        public Task<Result<OpenLinkSessionDraftResponse>> GetIdentifiedQueueSessionDraftAsync(
+            string token,
+            Guid assignmentId,
+            Guid sessionId,
+            CancellationToken cancellationToken)
+        {
+            LastIdentifiedQueueDraftScope = (token, assignmentId, sessionId);
+
+            if (identifiedQueueDraftResult.HasValue)
+            {
+                return Task.FromResult(identifiedQueueDraftResult.Value);
+            }
+
+            return Task.FromResult(Result.Success(new OpenLinkSessionDraftResponse(
+                new ResponseSessionResponse(
+                    sessionId,
+                    assignmentId,
+                    "en",
+                    DateTimeOffset.UtcNow,
+                    SubmittedAt: null,
+                    TimeTakenMs: null,
+                    PublicHandle: _publicSessionHandle),
+                [
+                    new SavedAnswerResponse(
+                        _questionId,
+                        "4",
+                        Comment: null,
+                        IsSkipped: false,
+                        IsNa: false)
+                ],
+                SavedAnswerCount: 1)));
+        }
+
+        public Task<Result<SaveAnswersResponse>> SaveIdentifiedQueueAnswersAsync(
+            string token,
+            Guid assignmentId,
+            Guid sessionId,
+            SaveAnswersRequest request,
+            CancellationToken cancellationToken)
+        {
+            LastIdentifiedQueueSaveScope = (token, assignmentId, sessionId);
+
+            return Task.FromResult(Result.Success(new SaveAnswersResponse(
+                sessionId,
+                request.Answers.Count)));
+        }
+
+        public Task<Result<SubmitResponseSessionResponse>> SubmitIdentifiedQueueSessionAsync(
+            string token,
+            Guid assignmentId,
+            Guid sessionId,
+            SubmitResponseSessionRequest request,
+            CancellationToken cancellationToken)
+        {
+            LastIdentifiedQueueSubmitScope = (token, assignmentId, sessionId);
+
+            return Task.FromResult(Result.Success(new SubmitResponseSessionResponse(
+                sessionId,
+                DateTimeOffset.UtcNow)));
+        }
+
         public Task<Result<ResponseSessionResponse>> CreateOpenLinkSessionAsync(
             string token,
             CreateOpenLinkSessionRequest request,
@@ -1074,6 +1285,46 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
                         "likert",
                         "I feel depleted after work.",
                         Required: true)
+                ]);
+        }
+
+        private IdentifiedQueueResponse SampleIdentifiedQueue()
+        {
+            var respondent = new IdentifiedQueueSubjectResponse(
+                Guid.NewGuid(),
+                "Self",
+                "Ada Respondent");
+            var target = new IdentifiedQueueSubjectResponse(
+                Guid.NewGuid(),
+                "Manager",
+                "Casey Manager");
+
+            return new IdentifiedQueueResponse(
+                _campaignId,
+                Guid.NewGuid(),
+                "Identified queue campaign",
+                "live",
+                "identified",
+                "en",
+                SampleConsentDocument(),
+                [
+                    new RespondentQuestionResponse(
+                        _questionId,
+                        1,
+                        "q01",
+                        "likert",
+                        "I feel depleted after work.",
+                        Required: true)
+                ],
+                respondent,
+                [
+                    new IdentifiedQueueAssignmentResponse(
+                        _assignmentId,
+                        "manager",
+                        "not_started",
+                        target,
+                        SessionId: null,
+                        SubmittedAt: null)
                 ]);
         }
 

@@ -1444,7 +1444,7 @@ const sampleTemplateVersion = {
 	templateVersionId,
 	templateName: 'Tenant burnout pulse template',
 	semver: '1.0.0',
-	status: 'draft',
+	status: 'published',
 	defaultLocale: 'en',
 	instrumentId,
 	sections: [

@@ -42,6 +42,44 @@ describe('createProductApi', () => {
 		expect(calls).toEqual(['/tenant-settings']);
 	});
 
+	it('updates tenant report branding', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return sampleTenantSettings.reportBranding as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.updateTenantReportBranding({
+			organizationLabel: 'Acme OSH Consulting',
+			reportTitle: 'Monthly workplace risk report',
+			accentColorHex: '#0f766e',
+			layoutVariant: 'compact'
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/tenant-settings/report-branding',
+				init: {
+					method: 'PUT',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						organizationLabel: 'Acme OSH Consulting',
+						reportTitle: 'Monthly workplace risk report',
+						accentColorHex: '#0f766e',
+						layoutVariant: 'compact'
+					})
+				}
+			}
+		]);
+	});
+
 	it('requests export artifact library', async () => {
 		const calls: string[] = [];
 		const api = createProductApi({
@@ -116,6 +154,525 @@ describe('createProductApi', () => {
 		await api.listSubjects();
 
 		expect(calls).toEqual(['/subjects']);
+	});
+
+	it('requests Microsoft Graph directory connection state', async () => {
+		const calls: string[] = [];
+		const api = createProductApi({
+			request: async <T>(path: string): Promise<T> => {
+				calls.push(path);
+				return {
+					tenantId: 'tenant-id',
+					provider: 'microsoft_graph',
+					status: 'disconnected',
+					displayName: 'Microsoft Graph',
+					primaryDomain: null,
+					grantedScopes: [],
+					lastConsentAt: null,
+					lastSuccessfulImportAt: null,
+					updatedAt: null,
+					connected: false
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.getMicrosoftGraphDirectoryConnectionState();
+
+		expect(calls).toEqual(['/directory-connections/microsoft-graph']);
+	});
+
+	it('requests Microsoft Graph directory import runs', async () => {
+		const calls: string[] = [];
+		const api = createProductApi({
+			request: async <T>(path: string): Promise<T> => {
+				calls.push(path);
+				return {
+					tenantId: 'tenant-id',
+					runs: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.listMicrosoftGraphDirectoryImportRuns();
+
+		expect(calls).toEqual(['/directory-connections/microsoft-graph/import-runs']);
+	});
+
+	it('requests Microsoft Graph directory import rules', async () => {
+		const calls: string[] = [];
+		const api = createProductApi({
+			request: async <T>(path: string): Promise<T> => {
+				calls.push(path);
+				return {
+					tenantId: 'tenant-id',
+					rules: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.listMicrosoftGraphDirectoryImportRules();
+
+		expect(calls).toEqual(['/directory-connections/microsoft-graph/import-rules']);
+	});
+
+	it('saves a Microsoft Graph directory import rule', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					id: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					name: 'All employees',
+					status: 'active',
+					stalePolicy: 'mark_stale',
+					retainedFields: ['external_id', 'email'],
+					createdAt: '2026-06-12T12:00:00Z',
+					updatedAt: '2026-06-12T12:00:00Z'
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.saveMicrosoftGraphDirectoryImportRule({
+			name: 'All employees',
+			markMissingSubjectsStale: true,
+			retainedFields: ['external_id', 'email']
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						name: 'All employees',
+						markMissingSubjectsStale: true,
+						retainedFields: ['external_id', 'email']
+					})
+				}
+			}
+		]);
+	});
+
+	it('archives a Microsoft Graph directory import rule', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					id: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					name: 'All employees',
+					status: 'archived',
+					stalePolicy: 'mark_stale',
+					retainedFields: ['external_id', 'email'],
+					createdAt: '2026-06-12T12:00:00Z',
+					updatedAt: '2026-06-12T12:10:00Z'
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.archiveMicrosoftGraphDirectoryImportRule('rule/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules/rule%2Fid',
+				init: {
+					method: 'DELETE',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({})
+				}
+			}
+		]);
+	});
+
+	it('previews a Microsoft Graph directory import rule from a fresh snapshot', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					directoryImportRuleId: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					import: {
+						tenantId: 'tenant-id',
+						rowCount: 1,
+						importedRowCount: 1,
+						createdSubjectCount: 1,
+						updatedSubjectCount: 0,
+						createdGroupCount: 0,
+						addedMembershipCount: 0,
+						skippedMembershipCount: 0,
+						rows: [],
+						dryRun: true
+					},
+					includedUserCount: 1,
+					includedMembershipCount: 0,
+					warnings: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.previewMicrosoftGraphDirectoryImportRule('rule/id', {
+			microsoftTenantId: 'ms-tenant-001',
+			users: [
+				{
+					id: 'user-001',
+					mail: 'ana@example.test',
+					displayName: 'Ana Analyst'
+				}
+			],
+			groups: [],
+			memberships: []
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules/rule%2Fid/preview',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						microsoftTenantId: 'ms-tenant-001',
+						users: [
+							{
+								id: 'user-001',
+								mail: 'ana@example.test',
+								displayName: 'Ana Analyst'
+							}
+						],
+						groups: [],
+						memberships: []
+					})
+				}
+			}
+		]);
+	});
+
+	it('applies a Microsoft Graph directory import rule from a completed preview', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					directoryImportRuleId: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					import: {
+						tenantId: 'tenant-id',
+						rowCount: 1,
+						importedRowCount: 1,
+						createdSubjectCount: 1,
+						updatedSubjectCount: 0,
+						createdGroupCount: 0,
+						addedMembershipCount: 0,
+						skippedMembershipCount: 0,
+						rows: [],
+						dryRun: false
+					},
+					includedUserCount: 1,
+					includedMembershipCount: 0,
+					warnings: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.applyMicrosoftGraphDirectoryImportRule('rule/id', {
+			microsoftTenantId: 'ms-tenant-001',
+			previewImportRunId: 'preview-run-id',
+			users: [
+				{
+					id: 'user-001',
+					mail: 'ana@example.test',
+					displayName: 'Ana Analyst'
+				}
+			],
+			groups: [],
+			memberships: []
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules/rule%2Fid/apply',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						microsoftTenantId: 'ms-tenant-001',
+						previewImportRunId: 'preview-run-id',
+						users: [
+							{
+								id: 'user-001',
+								mail: 'ana@example.test',
+								displayName: 'Ana Analyst'
+							}
+						],
+						groups: [],
+						memberships: []
+					})
+				}
+			}
+		]);
+	});
+
+	it('previews a Microsoft Graph directory import rule from the live connector', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					directoryImportRuleId: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					import: {
+						tenantId: 'tenant-id',
+						rowCount: 1,
+						importedRowCount: 1,
+						createdSubjectCount: 1,
+						updatedSubjectCount: 0,
+						createdGroupCount: 0,
+						addedMembershipCount: 0,
+						skippedMembershipCount: 0,
+						rows: [],
+						dryRun: true
+					},
+					includedUserCount: 1,
+					includedMembershipCount: 0,
+					warnings: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.previewLiveMicrosoftGraphDirectoryImportRule('rule/id');
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules/rule%2Fid/live-preview',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({})
+				}
+			}
+		]);
+	});
+
+	it('applies a Microsoft Graph directory import rule from the live connector', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					directoryImportRuleId: 'rule-id',
+					directoryConnectionId: 'connection-id',
+					import: {
+						tenantId: 'tenant-id',
+						rowCount: 1,
+						importedRowCount: 1,
+						createdSubjectCount: 1,
+						updatedSubjectCount: 0,
+						createdGroupCount: 0,
+						addedMembershipCount: 0,
+						skippedMembershipCount: 0,
+						rows: [],
+						dryRun: false
+					},
+					includedUserCount: 1,
+					includedMembershipCount: 0,
+					warnings: []
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.applyLiveMicrosoftGraphDirectoryImportRule('rule/id', {
+			previewImportRunId: 'preview-run-id'
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/import-rules/rule%2Fid/live-apply',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						previewImportRunId: 'preview-run-id'
+					})
+				}
+			}
+		]);
+	});
+
+	it('creates a Microsoft Graph consent request', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					consentRequestId: 'consent-request-id',
+					directoryConnectionId: 'directory-connection-id',
+					provider: 'microsoft_graph',
+					status: 'pending',
+					requestedScopes: ['User.Read.All'],
+					expiresAt: '2026-06-11T12:20:00Z',
+					state: 'state-value',
+					nonce: 'nonce-value',
+					callbackPath: '/app/directory'
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.createMicrosoftGraphConsentRequest({ requestedScopes: ['User.Read.All'] });
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/consent-requests',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						requestedScopes: ['User.Read.All']
+					})
+				}
+			}
+		]);
+	});
+
+	it('completes a Microsoft Graph consent callback', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					consentRequestId: 'consent-request-id',
+					directoryConnectionId: 'directory-connection-id',
+					provider: 'microsoft_graph',
+					status: 'completed',
+					connectionStatus: 'active',
+					connected: true
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.completeMicrosoftGraphConsentCallback({
+			state: 'state-value',
+			nonce: 'nonce-value',
+			adminConsent: true,
+			microsoftTenantId: 'ms-tenant-001'
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/consent-callback',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						state: 'state-value',
+						nonce: 'nonce-value',
+						adminConsent: true,
+						microsoftTenantId: 'ms-tenant-001'
+					})
+				}
+			}
+		]);
+	});
+
+	it('completes a Microsoft Graph consent callback without nonce', async () => {
+		const calls: Array<{ path: string; init?: RequestInit }> = [];
+		const api = createProductApi({
+			request: async <T>(path: string, init?: RequestInit): Promise<T> => {
+				calls.push({ path, init });
+				return {
+					tenantId: 'tenant-id',
+					consentRequestId: 'consent-request-id',
+					directoryConnectionId: 'directory-connection-id',
+					provider: 'microsoft_graph',
+					status: 'completed',
+					connectionStatus: 'active',
+					connected: true
+				} as T;
+			},
+			requestText: async () => {
+				throw new Error('not used');
+			}
+		});
+
+		await api.completeMicrosoftGraphConsentCallback({
+			state: 'state-value',
+			adminConsent: true,
+			microsoftTenantId: 'ms-tenant-001'
+		});
+
+		expect(calls).toEqual([
+			{
+				path: '/directory-connections/microsoft-graph/consent-callback',
+				init: {
+					method: 'POST',
+					headers: {
+						'content-type': 'application/json'
+					},
+					body: JSON.stringify({
+						state: 'state-value',
+						adminConsent: true,
+						microsoftTenantId: 'ms-tenant-001'
+					})
+				}
+			}
+		]);
 	});
 
 	it('creates a subject directory entry', async () => {
@@ -1034,6 +1591,15 @@ const sampleTenantSettings: TenantSettingsWorkspaceResponse = {
 		tenantRoleCount: 3,
 		exportArtifactCount: 5
 	},
+	reportBranding: {
+		organizationLabel: 'Occupational Health Lab',
+		reportTitle: 'Campaign series report',
+		brandingSource: 'tenant_profile',
+		logoMode: 'none',
+		accentColorHex: '#2563eb',
+		layoutVariant: 'standard',
+		deferredCustomizations: ['logo_upload', 'custom_fonts', 'product_shell_theming']
+	},
 	managementLinks: [
 		{
 			id: 'campaign-series',
@@ -1112,7 +1678,9 @@ const sampleSubject = {
 	managerSubjectId: null,
 	managerDisplayName: null,
 	directReportCount: 0,
-	groups: []
+	groups: [],
+	directoryImportStale: false,
+	directoryImportStaleAt: null
 };
 
 const sampleSubjectGroup = {

@@ -4,6 +4,12 @@ namespace Platform.Application.Features.ProductSurfaces;
 
 public interface IProductSurfaceWriteStore
 {
+    Task<Result<TenantSettingsReportBrandingResponse>> UpdateTenantReportBrandingAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantReportBrandingRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
         Guid tenantId,
         Guid campaignSeriesId,
@@ -74,6 +80,30 @@ public interface IProductSurfaceWriteStore
         Guid tenantId,
         Guid actorUserId,
         SubjectDirectoryCsvImportRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<MicrosoftGraphConsentRequestResponse>> CreateMicrosoftGraphConsentRequestAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CreateMicrosoftGraphConsentRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<MicrosoftGraphConsentCallbackResponse>> CompleteMicrosoftGraphConsentCallbackAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CompleteMicrosoftGraphConsentCallbackRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<DirectoryImportRuleResponse>> SaveMicrosoftGraphDirectoryImportRuleAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        SaveMicrosoftGraphImportRuleRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<DirectoryImportRuleResponse>> ArchiveMicrosoftGraphDirectoryImportRuleAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        Guid ruleId,
         CancellationToken cancellationToken);
 
     Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(

@@ -41,6 +41,18 @@ public sealed class OpenLinkTokensTests
     }
 
     [Fact]
+    public void IssueIdentifiedQueue_embeds_tenant_routing_hint_and_hashes_raw_token()
+    {
+        var tenantId = Guid.NewGuid();
+
+        var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+
+        Assert.StartsWith($"idq_{tenantId:N}_", issued.RawToken, StringComparison.Ordinal);
+        Assert.Equal(64, issued.TokenHash.Length);
+        Assert.Equal(issued.TokenHash, OpenLinkTokens.Hash(issued.RawToken));
+    }
+
+    [Fact]
     public void ParseTenant_returns_tenant_id_for_valid_token()
     {
         var tenantId = Guid.NewGuid();
@@ -113,6 +125,18 @@ public sealed class OpenLinkTokensTests
     {
         var tenantId = Guid.NewGuid();
         var issued = OpenLinkTokens.IssueIdentifiedEntry(tenantId);
+
+        var parsed = OpenLinkTokens.ParseTenant(issued.RawToken);
+
+        Assert.True(parsed.IsSuccess, parsed.Error.ToString());
+        Assert.Equal(tenantId, parsed.Value.TenantId);
+    }
+
+    [Fact]
+    public void ParseTenant_returns_tenant_id_for_valid_identified_queue_token()
+    {
+        var tenantId = Guid.NewGuid();
+        var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
 
         var parsed = OpenLinkTokens.ParseTenant(issued.RawToken);
 

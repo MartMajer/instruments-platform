@@ -242,6 +242,44 @@ export function toTenantSettingsView(
 				value: formatCount(settings.counts.exportArtifactCount)
 			}
 		],
+		reportBranding: {
+			title: appMessage(locale, 'settings.reportBranding.title'),
+			description: appMessage(locale, 'settings.reportBranding.description'),
+			rows: [
+				{
+					label: appMessage(locale, 'settings.reportBranding.organizationLabel'),
+					value:
+						settings.reportBranding.organizationLabel.trim() ||
+						appMessage(locale, 'settings.tenant.untitled')
+				},
+				{
+					label: appMessage(locale, 'settings.reportBranding.reportTitle'),
+					value:
+						settings.reportBranding.reportTitle.trim() ||
+						appMessage(locale, 'settings.reportBranding.defaultReportTitle')
+				},
+				{
+					label: appMessage(locale, 'settings.reportBranding.source'),
+					value: sentenceCase(humanizeValue(settings.reportBranding.brandingSource))
+				},
+				{
+					label: appMessage(locale, 'settings.reportBranding.logoMode'),
+					value: sentenceCase(humanizeValue(settings.reportBranding.logoMode))
+				},
+				{
+					label: appMessage(locale, 'settings.reportBranding.accent'),
+					value: settings.reportBranding.accentColorHex
+				},
+				{
+					label: appMessage(locale, 'settings.reportBranding.layout'),
+					value: sentenceCase(humanizeValue(settings.reportBranding.layoutVariant))
+				}
+			],
+			deferredTitle: appMessage(locale, 'settings.reportBranding.deferredTitle'),
+			deferredItems: settings.reportBranding.deferredCustomizations.map((item) =>
+				sentenceCase(humanizeValue(item))
+			)
+		},
 		managementLinks: settings.managementLinks.map((link) => ({
 			id: link.id,
 			label: link.label,
@@ -1341,8 +1379,8 @@ export function toCampaignSeriesWavesWorkspaceView(
 		canMutate: !ownership.isSample,
 		readOnlyMessage: ownership.readOnlyMessage,
 		studyBriefContext: toStudyBriefContext(workspace.series.studyBrief, locale),
-		surfaceLabel: 'Compare waves',
-		surfaceEyebrow: 'Wave comparison',
+		surfaceLabel: 'Compare rounds',
+		surfaceEyebrow: 'Repeated-round comparison',
 		summaryRows: [
 			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
 			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
@@ -1410,13 +1448,13 @@ export function toCampaignSeriesWavesWorkspaceView(
 		emptyState:
 			workspace.waves.length === 0
 				? {
-						title: 'No waves yet',
-						message: 'Create and launch at least two waves before comparing results over time.'
+						title: 'No repeated rounds yet',
+						message: 'Create and launch at least two collection rounds before comparing results over time.'
 					}
 				: null,
 		proofActionTitle: 'Comparison actions',
 		proofActionDescription:
-			'Check whether repeated waves can be compared, then review safe change-over-time summaries.'
+			'Check whether repeated rounds can be compared, then review safe change-over-time summaries.'
 	}, locale);
 }
 
@@ -3293,7 +3331,7 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 					title: 'No campaigns yet',
 					message: 'Create a wave draft before running launch readiness.'
 				},
-				proofActionTitle: 'Setup actions',
+				proofActionTitle: 'Preparation actions',
 				proofActionDescription:
 					'Choose a questionnaire source, prepare questionnaire and result outputs, create a wave draft, and check launch readiness.'
 			};
@@ -3323,15 +3361,15 @@ function selectedSeriesSurfaceConfig(surface: SelectedSeriesSurfaceId) {
 			};
 		case 'waves':
 			return {
-				label: 'Compare waves',
-				eyebrow: 'Wave comparison',
+				label: 'Compare rounds',
+				eyebrow: 'Repeated-round comparison',
 				emptyState: {
-					title: 'No waves yet',
-					message: 'Create and launch at least two waves before comparing results over time.'
+					title: 'No repeated rounds yet',
+					message: 'Create and launch at least two collection rounds before comparing results over time.'
 				},
 				proofActionTitle: 'Comparison actions',
 				proofActionDescription:
-					'Check whether repeated waves can be compared, then review safe change-over-time summaries.'
+					'Check whether repeated rounds can be compared, then review safe change-over-time summaries.'
 			};
 	}
 }
@@ -3585,10 +3623,13 @@ const legacyApiReadModelCroatianChrome: Record<string, string> = {
 	'Create an export after report results become available.': 'Izradite izvoz nakon što rezultati izvještaja postanu dostupni.',
 	'Download the latest export file for handoff, or create a fresh export after results change.': 'Preuzmite zadnju izvoznu datoteku za predaju ili izradite novi izvoz nakon promjene rezultata.',
 
-	'Compare waves': 'Usporedba mjerenja',
-	'Wave comparison': 'Usporedba mjerenja',
+	'Compare rounds': 'Usporedba krugova',
+	'Repeated-round comparison': 'Usporedba ponovljenih krugova',
 	'Comparison actions': 'Radnje usporedbe',
-	'Check whether repeated waves can be compared, then review safe change-over-time summaries.': 'Provjerite mogu li se ponovljena mjerenja usporediti, zatim pregledajte sigurne sažetke promjene kroz vrijeme.',
+	'No repeated rounds yet': 'Još nema ponovljenih krugova',
+	'Create and launch at least two collection rounds before comparing results over time.':
+		'Izradite i pokrenite barem dva kruga prikupljanja prije usporedbe rezultata kroz vrijeme.',
+	'Check whether repeated rounds can be compared, then review safe change-over-time summaries.': 'Provjerite mogu li se ponovljeni krugovi usporediti, zatim pregledajte sigurne sažetke promjene kroz vrijeme.',
 	'Repeat-participation waves': 'Ponovljena mjerenja',
 	'Submitted waves': 'Mjerenja s odgovorima',
 	'Linked repeat responses': 'Povezani ponovljeni odgovori',
@@ -4410,6 +4451,3 @@ function formatBytes(value: number) {
 
 	return `${(value / 1_000_000).toFixed(1)} MB`;
 }
-
-
-

@@ -8,6 +8,7 @@ public sealed class ScoringFixtureReplayTests
     private static readonly string[] CurrentGraphOperations =
     [
         "select_answers",
+        "map_choice_scores",
         "reverse_code",
         "mean",
         "sum",

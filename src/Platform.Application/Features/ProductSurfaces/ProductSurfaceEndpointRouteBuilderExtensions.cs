@@ -32,6 +32,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("GetTenantSettings")
             .WithTags("ProductSurfaces");
 
+        app.MapPut("/tenant-settings/report-branding", UpdateTenantReportBranding)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UpdateTenantReportBranding")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/export-artifacts", ListExportArtifacts)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember)
@@ -60,6 +66,72 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
             .WithName("ListSubjects")
+            .WithTags("ProductSurfaces");
+
+        app.MapGet("/directory-connections/microsoft-graph", GetMicrosoftGraphDirectoryConnectionState)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("GetMicrosoftGraphDirectoryConnectionState")
+            .WithTags("ProductSurfaces");
+
+        app.MapGet("/directory-connections/microsoft-graph/import-runs", ListMicrosoftGraphDirectoryImportRuns)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ListMicrosoftGraphDirectoryImportRuns")
+            .WithTags("ProductSurfaces");
+
+        app.MapGet("/directory-connections/microsoft-graph/import-rules", ListMicrosoftGraphDirectoryImportRules)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ListMicrosoftGraphDirectoryImportRules")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/import-rules", SaveMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("SaveMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/import-rules/{ruleId:guid}/preview", PreviewMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("PreviewMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/import-rules/{ruleId:guid}/apply", ApplyMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ApplyMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/import-rules/{ruleId:guid}/live-preview", PreviewLiveMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("PreviewLiveMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/import-rules/{ruleId:guid}/live-apply", ApplyLiveMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ApplyLiveMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapDelete("/directory-connections/microsoft-graph/import-rules/{ruleId:guid}", ArchiveMicrosoftGraphDirectoryImportRule)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ArchiveMicrosoftGraphDirectoryImportRule")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/consent-requests", CreateMicrosoftGraphConsentRequest)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("CreateMicrosoftGraphConsentRequest")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/directory-connections/microsoft-graph/consent-callback", CompleteMicrosoftGraphConsentCallback)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("CompleteMicrosoftGraphConsentCallback")
             .WithTags("ProductSurfaces");
 
         app.MapPost("/subjects", CreateSubject)
@@ -224,6 +296,16 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         return ProductSurfaceHttpResults.ToOk(result);
     }
 
+    private static async Task<IResult> UpdateTenantReportBranding(
+        UpdateTenantReportBrandingRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new UpdateTenantReportBrandingCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
     private static async Task<IResult> ListCampaignSeries(
         string? search,
         string? status,
@@ -261,6 +343,118 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         return Results.Ok(await sender.Send(new ListSubjectsQuery(), cancellationToken));
+    }
+
+    private static async Task<IResult> GetMicrosoftGraphDirectoryConnectionState(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        return Results.Ok(await sender.Send(new GetMicrosoftGraphDirectoryConnectionStateQuery(), cancellationToken));
+    }
+
+    private static async Task<IResult> ListMicrosoftGraphDirectoryImportRuns(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        return Results.Ok(await sender.Send(new ListMicrosoftGraphDirectoryImportRunsQuery(), cancellationToken));
+    }
+
+    private static async Task<IResult> ListMicrosoftGraphDirectoryImportRules(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        return Results.Ok(await sender.Send(new ListMicrosoftGraphDirectoryImportRulesQuery(), cancellationToken));
+    }
+
+    private static async Task<IResult> SaveMicrosoftGraphDirectoryImportRule(
+        SaveMicrosoftGraphImportRuleRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new SaveMicrosoftGraphDirectoryImportRuleCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ArchiveMicrosoftGraphDirectoryImportRule(
+        Guid ruleId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ArchiveMicrosoftGraphDirectoryImportRuleCommand(ruleId), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> PreviewMicrosoftGraphDirectoryImportRule(
+        Guid ruleId,
+        PreviewMicrosoftGraphImportRuleRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new PreviewMicrosoftGraphDirectoryImportRuleCommand(ruleId, request),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ApplyMicrosoftGraphDirectoryImportRule(
+        Guid ruleId,
+        ApplyMicrosoftGraphImportRuleRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ApplyMicrosoftGraphDirectoryImportRuleCommand(ruleId, request),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> PreviewLiveMicrosoftGraphDirectoryImportRule(
+        Guid ruleId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new PreviewLiveMicrosoftGraphDirectoryImportRuleCommand(ruleId),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ApplyLiveMicrosoftGraphDirectoryImportRule(
+        Guid ruleId,
+        LiveApplyMicrosoftGraphImportRuleRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ApplyLiveMicrosoftGraphDirectoryImportRuleCommand(ruleId, request),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CreateMicrosoftGraphConsentRequest(
+        CreateMicrosoftGraphConsentRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new CreateMicrosoftGraphConsentRequestCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CompleteMicrosoftGraphConsentCallback(
+        CompleteMicrosoftGraphConsentCallbackRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new CompleteMicrosoftGraphConsentCallbackCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> CreateSubject(

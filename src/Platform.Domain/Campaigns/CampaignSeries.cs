@@ -30,7 +30,8 @@ public sealed class CampaignSeries
         string? studyDesignType = null,
         string? studyIntendedUse = null,
         string? studyInterpretationBoundary = null,
-        string? studyOwnerNotes = null)
+        string? studyOwnerNotes = null,
+        Guid? setupTemplateVersionId = null)
     {
         ArgumentNullException.ThrowIfNull(codeSalt);
         if (codeSalt.Length != 32)
@@ -52,6 +53,7 @@ public sealed class CampaignSeries
         StudyIntendedUse = NormalizeStudyIntendedUse(studyIntendedUse);
         StudyInterpretationBoundary = NormalizeOptional(studyInterpretationBoundary, StudyInterpretationBoundaryMaxLength);
         StudyOwnerNotes = NormalizeOptional(studyOwnerNotes, StudyOwnerNotesMaxLength);
+        SetupTemplateVersionId = setupTemplateVersionId;
         CodeSalt = [.. codeSalt];
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
@@ -84,6 +86,8 @@ public sealed class CampaignSeries
     public string? StudyInterpretationBoundary { get; private set; }
 
     public string? StudyOwnerNotes { get; private set; }
+
+    public Guid? SetupTemplateVersionId { get; private set; }
 
     public byte[] CodeSalt { get; private set; } = [];
 
@@ -151,6 +155,17 @@ public sealed class CampaignSeries
             StudyInterpretationBoundaryMaxLength);
         StudyOwnerNotes = NormalizeOptional(ownerNotes, StudyOwnerNotesMaxLength);
         UpdatedAt = updatedAt;
+    }
+
+    public void SelectSetupTemplate(Guid templateVersionId, DateTimeOffset selectedAt)
+    {
+        if (templateVersionId == Guid.Empty)
+        {
+            throw new ArgumentException("Setup template version id is required.", nameof(templateVersionId));
+        }
+
+        SetupTemplateVersionId = templateVersionId;
+        UpdatedAt = selectedAt;
     }
 
     private static string NormalizeRequired(string value, string parameterName)

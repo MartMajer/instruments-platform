@@ -4,6 +4,7 @@ using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
 using Platform.Domain.Instruments;
+using Platform.Domain.Integrations;
 using Platform.Domain.Outbox;
 using Platform.Domain.Operations;
 using Platform.Domain.Responses;
@@ -38,6 +39,15 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
+
+    public DbSet<DirectoryConnection> DirectoryConnections => Set<DirectoryConnection>();
+
+    public DbSet<DirectoryConnectionConsentRequest> DirectoryConnectionConsentRequests =>
+        Set<DirectoryConnectionConsentRequest>();
+
+    public DbSet<DirectoryImportRule> DirectoryImportRules => Set<DirectoryImportRule>();
+
+    public DbSet<DirectoryImportRun> DirectoryImportRuns => Set<DirectoryImportRun>();
 
     public DbSet<WorkerHeartbeat> WorkerHeartbeats => Set<WorkerHeartbeat>();
 
@@ -157,12 +167,34 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
         modelBuilder.Entity<Tenant>(builder =>
         {
-            builder.ToTable("tenant");
+            builder.ToTable("tenant", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_tenant_report_branding_accent_color_hex",
+                    "report_branding_accent_color_hex IS NULL OR report_branding_accent_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
+                    "ck_tenant_report_branding_layout_variant",
+                    "report_branding_layout_variant IS NULL OR report_branding_layout_variant IN ('standard','compact','compliance')");
+            });
             builder.HasKey(tenant => tenant.Id).HasName("pk_tenant");
 
             builder.Property(tenant => tenant.Id).HasColumnName("id");
             builder.Property(tenant => tenant.Slug).HasColumnName("slug").HasMaxLength(128).IsRequired();
             builder.Property(tenant => tenant.Name).HasColumnName("name").HasMaxLength(256).IsRequired();
+            builder.Property(tenant => tenant.ReportBrandingOrganizationLabel)
+                .HasColumnName("report_branding_organization_label")
+                .HasMaxLength(Tenant.ReportBrandingOrganizationLabelMaxLength);
+            builder.Property(tenant => tenant.ReportBrandingReportTitle)
+                .HasColumnName("report_branding_report_title")
+                .HasMaxLength(Tenant.ReportBrandingReportTitleMaxLength);
+            builder.Property(tenant => tenant.ReportBrandingAccentColorHex)
+                .HasColumnName("report_branding_accent_color_hex")
+                .HasMaxLength(Tenant.ReportBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.ReportBrandingLayoutVariant)
+                .HasColumnName("report_branding_layout_variant")
+                .HasMaxLength(Tenant.ReportBrandingLayoutVariantMaxLength);
+            builder.Property(tenant => tenant.ReportBrandingUpdatedAt)
+                .HasColumnName("report_branding_updated_at");
             builder.Property(tenant => tenant.Region).HasColumnName("region").HasMaxLength(32).IsRequired();
             builder.Property(tenant => tenant.DefaultLocale).HasColumnName("default_locale").HasMaxLength(16).IsRequired();
             builder.Property(tenant => tenant.Status).HasColumnName("status").HasMaxLength(32).IsRequired();
@@ -539,6 +571,320 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasDatabaseName("ix_outbox_event_aggregate_id_created_at");
             builder.HasIndex(outboxEvent => new { outboxEvent.TenantId, outboxEvent.CreatedAt })
                 .HasDatabaseName("ix_outbox_event_tenant_id_created_at");
+        });
+
+        modelBuilder.Entity<DirectoryConnection>(builder =>
+        {
+            builder.ToTable("directory_connection", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_directory_connection_provider",
+                    "provider IN ('microsoft_graph')");
+                table.HasCheckConstraint(
+                    "ck_directory_connection_status",
+                    "status IN ('pending_consent','active','consent_required','revoked','failed','disconnected')");
+                table.HasCheckConstraint(
+                    "ck_directory_connection_active_shape",
+                    "status <> 'active' OR external_tenant_id IS NOT NULL");
+            });
+            builder.HasKey(connection => connection.Id).HasName("pk_directory_connection");
+            builder.HasAlternateKey(connection => new { connection.Id, connection.TenantId })
+                .HasName("ak_directory_connection_id_tenant_id");
+
+            builder.Property(connection => connection.Id).HasColumnName("id");
+            builder.Property(connection => connection.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(connection => connection.Provider)
+                .HasColumnName("provider")
+                .HasMaxLength(DirectoryConnection.ProviderMaxLength)
+                .IsRequired();
+            builder.Property(connection => connection.ExternalTenantId)
+                .HasColumnName("external_tenant_id")
+                .HasMaxLength(DirectoryConnection.ExternalTenantIdMaxLength);
+            builder.Property(connection => connection.DisplayName)
+                .HasColumnName("display_name")
+                .HasMaxLength(DirectoryConnection.DisplayNameMaxLength)
+                .IsRequired();
+            builder.Property(connection => connection.PrimaryDomain)
+                .HasColumnName("primary_domain")
+                .HasMaxLength(DirectoryConnection.PrimaryDomainMaxLength);
+            builder.Property(connection => connection.GrantedScopes)
+                .HasColumnName("granted_scopes")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(connection => connection.Status)
+                .HasColumnName("status")
+                .HasMaxLength(DirectoryConnection.StatusMaxLength)
+                .IsRequired();
+            builder.Property(connection => connection.LastConsentAt).HasColumnName("last_consent_at");
+            builder.Property(connection => connection.LastSuccessfulImportAt).HasColumnName("last_successful_import_at");
+            builder.Property(connection => connection.CreatedByUserId).HasColumnName("created_by_user_id");
+            builder.Property(connection => connection.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(connection => connection.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            builder.Property(connection => connection.DeletedAt).HasColumnName("deleted_at");
+
+            builder.HasIndex(connection => new { connection.TenantId, connection.Provider })
+                .HasDatabaseName("ix_directory_connection_tenant_id_provider_active")
+                .HasFilter("deleted_at IS NULL")
+                .IsUnique();
+            builder.HasIndex(connection => new { connection.TenantId, connection.Status })
+                .HasDatabaseName("ix_directory_connection_tenant_id_status");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(connection => connection.TenantId)
+                .HasConstraintName("fk_directory_connection_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<UserAccount>()
+                .WithMany()
+                .HasForeignKey(connection => connection.CreatedByUserId)
+                .HasConstraintName("fk_directory_connection_user_account_created_by_user_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DirectoryConnectionConsentRequest>(builder =>
+        {
+            builder.ToTable("directory_connection_consent_request", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_directory_connection_consent_request_provider",
+                    "provider IN ('microsoft_graph')");
+                table.HasCheckConstraint(
+                    "ck_directory_connection_consent_request_status",
+                    "status IN ('pending','completed','failed','expired')");
+                table.HasCheckConstraint(
+                    "ck_directory_connection_consent_request_completed_at",
+                    "completed_at IS NULL OR completed_at >= created_at");
+                table.HasCheckConstraint(
+                    "ck_directory_connection_consent_request_expires_at",
+                    "expires_at > created_at");
+            });
+            builder.HasKey(request => request.Id).HasName("pk_directory_connection_consent_request");
+
+            builder.Property(request => request.Id).HasColumnName("id");
+            builder.Property(request => request.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(request => request.DirectoryConnectionId).HasColumnName("directory_connection_id");
+            builder.Property(request => request.Provider)
+                .HasColumnName("provider")
+                .HasMaxLength(DirectoryConnectionConsentRequest.ProviderMaxLength)
+                .IsRequired();
+            builder.Property(request => request.StateHash)
+                .HasColumnName("state_hash")
+                .HasMaxLength(DirectoryConnectionConsentRequest.StateHashMaxLength)
+                .IsRequired();
+            builder.Property(request => request.NonceHash)
+                .HasColumnName("nonce_hash")
+                .HasMaxLength(DirectoryConnectionConsentRequest.NonceHashMaxLength)
+                .IsRequired();
+            builder.Property(request => request.RequestedScopes)
+                .HasColumnName("requested_scopes")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(request => request.Status)
+                .HasColumnName("status")
+                .HasMaxLength(DirectoryConnectionConsentRequest.StatusMaxLength)
+                .IsRequired();
+            builder.Property(request => request.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            builder.Property(request => request.CompletedAt).HasColumnName("completed_at");
+            builder.Property(request => request.FailureCategory)
+                .HasColumnName("failure_category")
+                .HasMaxLength(DirectoryConnectionConsentRequest.FailureCategoryMaxLength);
+            builder.Property(request => request.CreatedByUserId).HasColumnName("created_by_user_id");
+            builder.Property(request => request.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(request => request.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            builder.HasIndex(request => request.StateHash)
+                .HasDatabaseName("ix_directory_connection_consent_request_state_hash")
+                .IsUnique();
+            builder.HasIndex(request => new { request.TenantId, request.Status, request.ExpiresAt })
+                .HasDatabaseName("ix_directory_connection_consent_request_tenant_id_status_expires_at");
+            builder.HasIndex(request => new { request.DirectoryConnectionId, request.TenantId })
+                .HasDatabaseName("ix_directory_connection_consent_request_connection_id_tenant_id")
+                .HasFilter("directory_connection_id IS NOT NULL");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(request => request.TenantId)
+                .HasConstraintName("fk_directory_connection_consent_request_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<DirectoryConnection>()
+                .WithMany()
+                .HasForeignKey(request => new { request.DirectoryConnectionId, request.TenantId })
+                .HasPrincipalKey(connection => new { connection.Id, connection.TenantId })
+                .HasConstraintName("fk_directory_connection_consent_request_connection_id_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<UserAccount>()
+                .WithMany()
+                .HasForeignKey(request => request.CreatedByUserId)
+                .HasConstraintName("fk_directory_connection_consent_request_user_account_created_by_user_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DirectoryImportRule>(builder =>
+        {
+            builder.ToTable("directory_import_rule", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_directory_import_rule_status",
+                    "status IN ('draft','active','archived')");
+                table.HasCheckConstraint(
+                    "ck_directory_import_rule_stale_policy",
+                    "stale_policy IN ('none','mark_stale')");
+            });
+            builder.HasKey(rule => rule.Id).HasName("pk_directory_import_rule");
+            builder.HasAlternateKey(rule => new { rule.Id, rule.TenantId })
+                .HasName("ak_directory_import_rule_id_tenant_id");
+
+            builder.Property(rule => rule.Id).HasColumnName("id");
+            builder.Property(rule => rule.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(rule => rule.DirectoryConnectionId).HasColumnName("directory_connection_id").IsRequired();
+            builder.Property(rule => rule.Name)
+                .HasColumnName("name")
+                .HasMaxLength(DirectoryImportRule.NameMaxLength)
+                .IsRequired();
+            builder.Property(rule => rule.RuleDocument)
+                .HasColumnName("rule_document")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(rule => rule.RetainedFields)
+                .HasColumnName("retained_fields")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(rule => rule.StalePolicy)
+                .HasColumnName("stale_policy")
+                .HasMaxLength(DirectoryImportRule.StalePolicyMaxLength)
+                .IsRequired();
+            builder.Property(rule => rule.Status)
+                .HasColumnName("status")
+                .HasMaxLength(DirectoryImportRule.StatusMaxLength)
+                .IsRequired();
+            builder.Property(rule => rule.CreatedByUserId).HasColumnName("created_by_user_id");
+            builder.Property(rule => rule.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(rule => rule.UpdatedAt).HasColumnName("updated_at").IsRequired();
+            builder.Property(rule => rule.DeletedAt).HasColumnName("deleted_at");
+
+            builder.HasIndex(rule => new { rule.TenantId, rule.DirectoryConnectionId, rule.Status })
+                .HasDatabaseName("ix_directory_import_rule_tenant_id_connection_id_status");
+            builder.HasIndex(rule => new { rule.TenantId, rule.Name })
+                .HasDatabaseName("ix_directory_import_rule_tenant_id_name")
+                .HasFilter("deleted_at IS NULL");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(rule => rule.TenantId)
+                .HasConstraintName("fk_directory_import_rule_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<DirectoryConnection>()
+                .WithMany()
+                .HasForeignKey(rule => new { rule.DirectoryConnectionId, rule.TenantId })
+                .HasPrincipalKey(connection => new { connection.Id, connection.TenantId })
+                .HasConstraintName("fk_directory_import_rule_connection_id_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<UserAccount>()
+                .WithMany()
+                .HasForeignKey(rule => rule.CreatedByUserId)
+                .HasConstraintName("fk_directory_import_rule_user_account_created_by_user_id")
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<DirectoryImportRun>(builder =>
+        {
+            builder.ToTable("directory_import_run", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_directory_import_run_mode",
+                    "mode IN ('preview','apply')");
+                table.HasCheckConstraint(
+                    "ck_directory_import_run_status",
+                    "status IN ('queued','running','succeeded','failed','canceled')");
+                table.HasCheckConstraint(
+                    "ck_directory_import_run_apply_preview",
+                    "mode <> 'apply' OR preview_run_id IS NOT NULL");
+                table.HasCheckConstraint(
+                    "ck_directory_import_run_completed_at",
+                    "completed_at IS NULL OR completed_at >= created_at");
+            });
+            builder.HasKey(run => run.Id).HasName("pk_directory_import_run");
+
+            builder.Property(run => run.Id).HasColumnName("id");
+            builder.Property(run => run.TenantId).HasColumnName("tenant_id").IsRequired();
+            builder.Property(run => run.DirectoryConnectionId).HasColumnName("directory_connection_id").IsRequired();
+            builder.Property(run => run.DirectoryImportRuleId).HasColumnName("directory_import_rule_id");
+            builder.Property(run => run.PreviewRunId).HasColumnName("preview_run_id");
+            builder.Property(run => run.Mode)
+                .HasColumnName("mode")
+                .HasMaxLength(DirectoryImportRun.ModeMaxLength)
+                .IsRequired();
+            builder.Property(run => run.Status)
+                .HasColumnName("status")
+                .HasMaxLength(DirectoryImportRun.StatusMaxLength)
+                .IsRequired();
+            builder.Property(run => run.RuleSnapshot)
+                .HasColumnName("rule_snapshot")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(run => run.RetainedFields)
+                .HasColumnName("retained_fields")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(run => run.Counts)
+                .HasColumnName("counts")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(run => run.WarningCategories)
+                .HasColumnName("warning_categories")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(run => run.ErrorCategory)
+                .HasColumnName("error_category")
+                .HasMaxLength(DirectoryImportRun.ErrorCategoryMaxLength);
+            builder.Property(run => run.Checkpoint)
+                .HasColumnName("checkpoint")
+                .HasColumnType("jsonb")
+                .IsRequired();
+            builder.Property(run => run.RequestedByUserId).HasColumnName("requested_by_user_id");
+            builder.Property(run => run.StartedAt).HasColumnName("started_at");
+            builder.Property(run => run.CompletedAt).HasColumnName("completed_at");
+            builder.Property(run => run.CreatedAt).HasColumnName("created_at").IsRequired();
+            builder.Property(run => run.UpdatedAt).HasColumnName("updated_at").IsRequired();
+
+            builder.HasIndex(run => new { run.TenantId, run.Status, run.CreatedAt })
+                .HasDatabaseName("ix_directory_import_run_tenant_id_status_created_at");
+            builder.HasIndex(run => new { run.TenantId, run.DirectoryConnectionId, run.CreatedAt })
+                .HasDatabaseName("ix_directory_import_run_tenant_id_connection_id_created_at");
+            builder.HasIndex(run => new { run.TenantId, run.DirectoryImportRuleId, run.CreatedAt })
+                .HasDatabaseName("ix_directory_import_run_tenant_id_rule_id_created_at")
+                .HasFilter("directory_import_rule_id IS NOT NULL");
+            builder.HasIndex(run => run.PreviewRunId)
+                .HasDatabaseName("ix_directory_import_run_preview_run_id")
+                .HasFilter("preview_run_id IS NOT NULL");
+
+            builder.HasOne<Tenant>()
+                .WithMany()
+                .HasForeignKey(run => run.TenantId)
+                .HasConstraintName("fk_directory_import_run_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<DirectoryConnection>()
+                .WithMany()
+                .HasForeignKey(run => new { run.DirectoryConnectionId, run.TenantId })
+                .HasPrincipalKey(connection => new { connection.Id, connection.TenantId })
+                .HasConstraintName("fk_directory_import_run_connection_id_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<DirectoryImportRule>()
+                .WithMany()
+                .HasForeignKey(run => new { run.DirectoryImportRuleId, run.TenantId })
+                .HasPrincipalKey(rule => new { rule.Id, rule.TenantId })
+                .HasConstraintName("fk_directory_import_run_rule_id_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<DirectoryImportRun>()
+                .WithMany()
+                .HasForeignKey(run => run.PreviewRunId)
+                .HasConstraintName("fk_directory_import_run_preview_run_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<UserAccount>()
+                .WithMany()
+                .HasForeignKey(run => run.RequestedByUserId)
+                .HasConstraintName("fk_directory_import_run_user_account_requested_by_user_id")
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Subject>(builder =>
@@ -1077,6 +1423,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
 
             builder.HasIndex(rule => new { rule.TemplateVersionId, rule.RuleKey, rule.RuleVersion })
                 .HasDatabaseName("ix_scoring_rule_template_version_id_rule_key_rule_version")
+                .HasFilter("status <> 'retired'")
                 .IsUnique();
             builder.HasIndex(rule => new { rule.TemplateVersionId, rule.Status })
                 .HasDatabaseName("ix_scoring_rule_template_version_id_status");
@@ -1401,6 +1748,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(series => series.StudyOwnerNotes)
                 .HasColumnName("study_owner_notes")
                 .HasMaxLength(Platform.Domain.Campaigns.CampaignSeries.StudyOwnerNotesMaxLength);
+            builder.Property(series => series.SetupTemplateVersionId)
+                .HasColumnName("setup_template_version_id");
             builder.Property(series => series.CodeSalt)
                 .HasColumnName("code_salt")
                 .HasColumnType("bytea")
@@ -1419,11 +1768,19 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasDatabaseName("ix_campaign_series_tenant_id");
             builder.HasIndex(series => new { series.TenantId, series.Name })
                 .HasDatabaseName("ix_campaign_series_tenant_id_name");
+            builder.HasIndex(series => series.SetupTemplateVersionId)
+                .HasDatabaseName("ix_campaign_series_setup_template_version_id")
+                .HasFilter("setup_template_version_id IS NOT NULL");
 
             builder.HasOne<Tenant>()
                 .WithMany()
                 .HasForeignKey(series => series.TenantId)
                 .HasConstraintName("fk_campaign_series_tenant_tenant_id")
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<TemplateVersion>()
+                .WithMany()
+                .HasForeignKey(series => series.SetupTemplateVersionId)
+                .HasConstraintName("fk_campaign_series_template_version_setup_template_version_id")
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -2381,7 +2738,10 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             {
                 table.HasCheckConstraint(
                     "ck_invitation_token_channel",
-                    "channel IN ('email','sms','open_link','identified_entry')");
+                    "channel IN ('email','sms','open_link','identified_entry','identified_queue')");
+                table.HasCheckConstraint(
+                    "ck_invitation_token_identified_queue_shape",
+                    "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL AND assignment_id IS NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
             });
             builder.HasKey(token => token.Id).HasName("pk_invitation_token");
 
@@ -2389,6 +2749,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(token => token.TenantId).HasColumnName("tenant_id").IsRequired();
             builder.Property(token => token.CampaignId).HasColumnName("campaign_id").IsRequired();
             builder.Property(token => token.AssignmentId).HasColumnName("assignment_id");
+            builder.Property(token => token.RespondentSubjectId).HasColumnName("respondent_subject_id");
             builder.Property(token => token.TokenHash).HasColumnName("token_hash").IsRequired();
             builder.Property(token => token.Channel).HasColumnName("channel").HasMaxLength(64).IsRequired();
             builder.Property(token => token.Recipient).HasColumnName("recipient");
@@ -2406,6 +2767,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.HasIndex(token => token.AssignmentId)
                 .HasDatabaseName("ix_invitation_token_assignment_id")
                 .HasFilter("assignment_id IS NOT NULL");
+            builder.HasIndex(token => token.RespondentSubjectId)
+                .HasDatabaseName("ix_invitation_token_respondent_subject_id")
+                .HasFilter("respondent_subject_id IS NOT NULL");
 
             builder.HasOne<Tenant>()
                 .WithMany()
@@ -2423,6 +2787,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .WithMany()
                 .HasForeignKey(token => token.AssignmentId)
                 .HasConstraintName("fk_invitation_token_assignment_assignment_id")
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne<Subject>()
+                .WithMany()
+                .HasForeignKey(token => token.RespondentSubjectId)
+                .HasConstraintName("fk_invitation_token_subject_respondent_subject_id")
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

@@ -9,7 +9,6 @@
 		Gauge,
 		LibraryBig,
 		Menu,
-		Network,
 		Send,
 		X
 	} from 'lucide-svelte';
@@ -117,13 +116,6 @@
 						href: `/app/campaign-series/${activeSeriesId}/reports`,
 						icon: Gauge,
 						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/reports`
-					},
-					{
-						id: 'waves',
-						label: surfaceCopy.surfaces.waves,
-						href: `/app/campaign-series/${activeSeriesId}/waves`,
-						icon: Network,
-						match: (path: string) => path === `/app/campaign-series/${activeSeriesId}/waves`
 					}
 				]
 			: []

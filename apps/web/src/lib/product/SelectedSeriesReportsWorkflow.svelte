@@ -9,6 +9,7 @@
 	import type {
 		CampaignReportProofResponse,
 		ExportArtifactDownloadResponse,
+		ExportArtifactSignedDownloadUrlResponse,
 		ReportProofExportArtifactResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
@@ -25,6 +26,21 @@
 	import { formatScoreOutputMetadata, toProductApiErrorMessage } from './view-models';
 
 	type StepState = 'idle' | 'submitting' | 'succeeded' | 'failed';
+	type ReportPdfArtifactView = Pick<
+		ReportProofExportArtifactResponse,
+		| 'id'
+		| 'artifactType'
+		| 'status'
+		| 'fileName'
+		| 'byteSize'
+		| 'canDownload'
+		| 'failureReasonCode'
+	>;
+	type ComponentActionId =
+		| SelectedSeriesReportsWorkflowActionId
+		| 'reportPdf'
+		| 'reportPdfSignedUrl'
+		| 'reportPdfRetry';
 	const primaryReportWidgetKinds = ['results-dashboard/v1', 'visual-analytics-entry/v1'];
 	const detailReportWidgetKinds = [
 		'report-readiness-summary/v1',
@@ -53,20 +69,28 @@
 	let reportProofResult = $state<CampaignReportProofResponse | null>(null);
 	let exportResult = $state<ReportProofExportArtifactResponse | null>(null);
 	let responseExportResult = $state<ReportProofExportArtifactResponse | null>(null);
+	let reportPdfResult = $state<ReportProofExportArtifactResponse | null>(null);
+	let reportPdfSignedUrlResult = $state<ExportArtifactSignedDownloadUrlResponse | null>(null);
 	let storedExportResult = $state<ReportProofExportArtifactResponse | null>(null);
 	let downloadResult = $state<ExportArtifactDownloadResponse | null>(null);
 	let refreshWarning = $state<string | null>(null);
-	let actionStates = $state<Record<SelectedSeriesReportsWorkflowActionId, StepState>>({
+	let actionStates = $state<Record<ComponentActionId, StepState>>({
 		reportProof: 'idle',
 		exportArtifact: 'idle',
 		responseExport: 'idle',
+		reportPdf: 'idle',
+		reportPdfSignedUrl: 'idle',
+		reportPdfRetry: 'idle',
 		fetchArtifact: 'idle',
 		downloadCsv: 'idle'
 	});
-	let actionErrors = $state<Record<SelectedSeriesReportsWorkflowActionId, string | null>>({
+	let actionErrors = $state<Record<ComponentActionId, string | null>>({
 		reportProof: null,
 		exportArtifact: null,
 		responseExport: null,
+		reportPdf: null,
+		reportPdfSignedUrl: null,
+		reportPdfRetry: null,
 		fetchArtifact: null,
 		downloadCsv: null
 	});
@@ -89,11 +113,17 @@
 		workspace.exportArtifacts.find((artifact) => artifact.artifactType === 'report_proof_csv_codebook') ??
 			null
 	);
+	const latestReportPdfArtifact = $derived(
+		workspace.exportArtifacts.find((artifact) => artifact.artifactType === 'campaign_series_report_pdf') ??
+			null
+	);
 	const latestReportExportArtifact = $derived(
 		latestResultsMatrixExportArtifact ?? latestLegacyReportExportArtifact
 	);
 	const latestDownloadableExportArtifact = $derived(
-		workspace.exportArtifacts.find((artifact) => artifact.canDownload) ?? null
+		workspace.exportArtifacts.find(
+			(artifact) => artifact.canDownload && artifact.format === 'csv_codebook'
+		) ?? null
 	);
 	const preferredExportArtifact = $derived(
 		storedExportResult ??
@@ -153,6 +183,9 @@
 	const exportPreview = $derived(
 		toSelectedSeriesExportPreview(workspace, exportPreviewArtifact, reportsWorkflowCopy)
 	);
+	const currentReportPdfArtifact = $derived<ReportPdfArtifactView | null>(
+		reportPdfResult ?? latestReportPdfArtifact ?? null
+	);
 	const canReviewResults = $derived(
 		canManageSetup && Boolean(selectedCampaign) && actionStates.reportProof !== 'submitting'
 	);
@@ -161,6 +194,20 @@
 	);
 	const canCreateResponseExport = $derived(
 		canManageSetup && Boolean(workspace.series.id) && actionStates.responseExport !== 'submitting'
+	);
+	const canCreateReportPdf = $derived(
+		canManageSetup && Boolean(selectedCampaign) && actionStates.reportPdf !== 'submitting'
+	);
+	const canGetReportPdfSignedUrl = $derived(
+		canManageSetup &&
+			Boolean(currentReportPdfArtifact?.canDownload) &&
+			actionStates.reportPdfSignedUrl !== 'submitting'
+	);
+	const canRetryReportPdf = $derived(
+		canManageSetup &&
+			currentReportPdfArtifact?.artifactType === 'campaign_series_report_pdf' &&
+			currentReportPdfArtifact.status === 'failed' &&
+			actionStates.reportPdfRetry !== 'submitting'
 	);
 	const canReviewExportFile = $derived(
 		canManageSetup && Boolean(currentExportArtifactId) && actionStates.fetchArtifact !== 'submitting'
@@ -269,6 +316,69 @@
 		}
 	}
 
+	async function createReportPdfArtifact() {
+		if (!selectedCampaign) {
+			actionErrors = {
+				...actionErrors,
+				reportPdf: reportsUi.errors.createWaveBeforeReportPdf
+			};
+			return;
+		}
+
+		const result = await runAction(
+			'reportPdf',
+			() => setupApi.createCampaignSeriesReportPdfArtifact(workspace.series.id),
+			{ refreshAfter: true }
+		);
+
+		if (result) {
+			reportPdfResult = result;
+			reportPdfSignedUrlResult = null;
+		}
+	}
+
+	async function getReportPdfSignedDownloadUrl() {
+		const artifactId = currentReportPdfArtifact?.canDownload ? currentReportPdfArtifact.id : null;
+		if (!artifactId) {
+			actionErrors = {
+				...actionErrors,
+				reportPdfSignedUrl: reportsUi.errors.createDownloadableReportPdfBeforeSignedLink
+			};
+			return;
+		}
+
+		const result = await runAction('reportPdfSignedUrl', () =>
+			setupApi.getExportArtifactSignedDownloadUrl(artifactId)
+		);
+
+		if (result) {
+			reportPdfSignedUrlResult = result;
+		}
+	}
+
+	async function retryReportPdfArtifact() {
+		const artifactId =
+			currentReportPdfArtifact?.status === 'failed' ? currentReportPdfArtifact.id : null;
+		if (!artifactId) {
+			actionErrors = {
+				...actionErrors,
+				reportPdfRetry: reportsUi.errors.retryReportPdfUnavailable
+			};
+			return;
+		}
+
+		const result = await runAction(
+			'reportPdfRetry',
+			() => setupApi.retryCampaignSeriesReportPdfArtifact(artifactId),
+			{ refreshAfter: true }
+		);
+
+		if (result) {
+			reportPdfResult = result;
+			reportPdfSignedUrlResult = null;
+		}
+	}
+
 	async function fetchStoredArtifact() {
 		if (!currentExportArtifactId) {
 			actionErrors = {
@@ -310,7 +420,7 @@
 	}
 
 	async function runAction<T>(
-		actionId: SelectedSeriesReportsWorkflowActionId,
+		actionId: ComponentActionId,
 		action: () => Promise<T>,
 		options: { refreshAfter?: boolean } = {}
 	) {
@@ -343,6 +453,10 @@
 	}
 
 	function humanize(value: string | null | undefined) {
+		if (value === 'proof_only') {
+			return reportsUi.internalPreview;
+		}
+
 		return value ? value.replaceAll('_', ' ') : reportsUi.notAvailable;
 	}
 
@@ -528,6 +642,19 @@
 				<button
 					type="button"
 					class="secondary-button"
+					disabled={!canCreateReportPdf}
+					onclick={createReportPdfArtifact}
+				>
+					{#if actionStates.reportPdf === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<Send size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsUi.createReportPdf}</span>
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
 					disabled={!canReviewExportFile}
 					onclick={fetchStoredArtifact}
 				>
@@ -558,6 +685,9 @@
 			{#if actionErrors.responseExport}
 				<p class="error-line">{actionErrors.responseExport}</p>
 			{/if}
+			{#if actionErrors.reportPdf}
+				<p class="error-line">{actionErrors.reportPdf}</p>
+			{/if}
 			{#if actionErrors.fetchArtifact}
 				<p class="error-line">{actionErrors.fetchArtifact}</p>
 			{/if}
@@ -581,6 +711,9 @@
 				kicker: reportsUi.responseExport,
 				title: reportsUi.responseCsvCodebook
 			})}
+		{/if}
+		{#if currentReportPdfArtifact}
+			{@render ReportPdfArtifactResult({ result: currentReportPdfArtifact })}
 		{/if}
 		{#if storedExportResult}
 			{@render StoredArtifactResult()}
@@ -741,6 +874,78 @@
 	</section>
 {/snippet}
 
+{#snippet ReportPdfArtifactResult({ result }: { result: ReportPdfArtifactView })}
+	<section class="score-result-panel report-proof-panel" aria-label={reportsUi.reportPdfResult}>
+		<div class="score-result-panel__header">
+			<div>
+				<p class="product-kicker">{reportsUi.reportPdf}</p>
+				<h4 class="record-row__title">{reportsUi.reportPdfArtifact}</h4>
+			</div>
+			<StatusBadge
+				status={result.canDownload ? 'ready' : result.status === 'failed' ? 'blocked' : 'pending'}
+				label={result.canDownload ? reportsUi.downloadable : humanize(result.status)}
+			/>
+		</div>
+		<div class="response-lab__meta">
+			<span>{reportsUi.exportFile}</span>
+			<span>{result.canDownload ? reportsUi.downloadable : humanize(result.status)}</span>
+			<span>{reportsUi.bytes(result.byteSize)}</span>
+		</div>
+		<div class="score-result-panel__footer">
+			{@render ResultLine({ label: reportsUi.file, value: result.fileName })}
+			{@render ResultLine({ label: reportsUi.failureReason, value: result.failureReasonCode })}
+		</div>
+		{#if canManageSetup}
+			<div class="action-row">
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canGetReportPdfSignedUrl}
+					onclick={getReportPdfSignedDownloadUrl}
+				>
+					{#if actionStates.reportPdfSignedUrl === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<FileSearch size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsUi.getSecurePdfLink}</span>
+				</button>
+				<button
+					type="button"
+					class="secondary-button"
+					disabled={!canRetryReportPdf}
+					onclick={retryReportPdfArtifact}
+				>
+					{#if actionStates.reportPdfRetry === 'submitting'}
+						<LoaderCircle size={17} aria-hidden="true" />
+					{:else}
+						<Send size={17} aria-hidden="true" />
+					{/if}
+					<span>{reportsUi.retryReportPdf}</span>
+				</button>
+			</div>
+			{#if actionErrors.reportPdfSignedUrl}
+				<p class="error-line">{actionErrors.reportPdfSignedUrl}</p>
+			{/if}
+			{#if actionErrors.reportPdfRetry}
+				<p class="error-line">{actionErrors.reportPdfRetry}</p>
+			{/if}
+		{/if}
+		{#if reportPdfSignedUrlResult}
+			<p class="result-line">
+				<span>{reportsUi.securePdfLinkReady}</span>
+				<a href={reportPdfSignedUrlResult.url} target="_blank" rel="noreferrer">
+					{reportsUi.openSecurePdfLink}
+				</a>
+			</p>
+			{@render ResultLine({
+				label: reportsUi.securePdfLinkExpires,
+				value: reportPdfSignedUrlResult.expiresAt
+			})}
+		{/if}
+	</section>
+{/snippet}
+
 {#snippet StoredArtifactResult()}
 	{#if storedExportResult}
 		<dl class="record-grid">
@@ -784,7 +989,3 @@
 		</p>
 	{/if}
 {/snippet}
-
-
-
-

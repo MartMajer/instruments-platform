@@ -5,9 +5,11 @@ using Platform.Application.Auth;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
+using Platform.Domain.Integrations;
 using Platform.Domain.Reports;
 using Platform.Domain.Scoring;
 using Platform.Domain.Subjects;
+using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Campaigns.RespondentRules;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Tenancy;
@@ -20,6 +22,8 @@ public sealed class ProductSurfaceReadStore(
     ITenantDbScope tenantDbScope,
     RespondentRuleResolver? respondentRuleResolver = null) : IProductSurfaceReadStore
 {
+    private const string DirectoryImportStaleAttribute = "directory_import_stale";
+    private const string DirectoryImportStaleAtAttribute = "directory_import_stale_at";
     private const string PreliminaryLiveDataFinality = "preliminary_live";
     private const string ClosedWaveDataFinality = "closed_wave";
     private const string NotReportableDataFinality = "not_reportable";
@@ -69,21 +73,27 @@ public sealed class ProductSurfaceReadStore(
             tenantId,
             cancellationToken: cancellationToken);
 
-        var profile = await db.Tenants
+        var tenantSettings = await db.Tenants
             .AsNoTracking()
             .Where(tenant => tenant.Id == tenantId && tenant.DeletedAt == null)
-            .Select(tenant => new TenantSettingsProfileResponse(
-                tenant.Id,
-                tenant.Slug,
+            .Select(tenant => new TenantSettingsTenantRow(
+                new TenantSettingsProfileResponse(
+                    tenant.Id,
+                    tenant.Slug,
+                    tenant.Name,
+                    tenant.Region,
+                    tenant.DefaultLocale,
+                    tenant.Status,
+                    tenant.CreatedAt,
+                    tenant.UpdatedAt),
                 tenant.Name,
-                tenant.Region,
-                tenant.DefaultLocale,
-                tenant.Status,
-                tenant.CreatedAt,
-                tenant.UpdatedAt))
+                tenant.ReportBrandingOrganizationLabel,
+                tenant.ReportBrandingReportTitle,
+                tenant.ReportBrandingAccentColorHex,
+                tenant.ReportBrandingLayoutVariant))
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (profile is null)
+        if (tenantSettings is null)
         {
             return Result.Failure<TenantSettingsWorkspaceResponse>(
                 Error.NotFound("tenant.not_found", "Tenant was not found."));
@@ -134,7 +144,7 @@ public sealed class ProductSurfaceReadStore(
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new TenantSettingsWorkspaceResponse(
-            profile,
+            tenantSettings.Profile,
             new TenantSettingsWorkspaceCountsResponse(
                 campaignSeriesCount,
                 campaignTotals?.CampaignCount ?? 0,
@@ -145,6 +155,7 @@ public sealed class ProductSurfaceReadStore(
                 tenantMemberCount,
                 tenantRoleCount,
                 exportArtifactCount),
+            CreateTenantSettingsReportBranding(tenantSettings),
             CreateTenantSettingsManagementLinks()));
     }
 
@@ -611,6 +622,7 @@ public sealed class ProductSurfaceReadStore(
             .Select(subject =>
             {
                 managerBySubject.TryGetValue(subject.Id, out var manager);
+                var staleState = ReadDirectoryImportStaleState(subject.Attributes);
 
                 return new SubjectDirectoryItemResponse(
                     subject.Id,
@@ -622,7 +634,9 @@ public sealed class ProductSurfaceReadStore(
                     manager?.ManagerSubjectId,
                     manager?.ManagerDisplayName,
                     directReportCounts.GetValueOrDefault(subject.Id),
-                    membershipsBySubject.GetValueOrDefault(subject.Id) ?? []);
+                    membershipsBySubject.GetValueOrDefault(subject.Id) ?? [],
+                    staleState.IsStale,
+                    staleState.StaleAt);
             })
             .ToArray();
 
@@ -635,6 +649,215 @@ public sealed class ProductSurfaceReadStore(
                 groupCount,
                 managerRelationshipCount),
             items);
+    }
+
+    public async Task<DirectoryConnectionStateResponse> GetMicrosoftGraphDirectoryConnectionStateAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var connection = await db.DirectoryConnections
+            .AsNoTracking()
+            .Where(row =>
+                row.TenantId == tenantId &&
+                row.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                row.DeletedAt == null)
+            .OrderByDescending(row => row.UpdatedAt)
+            .Select(row => new DirectoryConnectionStateRow(
+                row.Provider,
+                row.Status,
+                row.DisplayName,
+                row.PrimaryDomain,
+                row.GrantedScopes,
+                row.LastConsentAt,
+                row.LastSuccessfulImportAt,
+                row.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (connection is null)
+        {
+            return new DirectoryConnectionStateResponse(
+                tenantId,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                DirectoryConnectionStatuses.Disconnected,
+                "Microsoft Graph",
+                null,
+                [],
+                null,
+                null,
+                null,
+                Connected: false);
+        }
+
+        return new DirectoryConnectionStateResponse(
+            tenantId,
+            connection.Provider,
+            connection.Status,
+            connection.DisplayName,
+            connection.PrimaryDomain,
+            ReadStringArray(connection.GrantedScopes),
+            connection.LastConsentAt,
+            connection.LastSuccessfulImportAt,
+            connection.UpdatedAt,
+            Connected: connection.Status == DirectoryConnectionStatuses.Active);
+    }
+
+    public async Task<DirectoryImportRunHistoryResponse> ListMicrosoftGraphDirectoryImportRunsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var rows = await (
+                from run in db.DirectoryImportRuns.AsNoTracking()
+                join connection in db.DirectoryConnections.AsNoTracking()
+                    on new { Id = run.DirectoryConnectionId, run.TenantId }
+                    equals new { connection.Id, connection.TenantId }
+                where run.TenantId == tenantId &&
+                    connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    connection.DeletedAt == null
+                orderby run.CreatedAt descending
+                select new DirectoryImportRunRow(
+                    run.Id,
+                    run.DirectoryConnectionId,
+                    run.DirectoryImportRuleId,
+                    run.PreviewRunId,
+                    connection.Provider,
+                    run.Mode,
+                    run.Status,
+                    run.Counts,
+                    run.WarningCategories,
+                    run.CreatedAt,
+                    run.StartedAt,
+                    run.CompletedAt))
+            .Take(8)
+            .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return new DirectoryImportRunHistoryResponse(
+            tenantId,
+            rows.Select(row =>
+            {
+                var warningCategories = ReadStringArray(row.WarningCategories);
+                return new DirectoryImportRunListItemResponse(
+                    row.Id,
+                    row.DirectoryConnectionId,
+                    row.DirectoryImportRuleId,
+                    row.PreviewRunId,
+                    row.Provider,
+                    row.Mode,
+                    row.Status,
+                    ReadJsonInt(row.Counts, "row_count"),
+                    ReadJsonInt(row.Counts, "imported_row_count"),
+                    ReadJsonInt(row.Counts, "failed_row_count"),
+                    warningCategories.Count,
+                    warningCategories,
+                    row.CreatedAt,
+                    row.StartedAt,
+                    row.CompletedAt);
+            }).ToArray());
+    }
+
+    public async Task<DirectoryImportRuleListResponse> ListMicrosoftGraphDirectoryImportRulesAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var rows = await (
+                from rule in db.DirectoryImportRules.AsNoTracking()
+                join connection in db.DirectoryConnections.AsNoTracking()
+                    on new { Id = rule.DirectoryConnectionId, rule.TenantId }
+                    equals new { connection.Id, connection.TenantId }
+                where rule.TenantId == tenantId &&
+                    rule.DeletedAt == null &&
+                    connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    connection.DeletedAt == null
+                orderby rule.UpdatedAt descending
+                select new DirectoryImportRuleRow(
+                    rule.Id,
+                    rule.DirectoryConnectionId,
+                    rule.Name,
+                    rule.Status,
+                    rule.StalePolicy,
+                    rule.RetainedFields,
+                    rule.CreatedAt,
+                    rule.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return new DirectoryImportRuleListResponse(
+            tenantId,
+            rows.Select(row => new DirectoryImportRuleResponse(
+                row.Id,
+                row.DirectoryConnectionId,
+                row.Name,
+                row.Status,
+                row.StalePolicy,
+                ReadStringArray(row.RetainedFields),
+                row.CreatedAt,
+                row.UpdatedAt)).ToArray());
+    }
+
+    public async Task<Result<MicrosoftGraphImportRuleExecutionContext>> GetMicrosoftGraphDirectoryImportRuleExecutionContextAsync(
+        Guid tenantId,
+        Guid ruleId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var row = await (
+                from rule in db.DirectoryImportRules.AsNoTracking()
+                join connection in db.DirectoryConnections.AsNoTracking()
+                    on new { Id = rule.DirectoryConnectionId, rule.TenantId }
+                    equals new { connection.Id, connection.TenantId }
+                where rule.Id == ruleId &&
+                    rule.TenantId == tenantId &&
+                    rule.Status == DirectoryImportRuleStatuses.Active &&
+                    rule.DeletedAt == null &&
+                    connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    connection.DeletedAt == null
+                select new
+                {
+                    RuleId = rule.Id,
+                    rule.DirectoryConnectionId,
+                    rule.StalePolicy,
+                    connection.ExternalTenantId
+                })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return Result.Failure<MicrosoftGraphImportRuleExecutionContext>(
+                Error.NotFound("directory_import_rule.not_found", "Graph import rule was not found."));
+        }
+
+        if (string.IsNullOrWhiteSpace(row.ExternalTenantId))
+        {
+            return Result.Failure<MicrosoftGraphImportRuleExecutionContext>(
+                Error.Conflict("directory_connection.not_connected", "Microsoft Graph connection is not active."));
+        }
+
+        return Result.Success(new MicrosoftGraphImportRuleExecutionContext(
+            row.RuleId,
+            row.DirectoryConnectionId,
+            row.StalePolicy,
+            row.ExternalTenantId));
     }
 
     public async Task<SubjectGroupListResponse> ListSubjectGroupsAsync(
@@ -803,7 +1026,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -917,7 +1141,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -947,19 +1172,36 @@ public sealed class ProductSurfaceReadStore(
             .ToListAsync(cancellationToken);
         var campaignIds = campaigns.Select(entity => entity.Id).ToArray();
         var launchAggregates = await LoadLaunchAggregatesByCampaignAsync(campaignIds, cancellationToken);
-        var selectedCampaign = campaigns
+        var selectedSetupCampaign = campaigns
+            .Where(IsEditableSetupCampaign)
             .OrderByDescending(campaign => campaign.Status == CampaignStatuses.Draft)
             .ThenByDescending(campaign => campaign.UpdatedAt)
             .FirstOrDefault();
-        var template = selectedCampaign is null
-            ? null
-            : await LoadSetupTemplateAsync(selectedCampaign.TemplateVersionId, cancellationToken);
-        var scoring = selectedCampaign is null
-            ? null
-            : await LoadSetupScoringAsync(
-                selectedCampaign.Id,
-                selectedCampaign.TemplateVersionId,
-                cancellationToken);
+        var selectedCampaign = selectedSetupCampaign ?? campaigns
+            .OrderByDescending(campaign => campaign.UpdatedAt)
+            .FirstOrDefault();
+        var selectedSetupTemplateVersionId =
+            selectedSetupCampaign?.TemplateVersionId ??
+            series.SetupTemplateVersionId ??
+            selectedCampaign?.TemplateVersionId;
+        var template = selectedSetupTemplateVersionId.HasValue
+            ? await LoadSetupTemplateAsync(selectedSetupTemplateVersionId.Value, cancellationToken)
+            : null;
+        var scoring = selectedSetupCampaign is not null
+            ? await LoadSetupScoringAsync(
+                selectedSetupCampaign.Id,
+                selectedSetupCampaign.TemplateVersionId,
+                cancellationToken)
+            : series.SetupTemplateVersionId.HasValue
+                ? await LoadSetupTemplateVersionScoringAsync(
+                    series.SetupTemplateVersionId.Value,
+                    cancellationToken)
+                : selectedCampaign is not null
+                    ? await LoadSetupScoringAsync(
+                        selectedCampaign.Id,
+                        selectedCampaign.TemplateVersionId,
+                        cancellationToken)
+                    : null;
         var consent = await LoadLatestConsentPolicyAsync(campaignSeriesId, cancellationToken);
         var retention = await LoadLatestRetentionPolicyAsync(campaignSeriesId, cancellationToken);
         var disclosure = await LoadLatestDisclosurePolicyAsync(campaignSeriesId, cancellationToken);
@@ -968,7 +1210,7 @@ public sealed class ProductSurfaceReadStore(
             CreateRetentionPolicyResponse(retention),
             CreateDisclosurePolicyResponse(disclosure));
         var missingPrerequisites = CreateMissingPrerequisites(
-            selectedCampaign,
+            selectedSetupCampaign,
             template,
             scoring,
             policies);
@@ -1008,12 +1250,13 @@ public sealed class ProductSurfaceReadStore(
                 ? null
                 : new CampaignSeriesSetupScoringResponse(
                     scoring.Id,
+                    scoring.TemplateVersionId,
                     scoring.RuleKey,
                     scoring.RuleVersion,
                     scoring.Status,
                     scoring.Source),
             policies,
-            CreateSetupReadiness(selectedCampaign, missingPrerequisites.Count),
+            CreateSetupReadiness(selectedSetupCampaign, missingPrerequisites.Count),
             missingPrerequisites,
             campaigns
                 .Select(campaign => CreateSetupCampaignResponse(
@@ -1053,7 +1296,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -1107,6 +1351,10 @@ public sealed class ProductSurfaceReadStore(
                 .ToArray(),
             cancellationToken);
         var openLinkCounts = await LoadOpenLinkAssignmentCountsByCampaignAsync(tenantId, campaignIds, cancellationToken);
+        var targetAwareAssignmentCounts = await LoadTargetAwareAssignmentCountsByCampaignAsync(
+            tenantId,
+            campaignIds,
+            cancellationToken);
         var notificationCounts = await LoadInvitationNotificationCountsByCampaignAsync(tenantId, campaignIds, cancellationToken);
         var deliveryAggregates = await LoadDeliveryAttemptAggregatesByCampaignAsync(tenantId, campaignIds, cancellationToken);
         var providerEventAggregates = await LoadProviderDeliveryEventAggregatesByCampaignAsync(
@@ -1128,6 +1376,7 @@ public sealed class ProductSurfaceReadStore(
                     disclosurePolicy,
                     scoreCoverageInputs[campaign.Id],
                     openLinkCounts.GetValueOrDefault(campaign.Id),
+                    targetAwareAssignmentCounts.GetValueOrDefault(campaign.Id),
                     notificationCounts.GetValueOrDefault(campaign.Id),
                     deliveryAggregates.GetValueOrDefault(campaign.Id),
                     providerEventAggregates.GetValueOrDefault(campaign.Id));
@@ -1210,7 +1459,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -2044,7 +2294,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (series is null)
@@ -2547,6 +2798,57 @@ public sealed class ProductSurfaceReadStore(
         ];
     }
 
+    private static TenantSettingsReportBrandingResponse CreateTenantSettingsReportBranding(TenantSettingsTenantRow tenant)
+    {
+        var hasSettings =
+            !string.IsNullOrWhiteSpace(tenant.ReportBrandingOrganizationLabel) ||
+            !string.IsNullOrWhiteSpace(tenant.ReportBrandingReportTitle) ||
+            !string.IsNullOrWhiteSpace(tenant.ReportBrandingAccentColorHex) ||
+            !string.IsNullOrWhiteSpace(tenant.ReportBrandingLayoutVariant);
+
+        return new TenantSettingsReportBrandingResponse(
+            SafeTextOrDefault(tenant.ReportBrandingOrganizationLabel, tenant.TenantName),
+            SafeTextOrDefault(tenant.ReportBrandingReportTitle, "Campaign series report"),
+            hasSettings ? "tenant_settings" : "tenant_profile",
+            "none",
+            SafeAccentColorOrDefault(tenant.ReportBrandingAccentColorHex),
+            SafeLayoutVariantOrDefault(tenant.ReportBrandingLayoutVariant),
+            [
+                "logo_upload",
+                "custom_fonts",
+                "product_shell_theming"
+            ]);
+    }
+
+    private static string SafeTextOrDefault(string? value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    }
+
+    private static string SafeAccentColorOrDefault(string? value)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+        return Tenant.IsReportBrandingAccentColorHex(normalized)
+            ? normalized!
+            : Tenant.DefaultReportBrandingAccentColorHex;
+    }
+
+    private static string SafeLayoutVariantOrDefault(string? value)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+        return Tenant.IsReportBrandingLayoutVariantKnown(normalized)
+            ? normalized!
+            : Tenant.DefaultReportBrandingLayoutVariant;
+    }
+
+    private sealed record TenantSettingsTenantRow(
+        TenantSettingsProfileResponse Profile,
+        string TenantName,
+        string? ReportBrandingOrganizationLabel,
+        string? ReportBrandingReportTitle,
+        string? ReportBrandingAccentColorHex,
+        string? ReportBrandingLayoutVariant);
+
     private async Task<CampaignSeriesListItemResponse[]> LoadSeriesListItemsAsync(
         int? take,
         CampaignSeriesPortfolioQuery query,
@@ -2583,7 +2885,8 @@ public sealed class ProductSurfaceReadStore(
                 entity.StudyDesignType,
                 entity.StudyIntendedUse,
                 entity.StudyInterpretationBoundary,
-                entity.StudyOwnerNotes))
+                entity.StudyOwnerNotes,
+                entity.SetupTemplateVersionId))
             .ToListAsync(cancellationToken);
 
         if (series.Count == 0)
@@ -3658,18 +3961,9 @@ public sealed class ProductSurfaceReadStore(
         Guid templateVersionId,
         CancellationToken cancellationToken)
     {
-        var templateVersionRule = await db.ScoringRules
-            .AsNoTracking()
-            .Where(entity => entity.TemplateVersionId == templateVersionId)
-            .OrderByDescending(entity => entity.Status == ScoringRuleStatuses.Published)
-            .ThenByDescending(entity => entity.UpdatedAt)
-            .Select(entity => new ScoringSetupRow(
-                entity.Id,
-                entity.RuleKey,
-                entity.RuleVersion,
-                entity.Status,
-                "template_version"))
-            .FirstOrDefaultAsync(cancellationToken);
+        var templateVersionRule = await LoadSetupTemplateVersionScoringAsync(
+            templateVersionId,
+            cancellationToken);
 
         if (templateVersionRule is not null)
         {
@@ -3684,10 +3978,32 @@ public sealed class ProductSurfaceReadStore(
                 orderby snapshot.LaunchedAt descending
                 select new ScoringSetupRow(
                     rule.Id,
+                    rule.TemplateVersionId,
                     rule.RuleKey,
                     rule.RuleVersion,
                     rule.Status,
                     "launch_snapshot"))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private Task<ScoringSetupRow?> LoadSetupTemplateVersionScoringAsync(
+        Guid templateVersionId,
+        CancellationToken cancellationToken)
+    {
+        return db.ScoringRules
+            .AsNoTracking()
+            .Where(entity =>
+                entity.TemplateVersionId == templateVersionId &&
+                entity.Status != ScoringRuleStatuses.Retired)
+            .OrderByDescending(entity => entity.Status == ScoringRuleStatuses.Published)
+            .ThenByDescending(entity => entity.UpdatedAt)
+            .Select(entity => new ScoringSetupRow(
+                entity.Id,
+                entity.TemplateVersionId,
+                entity.RuleKey,
+                entity.RuleVersion,
+                entity.Status,
+                "template_version"))
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -4042,6 +4358,36 @@ public sealed class ProductSurfaceReadStore(
             : null;
     }
 
+    private async Task<IReadOnlyDictionary<Guid, int>> LoadTargetAwareAssignmentCountsByCampaignAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> campaignIds,
+        CancellationToken cancellationToken)
+    {
+        if (campaignIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await db.Assignments
+            .AsNoTracking()
+            .Where(entity =>
+                entity.TenantId == tenantId &&
+                campaignIds.Contains(entity.CampaignId) &&
+                !entity.Anonymous &&
+                entity.RespondentSubjectId != null &&
+                entity.TargetSubjectId != null)
+            .GroupBy(entity => entity.CampaignId)
+            .Select(group => new
+            {
+                CampaignId = group.Key,
+                Count = group.Count()
+            })
+            .ToDictionaryAsync(
+                entity => entity.CampaignId,
+                entity => entity.Count,
+                cancellationToken);
+    }
+
     private static CampaignSeriesOperationsCampaignResponse CreateOperationsCampaignResponse(
         CampaignRow campaign,
         CampaignLaunchDetailRow? launchDetail,
@@ -4049,6 +4395,7 @@ public sealed class ProductSurfaceReadStore(
         CampaignReportDisclosurePolicyRow? disclosurePolicy,
         ScoreCoverageCampaignInput scoreCoverageInput,
         int openLinkAssignmentCount,
+        int targetAwareAssignmentCount,
         CampaignNotificationCountsRow? notificationCounts,
         CampaignDeliveryAggregateRow? deliveryAggregate,
         CampaignProviderDeliveryEventAggregateRow? providerEventAggregate)
@@ -4101,7 +4448,8 @@ public sealed class ProductSurfaceReadStore(
             providerEventAggregate?.DeliveredCount ?? 0,
             providerEventAggregate?.BouncedCount ?? 0,
             providerEventAggregate?.ComplainedCount ?? 0,
-            providerEventAggregate?.LatestEventAt);
+            providerEventAggregate?.LatestEventAt,
+            targetAwareAssignmentCount);
     }
 
     private static CampaignSeriesOperationsLaunchSnapshotResponse? CreateOperationsLaunchSnapshotResponse(
@@ -4389,6 +4737,11 @@ public sealed class ProductSurfaceReadStore(
         return missingPrerequisiteCount == 0
             ? new CampaignSeriesSetupReadinessResponse(selectedCampaign.Id, "ready", Ready: true)
             : new CampaignSeriesSetupReadinessResponse(selectedCampaign.Id, "blocked", Ready: false);
+    }
+
+    private static bool IsEditableSetupCampaign(CampaignRow campaign)
+    {
+        return campaign.Status is CampaignStatuses.Draft or CampaignStatuses.Scheduled;
     }
 
     private static List<CampaignSeriesSetupMissingPrerequisiteResponse> CreateMissingPrerequisites(
@@ -5381,6 +5734,99 @@ public sealed class ProductSurfaceReadStore(
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    private static DirectoryImportStaleState ReadDirectoryImportStaleState(string attributes)
+    {
+        if (string.IsNullOrWhiteSpace(attributes))
+        {
+            return new DirectoryImportStaleState(false, null);
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(attributes);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty(DirectoryImportStaleAttribute, out var staleElement) ||
+                staleElement.ValueKind != JsonValueKind.True)
+            {
+                return new DirectoryImportStaleState(false, null);
+            }
+
+            DateTimeOffset? staleAt = null;
+            if (root.TryGetProperty(DirectoryImportStaleAtAttribute, out var staleAtElement) &&
+                staleAtElement.ValueKind == JsonValueKind.String &&
+                DateTimeOffset.TryParse(
+                    staleAtElement.GetString(),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var parsedStaleAt))
+            {
+                staleAt = parsedStaleAt;
+            }
+
+            return new DirectoryImportStaleState(true, staleAt);
+        }
+        catch (JsonException)
+        {
+            return new DirectoryImportStaleState(false, null);
+        }
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            return document.RootElement
+                .EnumerateArray()
+                .Where(element => element.ValueKind == JsonValueKind.String)
+                .Select(element => element.GetString())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static int ReadJsonInt(string json, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return 0;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty(propertyName, out var property) ||
+                property.ValueKind != JsonValueKind.Number ||
+                !property.TryGetInt32(out var value))
+            {
+                return 0;
+            }
+
+            return value;
+        }
+        catch (JsonException)
+        {
+            return 0;
+        }
+    }
+
     private static RespondentRulePreviewSubjectResponse CreatePreviewSubject(RespondentRulePreviewSubjectRow subject)
     {
         return new RespondentRulePreviewSubjectResponse(
@@ -5741,7 +6187,8 @@ public sealed class ProductSurfaceReadStore(
         string? StudyDesignType = null,
         string? StudyIntendedUse = null,
         string? StudyInterpretationBoundary = null,
-        string? StudyOwnerNotes = null);
+        string? StudyOwnerNotes = null,
+        Guid? SetupTemplateVersionId = null);
 
     private sealed record TenantMemberAssignmentRow(
         Guid UserId,
@@ -5782,6 +6229,44 @@ public sealed class ProductSurfaceReadStore(
         Guid ManagerSubjectId,
         string? ManagerDisplayName);
 
+    private sealed record DirectoryImportStaleState(
+        bool IsStale,
+        DateTimeOffset? StaleAt);
+
+    private sealed record DirectoryConnectionStateRow(
+        string Provider,
+        string Status,
+        string DisplayName,
+        string? PrimaryDomain,
+        string GrantedScopes,
+        DateTimeOffset? LastConsentAt,
+        DateTimeOffset? LastSuccessfulImportAt,
+        DateTimeOffset UpdatedAt);
+
+    private sealed record DirectoryImportRunRow(
+        Guid Id,
+        Guid DirectoryConnectionId,
+        Guid? DirectoryImportRuleId,
+        Guid? PreviewRunId,
+        string Provider,
+        string Mode,
+        string Status,
+        string Counts,
+        string WarningCategories,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset? StartedAt,
+        DateTimeOffset? CompletedAt);
+
+    private sealed record DirectoryImportRuleRow(
+        Guid Id,
+        Guid DirectoryConnectionId,
+        string Name,
+        string Status,
+        string StalePolicy,
+        string RetainedFields,
+        DateTimeOffset CreatedAt,
+        DateTimeOffset UpdatedAt);
+
     private sealed record SubjectGroupRow(
         Guid Id,
         string Type,
@@ -5816,6 +6301,7 @@ public sealed class ProductSurfaceReadStore(
 
     private sealed record ScoringSetupRow(
         Guid Id,
+        Guid TemplateVersionId,
         string RuleKey,
         string RuleVersion,
         string Status,

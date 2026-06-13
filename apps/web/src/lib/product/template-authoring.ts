@@ -1,4 +1,10 @@
-﻿import type { CreateQuestionScaleRequest, CreateTemplateQuestionRequest } from '$lib/api/setup';
+﻿import type {
+	CreateQuestionScaleRequest,
+	CreateTemplateQuestionRequest,
+	QuestionScaleResponse,
+	TemplateQuestionResponse,
+	TemplateVersionDetailResponse
+} from '$lib/api/setup';
 
 export type TemplateQuestionAnswerType =
 	| 'likert'
@@ -20,6 +26,11 @@ export type QuestionScalePreset =
 	| 'custom';
 
 export type QuestionRankingMode = 'rank_all' | 'top_n';
+export type TemplateQuestionDisplayLogicOperator =
+	| 'equals'
+	| 'not_equals'
+	| 'contains'
+	| 'not_contains';
 
 export type StudyAuthoringPresetId = 'blank' | 'osh_ergonomics';
 
@@ -40,6 +51,7 @@ export type QuestionScalePresetOption = {
 export type TemplateQuestionAuthoringRow = {
 	ordinal: number;
 	code: string;
+	sectionLabel: string;
 	dimensionLabel: string;
 	type: TemplateQuestionAnswerType;
 	textDefault: string;
@@ -51,6 +63,8 @@ export type TemplateQuestionAuthoringRow = {
 	scaleHighLabel: string;
 	scalePreset: QuestionScalePreset;
 	choiceOptions: string[];
+	choiceScoringEnabled: boolean;
+	choiceOptionScores: Array<number | null>;
 	numberMin: number | null;
 	numberMax: number | null;
 	numberUnit: string;
@@ -67,6 +81,7 @@ export type TemplateQuestionAuthoringRow = {
 	matrixRows: string[];
 	matrixColumns: string[];
 	displayLogicEnabled: boolean;
+	displayLogicOperator: TemplateQuestionDisplayLogicOperator;
 	displayLogicSourceQuestionCode: string;
 	displayLogicSourceOptionCode: string;
 };
@@ -84,6 +99,14 @@ export type MeanScoringDocumentOptions = {
 export type ScoreCalculation = 'mean' | 'sum';
 export type ScoreMissingStrategy = 'require_all' | 'min_valid_count';
 
+export type ScoreInterpretationBandAuthoringRow = {
+	localId: string;
+	code: string;
+	label: string;
+	min: number;
+	max: number;
+};
+
 export type ScoreOutputAuthoringRow = {
 	localId: string;
 	name: string;
@@ -92,7 +115,13 @@ export type ScoreOutputAuthoringRow = {
 	missingStrategy: ScoreMissingStrategy;
 	minValidCount: number;
 	includedQuestionCodes: string[];
+	interpretationEnabled?: boolean;
+	interpretationProvenance?: string;
+	interpretationBands?: ScoreInterpretationBandAuthoringRow[];
 };
+
+export const defaultTenantAttestedInterpretationProvenance =
+	'Tenant-defined internal interpretation bands; not validated and not official.';
 
 export type ScorePlanOutputSummary = {
 	localId: string;
@@ -109,6 +138,7 @@ export type ScorePlanOutputSummary = {
 export type QuestionAuthoringCardSummary = {
 	code: string;
 	title: string;
+	sectionLabel: string;
 	dimensionLabel: string;
 	scaleLabel: string;
 	requiredLabel: string;
@@ -133,9 +163,20 @@ export type CollectedContextQuestionSummary = {
 	text: string;
 };
 
+export type AnswerMetadataExportSummary = {
+	code: string;
+	label: string;
+	answerFormatLabel: string;
+	exportValueLabel: string;
+	codebookDetail: string;
+	constraints: string[];
+	scoreEligibilityLabel: string;
+};
+
 export type RespondentQuestionPreviewSummary = {
 	ordinal: number;
 	positionLabel: string;
+	sectionLabel: string;
 	dimensionLabel: string;
 	text: string;
 	requiredLabel: string;
@@ -155,6 +196,7 @@ export type AuthoringReadinessSummary = {
 };
 
 export type QuestionnaireBlueprintReviewItemId =
+	| 'sections'
 	| 'constructs'
 	| 'answer_formats'
 	| 'respondent_order'
@@ -198,6 +240,7 @@ export type QuestionScoringDirectionKind =
 	| 'higher_increases_score'
 	| 'higher_reversed_before_score'
 	| 'number_increases_score'
+	| 'choice_option_scores'
 	| 'not_scored';
 
 export type QuestionScoringDirectionSummary = {
@@ -225,7 +268,19 @@ export type QuestionScaleIntentSummary = {
 	detail: string;
 };
 
+export type ChoiceScoreOptionSummary = {
+	code: string;
+	label: string;
+	score: number | null;
+};
+
 export type QuestionDimensionSummary = {
+	code: string;
+	label: string;
+	questionCount: number;
+};
+
+export type QuestionSectionSummary = {
 	code: string;
 	label: string;
 	questionCount: number;
@@ -237,6 +292,7 @@ const defaultQuestionText = [
 	'Write the third question for this study.'
 ];
 
+const defaultQuestionSection = 'Page 1';
 const defaultQuestionDimensions = ['Topic 1', 'Topic 2', 'Topic 3'];
 
 const defaultChoiceOptions = ['Option 1', 'Option 2'];
@@ -443,6 +499,7 @@ export function duplicateTemplateQuestionRow(
 			? `${source.textDefault.trim()} (copy)`
 			: `${source.code} copy`,
 		choiceOptions: [...source.choiceOptions],
+		choiceOptionScores: [...source.choiceOptionScores],
 		matrixRows: [...source.matrixRows],
 		matrixColumns: [...source.matrixColumns]
 	};
@@ -549,6 +606,23 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 			}
 		}
 
+		if (row.choiceScoringEnabled) {
+			if (row.type !== 'single') {
+				errors.push(`Question ${index + 1} option scoring is only available for single-choice questions.`);
+			}
+
+			if (row.choiceAllowOther) {
+				errors.push(`Question ${index + 1} option scoring cannot be used with an Other write-in option.`);
+			}
+
+			normalizedChoiceOptions(row).forEach((_, optionIndex) => {
+				const score = row.choiceOptionScores[optionIndex];
+				if (typeof score !== 'number' || !Number.isFinite(score)) {
+					errors.push(`Question ${index + 1} option ${optionIndex + 1} needs a numeric score.`);
+				}
+			});
+		}
+
 		if (row.type === 'ranking' && row.rankingMode === 'top_n') {
 			const topN = nullableNumber(row.rankingTopN);
 			const optionCount = normalizedChoiceOptions(row).length;
@@ -571,6 +645,10 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 
 		if (row.displayLogicEnabled) {
 			const sourceCode = row.displayLogicSourceQuestionCode.trim();
+			const operator = displayLogicOperatorValue(row.displayLogicOperator);
+			if (!isDisplayLogicOperator(operator)) {
+				errors.push(`Question ${index + 1} display rule operator is not supported.`);
+			}
 			const source = rows.find(
 				(candidate, candidateIndex) =>
 					candidateIndex < index && candidate.code.trim().toLowerCase() === sourceCode.toLowerCase()
@@ -578,8 +656,14 @@ export function validateTemplateQuestionRows(rows: TemplateQuestionAuthoringRow[
 
 			if (!source) {
 				errors.push(`Question ${index + 1} display rule needs an earlier source question.`);
-			} else if (source.type !== 'single') {
-				errors.push(`Question ${index + 1} display rule source must be a single-choice question.`);
+			} else if (source.type !== 'single' && source.type !== 'multi') {
+				errors.push(
+					`Question ${index + 1} display rule source must be a single-choice or multiple-choice question.`
+				);
+			} else if (!isDisplayLogicOperatorAllowedForSource(operator, source.type)) {
+				errors.push(
+					`Question ${index + 1} display rule operator is not supported for the source question.`
+				);
 			} else {
 				const sourceOptions = choiceOptionPayloads(source);
 				if (!sourceOptions.some((option) => option.code === row.displayLogicSourceOptionCode.trim())) {
@@ -685,7 +769,7 @@ export function toCreateTemplateQuestions(
 		code: row.code.trim(),
 		type: row.type,
 		textDefault: row.textDefault.trim(),
-		sectionCode: dimensionCodeForLabel(row.dimensionLabel),
+		sectionCode: sectionCodeForLabel(row.sectionLabel),
 		scaleCode: isScaleBackedType(row.type) ? questionScaleCode(row) : null,
 		required: row.required,
 		reverseCoded: isScaleBackedType(row.type) ? row.reverseCoded : false,
@@ -693,6 +777,271 @@ export function toCreateTemplateQuestions(
 		payload: questionPayload(row),
 		missingCodes: '[]'
 	}));
+}
+
+export function toTemplateQuestionAuthoringRowsFromTemplateVersion(
+	templateVersion: TemplateVersionDetailResponse
+): TemplateQuestionAuthoringRow[] {
+	const sectionsById = new Map(templateVersion.sections.map((section) => [section.id, section]));
+	const scalesById = new Map(templateVersion.scales.map((scale) => [scale.id, scale]));
+
+	return templateVersion.questions
+		.toSorted((left, right) => left.ordinal - right.ordinal)
+		.map((question) => {
+			const section = sectionsById.get(question.sectionId);
+			const scale = question.scaleId ? scalesById.get(question.scaleId) : null;
+			const type = toKnownQuestionType(question.type);
+
+				return createQuestionRow({
+					ordinal: question.ordinal,
+					code: question.code,
+					sectionLabel: section?.titleDefault?.trim() || section?.code || defaultQuestionSection,
+					dimensionLabel: section?.titleDefault?.trim() || section?.code || 'Study measure',
+					type,
+				textDefault: question.textDefault,
+				required: question.required,
+				reverseCoded: isScaleBackedType(type) ? question.reverseCoded : false,
+				...authoringOverridesFromScale(scale, type),
+				...authoringOverridesFromPayload(question, type)
+			});
+		});
+}
+
+function toKnownQuestionType(value: string): TemplateQuestionAnswerType {
+	const normalized = value.trim().toLowerCase();
+	return [
+		'likert',
+		'single',
+		'multi',
+		'number',
+		'text',
+		'date',
+		'nps',
+		'ranking',
+		'matrix'
+	].includes(normalized)
+		? (normalized as TemplateQuestionAnswerType)
+		: 'likert';
+}
+
+function authoringOverridesFromScale(
+	scale: QuestionScaleResponse | null | undefined,
+	type: TemplateQuestionAnswerType
+): Partial<TemplateQuestionAuthoringRow> {
+	if (!scale || !isScaleBackedType(type)) {
+		return {};
+	}
+
+	const anchors = parseScaleAnchors(scale);
+	return {
+		scaleMin: scale.minValue,
+		scaleMax: scale.maxValue,
+		scaleLowLabel: anchors.lowLabel,
+		scaleHighLabel: anchors.highLabel,
+		scalePreset: type === 'likert' ? inferScalePreset(scale.minValue, scale.maxValue, anchors) : 'custom'
+	};
+}
+
+function authoringOverridesFromPayload(
+	question: TemplateQuestionResponse,
+	type: TemplateQuestionAnswerType
+): Partial<TemplateQuestionAuthoringRow> {
+	const payload = parsePayloadObject(question.payload);
+	const displayLogic = recordValue(payload.displayLogic);
+	const authoring = recordValue(payload.authoring);
+	const overrides: Partial<TemplateQuestionAuthoringRow> = {
+		dimensionLabel: stringValue(authoring?.dimensionLabel) || undefined,
+		displayLogicEnabled: displayLogic?.mode === 'show_when',
+		displayLogicOperator: displayLogicOperatorValue(displayLogic?.operator),
+		displayLogicSourceQuestionCode: stringValue(displayLogic?.sourceQuestionCode),
+		displayLogicSourceOptionCode: stringValue(displayLogic?.value)
+	};
+
+	if (isScaleBackedType(type)) {
+		const scale = recordValue(payload.scale);
+		return {
+			...overrides,
+			scaleMin: numberValue(scale?.min) ?? undefined,
+			scaleMax: numberValue(scale?.max) ?? undefined,
+			scaleLowLabel: stringValue(scale?.lowLabel) || undefined,
+			scaleHighLabel: stringValue(scale?.highLabel) || undefined
+		};
+	}
+
+	if (type === 'single' || type === 'multi') {
+		const options = optionLabels(payload.options);
+		const choice = recordValue(payload.choice);
+		const exclusiveOptionCode = stringValue(choice?.exclusiveOptionCode);
+		const exclusiveOption = optionRecords(payload.options).find(
+			(option) => stringValue(option.code) === exclusiveOptionCode || option.exclusive === true
+		);
+		return {
+			...overrides,
+			choiceOptions: options,
+			choiceScoringEnabled: choiceScoringEnabledFromPayload(payload),
+			choiceOptionScores: choiceScoresFromPayload(payload),
+			choiceAllowOther: choice?.allowOther === true,
+			choiceOtherLabel: stringValue(choice?.otherLabel) || 'Other',
+			choiceExclusiveOptionLabel: stringValue(exclusiveOption?.label)
+		};
+	}
+
+	if (type === 'ranking') {
+		const ranking = recordValue(payload.ranking);
+		return {
+			...overrides,
+			choiceOptions: optionLabels(payload.options),
+			rankingMode: ranking?.mode === 'top_n' ? 'top_n' : 'rank_all',
+			rankingTopN: numberValue(ranking?.topN)
+		};
+	}
+
+	if (type === 'matrix') {
+		const matrix = recordValue(payload.matrix);
+		return {
+			...overrides,
+			matrixRows: optionLabels(matrix?.rows),
+			matrixColumns: optionLabels(matrix?.columns)
+		};
+	}
+
+	if (type === 'text') {
+		const text = recordValue(payload.text);
+		return {
+			...overrides,
+			textMultiline: text?.multiline === true,
+			textMaxLength: numberValue(text?.maxLength)
+		};
+	}
+
+	if (type === 'number') {
+		const validation = recordValue(payload.validation);
+		const display = recordValue(payload.display);
+		return {
+			...overrides,
+			numberMin: numberValue(validation?.min),
+			numberMax: numberValue(validation?.max),
+			numberIntegerOnly: validation?.integerOnly === true,
+			numberUnit: stringValue(display?.unit)
+		};
+	}
+
+	if (type === 'date') {
+		const validation = recordValue(payload.validation);
+		return {
+			...overrides,
+			dateEarliest: stringValue(validation?.minDate),
+			dateLatest: stringValue(validation?.maxDate)
+		};
+	}
+
+	return overrides;
+}
+
+function parsePayloadObject(payload: string): Record<string, unknown> {
+	try {
+		const parsed = JSON.parse(payload) as unknown;
+		return recordValue(parsed) ?? {};
+	} catch {
+		return {};
+	}
+}
+
+function parseScaleAnchors(scale: QuestionScaleResponse) {
+	const parsed = parsePayloadObject(scale.anchors);
+	const anchors = Array.isArray(parsed) ? [] : null;
+	try {
+		const anchorValues = JSON.parse(scale.anchors) as unknown;
+		if (Array.isArray(anchorValues)) {
+			const low = anchorValues.find(
+				(anchor) => recordValue(anchor)?.value === scale.minValue
+			);
+			const high = anchorValues.find(
+				(anchor) => recordValue(anchor)?.value === scale.maxValue
+			);
+			return {
+				lowLabel: stringValue(recordValue(low)?.label) || 'Strongly disagree',
+				highLabel: stringValue(recordValue(high)?.label) || 'Strongly agree'
+			};
+		}
+	} catch {
+		// Fall through to defaults below.
+	}
+
+	void anchors;
+	return {
+		lowLabel: 'Strongly disagree',
+		highLabel: 'Strongly agree'
+	};
+}
+
+function inferScalePreset(
+	minValue: number,
+	maxValue: number,
+	anchors: { lowLabel: string; highLabel: string }
+): QuestionScalePreset {
+	const low = anchors.lowLabel.trim().toLowerCase();
+	const high = anchors.highLabel.trim().toLowerCase();
+	if (minValue === 1 && maxValue === 5 && low === 'strongly disagree' && high === 'strongly agree') {
+		return 'agreement_5';
+	}
+
+	if (minValue === 1 && maxValue === 4 && low === 'strongly disagree' && high === 'strongly agree') {
+		return 'agreement_4';
+	}
+
+	if (minValue === 1 && maxValue === 5 && low === 'never' && high === 'always') {
+		return 'frequency_5';
+	}
+
+	if (minValue === 0 && maxValue === 10 && low === 'no discomfort') {
+		return 'discomfort_0_10';
+	}
+
+	return 'custom';
+}
+
+function optionRecords(value: unknown): Record<string, unknown>[] {
+	return Array.isArray(value) ? value.map(recordValue).filter((item): item is Record<string, unknown> => Boolean(item)) : [];
+}
+
+function optionLabels(value: unknown): string[] {
+	return optionRecords(value)
+		.map((option) => stringValue(option.label))
+		.filter(Boolean);
+}
+
+function choiceScoringEnabledFromPayload(payload: Record<string, unknown>): boolean {
+	const choiceScoring = recordValue(payload.choiceScoring);
+	return choiceScoring?.enabled === true;
+}
+
+function choiceScoresFromPayload(payload: Record<string, unknown>): Array<number | null> {
+	const choiceScoring = recordValue(payload.choiceScoring);
+	const scores = Array.isArray(choiceScoring?.optionScores)
+		? choiceScoring.optionScores.map(recordValue).filter((item): item is Record<string, unknown> => Boolean(item))
+		: [];
+	const scoresByCode = new Map(
+		scores
+			.map((item) => [stringValue(item.code), numberValue(item.score)] as const)
+			.filter(([code, score]) => Boolean(code) && score !== null)
+	);
+
+	return optionRecords(payload.options).map((option) => scoresByCode.get(stringValue(option.code)) ?? null);
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+	return value !== null && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function stringValue(value: unknown): string {
+	return typeof value === 'string' ? value : '';
+}
+
+function numberValue(value: unknown): number | null {
+	return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 export function buildMeanScoringDocument(
@@ -900,7 +1249,7 @@ export function validateScoreOutputRows(
 			eligibleCodeSet.has(questionCode.trim().toLowerCase())
 		);
 		if (!selectedCodes.length) {
-			errors.push(`${label} needs at least one rating, recommendation, or number question.`);
+			errors.push(`${label} needs at least one score-eligible question.`);
 		}
 
 		const compatibilityWarning = scoreScaleCompatibilityWarning(output, rows);
@@ -925,6 +1274,10 @@ export function validateScoreOutputRows(
 					selectedCodes.length === 1 ? 'question' : 'questions'
 				}.`
 			);
+		}
+
+		if (output.interpretationEnabled) {
+			errors.push(...validateScoreInterpretation(output, label));
 		}
 	});
 
@@ -954,10 +1307,16 @@ export function buildScoringDocument(
 			)
 		);
 		const outputReverseRows = outputRows.filter((row) => row.reverseCoded && isScaleBackedType(row.type));
+		const outputChoiceRows = outputRows.filter(isChoiceScoreEligible);
+		const choiceScoreMap = choiceScoreMapForRows(outputChoiceRows);
 		const aggregateInput = reverseScale && outputReverseRows.length > 0 ? reverseId : answersId;
 
 		inputs.push({ id: inputId, kind: 'answers', items: outputRows.map((row) => row.code.trim()) });
-		nodes.push({ id: answersId, op: 'select_answers', input: inputId });
+		nodes.push(
+			outputChoiceRows.length > 0
+				? { id: answersId, op: 'map_choice_scores', input: inputId, option_scores: choiceScoreMap }
+				: { id: answersId, op: 'select_answers', input: inputId }
+		);
 
 		if (reverseScale && outputReverseRows.length > 0) {
 			nodes.push({
@@ -1003,13 +1362,53 @@ export function buildScoringDocument(
 }
 
 export function buildScoreProduces(outputs: ScoreOutputAuthoringRow[]): string {
+	const produces: {
+		scores: string[];
+		interpretation?: {
+			status: 'tenant_attested';
+			source: 'tenant_defined';
+			provenance: string;
+			scores: Record<string, Array<{ code: string; label: string; min: number; max: number }>>;
+		};
+	} = {
+		scores: normalizeScoreCodes(outputs)
+	};
+	const interpretation = buildTenantAttestedInterpretation(outputs);
+	if (interpretation) {
+		produces.interpretation = interpretation;
+	}
+
 	return JSON.stringify(
-		{
-			scores: normalizeScoreCodes(outputs)
-		},
+		produces,
 		null,
 		2
 	);
+}
+
+export function createDefaultScoreInterpretationBandRows(): ScoreInterpretationBandAuthoringRow[] {
+	return [
+		{
+			localId: createScoreOutputLocalId(),
+			code: 'lower',
+			label: 'Lower tenant band',
+			min: 1,
+			max: 2.49
+		},
+		{
+			localId: createScoreOutputLocalId(),
+			code: 'middle',
+			label: 'Middle tenant band',
+			min: 2.5,
+			max: 3.49
+		},
+		{
+			localId: createScoreOutputLocalId(),
+			code: 'higher',
+			label: 'Higher tenant band',
+			min: 3.5,
+			max: 5
+		}
+	];
 }
 
 export function describeQuestionScoringDirection(
@@ -1021,6 +1420,15 @@ export function describeQuestionScoringDirection(
 			label: 'Higher numbers increase included result scores',
 			detail:
 				'Number answers are used as entered in every result output that includes this question.'
+		};
+	}
+
+	if (isChoiceScoreEligible(row)) {
+		return {
+			kind: 'choice_option_scores',
+			label: 'Option scores feed result calculation',
+			detail:
+				'Each selected option is converted to the tenant-defined numeric score shown for this question before result outputs are calculated.'
 		};
 	}
 
@@ -1053,7 +1461,7 @@ export function describeQuestionResultUsage(
 	outputs: ScoreOutputAuthoringRow[]
 ): string {
 	if (!isMeanScoreEligible(row)) {
-		return 'Not available for numeric result outputs.';
+		return 'Not available for current result outputs.';
 	}
 
 	const labels = outputs
@@ -1119,7 +1527,10 @@ export function describeQuestionScaleIntent(
 		return {
 			kind: 'choice',
 			label: row.type === 'single' ? 'Single choice' : 'Multiple choice',
-			detail: 'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.'
+			detail:
+				row.type === 'single' && row.choiceScoringEnabled
+					? 'Respondents choose one defined option. Each option is mapped to a tenant-defined numeric score for current result outputs.'
+					: 'Respondents choose from defined options. This is collected for grouping or context, not current numeric result outputs.'
 		};
 	}
 
@@ -1173,6 +1584,24 @@ export function summarizeQuestionDimensions(
 	for (const row of rows) {
 		const label = normalizeDimensionLabel(row.dimensionLabel);
 		const code = dimensionCodeForLabel(label);
+		const existing = summaries.get(code);
+
+		if (existing) {
+			existing.questionCount += 1;
+		} else {
+			summaries.set(code, { code, label, questionCount: 1 });
+		}
+	}
+
+	return [...summaries.values()];
+}
+
+export function summarizeQuestionSections(rows: TemplateQuestionAuthoringRow[]): QuestionSectionSummary[] {
+	const summaries = new Map<string, QuestionSectionSummary>();
+
+	for (const row of renumberRows(rows)) {
+		const label = normalizeSectionLabel(row.sectionLabel);
+		const code = sectionCodeForLabel(label);
 		const existing = summaries.get(code);
 
 		if (existing) {
@@ -1248,6 +1677,7 @@ export function summarizeResultsBlueprintReview(
 		normalizedOutputs.length > 0 &&
 		normalizedOutputs.every((output) => output.missingStrategy === 'require_all');
 	const strictConditionalQuestionCount = countStrictConditionalScoreQuestions(normalizedOutputs, rows);
+	const interpretedOutputCount = normalizedOutputs.filter(hasTenantAttestedInterpretation).length;
 	const scaleCompatibilityWarnings = normalizedOutputs
 		.map((output) => scoreScaleCompatibilityWarning(output, rows))
 		.filter((warning): warning is string => Boolean(warning));
@@ -1284,7 +1714,7 @@ export function summarizeResultsBlueprintReview(
 						? `${includedScoreableCount} of ${scoreableRows.length} scoreable ${
 								scoreableRows.length === 1 ? 'question is' : 'questions are'
 							} included in at least one result output.`
-						: 'Add rating, recommendation, or number questions before saving numeric results.'
+						: 'Add rating, recommendation, number, or score-mapped single-choice questions before saving results.'
 			},
 			{
 				id: 'missing_answers',
@@ -1331,7 +1761,11 @@ export function summarizeResultsBlueprintReview(
 				label: 'Interpretation boundary',
 				status: 'ready',
 				detail:
-					'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
+					interpretedOutputCount > 0
+						? `${interpretedOutputCount} result ${
+								interpretedOutputCount === 1 ? 'output has' : 'outputs have'
+							} tenant-defined interpretation bands. These are not official norms, benchmarks, or validated thresholds.`
+						: 'These are custom study result outputs. They describe calculation, not official norms, benchmarks, or validated thresholds.'
 			},
 			{
 				id: 'export_schema',
@@ -1351,11 +1785,33 @@ export function summarizeQuestionAuthoringCards(
 	return rows.map((row) => ({
 		code: row.code,
 		title: questionTitle(row),
+		sectionLabel: normalizeSectionLabel(row.sectionLabel),
 		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
 		scaleLabel: describeQuestionScaleIntent(row).label,
 		requiredLabel: row.required ? 'Required' : 'Optional',
 		resultUsageLabel: describeQuestionResultUsage(row, outputs)
 	}));
+}
+
+export function summarizeAnswerMetadataForExport(
+	rows: TemplateQuestionAuthoringRow[]
+): AnswerMetadataExportSummary[] {
+	return rows
+		.slice()
+		.sort((left, right) => left.ordinal - right.ordinal)
+		.map((row) => ({
+			code: row.code.trim() || `q${String(row.ordinal).padStart(2, '0')}`,
+			label: questionTitle(row),
+			answerFormatLabel: describeQuestionScaleIntent(row).label,
+			exportValueLabel: exportValueLabel(row),
+			codebookDetail: answerFormatDetail(row),
+			constraints: exportConstraints(row),
+			scoreEligibilityLabel: isChoiceScoreEligible(row)
+				? 'Score-eligible mapped option field'
+				: isMeanScoreEligible(row)
+					? 'Score-eligible numeric field'
+					: 'Context/export-only field'
+		}));
 }
 
 export function describeScoreMissingDataStrategy(
@@ -1413,6 +1869,7 @@ export function summarizeRespondentQuestionPreview(
 	return orderedRows.map((row) => ({
 		ordinal: row.ordinal,
 		positionLabel: `Question ${row.ordinal} of ${total}`,
+		sectionLabel: normalizeSectionLabel(row.sectionLabel),
 		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel),
 		text: questionTitle(row),
 		requiredLabel: row.required ? 'Required' : 'Optional',
@@ -1452,6 +1909,7 @@ export function summarizeQuestionnaireBlueprintReview(
 	outputs: ScoreOutputAuthoringRow[]
 ): QuestionnaireBlueprintReview {
 	const orderedRows = renumberRows(rows);
+	const sections = summarizeQuestionSections(orderedRows);
 	const dimensions = summarizeQuestionDimensions(orderedRows);
 	const requiredCount = orderedRows.filter((row) => row.required).length;
 	const optionalCount = orderedRows.length - requiredCount;
@@ -1475,10 +1933,21 @@ export function summarizeQuestionnaireBlueprintReview(
 				} only. Add choice, number, ranking, or written context questions when the study needs richer evidence.`;
 
 	return {
-		label: `${dimensions.length} ${dimensions.length === 1 ? 'construct' : 'constructs'}, ${
+		label: `${sections.length} ${sections.length === 1 ? 'section' : 'sections'}, ${
+			dimensions.length
+		} ${dimensions.length === 1 ? 'construct' : 'constructs'}, ${
 			orderedRows.length
 		} ${orderedRows.length === 1 ? 'question' : 'questions'}, ${requiredCount} required`,
 		items: [
+			{
+				id: 'sections',
+				label: 'Section/page plan',
+				status: sections.length > 0 ? 'ready' : 'attention',
+				detail:
+					sections.length > 0
+						? `Respondents move through ${formatSectionList(sections)}.`
+						: 'Add at least one questionnaire section before saving.'
+			},
 			{
 				id: 'constructs',
 				label: 'Construct plan',
@@ -1524,7 +1993,7 @@ export function summarizeQuestionnaireBlueprintReview(
 						? `${scoredQuestionsInResults} scored ${
 								scoredQuestionsInResults === 1 ? 'question feeds' : 'questions feed'
 							} ${outputs.length} result ${outputs.length === 1 ? 'output' : 'outputs'}.`
-						: 'Add at least one rating, recommendation, or number question for numeric results.'
+						: 'Add at least one score-eligible question for results.'
 			}
 		]
 	};
@@ -1540,6 +2009,16 @@ export function dimensionCodeForLabel(label: string): string {
 	);
 }
 
+export function sectionCodeForLabel(label: string): string {
+	return (
+		label
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '_')
+			.replace(/^_+|_+$/g, '') || 'page_1'
+	);
+}
+
 function normalizeScoreOutputs(
 	outputs: ScoreOutputAuthoringRow[],
 	rows: TemplateQuestionAuthoringRow[]
@@ -1551,6 +2030,9 @@ function normalizeScoreOutputs(
 		...output,
 		code: scoreCode(output.code || output.name),
 		minValidCount: Math.max(1, Math.trunc(output.minValidCount || 1)),
+		interpretationProvenance:
+			output.interpretationProvenance?.trim() || defaultTenantAttestedInterpretationProvenance,
+		interpretationBands: normalizeScoreInterpretationBands(output),
 		includedQuestionCodes: output.includedQuestionCodes.filter((code) =>
 			eligibleCodeSet.has(code.trim().toLowerCase())
 		)
@@ -1589,6 +2071,10 @@ function scoreScaleCompatibilityWarning(
 }
 
 function scoreScaleFamilyForQuestion(row: TemplateQuestionAuthoringRow): { id: string; label: string } {
+	if (isChoiceScoreEligible(row)) {
+		return { id: 'choice_option_scores', label: 'Single-choice option scores' };
+	}
+
 	if (row.type === 'number') {
 		if (
 			row.scalePreset === 'discomfort_0_10' ||
@@ -1674,6 +2160,133 @@ function countStrictConditionalScoreQuestions(
 	return strictCodes.size;
 }
 
+function hasTenantAttestedInterpretation(output: Pick<ScoreOutputAuthoringRow, 'interpretationEnabled'>) {
+	return Boolean(output.interpretationEnabled);
+}
+
+function buildTenantAttestedInterpretation(outputs: ScoreOutputAuthoringRow[]) {
+	const scores: Record<string, Array<{ code: string; label: string; min: number; max: number }>> = {};
+	const provenances: string[] = [];
+
+	for (const output of outputs) {
+		if (!output.interpretationEnabled) {
+			continue;
+		}
+
+		const code = scoreCode(output.code || output.name);
+		if (!code) {
+			continue;
+		}
+
+		const bands = normalizeScoreInterpretationBands(output).map((band) => ({
+			code: scoreCode(band.code || band.label),
+			label: band.label.trim(),
+			min: band.min,
+			max: band.max
+		}));
+		if (bands.length === 0) {
+			continue;
+		}
+
+		scores[code] = bands;
+		const provenance =
+			output.interpretationProvenance?.trim() || defaultTenantAttestedInterpretationProvenance;
+		if (!provenances.includes(provenance)) {
+			provenances.push(provenance);
+		}
+	}
+
+	if (Object.keys(scores).length === 0) {
+		return null;
+	}
+
+	return {
+		status: 'tenant_attested' as const,
+		source: 'tenant_defined' as const,
+		provenance: provenances.join(' | ') || defaultTenantAttestedInterpretationProvenance,
+		scores
+	};
+}
+
+function validateScoreInterpretation(output: ScoreOutputAuthoringRow, label: string): string[] {
+	const errors: string[] = [];
+	const provenance = output.interpretationProvenance?.trim() || '';
+	if (!provenance) {
+		errors.push(`${label} interpretation provenance is required.`);
+	} else {
+		const normalized = provenance.toLowerCase();
+		if (!normalized.includes('not validated') || !normalized.includes('not official')) {
+			errors.push(`${label} interpretation provenance must say not validated and not official.`);
+		}
+	}
+
+	const bands = normalizeScoreInterpretationBands(output);
+	if (bands.length === 0) {
+		errors.push(`${label} needs at least one interpretation band.`);
+		return errors;
+	}
+
+	const seenCodes = new Set<string>();
+	const validBands: ScoreInterpretationBandAuthoringRow[] = [];
+	for (const [index, band] of bands.entries()) {
+		const bandLabel = `${label} interpretation band ${index + 1}`;
+		const code = scoreCode(band.code || band.label);
+		if (!code) {
+			errors.push(`${bandLabel} needs a code.`);
+		} else if (seenCodes.has(code)) {
+			errors.push(`${label} interpretation band code ${code} is duplicated.`);
+		} else {
+			seenCodes.add(code);
+		}
+
+		if (!band.label.trim()) {
+			errors.push(`${bandLabel} needs a label.`);
+		}
+
+		if (!Number.isFinite(band.min)) {
+			errors.push(`${bandLabel} minimum score must be numeric.`);
+		}
+
+		if (!Number.isFinite(band.max)) {
+			errors.push(`${bandLabel} maximum score must be numeric.`);
+		}
+
+		if (Number.isFinite(band.min) && Number.isFinite(band.max) && band.min > band.max) {
+			errors.push(`${bandLabel} minimum score must be less than or equal to maximum score.`);
+		}
+
+		if (Number.isFinite(band.min) && Number.isFinite(band.max) && band.min <= band.max) {
+			validBands.push(band);
+		}
+	}
+
+	const ordered = validBands.slice().sort((left, right) => left.min - right.min || left.max - right.max);
+	for (let index = 1; index < ordered.length; index += 1) {
+		if (ordered[index - 1].max >= ordered[index].min) {
+			errors.push(`${label} interpretation bands must not overlap.`);
+			break;
+		}
+	}
+
+	return errors;
+}
+
+function normalizeScoreInterpretationBands(
+	output: Pick<ScoreOutputAuthoringRow, 'interpretationBands'>
+): ScoreInterpretationBandAuthoringRow[] {
+	const source = output.interpretationBands?.length
+		? output.interpretationBands
+		: createDefaultScoreInterpretationBandRows();
+
+	return source.map((band) => ({
+		localId: band.localId || createScoreOutputLocalId(),
+		code: scoreCode(band.code || band.label),
+		label: band.label.trim(),
+		min: Number(band.min),
+		max: Number(band.max)
+	}));
+}
+
 function hasConditionalDisplayLogic(row: TemplateQuestionAuthoringRow): boolean {
 	return (
 		row.displayLogicEnabled &&
@@ -1706,7 +2319,20 @@ function nextScoreCode(outputs: ScoreOutputAuthoringRow[], fallback: string) {
 }
 
 export function isMeanScoreEligible(row: TemplateQuestionAuthoringRow): boolean {
-	return row.type === 'likert' || row.type === 'nps' || row.type === 'number';
+	return row.type === 'likert' || row.type === 'nps' || row.type === 'number' || isChoiceScoreEligible(row);
+}
+
+export function isChoiceScoreEligible(row: TemplateQuestionAuthoringRow): boolean {
+	return row.type === 'single' && row.choiceScoringEnabled && !row.choiceAllowOther;
+}
+
+export function summarizeChoiceScoreOptions(row: TemplateQuestionAuthoringRow): ChoiceScoreOptionSummary[] {
+	const scores = row.choiceOptionScores ?? [];
+	return normalizedChoiceOptions(row).map((label, index) => ({
+		code: `o${String(index + 1).padStart(2, '0')}`,
+		label,
+		score: typeof scores[index] === 'number' && Number.isFinite(scores[index]) ? scores[index] : null
+	}));
 }
 
 function createQuestionRow(
@@ -1716,6 +2342,7 @@ function createQuestionRow(
 	return {
 		ordinal: row.ordinal,
 		code: row.code,
+		sectionLabel: normalizeSectionLabel(row.sectionLabel ?? defaultQuestionSection),
 		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel ?? 'Study measure'),
 		type: row.type ?? 'likert',
 		textDefault: row.textDefault,
@@ -1727,6 +2354,8 @@ function createQuestionRow(
 		scaleHighLabel: row.scaleHighLabel ?? 'Strongly agree',
 		scalePreset: row.scalePreset ?? 'agreement_5',
 		choiceOptions: row.choiceOptions ?? defaultChoiceOptions,
+		choiceScoringEnabled: row.choiceScoringEnabled ?? false,
+		choiceOptionScores: row.choiceOptionScores ? [...row.choiceOptionScores] : [],
 		numberMin: row.numberMin ?? null,
 		numberMax: row.numberMax ?? null,
 		numberUnit: row.numberUnit ?? '',
@@ -1743,6 +2372,7 @@ function createQuestionRow(
 		matrixRows: row.matrixRows ?? defaultMatrixRows,
 		matrixColumns: row.matrixColumns ?? defaultMatrixColumns,
 		displayLogicEnabled: row.displayLogicEnabled ?? false,
+		displayLogicOperator: displayLogicOperatorValue(row.displayLogicOperator),
 		displayLogicSourceQuestionCode: row.displayLogicSourceQuestionCode ?? '',
 		displayLogicSourceOptionCode: row.displayLogicSourceOptionCode ?? ''
 	};
@@ -1819,13 +2449,22 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 	if (row.type === 'single' || row.type === 'multi') {
 		const options = choiceOptionPayloads(row);
 		const exclusiveOptionCode = options.find((option) => option.exclusive)?.code ?? null;
+		const choiceScoring = row.type === 'single' && row.choiceScoringEnabled
+			? {
+					choiceScoring: {
+						enabled: true,
+						optionScores: choiceOptionScorePayloads(row)
+					}
+				}
+			: {};
 		return payloadString(row, {
 			options,
 			choice: {
 				allowOther: row.choiceAllowOther,
 				otherLabel: row.choiceAllowOther ? trimmedOrNull(row.choiceOtherLabel) : null,
 				exclusiveOptionCode
-			}
+			},
+			...choiceScoring
 		});
 	}
 
@@ -1885,7 +2524,10 @@ function questionPayload(row: TemplateQuestionAuthoringRow): string {
 
 function payloadString(row: TemplateQuestionAuthoringRow, payload: Record<string, unknown>): string {
 	const displayLogic = displayLogicPayload(row);
-	return JSON.stringify(displayLogic ? { ...payload, displayLogic } : payload);
+	const authoring = {
+		dimensionLabel: normalizeDimensionLabel(row.dimensionLabel)
+	};
+	return JSON.stringify(displayLogic ? { ...payload, authoring, displayLogic } : { ...payload, authoring });
 }
 
 function displayLogicPayload(row: TemplateQuestionAuthoringRow) {
@@ -1902,10 +2544,34 @@ function displayLogicPayload(row: TemplateQuestionAuthoringRow) {
 	return {
 		mode: 'show_when',
 		sourceQuestionCode,
-		operator: 'equals',
+		operator: displayLogicOperatorValue(row.displayLogicOperator),
 		value,
 		requiredWhenVisible: row.required
 	};
+}
+
+function isDisplayLogicOperator(value: unknown): value is TemplateQuestionDisplayLogicOperator {
+	return (
+		value === 'equals' ||
+		value === 'not_equals' ||
+		value === 'contains' ||
+		value === 'not_contains'
+	);
+}
+
+function displayLogicOperatorValue(value: unknown): TemplateQuestionDisplayLogicOperator {
+	return isDisplayLogicOperator(value) ? value : 'equals';
+}
+
+function isDisplayLogicOperatorAllowedForSource(
+	operator: TemplateQuestionDisplayLogicOperator,
+	sourceType: TemplateQuestionAnswerType
+) {
+	if (sourceType === 'multi') {
+		return operator === 'contains' || operator === 'not_contains';
+	}
+
+	return operator === 'equals' || operator === 'not_equals';
 }
 
 function normalizedChoiceOptions(row: TemplateQuestionAuthoringRow): string[] {
@@ -1954,6 +2620,24 @@ function choiceOptionPayloads(row: TemplateQuestionAuthoringRow): ChoiceOptionPa
 	}
 
 	return options;
+}
+
+function choiceOptionScorePayloads(row: TemplateQuestionAuthoringRow) {
+	return summarizeChoiceScoreOptions(row).map((option) => ({
+		code: option.code,
+		score: option.score ?? 0
+	}));
+}
+
+function choiceScoreMapForRows(rows: TemplateQuestionAuthoringRow[]) {
+	return Object.fromEntries(
+		rows.map((row) => [
+			row.code.trim(),
+			Object.fromEntries(
+				summarizeChoiceScoreOptions(row).map((option) => [option.code, option.score ?? 0])
+			)
+		])
+	);
 }
 
 function hasChoiceOptionLabel(row: TemplateQuestionAuthoringRow, label: string): boolean {
@@ -2022,8 +2706,112 @@ function hasTextMetadata(row: TemplateQuestionAuthoringRow): boolean {
 	return row.textMultiline || nullableNumber(row.textMaxLength) !== null;
 }
 
+function exportValueLabel(row: TemplateQuestionAuthoringRow): string {
+	if (row.type === 'likert' || row.type === 'nps' || row.type === 'number') {
+		return 'numeric value';
+	}
+
+	if (row.type === 'single' || row.type === 'date' || row.type === 'text') {
+		return 'single value';
+	}
+
+	if (row.type === 'multi' || row.type === 'ranking') {
+		return 'ordered option-code array';
+	}
+
+	if (row.type === 'matrix') {
+		return 'row-to-column code map';
+	}
+
+	return 'unsupported value';
+}
+
+function exportConstraints(row: TemplateQuestionAuthoringRow): string[] {
+	if (isScaleBackedType(row.type)) {
+		return [
+			`Range ${row.scaleMin}-${row.scaleMax}`,
+			`Low anchor: ${row.scaleLowLabel.trim() || 'not set'}`,
+			`High anchor: ${row.scaleHighLabel.trim() || 'not set'}`,
+			row.reverseCoded ? 'Reverse-scored before result calculation' : 'Used as entered for scoring'
+		];
+	}
+
+	if (row.type === 'single' || row.type === 'multi') {
+		const constraints = [`Options: ${choicePreviewLabels(row).join(', ') || 'none'}`];
+		if (row.type === 'single' && row.choiceScoringEnabled) {
+			constraints.push(
+				`Option scores: ${summarizeChoiceScoreOptions(row)
+					.map((option) => `${option.code}=${option.score ?? 'missing'}`)
+					.join(', ')}`
+			);
+		}
+		if (row.choiceAllowOther) {
+			constraints.push(`Write-in option: ${trimmedOrNull(row.choiceOtherLabel) ?? 'Other'}`);
+		}
+		const exclusiveLabel = trimmedOrNull(row.choiceExclusiveOptionLabel);
+		if (exclusiveLabel) {
+			constraints.push(`Mutually exclusive option: ${exclusiveLabel}`);
+		}
+		return constraints;
+	}
+
+	if (row.type === 'ranking') {
+		return [
+			`Options: ${normalizedChoiceOptions(row).join(', ') || 'none'}`,
+			row.rankingMode === 'top_n' && nullableNumber(row.rankingTopN) !== null
+				? `Top ${row.rankingTopN} only`
+				: 'Rank all options'
+		];
+	}
+
+	if (row.type === 'matrix') {
+		return [
+			`Rows: ${normalizedMatrixRows(row).join(', ') || 'none'}`,
+			`Columns: ${normalizedMatrixColumns(row).join(', ') || 'none'}`
+		];
+	}
+
+	if (row.type === 'number') {
+		const constraints = [];
+		const range = numberRangeLabel(row);
+		if (range) {
+			constraints.push(`Range ${range}`);
+		}
+		const unit = trimmedOrNull(row.numberUnit);
+		if (unit) {
+			constraints.push(`Unit: ${unit}`);
+		}
+		constraints.push(row.numberIntegerOnly ? 'Whole numbers only' : 'Decimals allowed');
+		return constraints;
+	}
+
+	if (row.type === 'date') {
+		const earliest = trimmedOrNull(row.dateEarliest);
+		const latest = trimmedOrNull(row.dateLatest);
+		return [
+			earliest ? `Earliest date: ${earliest}` : 'No earliest date',
+			latest ? `Latest date: ${latest}` : 'No latest date'
+		];
+	}
+
+	if (row.type === 'text') {
+		return [
+			row.textMultiline ? 'Long text' : 'Short text',
+			nullableNumber(row.textMaxLength) !== null
+				? `Maximum ${row.textMaxLength} characters`
+				: 'No max length set'
+		];
+	}
+
+	return ['Unsupported by current export/codebook preview'];
+}
+
 function normalizeDimensionLabel(label: string): string {
 	return label.trim() || 'Study measure';
+}
+
+function normalizeSectionLabel(label: string): string {
+	return label.trim() || defaultQuestionSection;
 }
 
 function questionTitle(row: TemplateQuestionAuthoringRow): string {
@@ -2155,6 +2943,17 @@ function formatInlineList(values: string[]) {
 	return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
 }
 
+function formatSectionList(sections: QuestionSectionSummary[]) {
+	return formatInlineList(
+		sections.map(
+			(section) =>
+				`${section.label} (${section.questionCount} ${
+					section.questionCount === 1 ? 'question' : 'questions'
+				})`
+		)
+	);
+}
+
 function scoreCode(label: string): string {
 	const normalized = label
 		.trim()
@@ -2184,6 +2983,7 @@ export type DraftRespondentPreviewQuestion = {
 	ordinal: number;
 	code: string;
 	positionLabel: string;
+	sectionLabel: string;
 	dimensionLabel: string;
 	text: string;
 	required: boolean;
@@ -2271,12 +3071,13 @@ function toDraftRespondentPreviewQuestion(
 	const scoringDirection = describeQuestionScoringDirection(question);
 	const warnings = draftRuntimeWarnings(question, runtime.controlType);
 
-	return {
-		ordinal: question.ordinal,
-		code: question.code,
-		positionLabel: `Question ${index + 1}`,
-		dimensionLabel: question.dimensionLabel.trim() || 'No dimension',
-		text: question.textDefault.trim() || 'Untitled question',
+		return {
+			ordinal: question.ordinal,
+			code: question.code,
+			positionLabel: `Question ${index + 1}`,
+			sectionLabel: normalizeSectionLabel(question.sectionLabel),
+			dimensionLabel: question.dimensionLabel.trim() || 'No dimension',
+			text: question.textDefault.trim() || 'Untitled question',
 		required: question.required,
 		requiredLabel: question.required ? 'Required' : 'Optional',
 		controlType: runtime.controlType,
@@ -2759,11 +3560,12 @@ function paletteQuestion(
 	textDefault: string,
 	overrides: Partial<Omit<TemplateQuestionAuthoringRow, 'ordinal' | 'code' | 'dimensionLabel' | 'type' | 'textDefault'>> = {}
 ): TemplateQuestionAuthoringRow {
-	return {
-		ordinal: 1,
-		code,
-		dimensionLabel,
-		type,
+		return {
+			ordinal: 1,
+			code,
+			sectionLabel: overrides.sectionLabel ?? defaultQuestionSection,
+			dimensionLabel,
+			type,
 		textDefault,
 		required: overrides.required ?? true,
 		reverseCoded: overrides.reverseCoded ?? false,
@@ -2773,6 +3575,8 @@ function paletteQuestion(
 		scaleHighLabel: overrides.scaleHighLabel ?? 'Strongly agree',
 		scalePreset: overrides.scalePreset ?? (type === 'likert' ? 'agreement_5' : 'custom'),
 		choiceOptions: overrides.choiceOptions ?? [],
+		choiceScoringEnabled: overrides.choiceScoringEnabled ?? false,
+		choiceOptionScores: overrides.choiceOptionScores ? [...overrides.choiceOptionScores] : [],
 		numberMin: overrides.numberMin ?? null,
 		numberMax: overrides.numberMax ?? null,
 		numberUnit: overrides.numberUnit ?? '',
@@ -2789,6 +3593,7 @@ function paletteQuestion(
 		matrixRows: overrides.matrixRows ?? defaultMatrixRows,
 		matrixColumns: overrides.matrixColumns ?? defaultMatrixColumns,
 		displayLogicEnabled: overrides.displayLogicEnabled ?? false,
+		displayLogicOperator: displayLogicOperatorValue(overrides.displayLogicOperator),
 		displayLogicSourceQuestionCode: overrides.displayLogicSourceQuestionCode ?? '',
 		displayLogicSourceOptionCode: overrides.displayLogicSourceOptionCode ?? ''
 	};

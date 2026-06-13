@@ -99,6 +99,124 @@ test('submits a public open-link response without setup auth headers', async ({ 
 	]);
 });
 
+test('hides and skips conditional follow-up until source answer matches', async ({ page }) => {
+	const sourceQuestionId = '13f0dc3f-4cda-4d78-b855-5e09f345a4a1';
+	const followUpQuestionId = 'cbf85834-5935-4378-bf1e-770531c66fc4';
+	const conditionalEntry = {
+		...sampleOpenLinkEntry,
+		questions: [
+			{
+				id: sourceQuestionId,
+				ordinal: 1,
+				code: 'q01',
+				type: 'single',
+				textDefault: 'Did you handle urgent work today?',
+				required: true,
+				payload: JSON.stringify({
+					options: [
+						{ code: 'o01', label: 'No' },
+						{ code: 'o02', label: 'Yes' }
+					]
+				})
+			},
+			{
+				id: followUpQuestionId,
+				ordinal: 2,
+				code: 'q02',
+				type: 'number',
+				textDefault: 'Rate disruption severity.',
+				required: true,
+				scaleMinValue: 1,
+				scaleMaxValue: 5,
+				payload: JSON.stringify({
+					validation: {
+						min: 1,
+						max: 5,
+						integerOnly: true
+					},
+					displayLogic: {
+						mode: 'show_when',
+						sourceQuestionCode: 'q01',
+						operator: 'equals',
+						value: 'o02',
+						requiredWhenVisible: true
+					}
+				})
+			}
+		]
+	};
+	const savedPayloads: unknown[] = [];
+
+	await page.route('**/respondent/open-links/*/sessions/*/answers', async (route) => {
+		const payload = route.request().postDataJSON();
+		savedPayloads.push(payload);
+		const answers = Array.isArray(payload.answers)
+			? (payload.answers as Array<{ isSkipped?: boolean; value?: unknown }>)
+			: [];
+		await route.fulfill({
+			json: {
+				sessionId,
+				savedAnswerCount: answers.filter((answer) => !answer.isSkipped && answer.value !== null).length
+			}
+		});
+	});
+	await page.route('**/respondent/open-links/*/sessions', async (route) => {
+		await route.fulfill({ status: 201, json: sampleSession });
+	});
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({ json: conditionalEntry });
+	});
+
+	await page.goto(`/r/${openLinkToken}`);
+
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
+	const survey = page.getByTestId('surveyjs-runtime');
+	await expect(survey.getByText('Did you handle urgent work today?')).toBeVisible();
+	await expect(survey.getByText('Rate disruption severity.')).not.toBeVisible();
+
+	await survey.getByText('No', { exact: true }).click();
+	await expect(survey.getByText('Rate disruption severity.')).not.toBeVisible();
+	await page.getByRole('button', { name: 'Save and review' }).click();
+	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
+	await expect.poll(() => savedPayloads.at(-1)).toEqual({
+		answers: [
+			{
+				questionId: sourceQuestionId,
+				value: '"o01"',
+				isSkipped: false
+			},
+			{
+				questionId: followUpQuestionId,
+				value: null,
+				isSkipped: true
+			}
+		]
+	});
+
+	await page.getByRole('button', { name: 'Back to edit' }).click();
+	await survey.getByText('Yes', { exact: true }).click();
+	await expect(survey.getByText('Rate disruption severity.')).toBeVisible();
+	await respondentAnswer(page).fill('4');
+	await page.getByRole('button', { name: 'Save and review' }).click();
+	await expect.poll(() => savedPayloads.at(-1)).toEqual({
+		answers: [
+			{
+				questionId: sourceQuestionId,
+				value: '"o02"',
+				isSkipped: false
+			},
+			{
+				questionId: followUpQuestionId,
+				value: '4',
+				isSkipped: false
+			}
+		]
+	});
+});
+
 test('saves answers for review before final submit', async ({ page }) => {
 	const calls: string[] = [];
 
@@ -463,6 +581,261 @@ test('identified entry token uses identified endpoints then public session handl
 		'/respondent/identified-entries/{token}/sessions',
 		'/respondent/public-sessions/{handle}/answers',
 		'/respondent/public-sessions/{handle}/submit'
+	]);
+});
+
+test('operations identified queue link opens queue assignment and submits through queue endpoints', async ({
+	page
+}) => {
+	const calls: string[] = [];
+	let sessionChecks = 0;
+
+	await page.route('**/auth/session', async (route) => {
+		sessionChecks += 1;
+		await route.fulfill({
+			json: {
+				userId: '22222222-2222-4222-8222-222222222222',
+				tenantId: '11111111-1111-4111-8111-111111111111',
+				email: 'owner@example.test',
+				permissions: ['setup.manage']
+			}
+		});
+	});
+	await page.route('**/auth/csrf', async (route) => {
+		await route.fulfill({ json: { csrfToken: 'test-csrf-token' } });
+	});
+	await page.route(
+		`**/campaign-series/${identifiedQueueSeriesId}/operations-workspace`,
+		async (route) => {
+			await route.fulfill({ json: sampleIdentifiedOperationsWorkspace });
+		}
+	);
+	await page.route('**/campaigns/*/identified-queue-access', async (route) => {
+		calls.push('/campaigns/{id}/identified-queue-access');
+		expect(new URL(route.request().url()).pathname).toBe(
+			`/campaigns/${campaignId}/identified-queue-access`
+		);
+		await route.fulfill({
+			status: 201,
+			json: {
+				campaignId,
+				respondentCount: 1,
+				assignmentCount: 1,
+				createdAccessCount: 1,
+				existingAccessCount: 0,
+				links: [
+					{
+						invitationTokenId: 'd4d72f1a-d80d-44e5-9df8-1dd483910c64',
+						respondentSubjectId: 'f6d54d90-52c4-4996-a275-f3050040955d',
+						assignmentCount: 1,
+						token: identifiedQueueToken,
+						respondentPath: `/r/${identifiedQueueToken}`,
+						status: 'created'
+					}
+				]
+			}
+		});
+	});
+
+	await page.goto(`/app/campaign-series/${identifiedQueueSeriesId}/operations`);
+	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
+	const currentStep = workflow.getByRole('region', { name: 'Collection step' });
+	await currentStep.getByRole('button', { name: 'Create feedback task links' }).click();
+	await workflow.getByRole('button', { name: /Share access.*Done/ }).click();
+	await expect(currentStep.getByText(`/r/${identifiedQueueToken}`, { exact: true })).toBeVisible();
+	await expect(operations.getByText('Feedback task links ready')).toBeVisible();
+	const sessionChecksAfterOperations = sessionChecks;
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({
+			status: 500,
+			json: {
+				title: 'Unexpected open-link call',
+				detail: 'Identified queue should not resolve through open-link endpoints.'
+			}
+		});
+	});
+	await page.route('**/respondent/identified-queues/**', async (route) => {
+		const pathname = new URL(route.request().url()).pathname;
+		assertNoSetupAuthHeaders(route.request().headers());
+
+		if (pathname === `/respondent/identified-queues/${identifiedQueueToken}`) {
+			calls.push('/respondent/identified-queues/{token}');
+			await route.fulfill({ json: sampleIdentifiedQueue });
+			return;
+		}
+
+		if (
+			pathname ===
+			`/respondent/identified-queues/${identifiedQueueToken}/assignments/${assignmentId}/sessions`
+		) {
+			calls.push('/respondent/identified-queues/{token}/assignments/{id}/sessions');
+			expect(route.request().postDataJSON()).toEqual({
+				locale: 'en',
+				acceptedConsentDocumentId: consentDocumentId,
+				acceptedGrants: ['data_processing', 'research_participation']
+			});
+			await route.fulfill({ status: 201, json: sampleSession });
+			return;
+		}
+
+		if (
+			pathname ===
+			`/respondent/identified-queues/${identifiedQueueToken}/assignments/${assignmentId}/sessions/${sessionId}/answers`
+		) {
+			calls.push('/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/answers');
+			expect(route.request().postDataJSON()).toEqual({
+				answers: [
+					{
+						questionId: sampleOpenLinkEntry.questions[0].id,
+						value: '4',
+						isSkipped: false
+					}
+				]
+			});
+			await route.fulfill({ json: { sessionId, savedAnswerCount: 1 } });
+			return;
+		}
+
+		if (
+			pathname ===
+			`/respondent/identified-queues/${identifiedQueueToken}/assignments/${assignmentId}/sessions/${sessionId}/submit`
+		) {
+			calls.push('/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/submit');
+			await route.fulfill({ json: { id: sessionId, submittedAt: '2026-05-07T12:05:00Z' } });
+			return;
+		}
+
+		await route.fulfill({
+			status: 404,
+			json: {
+				title: 'Unexpected queue endpoint',
+				detail: pathname
+			}
+		});
+	});
+
+	await page.goto(`/r/${identifiedQueueToken}`);
+	await expect(page.getByRole('heading', { name: 'Identified queue wave' })).toBeVisible();
+	await expect(
+		page.getByText('Feedback tasks for Ana Analyst. Choose one person to give feedback for.')
+	).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Assigned feedback tasks' })).toBeVisible();
+	await page.getByRole('button', { name: /Manager.*Not started/ }).click();
+	await expect(page.getByRole('heading', { name: 'Identified queue wave: Manager' })).toBeVisible();
+	await page.getByRole('checkbox', { name: 'Data processing' }).check();
+	await page.getByRole('checkbox', { name: 'Research participation' }).check();
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.getByTestId('surveyjs-runtime').locator('[data-text="4"]').click();
+	await page.getByRole('button', { name: 'Save and review' }).click();
+	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
+	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
+
+	const receipt = page.getByRole('region', { name: 'Response receipt' });
+	await expect(receipt.getByRole('heading', { name: 'Response submitted' })).toBeVisible();
+	await expect(receipt.getByText('identified', { exact: true })).toBeVisible();
+	await expect.poll(() => new URL(page.url()).pathname).toBe(`/r/${identifiedQueueToken}`);
+	expect(sessionChecks).toBe(sessionChecksAfterOperations);
+	expect(calls).toEqual(expect.arrayContaining([
+		'/campaigns/{id}/identified-queue-access',
+		'/respondent/identified-queues/{token}',
+		'/respondent/identified-queues/{token}/assignments/{id}/sessions',
+		'/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/answers',
+		'/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/submit'
+	]));
+});
+
+test('identified queue submitted assignment reopens as receipt without a new session', async ({
+	page
+}) => {
+	const submittedAt = '2026-05-07T12:05:00Z';
+	const calls: string[] = [];
+	const submittedQueue = {
+		...sampleIdentifiedQueue,
+		assignments: [
+			{
+				...sampleIdentifiedQueue.assignments[0],
+				status: 'submitted',
+				sessionId,
+				submittedAt
+			}
+		]
+	};
+
+	await page.route('**/respondent/open-links/*', async (route) => {
+		await route.fulfill({
+			status: 500,
+			json: {
+				title: 'Unexpected open-link call',
+				detail: 'Identified queue should not resolve through open-link endpoints.'
+			}
+		});
+	});
+	await page.route('**/respondent/identified-queues/**', async (route) => {
+		const pathname = new URL(route.request().url()).pathname;
+		assertNoSetupAuthHeaders(route.request().headers());
+
+		if (pathname === `/respondent/identified-queues/${identifiedQueueToken}`) {
+			calls.push('/respondent/identified-queues/{token}');
+			await route.fulfill({ json: submittedQueue });
+			return;
+		}
+
+		if (
+			pathname ===
+			`/respondent/identified-queues/${identifiedQueueToken}/assignments/${assignmentId}/sessions/${sessionId}/draft`
+		) {
+			calls.push(
+				'/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/draft'
+			);
+			await route.fulfill({
+				json: {
+					session: {
+						...sampleSession,
+						submittedAt
+					},
+					answers: [
+						{
+							questionId: sampleOpenLinkEntry.questions[0].id,
+							value: '4',
+							comment: null,
+							isSkipped: false,
+							isNa: false
+						}
+					],
+					savedAnswerCount: 1
+				}
+			});
+			return;
+		}
+
+		await route.fulfill({
+			status: 500,
+			json: {
+				title: 'Unexpected queue endpoint',
+				detail: pathname
+			}
+		});
+	});
+
+	await page.goto(`/r/${identifiedQueueToken}`);
+	await expect(page.getByRole('heading', { name: 'Identified queue wave' })).toBeVisible();
+	await page.getByRole('button', { name: /Manager.*Submitted/ }).click();
+
+	const receipt = page.getByRole('region', { name: 'Response receipt' });
+	await expect(receipt.getByRole('heading', { name: 'Response submitted' })).toBeVisible();
+	await expect(receipt.getByText('Your response for Identified queue wave: Manager was received.')).toBeVisible();
+	await expect(receipt.getByText('May 7, 2026, 2:05 PM')).toBeVisible();
+	await expect(page.getByTestId('surveyjs-runtime')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Continue' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Submit reviewed response' })).toHaveCount(0);
+
+	await receipt.getByRole('button', { name: 'Back to queue' }).click();
+	await expect(page.getByRole('button', { name: /Manager.*Submitted/ })).toBeVisible();
+	expect(calls).toEqual([
+		'/respondent/identified-queues/{token}',
+		'/respondent/identified-queues/{token}/assignments/{id}/sessions/{id}/draft'
 	]);
 });
 
@@ -1173,8 +1546,11 @@ const openLinkToken =
 	'opn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
 const identifiedEntryToken =
 	'idn_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+const identifiedQueueToken =
+	'idq_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
 const publicSessionHandle =
 	'rsh_11111111111141118111111111111111_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+const identifiedQueueSeriesId = '83e521a8-4b8c-44cd-9e13-115edaa89979';
 
 const sampleOpenLinkEntry = {
 	campaignId,
@@ -1215,6 +1591,36 @@ const sampleIdentifiedEntry = {
 	responseIdentityMode: 'identified'
 };
 
+const sampleIdentifiedQueue = {
+	campaignId,
+	templateVersionId,
+	name: 'Identified queue wave',
+	status: 'live',
+	responseIdentityMode: 'identified',
+	defaultLocale: 'en',
+	consentDocument: sampleOpenLinkEntry.consentDocument,
+	questions: sampleOpenLinkEntry.questions,
+	respondent: {
+		id: 'f6d54d90-52c4-4996-a275-f3050040955d',
+		label: 'Ana Analyst',
+		displayName: 'Ana Analyst'
+	},
+	assignments: [
+		{
+			assignmentId,
+			role: 'manager',
+			status: 'not_started',
+			target: {
+				id: '45f3836f-e6e9-4695-a2ac-97ea125de78d',
+				label: 'Manager',
+				displayName: 'Morgan Manager'
+			},
+			sessionId: null,
+			submittedAt: null
+		}
+	]
+};
+
 const sampleSession = {
 	id: sessionId,
 	assignmentId,
@@ -1222,6 +1628,92 @@ const sampleSession = {
 	startedAt: '2026-05-07T12:00:00Z',
 	submittedAt: null,
 	timeTakenMs: null
+};
+
+const sampleIdentifiedOperationsWorkspace = {
+	series: {
+		id: identifiedQueueSeriesId,
+		name: 'Identified 360 pulse',
+		studyKind: 'own',
+		isSample: false,
+		sampleScenario: null,
+		readOnlyReason: null,
+		createdAt: '2026-06-11T08:00:00Z',
+		updatedAt: '2026-06-11T09:00:00Z'
+	},
+	summary: {
+		campaignCount: 1,
+		liveCampaignCount: 1,
+		openLinkAssignmentCount: 0,
+		queuedInvitationCount: 0,
+		sentInvitationCount: 0,
+		failedInvitationCount: 0,
+		deliveryAttemptCount: 0,
+		startedResponseCount: 0,
+		draftResponseCount: 0,
+		submittedResponseCount: 0,
+		latestResponseStartedAt: null,
+		latestResponseSubmittedAt: null,
+		collectionStatus: 'not_started',
+		reportVisibilityStatus: 'unknown_policy',
+		collectionGuidance: 'Create identified access links for assigned respondents.',
+		missingPrerequisiteCount: 0
+	},
+	selectedCampaign: {
+		id: campaignId,
+		name: 'Identified queue wave',
+		status: 'live',
+		responseIdentityMode: 'identified',
+		defaultLocale: 'en',
+		latestLaunchSnapshotId: '2eb09345-735c-4a29-b09b-e2d49c50da4a',
+		latestLaunchAt: '2026-06-11T09:15:00Z',
+		launchSnapshot: {
+			id: '2eb09345-735c-4a29-b09b-e2d49c50da4a',
+			templateVersionId,
+			scoringRuleId: '716b2246-70f7-4728-9f44-150bd3b8da7a',
+			scoringRuleDocumentHash: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+			consentDocumentId,
+			retentionPolicyId: '06e242a5-6fc1-4e51-9af9-0d0cbf8c0872',
+			disclosurePolicyId: 'a0910474-79b6-444d-9d21-8e89c82b6d72',
+			responseIdentityMode: 'identified',
+			defaultLocale: 'en',
+			templateQuestionCount: 1,
+			launchedAt: '2026-06-11T09:15:00Z',
+			launchedByUserId: 'owner-user-id'
+		},
+		startedResponseCount: 0,
+		draftResponseCount: 0,
+		submittedResponseCount: 0,
+		latestResponseStartedAt: null,
+		latestResponseSubmittedAt: null,
+		collectionStatus: 'not_started',
+		reportVisibilityStatus: 'unknown_policy',
+		collectionGuidance: 'Create identified access links for assigned respondents.',
+		openLinkAssignmentCount: 0,
+		queuedInvitationCount: 0,
+		sentInvitationCount: 0,
+		failedInvitationCount: 0,
+		deliveryAttemptCount: 0,
+		latestDeliveryAttemptAt: null,
+		scoringRuleId: '716b2246-70f7-4728-9f44-150bd3b8da7a',
+		scoredSubmittedResponseCount: 0,
+		unscoredSubmittedResponseCount: 0,
+		notConfiguredSubmittedResponseCount: 0,
+		latestScoringActivityAt: null,
+		scoreCoverageStatus: 'no_submissions'
+	},
+	missingPrerequisites: [],
+	campaigns: [],
+	scoreCoverage: {
+		submittedResponseCount: 0,
+		scoredSubmittedResponseCount: 0,
+		unscoredSubmittedResponseCount: 0,
+		campaignsWithScoringRuleCount: 1,
+		campaignsWithoutScoringRuleCount: 0,
+		latestScoringActivityAt: null,
+		status: 'no_submissions',
+		guidance: 'No submitted responses are ready for scoring yet.'
+	}
 };
 
 function assertNoSetupAuthHeaders(headers: Record<string, string>) {

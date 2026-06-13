@@ -36,6 +36,23 @@ public interface IProductSurfaceReadStore
         Guid tenantId,
         CancellationToken cancellationToken);
 
+    Task<DirectoryConnectionStateResponse> GetMicrosoftGraphDirectoryConnectionStateAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<DirectoryImportRunHistoryResponse> ListMicrosoftGraphDirectoryImportRunsAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<DirectoryImportRuleListResponse> ListMicrosoftGraphDirectoryImportRulesAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
+    Task<Result<MicrosoftGraphImportRuleExecutionContext>> GetMicrosoftGraphDirectoryImportRuleExecutionContextAsync(
+        Guid tenantId,
+        Guid ruleId,
+        CancellationToken cancellationToken);
+
     Task<SubjectGroupListResponse> ListSubjectGroupsAsync(
         Guid tenantId,
         CancellationToken cancellationToken);

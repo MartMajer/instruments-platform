@@ -28,6 +28,102 @@ public sealed class CreateTemplateVersionCommandTests
     }
 
     [Fact]
+    public void Validator_accepts_constrained_not_equals_display_rule()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "has_barrier",
+                QuestionTypes.SingleChoice,
+                payload: ChoicePayload("o01", "o02")),
+            Question(
+                2,
+                "barrier_detail",
+                QuestionTypes.Text,
+                payload:
+                """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"not_equals","value":"o01","requiredWhenVisible":true}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors.Select(error => error.ErrorMessage)));
+    }
+
+    [Fact]
+    public void Validator_accepts_multi_choice_contains_display_rule()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "barriers",
+                QuestionTypes.MultiChoice,
+                payload: ChoicePayload("o01", "o02")),
+            Question(
+                2,
+                "barrier_detail",
+                QuestionTypes.Text,
+                payload:
+                """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"barriers","operator":"contains","value":"o01","requiredWhenVisible":true}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.True(result.IsValid, string.Join("; ", result.Errors.Select(error => error.ErrorMessage)));
+    }
+
+    [Fact]
+    public void Validator_rejects_multi_choice_operator_for_single_choice_source()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "has_barrier",
+                QuestionTypes.SingleChoice,
+                payload: ChoicePayload("o01", "o02")),
+            Question(
+                2,
+                "barrier_detail",
+                QuestionTypes.Text,
+                payload:
+                """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"contains","value":"o01","requiredWhenVisible":true}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("operator is not supported for the source question", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Validator_rejects_display_rule_with_unsupported_operator()
+    {
+        var validator = new CreateTemplateVersionValidator();
+        var request = Request(
+            Question(
+                1,
+                "has_barrier",
+                QuestionTypes.SingleChoice,
+                payload: ChoicePayload("o01", "o02")),
+            Question(
+                2,
+                "barrier_detail",
+                QuestionTypes.Text,
+                payload:
+                """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"xor","value":"o01","requiredWhenVisible":true}}"""));
+
+        var result = validator.Validate(new CreateTemplateVersionCommand(request));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            failure => failure.PropertyName == "Request.Questions" &&
+                failure.ErrorMessage.Contains("supported operator", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Validator_rejects_display_rule_with_unknown_source_option()
     {
         var validator = new CreateTemplateVersionValidator();

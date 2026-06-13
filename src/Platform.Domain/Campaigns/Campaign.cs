@@ -110,6 +110,22 @@ public sealed class Campaign
         UpdatedAt = launchedAt;
     }
 
+    public void RetargetTemplateVersion(Guid templateVersionId, DateTimeOffset retargetedAt)
+    {
+        if (templateVersionId == Guid.Empty)
+        {
+            throw new ArgumentException("Template version id is required.", nameof(templateVersionId));
+        }
+
+        if (Status is not (CampaignStatuses.Draft or CampaignStatuses.Scheduled))
+        {
+            throw new InvalidOperationException("Only draft or scheduled campaigns can change template version.");
+        }
+
+        TemplateVersionId = templateVersionId;
+        UpdatedAt = retargetedAt;
+    }
+
     public void Close(string? reason, Guid closedByUserId, DateTimeOffset closedAt)
     {
         if (Status != CampaignStatuses.Live)

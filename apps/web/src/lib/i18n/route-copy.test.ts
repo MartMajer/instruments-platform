@@ -125,10 +125,10 @@ describe('localized route body copy', () => {
 		const copy = routePageCopy('hr-HR');
 
 		expect(copy.selectedStudy.overview.title).toBe('Pregled');
-		expect(copy.selectedStudy.surfaces.setup.title).toBe('Postavljanje studije');
+		expect(copy.selectedStudy.surfaces.setup.title).toBe('Priprema studije');
 		expect(copy.selectedStudy.surfaces.operations.title).toBe('Prikupljanje odgovora');
 		expect(copy.selectedStudy.surfaces.reports.title).toBe('Pregled rezultata');
-		expect(copy.selectedStudy.surfaces.waves.title).toBe('Mjerenja');
+		expect(copy.selectedStudy.surfaces.waves.title).toBe('Usporedba krugova');
 		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
 		expect(copy.selectedStudy.reportsWorkflow.surface.flowKicker).toBe('Tijek studije · Rezultati');
 		expect(copy.selectedStudy.wavesWorkflow.surface.flowKicker).toBe('Tijek studije · Mjerenja');
@@ -149,7 +149,7 @@ describe('localized route body copy', () => {
 	it('provides Croatian selected-study setup body copy', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy.setupBody;
 
-		expect(copy.progressTitle).toBe('Napredak postavljanja studije');
+		expect(copy.progressTitle).toBe('Napredak pripreme studije');
 		expect(copy.questionnaire.paletteTitle).toBe('Odaberite početni predložak upitnika');
 		expect(copy.questionnaire.blueprintTitle).toBe('Provjera upitnika');
 		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');
@@ -167,7 +167,7 @@ describe('localized route body copy', () => {
 		expect(copy.portfolio.studyModelStudyBody).toContain('study container');
 		expect(copy.portfolio.studyModelStartingPointBody).toContain('Provides source material');
 		expect(copy.instruments.description).toBe(
-			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Setup.'
+			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Prepare.'
 		);
 		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe(
 			'Questionnaire check'
@@ -190,9 +190,23 @@ describe('localized route body copy', () => {
 
 		expect(copy.directory.csvFile).toBe('CSV datoteka');
 		expect(copy.directory.previewCsv).toBe('Pregledaj CSV');
+		expect(copy.directory.managerLinksToSet).toBe('Managerske veze za postavljanje');
+		expect(copy.directory.staleImport).toBe('Zastarjelo u uvozu');
+		expect(copy.directory.importRunId).toBe('Uvozni zapis');
+		expect(copy.directory.graphConnectionTitle).toBe('Uvoz iz Microsofta');
+		expect(copy.directory.graphStatusDisconnected).toBe('Nije povezano');
+		expect(copy.directory.graphConnect).toBe('Pripremi administratorski pristanak');
+		expect(copy.directory.graphConsentPreparedTitle).toBe('Zahtjev za pristanak je pripremljen');
+		expect(copy.directory.graphConsentOpenMicrosoft).toBe('Otvori Microsoft administratorski pristanak');
+		expect(copy.directory.graphImportRunsTitle).toBe('Nedavni Microsoft uvozi ljudi');
+		expect(copy.directory.graphImportRunsRecovery).toContain('Ponovno pokretanje');
+		expect(copy.directory.graphImportRunRerunLive).toBe('Ponovno pregledaj ovo pravilo');
+		expect(copy.directory.graphImportRulesTitle).toBe('Spremljena Microsoft pravila uvoza');
+		expect(copy.directory.graphImportRuleSave).toBe('Spremi pravilo uvoza');
+		expect(copy.directory.graphImportRulePreviewLive).toBe('Pregledaj Microsoft uvoz');
 		expect(copy.team.memberEmail).toBe('E-pošta člana');
 		expect(copy.team.copyLink).toBe('Kopiraj poveznicu');
-		expect(copy.settings.directoryShortcut).toBe('Imenik');
+		expect(copy.settings.directoryShortcut).toBe('Ljudi');
 		expect(copy.settings.exportsShortcut).toBe('Izvozi');
 	});
 

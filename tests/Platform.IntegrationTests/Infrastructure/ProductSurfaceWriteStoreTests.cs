@@ -2,9 +2,11 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Platform.Application.Features.ProductSurfaces;
+using Platform.Domain.Auditing;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
+using Platform.Domain.Integrations;
 using Platform.Domain.Responses;
 using Platform.Domain.Scoring;
 using Platform.Domain.Subjects;
@@ -29,6 +31,48 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
         .WithUsername("platform_app")
         .WithPassword("platform_app")
         .Build();
+
+    [DockerFact]
+    public async Task Update_tenant_report_branding_persists_bounded_report_tokens_under_tenant_scope()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "brand-tenant");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.UpdateTenantReportBrandingAsync(
+            tenantId,
+            actorUserId,
+            new UpdateTenantReportBrandingRequest(
+                "  Acme OSH Consulting  ",
+                "  Monthly workplace risk report  ",
+                "#0F766E",
+                "compact"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("Acme OSH Consulting", result.Value.OrganizationLabel);
+        Assert.Equal("Monthly workplace risk report", result.Value.ReportTitle);
+        Assert.Equal("tenant_settings", result.Value.BrandingSource);
+        Assert.Equal("#0f766e", result.Value.AccentColorHex);
+        Assert.Equal("compact", result.Value.LayoutVariant);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Tenants.SingleAsync(tenant => tenant.Id == tenantId);
+        Assert.Equal("Acme OSH Consulting", persisted.ReportBrandingOrganizationLabel);
+        Assert.Equal("Monthly workplace risk report", persisted.ReportBrandingReportTitle);
+        Assert.Equal("#0f766e", persisted.ReportBrandingAccentColorHex);
+        Assert.Equal("compact", persisted.ReportBrandingLayoutVariant);
+        Assert.NotNull(persisted.ReportBrandingUpdatedAt);
+        await transaction.CommitAsync();
+    }
 
     [DockerFact]
     public async Task Rename_campaign_series_updates_name_under_tenant_scope()
@@ -1294,6 +1338,956 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Microsoft_graph_directory_import_adapter_output_applies_idempotently()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-import");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ANA@EXAMPLE.TEST",
+                    null,
+                    "Ana Analyst",
+                    "HR",
+                    "Research",
+                    "Analyst",
+                    "Employee",
+                    "Zagreb",
+                    "Member"),
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-002",
+                    "ivo@example.test",
+                    null,
+                    "Ivo Intern",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [
+                new MicrosoftGraphDirectoryImportGroup("group-001", "Field Team")
+            ],
+            [
+                new MicrosoftGraphDirectoryImportMembership("user-001", "group-001")
+            ]);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var first = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+        var second = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.ToString());
+        Assert.Equal(3, first.Value.RowCount);
+        Assert.Equal(2, first.Value.CreatedSubjectCount);
+        Assert.Equal(1, first.Value.UpdatedSubjectCount);
+        Assert.Equal(2, first.Value.CreatedGroupCount);
+        Assert.Equal(2, first.Value.AddedMembershipCount);
+        Assert.Equal(0, first.Value.SkippedMembershipCount);
+
+        Assert.True(second.IsSuccess, second.Error.ToString());
+        Assert.Equal(0, second.Value.CreatedSubjectCount);
+        Assert.Equal(3, second.Value.UpdatedSubjectCount);
+        Assert.Equal(0, second.Value.CreatedGroupCount);
+        Assert.Equal(0, second.Value.AddedMembershipCount);
+        Assert.Equal(2, second.Value.SkippedMembershipCount);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var subjects = await verificationDb.Subjects
+            .OrderBy(subject => subject.ExternalId)
+            .ToListAsync();
+        var groups = await verificationDb.SubjectGroups
+            .OrderBy(group => group.Type)
+            .ThenBy(group => group.Name)
+            .ToListAsync();
+        var memberships = await verificationDb.SubjectMemberships.ToListAsync();
+
+        Assert.Equal(2, subjects.Count);
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "msgraph:ms-tenant-001:user-001" &&
+            subject.Email == "ana@example.test" &&
+            subject.DisplayName == "Ana Analyst" &&
+            subject.Locale == "hr");
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "msgraph:ms-tenant-001:user-002" &&
+            subject.Email == "ivo@example.test");
+        Assert.Contains(groups, group => group.Type == "department" && group.Name == "Research");
+        Assert.Contains(groups, group => group.Type == "msgraph_group" && group.Name == "Field Team");
+        Assert.Equal(2, memberships.Count);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_apply_rejects_conflicting_stable_identity()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-conflict");
+        _ = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Stable Graph Match",
+            "old-graph-email@example.test",
+            "msgraph:ms-tenant-001:user-001");
+        _ = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Email Match",
+            "ana@example.test",
+            "other-directory-id");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            []);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(1, result.Value.RowCount);
+        Assert.Equal(0, result.Value.ImportedRowCount);
+        var row = Assert.Single(result.Value.Rows);
+        Assert.Equal("failed", row.Status);
+        Assert.Contains(
+            row.Issues,
+            issue => issue == "External id and email match different people already in the directory.");
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var subjects = await verificationDb.Subjects
+            .OrderBy(subject => subject.ExternalId)
+            .ToListAsync();
+
+        Assert.Equal(2, subjects.Count);
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "msgraph:ms-tenant-001:user-001" &&
+            subject.Email == "old-graph-email@example.test");
+        Assert.Contains(subjects, subject =>
+            subject.ExternalId == "other-directory-id" &&
+            subject.Email == "ana@example.test");
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_allows_stable_id_only_user_with_warning()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-missing-email");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    null,
+                    null,
+                    "Stable Only",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            []);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+        Assert.Contains(plan.Value.Warnings, warning => warning.Code == "email_missing");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(1, result.Value.ImportedRowCount);
+        Assert.Equal(1, result.Value.CreatedSubjectCount);
+        Assert.Empty(result.Value.Rows.Single().Issues);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var subject = await verificationDb.Subjects.SingleAsync();
+
+        Assert.Equal("msgraph:ms-tenant-001:user-001", subject.ExternalId);
+        Assert.Null(subject.Email);
+        Assert.Equal("Stable Only", subject.DisplayName);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_materializes_manager_relationships_idempotently()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-manager");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "employee-001",
+                    "employee@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member"),
+                new MicrosoftGraphDirectoryImportUser(
+                    "manager-001",
+                    "manager@example.test",
+                    null,
+                    "Mira Manager",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            ManagerRelationships:
+            [
+                new MicrosoftGraphDirectoryImportManagerRelationship("employee-001", "manager-001")
+            ]);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var first = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+        var second = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.ToString());
+        Assert.Contains(first.Value.Rows, row => row.Action.Contains("set_manager", StringComparison.Ordinal));
+        Assert.Equal(1, first.Value.SetManagerRelationshipCount);
+        Assert.Equal(0, first.Value.SkippedManagerRelationshipCount);
+        Assert.Equal(0, first.Value.MissingManagerReferenceCount);
+        Assert.True(second.IsSuccess, second.Error.ToString());
+        Assert.Contains(second.Value.Rows, row => row.Action.Contains("skipped_manager", StringComparison.Ordinal));
+        Assert.Equal(0, second.Value.SetManagerRelationshipCount);
+        Assert.Equal(1, second.Value.SkippedManagerRelationshipCount);
+        Assert.Equal(0, second.Value.MissingManagerReferenceCount);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var manager = await verificationDb.Subjects.SingleAsync(
+            subject => subject.ExternalId == "msgraph:ms-tenant-001:manager-001");
+        var employee = await verificationDb.Subjects.SingleAsync(
+            subject => subject.ExternalId == "msgraph:ms-tenant-001:employee-001");
+        var relationships = await verificationDb.SubjectRelationships.ToListAsync();
+
+        var relationship = Assert.Single(relationships);
+        Assert.Equal(manager.Id, relationship.SubjectId);
+        Assert.Equal(employee.Id, relationship.RelatedSubjectId);
+        Assert.Equal(SubjectRelationshipTypes.ManagerOf, relationship.RelationshipType);
+        Assert.Null(relationship.ValidTo);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_marks_missing_users_stale_and_clears_returned_users()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-stale");
+        _ = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Returned User",
+            "returned.old@example.test",
+            "msgraph:ms-tenant-001:user-001");
+        _ = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantId,
+            "Missing User",
+            "missing@example.test",
+            "msgraph:ms-tenant-001:missing-001");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedTenantDbScope = new TenantDbScope(seedDb);
+            await using var seedTransaction = await seedTenantDbScope.BeginTransactionAsync(tenantId);
+            var returnedUser = await seedDb.Subjects.SingleAsync(
+                subject => subject.ExternalId == "msgraph:ms-tenant-001:user-001");
+            returnedUser.ReplaceAttributes(
+                """{"source":"test","directory_import_stale":true,"directory_import_stale_source":"msgraph:ms-tenant-001:","directory_import_stale_at":"2026-06-01T00:00:00.0000000Z"}""");
+            await seedDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "returned@example.test",
+                    null,
+                    "Returned User",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            MarkMissingUsersStale: true);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(1, result.Value.MarkedStaleSubjectCount);
+        Assert.Equal(1, result.Value.ClearedStaleSubjectCount);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var returned = await verificationDb.Subjects.SingleAsync(
+            subject => subject.ExternalId == "msgraph:ms-tenant-001:user-001");
+        var missing = await verificationDb.Subjects.SingleAsync(
+            subject => subject.ExternalId == "msgraph:ms-tenant-001:missing-001");
+
+        Assert.DoesNotContain("directory_import_stale", returned.Attributes, StringComparison.Ordinal);
+        using var missingAttributes = JsonDocument.Parse(missing.Attributes);
+        Assert.True(missingAttributes.RootElement.GetProperty("directory_import_stale").GetBoolean());
+        Assert.Equal(
+            "msgraph:ms-tenant-001:",
+            missingAttributes.RootElement.GetProperty("directory_import_stale_source").GetString());
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_writes_safe_audit_evidence()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-audit");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    "Research",
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            MarkMissingUsersStale: true);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: false);
+
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.NotNull(result.Value.ImportAuditEventId);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var auditEvent = await verificationDb.AuditEvents.SingleAsync(
+            audit =>
+                audit.Id == result.Value.ImportAuditEventId &&
+                audit.EntityType == "SubjectDirectoryImport");
+
+        Assert.Equal(tenantId, auditEvent.TenantId);
+        Assert.Equal(actorUserId, auditEvent.ActorId);
+        Assert.Equal(AuditActorTypes.User, auditEvent.ActorType);
+        Assert.Equal(AuditChangeKinds.Added, auditEvent.ChangeKind);
+        Assert.Equal("subject_directory_import", auditEvent.Reason);
+        Assert.Null(auditEvent.Before);
+        Assert.NotNull(auditEvent.After);
+
+        var after = auditEvent.After!.RootElement;
+        Assert.Equal("msgraph", after.GetProperty("source_kind").GetString());
+        Assert.True(after.GetProperty("source_prefix_present").GetBoolean());
+        Assert.Equal(1, after.GetProperty("row_count").GetInt32());
+        Assert.Equal(1, after.GetProperty("created_subject_count").GetInt32());
+        Assert.Equal(1, after.GetProperty("created_group_count").GetInt32());
+        var afterJson = after.GetRawText();
+        Assert.DoesNotContain("ana@example.test", afterJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ms-tenant-001", afterJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("user-001", afterJson, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_rule_save_and_archive_store_safe_rule()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-rule");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var save = await store.SaveMicrosoftGraphDirectoryImportRuleAsync(
+            tenantId,
+            actorUserId,
+            new SaveMicrosoftGraphImportRuleRequest(
+                "  All employees  ",
+                MarkMissingSubjectsStale: true,
+                ["email", "external_id", "email", "manager_external_id", "raw_payload"]),
+            CancellationToken.None);
+
+        Assert.True(save.IsSuccess, save.Error.ToString());
+        Assert.Equal("All employees", save.Value.Name);
+        Assert.Equal(DirectoryImportRuleStatuses.Active, save.Value.Status);
+        Assert.Equal(DirectoryImportStalePolicies.MarkStale, save.Value.StalePolicy);
+        Assert.Equal(["email", "external_id", "manager_external_id"], save.Value.RetainedFields);
+
+        var archive = await store.ArchiveMicrosoftGraphDirectoryImportRuleAsync(
+            tenantId,
+            actorUserId,
+            save.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(archive.IsSuccess, archive.Error.ToString());
+        Assert.Equal(save.Value.Id, archive.Value.Id);
+        Assert.Equal(DirectoryImportRuleStatuses.Archived, archive.Value.Status);
+        Assert.Equal(["email", "external_id", "manager_external_id"], archive.Value.RetainedFields);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var connection = await verificationDb.DirectoryConnections.SingleAsync();
+        var rule = await verificationDb.DirectoryImportRules.SingleAsync();
+
+        Assert.Equal(DirectoryConnectionProviders.MicrosoftGraph, connection.Provider);
+        Assert.Equal(DirectoryConnectionStatuses.ConsentRequired, connection.Status);
+        Assert.Null(connection.ExternalTenantId);
+        Assert.Equal(tenantId, rule.TenantId);
+        Assert.Equal(connection.Id, rule.DirectoryConnectionId);
+        Assert.Equal(DirectoryImportRuleStatuses.Archived, rule.Status);
+        Assert.NotNull(rule.DeletedAt);
+        Assert.Equal(DirectoryImportStalePolicies.MarkStale, rule.StalePolicy);
+
+        using var ruleDocument = JsonDocument.Parse(rule.RuleDocument);
+        Assert.Equal("msgraph", ruleDocument.RootElement.GetProperty("source_kind").GetString());
+        Assert.Equal("all_users", ruleDocument.RootElement.GetProperty("population").GetString());
+        Assert.True(ruleDocument.RootElement.GetProperty("mark_missing_subjects_stale").GetBoolean());
+        using var retainedFields = JsonDocument.Parse(rule.RetainedFields);
+        Assert.Equal(
+            ["email", "external_id", "manager_external_id"],
+            retainedFields.RootElement.EnumerateArray().Select(field => field.GetString()!).ToArray());
+
+        var persistedJson = $"{rule.RuleDocument}{rule.RetainedFields}";
+        Assert.DoesNotContain("raw_payload", persistedJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ms-tenant", persistedJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ana@example.test", persistedJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("user-001", persistedJson, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_persists_safe_preview_and_apply_runs()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-runs");
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    "Research",
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            MarkMissingUsersStale: true);
+        var previewPlan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: true);
+
+        Assert.True(previewPlan.IsSuccess, previewPlan.Error.ToString());
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var preview = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            previewPlan.Value.Request,
+            CancellationToken.None);
+
+        Assert.True(preview.IsSuccess, preview.Error.ToString());
+        Assert.NotNull(preview.Value.ImportRunId);
+
+        var applyRequest = previewPlan.Value.Request with
+        {
+            DryRun = false,
+            PreviewImportRunId = preview.Value.ImportRunId
+        };
+        var apply = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            applyRequest,
+            CancellationToken.None);
+
+        Assert.True(apply.IsSuccess, apply.Error.ToString());
+        Assert.NotNull(apply.Value.ImportRunId);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var runs = await verificationDb.DirectoryImportRuns
+            .OrderBy(run => run.CreatedAt)
+            .ToListAsync();
+        Assert.Equal(2, runs.Count);
+        var previewRun = runs[0];
+        var applyRun = runs[1];
+
+        Assert.Equal(DirectoryImportRunModes.Preview, previewRun.Mode);
+        Assert.Equal(DirectoryImportRunStatuses.Succeeded, previewRun.Status);
+        Assert.Equal(DirectoryImportRunModes.Apply, applyRun.Mode);
+        Assert.Equal(DirectoryImportRunStatuses.Succeeded, applyRun.Status);
+        Assert.Equal(previewRun.Id, applyRun.PreviewRunId);
+        Assert.NotNull(previewRun.StartedAt);
+        Assert.NotNull(previewRun.CompletedAt);
+        Assert.NotNull(applyRun.StartedAt);
+        Assert.NotNull(applyRun.CompletedAt);
+
+        using var previewCounts = JsonDocument.Parse(previewRun.Counts);
+        Assert.Equal(1, previewCounts.RootElement.GetProperty("row_count").GetInt32());
+        Assert.Equal(1, previewCounts.RootElement.GetProperty("created_subject_count").GetInt32());
+        Assert.True(previewRun.RuleSnapshot.Contains("source_prefix_present", StringComparison.Ordinal));
+        Assert.DoesNotContain("ms-tenant-001", previewRun.RuleSnapshot, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ana@example.test", previewRun.Counts, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("user-001", previewRun.Checkpoint, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_preview_stamps_saved_rule_id()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-rule-preview");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var rule = await store.SaveMicrosoftGraphDirectoryImportRuleAsync(
+            tenantId,
+            actorUserId,
+            new SaveMicrosoftGraphImportRuleRequest(
+                "All employees",
+                MarkMissingSubjectsStale: true,
+                ["external_id", "email", "manager_external_id"]),
+            CancellationToken.None);
+        Assert.True(rule.IsSuccess, rule.Error.ToString());
+
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            MarkMissingUsersStale: true);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: true);
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        var preview = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request with { DirectoryImportRuleId = rule.Value.Id },
+            CancellationToken.None);
+
+        Assert.True(preview.IsSuccess, preview.Error.ToString());
+        Assert.NotNull(preview.Value.ImportRunId);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var run = await verificationDb.DirectoryImportRuns.SingleAsync();
+
+        Assert.Equal(rule.Value.Id, run.DirectoryImportRuleId);
+        Assert.Equal(DirectoryImportRunModes.Preview, run.Mode);
+        Assert.Equal(DirectoryImportRunStatuses.Succeeded, run.Status);
+        Assert.DoesNotContain("ms-tenant-001", run.RuleSnapshot, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ana@example.test", run.Counts, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("user-001", run.Checkpoint, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_apply_stamps_saved_rule_id_and_requires_preview()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-directory-rule-apply");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var rule = await store.SaveMicrosoftGraphDirectoryImportRuleAsync(
+            tenantId,
+            actorUserId,
+            new SaveMicrosoftGraphImportRuleRequest(
+                "All employees",
+                MarkMissingSubjectsStale: true,
+                ["external_id", "email"]),
+            CancellationToken.None);
+        Assert.True(rule.IsSuccess, rule.Error.ToString());
+
+        var snapshot = new MicrosoftGraphDirectoryImportSnapshot(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            MarkMissingUsersStale: true);
+        var plan = MicrosoftGraphDirectoryImportAdapter.CreateCsvImportPlan(snapshot, dryRun: true);
+        Assert.True(plan.IsSuccess, plan.Error.ToString());
+
+        var preview = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request with { DirectoryImportRuleId = rule.Value.Id },
+            CancellationToken.None);
+        Assert.True(preview.IsSuccess, preview.Error.ToString());
+        Assert.NotNull(preview.Value.ImportRunId);
+
+        var applyWithoutPreview = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request with
+            {
+                DryRun = false,
+                DirectoryImportRuleId = rule.Value.Id
+            },
+            CancellationToken.None);
+        Assert.True(applyWithoutPreview.IsSuccess, applyWithoutPreview.Error.ToString());
+        Assert.Null(applyWithoutPreview.Value.ImportRunId);
+
+        var apply = await store.ImportSubjectDirectoryCsvAsync(
+            tenantId,
+            actorUserId,
+            plan.Value.Request with
+            {
+                DryRun = false,
+                PreviewImportRunId = preview.Value.ImportRunId,
+                DirectoryImportRuleId = rule.Value.Id
+            },
+            CancellationToken.None);
+
+        Assert.True(apply.IsSuccess, apply.Error.ToString());
+        Assert.NotNull(apply.Value.ImportRunId);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var runs = await verificationDb.DirectoryImportRuns
+            .OrderBy(run => run.CreatedAt)
+            .ToListAsync();
+
+        Assert.Equal(2, runs.Count);
+        Assert.All(runs, run => Assert.Equal(rule.Value.Id, run.DirectoryImportRuleId));
+        Assert.Equal(DirectoryImportRunModes.Preview, runs[0].Mode);
+        Assert.Equal(DirectoryImportRunModes.Apply, runs[1].Mode);
+        Assert.Equal(runs[0].Id, runs[1].PreviewRunId);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_consent_request_defaults_to_live_import_scopes()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-default-consent");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "owner@example.test");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var consentRequestResult = await store.CreateMicrosoftGraphConsentRequestAsync(
+            tenantId,
+            actorUserId,
+            new CreateMicrosoftGraphConsentRequest(),
+            CancellationToken.None);
+
+        Assert.True(consentRequestResult.IsSuccess, consentRequestResult.Error.ToString());
+        Assert.Equal(MicrosoftGraphDirectoryConsentScopes.Default, consentRequestResult.Value.RequestedScopes);
+        Assert.Contains(MicrosoftGraphDirectoryConsentScopes.UserReadAll, consentRequestResult.Value.RequestedScopes);
+        Assert.Contains(MicrosoftGraphDirectoryConsentScopes.GroupReadAll, consentRequestResult.Value.RequestedScopes);
+        Assert.Contains(MicrosoftGraphDirectoryConsentScopes.GroupMemberReadAll, consentRequestResult.Value.RequestedScopes);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persistedConsentRequest = await verificationDb.DirectoryConnectionConsentRequests.SingleAsync(
+            request => request.Id == consentRequestResult.Value.ConsentRequestId);
+
+        Assert.Contains(MicrosoftGraphDirectoryConsentScopes.GroupReadAll, persistedConsentRequest.RequestedScopes);
+        Assert.Contains(MicrosoftGraphDirectoryConsentScopes.GroupMemberReadAll, persistedConsentRequest.RequestedScopes);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_consent_request_and_callback_store_safe_state_and_audit()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "graph-consent");
+        await SeedUserAccountAsync(runtimeOptions, tenantId, actorUserId, "owner@example.test");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var consentRequestResult = await store.CreateMicrosoftGraphConsentRequestAsync(
+            tenantId,
+            actorUserId,
+            new CreateMicrosoftGraphConsentRequest(["User.Read.All", "GroupMember.Read.All"]),
+            CancellationToken.None);
+
+        Assert.True(consentRequestResult.IsSuccess, consentRequestResult.Error.ToString());
+        Assert.Equal(tenantId, consentRequestResult.Value.TenantId);
+        Assert.Equal(DirectoryConnectionProviders.MicrosoftGraph, consentRequestResult.Value.Provider);
+        Assert.Equal(DirectoryConnectionConsentRequestStatuses.Pending, consentRequestResult.Value.Status);
+        Assert.Equal(["User.Read.All", "GroupMember.Read.All"], consentRequestResult.Value.RequestedScopes);
+        Assert.NotEmpty(consentRequestResult.Value.State);
+        Assert.NotEmpty(consentRequestResult.Value.Nonce);
+
+        var callbackResult = await store.CompleteMicrosoftGraphConsentCallbackAsync(
+            tenantId,
+            actorUserId,
+            new CompleteMicrosoftGraphConsentCallbackRequest(
+                consentRequestResult.Value.State,
+                consentRequestResult.Value.Nonce,
+                AdminConsent: true,
+                MicrosoftTenantId: "ms-tenant-001",
+                DisplayName: "Contoso University",
+                PrimaryDomain: "contoso.example"),
+            CancellationToken.None);
+
+        Assert.True(callbackResult.IsSuccess, callbackResult.Error.ToString());
+        Assert.True(callbackResult.Value.Connected);
+        Assert.Equal(DirectoryConnectionConsentRequestStatuses.Completed, callbackResult.Value.Status);
+        Assert.Equal(DirectoryConnectionStatuses.Active, callbackResult.Value.ConnectionStatus);
+
+        var stateOnlyConsentRequestResult = await store.CreateMicrosoftGraphConsentRequestAsync(
+            tenantId,
+            actorUserId,
+            new CreateMicrosoftGraphConsentRequest(["User.Read.All", "GroupMember.Read.All"]),
+            CancellationToken.None);
+
+        Assert.True(stateOnlyConsentRequestResult.IsSuccess, stateOnlyConsentRequestResult.Error.ToString());
+
+        var stateOnlyCallbackResult = await store.CompleteMicrosoftGraphConsentCallbackAsync(
+            tenantId,
+            actorUserId,
+            new CompleteMicrosoftGraphConsentCallbackRequest(
+                stateOnlyConsentRequestResult.Value.State,
+                Nonce: null,
+                AdminConsent: true,
+                MicrosoftTenantId: "ms-tenant-001",
+                DisplayName: "Contoso University",
+                PrimaryDomain: "contoso.example"),
+            CancellationToken.None);
+
+        Assert.True(stateOnlyCallbackResult.IsSuccess, stateOnlyCallbackResult.Error.ToString());
+        Assert.True(stateOnlyCallbackResult.Value.Connected);
+        Assert.Equal(DirectoryConnectionConsentRequestStatuses.Completed, stateOnlyCallbackResult.Value.Status);
+        Assert.Equal(DirectoryConnectionStatuses.Active, stateOnlyCallbackResult.Value.ConnectionStatus);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persistedConsentRequest = await verificationDb.DirectoryConnectionConsentRequests.SingleAsync(
+            request => request.Id == consentRequestResult.Value.ConsentRequestId);
+        var persistedStateOnlyConsentRequest = await verificationDb.DirectoryConnectionConsentRequests.SingleAsync(
+            request => request.Id == stateOnlyConsentRequestResult.Value.ConsentRequestId);
+        var persistedConnection = await verificationDb.DirectoryConnections.SingleAsync(
+            connection => connection.Id == consentRequestResult.Value.DirectoryConnectionId);
+
+        Assert.Equal(DirectoryConnectionConsentRequestStatuses.Completed, persistedConsentRequest.Status);
+        Assert.NotEqual(consentRequestResult.Value.State, persistedConsentRequest.StateHash);
+        Assert.NotEqual(consentRequestResult.Value.Nonce, persistedConsentRequest.NonceHash);
+        Assert.Equal(64, persistedConsentRequest.StateHash.Length);
+        Assert.Equal(64, persistedConsentRequest.NonceHash.Length);
+        Assert.Equal(DirectoryConnectionConsentRequestStatuses.Completed, persistedStateOnlyConsentRequest.Status);
+        Assert.NotEqual(stateOnlyConsentRequestResult.Value.State, persistedStateOnlyConsentRequest.StateHash);
+        Assert.NotEqual(stateOnlyConsentRequestResult.Value.Nonce, persistedStateOnlyConsentRequest.NonceHash);
+        Assert.Equal(64, persistedStateOnlyConsentRequest.StateHash.Length);
+        Assert.Equal(64, persistedStateOnlyConsentRequest.NonceHash.Length);
+        Assert.Equal(DirectoryConnectionStatuses.Active, persistedConnection.Status);
+        Assert.Equal("ms-tenant-001", persistedConnection.ExternalTenantId);
+        Assert.Equal("Contoso University", persistedConnection.DisplayName);
+        Assert.Equal("contoso.example", persistedConnection.PrimaryDomain);
+        Assert.Contains("User.Read.All", persistedConnection.GrantedScopes, StringComparison.Ordinal);
+        Assert.Contains("GroupMember.Read.All", persistedConnection.GrantedScopes, StringComparison.Ordinal);
+
+        var auditEvents = await verificationDb.AuditEvents
+            .Where(audit => audit.EntityType == "MicrosoftGraphDirectoryConnectionConsent")
+            .OrderBy(audit => audit.OccurredAt)
+            .ToListAsync();
+        Assert.Equal(4, auditEvents.Count);
+        var auditJson = string.Join(
+            Environment.NewLine,
+            auditEvents.Select(audit => audit.After?.RootElement.GetRawText() ?? string.Empty));
+        Assert.Contains("\"phase\": \"requested\"", auditJson, StringComparison.Ordinal);
+        Assert.Contains("\"phase\": \"completed\"", auditJson, StringComparison.Ordinal);
+        Assert.Contains("\"external_tenant_id_present\": true", auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(consentRequestResult.Value.State, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(consentRequestResult.Value.Nonce, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(stateOnlyConsentRequestResult.Value.State, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(stateOnlyConsentRequestResult.Value.Nonce, auditJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("ms-tenant-001", auditJson, StringComparison.OrdinalIgnoreCase);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Add_subject_group_member_rejects_cross_tenant_subject()
     {
         var tenantA = Guid.NewGuid();
@@ -1446,6 +2440,12 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
                 permission,
                 role_permission,
                 role_assignment,
+                audit_event,
+                audit_event_default,
+                directory_connection,
+                directory_connection_consent_request,
+                directory_import_rule,
+                directory_import_run,
                 subject,
                 subject_group,
                 subject_membership,

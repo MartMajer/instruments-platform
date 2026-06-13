@@ -31,6 +31,13 @@ public sealed record CreateTemplateVersionRequest(
     IReadOnlyList<CreateQuestionScaleRequest> Scales,
     IReadOnlyList<CreateTemplateQuestionRequest> Questions);
 
+public sealed record CreateTemplateVersionDraftRequest(string Semver);
+
+public sealed record UpdateTemplateVersionDraftContentRequest(
+    IReadOnlyList<CreateTemplateSectionRequest> Sections,
+    IReadOnlyList<CreateQuestionScaleRequest> Scales,
+    IReadOnlyList<CreateTemplateQuestionRequest> Questions);
+
 public sealed record CreateTemplateSectionRequest(
     int Ordinal,
     string Code,
@@ -70,6 +77,21 @@ public sealed record TemplateVersionDetailResponse(
     IReadOnlyList<QuestionScaleResponse> Scales,
     IReadOnlyList<TemplateQuestionResponse> Questions);
 
+public sealed record TemplateVersionListResponse(
+    Guid TemplateId,
+    Guid AnchorTemplateVersionId,
+    IReadOnlyList<TemplateVersionSummaryResponse> Versions);
+
+public sealed record TemplateVersionSummaryResponse(
+    Guid TemplateVersionId,
+    string Semver,
+    string Status,
+    bool IsLocked,
+    bool IsGlobal,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? PublishedAt,
+    Guid? PublishedBy);
+
 public sealed record TemplateSectionResponse(Guid Id, int Ordinal, string? Code, string TitleDefault);
 
 public sealed record QuestionScaleResponse(
@@ -84,14 +106,20 @@ public sealed record QuestionScaleResponse(
 
 public sealed record TemplateQuestionResponse(
     Guid Id,
+    Guid SectionId,
     int Ordinal,
     string Code,
     string Type,
     Guid? ScaleId,
     string TextDefault,
+    string? DescriptionDefault,
     bool Required,
     bool ReverseCoded,
-    string? MeasurementLevel);
+    string? MeasurementLevel,
+    decimal Weight,
+    string? VariableLabel,
+    string Payload,
+    string MissingCodes);
 
 public sealed record CreateScoringRuleRequest(
     Guid TemplateVersionId,
@@ -103,9 +131,17 @@ public sealed record CreateScoringRuleRequest(
     string Produces,
     string Compatibility = "{}");
 
+public sealed record RetireTemplateVersionDraftScoringResponse(
+    Guid TemplateVersionId,
+    int RetiredScoringRuleCount);
+
 public sealed record CreateCampaignSeriesRequest(
     string Name,
     CreateCampaignSeriesStudyBriefRequest? StudyBrief = null);
+
+public sealed record SelectCampaignSeriesSetupTemplateRequest(Guid TemplateVersionId);
+
+public sealed record SelectCampaignSeriesSetupTemplateResponse(Guid CampaignSeriesId, Guid TemplateVersionId);
 
 public sealed record CreateCampaignSeriesStudyBriefRequest(
     string? Purpose = null,
@@ -211,6 +247,22 @@ public sealed record CampaignIdentifiedEntryResponse(
     Guid SubjectId,
     string Token,
     string RespondentPath);
+
+public sealed record CampaignIdentifiedQueueAccessResponse(
+    Guid CampaignId,
+    int RespondentCount,
+    int AssignmentCount,
+    int CreatedAccessCount,
+    int ExistingAccessCount,
+    IReadOnlyList<CampaignIdentifiedQueueAccessLinkResponse> Links);
+
+public sealed record CampaignIdentifiedQueueAccessLinkResponse(
+    Guid InvitationTokenId,
+    Guid RespondentSubjectId,
+    int AssignmentCount,
+    string? Token,
+    string? RespondentPath,
+    string Status);
 
 public sealed record CreateCampaignInvitationBatchRequest(
     IReadOnlyList<InvitationRecipientRequest> Recipients);

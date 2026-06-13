@@ -158,8 +158,8 @@ describe('product view models', () => {
 				actionLabel: 'Open setup',
 				status: 'blocked',
 				priority: 20,
-				surfaceLabel: 'Setup',
-				rows: [{ label: 'Surface', value: 'Setup' }]
+				surfaceLabel: 'Prepare',
+				rows: [{ label: 'Surface', value: 'Prepare' }]
 			}
 		]);
 		expect(view.lifecycleSteps).toEqual([
@@ -202,7 +202,7 @@ describe('product view models', () => {
 			expect.objectContaining({
 				id: 'own-series-id',
 				title: 'New team study',
-				actionLabel: 'Continue setup',
+				actionLabel: 'Continue preparation',
 				actionHref: '/app/campaign-series/own-series-id/setup',
 				ownership: expect.objectContaining({
 					label: 'Your study',
@@ -274,7 +274,7 @@ describe('product view models', () => {
 			'Predani odgovori',
 			'Datoteke izvoza'
 		]);
-		expect(view.commandItems[0].rows).toContainEqual({ label: 'Površina', value: 'Postavljanje' });
+		expect(view.commandItems[0].rows).toContainEqual({ label: 'Površina', value: 'Priprema' });
 		expect(view.sampleStudies[0].actionLabel).toBe('Pregledaj ogledne rezultate');
 		expect(view.sampleStudies[0].ownership.label).toBe('Ogledna studija');
 		expect(view.ownStudies[0].actionLabel).toBe('Nastavi postavljanje');
@@ -287,12 +287,12 @@ describe('product view models', () => {
 		expect(empty.emptyState).toEqual({
 			title: 'Još nema studija',
 			message:
-				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za ucenje.'
+				'Izradite studiju kada imate pristup postavljanju ili dodajte ogledne studije za učenje.'
 		});
 		expect(empty.statusOptions.map((option) => option.label)).toEqual([
 			'Sva spremnost',
 			'Nije postavljeno',
-			'Na cekanju',
+			'Na čekanju',
 			'Pregled'
 		]);
 		expect(empty.studySections.map((section) => section.title)).toEqual([
@@ -324,6 +324,15 @@ describe('product view models', () => {
 				tenantRoleCount: 3,
 				exportArtifactCount: 9
 			},
+			reportBranding: {
+				organizationLabel: 'Algebra Research',
+				reportTitle: 'Monthly workplace risk report',
+				brandingSource: 'tenant_profile',
+				logoMode: 'none',
+				accentColorHex: '#2563eb',
+				layoutVariant: 'standard',
+				deferredCustomizations: ['logo_upload', 'custom_fonts', 'product_shell_theming']
+			},
 			managementLinks: [
 				{
 					id: 'campaign-series',
@@ -339,7 +348,7 @@ describe('product view models', () => {
 				},
 				{
 					id: 'directory',
-					label: 'Directory',
+					label: 'People',
 					description: 'Review subjects, groups, and hierarchy.',
 					route: '/app/directory'
 				}
@@ -367,6 +376,19 @@ describe('product view models', () => {
 			{ label: 'Tenant members', value: '5' },
 			{ label: 'Tenant roles', value: '3' },
 			{ label: 'Export files', value: '9' }
+		]);
+		expect(view.reportBranding.rows).toEqual([
+			{ label: 'Organization label', value: 'Algebra Research' },
+			{ label: 'Report title', value: 'Monthly workplace risk report' },
+			{ label: 'Branding source', value: 'Tenant profile' },
+			{ label: 'Logo mode', value: 'None' },
+			{ label: 'Accent color', value: '#2563eb' },
+			{ label: 'Layout', value: 'Standard' }
+		]);
+		expect(view.reportBranding.deferredItems).toEqual([
+			'Logo upload',
+			'Custom fonts',
+			'Product shell theming'
 		]);
 		expect(view.managementLinks.map((link) => link.href)).toEqual([
 			'/app/campaign-series',
@@ -398,6 +420,15 @@ describe('product view models', () => {
 				tenantRoleCount: 3,
 				exportArtifactCount: 9
 			},
+			reportBranding: {
+				organizationLabel: 'Algebra Research',
+				reportTitle: 'Monthly workplace risk report',
+				brandingSource: 'tenant_profile',
+				logoMode: 'none',
+				accentColorHex: '#2563eb',
+				layoutVariant: 'standard',
+				deferredCustomizations: ['logo_upload', 'custom_fonts', 'product_shell_theming']
+			},
 			managementLinks: []
 		};
 
@@ -407,11 +438,14 @@ describe('product view models', () => {
 			'Regija',
 			'Zadani jezik',
 			'Status',
-			'Izradeno',
+			'Izrađeno',
 			'Ažurirano'
-		]);
-		expect(settingsView.metricRows.map((row) => row.label)).toContain('Studije');
-		expect(settingsView.metricRows.map((row) => row.label)).toContain('Clanovi radnog prostora');
+	]);
+	expect(settingsView.metricRows.map((row) => row.label)).toContain('Studije');
+	expect(settingsView.metricRows.map((row) => row.label)).toContain('Članovi radnog prostora');
+	expect(settingsView.reportBranding.rows.map((row) => row.label)).toContain('Oznaka organizacije');
+	expect(settingsView.reportBranding.rows.map((row) => row.label)).toContain('Naslov izvještaja');
+	expect(settingsView.reportBranding.deferredTitle).toBe('Još nije podesivo');
 
 		const instruments = toInstrumentLibraryView(
 			[
@@ -608,7 +642,7 @@ describe('product view models', () => {
 		expect(listView.statusOptions).toEqual([
 			{ value: 'all', label: 'Sva spremnost' },
 			{ value: 'not_configured', label: 'Nije postavljeno' },
-			{ value: 'pending', label: 'Na cekanju' },
+			{ value: 'pending', label: 'Na čekanju' },
 			{ value: 'proof_only', label: 'Pregled' }
 		]);
 		expect(listView.items[0].rows).toContainEqual({ label: 'Mjerenja', value: '2' });
@@ -617,7 +651,7 @@ describe('product view models', () => {
 		expect(listView.items[0].lifecycle.label).toBe('Rezultati spremni');
 
 		expect(hubView.surfaceTitle).toBe('Pregled studije');
-		expect(hubView.rows[0].label).toBe('Izradeno');
+		expect(hubView.rows[0].label).toBe('Izrađeno');
 		expect(hubView.studyModel.title).toBe('Pregled studije');
 		expect(hubView.studyModel.items[0].label).toBe('Sažetak studije');
 		expect(hubView.studyModel.items[0].summary).toContain('Svrha studije');
@@ -629,16 +663,16 @@ describe('product view models', () => {
 			status: 'proof_only'
 		});
 		expect(hubView.lifecycleMap.title).toBe('Životni ciklus studije');
-		expect(hubView.campaignRows[0].rows).toContainEqual({
-			label: 'Nacin identiteta',
-			value: 'anonimno s ponovljenim sudjelovanjem'
-		});
+	expect(hubView.campaignRows[0].rows).toContainEqual({
+		label: 'Način identiteta',
+		value: 'anonimno s ponovljenim sudjelovanjem'
+	});
 
-		expect(setupView.surfaceLabel).toBe('Priprema studije');
-		expect(setupView.summaryRows).toContainEqual({
-			label: 'Nedostajuci preduvjeti',
-			value: '1'
-		});
+	expect(setupView.surfaceLabel).toBe('Priprema studije');
+	expect(setupView.summaryRows).toContainEqual({
+		label: 'Nedostajući preduvjeti',
+		value: '1'
+	});
 	});
 
 	it('does not emit mojibake in Croatian generated read-model text', () => {
@@ -670,15 +704,15 @@ describe('product view models', () => {
 		for (const forbidden of [
 			'Prepare study',
 			'Study preparation',
-			'Setup reference',
+			'Prepare reference',
 			'Collect responses',
 			'Study collection',
 			'Collection reference',
 			'Review results',
 			'Study results',
 			'Results reference',
-			'Compare waves',
-			'Wave comparison',
+			'Compare rounds',
+			'Repeated-round comparison',
 			'Identity mode',
 			'Submitted responses',
 			'Missing prerequisites',
@@ -777,12 +811,12 @@ describe('product view models', () => {
 			{
 				scenario: 'setup',
 				message:
-					'Setup sample: read-only starter content showing study preparation before launch.'
+					'Preparation sample: read-only starter content showing study preparation before launch.'
 			},
 			{
 				scenario: 'blocked',
 				message:
-					'Setup sample: read-only starter content showing blocked preparation before launch.'
+					'Preparation sample: read-only starter content showing blocked preparation before launch.'
 			},
 			{
 				scenario: 'in_collection',
@@ -923,7 +957,7 @@ describe('product view models', () => {
 			expect.objectContaining({
 				id: 'own-setup',
 				primaryAction: {
-					label: 'Continue setup',
+					label: 'Continue preparation',
 					href: '/app/campaign-series/own-setup/setup'
 				}
 			}),
@@ -988,7 +1022,7 @@ describe('product view models', () => {
 		expect(view.lifecycleItems).toEqual([
 			{
 				id: 'setup',
-				label: 'Setup',
+				label: 'Prepare',
 				status: 'ready',
 				guidance: 'Governance prerequisites are configured for this series.',
 				route: 'setup',
@@ -1038,7 +1072,7 @@ describe('product view models', () => {
 				},
 				{
 					id: 'waves',
-					label: 'Waves',
+					label: 'Rounds',
 					status: 'pending',
 					guidance: 'A second wave can be compared when linked responses exist.',
 					route: 'waves',
@@ -1052,7 +1086,7 @@ describe('product view models', () => {
 		expect(view.studyModel).toEqual({
 			title: 'Study overview',
 			description:
-				'A short orientation for the selected study. Use Setup, Collection, Results, and Waves for detailed work.',
+				'A short orientation for the selected study. Use Prepare, Collect, and Results for the main path; use Rounds only when repeated measurement applies.',
 			items: [
 				{
 					id: 'study_brief',
@@ -1089,7 +1123,7 @@ describe('product view models', () => {
 					badgeLabel: 'Review results',
 					summary: 'Open Results to review charts, evidence, exports, and interpretation limits.',
 					guidance:
-						'Results is where you inspect evidence. Use Waves only when you need change-over-time comparison.',
+						'Results is where you inspect evidence. Use Rounds only when you need change-over-time comparison.',
 					detailRows: []
 				}
 			]
@@ -1100,7 +1134,7 @@ describe('product view models', () => {
 				id: 'setup',
 				label: 'Prepare',
 				status: 'ready',
-				description: 'Build the questionnaire, results setup, policies, wave, and launch check.',
+				description: 'Prepare the questionnaire, result outputs, policies, collection round, and launch check.',
 				guidance: 'Governance prerequisites are configured for this series.',
 				route: 'setup',
 				href: '/app/campaign-series/series-id/setup',
@@ -1128,9 +1162,9 @@ describe('product view models', () => {
 			},
 			{
 				id: 'waves',
-				label: 'Compare waves',
+				label: 'Compare rounds',
 				status: 'pending',
-				description: 'Create follow-up waves and compare results across collection rounds.',
+				description: 'Use only for repeated measurement rounds; keep the main path in Results and Exports.',
 				guidance: 'A second wave can be compared when linked responses exist.',
 				route: 'waves',
 				href: '/app/campaign-series/series-id/waves',
@@ -1175,7 +1209,7 @@ describe('product view models', () => {
 		});
 		expect(view.lifecycleMap).toMatchObject({
 			title: 'Životni ciklus studije',
-			description: 'Prodite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
+			description: 'Prođite kroz studiju od pripreme do prikupljanja, rezultata i usporedbe mjerenja.'
 		});
 		expect(view.lifecycleMap.items[0]).toMatchObject({
 			label: 'Priprema',
@@ -1349,7 +1383,7 @@ describe('product view models', () => {
 		expect(view.surfaceDescription).toBe(
 			'Prepare this study for collection by completing setup tasks and launch-readiness checks.'
 		);
-		expect(view.referenceTitle).toBe('Setup reference');
+		expect(view.referenceTitle).toBe('Prepare reference');
 		expect(view.referenceDescription).toBe(
 			'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.'
 		);
@@ -1670,17 +1704,17 @@ describe('product view models', () => {
 	it('localizes operations collection read-model cards for Croatian app mode', () => {
 		const view = toCampaignSeriesOperationsWorkspaceView(sampleOperationsWorkspace, 'hr-HR');
 
-		expect(view.collectionMonitor.title).toBe('Pracenje odgovora');
+		expect(view.collectionMonitor.title).toBe('Praćenje odgovora');
 		expect(view.collectionMonitor.guidance).toBe(
 			'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
 		);
 		expect(view.collectionMonitor.summaryRows).toEqual([
-			{ label: 'Zapoceti odgovori', value: '36' },
+			{ label: 'Započeti odgovori', value: '36' },
 			{ label: 'Odgovori u tijeku', value: '5' },
-			{ label: 'Predani odgovori', value: '31' },
-			{ label: 'Zadnje zapoceto', value: '05. 05. 2026. 12:15' },
-			{ label: 'Zadnje predano', value: '05. 05. 2026. 12:10' }
-		]);
+	{ label: 'Predani odgovori', value: '31' },
+	{ label: 'Zadnje započeto', value: '05. 05. 2026. 12:15' },
+	{ label: 'Zadnje predano', value: '05. 05. 2026. 12:10' }
+]);
 
 		expect(view.collectionOverview[0]).toMatchObject({
 			id: 'collection_state',
@@ -1697,12 +1731,12 @@ describe('product view models', () => {
 			guidance: 'Ispitanici mogu pristupiti preko podijeljene poveznice i poslanih e-poruka.'
 		});
 		expect(view.collectionOverview[2]).toMatchObject({
-			id: 'response_progress',
-			label: 'Napredak odgovora',
-			badgeLabel: 'Predano: 31 odgovor',
-			summary: 'Zapoceto: 36; u tijeku: 5; predano: 31.',
-			guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
-		});
+		id: 'response_progress',
+		label: 'Napredak odgovora',
+		badgeLabel: 'Predano: 31 odgovor',
+		summary: 'Započeto: 36; u tijeku: 5; predano: 31.',
+		guidance: 'Ima dovoljno predanih odgovora za skupni prikaz rezultata.'
+	});
 		expect(view.collectionOverview[3]).toMatchObject({
 			id: 'score_readiness',
 			label: 'Spremnost rezultata i izvještaja',
@@ -2237,7 +2271,7 @@ describe('product view models', () => {
 
 		expect(view.title).toBe('Quarterly burnout pulse');
 		expect(view.subtitle).toBe('2 campaigns, 2 live');
-		expect(view.surfaceLabel).toBe('Compare waves');
+		expect(view.surfaceLabel).toBe('Compare rounds');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '2' },
@@ -2387,8 +2421,8 @@ describe('product view models', () => {
 		expect(view.provenanceRows).toEqual([]);
 		expect(view.campaignRows).toEqual([]);
 		expect(view.emptyState).toEqual({
-			title: 'No waves yet',
-			message: 'Create and launch at least two waves before comparing results over time.'
+			title: 'No repeated rounds yet',
+			message: 'Create and launch at least two collection rounds before comparing results over time.'
 		});
 	});
 
@@ -2408,7 +2442,7 @@ describe('product view models', () => {
 	it('maps waves selected-series surface with wave identity posture', () => {
 		const view = toSelectedSeriesSurfaceView(sampleCampaignSeriesHub, 'waves');
 
-		expect(view.surfaceLabel).toBe('Compare waves');
+		expect(view.surfaceLabel).toBe('Compare rounds');
 		expect(view.summaryRows).toEqual([
 			{ label: 'Campaigns', value: '2' },
 			{ label: 'Live campaigns', value: '1' },
@@ -2437,8 +2471,8 @@ describe('product view models', () => {
 		);
 
 		expect(view.emptyState).toEqual({
-			title: 'No waves yet',
-			message: 'Create and launch at least two waves before comparing results over time.'
+			title: 'No repeated rounds yet',
+			message: 'Create and launch at least two collection rounds before comparing results over time.'
 		});
 		expect(view.campaignRows).toEqual([]);
 	});
@@ -2949,7 +2983,7 @@ describe('product view models', () => {
 			'Koristite izvoze skupa podataka odgovora za analizu.'
 		);
 		expect(view.exportOverview[1].summary).toBe(
-			'Nema neuspjelih izvoznih datoteka ni datoteka na cekanju.'
+			'Nema neuspjelih izvoznih datoteka ni datoteka na čekanju.'
 		);
 		expect(view.exportOverview[2].summary).toBe(
 			'Izvozi pokrivaju izvoz matrice rezultata i izvoz skupa podataka odgovora.'
@@ -2959,9 +2993,9 @@ describe('product view models', () => {
 			'Koristite ovaj izvoz za agregirani pregled rezultata, usporedbu grupa, usporedbu mjerenja ili provjere opisa podataka.'
 		);
 		expect(view.cards[0].rows).toContainEqual({ label: 'Kontekst studije', value: 'Mjerenje / Wave 1' });
-		expect(view.cards[1].nextUse).toBe(
-			'Koristite ovaj izvoz za analizu na razini odgovora s izradenim opisom podataka.'
-		);
+	expect(view.cards[1].nextUse).toBe(
+		'Koristite ovaj izvoz za analizu na razini odgovora s izrađenim opisom podataka.'
+	);
 		expect(view.cards[1].rows).toContainEqual({ label: 'Kontekst studije', value: 'Studija / AA' });
 	});
 
@@ -3136,7 +3170,7 @@ const sampleCampaignSeriesHub: CampaignSeriesHubResponse = {
 	lifecycle: [
 		{
 			id: 'setup',
-			label: 'Setup',
+			label: 'Prepare',
 			status: 'ready',
 			guidance: 'Governance prerequisites are configured for this series.',
 			route: 'setup',
@@ -3206,6 +3240,7 @@ const sampleSetupWorkspace: CampaignSeriesSetupWorkspaceResponse = {
 	},
 	scoring: {
 		id: 'scoring-rule-id',
+		templateVersionId: 'template-version-id',
 		ruleKey: 'burnout.total',
 		ruleVersion: '1.0.0',
 		status: 'draft',
@@ -3845,6 +3880,3 @@ const sampleWaveComparison: CampaignSeriesWaveComparisonProofResponse = {
 		}
 	]
 };
-
-
-

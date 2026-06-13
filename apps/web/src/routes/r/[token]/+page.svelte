@@ -7,6 +7,7 @@
 	import {
 		createSetupApi,
 		type CreateOpenLinkSessionRequest,
+		type IdentifiedQueueResponse,
 		type OpenLinkEntryResponse,
 		type ResponseSessionResponse,
 		type SavedAnswerResponse,
@@ -24,6 +25,7 @@
 	const text = $derived(routePageCopy(locale));
 
 	type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'failed' | 'local-restored';
+	type QueueAssignment = IdentifiedQueueResponse['assignments'][number];
 
 	type LocalUnsavedDraft = {
 		version: 1;
@@ -36,6 +38,8 @@
 	};
 
 	let entry = $state<OpenLinkEntryResponse | null>(null);
+	let queue = $state<IdentifiedQueueResponse | null>(null);
+	let activeQueueAssignmentId = $state<string | null>(null);
 	let session = $state<ResponseSessionResponse | null>(null);
 	let savedAnswers = $state<SaveAnswersResponse | null>(null);
 	let submitted = $state<SubmitResponseSessionResponse | null>(null);
@@ -106,9 +110,16 @@
 				return;
 			}
 
+			if (isIdentifiedQueueToken(routeCredential)) {
+				await loadIdentifiedQueue();
+				return;
+			}
+
 			const loaded = isIdentifiedEntryToken(routeCredential)
 				? await api.getIdentifiedEntry(routeCredential)
 				: await api.getOpenLinkEntry(routeCredential);
+			queue = null;
+			activeQueueAssignmentId = null;
 			entry = loaded;
 			session = null;
 			savedAnswers = null;
@@ -134,6 +145,104 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function loadIdentifiedQueue() {
+		const loaded = await api.getIdentifiedQueue(routeCredential);
+		queue = loaded;
+		activeQueueAssignmentId = null;
+		entry = null;
+		session = null;
+		savedAnswers = null;
+		submitted = null;
+		reviewing = false;
+		saveStatus = 'idle';
+		publicSessionHandle = null;
+		participantCode = '';
+		acceptedGrants = {};
+		answers = {};
+	}
+
+	async function startQueueAssignment(assignment: QueueAssignment) {
+		const currentQueue = queue;
+		if (!currentQueue) {
+			loadError = text.respondent.linkUnavailable;
+			return;
+		}
+
+		const nextEntry = openLinkEntryFromQueue(currentQueue, assignment);
+		activeQueueAssignmentId = assignment.assignmentId;
+		entry = nextEntry;
+		session = null;
+		savedAnswers = null;
+		submitted = null;
+		reviewing = false;
+		saveStatus = 'idle';
+		actionError = null;
+		publicSessionHandle = null;
+		participantCode = '';
+		acceptedGrants = Object.fromEntries(
+			Array.from(
+				new Set([
+					...nextEntry.consentDocument.requiredGrants,
+					...nextEntry.consentDocument.optionalGrants
+				])
+			).map((grant) => [grant, false])
+		);
+		answers = Object.fromEntries(
+			nextEntry.questions.map((question) => [question.id, defaultAnswerFor(question)])
+		);
+
+		if (!assignment.sessionId) {
+			return;
+		}
+
+		try {
+			const draft = await api.getIdentifiedQueueSessionDraft(
+				routeCredential,
+				assignment.assignmentId,
+				assignment.sessionId
+			);
+			applyDraft(nextEntry, draft, null);
+		} catch (unknownError) {
+			actionError = formatError(unknownError);
+		}
+	}
+
+	function returnToQueue() {
+		clearAutosaveTimer();
+		activeQueueAssignmentId = null;
+		entry = null;
+		session = null;
+		savedAnswers = null;
+		submitted = null;
+		reviewing = false;
+		saveStatus = 'idle';
+		actionError = null;
+		publicSessionHandle = null;
+		participantCode = '';
+		acceptedGrants = {};
+		answers = {};
+	}
+
+	function openLinkEntryFromQueue(
+		currentQueue: IdentifiedQueueResponse,
+		assignment: QueueAssignment
+	): OpenLinkEntryResponse {
+		const targetLabel = assignment.target?.label ?? 'Assigned person';
+
+		return {
+			campaignId: currentQueue.campaignId,
+			assignmentId: assignment.assignmentId,
+			templateVersionId: currentQueue.templateVersionId,
+			name: `${currentQueue.name}: ${targetLabel}`,
+			status: currentQueue.status,
+			responseIdentityMode: currentQueue.responseIdentityMode,
+			requiresParticipantCode: false,
+			defaultLocale: currentQueue.defaultLocale,
+			consentDocument: currentQueue.consentDocument,
+			questions: currentQueue.questions
+		};
 	}
 
 	async function acceptConsent() {
@@ -167,15 +276,24 @@
 				request.participantCode = participantCode.trim();
 			}
 
-			session = isIdentifiedEntryToken(routeCredential)
-				? await api.createIdentifiedEntrySession(routeCredential, request)
-				: await api.createOpenLinkSession(routeCredential, request);
-			publicSessionHandle = session.publicHandle ?? null;
-			storeSessionPointer(currentEntry, {
-				sessionId: session.id,
-				publicHandle: publicSessionHandle
-			});
-			scrubTokenUrl(publicSessionHandle);
+			if (queue && activeQueueAssignmentId) {
+				session = await api.createIdentifiedQueueAssignmentSession(
+					routeCredential,
+					activeQueueAssignmentId,
+					request
+				);
+				publicSessionHandle = null;
+			} else {
+				session = isIdentifiedEntryToken(routeCredential)
+					? await api.createIdentifiedEntrySession(routeCredential, request)
+					: await api.createOpenLinkSession(routeCredential, request);
+				publicSessionHandle = session.publicHandle ?? null;
+				storeSessionPointer(currentEntry, {
+					sessionId: session.id,
+					publicHandle: publicSessionHandle
+				});
+				scrubTokenUrl(publicSessionHandle);
+			}
 			savedAnswers = null;
 			reviewing = false;
 			saveStatus = 'idle';
@@ -220,7 +338,11 @@
 		actionError = null;
 
 		try {
-			submitted = publicSessionHandle
+			submitted = queue && activeQueueAssignmentId
+				? await api.submitIdentifiedQueueSession(routeCredential, activeQueueAssignmentId, currentSession.id, {
+						timeTakenMs: null
+					})
+				: publicSessionHandle
 				? await api.submitPublicSession(publicSessionHandle, {
 						timeTakenMs: null
 					})
@@ -228,6 +350,13 @@
 						timeTakenMs: null
 					});
 			clearLocalUnsavedDraft(publicSessionHandle);
+			if (queue) {
+				try {
+					queue = await api.getIdentifiedQueue(routeCredential);
+				} catch {
+					// The submitted receipt remains usable even if the queue refresh fails.
+				}
+			}
 		} catch (unknownError) {
 			actionError = formatError(unknownError);
 		} finally {
@@ -259,7 +388,14 @@
 					isSkipped: !isQuestionVisible(currentEntry, question.id)
 				}))
 			};
-			savedAnswers = publicSessionHandle
+			savedAnswers = queue && activeQueueAssignmentId
+				? await api.saveIdentifiedQueueAnswers(
+						routeCredential,
+						activeQueueAssignmentId,
+						currentSession.id,
+						request
+					)
+				: publicSessionHandle
 				? await api.savePublicSessionAnswers(publicSessionHandle, request)
 				: await api.saveOpenLinkAnswers(routeCredential, currentSession.id, request);
 			clearLocalUnsavedDraft(publicSessionHandle);
@@ -707,6 +843,18 @@
 		return value.startsWith('idn_');
 	}
 
+	function isIdentifiedQueueToken(value: string) {
+		return value.startsWith('idq_');
+	}
+
+	function queueAssignmentStatus(assignment: QueueAssignment) {
+		if (assignment.submittedAt) {
+			return 'Submitted';
+		}
+
+		return assignment.sessionId ? 'In progress' : 'Not started';
+	}
+
 	function setGrantAccepted(grant: string, accepted: boolean) {
 		acceptedGrants = { ...acceptedGrants, [grant]: accepted };
 	}
@@ -777,7 +925,7 @@
 </script>
 
 <svelte:head>
-	<title>{entry?.name ?? text.respondent.metaFallback} - Validated Scale</title>
+	<title>{entry?.name ?? queue?.name ?? text.respondent.metaFallback} - Validated Scale</title>
 </svelte:head>
 
 <main class="min-h-screen bg-[var(--color-background)] px-4 py-6 text-[var(--color-text)] sm:px-6">
@@ -795,12 +943,59 @@
 					<span>{text.respondent.tryAgain}</span>
 				</button>
 			</section>
+		{:else if queue && !entry}
+			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
+				<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
+					{queue.responseIdentityMode}
+				</p>
+				<h1 class="serif-heading text-3xl">{queue.name}</h1>
+				<p class="text-sm text-[var(--color-text-muted)]">
+					Feedback tasks for {queue.respondent.label}. Choose one person to give feedback for.
+				</p>
+			</header>
+
+			<section class="setup-panel" aria-label="Assigned feedback tasks">
+				<div class="grid gap-2">
+					<h2 class="setup-panel__title">Feedback tasks</h2>
+					<p class="text-sm text-[var(--color-text-muted)]">
+						Each task is a separate response. You can return to this link until all feedback tasks
+						are complete.
+					</p>
+				</div>
+
+				<div class="grid gap-2">
+					{#each queue.assignments as assignment (assignment.assignmentId)}
+						<button
+							type="button"
+							class="secondary-button justify-between"
+							onclick={() => void startQueueAssignment(assignment)}
+						>
+							<span>{assignment.target?.label ?? 'Assigned person'}</span>
+							<span>{queueAssignmentStatus(assignment)}</span>
+						</button>
+					{/each}
+				</div>
+
+				{#if queue.assignments.length === 0}
+					<p class="text-sm text-[var(--color-text-muted)]">No feedback tasks are available.</p>
+				{/if}
+
+				{#if actionError}
+					<p class="error-line" role="alert">{actionError}</p>
+				{/if}
+			</section>
 		{:else if entry}
 			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
 				<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
 					{entry.responseIdentityMode}
 				</p>
 				<h1 class="serif-heading text-3xl">{entry.name}</h1>
+				{#if queue}
+					<button type="button" class="secondary-button w-fit" onclick={returnToQueue}>
+						<ArrowLeft size={17} aria-hidden="true" />
+						<span>Back to queue</span>
+					</button>
+				{/if}
 			</header>
 
 			{#if submitted && receiptView}
@@ -828,6 +1023,13 @@
 							<li>{guidance}</li>
 						{/each}
 					</ul>
+
+					{#if queue}
+						<button type="button" class="secondary-button" onclick={returnToQueue}>
+							<ArrowLeft size={17} aria-hidden="true" />
+							<span>Back to queue</span>
+						</button>
+					{/if}
 				</section>
 			{:else if !session}
 				<section class="setup-panel" aria-labelledby="consent-title">

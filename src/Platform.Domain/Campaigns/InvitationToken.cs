@@ -14,11 +14,26 @@ public sealed class InvitationToken
         string channel,
         string? recipient = null,
         DateTimeOffset? expiresAt = null,
-        Guid? assignmentId = null)
+        Guid? assignmentId = null,
+        Guid? respondentSubjectId = null)
     {
         if (!InvitationTokenChannels.IsKnown(channel))
         {
             throw new ArgumentException("Unknown invitation token channel.", nameof(channel));
+        }
+
+        if (channel == InvitationTokenChannels.IdentifiedQueue && !respondentSubjectId.HasValue)
+        {
+            throw new ArgumentException(
+                "Identified queue tokens require a respondent subject.",
+                nameof(respondentSubjectId));
+        }
+
+        if (channel != InvitationTokenChannels.IdentifiedQueue && respondentSubjectId.HasValue)
+        {
+            throw new ArgumentException(
+                "Respondent subject is only valid for identified queue tokens.",
+                nameof(respondentSubjectId));
         }
 
         Id = id;
@@ -29,6 +44,7 @@ public sealed class InvitationToken
         Recipient = NormalizeOptional(recipient);
         ExpiresAt = expiresAt;
         AssignmentId = assignmentId;
+        RespondentSubjectId = respondentSubjectId;
         CreatedAt = DateTimeOffset.UtcNow;
     }
 
@@ -39,6 +55,8 @@ public sealed class InvitationToken
     public Guid CampaignId { get; private set; }
 
     public Guid? AssignmentId { get; private set; }
+
+    public Guid? RespondentSubjectId { get; private set; }
 
     public string TokenHash { get; private set; } = string.Empty;
 
@@ -72,6 +90,7 @@ public sealed class InvitationToken
     public void ScrubForWithdrawal(DateTimeOffset scrubbedAt)
     {
         AssignmentId = null;
+        RespondentSubjectId = null;
         Recipient = null;
         TokenHash = $"withdrawn:{Id:N}";
         ExpiresAt = scrubbedAt;

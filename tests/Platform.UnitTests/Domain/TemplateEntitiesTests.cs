@@ -38,6 +38,41 @@ public sealed class TemplateEntitiesTests
     }
 
     [Fact]
+    public void Publish_records_template_version_publisher()
+    {
+        var publisherId = Guid.NewGuid();
+        var publishedAt = DateTimeOffset.Parse("2026-06-12T12:00:00+00:00");
+        var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), Guid.NewGuid(), "Custom burnout pulse");
+        var version = TemplateVersion.CreateTenantDraft(
+            Guid.NewGuid(),
+            template.Id,
+            "0.1.0",
+            "en");
+
+        version.Publish(publisherId, publishedAt);
+
+        Assert.Equal(TemplateVersionStatuses.Published, version.Status);
+        Assert.True(version.IsLocked);
+        Assert.Equal(publishedAt, version.PublishedAt);
+        Assert.Equal(publisherId, version.PublishedBy);
+    }
+
+    [Fact]
+    public void Published_template_version_cannot_be_published_again()
+    {
+        var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), Guid.NewGuid(), "Custom burnout pulse");
+        var version = TemplateVersion.CreateTenantDraft(
+            Guid.NewGuid(),
+            template.Id,
+            "0.1.0",
+            "en");
+
+        version.Publish(null, DateTimeOffset.UtcNow);
+
+        Assert.Throws<InvalidOperationException>(() => version.Publish(null, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
     public void Section_rejects_non_positive_ordinal()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new TemplateSection(

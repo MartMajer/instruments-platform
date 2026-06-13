@@ -79,6 +79,159 @@ describe('createSetupApi', () => {
 		expect(session.publicHandle).toBe('public-session-handle');
 	});
 
+	it('calls the template version publish endpoint', async () => {
+		const request = vi.fn(async <T>(): Promise<T> => ({ id: 'template-version-id', status: 'published' }) as T);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const published = await api.publishTemplateVersion('template-version-id');
+
+		expect(request).toHaveBeenCalledWith(
+			'/template-versions/template-version-id/publish',
+			expect.objectContaining({ method: 'POST' })
+		);
+		expect(published.status).toBe('published');
+	});
+
+	it('calls the campaign series setup template selection endpoint', async () => {
+		const request = vi.fn(async <T>(): Promise<T> => ({
+			campaignSeriesId: 'series-id',
+			templateVersionId: 'template-version-id'
+		}) as T);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const selected = await api.selectCampaignSeriesSetupTemplate('series-id', {
+			templateVersionId: 'template-version-id'
+		});
+
+		expect(request).toHaveBeenCalledWith(
+			'/campaign-series/series-id/setup-template',
+			expect.objectContaining({
+				method: 'PUT',
+				body: JSON.stringify({ templateVersionId: 'template-version-id' })
+			})
+		);
+		expect(selected.campaignSeriesId).toBe('series-id');
+		expect(selected.templateVersionId).toBe('template-version-id');
+	});
+
+	it('calls the template version draft endpoint', async () => {
+		const request = vi.fn(async <T>(): Promise<T> => ({ status: 'draft', semver: '1.1.0' }) as T);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const draft = await api.createTemplateVersionDraft('template-version-id', { semver: '1.1.0' });
+
+		expect(request).toHaveBeenCalledWith(
+			'/template-versions/template-version-id/drafts',
+			expect.objectContaining({
+				method: 'POST',
+				body: JSON.stringify({ semver: '1.1.0' })
+			})
+		);
+		expect(draft.status).toBe('draft');
+		expect(draft.semver).toBe('1.1.0');
+	});
+
+	it('calls the template version draft content update endpoint', async () => {
+		const request = vi.fn(
+			async <T>(): Promise<T> =>
+				({
+					status: 'draft',
+					questions: [
+						{
+							id: 'q1',
+							sectionId: 'section-id',
+							ordinal: 1,
+							code: 'q01',
+							type: 'single',
+							scaleId: null,
+							textDefault: 'Question text',
+							descriptionDefault: 'Question help',
+							required: true,
+							reverseCoded: false,
+							measurementLevel: 'nominal',
+							weight: 1,
+							variableLabel: 'question_label',
+							payload: '{"options":[]}',
+							missingCodes: '[]'
+						}
+					]
+				}) as T
+		);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const draft = await api.updateTemplateVersionDraftContent('template-version-id', {
+			sections: sampleTemplateRequest.sections,
+			scales: sampleTemplateRequest.scales,
+			questions: sampleTemplateRequest.questions
+		});
+
+		expect(request).toHaveBeenCalledWith(
+			'/template-versions/template-version-id/draft-content',
+			expect.objectContaining({
+				method: 'PUT',
+				body: JSON.stringify({
+					sections: sampleTemplateRequest.sections,
+					scales: sampleTemplateRequest.scales,
+					questions: sampleTemplateRequest.questions
+				})
+			})
+		);
+		expect(draft.status).toBe('draft');
+		expect(draft.questions).toHaveLength(1);
+		expect(draft.questions[0].payload).toBe('{"options":[]}');
+		expect(draft.questions[0].sectionId).toBe('section-id');
+	});
+
+	it('calls the template version draft scoring retirement endpoint', async () => {
+		const request = vi.fn(async <T>(): Promise<T> => ({
+			templateVersionId: 'template-version-id',
+			retiredScoringRuleCount: 1
+		}) as T);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const retired = await api.retireTemplateVersionDraftScoring('template-version-id');
+
+		expect(request).toHaveBeenCalledWith(
+			'/template-versions/template-version-id/draft-scoring/retire',
+			expect.objectContaining({ method: 'POST' })
+		);
+		expect(retired.templateVersionId).toBe('template-version-id');
+		expect(retired.retiredScoringRuleCount).toBe(1);
+	});
+
+	it('calls the template version history endpoint', async () => {
+		const request = vi.fn(async <T>(): Promise<T> => ({
+			templateId: 'template-id',
+			anchorTemplateVersionId: 'template-version-id',
+			versions: [{ templateVersionId: 'template-version-id', status: 'published', semver: '1.0.0' }]
+		}) as T);
+		const api = createSetupApi({
+			request: request as ApiClient['request'],
+			requestText: vi.fn() as ApiClient['requestText']
+		});
+
+		const history = await api.listTemplateVersions('template-version-id');
+
+		expect(request).toHaveBeenCalledWith('/template-versions/template-version-id/versions');
+		expect(history.versions).toHaveLength(1);
+		expect(history.versions[0].status).toBe('published');
+	});
+
 	it('calls the GF05 setup endpoints with the expected methods', async () => {
 		const request = vi.fn(async <T>(path: string): Promise<T> => responseFor(path) as T);
 		const requestText = vi.fn(async () => ({
@@ -452,7 +605,7 @@ function responseFor(path: string) {
 			templateVersionId: 'template-version-id',
 			templateName: 'Tenant burnout pulse template',
 			semver: '1.0.0',
-			status: 'draft',
+			status: 'published',
 			defaultLocale: 'en',
 			instrumentId: null,
 			sections: [],

@@ -53,6 +53,36 @@ public interface IResponseCaptureStore
         CreateOpenLinkSessionRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<IdentifiedQueueResponse>> GetIdentifiedQueueAsync(
+        string token,
+        CancellationToken cancellationToken);
+
+    Task<Result<ResponseSessionResponse>> CreateIdentifiedQueueAssignmentSessionAsync(
+        string token,
+        Guid assignmentId,
+        CreateOpenLinkSessionRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<OpenLinkSessionDraftResponse>> GetIdentifiedQueueSessionDraftAsync(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        CancellationToken cancellationToken);
+
+    Task<Result<SaveAnswersResponse>> SaveIdentifiedQueueAnswersAsync(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        SaveAnswersRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<SubmitResponseSessionResponse>> SubmitIdentifiedQueueSessionAsync(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        SubmitResponseSessionRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<OpenLinkSessionDraftResponse>> GetOpenLinkSessionDraftAsync(
         string token,
         Guid sessionId,

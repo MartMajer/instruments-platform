@@ -117,6 +117,18 @@ public sealed class ScoringRule
         UpdatedAt = retiredAt;
     }
 
+    public void RetireDraft(DateTimeOffset retiredAt)
+    {
+        if (Status != ScoringRuleStatuses.Draft)
+        {
+            throw new InvalidOperationException("Only draft scoring rules can be retired as draft setup.");
+        }
+
+        Status = ScoringRuleStatuses.Retired;
+        IsLocked = true;
+        UpdatedAt = retiredAt;
+    }
+
     private static string NormalizeKey(string value, string parameterName)
     {
         return NormalizeRequired(value, parameterName).ToLowerInvariant();

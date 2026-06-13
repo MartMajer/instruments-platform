@@ -7,6 +7,7 @@ using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
+using Platform.Domain.Integrations;
 using Platform.Domain.Reports;
 using Platform.Domain.Responses;
 using Platform.Domain.Scoring;
@@ -660,7 +661,13 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         await SeedTenantAsync(runtimeOptions, tenantA, "subject-directory-a");
         await SeedTenantAsync(runtimeOptions, tenantB, "subject-directory-b");
         var manager = await SeedSubjectAsync(runtimeOptions, tenantA, "Mira Manager", "mira@example.test", "mgr-001");
-        var employee = await SeedSubjectAsync(runtimeOptions, tenantA, "Ana Analyst", "ana@example.test", "emp-001");
+        var employee = await SeedSubjectAsync(
+            runtimeOptions,
+            tenantA,
+            "Ana Analyst",
+            "ana@example.test",
+            "emp-001",
+            """{"directory_import_stale":true,"directory_import_stale_at":"2026-06-11T10:15:00+00:00"}""");
         await SeedSubjectAsync(runtimeOptions, tenantA, "Ivan Intern", "ivan@example.test", "emp-002");
         await SeedSubjectAsync(runtimeOptions, tenantB, "Tenant B Person", "other@example.test", "emp-x");
         var group = await SeedSubjectGroupAsync(runtimeOptions, tenantA, SubjectGroupTypes.Department, "Research");
@@ -684,12 +691,281 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.Equal(manager.Id, employeeRow.ManagerSubjectId);
         Assert.Equal("Mira Manager", employeeRow.ManagerDisplayName);
         Assert.Equal(0, employeeRow.DirectReportCount);
+        Assert.True(employeeRow.DirectoryImportStale);
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-06-11T10:15:00+00:00"),
+            employeeRow.DirectoryImportStaleAt);
         var membership = Assert.Single(employeeRow.Groups);
         Assert.Equal(group.Id, membership.GroupId);
         Assert.Equal("Research", membership.GroupName);
         Assert.Equal(SubjectGroupTypes.Department, membership.GroupType);
         var managerRow = result.Subjects.Single(subject => subject.Id == manager.Id);
         Assert.Equal(1, managerRow.DirectReportCount);
+        Assert.False(managerRow.DirectoryImportStale);
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_connection_state_uses_current_tenant_connection()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantA, "graph-connection-a");
+        await SeedTenantAsync(runtimeOptions, tenantB, "graph-connection-b");
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(seedDb);
+            await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantA);
+            seedDb.DirectoryConnections.Add(new DirectoryConnection(
+                Guid.NewGuid(),
+                tenantA,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                "microsoft-tenant-a",
+                "Contoso University",
+                "contoso.example",
+                """["User.Read.All","GroupMember.Read.All"]""",
+                DirectoryConnectionStatuses.Active));
+            await seedDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var connected = await store.GetMicrosoftGraphDirectoryConnectionStateAsync(tenantA, CancellationToken.None);
+        var disconnected = await store.GetMicrosoftGraphDirectoryConnectionStateAsync(tenantB, CancellationToken.None);
+
+        Assert.Equal(tenantA, connected.TenantId);
+        Assert.True(connected.Connected);
+        Assert.Equal("active", connected.Status);
+        Assert.Equal("Contoso University", connected.DisplayName);
+        Assert.Equal("contoso.example", connected.PrimaryDomain);
+        Assert.Equal(["User.Read.All", "GroupMember.Read.All"], connected.GrantedScopes);
+        Assert.Equal(tenantB, disconnected.TenantId);
+        Assert.False(disconnected.Connected);
+        Assert.Equal("disconnected", disconnected.Status);
+        Assert.Empty(disconnected.GrantedScopes);
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_rules_are_tenant_scoped_and_safe()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantA, "graph-rules-a");
+        await SeedTenantAsync(runtimeOptions, tenantB, "graph-rules-b");
+        var connectionAId = Guid.NewGuid();
+        var ruleAId = Guid.NewGuid();
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(seedDb);
+            await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantA))
+            {
+                seedDb.DirectoryConnections.Add(new DirectoryConnection(
+                    connectionAId,
+                    tenantA,
+                    DirectoryConnectionProviders.MicrosoftGraph,
+                    "ms-tenant-a",
+                    "Contoso University",
+                    "contoso.example",
+                    """["User.Read.All"]""",
+                    DirectoryConnectionStatuses.Active));
+                seedDb.DirectoryImportRules.Add(new DirectoryImportRule(
+                    ruleAId,
+                    tenantA,
+                    connectionAId,
+                    "All employees",
+                    """{"source_kind":"msgraph","population":"all_users","mark_missing_subjects_stale":true}""",
+                    """["external_id","email","manager_external_id"]""",
+                    DirectoryImportStalePolicies.MarkStale,
+                    DirectoryImportRuleStatuses.Active,
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:00:00+00:00")));
+                var archived = new DirectoryImportRule(
+                    Guid.NewGuid(),
+                    tenantA,
+                    connectionAId,
+                    "Archived employees",
+                    """{"source_kind":"msgraph","population":"all_users","mark_missing_subjects_stale":false}""",
+                    """["external_id","email"]""",
+                    DirectoryImportStalePolicies.None,
+                    DirectoryImportRuleStatuses.Active,
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:05:00+00:00"));
+                archived.Archive(DateTimeOffset.Parse("2026-06-12T12:06:00+00:00"));
+                seedDb.DirectoryImportRules.Add(archived);
+                await seedDb.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+
+            await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantB))
+            {
+                var connectionBId = Guid.NewGuid();
+                seedDb.DirectoryConnections.Add(new DirectoryConnection(
+                    connectionBId,
+                    tenantB,
+                    DirectoryConnectionProviders.MicrosoftGraph,
+                    "ms-tenant-b",
+                    "Fabrikam",
+                    "fabrikam.example",
+                    """["User.Read.All"]""",
+                    DirectoryConnectionStatuses.Active));
+                seedDb.DirectoryImportRules.Add(new DirectoryImportRule(
+                    Guid.NewGuid(),
+                    tenantB,
+                    connectionBId,
+                    "Other tenant employees",
+                    """{"source_kind":"msgraph","population":"all_users","mark_missing_subjects_stale":true}""",
+                    """["external_id","email"]""",
+                    DirectoryImportStalePolicies.MarkStale,
+                    DirectoryImportRuleStatuses.Active,
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:10:00+00:00")));
+                await seedDb.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var response = await store.ListMicrosoftGraphDirectoryImportRulesAsync(tenantA, CancellationToken.None);
+
+        Assert.Equal(tenantA, response.TenantId);
+        var rule = Assert.Single(response.Rules);
+        Assert.Equal(ruleAId, rule.Id);
+        Assert.Equal(connectionAId, rule.DirectoryConnectionId);
+        Assert.Equal("All employees", rule.Name);
+        Assert.Equal(DirectoryImportRuleStatuses.Active, rule.Status);
+        Assert.Equal(DirectoryImportStalePolicies.MarkStale, rule.StalePolicy);
+        Assert.Equal(["external_id", "email", "manager_external_id"], rule.RetainedFields);
+        Assert.Equal(DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"), rule.CreatedAt);
+    }
+
+    [DockerFact]
+    public async Task Microsoft_graph_directory_import_runs_history_is_tenant_scoped_and_safe()
+    {
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantA, "graph-runs-a");
+        await SeedTenantAsync(runtimeOptions, tenantB, "graph-runs-b");
+        var connectionAId = Guid.NewGuid();
+        var previewRunId = Guid.NewGuid();
+
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var tenantDbScope = new TenantDbScope(seedDb);
+            await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantA))
+            {
+                seedDb.DirectoryConnections.Add(new DirectoryConnection(
+                    connectionAId,
+                    tenantA,
+                    DirectoryConnectionProviders.MicrosoftGraph,
+                    "ms-tenant-a",
+                    "Contoso University",
+                    "contoso.example",
+                    """["User.Read.All"]""",
+                    DirectoryConnectionStatuses.Active));
+                var preview = new DirectoryImportRun(
+                    previewRunId,
+                    tenantA,
+                    connectionAId,
+                    DirectoryImportRunModes.Preview,
+                    """{"source_kind":"msgraph","source_prefix_present":true}""",
+                    retainedFields: """["external_id","email"]""",
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"));
+                preview.Start(DateTimeOffset.Parse("2026-06-12T12:00:01+00:00"));
+                preview.Succeed(
+                    """{"row_count":4,"imported_row_count":3,"failed_row_count":1}""",
+                    """["row_failed"]""",
+                    """{"source_kind":"msgraph","completed":true}""",
+                    DateTimeOffset.Parse("2026-06-12T12:00:02+00:00"));
+                seedDb.DirectoryImportRuns.Add(preview);
+                await seedDb.SaveChangesAsync();
+
+                var apply = new DirectoryImportRun(
+                    Guid.NewGuid(),
+                    tenantA,
+                    connectionAId,
+                    DirectoryImportRunModes.Apply,
+                    """{"source_kind":"msgraph","source_prefix_present":true}""",
+                    retainedFields: """["external_id","email"]""",
+                    previewRunId: previewRunId,
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:10:00+00:00"));
+                apply.Start(DateTimeOffset.Parse("2026-06-12T12:10:01+00:00"));
+                apply.Succeed(
+                    """{"row_count":4,"imported_row_count":4,"failed_row_count":0}""",
+                    "[]",
+                    """{"source_kind":"msgraph","completed":true}""",
+                    DateTimeOffset.Parse("2026-06-12T12:10:02+00:00"));
+                seedDb.DirectoryImportRuns.Add(apply);
+                await seedDb.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+
+            await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantB))
+            {
+                var connectionBId = Guid.NewGuid();
+                seedDb.DirectoryConnections.Add(new DirectoryConnection(
+                    connectionBId,
+                    tenantB,
+                    DirectoryConnectionProviders.MicrosoftGraph,
+                    "ms-tenant-b",
+                    "Other Tenant",
+                    null,
+                    "[]",
+                    DirectoryConnectionStatuses.Active));
+                var otherRun = new DirectoryImportRun(
+                    Guid.NewGuid(),
+                    tenantB,
+                    connectionBId,
+                    DirectoryImportRunModes.Preview,
+                    """{"source_kind":"msgraph","source_prefix_present":true}""",
+                    observedAt: DateTimeOffset.Parse("2026-06-12T12:20:00+00:00"));
+                otherRun.Start(DateTimeOffset.Parse("2026-06-12T12:20:01+00:00"));
+                otherRun.Succeed(
+                    """{"row_count":99,"imported_row_count":99,"failed_row_count":0}""",
+                    "[]",
+                    """{"source_kind":"msgraph","completed":true}""",
+                    DateTimeOffset.Parse("2026-06-12T12:20:02+00:00"));
+                seedDb.DirectoryImportRuns.Add(otherRun);
+                await seedDb.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+        }
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.ListMicrosoftGraphDirectoryImportRunsAsync(tenantA, CancellationToken.None);
+
+        Assert.Equal(tenantA, result.TenantId);
+        Assert.Equal(2, result.Runs.Count);
+        var latest = result.Runs[0];
+        Assert.Equal(DirectoryImportRunModes.Apply, latest.Mode);
+        Assert.Equal(DirectoryImportRunStatuses.Succeeded, latest.Status);
+        Assert.Equal(previewRunId, latest.PreviewRunId);
+        Assert.Equal(4, latest.RowCount);
+        Assert.Equal(4, latest.ImportedRowCount);
+        Assert.Equal(0, latest.FailedRowCount);
+        var previewItem = result.Runs[1];
+        Assert.Equal(1, previewItem.WarningCategoryCount);
+        Assert.Equal(["row_failed"], previewItem.WarningCategories);
+
+        var json = JsonSerializer.Serialize(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.DoesNotContain("ms-tenant-a", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ms-tenant-b", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ana@example.test", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("user-001", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("source_prefix", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("99", json, StringComparison.OrdinalIgnoreCase);
     }
 
     [DockerFact]
@@ -3648,6 +3924,72 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Tenant_settings_returns_report_branding_preview_from_tenant_profile()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(db);
+        await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            db.Tenants.Add(new Tenant(tenantId, "acme-reports", "Acme Reports"));
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        var store = new ProductSurfaceReadStore(db, tenantDbScope);
+        var settings = await store.GetTenantSettingsAsync(tenantId, CancellationToken.None);
+
+        Assert.True(settings.IsSuccess, settings.Error.ToString());
+        Assert.Equal("Acme Reports", settings.Value.ReportBranding.OrganizationLabel);
+        Assert.Equal("Campaign series report", settings.Value.ReportBranding.ReportTitle);
+        Assert.Equal("tenant_profile", settings.Value.ReportBranding.BrandingSource);
+        Assert.Equal("none", settings.Value.ReportBranding.LogoMode);
+        Assert.Equal("#2563eb", settings.Value.ReportBranding.AccentColorHex);
+        Assert.Equal("standard", settings.Value.ReportBranding.LayoutVariant);
+        Assert.Contains("logo_upload", settings.Value.ReportBranding.DeferredCustomizations);
+        Assert.Contains("custom_fonts", settings.Value.ReportBranding.DeferredCustomizations);
+    }
+
+    [DockerFact]
+    public async Task Tenant_settings_returns_report_branding_preview_from_mutable_tenant_settings()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(db);
+        await using (var transaction = await tenantDbScope.BeginTransactionAsync(tenantId))
+        {
+            var tenant = new Tenant(tenantId, "acme-safety", "Acme Safety");
+            tenant.UpdateReportBranding(
+                "Acme OSH Consulting",
+                "Monthly workplace risk report",
+                "#0F766E",
+                "compact",
+                DateTimeOffset.Parse("2026-06-13T12:00:00+00:00"));
+            db.Tenants.Add(tenant);
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        var store = new ProductSurfaceReadStore(db, tenantDbScope);
+        var settings = await store.GetTenantSettingsAsync(tenantId, CancellationToken.None);
+
+        Assert.True(settings.IsSuccess, settings.Error.ToString());
+        Assert.Equal("Acme OSH Consulting", settings.Value.ReportBranding.OrganizationLabel);
+        Assert.Equal("Monthly workplace risk report", settings.Value.ReportBranding.ReportTitle);
+        Assert.Equal("tenant_settings", settings.Value.ReportBranding.BrandingSource);
+        Assert.Equal("#0f766e", settings.Value.ReportBranding.AccentColorHex);
+        Assert.Equal("compact", settings.Value.ReportBranding.LayoutVariant);
+    }
+
+    [DockerFact]
     public async Task Reports_widget_manifest_blocks_cancelled_proof_only_campaign_without_report_capabilities()
     {
         var tenantId = Guid.NewGuid();
@@ -4316,6 +4658,10 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 subject_group,
                 subject_membership,
                 subject_relationship,
+                directory_connection,
+                directory_connection_consent_request,
+                directory_import_rule,
+                directory_import_run,
                 instrument,
                 instrument_subscale,
                 instrument_item,
@@ -5212,7 +5558,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Guid tenantId,
         string displayName,
         string email,
-        string externalId)
+        string externalId,
+        string attributes = """{"source":"test"}""")
     {
         var subject = new Subject(
             Guid.NewGuid(),
@@ -5220,7 +5567,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             externalId: externalId,
             email: email,
             displayName: displayName,
-            attributes: """{"source":"test"}""");
+            attributes: attributes);
 
         await using var db = new ApplicationDbContext(options);
         var tenantDbScope = new TenantDbScope(db);

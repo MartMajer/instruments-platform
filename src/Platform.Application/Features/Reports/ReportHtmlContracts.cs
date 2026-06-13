@@ -6,8 +6,16 @@ public interface ICampaignSeriesReportHtmlRenderer
 {
     CampaignSeriesReportHtmlRenderResult Render(
         CampaignSeriesReportsWorkspaceResponse workspace,
-        DateTimeOffset generatedAt);
+        DateTimeOffset generatedAt,
+        CampaignSeriesReportBranding? branding = null);
 }
+
+public sealed record CampaignSeriesReportBranding(
+    string OrganizationLabel,
+    string ReportTitle,
+    string AccentColorHex,
+    string LayoutVariant,
+    string BrandingSource);
 
 public sealed record CampaignSeriesReportHtmlRenderResult(
     string Html,

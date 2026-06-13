@@ -33,7 +33,7 @@ type CountNounForms = Record<PluralCategory | 'other', string>;
 const enMessages = {
 	'overview.surface.title': 'Study overview',
 	'overview.surface.description':
-		'Use this overview to prepare, collect, review results, and compare waves for the selected study.',
+		'Use this overview to prepare, collect, review results, export evidence, and compare repeated rounds only when they apply.',
 	'overview.reference.title': 'Study reference',
 	'overview.reference.description':
 		'Detailed records, governance status, and wave rows for this selected study.',
@@ -48,22 +48,22 @@ const enMessages = {
 		)} live`,
 	'overview.lifecycle.title': 'Study lifecycle',
 	'overview.lifecycle.description':
-		'Move through this study from preparation to collection, results, and waves.',
+		'Move through this study from preparation to collection, results, and exports. Compare repeated rounds only when the study has them.',
 	'overview.lifecycle.setup.label': 'Prepare',
 	'overview.lifecycle.setup.description':
-		'Build the questionnaire, results setup, policies, wave, and launch check.',
+		'Prepare the questionnaire, result outputs, policies, collection round, and launch check.',
 	'overview.lifecycle.operations.label': 'Collect',
 	'overview.lifecycle.operations.description':
 		'Start the wave, share access, send invitations, and monitor submissions.',
 	'overview.lifecycle.reports.label': 'Review results',
 	'overview.lifecycle.reports.description':
 		'Review findings, limitations, and export files after responses are ready.',
-	'overview.lifecycle.waves.label': 'Compare waves',
+	'overview.lifecycle.waves.label': 'Compare rounds',
 	'overview.lifecycle.waves.description':
-		'Create follow-up waves and compare results across collection rounds.',
+		'Use only for repeated measurement rounds; keep the main path in Results and Exports.',
 	'overview.studyModel.title': 'Study overview',
 	'overview.studyModel.description':
-		'A short orientation for the selected study. Use Setup, Collection, Results, and Waves for detailed work.',
+		'A short orientation for the selected study. Use Prepare, Collect, and Results for the main path; use Rounds only when repeated measurement applies.',
 	'overview.studyBrief.label': 'Study context',
 	'overview.studyBrief.badge.ready': 'Defined',
 	'overview.studyBrief.badge.pending': 'Needs brief',
@@ -93,29 +93,29 @@ const enMessages = {
 		`${textValue(
 			values,
 			'studyName'
-		)} holds setup, collection waves, results, and exports. It is not a questionnaire or an instrument.`,
+		)} holds preparation, collection rounds, results, and exports. It is not a questionnaire or an instrument.`,
 	'overview.studyModel.studyContainer.guidance':
-		'Open Setup when you need to change what respondents answer or how results are prepared.',
+		'Open Prepare when you need to change what respondents answer or how results are prepared.',
 	'overview.studyModel.questionnaireResults.label': 'Questionnaire and result outputs',
 	'overview.studyModel.questionnaireResults.summary':
 		'The questionnaire defines the questions; result outputs define which answers you score, export, or interpret.',
 	'overview.studyModel.questionnaireResults.guidance':
-		'Open Setup to finish the source, questionnaire, result outputs, wave, and launch readiness.',
-	'overview.studyModel.collectionWaves.label': 'Collection waves',
+		'Open Prepare to finish the source, questionnaire, result outputs, collection round, and launch readiness.',
+	'overview.studyModel.collectionWaves.label': 'Collection rounds',
 	'overview.studyModel.collectionWaves.badge.live': 'Live',
 	'overview.studyModel.collectionWaves.badge.prepared': 'Prepared',
-	'overview.studyModel.collectionWaves.badge.none': 'No waves',
-	'overview.studyModel.collectionWaves.summary.none': 'No collection waves exist yet.',
+	'overview.studyModel.collectionWaves.badge.none': 'No rounds',
+	'overview.studyModel.collectionWaves.summary.none': 'No collection rounds exist yet.',
 	'overview.studyModel.collectionWaves.summary.existing': (values, locale) =>
 		`${formatNumber(locale, numberValue(values, 'campaignCount'))} ${
 			numberValue(values, 'campaignCount') === 1
 				? 'collection wave exists'
-				: 'collection waves exist'
+				: 'collection rounds exist'
 		}; ${formatNumber(locale, numberValue(values, 'liveCount'))} ${
 			numberValue(values, 'liveCount') === 1 ? 'is' : 'are'
 		} live.`,
 	'overview.studyModel.collectionWaves.guidance':
-		'Create a collection wave in Setup, then use Collect to open access for respondents.',
+		'Create a collection round in Prepare, then use Collect to open access for respondents.',
 	'overview.studyModel.evidenceOutputs.label': 'Evidence and comparison',
 	'overview.studyModel.evidenceOutputs.badge.ready': 'Evidence ready',
 	'overview.studyModel.evidenceOutputs.badge.needsScoring': 'Needs scoring',
@@ -129,7 +129,7 @@ const enMessages = {
 			numberValue(values, 'exportCount')
 		)} export files are recorded.`,
 	'overview.studyModel.evidenceOutputs.guidance':
-		'Use Results for current evidence, Waves for repeated collection rounds, and Exports for analysis handoff.',
+		'Use Results for current evidence and exports; use Rounds only for repeated collection.',
 	'overview.studyModel.currentState.label': 'Current state',
 	'overview.studyModel.currentState.badge.live': 'Collection live',
 	'overview.studyModel.currentState.badge.ready': 'Results available',
@@ -147,13 +147,13 @@ const enMessages = {
 	'overview.studyModel.currentState.guidance.prepared':
 		'At least one collection round exists. Use Collection to open access and monitor responses.',
 	'overview.studyModel.currentState.guidance.setup':
-		'Finish Setup before opening collection or reviewing results.',
-	'overview.command.title.setup': 'Finish setup',
+		'Finish Prepare before opening collection or reviewing results.',
+	'overview.command.title.setup': 'Finish preparation',
 	'overview.command.title.collect': 'Start collection',
 	'overview.command.title.collecting': 'Collecting responses',
 	'overview.command.title.results': 'Review results',
 	'overview.command.title.archived': 'Archived study',
-	'overview.command.badge.setup': 'Setup',
+	'overview.command.badge.setup': 'Prepare',
 	'overview.command.badge.collect': 'Ready',
 	'overview.command.badge.collecting': 'Live',
 	'overview.command.badge.results': 'Results',
@@ -161,7 +161,7 @@ const enMessages = {
 	'overview.command.summary.setup':
 		'Questionnaire, result setup, recipients, and launch check are not all ready yet.',
 	'overview.command.summary.collect':
-		'Measurement is prepared. Open Collection when recipients and access are final.',
+		'Measurement is prepared. Open Collect when recipients and access are final.',
 	'overview.command.summary.collecting': (values, locale) =>
 		`${formatCount(locale, numberValue(values, 'liveCount'), 'measurement')} live, ${formatCount(
 			locale,
@@ -175,9 +175,9 @@ const enMessages = {
 			'score'
 		)}, ${formatCount(locale, numberValue(values, 'exportCount'), 'exportFile')}.`,
 	'overview.command.summary.archived':
-		'This study is archived. Restore it before editing setup, collection, or results.',
-	'overview.command.action.setup': 'Open Setup',
-	'overview.command.action.collect': 'Open Collection',
+		'This study is archived. Restore it before editing preparation, collection, or results.',
+	'overview.command.action.setup': 'Open Prepare',
+	'overview.command.action.collect': 'Open Collect',
 	'overview.command.action.results': 'Open Results',
 	'overview.metric.measurements': 'Measurements',
 	'overview.metric.live': 'Live',
@@ -186,23 +186,23 @@ const enMessages = {
 	'overview.metric.exports': 'Exports',
 	'overview.attention.title': 'Needs attention',
 	'overview.studyModel.nextAction.label': 'Recommended next move',
-	'overview.studyModel.nextAction.badge.setup': 'Finish setup',
+	'overview.studyModel.nextAction.badge.setup': 'Finish preparation',
 	'overview.studyModel.nextAction.badge.collect': 'Go to collection',
 	'overview.studyModel.nextAction.badge.results': 'Review results',
 	'overview.studyModel.nextAction.summary.setup':
-		'Open Setup to finish the questionnaire, result outputs, recipients, and launch rules.',
+		'Open Prepare to finish the questionnaire, result outputs, recipients, and launch rules.',
 	'overview.studyModel.nextAction.summary.collect':
-		'Open Collection to manage access, invitations, and response progress.',
+		'Open Collect to manage access, invitations, and response progress.',
 	'overview.studyModel.nextAction.summary.results':
 		'Open Results to review charts, evidence, exports, and interpretation limits.',
 	'overview.studyModel.nextAction.guidance.setup':
-		'Setup is where you change what respondents answer and how answers become result outputs.',
+		'Prepare is where you change what respondents answer and how answers become result outputs.',
 	'overview.studyModel.nextAction.guidance.collect':
 		'Collection is where you start the round, share access, and watch response progress.',
 	'overview.studyModel.nextAction.guidance.results':
-		'Results is where you inspect evidence. Use Waves only when you need change-over-time comparison.',
-	'overview.row.waves': 'Waves',
-	'overview.row.liveWaves': 'Live waves',
+		'Results is where you inspect evidence. Use Rounds only when you need change-over-time comparison.',
+	'overview.row.waves': 'Rounds',
+	'overview.row.liveWaves': 'Live rounds',
 	'overview.row.collectionRounds': 'Collection rounds',
 	'overview.row.collectedResponses': 'Collected responses',
 	'overview.row.submittedResponses': 'Submitted responses',
@@ -352,7 +352,7 @@ const enMessages = {
 	'readModel.surface.setup.eyebrow': 'Study preparation',
 	'readModel.surface.setup.description':
 		'Prepare this study for collection by completing setup tasks and launch-readiness checks.',
-	'readModel.surface.setup.referenceTitle': 'Setup reference',
+	'readModel.surface.setup.referenceTitle': 'Prepare reference',
 	'readModel.surface.setup.referenceDescription':
 		'Detailed setup records, policy status, selected wave fields, and launch-check notes stay here for review.',
 	'readModel.surface.setup.emptyTitle': 'No campaigns yet',
@@ -376,6 +376,17 @@ const enMessages = {
 	'settings.metric.tenantMembers': 'Tenant members',
 	'settings.metric.tenantRoles': 'Tenant roles',
 	'settings.metric.exportFiles': 'Export files',
+	'settings.reportBranding.title': 'Report branding',
+	'settings.reportBranding.description':
+		'Generated report PDFs use these safe typed branding settings.',
+	'settings.reportBranding.organizationLabel': 'Organization label',
+	'settings.reportBranding.reportTitle': 'Report title',
+	'settings.reportBranding.defaultReportTitle': 'Campaign series report',
+	'settings.reportBranding.source': 'Branding source',
+	'settings.reportBranding.logoMode': 'Logo mode',
+	'settings.reportBranding.accent': 'Accent color',
+	'settings.reportBranding.layout': 'Layout',
+	'settings.reportBranding.deferredTitle': 'Not configurable yet',
 	'instruments.metric.sources': 'Instruments',
 	'instruments.metric.launchEligible': 'Launch eligible',
 	'instruments.metric.launchBlocked': 'Launch blocked',
@@ -408,17 +419,17 @@ const enMessages = {
 	'workspace.command.defaultAction': 'Open',
 	'workspace.row.surface': 'Surface',
 	'workspace.surface.campaignSeries': 'Campaign series',
-	'workspace.surface.directory': 'Directory',
+	'workspace.surface.directory': 'People',
 	'workspace.surface.operations': 'Operations',
 	'workspace.surface.reports': 'Reports',
-	'workspace.surface.setup': 'Setup',
+	'workspace.surface.setup': 'Prepare',
 	'workspace.surface.team': 'Team',
-	'workspace.surface.waves': 'Waves',
+	'workspace.surface.waves': 'Rounds',
 	'workspace.surface.workspace': 'Workspace',
 	'workspace.action.reviewSampleResults': 'Review sample results',
 	'workspace.action.inspectSampleCollection': 'Inspect sample collection',
-	'workspace.action.inspectSampleSetup': 'Inspect sample setup',
-	'workspace.action.continueSetup': 'Continue setup',
+	'workspace.action.inspectSampleSetup': 'Inspect sample preparation',
+	'workspace.action.continueSetup': 'Continue preparation',
 	'workspace.action.monitorCollection': 'Monitor collection',
 	'workspace.action.reviewResults': 'Review results',
 	'workspace.action.openStudy': 'Open study',
@@ -450,7 +461,7 @@ const enMessages = {
 	'portfolio.section.own.empty':
 		'No own studies match this view. Clear filters or create your study when you have setup access.',
 	'portfolio.lifecycle.needsSetup.label': 'Needs setup',
-	'portfolio.lifecycle.needsSetup.description': 'Studies that need setup before collection is useful.',
+	'portfolio.lifecycle.needsSetup.description': 'Studies that need preparation before collection is useful.',
 	'portfolio.lifecycle.inCollection.label': 'In collection',
 	'portfolio.lifecycle.inCollection.description': 'Studies with live collection activity to monitor.',
 	'portfolio.lifecycle.resultsReady.label': 'Results ready',
@@ -471,9 +482,9 @@ const enMessages = {
 	'portfolio.ownership.sample.label': 'Sample study',
 	'portfolio.ownership.own.label': 'Your study',
 	'portfolio.sampleReadOnly.setup':
-		'Setup sample: read-only starter content showing study preparation before launch.',
+		'Preparation sample: read-only starter content showing study preparation before launch.',
 	'portfolio.sampleReadOnly.blocked':
-		'Setup sample: read-only starter content showing blocked preparation before launch.',
+		'Preparation sample: read-only starter content showing blocked preparation before launch.',
 	'portfolio.sampleReadOnly.inCollection':
 		'Collection sample: read-only starter content showing live or partial response collection.',
 	'portfolio.sampleReadOnly.longitudinal':
@@ -735,7 +746,7 @@ const enMessages = {
 	'waves.review.waveSequence.label': 'Wave sequence',
 	'waves.review.waveSequence.noWave.summary': 'No wave exists yet',
 	'waves.review.waveSequence.noWave.detail':
-		'Create Wave 1 in Setup, launch it from Collection, then return here after responses arrive.',
+		'Create round 1 in Prepare, launch it from Collect, then return here after responses arrive.',
 	'waves.review.waveSequence.oneWave.summary': 'Only Wave 1 exists',
 	'waves.review.waveSequence.oneWave.detail':
 		'Review Wave 1 in Results before deciding whether Wave 2 is needed for a follow-up collection.',
@@ -928,7 +939,7 @@ const enMessages = {
 			'invitationPair'
 		)}.`,
 	'setup.designMap.questionnaireSaved': (values, locale) =>
-		`${textValue(values, 'name')} is saved with ${formatCount(
+		`${textValue(values, 'name')} is published for launch with ${formatCount(
 			locale,
 			numberValue(values, 'questionCount'),
 			'question'
@@ -1186,7 +1197,7 @@ const hrMessages: AppMessageCatalog = {
 	'overview.lifecycle.reports.label': 'Pregled rezultata',
 	'overview.lifecycle.reports.description':
 		'Pregledajte nalaze, ograničenja i datoteke izvoza nakon što odgovori budu spremni.',
-	'overview.lifecycle.waves.label': 'Usporedba mjerenja',
+	'overview.lifecycle.waves.label': 'Usporedba krugova',
 	'overview.lifecycle.waves.description':
 		'Izradite sljedeća mjerenja i usporedite rezultate između krugova prikupljanja.',
 	'overview.studyModel.title': 'Pregled studije',
@@ -1229,11 +1240,11 @@ const hrMessages: AppMessageCatalog = {
 		'Upitnik definira pitanja; izlazi rezultata definiraju koje odgovore zbrajate, izvozite ili tumačite.',
 	'overview.studyModel.questionnaireResults.guidance':
 		'Otvorite Postavljanje za dovršetak ili provjeru izvora, upitnika, izlaza rezultata, mjerenja i spremnosti pokretanja.',
-	'overview.studyModel.collectionWaves.label': 'Mjerenja prikupljanja',
+	'overview.studyModel.collectionWaves.label': 'Krugovi prikupljanja',
 	'overview.studyModel.collectionWaves.badge.live': 'Aktivno',
 	'overview.studyModel.collectionWaves.badge.prepared': 'Pripremljeno',
-	'overview.studyModel.collectionWaves.badge.none': 'Nema mjerenja',
-	'overview.studyModel.collectionWaves.summary.none': 'Još nema mjerenja prikupljanja.',
+	'overview.studyModel.collectionWaves.badge.none': 'Nema krugova',
+	'overview.studyModel.collectionWaves.summary.none': 'Još nema krugova prikupljanja.',
 	'overview.studyModel.collectionWaves.summary.existing': (values, locale) =>
 		`Mjerenja u studiji: ${formatCount(
 			locale,
@@ -1484,7 +1495,7 @@ const hrMessages: AppMessageCatalog = {
 	'readModel.surface.setup.eyebrow': 'Priprema studije',
 	'readModel.surface.setup.description':
 		'Pripremite studiju za prikupljanje dovršavanjem postavljanja i provjera spremnosti.',
-	'readModel.surface.setup.referenceTitle': 'Referenca postavljanja',
+	'readModel.surface.setup.referenceTitle': 'Referenca pripreme',
 	'readModel.surface.setup.referenceDescription':
 		'Detaljni zapisi postavljanja, status pravila, polja odabranog mjerenja i bilješke provjere pokretanja ostaju ovdje za pregled.',
 	'readModel.surface.setup.emptyTitle': 'Još nema mjerenja',
@@ -1506,6 +1517,17 @@ const hrMessages: AppMessageCatalog = {
 	'settings.metric.tenantMembers': 'Članovi radnog prostora',
 	'settings.metric.tenantRoles': 'Uloge radnog prostora',
 	'settings.metric.exportFiles': 'Datoteke izvoza',
+	'settings.reportBranding.title': 'Brendiranje izvještaja',
+	'settings.reportBranding.description':
+		'Generirani PDF izvještaji koriste ove sigurne tipizirane postavke brendiranja.',
+	'settings.reportBranding.organizationLabel': 'Oznaka organizacije',
+	'settings.reportBranding.reportTitle': 'Naslov izvještaja',
+	'settings.reportBranding.defaultReportTitle': 'Izvještaj serije studije',
+	'settings.reportBranding.source': 'Izvor brendiranja',
+	'settings.reportBranding.logoMode': 'Način logotipa',
+	'settings.reportBranding.accent': 'Akcentna boja',
+	'settings.reportBranding.layout': 'Izgled',
+	'settings.reportBranding.deferredTitle': 'Još nije podesivo',
 	'instruments.metric.sources': 'Izvori upitnika',
 	'instruments.metric.launchEligible': 'Spremno za pokretanje',
 	'instruments.metric.launchBlocked': 'Blokirano za pokretanje',
@@ -1538,12 +1560,12 @@ const hrMessages: AppMessageCatalog = {
 	'workspace.command.defaultAction': 'Otvori',
 	'workspace.row.surface': 'Površina',
 	'workspace.surface.campaignSeries': 'Studije',
-	'workspace.surface.directory': 'Imenik',
+	'workspace.surface.directory': 'Ljudi',
 	'workspace.surface.operations': 'Prikupljanje',
 	'workspace.surface.reports': 'Rezultati',
-	'workspace.surface.setup': 'Postavljanje',
+	'workspace.surface.setup': 'Priprema',
 	'workspace.surface.team': 'Tim',
-	'workspace.surface.waves': 'Mjerenja',
+	'workspace.surface.waves': 'Krugovi',
 	'workspace.surface.workspace': 'Radni prostor',
 	'workspace.action.reviewSampleResults': 'Pregledaj ogledne rezultate',
 	'workspace.action.inspectSampleCollection': 'Pregledaj ogledno prikupljanje',
@@ -1902,7 +1924,7 @@ const hrMessages: AppMessageCatalog = {
 			'selection'
 		)}, s ${formatCount(locale, numberValue(values, 'pairCount'), 'invitationPair')}.`,
 	'setup.designMap.questionnaireSaved': (values, locale) =>
-		`${textValue(values, 'name')} spremljen je s ${formatCount(
+		`${textValue(values, 'name')} objavljen je za pokretanje s ${formatCount(
 			locale,
 			numberValue(values, 'questionCount'),
 			'question'

@@ -9,6 +9,7 @@ using Platform.Application.Outbox;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Outbox;
 using Platform.Domain.Reports;
+using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.ProductSurfaces;
 using Platform.Infrastructure.Tenancy;
@@ -526,8 +527,14 @@ public sealed class ReportProofExportStore(
             return Result.Failure<ReportProofExportArtifactResponse>(workspace.Error);
         }
 
+        var branding = await LoadTenantReportBrandingAsync(tenantId, workspace.Value, cancellationToken);
+        if (branding.IsFailure)
+        {
+            return Result.Failure<ReportProofExportArtifactResponse>(branding.Error);
+        }
+
         var generatedAt = DateTimeOffset.UtcNow;
-        var rendered = _reportHtmlRenderer.Render(workspace.Value, generatedAt);
+        var rendered = _reportHtmlRenderer.Render(workspace.Value, generatedAt, branding.Value);
         var htmlBytes = Encoding.UTF8.GetBytes(rendered.Html);
         var checksum = Convert.ToHexString(SHA256.HashData(htmlBytes)).ToLowerInvariant();
         var metadataJson = BuildReportHtmlMetadataJson(
@@ -828,7 +835,20 @@ public sealed class ReportProofExportStore(
                 cancellationToken);
         }
 
-        var rendered = _reportHtmlRenderer.Render(workspace.Value, startedAt);
+        var branding = await LoadTenantReportBrandingAsync(tenantId, workspace.Value, cancellationToken);
+        if (branding.IsFailure)
+        {
+            return await MarkCampaignSeriesReportPdfArtifactFailedAsync(
+                tenantId,
+                artifactId,
+                campaignSeriesId,
+                startedAt,
+                branding.Error,
+                workspace.Value,
+                cancellationToken);
+        }
+
+        var rendered = _reportHtmlRenderer.Render(workspace.Value, startedAt, branding.Value);
         var pdf = await reportPdfRenderer.RenderAsync(
             new ReportPdfRenderRequest(
                 rendered.Html,
@@ -892,6 +912,60 @@ public sealed class ReportProofExportStore(
             checksum,
             storageKey,
             cancellationToken);
+    }
+
+    private async Task<Result<CampaignSeriesReportBranding>> LoadTenantReportBrandingAsync(
+        Guid tenantId,
+        CampaignSeriesReportsWorkspaceResponse workspace,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var tenantBranding = await db.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantId && tenant.DeletedAt == null)
+            .Select(tenant => new
+            {
+                tenant.Name,
+                tenant.ReportBrandingOrganizationLabel,
+                tenant.ReportBrandingReportTitle,
+                tenant.ReportBrandingAccentColorHex,
+                tenant.ReportBrandingLayoutVariant
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (tenantBranding is null)
+        {
+            return Result.Failure<CampaignSeriesReportBranding>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        var hasTenantSettings =
+            !string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingOrganizationLabel) ||
+            !string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingReportTitle) ||
+            !string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingAccentColorHex) ||
+            !string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingLayoutVariant);
+        var accentColor = Tenant.IsReportBrandingAccentColorHex(tenantBranding.ReportBrandingAccentColorHex)
+            ? tenantBranding.ReportBrandingAccentColorHex!.Trim().ToLowerInvariant()
+            : Tenant.DefaultReportBrandingAccentColorHex;
+        var layoutVariant = Tenant.IsReportBrandingLayoutVariantKnown(tenantBranding.ReportBrandingLayoutVariant)
+            ? tenantBranding.ReportBrandingLayoutVariant!.Trim().ToLowerInvariant()
+            : Tenant.DefaultReportBrandingLayoutVariant;
+
+        return Result.Success(new CampaignSeriesReportBranding(
+            string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingOrganizationLabel)
+                ? tenantBranding.Name
+                : tenantBranding.ReportBrandingOrganizationLabel.Trim(),
+            string.IsNullOrWhiteSpace(tenantBranding.ReportBrandingReportTitle)
+                ? $"{workspace.Series.Name} report"
+                : tenantBranding.ReportBrandingReportTitle.Trim(),
+            accentColor,
+            layoutVariant,
+            hasTenantSettings ? "tenant_settings" : "tenant_profile"));
     }
 
     private async Task<Result<ReportPdfArtifactWorkerRunResponse>> ProcessQueuedCampaignSeriesReportPdfArtifactsCoreAsync(
@@ -2271,6 +2345,7 @@ public sealed class ReportProofExportStore(
         else if (question.Type is "single" or "multi")
         {
             AddJsonObjectProperty(metadata, root, "choice");
+            AddJsonObjectProperty(metadata, root, "choiceScoring");
         }
         else if (question.Type is "ranking")
         {
@@ -3568,5 +3643,3 @@ public sealed class ReportProofExportStore(
         int PreliminaryLiveResponseCount,
         int ClosedWaveResponseCount);
 }
-
-

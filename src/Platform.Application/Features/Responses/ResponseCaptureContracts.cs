@@ -36,6 +36,31 @@ public sealed record OpenLinkEntryResponse(
     ConsentDocumentResponse ConsentDocument,
     IReadOnlyList<RespondentQuestionResponse> Questions);
 
+public sealed record IdentifiedQueueResponse(
+    Guid CampaignId,
+    Guid TemplateVersionId,
+    string Name,
+    string Status,
+    string ResponseIdentityMode,
+    string DefaultLocale,
+    ConsentDocumentResponse ConsentDocument,
+    IReadOnlyList<RespondentQuestionResponse> Questions,
+    IdentifiedQueueSubjectResponse Respondent,
+    IReadOnlyList<IdentifiedQueueAssignmentResponse> Assignments);
+
+public sealed record IdentifiedQueueSubjectResponse(
+    Guid Id,
+    string Label,
+    string? DisplayName);
+
+public sealed record IdentifiedQueueAssignmentResponse(
+    Guid AssignmentId,
+    string Role,
+    string Status,
+    IdentifiedQueueSubjectResponse? Target,
+    Guid? SessionId,
+    DateTimeOffset? SubmittedAt);
+
 public sealed record EmailInvitationUnsubscribeResponse(string Status);
 
 public sealed record UnsubscribeEmailInvitationRequest(bool Confirmed);

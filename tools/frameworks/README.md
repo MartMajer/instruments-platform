@@ -40,6 +40,15 @@ sudo apt --fix-broken install
 sudo tools/frameworks/install-linux-toolchain.sh
 ```
 
+If `dotnet restore` fails due to network instability or stale NuGet cache, run:
+
+```bash
+./tools/frameworks/fix-dotnet-restore.sh
+```
+
+This helper uses repo-local cache paths (`.dotnet-home`, `.home`) and retries with no-cache,
+non-parallel restore settings.
+
 If you prefer to only re-sync shims after a manual install, run:
 
 ```bash

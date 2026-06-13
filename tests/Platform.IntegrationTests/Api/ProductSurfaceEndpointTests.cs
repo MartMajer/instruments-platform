@@ -346,6 +346,14 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                 TenantMemberCount: 5,
                 TenantRoleCount: 3,
                 ExportArtifactCount: 9),
+            new TenantSettingsReportBrandingResponse(
+                "Algebra Research",
+                "Campaign series report",
+                "tenant_profile",
+                "none",
+                "#2563eb",
+                "standard",
+                ["logo_upload", "custom_fonts", "product_shell_theming"]),
             [
                 new TenantSettingsManagementLinkResponse(
                     "campaign-series",
@@ -391,12 +399,85 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal(5, payload.Counts.TenantMemberCount);
         Assert.Equal(3, payload.Counts.TenantRoleCount);
         Assert.Equal(9, payload.Counts.ExportArtifactCount);
+        Assert.Equal("Algebra Research", payload.ReportBranding.OrganizationLabel);
+        Assert.Equal("Campaign series report", payload.ReportBranding.ReportTitle);
+        Assert.Equal("tenant_profile", payload.ReportBranding.BrandingSource);
+        Assert.Equal("none", payload.ReportBranding.LogoMode);
+        Assert.Equal("#2563eb", payload.ReportBranding.AccentColorHex);
+        Assert.Equal("standard", payload.ReportBranding.LayoutVariant);
+        Assert.Contains("logo_upload", payload.ReportBranding.DeferredCustomizations);
         Assert.Collection(
             payload.ManagementLinks,
             link => Assert.Equal("/app/campaign-series", link.Route),
             link => Assert.Equal("/app/team", link.Route),
             link => Assert.Equal("/app/directory", link.Route));
         Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Update_tenant_report_branding_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var writeStore = new FakeProductSurfaceWriteStore();
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/report-branding",
+            tenantId,
+            permissions: null);
+        request.Content = JsonContent.Create(new UpdateTenantReportBrandingRequest(
+            "Acme OSH Consulting",
+            "Monthly workplace risk report",
+            "#0f766e",
+            "compact"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, httpResponse.StatusCode);
+        Assert.Equal(0, writeStore.CallCount);
+    }
+
+    [Fact]
+    public async Task Update_tenant_report_branding_endpoint_returns_updated_settings()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new TenantSettingsReportBrandingResponse(
+            "Acme OSH Consulting",
+            "Monthly workplace risk report",
+            "tenant_settings",
+            "none",
+            "#0f766e",
+            "compact",
+            ["logo_upload", "custom_fonts"]);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            updateTenantReportBrandingResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/report-branding",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new UpdateTenantReportBrandingRequest(
+            "Acme OSH Consulting",
+            "Monthly workplace risk report",
+            "#0f766e",
+            "compact"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantSettingsReportBrandingResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("Acme OSH Consulting", payload.OrganizationLabel);
+        Assert.Equal("Monthly workplace risk report", payload.ReportTitle);
+        Assert.Equal("tenant_settings", payload.BrandingSource);
+        Assert.Equal("#0f766e", payload.AccentColorHex);
+        Assert.Equal("compact", payload.LayoutVariant);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal("Acme OSH Consulting", writeStore.UpdateTenantReportBrandingRequest?.OrganizationLabel);
     }
 
     [Fact]
@@ -525,7 +606,9 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                             "member",
                             new DateOnly(2026, 5, 1),
                             null)
-                    ])
+                    ],
+                    DirectoryImportStale: true,
+                    DirectoryImportStaleAt: DateTimeOffset.Parse("2026-06-11T10:15:00+00:00"))
             ]);
         var store = new FakeProductSurfaceReadStore(subjectDirectory: response);
         using var client = CreateClient(store);
@@ -542,10 +625,606 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Assert.Equal(subjectId, subject.Id);
         Assert.Equal("Ana Analyst", subject.DisplayName);
         Assert.Equal(managerId, subject.ManagerSubjectId);
+        Assert.True(subject.DirectoryImportStale);
+        Assert.Equal(DateTimeOffset.Parse("2026-06-11T10:15:00+00:00"), subject.DirectoryImportStaleAt);
         var membership = Assert.Single(subject.Groups);
         Assert.Equal(groupId, membership.GroupId);
         Assert.Equal("Research", membership.GroupName);
         Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_connection_endpoint_returns_state()
+    {
+        var tenantId = Guid.NewGuid();
+        var response = new DirectoryConnectionStateResponse(
+            tenantId,
+            "microsoft_graph",
+            "active",
+            "Contoso University",
+            "contoso.example",
+            ["User.Read.All", "GroupMember.Read.All"],
+            LastConsentAt: DateTimeOffset.Parse("2026-06-11T12:00:00+00:00"),
+            LastSuccessfulImportAt: null,
+            UpdatedAt: DateTimeOffset.Parse("2026-06-11T13:00:00+00:00"),
+            Connected: true);
+        var store = new FakeProductSurfaceReadStore(microsoftGraphDirectoryConnectionState: response);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/directory-connections/microsoft-graph",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<DirectoryConnectionStateResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(tenantId, payload.TenantId);
+        Assert.Equal("microsoft_graph", payload.Provider);
+        Assert.Equal("active", payload.Status);
+        Assert.Equal("Contoso University", payload.DisplayName);
+        Assert.Equal("contoso.example", payload.PrimaryDomain);
+        Assert.True(payload.Connected);
+        Assert.Equal(["User.Read.All", "GroupMember.Read.All"], payload.GrantedScopes);
+        Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_runs_endpoint_returns_history()
+    {
+        var tenantId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var response = new DirectoryImportRunHistoryResponse(
+            tenantId,
+            [
+                new DirectoryImportRunListItemResponse(
+                    runId,
+                    Guid.NewGuid(),
+                    null,
+                    null,
+                    "microsoft_graph",
+                    "preview",
+                    "succeeded",
+                    RowCount: 4,
+                    ImportedRowCount: 3,
+                    FailedRowCount: 1,
+                    WarningCategoryCount: 1,
+                    ["row_failed"],
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+                    DateTimeOffset.Parse("2026-06-12T12:00:01+00:00"),
+                    DateTimeOffset.Parse("2026-06-12T12:00:02+00:00"))
+            ]);
+        var store = new FakeProductSurfaceReadStore(microsoftGraphDirectoryImportRuns: response);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/directory-connections/microsoft-graph/import-runs",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<DirectoryImportRunHistoryResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(tenantId, payload.TenantId);
+        var run = Assert.Single(payload.Runs);
+        Assert.Equal(runId, run.Id);
+        Assert.Equal("preview", run.Mode);
+        Assert.Equal("succeeded", run.Status);
+        Assert.Equal(4, run.RowCount);
+        Assert.Equal(1, run.WarningCategoryCount);
+        Assert.Equal(["row_failed"], run.WarningCategories);
+        Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rules_endpoint_returns_rules()
+    {
+        var tenantId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var response = new DirectoryImportRuleListResponse(
+            tenantId,
+            [
+                new DirectoryImportRuleResponse(
+                    ruleId,
+                    Guid.NewGuid(),
+                    "All employees",
+                    "active",
+                    "mark_stale",
+                    ["external_id", "email"],
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"))
+            ]);
+        var store = new FakeProductSurfaceReadStore(microsoftGraphDirectoryImportRules: response);
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/directory-connections/microsoft-graph/import-rules",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<DirectoryImportRuleListResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(tenantId, payload.TenantId);
+        var rule = Assert.Single(payload.Rules);
+        Assert.Equal(ruleId, rule.Id);
+        Assert.Equal("All employees", rule.Name);
+        Assert.Equal("active", rule.Status);
+        Assert.Equal("mark_stale", rule.StalePolicy);
+        Assert.Equal(["external_id", "email"], rule.RetainedFields);
+        Assert.Equal(tenantId, store.TenantId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_save_endpoint_binds_request_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new DirectoryImportRuleResponse(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "All employees",
+            "active",
+            "mark_stale",
+            ["external_id", "email"],
+            DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+            DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            saveMicrosoftGraphDirectoryImportRuleResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/import-rules",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new SaveMicrosoftGraphImportRuleRequest(
+            "All employees",
+            MarkMissingSubjectsStale: true,
+            ["external_id", "email"]));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.SaveMicrosoftGraphImportRuleRequest);
+        Assert.Equal("All employees", writeStore.SaveMicrosoftGraphImportRuleRequest.Name);
+        Assert.True(writeStore.SaveMicrosoftGraphImportRuleRequest.MarkMissingSubjectsStale);
+        Assert.Equal(["external_id", "email"], writeStore.SaveMicrosoftGraphImportRuleRequest.RetainedFields);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_archive_endpoint_binds_rule_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var response = new DirectoryImportRuleResponse(
+            ruleId,
+            Guid.NewGuid(),
+            "All employees",
+            "archived",
+            "mark_stale",
+            ["external_id", "email"],
+            DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+            DateTimeOffset.Parse("2026-06-12T12:10:00+00:00"));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            archiveMicrosoftGraphDirectoryImportRuleResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Delete,
+            $"/directory-connections/microsoft-graph/import-rules/{ruleId}",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal(ruleId, writeStore.DirectoryImportRuleId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_preview_endpoint_converts_snapshot_and_stamps_rule()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var rules = new DirectoryImportRuleListResponse(
+            tenantId,
+            [
+                new DirectoryImportRuleResponse(
+                    ruleId,
+                    connectionId,
+                    "All employees",
+                    "active",
+                    "mark_stale",
+                    ["external_id", "email"],
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"))
+            ]);
+        var importResponse = new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            RowCount: 1,
+            ImportedRowCount: 1,
+            CreatedSubjectCount: 1,
+            UpdatedSubjectCount: 0,
+            CreatedGroupCount: 0,
+            AddedMembershipCount: 0,
+            SkippedMembershipCount: 0,
+            Rows: [],
+            DryRun: true,
+            ImportRunId: Guid.NewGuid());
+        var readStore = new FakeProductSurfaceReadStore(microsoftGraphDirectoryImportRules: rules);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            importSubjectDirectoryCsvResult: Result.Success(importResponse));
+        using var client = CreateClient(readStore, writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/directory-connections/microsoft-graph/import-rules/{ruleId}/preview",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new PreviewMicrosoftGraphImportRuleRequest(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            []));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphImportRulePreviewResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(ruleId, payload.DirectoryImportRuleId);
+        Assert.Equal(connectionId, payload.DirectoryConnectionId);
+        Assert.Equal(1, payload.IncludedUserCount);
+        Assert.Equal(1, payload.Import.ImportedRowCount);
+        Assert.Equal(tenantId, readStore.TenantId);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.ImportSubjectDirectoryCsvRequest);
+        Assert.True(writeStore.ImportSubjectDirectoryCsvRequest.DryRun);
+        Assert.Equal(ruleId, writeStore.ImportSubjectDirectoryCsvRequest.DirectoryImportRuleId);
+        Assert.True(writeStore.ImportSubjectDirectoryCsvRequest.MarkMissingSubjectsStale);
+        Assert.Equal("msgraph:ms-tenant-001:", writeStore.ImportSubjectDirectoryCsvRequest.SourceExternalIdPrefix);
+        Assert.Contains("msgraph:ms-tenant-001:user-001", writeStore.ImportSubjectDirectoryCsvRequest.CsvContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_apply_endpoint_requires_preview_and_stamps_rule()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var previewRunId = Guid.NewGuid();
+        var rules = new DirectoryImportRuleListResponse(
+            tenantId,
+            [
+                new DirectoryImportRuleResponse(
+                    ruleId,
+                    connectionId,
+                    "All employees",
+                    "active",
+                    "none",
+                    ["external_id", "email"],
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"),
+                    DateTimeOffset.Parse("2026-06-12T12:00:00+00:00"))
+            ]);
+        var importResponse = new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            RowCount: 1,
+            ImportedRowCount: 1,
+            CreatedSubjectCount: 1,
+            UpdatedSubjectCount: 0,
+            CreatedGroupCount: 0,
+            AddedMembershipCount: 0,
+            SkippedMembershipCount: 0,
+            Rows: [],
+            DryRun: false,
+            ImportRunId: Guid.NewGuid());
+        var readStore = new FakeProductSurfaceReadStore(microsoftGraphDirectoryImportRules: rules);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            importSubjectDirectoryCsvResult: Result.Success(importResponse));
+        using var client = CreateClient(readStore, writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/directory-connections/microsoft-graph/import-rules/{ruleId}/apply",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new ApplyMicrosoftGraphImportRuleRequest(
+            "ms-tenant-001",
+            [
+                new MicrosoftGraphDirectoryImportUser(
+                    "user-001",
+                    "ana@example.test",
+                    null,
+                    "Ana Analyst",
+                    "en",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "Member")
+            ],
+            [],
+            [],
+            previewRunId));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphImportRuleApplyResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(ruleId, payload.DirectoryImportRuleId);
+        Assert.Equal(1, payload.Import.ImportedRowCount);
+        Assert.Equal(tenantId, readStore.TenantId);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.ImportSubjectDirectoryCsvRequest);
+        Assert.False(writeStore.ImportSubjectDirectoryCsvRequest.DryRun);
+        Assert.Equal(previewRunId, writeStore.ImportSubjectDirectoryCsvRequest.PreviewImportRunId);
+        Assert.Equal(ruleId, writeStore.ImportSubjectDirectoryCsvRequest.DirectoryImportRuleId);
+        Assert.False(writeStore.ImportSubjectDirectoryCsvRequest.MarkMissingSubjectsStale);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_live_preview_endpoint_uses_connector_snapshot()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var importResponse = new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            RowCount: 1,
+            ImportedRowCount: 1,
+            CreatedSubjectCount: 1,
+            UpdatedSubjectCount: 0,
+            CreatedGroupCount: 0,
+            AddedMembershipCount: 0,
+            SkippedMembershipCount: 0,
+            Rows: [],
+            DryRun: true,
+            ImportRunId: Guid.NewGuid());
+        var readStore = new FakeProductSurfaceReadStore(
+            microsoftGraphImportRuleExecutionContext: Result.Success(new MicrosoftGraphImportRuleExecutionContext(
+                ruleId,
+                connectionId,
+                "mark_stale",
+                "ms-tenant-001")));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            importSubjectDirectoryCsvResult: Result.Success(importResponse));
+        using var client = CreateClient(
+            readStore,
+            writeStore,
+            new FakeMicrosoftGraphDirectorySnapshotConnector());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/directory-connections/microsoft-graph/import-rules/{ruleId}/live-preview",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new { });
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphImportRulePreviewResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(ruleId, payload.DirectoryImportRuleId);
+        Assert.Equal(connectionId, payload.DirectoryConnectionId);
+        Assert.Equal(1, payload.IncludedUserCount);
+        Assert.Equal(tenantId, readStore.TenantId);
+        Assert.Equal(ruleId, readStore.DirectoryImportRuleId);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.ImportSubjectDirectoryCsvRequest);
+        Assert.True(writeStore.ImportSubjectDirectoryCsvRequest.DryRun);
+        Assert.Equal(ruleId, writeStore.ImportSubjectDirectoryCsvRequest.DirectoryImportRuleId);
+        Assert.True(writeStore.ImportSubjectDirectoryCsvRequest.MarkMissingSubjectsStale);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_directory_import_rule_live_apply_endpoint_uses_connector_snapshot_and_preview()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var ruleId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var previewRunId = Guid.NewGuid();
+        var importResponse = new SubjectDirectoryCsvImportResponse(
+            tenantId,
+            RowCount: 1,
+            ImportedRowCount: 1,
+            CreatedSubjectCount: 1,
+            UpdatedSubjectCount: 0,
+            CreatedGroupCount: 0,
+            AddedMembershipCount: 0,
+            SkippedMembershipCount: 0,
+            Rows: [],
+            DryRun: false,
+            ImportRunId: Guid.NewGuid());
+        var readStore = new FakeProductSurfaceReadStore(
+            microsoftGraphImportRuleExecutionContext: Result.Success(new MicrosoftGraphImportRuleExecutionContext(
+                ruleId,
+                connectionId,
+                "none",
+                "ms-tenant-001")));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            importSubjectDirectoryCsvResult: Result.Success(importResponse));
+        using var client = CreateClient(
+            readStore,
+            writeStore,
+            new FakeMicrosoftGraphDirectorySnapshotConnector());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/directory-connections/microsoft-graph/import-rules/{ruleId}/live-apply",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new LiveApplyMicrosoftGraphImportRuleRequest(previewRunId));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphImportRuleApplyResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(ruleId, payload.DirectoryImportRuleId);
+        Assert.Equal(connectionId, payload.DirectoryConnectionId);
+        Assert.Equal(1, payload.IncludedUserCount);
+        Assert.Equal(tenantId, readStore.TenantId);
+        Assert.Equal(ruleId, readStore.DirectoryImportRuleId);
+        Assert.NotNull(writeStore.ImportSubjectDirectoryCsvRequest);
+        Assert.False(writeStore.ImportSubjectDirectoryCsvRequest.DryRun);
+        Assert.Equal(previewRunId, writeStore.ImportSubjectDirectoryCsvRequest.PreviewImportRunId);
+        Assert.Equal(ruleId, writeStore.ImportSubjectDirectoryCsvRequest.DirectoryImportRuleId);
+        Assert.False(writeStore.ImportSubjectDirectoryCsvRequest.MarkMissingSubjectsStale);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_consent_request_endpoint_binds_request_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new MicrosoftGraphConsentRequestResponse(
+            tenantId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "microsoft_graph",
+            "pending",
+            ["User.Read.All"],
+            DateTimeOffset.Parse("2026-06-11T12:20:00+00:00"),
+            "state-value",
+            "nonce-value",
+            "/app/directory");
+        var writeStore = new FakeProductSurfaceWriteStore(
+            createMicrosoftGraphConsentRequestResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/consent-requests",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new CreateMicrosoftGraphConsentRequest(["User.Read.All"]));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphConsentRequestResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("state-value", payload.State);
+        Assert.Equal("nonce-value", payload.Nonce);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.MicrosoftGraphConsentRequest);
+        Assert.Equal(["User.Read.All"], writeStore.MicrosoftGraphConsentRequest.RequestedScopes);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_consent_callback_endpoint_binds_request_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new MicrosoftGraphConsentCallbackResponse(
+            tenantId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "microsoft_graph",
+            "completed",
+            "active",
+            Connected: true);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            completeMicrosoftGraphConsentCallbackResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/consent-callback",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new CompleteMicrosoftGraphConsentCallbackRequest(
+            "state-value",
+            "nonce-value",
+            AdminConsent: true,
+            MicrosoftTenantId: "ms-tenant-001",
+            DisplayName: "Contoso University",
+            PrimaryDomain: "contoso.example"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<MicrosoftGraphConsentCallbackResponse>();
+        Assert.NotNull(payload);
+        Assert.True(payload.Connected);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.NotNull(writeStore.MicrosoftGraphConsentCallbackRequest);
+        Assert.Equal("state-value", writeStore.MicrosoftGraphConsentCallbackRequest.State);
+        Assert.Equal("nonce-value", writeStore.MicrosoftGraphConsentCallbackRequest.Nonce);
+        Assert.True(writeStore.MicrosoftGraphConsentCallbackRequest.AdminConsent);
+        Assert.Equal("ms-tenant-001", writeStore.MicrosoftGraphConsentCallbackRequest.MicrosoftTenantId);
+    }
+
+    [Fact]
+    public async Task Microsoft_graph_consent_callback_endpoint_accepts_state_only_redirect_request()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = new MicrosoftGraphConsentCallbackResponse(
+            tenantId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "microsoft_graph",
+            "completed",
+            "active",
+            Connected: true);
+        var writeStore = new FakeProductSurfaceWriteStore(
+            completeMicrosoftGraphConsentCallbackResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            "/directory-connections/microsoft-graph/consent-callback",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new
+        {
+            state = "state-value",
+            adminConsent = true,
+            microsoftTenantId = "ms-tenant-001"
+        });
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.NotNull(writeStore.MicrosoftGraphConsentCallbackRequest);
+        Assert.Equal("state-value", writeStore.MicrosoftGraphConsentCallbackRequest.State);
+        Assert.Null(writeStore.MicrosoftGraphConsentCallbackRequest.Nonce);
+        Assert.True(writeStore.MicrosoftGraphConsentCallbackRequest.AdminConsent);
+        Assert.Equal("ms-tenant-001", writeStore.MicrosoftGraphConsentCallbackRequest.MicrosoftTenantId);
     }
 
     [Fact]
@@ -1442,6 +2121,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                 QuestionCount: 3),
             new CampaignSeriesSetupScoringResponse(
                 scoringRuleId,
+                templateVersionId,
                 "leadership.total",
                 "1.0.0",
                 "draft",
@@ -2162,7 +2842,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
     private HttpClient CreateClient(
         IProductSurfaceReadStore store,
-        IProductSurfaceWriteStore? writeStore = null)
+        IProductSurfaceWriteStore? writeStore = null,
+        IMicrosoftGraphDirectorySnapshotConnector? graphConnector = null)
     {
         return factory.WithWebHostBuilder(builder =>
         {
@@ -2181,6 +2862,11 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                 if (writeStore is not null)
                 {
                     services.AddScoped<IProductSurfaceWriteStore>(_ => writeStore);
+                }
+
+                if (graphConnector is not null)
+                {
+                    services.AddScoped<IMicrosoftGraphDirectorySnapshotConnector>(_ => graphConnector);
                 }
             });
         }).CreateClient();
@@ -2213,6 +2899,10 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         TenantMemberRosterResponse? tenantMemberRoster = null,
         TenantRoleListResponse? tenantRoleList = null,
         SubjectDirectoryResponse? subjectDirectory = null,
+        DirectoryConnectionStateResponse? microsoftGraphDirectoryConnectionState = null,
+        DirectoryImportRunHistoryResponse? microsoftGraphDirectoryImportRuns = null,
+        DirectoryImportRuleListResponse? microsoftGraphDirectoryImportRules = null,
+        Result<MicrosoftGraphImportRuleExecutionContext>? microsoftGraphImportRuleExecutionContext = null,
         SubjectGroupListResponse? subjectGroupList = null,
         Result<CampaignSeriesHubResponse>? campaignSeriesHubResult = null,
         Result<CampaignSeriesSetupWorkspaceResponse>? campaignSeriesSetupWorkspaceResult = null,
@@ -2228,6 +2918,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public Guid CampaignSeriesId { get; private set; }
 
         public Guid CampaignId { get; private set; }
+
+        public Guid DirectoryImportRuleId { get; private set; }
 
         public bool CanManageSetup { get; private set; }
 
@@ -2273,6 +2965,14 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                         DateTimeOffset.Parse("2026-05-01T08:00:00+00:00"),
                         DateTimeOffset.Parse("2026-05-01T08:00:00+00:00")),
                     new TenantSettingsWorkspaceCountsResponse(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                    new TenantSettingsReportBrandingResponse(
+                        "Tenant",
+                        "Campaign series report",
+                        "tenant_profile",
+                        "none",
+                        "#2563eb",
+                        "standard",
+                        []),
                     [])));
         }
 
@@ -2329,6 +3029,58 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                 tenantId,
                 new SubjectDirectorySummaryResponse(0, 0, 0),
                 []));
+        }
+
+        public Task<DirectoryConnectionStateResponse> GetMicrosoftGraphDirectoryConnectionStateAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+
+            return Task.FromResult(microsoftGraphDirectoryConnectionState ?? new DirectoryConnectionStateResponse(
+                tenantId,
+                "microsoft_graph",
+                "disconnected",
+                "Microsoft Graph",
+                null,
+                [],
+                null,
+                null,
+                null,
+                Connected: false));
+        }
+
+        public Task<DirectoryImportRunHistoryResponse> ListMicrosoftGraphDirectoryImportRunsAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+
+            return Task.FromResult(microsoftGraphDirectoryImportRuns ??
+                new DirectoryImportRunHistoryResponse(tenantId, []));
+        }
+
+        public Task<DirectoryImportRuleListResponse> ListMicrosoftGraphDirectoryImportRulesAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+
+            return Task.FromResult(microsoftGraphDirectoryImportRules ??
+                new DirectoryImportRuleListResponse(tenantId, []));
+        }
+
+        public Task<Result<MicrosoftGraphImportRuleExecutionContext>> GetMicrosoftGraphDirectoryImportRuleExecutionContextAsync(
+            Guid tenantId,
+            Guid ruleId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+            DirectoryImportRuleId = ruleId;
+
+            return Task.FromResult(microsoftGraphImportRuleExecutionContext ??
+                Result.Failure<MicrosoftGraphImportRuleExecutionContext>(
+                    Error.NotFound("directory_import_rule.not_found", "Graph import rule was not found.")));
         }
 
         public Task<SubjectGroupListResponse> ListSubjectGroupsAsync(
@@ -2451,7 +3203,12 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<SubjectDirectoryCsvImportResponse>? importSubjectDirectoryCsvResult = null,
         Result<SubjectGroupResponse>? createSubjectGroupResult = null,
         Result<SubjectGroupMembershipResponse>? addSubjectGroupMemberResult = null,
-        Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null)
+        Result<SubjectDirectoryItemResponse>? setSubjectManagerResult = null,
+        Result<MicrosoftGraphConsentRequestResponse>? createMicrosoftGraphConsentRequestResult = null,
+        Result<MicrosoftGraphConsentCallbackResponse>? completeMicrosoftGraphConsentCallbackResult = null,
+        Result<DirectoryImportRuleResponse>? saveMicrosoftGraphDirectoryImportRuleResult = null,
+        Result<DirectoryImportRuleResponse>? archiveMicrosoftGraphDirectoryImportRuleResult = null,
+        Result<TenantSettingsReportBrandingResponse>? updateTenantReportBrandingResult = null)
         : IProductSurfaceWriteStore
     {
         public Guid TenantId { get; private set; }
@@ -2465,6 +3222,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         public Guid SubjectId { get; private set; }
 
         public Guid SubjectGroupId { get; private set; }
+
+        public Guid DirectoryImportRuleId { get; private set; }
 
         public Guid? ActorUserId { get; private set; }
 
@@ -2492,7 +3251,31 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
         public SetSubjectManagerRequest? SetSubjectManagerRequest { get; private set; }
 
+        public CreateMicrosoftGraphConsentRequest? MicrosoftGraphConsentRequest { get; private set; }
+
+        public CompleteMicrosoftGraphConsentCallbackRequest? MicrosoftGraphConsentCallbackRequest { get; private set; }
+
+        public SaveMicrosoftGraphImportRuleRequest? SaveMicrosoftGraphImportRuleRequest { get; private set; }
+
+        public UpdateTenantReportBrandingRequest? UpdateTenantReportBrandingRequest { get; private set; }
+
         public int CallCount { get; private set; }
+
+        public Task<Result<TenantSettingsReportBrandingResponse>> UpdateTenantReportBrandingAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            UpdateTenantReportBrandingRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            UpdateTenantReportBrandingRequest = request;
+
+            return Task.FromResult(updateTenantReportBrandingResult ??
+                Result.Failure<TenantSettingsReportBrandingResponse>(
+                    Error.Validation("tenant_report_branding.invalid", "Report branding is invalid.")));
+        }
 
         public Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
             Guid tenantId,
@@ -2677,6 +3460,70 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                     Error.Validation("subject_directory_import.invalid", "CSV import is invalid.")));
         }
 
+        public Task<Result<MicrosoftGraphConsentRequestResponse>> CreateMicrosoftGraphConsentRequestAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            CreateMicrosoftGraphConsentRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            MicrosoftGraphConsentRequest = request;
+
+            return Task.FromResult(createMicrosoftGraphConsentRequestResult ??
+                Result.Failure<MicrosoftGraphConsentRequestResponse>(
+                    Error.Validation("directory_connection_consent.invalid", "Microsoft Graph consent request is invalid.")));
+        }
+
+        public Task<Result<MicrosoftGraphConsentCallbackResponse>> CompleteMicrosoftGraphConsentCallbackAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            CompleteMicrosoftGraphConsentCallbackRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            MicrosoftGraphConsentCallbackRequest = request;
+
+            return Task.FromResult(completeMicrosoftGraphConsentCallbackResult ??
+                Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                    Error.Validation("directory_connection_consent.invalid", "Microsoft Graph consent callback is invalid.")));
+        }
+
+        public Task<Result<DirectoryImportRuleResponse>> SaveMicrosoftGraphDirectoryImportRuleAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            SaveMicrosoftGraphImportRuleRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            SaveMicrosoftGraphImportRuleRequest = request;
+
+            return Task.FromResult(saveMicrosoftGraphDirectoryImportRuleResult ??
+                Result.Failure<DirectoryImportRuleResponse>(
+                    Error.Validation("directory_import_rule.invalid", "Graph import rule is invalid.")));
+        }
+
+        public Task<Result<DirectoryImportRuleResponse>> ArchiveMicrosoftGraphDirectoryImportRuleAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            Guid ruleId,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            DirectoryImportRuleId = ruleId;
+
+            return Task.FromResult(archiveMicrosoftGraphDirectoryImportRuleResult ??
+                Result.Failure<DirectoryImportRuleResponse>(
+                    Error.NotFound("directory_import_rule.not_found", "Graph import rule was not found.")));
+        }
+
         public Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(
             Guid tenantId,
             Guid actorUserId,
@@ -2727,6 +3574,33 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(setSubjectManagerResult ??
                 Result.Failure<SubjectDirectoryItemResponse>(
                     Error.NotFound("subject.not_found", "Subject was not found.")));
+        }
+    }
+
+    private sealed class FakeMicrosoftGraphDirectorySnapshotConnector
+        : IMicrosoftGraphDirectorySnapshotConnector
+    {
+        public Task<Result<MicrosoftGraphDirectoryImportSnapshot>> FetchSnapshotAsync(
+            string microsoftTenantId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new MicrosoftGraphDirectoryImportSnapshot(
+                microsoftTenantId,
+                [
+                    new MicrosoftGraphDirectoryImportUser(
+                        "user-001",
+                        "ana@example.test",
+                        null,
+                        "Ana Analyst",
+                        "en",
+                        null,
+                        null,
+                        null,
+                        null,
+                        "Member")
+                ],
+                [],
+                [])));
         }
     }
 }

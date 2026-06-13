@@ -48,6 +48,16 @@ export type CreateTemplateVersionRequest = {
 	questions: CreateTemplateQuestionRequest[];
 };
 
+export type CreateTemplateVersionDraftRequest = {
+	semver: string;
+};
+
+export type UpdateTemplateVersionDraftContentRequest = {
+	sections: CreateTemplateSectionRequest[];
+	scales: CreateQuestionScaleRequest[];
+	questions: CreateTemplateQuestionRequest[];
+};
+
 export type CreateTemplateSectionRequest = {
 	ordinal: number;
 	code: string;
@@ -91,6 +101,23 @@ export type TemplateVersionDetailResponse = {
 	questions: TemplateQuestionResponse[];
 };
 
+export type TemplateVersionListResponse = {
+	templateId: string;
+	anchorTemplateVersionId: string;
+	versions: TemplateVersionSummaryResponse[];
+};
+
+export type TemplateVersionSummaryResponse = {
+	templateVersionId: string;
+	semver: string;
+	status: string;
+	isLocked: boolean;
+	isGlobal: boolean;
+	createdAt: string;
+	publishedAt: string | null;
+	publishedBy: string | null;
+};
+
 export type TemplateSectionResponse = {
 	id: string;
 	ordinal: number;
@@ -111,14 +138,20 @@ export type QuestionScaleResponse = {
 
 export type TemplateQuestionResponse = {
 	id: string;
+	sectionId: string;
 	ordinal: number;
 	code: string;
 	type: string;
 	scaleId: string | null;
 	textDefault: string;
+	descriptionDefault: string | null;
 	required: boolean;
 	reverseCoded: boolean;
 	measurementLevel: string | null;
+	weight: number;
+	variableLabel: string | null;
+	payload: string;
+	missingCodes: string;
 };
 
 export type CreateScoringRuleRequest = {
@@ -130,6 +163,11 @@ export type CreateScoringRuleRequest = {
 	document: string;
 	produces: string;
 	compatibility: string;
+};
+
+export type RetireTemplateVersionDraftScoringResponse = {
+	templateVersionId: string;
+	retiredScoringRuleCount: number;
 };
 
 export type CreateCampaignSeriesStudyBriefRequest = {
@@ -144,6 +182,15 @@ export type CreateCampaignSeriesStudyBriefRequest = {
 export type CreateCampaignSeriesRequest = {
 	name: string;
 	studyBrief?: CreateCampaignSeriesStudyBriefRequest | null;
+};
+
+export type SelectCampaignSeriesSetupTemplateRequest = {
+	templateVersionId: string;
+};
+
+export type SelectCampaignSeriesSetupTemplateResponse = {
+	campaignSeriesId: string;
+	templateVersionId: string;
 };
 
 export type CampaignSeriesTwoWaveProofResponse = {
@@ -340,6 +387,24 @@ export type CampaignIdentifiedEntryResponse = {
 	subjectId: string;
 	token: string;
 	respondentPath: string;
+};
+
+export type CampaignIdentifiedQueueAccessResponse = {
+	campaignId: string;
+	respondentCount: number;
+	assignmentCount: number;
+	createdAccessCount: number;
+	existingAccessCount: number;
+	links: CampaignIdentifiedQueueAccessLinkResponse[];
+};
+
+export type CampaignIdentifiedQueueAccessLinkResponse = {
+	invitationTokenId: string;
+	respondentSubjectId: string;
+	assignmentCount: number;
+	token?: string | null;
+	respondentPath?: string | null;
+	status: string;
 };
 
 export type CreateCampaignInvitationBatchRequest = {
@@ -571,6 +636,34 @@ export type OpenLinkEntryResponse = {
 	questions: RespondentQuestionResponse[];
 };
 
+export type IdentifiedQueueResponse = {
+	campaignId: string;
+	templateVersionId: string;
+	name: string;
+	status: string;
+	responseIdentityMode: string;
+	defaultLocale: string;
+	consentDocument: ConsentDocumentResponse;
+	questions: RespondentQuestionResponse[];
+	respondent: IdentifiedQueueSubjectResponse;
+	assignments: IdentifiedQueueAssignmentResponse[];
+};
+
+export type IdentifiedQueueSubjectResponse = {
+	id: string;
+	label: string;
+	displayName?: string | null;
+};
+
+export type IdentifiedQueueAssignmentResponse = {
+	assignmentId: string;
+	role: string;
+	status: string;
+	target?: IdentifiedQueueSubjectResponse | null;
+	sessionId?: string | null;
+	submittedAt?: string | null;
+};
+
 export type EmailInvitationUnsubscribeResponse = {
 	status: string;
 };
@@ -757,6 +850,16 @@ export type ExportArtifactDownloadResponse = {
 	content: string;
 };
 
+export type ExportArtifactSignedDownloadUrlResponse = {
+	id: string;
+	fileName: string;
+	contentType: string;
+	byteSize: number;
+	checksumSha256: string;
+	url: string;
+	expiresAt: string;
+};
+
 export function createSetupApi(client: ApiClient) {
 	return {
 		getCurrentSession() {
@@ -780,11 +883,47 @@ export function createSetupApi(client: ApiClient) {
 		getTemplateVersion(id: string) {
 			return client.request<TemplateVersionDetailResponse>(`/template-versions/${id}`);
 		},
-		createScoringRule(request: CreateScoringRuleRequest) {
-			return client.request<SetupIdResponse>('/scoring-rules', jsonPost(request));
+		listTemplateVersions(id: string) {
+			return client.request<TemplateVersionListResponse>(`/template-versions/${id}/versions`);
 		},
+		publishTemplateVersion(id: string) {
+			return client.request<TemplateVersionDetailResponse>(
+				`/template-versions/${id}/publish`,
+				jsonPost({})
+			);
+		},
+		createTemplateVersionDraft(id: string, request: CreateTemplateVersionDraftRequest) {
+			return client.request<TemplateVersionDetailResponse>(
+				`/template-versions/${id}/drafts`,
+				jsonPost(request)
+			);
+		},
+			updateTemplateVersionDraftContent(id: string, request: UpdateTemplateVersionDraftContentRequest) {
+				return client.request<TemplateVersionDetailResponse>(
+					`/template-versions/${id}/draft-content`,
+					jsonPut(request)
+				);
+			},
+			retireTemplateVersionDraftScoring(id: string) {
+				return client.request<RetireTemplateVersionDraftScoringResponse>(
+					`/template-versions/${id}/draft-scoring/retire`,
+					jsonPost({})
+				);
+			},
+			createScoringRule(request: CreateScoringRuleRequest) {
+				return client.request<SetupIdResponse>('/scoring-rules', jsonPost(request));
+			},
 		createCampaignSeries(request: CreateCampaignSeriesRequest) {
 			return client.request<SetupIdResponse>('/campaign-series', jsonPost(request));
+		},
+		selectCampaignSeriesSetupTemplate(
+			campaignSeriesId: string,
+			request: SelectCampaignSeriesSetupTemplateRequest
+		) {
+			return client.request<SelectCampaignSeriesSetupTemplateResponse>(
+				`/campaign-series/${campaignSeriesId}/setup-template`,
+				jsonPut(request)
+			);
 		},
 		getCampaignSeriesTwoWaveProof(campaignSeriesId: string) {
 			return client.request<CampaignSeriesTwoWaveProofResponse>(
@@ -840,6 +979,12 @@ export function createSetupApi(client: ApiClient) {
 		createCampaignIdentifiedEntry(campaignId: string) {
 			return client.request<CampaignIdentifiedEntryResponse>(
 				`/campaigns/${campaignId}/identified-entry`,
+				jsonPost({})
+			);
+		},
+		createCampaignIdentifiedQueueAccess(campaignId: string) {
+			return client.request<CampaignIdentifiedQueueAccessResponse>(
+				`/campaigns/${campaignId}/identified-queue-access`,
 				jsonPost({})
 			);
 		},
@@ -941,6 +1086,9 @@ export function createSetupApi(client: ApiClient) {
 		getIdentifiedEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/identified-entries/${token}`);
 		},
+		getIdentifiedQueue(token: string) {
+			return client.request<IdentifiedQueueResponse>(`/respondent/identified-queues/${token}`);
+		},
 		createOpenLinkSession(token: string, request: CreateOpenLinkSessionRequest) {
 			return client.request<ResponseSessionResponse>(
 				`/respondent/open-links/${token}/sessions`,
@@ -953,9 +1101,24 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost(request)
 			);
 		},
+		createIdentifiedQueueAssignmentSession(
+			token: string,
+			assignmentId: string,
+			request: CreateOpenLinkSessionRequest
+		) {
+			return client.request<ResponseSessionResponse>(
+				`/respondent/identified-queues/${token}/assignments/${assignmentId}/sessions`,
+				jsonPost(request)
+			);
+		},
 		getOpenLinkSessionDraft(token: string, sessionId: string) {
 			return client.request<OpenLinkSessionDraftResponse>(
 				`/respondent/open-links/${token}/sessions/${sessionId}/draft`
+			);
+		},
+		getIdentifiedQueueSessionDraft(token: string, assignmentId: string, sessionId: string) {
+			return client.request<OpenLinkSessionDraftResponse>(
+				`/respondent/identified-queues/${token}/assignments/${assignmentId}/sessions/${sessionId}/draft`
 			);
 		},
 		getPublicSessionDraft(handle: string) {
@@ -969,6 +1132,17 @@ export function createSetupApi(client: ApiClient) {
 				jsonPut(request)
 			);
 		},
+		saveIdentifiedQueueAnswers(
+			token: string,
+			assignmentId: string,
+			sessionId: string,
+			request: SaveAnswersRequest
+		) {
+			return client.request<SaveAnswersResponse>(
+				`/respondent/identified-queues/${token}/assignments/${assignmentId}/sessions/${sessionId}/answers`,
+				jsonPut(request)
+			);
+		},
 		savePublicSessionAnswers(handle: string, request: SaveAnswersRequest) {
 			return client.request<SaveAnswersResponse>(
 				`/respondent/public-sessions/${handle}/answers`,
@@ -978,6 +1152,17 @@ export function createSetupApi(client: ApiClient) {
 		submitOpenLinkSession(token: string, sessionId: string, request: SubmitResponseSessionRequest) {
 			return client.request<SubmitResponseSessionResponse>(
 				`/respondent/open-links/${token}/sessions/${sessionId}/submit`,
+				jsonPost(request)
+			);
+		},
+		submitIdentifiedQueueSession(
+			token: string,
+			assignmentId: string,
+			sessionId: string,
+			request: SubmitResponseSessionRequest
+		) {
+			return client.request<SubmitResponseSessionResponse>(
+				`/respondent/identified-queues/${token}/assignments/${assignmentId}/sessions/${sessionId}/submit`,
 				jsonPost(request)
 			);
 		},
@@ -1035,8 +1220,25 @@ export function createSetupApi(client: ApiClient) {
 				jsonPost({})
 			);
 		},
+		createCampaignSeriesReportPdfArtifact(campaignSeriesId: string) {
+			return client.request<ReportProofExportArtifactResponse>(
+				`/campaign-series/${campaignSeriesId}/report-pdf-artifacts`,
+				jsonPost({})
+			);
+		},
 		getExportArtifact(artifactId: string) {
 			return client.request<ReportProofExportArtifactResponse>(`/export-artifacts/${artifactId}`);
+		},
+		getExportArtifactSignedDownloadUrl(artifactId: string) {
+			return client.request<ExportArtifactSignedDownloadUrlResponse>(
+				`/export-artifacts/${artifactId}/signed-download-url`
+			);
+		},
+		retryCampaignSeriesReportPdfArtifact(artifactId: string) {
+			return client.request<ReportProofExportArtifactResponse>(
+				`/export-artifacts/${artifactId}/retry`,
+				jsonPost({})
+			);
 		},
 		async downloadExportArtifactCsv(artifactId: string) {
 			const response = await client.requestText(`/export-artifacts/${artifactId}/download`, {

@@ -43,6 +43,8 @@ public static class DependencyInjection
         services.AddScoped<AuditSaveChangesInterceptor>();
         services.AddScoped<OutboxSaveChangesInterceptor>();
         services.Configure<EmailDeliveryOptions>(configuration.GetSection(EmailDeliveryOptions.SectionName));
+        services.Configure<MicrosoftGraphAdminConsentOptions>(
+            configuration.GetSection(MicrosoftGraphAdminConsentOptions.SectionName));
         services
             .AddOptions<ExportArtifactObjectStoreOptions>()
             .Bind(configuration.GetSection(ExportArtifactObjectStoreOptions.SectionName))
@@ -99,6 +101,8 @@ public static class DependencyInjection
         services.AddScoped<ICampaignSeriesProofStore, CampaignSeriesProofStore>();
         services.AddScoped<IProductSurfaceReadStore, ProductSurfaceReadStore>();
         services.AddScoped<IProductSurfaceWriteStore, ProductSurfaceWriteStore>();
+        services.AddSingleton<IMicrosoftGraphAdminConsentUrlBuilder, MicrosoftGraphAdminConsentUrlBuilder>();
+        services.AddHttpClient<IMicrosoftGraphDirectorySnapshotConnector, MicrosoftGraphDirectorySnapshotConnector>();
         services.AddScoped<ISampleStudySeeder, SampleStudySeeder>();
         services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
         services.AddScoped<IOperationalNotificationStore, OperationalNotificationStore>();

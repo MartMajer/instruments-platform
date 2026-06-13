@@ -201,6 +201,467 @@ public sealed class SetupWorkflowStore(
         return Result.Success(ToTemplateVersionDetail(template, version, sections, scales, questions));
     }
 
+    public async Task<Result<TemplateVersionListResponse>> ListTemplateVersionsAsync(
+        Guid tenantId,
+        Guid anchorTemplateVersionId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var anchorVersion = await db.TemplateVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == anchorTemplateVersionId, cancellationToken);
+
+        if (anchorVersion is null)
+        {
+            return Result.Failure<TemplateVersionListResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == anchorVersion.TemplateId, cancellationToken);
+
+        if (template is null || template.TenantId != tenantId)
+        {
+            return Result.Failure<TemplateVersionListResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var versions = await db.TemplateVersions
+            .AsNoTracking()
+            .Where(version => version.TemplateId == anchorVersion.TemplateId)
+            .OrderByDescending(version => version.CreatedAt)
+            .ThenByDescending(version => version.Semver)
+            .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TemplateVersionListResponse(
+            template.Id,
+            anchorVersion.Id,
+            versions
+                .Select(version => new TemplateVersionSummaryResponse(
+                    version.Id,
+                    version.Semver,
+                    version.Status,
+                    version.IsLocked,
+                    version.IsGlobal,
+                    version.CreatedAt,
+                    version.PublishedAt,
+                    version.PublishedBy))
+                .ToList()));
+    }
+
+    public async Task<Result<TemplateVersionDetailResponse>> PublishTemplateVersionAsync(
+        Guid tenantId,
+        Guid? actorId,
+        Guid templateVersionId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorId,
+            cancellationToken: cancellationToken);
+
+        var version = await db.TemplateVersions
+            .SingleOrDefaultAsync(entity => entity.Id == templateVersionId, cancellationToken);
+
+        if (version is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == version.TemplateId, cancellationToken);
+
+        if (template is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template.not_found", "Template was not found."));
+        }
+
+        if (version.Status != TemplateVersionStatuses.Draft)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Conflict(
+                    "template_version.not_draft",
+                    "Only draft template versions can be published."));
+        }
+
+        if (version.IsGlobal || version.IsLocked || template.TenantId != tenantId)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Forbidden(
+                    "template_version.locked",
+                    "Only tenant-owned draft template versions can be published from setup."));
+        }
+
+        var publishedBy = await GetPersistedActorIdAsync(actorId, cancellationToken);
+        version.Publish(publishedBy, DateTimeOffset.UtcNow);
+
+        var sections = await db.TemplateSections
+            .AsNoTracking()
+            .Where(section => section.TemplateVersionId == templateVersionId)
+            .OrderBy(section => section.Ordinal)
+            .ToListAsync(cancellationToken);
+        var scales = await db.QuestionScales
+            .AsNoTracking()
+            .Where(scale => scale.TemplateVersionId == templateVersionId)
+            .OrderBy(scale => scale.Code)
+            .ToListAsync(cancellationToken);
+        var questions = await db.TemplateQuestions
+            .AsNoTracking()
+            .Where(question => question.TemplateVersionId == templateVersionId)
+            .OrderBy(question => question.Ordinal)
+            .ToListAsync(cancellationToken);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToTemplateVersionDetail(template, version, sections, scales, questions));
+    }
+
+    public async Task<Result<TemplateVersionDetailResponse>> CreateTemplateVersionDraftAsync(
+        Guid tenantId,
+        Guid? actorId,
+        Guid sourceTemplateVersionId,
+        CreateTemplateVersionDraftRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Semver))
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Validation("template_version.semver_required", "Template version semver is required."));
+        }
+
+        var requestedSemver = request.Semver.Trim();
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorId,
+            cancellationToken: cancellationToken);
+
+        var sourceVersion = await db.TemplateVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == sourceTemplateVersionId, cancellationToken);
+
+        if (sourceVersion is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == sourceVersion.TemplateId, cancellationToken);
+
+        if (template is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template.not_found", "Template was not found."));
+        }
+
+        if (sourceVersion.IsGlobal || template.TenantId != tenantId)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Forbidden(
+                    "template_version.locked",
+                    "Only tenant-owned published template versions can create setup drafts."));
+        }
+
+        if (sourceVersion.Status != TemplateVersionStatuses.Published)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Conflict(
+                    "template_version.not_published",
+                    "Only published template versions can create new draft versions."));
+        }
+
+        var semverExists = await db.TemplateVersions
+            .AsNoTracking()
+            .AnyAsync(
+                version => version.TemplateId == sourceVersion.TemplateId && version.Semver == requestedSemver,
+                cancellationToken);
+
+        if (semverExists)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Conflict(
+                    "template_version.duplicate_semver",
+                    "A template version with this semver already exists."));
+        }
+
+        var draftVersion = TemplateVersion.CreateTenantDraft(
+            PlatformIds.NewId(),
+            sourceVersion.TemplateId,
+            requestedSemver,
+            sourceVersion.DefaultLocale,
+            sourceVersion.InstrumentId);
+
+        var sourceSections = await db.TemplateSections
+            .AsNoTracking()
+            .Where(section => section.TemplateVersionId == sourceVersion.Id)
+            .OrderBy(section => section.Ordinal)
+            .ToListAsync(cancellationToken);
+        var sourceScales = await db.QuestionScales
+            .AsNoTracking()
+            .Where(scale => scale.TemplateVersionId == sourceVersion.Id)
+            .OrderBy(scale => scale.Code)
+            .ToListAsync(cancellationToken);
+        var sourceQuestions = await db.TemplateQuestions
+            .AsNoTracking()
+            .Where(question => question.TemplateVersionId == sourceVersion.Id)
+            .OrderBy(question => question.Ordinal)
+            .ToListAsync(cancellationToken);
+
+        var sectionIdBySourceId = sourceSections.ToDictionary(
+            section => section.Id,
+            _ => PlatformIds.NewId());
+        var scaleIdBySourceId = sourceScales.ToDictionary(
+            scale => scale.Id,
+            _ => PlatformIds.NewId());
+
+        var draftSections = sourceSections
+            .Select(section =>
+            {
+                var parentSectionId = section.ParentSectionId.HasValue &&
+                    sectionIdBySourceId.TryGetValue(section.ParentSectionId.Value, out var mappedParentSectionId)
+                        ? mappedParentSectionId
+                        : (Guid?)null;
+
+                return new TemplateSection(
+                    sectionIdBySourceId[section.Id],
+                    draftVersion.Id,
+                    section.Ordinal,
+                    section.Code ?? string.Empty,
+                    section.TitleDefault,
+                    parentSectionId);
+            })
+            .ToList();
+        var draftScales = sourceScales
+            .Select(scale => new QuestionScale(
+                scaleIdBySourceId[scale.Id],
+                draftVersion.Id,
+                scale.Code,
+                scale.Type,
+                scale.MinValue,
+                scale.MaxValue,
+                scale.Step,
+                scale.NaAllowed,
+                scale.Anchors))
+            .ToList();
+        var draftQuestions = new List<TemplateQuestion>();
+
+        foreach (var question in sourceQuestions)
+        {
+            if (!sectionIdBySourceId.TryGetValue(question.SectionId, out var draftSectionId))
+            {
+                return Result.Failure<TemplateVersionDetailResponse>(
+                    Error.Validation("template_section.not_found", "Question section was not found."));
+            }
+
+            Guid? draftScaleId = null;
+            if (question.ScaleId.HasValue &&
+                scaleIdBySourceId.TryGetValue(question.ScaleId.Value, out var mappedScaleId))
+            {
+                draftScaleId = mappedScaleId;
+            }
+
+            draftQuestions.Add(new TemplateQuestion(
+                PlatformIds.NewId(),
+                draftVersion.Id,
+                draftSectionId,
+                question.Ordinal,
+                question.Code,
+                question.Type,
+                draftScaleId,
+                question.TextDefault,
+                question.DescriptionDefault,
+                question.Required,
+                question.ReverseCoded,
+                question.Weight,
+                question.VariableLabel,
+                question.MeasurementLevel,
+                question.Payload,
+                question.MissingCodes));
+        }
+
+        db.TemplateVersions.Add(draftVersion);
+        db.TemplateSections.AddRange(draftSections);
+        db.QuestionScales.AddRange(draftScales);
+        db.TemplateQuestions.AddRange(draftQuestions);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToTemplateVersionDetail(template, draftVersion, draftSections, draftScales, draftQuestions));
+    }
+
+    public async Task<Result<TemplateVersionDetailResponse>> UpdateTemplateVersionDraftContentAsync(
+        Guid tenantId,
+        Guid? actorId,
+        Guid templateVersionId,
+        UpdateTemplateVersionDraftContentRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorId,
+            cancellationToken: cancellationToken);
+
+        var version = await db.TemplateVersions
+            .SingleOrDefaultAsync(entity => entity.Id == templateVersionId, cancellationToken);
+
+        if (version is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == version.TemplateId, cancellationToken);
+
+        if (template is null)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.NotFound("template.not_found", "Template was not found."));
+        }
+
+        if (version.Status != TemplateVersionStatuses.Draft)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Conflict(
+                    "template_version.not_draft",
+                    "Only draft template versions can be updated."));
+        }
+
+        if (version.IsGlobal || version.IsLocked || template.TenantId != tenantId)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Forbidden(
+                    "template_version.locked",
+                    "Only tenant-owned draft template versions can be updated from setup."));
+        }
+
+        var hasDraftScoringRules = await db.ScoringRules
+            .AsNoTracking()
+            .AnyAsync(
+                rule =>
+                    rule.TemplateVersionId == version.Id &&
+                    rule.Status == ScoringRuleStatuses.Draft,
+                cancellationToken);
+
+        if (hasDraftScoringRules)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Conflict(
+                    "template_version.draft_scoring_exists",
+                    "Draft questionnaire content cannot be changed while draft scoring rules exist. Rebuild scoring setup on a new draft version instead."));
+        }
+
+        var sections = new List<TemplateSection>();
+        var scales = new List<QuestionScale>();
+        var questions = new List<TemplateQuestion>();
+
+        try
+        {
+            foreach (var requestSection in request.Sections.OrderBy(section => section.Ordinal))
+            {
+                sections.Add(new TemplateSection(
+                    PlatformIds.NewId(),
+                    version.Id,
+                    requestSection.Ordinal,
+                    requestSection.Code,
+                    requestSection.TitleDefault));
+            }
+
+            foreach (var requestScale in request.Scales.OrderBy(scale => scale.Code))
+            {
+                scales.Add(new QuestionScale(
+                    PlatformIds.NewId(),
+                    version.Id,
+                    requestScale.Code,
+                    requestScale.Type,
+                    requestScale.MinValue,
+                    requestScale.MaxValue,
+                    requestScale.Step,
+                    requestScale.NaAllowed,
+                    requestScale.Anchors));
+            }
+
+            var sectionByCode = sections
+                .Where(section => section.Code is not null)
+                .ToDictionary(section => section.Code!, StringComparer.OrdinalIgnoreCase);
+            var scaleByCode = scales.ToDictionary(scale => scale.Code, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var requestQuestion in request.Questions.OrderBy(question => question.Ordinal))
+            {
+                var section = ResolveSection(requestQuestion, sections, sectionByCode);
+                if (section is null)
+                {
+                    return Result.Failure<TemplateVersionDetailResponse>(
+                        Error.Validation("template_section.not_found", "Question section was not found."));
+                }
+
+                var scaleId = ResolveScaleId(requestQuestion, scales, scaleByCode);
+                if (QuestionTypes.RequiresScale(requestQuestion.Type) && !scaleId.HasValue)
+                {
+                    return Result.Failure<TemplateVersionDetailResponse>(
+                        Error.Validation("scale.not_found", "Scale-backed questions require a scale."));
+                }
+
+                questions.Add(new TemplateQuestion(
+                    PlatformIds.NewId(),
+                    version.Id,
+                    section.Id,
+                    requestQuestion.Ordinal,
+                    requestQuestion.Code,
+                    requestQuestion.Type,
+                    scaleId,
+                    requestQuestion.TextDefault,
+                    required: requestQuestion.Required,
+                    reverseCoded: requestQuestion.ReverseCoded,
+                    measurementLevel: requestQuestion.MeasurementLevel,
+                    payload: requestQuestion.Payload,
+                    missingCodes: requestQuestion.MissingCodes));
+            }
+        }
+        catch (ArgumentException exception)
+        {
+            return Result.Failure<TemplateVersionDetailResponse>(
+                Error.Validation("template_version.invalid", exception.Message));
+        }
+
+        var existingQuestions = await db.TemplateQuestions
+            .Where(question => question.TemplateVersionId == version.Id)
+            .ToListAsync(cancellationToken);
+        var existingScales = await db.QuestionScales
+            .Where(scale => scale.TemplateVersionId == version.Id)
+            .ToListAsync(cancellationToken);
+        var existingSections = await db.TemplateSections
+            .Where(section => section.TemplateVersionId == version.Id)
+            .ToListAsync(cancellationToken);
+
+        db.TemplateQuestions.RemoveRange(existingQuestions);
+        db.QuestionScales.RemoveRange(existingScales);
+        db.TemplateSections.RemoveRange(existingSections);
+        await db.SaveChangesAsync(cancellationToken);
+
+        db.TemplateSections.AddRange(sections);
+        db.QuestionScales.AddRange(scales);
+        db.TemplateQuestions.AddRange(questions);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToTemplateVersionDetail(template, version, sections, scales, questions));
+    }
+
     public async Task<Result<SetupIdResponse>> CreateScoringRuleAsync(
         Guid tenantId,
         CreateScoringRuleRequest request,
@@ -271,10 +732,87 @@ public sealed class SetupWorkflowStore(
         }
 
         db.ScoringRules.Add(scoringRule);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (IsScoringRuleKeyVersionDuplicate(exception))
+        {
+            db.Entry(scoringRule).State = EntityState.Detached;
+
+            return Result.Failure<SetupIdResponse>(
+                DuplicateScoringRuleKeyVersion(scoringRule.RuleKey, scoringRule.RuleVersion));
+        }
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new SetupIdResponse(scoringRule.Id));
+    }
+
+    public async Task<Result<RetireTemplateVersionDraftScoringResponse>> RetireTemplateVersionDraftScoringAsync(
+        Guid tenantId,
+        Guid? actorId,
+        Guid templateVersionId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorId,
+            cancellationToken: cancellationToken);
+
+        var version = await db.TemplateVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == templateVersionId, cancellationToken);
+
+        if (version is null)
+        {
+            return Result.Failure<RetireTemplateVersionDraftScoringResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == version.TemplateId, cancellationToken);
+
+        if (template is null)
+        {
+            return Result.Failure<RetireTemplateVersionDraftScoringResponse>(
+                Error.NotFound("template.not_found", "Template was not found."));
+        }
+
+        if (version.Status != TemplateVersionStatuses.Draft)
+        {
+            return Result.Failure<RetireTemplateVersionDraftScoringResponse>(
+                Error.Conflict(
+                    "template_version.not_draft",
+                    "Only draft template versions can have draft scoring setup retired."));
+        }
+
+        if (version.IsGlobal || version.IsLocked || template.TenantId != tenantId)
+        {
+            return Result.Failure<RetireTemplateVersionDraftScoringResponse>(
+                Error.Forbidden(
+                    "template_version.locked",
+                    "Only tenant-owned draft template versions can retire draft scoring setup."));
+        }
+
+        var draftScoringRules = await db.ScoringRules
+            .Where(rule =>
+                rule.TemplateVersionId == version.Id &&
+                rule.Status == ScoringRuleStatuses.Draft)
+            .ToListAsync(cancellationToken);
+        var retiredAt = DateTimeOffset.UtcNow;
+
+        foreach (var scoringRule in draftScoringRules)
+        {
+            scoringRule.RetireDraft(retiredAt);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new RetireTemplateVersionDraftScoringResponse(
+            version.Id,
+            draftScoringRules.Count));
     }
 
     public async Task<Result<SetupIdResponse>> CreateCampaignSeriesAsync(
@@ -348,6 +886,107 @@ public sealed class SetupWorkflowStore(
         return Result.Success(new SetupIdResponse(series.Id));
     }
 
+    public async Task<Result<SelectCampaignSeriesSetupTemplateResponse>> SelectCampaignSeriesSetupTemplateAsync(
+        Guid tenantId,
+        Guid? actorId,
+        Guid campaignSeriesId,
+        SelectCampaignSeriesSetupTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorId,
+            cancellationToken: cancellationToken);
+
+        var series = await db.CampaignSeries
+            .SingleOrDefaultAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+
+        if (series is null || series.TenantId != tenantId)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
+        }
+
+        if (series.Archived || series.IsSample)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.Forbidden("campaign_series.read_only", "This campaign series cannot change setup template selection."));
+        }
+
+        var version = await db.TemplateVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == request.TemplateVersionId, cancellationToken);
+
+        if (version is null)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.NotFound("template_version.not_found", "Template version was not found."));
+        }
+
+        var template = await db.SurveyTemplates
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == version.TemplateId, cancellationToken);
+
+        if (template is null)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.NotFound("template.not_found", "Template was not found."));
+        }
+
+        if (version.Status != TemplateVersionStatuses.Published)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.Conflict(
+                    "template_version.not_published",
+                    "Only published template versions can be selected for setup."));
+        }
+
+        if (version.IsGlobal || template.TenantId != tenantId)
+        {
+            return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                Error.Forbidden(
+                    "template_version.locked",
+                    "Only tenant-owned published template versions can be selected for setup."));
+        }
+
+        var selectedAt = DateTimeOffset.UtcNow;
+        var selectedEditableCampaign = await db.Campaigns
+            .Where(campaign =>
+                campaign.TenantId == tenantId &&
+                campaign.CampaignSeriesId == series.Id &&
+                (campaign.Status == CampaignStatuses.Draft ||
+                    campaign.Status == CampaignStatuses.Scheduled))
+            .OrderByDescending(campaign => campaign.Status == CampaignStatuses.Draft)
+            .ThenByDescending(campaign => campaign.UpdatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (selectedEditableCampaign is not null &&
+            selectedEditableCampaign.TemplateVersionId != version.Id)
+        {
+            var hasLaunchSnapshot = await db.CampaignLaunchSnapshots
+                .AsNoTracking()
+                .AnyAsync(
+                    snapshot => snapshot.CampaignId == selectedEditableCampaign.Id,
+                    cancellationToken);
+
+            if (hasLaunchSnapshot)
+            {
+                return Result.Failure<SelectCampaignSeriesSetupTemplateResponse>(
+                    Error.Conflict(
+                        "campaign_series.editable_campaign_template_conflict",
+                        "The selected draft measurement already has launch history and cannot change template version."));
+            }
+
+            selectedEditableCampaign.RetargetTemplateVersion(version.Id, selectedAt);
+        }
+
+        series.SelectSetupTemplate(version.Id, selectedAt);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new SelectCampaignSeriesSetupTemplateResponse(series.Id, version.Id));
+    }
+
     public async Task<Result<CampaignDraftResponse>> CreateCampaignAsync(
         Guid tenantId,
         Guid? actorId,
@@ -371,17 +1010,26 @@ public sealed class SetupWorkflowStore(
 
         if (request.CampaignSeriesId.HasValue)
         {
-            var seriesExists = await db.CampaignSeries
+            var series = await db.CampaignSeries
                 .AsNoTracking()
-                .AnyAsync(
+                .SingleOrDefaultAsync(
                     series => series.Id == request.CampaignSeriesId.Value &&
                         series.TenantId == tenantId,
                     cancellationToken);
 
-            if (!seriesExists)
+            if (series is null)
             {
                 return Result.Failure<CampaignDraftResponse>(
                     Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
+            }
+
+            if (series.SetupTemplateVersionId.HasValue &&
+                series.SetupTemplateVersionId.Value != request.TemplateVersionId)
+            {
+                return Result.Failure<CampaignDraftResponse>(
+                    Error.Conflict(
+                        "campaign_series.setup_template_mismatch",
+                        "Campaign draft template must match the selected setup template version."));
             }
         }
 
@@ -1077,6 +1725,145 @@ public sealed class SetupWorkflowStore(
             $"/r/{issued.RawToken}"));
     }
 
+    public async Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.Id == campaignId,
+                cancellationToken);
+
+        if (campaign is null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.NotFound("campaign.not_found", "Campaign was not found."));
+        }
+
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entity => entity.TenantId == tenantId && entity.CampaignId == campaignId,
+                cancellationToken);
+
+        if (campaign.Status != CampaignStatuses.Live || snapshot is null)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "campaign.not_launched",
+                    "Campaign must be launched before creating identified queue access."));
+        }
+
+        if (snapshot.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "identified_queue.identity_mode_not_supported",
+                    "Identified queue access supports identified campaigns only."));
+        }
+
+        var assignments = await db.Assignments
+            .AsNoTracking()
+            .Where(entity =>
+                entity.TenantId == tenantId &&
+                entity.CampaignId == campaign.Id &&
+                !entity.Anonymous &&
+                entity.RespondentSubjectId != null &&
+                entity.TargetSubjectId != null)
+            .OrderBy(entity => entity.RespondentSubjectId)
+            .ThenBy(entity => entity.CreatedAt)
+            .Select(entity => new
+            {
+                entity.Id,
+                RespondentSubjectId = entity.RespondentSubjectId!.Value
+            })
+            .ToListAsync(cancellationToken);
+
+        if (assignments.Count == 0)
+        {
+            return Result.Failure<CampaignIdentifiedQueueAccessResponse>(
+                Error.Validation(
+                    "identified_queue.target_assignments_required",
+                    "Launch an identified target-aware campaign before creating 360 respondent queue access."));
+        }
+
+        var assignmentGroups = assignments
+            .GroupBy(assignment => assignment.RespondentSubjectId)
+            .OrderBy(group => group.Key)
+            .ToList();
+        var respondentSubjectIds = assignmentGroups
+            .Select(group => group.Key)
+            .ToList();
+        var existingTokens = await db.InvitationTokens
+            .AsNoTracking()
+            .Where(token =>
+                token.TenantId == tenantId &&
+                token.CampaignId == campaign.Id &&
+                token.Channel == InvitationTokenChannels.IdentifiedQueue &&
+                token.RespondentSubjectId != null &&
+                respondentSubjectIds.Contains(token.RespondentSubjectId.Value))
+            .OrderBy(token => token.CreatedAt)
+            .ToListAsync(cancellationToken);
+        var existingTokenByRespondent = existingTokens
+            .GroupBy(token => token.RespondentSubjectId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+        var links = new List<CampaignIdentifiedQueueAccessLinkResponse>(assignmentGroups.Count);
+        var createdCount = 0;
+        var existingCount = 0;
+
+        foreach (var group in assignmentGroups)
+        {
+            if (existingTokenByRespondent.TryGetValue(group.Key, out var existingToken))
+            {
+                existingCount++;
+                links.Add(new CampaignIdentifiedQueueAccessLinkResponse(
+                    existingToken.Id,
+                    group.Key,
+                    group.Count(),
+                    Token: null,
+                    RespondentPath: null,
+                    Status: "existing"));
+                continue;
+            }
+
+            var issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+            var invitationToken = new InvitationToken(
+                PlatformIds.NewId(),
+                tenantId,
+                campaign.Id,
+                issued.TokenHash,
+                InvitationTokenChannels.IdentifiedQueue,
+                respondentSubjectId: group.Key);
+
+            db.InvitationTokens.Add(invitationToken);
+            createdCount++;
+            links.Add(new CampaignIdentifiedQueueAccessLinkResponse(
+                invitationToken.Id,
+                group.Key,
+                group.Count(),
+                issued.RawToken,
+                $"/r/{issued.RawToken}",
+                "created"));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignIdentifiedQueueAccessResponse(
+            campaign.Id,
+            assignmentGroups.Count,
+            assignments.Count,
+            createdCount,
+            existingCount,
+            links));
+    }
+
     public async Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
         Guid tenantId,
         Guid campaignId,
@@ -1273,6 +2060,7 @@ public sealed class SetupWorkflowStore(
             request.Semver,
             request.DefaultLocale,
             request.InstrumentId);
+        version.Publish(createdBy, DateTimeOffset.UtcNow);
 
         var sections = new List<TemplateSection>();
         var scales = new List<QuestionScale>();
@@ -1440,14 +2228,20 @@ public sealed class SetupWorkflowStore(
                 .OrderBy(question => question.Ordinal)
                 .Select(question => new TemplateQuestionResponse(
                     question.Id,
+                    question.SectionId,
                     question.Ordinal,
                     question.Code,
                     question.Type,
                     question.ScaleId,
                     question.TextDefault,
+                    question.DescriptionDefault,
                     question.Required,
                     question.ReverseCoded,
-                    question.MeasurementLevel))
+                    question.MeasurementLevel,
+                    question.Weight,
+                    question.VariableLabel,
+                    question.Payload,
+                    question.MissingCodes))
                 .ToArray());
     }
 
@@ -2034,6 +2828,13 @@ public sealed class SetupWorkflowStore(
         }
         else
         {
+            if (version.Status != TemplateVersionStatuses.Published)
+            {
+                issues.Add(Blocker(
+                    "template_version.not_published",
+                    "Publish the template version before launch."));
+            }
+
             var sectionCount = await db.TemplateSections
                 .AsNoTracking()
                 .CountAsync(section => section.TemplateVersionId == version.Id, cancellationToken);
@@ -2193,7 +2994,40 @@ public sealed class SetupWorkflowStore(
             return scale.MinValue.ToString(CultureInfo.InvariantCulture);
         }
 
+        if (question.Type == QuestionTypes.SingleChoice)
+        {
+            return BuildSingleChoiceLaunchPreviewValue(question.Payload);
+        }
+
         return "1";
+    }
+
+    private static string BuildSingleChoiceLaunchPreviewValue(string payload)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(payload);
+            if (document.RootElement.TryGetProperty("options", out var options) &&
+                options.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var option in options.EnumerateArray())
+                {
+                    if (option.ValueKind == JsonValueKind.Object &&
+                        option.TryGetProperty("code", out var code) &&
+                        code.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(code.GetString()))
+                    {
+                        return JsonSerializer.Serialize(code.GetString()!.Trim());
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall through to a deterministic placeholder; template validation owns payload shape.
+        }
+
+        return JsonSerializer.Serialize("o01");
     }
 
     private Task<ScoringRule?> GetLaunchScoringRuleAsync(
@@ -2381,6 +3215,22 @@ public sealed class SetupWorkflowStore(
         {
             SqlState: PostgresErrorCodes.UniqueViolation,
             ConstraintName: "ix_instrument_tenant_id_code_version"
+        };
+    }
+
+    private static Error DuplicateScoringRuleKeyVersion(string key, string version)
+    {
+        return Error.Conflict(
+            "scoring_rule.duplicate_key_version",
+            $"An active scoring rule with key '{key}' and version '{version}' already exists for this template version.");
+    }
+
+    private static bool IsScoringRuleKeyVersionDuplicate(DbUpdateException exception)
+    {
+        return exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "ix_scoring_rule_template_version_id_rule_key_rule_version"
         };
     }
 

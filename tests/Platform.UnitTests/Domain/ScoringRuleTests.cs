@@ -109,4 +109,46 @@ public sealed class ScoringRuleTests
 
         Assert.Throws<InvalidOperationException>(() => rule.Publish(null, DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void Draft_rule_can_be_retired_without_publishing()
+    {
+        var retiredAt = DateTimeOffset.Parse("2026-06-12T12:00:00+00:00");
+        var rule = ScoringRule.CreateDraft(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "burnout.total",
+            "1.0.0",
+            "scoring-rule/v1",
+            "engine/v1",
+            ValidHash,
+            "{}",
+            "{}");
+
+        rule.RetireDraft(retiredAt);
+
+        Assert.Equal(ScoringRuleStatuses.Retired, rule.Status);
+        Assert.True(rule.IsLocked);
+        Assert.Null(rule.PublishedAt);
+        Assert.Null(rule.PublishedBy);
+        Assert.Equal(retiredAt, rule.UpdatedAt);
+    }
+
+    [Fact]
+    public void Published_rule_cannot_be_retired_as_draft()
+    {
+        var rule = ScoringRule.CreateDraft(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "burnout.total",
+            "1.0.0",
+            "scoring-rule/v1",
+            "engine/v1",
+            ValidHash,
+            "{}",
+            "{}");
+        rule.Publish(null, DateTimeOffset.UtcNow);
+
+        Assert.Throws<InvalidOperationException>(() => rule.RetireDraft(DateTimeOffset.UtcNow));
+    }
 }

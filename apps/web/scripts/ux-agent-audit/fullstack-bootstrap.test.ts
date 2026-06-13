@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { runFullstackBootstrap } from './fullstack-bootstrap.ts';
 
@@ -115,7 +115,7 @@ describe('UXA02 full-stack bootstrap', () => {
         cwd: expectedRoot,
         args: expect.arrayContaining([
           '-File',
-          `${expectedRoot}\\deploy\\staging\\start-local-staging.ps1`,
+          join(expectedRoot, 'deploy', 'staging', 'start-local-staging.ps1'),
         ]),
       })
     );

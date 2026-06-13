@@ -21,8 +21,10 @@
 		CreateTemplateVersionRequest,
 		InstrumentSummaryResponse,
 		LaunchReadinessResponse,
+		RetireTemplateVersionDraftScoringResponse,
 		SetupIdResponse,
-		TemplateVersionDetailResponse
+		TemplateVersionDetailResponse,
+		TemplateVersionListResponse
 	} from '$lib/api/setup';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
@@ -52,9 +54,11 @@
 	appendTemplateQuestionRow,
 	buildScoreProduces,
 	buildScoringDocument,
+	createDefaultScoreInterpretationBandRows,
 	createScoreOutputRowsForQuestionnairePalette,
 	createDefaultTemplateQuestionRows,
 	createTemplateQuestionRowsForQuestionnairePalette,
+	defaultTenantAttestedInterpretationProvenance,
 	describeQuestionResultUsage,
 	describeQuestionScaleIntent,
 	describeQuestionScoringDirection,
@@ -66,15 +70,18 @@
 	questionScalePresetOptions,
 	removeScoreOutputRow,
 	removeTemplateQuestionRow,
+	summarizeAnswerMetadataForExport,
 	summarizeAuthoringReadiness,
 	summarizeCollectedContextQuestions,
-	summarizeQuestionDimensions,
 	summarizeQuestionAuthoringCards,
+	summarizeQuestionSections,
 	summarizeQuestionnaireBlueprintReview,
+	summarizeChoiceScoreOptions,
 	summarizeReverseScoringReview,
 	summarizeResultsBlueprintReview,
 	summarizeScorePlan,
 	syncScoreOutputQuestionCodes,
+	toTemplateQuestionAuthoringRowsFromTemplateVersion,
 	toDraftRespondentPreviewContract,
 		toCreateQuestionScales,
 		toCreateTemplateQuestions,
@@ -84,6 +91,7 @@
 		type QuestionRankingMode,
 		type QuestionScalePreset,
 		type ScoreCalculation,
+		type ScoreInterpretationBandAuthoringRow,
 		type ScoreMissingStrategy,
 		type ScoreOutputAuthoringRow,
 		validateTemplateQuestionRows,
@@ -167,8 +175,22 @@
 	let templateQuestionRows = $state<TemplateQuestionAuthoringRow[]>(initialTemplateQuestionRows);
 	let expandedQuestionCode = $state(initialTemplateQuestionRows[0]?.code ?? '');
 	let scoreOutputs = $state<ScoreOutputAuthoringRow[]>(initialScoreOutputs);
+	let templateVersionHistory = $state<TemplateVersionListResponse | null>(null);
+	let templateVersionHistoryState = $state<StepState>('idle');
+	let templateVersionHistoryError = $state<string | null>(null);
+	let templateVersionDraftSemver = $state('1.1.0');
+	let templateVersionDraftState = $state<StepState>('idle');
+	let templateVersionDraftError = $state<string | null>(null);
+	let templateVersionPublishState = $state<StepState>('idle');
+	let templateVersionPublishError = $state<string | null>(null);
+	let templateVersionSelectionState = $state<StepState>('idle');
+	let templateVersionSelectionError = $state<string | null>(null);
+	let templateDraftScoringState = $state<StepState>('idle');
+	let templateDraftScoringError = $state<string | null>(null);
+	let templateDraftScoringResult = $state<RetireTemplateVersionDraftScoringResponse | null>(null);
 
 	function applyQuestionnairePalette(paletteId: QuestionnairePaletteId) {
+		const editingDraft = templateResult?.status === 'draft';
 		const nextRows = createTemplateQuestionRowsForQuestionnairePalette(paletteId);
 		const nextOutputs = createScoreOutputRowsForQuestionnairePalette(paletteId, nextRows);
 
@@ -178,10 +200,33 @@
 		scoreOutputs = nextOutputs;
 		scoringForm.document = buildScoringDocument(scoringForm.ruleKey, nextRows, nextOutputs);
 		scoringForm.produces = buildScoreProduces(nextOutputs);
-		templateResult = null;
+		if (!editingDraft) {
+			templateResult = null;
+		}
+		templateVersionHistory = null;
+		templateVersionHistoryError = null;
+		templateVersionDraftError = null;
+		templateVersionPublishError = null;
+		templateVersionSelectionError = null;
+		templateDraftScoringError = null;
+		templateDraftScoringResult = null;
 		scoringResult = null;
 		campaignResult = null;
 		readinessResult = null;
+	}
+
+	function applyTemplateVersionForAuthoring(result: TemplateVersionDetailResponse) {
+		const nextRows = toTemplateQuestionAuthoringRowsFromTemplateVersion(result);
+		const nextOutputs = syncScoreOutputQuestionCodes(scoreOutputs, nextRows);
+
+		templateResult = result;
+		templateName = result.templateName;
+		questionnaireLocale = result.defaultLocale;
+		sectionTitle = result.sections[0]?.titleDefault ?? sectionTitle;
+		templateQuestionRows = nextRows;
+		expandedQuestionCode = nextRows[0]?.code ?? '';
+		scoreOutputs = nextOutputs;
+		syncGeneratedScoringIfPristine(nextRows, scoringForm.ruleKey, nextOutputs);
 	}
 
 	function toggleQuestionRow(questionCode: string) {
@@ -270,6 +315,8 @@
 	const canGoPrevious = $derived(Boolean(previousAction && canSelectSetupAction(previousAction.id)));
 	const canGoNext = $derived(Boolean(nextAction && canSelectSetupAction(nextAction.id)));
 	const selectedTemplateVersionId = $derived(selectSetupTemplateVersionId(workspace, localState));
+	const templateDraftEditing = $derived(templateResult?.status === 'draft');
+	const templateVersionRows = $derived(templateVersionHistory?.versions ?? []);
 	const selectedCampaignId = $derived(selectSetupCampaignId(workspace, localState));
 	const selectedCampaign = $derived(
 		campaignResult?.id === selectedCampaignId
@@ -300,7 +347,7 @@
 		templateResult?.questions.length ?? workspace.template?.questionCount ?? templateQuestionRows.length
 	);
 	const templateQuestionErrors = $derived(validateTemplateQuestionRows(templateQuestionRows));
-	const questionDimensionSummaries = $derived(summarizeQuestionDimensions(templateQuestionRows));
+	const questionSectionSummaries = $derived(summarizeQuestionSections(templateQuestionRows));
 	const questionAuthoringSummaries = $derived(
 		summarizeQuestionAuthoringCards(templateQuestionRows, scoreOutputs)
 	);
@@ -317,6 +364,9 @@
 	const reverseScoringReview = $derived(summarizeReverseScoringReview(templateQuestionRows, scoreOutputs));
 	const respondentPreviewContract = $derived(
 		toDraftRespondentPreviewContract(templateQuestionRows, scoreOutputs)
+	);
+	const answerMetadataExportSummary = $derived(
+		summarizeAnswerMetadataForExport(templateQuestionRows)
 	);
 	const authoringReadiness = $derived(summarizeAuthoringReadiness(templateQuestionRows, scoreOutputs));
 	const selectedScoreQuestionRows = $derived(
@@ -456,7 +506,9 @@
 		});
 
 		if (result) {
-			templateResult = result;
+			applyTemplateVersionForAuthoring(result);
+			templateVersionHistory = null;
+			templateVersionDraftSemver = suggestNextTemplateDraftSemver([], result.semver);
 			scoringResult = null;
 			campaignResult = null;
 			readinessResult = null;
@@ -464,9 +516,256 @@
 		}
 	}
 
-	async function createScoringRule() {
+	async function saveTemplateDraftContent() {
+		const draftTemplate = templateResult;
+		if (!draftTemplate || draftTemplate.status !== 'draft') {
+			actionErrors = {
+				...actionErrors,
+				template: setupUi('Create or select a draft version before editing.')
+			};
+			return;
+		}
+
+		if (templateQuestionErrors.length > 0) {
+			actionErrors = {
+				...actionErrors,
+				template: templateQuestionErrors[0]
+			};
+			return;
+		}
+
+		syncGeneratedScoringIfPristine(templateQuestionRows);
+		const content = buildTemplateRequest(draftTemplate.instrumentId);
+		const result = await runAction('template', () =>
+			setupApi.updateTemplateVersionDraftContent(draftTemplate.templateVersionId, {
+				sections: content.sections,
+				scales: content.scales,
+				questions: content.questions
+			})
+		);
+
+			if (result) {
+				applyTemplateVersionForAuthoring(result);
+					templateVersionHistory = null;
+					templateVersionPublishError = null;
+					templateVersionSelectionError = null;
+					templateDraftScoringResult = null;
+					scoringResult = null;
+					campaignResult = null;
+				readinessResult = null;
+				activeActionId = 'scoring';
+		}
+	}
+
+	async function loadTemplateVersionHistory() {
 		const templateVersionId = selectedTemplateVersionId;
 		if (!templateVersionId) {
+			templateVersionHistoryError = setupUi('Save the questionnaire first.');
+			return;
+		}
+
+		templateVersionHistoryState = 'submitting';
+		templateVersionHistoryError = null;
+		try {
+			const [detail, history] = await Promise.all([
+				templateResult?.templateVersionId === templateVersionId
+					? Promise.resolve(templateResult)
+					: setupApi.getTemplateVersion(templateVersionId),
+				setupApi.listTemplateVersions(templateVersionId)
+			]);
+			templateResult = detail;
+			templateVersionHistory = history;
+			templateVersionDraftSemver = suggestNextTemplateDraftSemver(history.versions, detail.semver);
+			templateVersionHistoryState = 'succeeded';
+		} catch (error) {
+			templateVersionHistoryState = 'failed';
+			templateVersionHistoryError = toProductApiErrorMessage(
+				error,
+				setupUi('Template version history failed to load.')
+			);
+		}
+	}
+
+	async function createDraftFromTemplateVersion() {
+		const templateVersionId = selectedTemplateVersionId;
+		if (!templateVersionId) {
+			templateVersionDraftError = setupUi('Save the questionnaire first.');
+			return;
+		}
+
+		const semver = templateVersionDraftSemver.trim();
+		if (!semver) {
+			templateVersionDraftError = setupUi('Enter a draft version number.');
+			return;
+		}
+
+		templateVersionDraftState = 'submitting';
+		templateVersionDraftError = null;
+		try {
+				const result = await setupApi.createTemplateVersionDraft(templateVersionId, { semver });
+				applyTemplateVersionForAuthoring(result);
+				templateVersionHistory = null;
+					templateVersionPublishError = null;
+					templateVersionSelectionError = null;
+					templateDraftScoringResult = null;
+					scoringResult = null;
+					campaignResult = null;
+				readinessResult = null;
+			const refreshed = await onWorkspaceRefresh?.();
+			if (refreshed === false) {
+				refreshWarning = setupUi('Setup action saved, but the setup workspace refresh failed.');
+			}
+			templateVersionDraftState = 'succeeded';
+			activeActionId = 'template';
+		} catch (error) {
+			templateVersionDraftState = 'failed';
+			templateVersionDraftError = toProductApiErrorMessage(
+				error,
+				setupUi('Draft version could not be created.')
+			);
+		}
+	}
+
+	async function editTemplateVersionDraft(templateVersionId: string) {
+		templateVersionDraftState = 'submitting';
+		templateVersionDraftError = null;
+		try {
+			const result = await setupApi.getTemplateVersion(templateVersionId);
+			if (result.status !== 'draft') {
+				templateVersionDraftError = setupUi('Only draft versions can be edited.');
+				templateVersionDraftState = 'failed';
+				return;
+			}
+
+				applyTemplateVersionForAuthoring(result);
+				templateVersionPublishError = null;
+				templateDraftScoringResult = null;
+				scoringResult = null;
+				campaignResult = null;
+				readinessResult = null;
+			templateVersionDraftState = 'succeeded';
+			activeActionId = 'template';
+		} catch (error) {
+			templateVersionDraftState = 'failed';
+			templateVersionDraftError = toProductApiErrorMessage(
+				error,
+				setupUi('Draft version could not be loaded.')
+			);
+			}
+			}
+
+			async function selectPublishedTemplateVersion(templateVersionId: string) {
+				templateVersionSelectionState = 'submitting';
+				templateVersionSelectionError = null;
+				try {
+					const result = await setupApi.getTemplateVersion(templateVersionId);
+					if (result.status !== 'published') {
+						templateVersionSelectionError = setupUi('Only published versions can be selected for setup.');
+						templateVersionSelectionState = 'failed';
+						return;
+					}
+
+					await setupApi.selectCampaignSeriesSetupTemplate(workspace.series.id, {
+						templateVersionId: result.templateVersionId
+					});
+					applyTemplateVersionForAuthoring(result);
+					templateVersionHistory = null;
+					templateVersionDraftError = null;
+					templateVersionPublishError = null;
+					templateDraftScoringError = null;
+					templateDraftScoringResult = null;
+					scoringResult = null;
+					campaignResult = null;
+					readinessResult = null;
+					const refreshed = await onWorkspaceRefresh?.();
+					if (refreshed === false) {
+						refreshWarning = setupUi('Setup action saved, but the setup workspace refresh failed.');
+					}
+					templateVersionSelectionState = 'succeeded';
+					activeActionId = 'scoring';
+				} catch (error) {
+					templateVersionSelectionState = 'failed';
+					templateVersionSelectionError = toProductApiErrorMessage(
+						error,
+						setupUi('Published questionnaire version could not be selected.')
+					);
+				}
+			}
+
+			async function publishTemplateDraft() {
+				const draftTemplate = templateResult;
+				if (!draftTemplate || draftTemplate.status !== 'draft') {
+					templateVersionPublishError = setupUi('Create or select a draft version before publishing.');
+				return;
+			}
+
+			if (templateQuestionErrors.length > 0) {
+				templateVersionPublishError = templateQuestionErrors[0];
+				return;
+			}
+
+			templateVersionPublishState = 'submitting';
+			templateVersionPublishError = null;
+			try {
+				const result = await setupApi.publishTemplateVersion(draftTemplate.templateVersionId);
+				await setupApi.selectCampaignSeriesSetupTemplate(workspace.series.id, {
+					templateVersionId: result.templateVersionId
+				});
+				applyTemplateVersionForAuthoring(result);
+					templateVersionHistory = null;
+					templateVersionDraftError = null;
+					templateVersionSelectionError = null;
+					templateDraftScoringError = null;
+					templateDraftScoringResult = null;
+					campaignResult = null;
+				readinessResult = null;
+				const refreshed = await onWorkspaceRefresh?.();
+				if (refreshed === false) {
+					refreshWarning = setupUi('Setup action saved, but the setup workspace refresh failed.');
+				}
+				templateVersionPublishState = 'succeeded';
+				activeActionId = 'scoring';
+			} catch (error) {
+				templateVersionPublishState = 'failed';
+				templateVersionPublishError = toProductApiErrorMessage(
+					error,
+					setupUi('Draft questionnaire could not be published.')
+				);
+			}
+		}
+
+		async function retireTemplateDraftScoring() {
+			const draftTemplate = templateResult;
+			if (!draftTemplate || draftTemplate.status !== 'draft') {
+				templateDraftScoringError = setupUi('Create or select a draft version before retiring result setup.');
+				return;
+			}
+
+			templateDraftScoringState = 'submitting';
+			templateDraftScoringError = null;
+			templateDraftScoringResult = null;
+			try {
+				const result = await setupApi.retireTemplateVersionDraftScoring(
+					draftTemplate.templateVersionId
+				);
+				templateDraftScoringResult = result;
+				scoringResult = null;
+				campaignResult = null;
+				readinessResult = null;
+				templateDraftScoringState = 'succeeded';
+				activeActionId = 'template';
+			} catch (error) {
+				templateDraftScoringState = 'failed';
+				templateDraftScoringError = toProductApiErrorMessage(
+					error,
+					setupUi('Draft result setup could not be retired.')
+				);
+			}
+		}
+
+		async function createScoringRule() {
+			const templateVersionId = selectedTemplateVersionId;
+			if (!templateVersionId) {
 			actionErrors = {
 				...actionErrors,
 				scoring: setupUi('Save the questionnaire first.')
@@ -845,10 +1144,10 @@
 			semver: '1.0.0',
 			defaultLocale: questionnaireLocale,
 			instrumentId: instrumentId ?? instrumentResult?.id ?? workspace.template?.instrumentId ?? null,
-			sections: questionDimensionSummaries.map((dimension, index) => ({
+			sections: questionSectionSummaries.map((section, index) => ({
 				ordinal: index + 1,
-				code: dimension.code,
-				titleDefault: dimension.label || sectionTitle
+				code: section.code,
+				titleDefault: section.label || sectionTitle
 			})),
 			scales: toCreateQuestionScales(templateQuestionRows),
 			questions: toCreateTemplateQuestions(templateQuestionRows)
@@ -952,6 +1251,7 @@
 		updateTemplateQuestionRow(rowIndex, {
 			type,
 			reverseCoded: isScaleBacked ? current.reverseCoded : false,
+			choiceScoringEnabled: type === 'single' ? current.choiceScoringEnabled : false,
 			scaleMin: type === 'nps' ? 0 : current.scaleMin,
 			scaleMax: type === 'nps' ? 10 : current.scaleMax,
 			scaleLowLabel: type === 'nps' ? setupUi('Not at all likely') : current.scaleLowLabel,
@@ -970,12 +1270,41 @@
 	}
 
 	function updateChoiceOptions(rowIndex: number, value: string) {
+		const current = templateQuestionRows[rowIndex];
+		const options = value
+			.split('\n')
+			.map((option) => option.trim())
+			.filter(Boolean);
 		updateTemplateQuestionRow(rowIndex, {
-			choiceOptions: value
-				.split('\n')
-				.map((option) => option.trim())
-				.filter(Boolean)
+			choiceOptions: options,
+			choiceOptionScores: options.map((_, optionIndex) => current?.choiceOptionScores[optionIndex] ?? null)
 		});
+	}
+
+	function updateChoiceScoringEnabled(rowIndex: number, enabled: boolean) {
+		const current = templateQuestionRows[rowIndex];
+		if (!current) {
+			return;
+		}
+
+		updateTemplateQuestionRow(rowIndex, {
+			choiceScoringEnabled: enabled,
+			choiceOptionScores: enabled
+				? summarizeChoiceScoreOptions(current).map((option, optionIndex) => option.score ?? optionIndex)
+				: current.choiceOptionScores
+		});
+	}
+
+	function updateChoiceOptionScore(rowIndex: number, optionIndex: number, value: string) {
+		const current = templateQuestionRows[rowIndex];
+		if (!current) {
+			return;
+		}
+
+		const nextScores = [...current.choiceOptionScores];
+		const trimmed = value.trim();
+		nextScores[optionIndex] = trimmed ? Number(trimmed) : null;
+		updateTemplateQuestionRow(rowIndex, { choiceOptionScores: nextScores });
 	}
 
 	function updateMatrixRows(rowIndex: number, value: string) {
@@ -999,14 +1328,18 @@
 	function displayLogicSourceQuestions(rowIndex: number) {
 		return templateQuestionRows
 			.slice(0, rowIndex)
-			.filter((question) => question.type === 'single' && question.choiceOptions.length > 0);
+			.filter(
+				(question) =>
+					(question.type === 'single' || question.type === 'multi') &&
+					question.choiceOptions.length > 0
+			);
 	}
 
 	function displayLogicSourceOptions(sourceQuestionCode: string) {
 		const source = templateQuestionRows.find(
 			(question) =>
 				question.code.trim().toLowerCase() === sourceQuestionCode.trim().toLowerCase() &&
-				question.type === 'single'
+				(question.type === 'single' || question.type === 'multi')
 		);
 
 		return (source?.choiceOptions ?? [])
@@ -1017,10 +1350,35 @@
 			.filter((option) => option.label.trim());
 	}
 
+	function displayLogicOperatorOptions(sourceQuestionCode: string) {
+		const source = templateQuestionRows.find(
+			(question) =>
+				question.code.trim().toLowerCase() === sourceQuestionCode.trim().toLowerCase() &&
+				(question.type === 'single' || question.type === 'multi')
+		);
+
+		if (source?.type === 'multi') {
+			return [
+				{ value: 'contains' as const, label: setupUi('includes') },
+				{ value: 'not_contains' as const, label: setupUi('does not include') }
+			];
+		}
+
+		return [
+			{ value: 'equals' as const, label: setupUi('is') },
+			{ value: 'not_equals' as const, label: setupUi('is not') }
+		];
+	}
+
+	function displayLogicDefaultOperator(sourceQuestionCode: string) {
+		return displayLogicOperatorOptions(sourceQuestionCode)[0]?.value ?? 'equals';
+	}
+
 	function updateDisplayLogicEnabled(rowIndex: number, enabled: boolean) {
 		if (!enabled) {
 			updateTemplateQuestionRow(rowIndex, {
 				displayLogicEnabled: false,
+				displayLogicOperator: 'equals',
 				displayLogicSourceQuestionCode: '',
 				displayLogicSourceOptionCode: ''
 			});
@@ -1031,6 +1389,7 @@
 		const optionCode = source ? displayLogicSourceOptions(source.code)[0]?.code ?? '' : '';
 		updateTemplateQuestionRow(rowIndex, {
 			displayLogicEnabled: true,
+			displayLogicOperator: source ? displayLogicDefaultOperator(source.code) : 'equals',
 			displayLogicSourceQuestionCode: source?.code ?? '',
 			displayLogicSourceOptionCode: optionCode
 		});
@@ -1039,6 +1398,7 @@
 	function updateDisplayLogicSource(rowIndex: number, sourceQuestionCode: string) {
 		updateTemplateQuestionRow(rowIndex, {
 			displayLogicSourceQuestionCode: sourceQuestionCode,
+			displayLogicOperator: displayLogicDefaultOperator(sourceQuestionCode),
 			displayLogicSourceOptionCode: displayLogicSourceOptions(sourceQuestionCode)[0]?.code ?? ''
 		});
 	}
@@ -1097,6 +1457,10 @@
 		}
 
 		if (question.type === 'single') {
+			if (question.choiceScoringEnabled) {
+				return setupUi(`Score-mapped single choice: ${question.choiceOptions.join(', ')}`);
+			}
+
 			return setupUi(`Choose one: ${question.choiceOptions.join(', ')}`);
 		}
 
@@ -1240,6 +1604,117 @@
 			produces: buildDefaultProduces(nextOutputs)
 		};
 		syncGeneratedScoringIfPristine(templateQuestionRows, ruleKey, nextOutputs);
+	}
+
+	function syncScoreOutputsAndProduces(nextOutputs: ScoreOutputAuthoringRow[]) {
+		scoreOutputs = nextOutputs;
+		scoringForm = {
+			...scoringForm,
+			produces: buildDefaultProduces(nextOutputs)
+		};
+		syncGeneratedScoringIfPristine(templateQuestionRows, scoringForm.ruleKey, nextOutputs);
+	}
+
+	function toggleScoreOutputInterpretation(localId: string, enabled: boolean) {
+		const nextOutputs = scoreOutputs.map((output) =>
+			output.localId === localId
+				? {
+						...output,
+						interpretationEnabled: enabled,
+						interpretationProvenance:
+							output.interpretationProvenance ?? defaultTenantAttestedInterpretationProvenance,
+						interpretationBands: output.interpretationBands?.length
+							? output.interpretationBands
+							: createDefaultScoreInterpretationBandRows()
+					}
+				: output
+		);
+		syncScoreOutputsAndProduces(nextOutputs);
+	}
+
+	function addScoreInterpretationBand(outputLocalId: string) {
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			const bands = output.interpretationBands?.length
+				? output.interpretationBands
+				: createDefaultScoreInterpretationBandRows();
+			const previous = bands.at(-1);
+			const nextIndex = bands.length + 1;
+			const nextMin = previous ? Number((previous.max + 0.01).toFixed(2)) : 1;
+			const nextMax = previous ? Number((previous.max + 1).toFixed(2)) : 5;
+
+			return {
+				...output,
+				interpretationBands: [
+					...bands,
+					{
+						localId: createScoreInterpretationBandLocalId(),
+						code: `band_${nextIndex}`,
+						label: `Tenant band ${nextIndex}`,
+						min: nextMin,
+						max: nextMax
+					}
+				]
+			};
+		});
+		syncScoreOutputsAndProduces(nextOutputs);
+	}
+
+	function removeScoreInterpretationBand(outputLocalId: string, bandLocalId: string) {
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			const bands = output.interpretationBands?.length
+				? output.interpretationBands
+				: createDefaultScoreInterpretationBandRows();
+			return {
+				...output,
+				interpretationBands:
+					bands.length <= 1 ? bands : bands.filter((band) => band.localId !== bandLocalId)
+			};
+		});
+		syncScoreOutputsAndProduces(nextOutputs);
+	}
+
+	function updateScoreInterpretationBand(
+		outputLocalId: string,
+		bandLocalId: string,
+		patch: Partial<ScoreInterpretationBandAuthoringRow>
+	) {
+		const nextOutputs = scoreOutputs.map((output) => {
+			if (output.localId !== outputLocalId) {
+				return output;
+			}
+
+			const bands = output.interpretationBands?.length
+				? output.interpretationBands
+				: createDefaultScoreInterpretationBandRows();
+			return {
+				...output,
+				interpretationBands: bands.map((band) =>
+					band.localId === bandLocalId ? { ...band, ...patch } : band
+				)
+			};
+		});
+		syncScoreOutputsAndProduces(nextOutputs);
+	}
+
+	function parseScoreBandNumber(value: string) {
+		const parsed = Number.parseFloat(value);
+		return Number.isFinite(parsed) ? parsed : Number.NaN;
+	}
+
+	function createScoreInterpretationBandLocalId() {
+		if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+			return crypto.randomUUID();
+		}
+
+		return `band-${Math.random().toString(36).slice(2, 10)}`;
 	}
 
 	function toggleScoreQuestion(outputLocalId: string, code: string, checked: boolean) {
@@ -1651,10 +2126,31 @@
 
 	function setupQuestionnaireSavedSummary(count: number): string {
 		if (appLocale !== 'hr-HR') {
-			return `${formatCount(count)} ${count === 1 ? 'question is' : 'questions are'} saved. Continue to scoring.`;
+			return `${formatCount(count)} ${count === 1 ? 'question is' : 'questions are'} published for launch. Continue to scoring.`;
 		}
 
-		return `${formatCount(count)} ${count === 1 ? 'pitanje je spremljeno' : 'pitanja su spremljena'}. Nastavite na postavljanje rezultata.`;
+		return `${formatCount(count)} ${count === 1 ? 'pitanje je objavljeno' : 'pitanja su objavljena'} za pokretanje. Nastavite na postavljanje rezultata.`;
+	}
+
+	function suggestNextTemplateDraftSemver(
+		versions: TemplateVersionListResponse['versions'],
+		baseSemver = '1.0.0'
+	): string {
+		const existing = new Set(versions.map((version) => version.semver));
+		const match = /^(\d+)\.(\d+)\.(\d+)$/u.exec(baseSemver.trim());
+		const major = match ? Number.parseInt(match[1], 10) : 1;
+		let minor = match ? Number.parseInt(match[2], 10) + 1 : 1;
+		const patch = 0;
+
+		for (let attempt = 0; attempt < 50; attempt += 1) {
+			const candidate = `${major}.${minor}.${patch}`;
+			if (!existing.has(candidate)) {
+				return candidate;
+			}
+			minor += 1;
+		}
+
+		return `${major}.${minor}.${patch}`;
 	}
 
 	function setupResultOutputsList(outputs: string[]) {
@@ -1723,7 +2219,7 @@
 
 	function audienceRuleHelp(rule: PreviewRuleKind): string {
 		if (rule === 'all_in_group') {
-			return setupUi('Invite active people from the selected Directory groups.');
+			return setupUi('Invite active people from the selected People groups.');
 		}
 
 		if (rule === 'self') {
@@ -1791,7 +2287,7 @@
 		}
 
 		if (issue.code === 'respondent_rule.email_required') {
-			return setupUi('Every saved Directory recipient needs an email address before invite-only collection can start.');
+			return setupUi('Every saved People recipient needs an email address before invite-only collection can start.');
 		}
 
 		if (issue.code === 'respondent_rule.no_recipients') {
@@ -1829,6 +2325,7 @@
 		'Starting source name': 'Naziv početnog izvora',
 		'Save starting source': 'Spremi početni izvor',
 		'Questionnaire ready': 'Upitnik spreman',
+		'Questionnaire published': 'Upitnik objavljen',
 		'Questionnaire name': 'Naziv upitnika',
 		Language: 'Jezik',
 		English: 'Engleski',
@@ -1992,6 +2489,20 @@
 		'Edit result names, export codes, scoring audit, and technical checks.':
 			'Uredite nazive rezultata, kodove izvoza, provjeru bodovanja i dodatne provjere.',
 		'Result options': 'Opcije rezultata',
+		'Tenant-attested interpretation bands': 'Interpretacijski rasponi s potvrdom naručitelja',
+		'Optional tenant-defined labels for score ranges. These are not official norms, benchmarks, or validated thresholds.':
+			'Neobavezne oznake raspona rezultata koje definira naručitelj. To nisu službene norme, referentne vrijednosti ni validirani pragovi.',
+		'Add tenant-defined interpretation bands': 'Dodaj interpretacijske raspone koje definira naručitelj',
+		'Interpretation provenance': 'Podrijetlo interpretacije',
+		'Must say these bands are tenant-defined, not validated, and not official.':
+			'Mora navesti da su rasponi definirani od naručitelja, nisu validirani i nisu službeni.',
+		Band: 'Raspon',
+		'Band code': 'Kod raspona',
+		'Band label': 'Oznaka raspona',
+		'Minimum score': 'Najmanji rezultat',
+		'Maximum score': 'Najveći rezultat',
+		'Add band': 'Dodaj raspon',
+		'Remove band': 'Ukloni raspon',
 		'Question selection': 'Pitanja koja ulaze u rezultat',
 		'Unchecked questions stay in the questionnaire, but do not affect this result calculation.':
 			'Neoznačena pitanja ostaju u upitniku, ali ne utječu na izračun ovog rezultata.',
@@ -2054,9 +2565,9 @@
 			'Radnja postavljanja je spremljena, ali osvježavanje radnog prostora nije uspjelo.',
 		Status: 'Status',
 		'Recipient selection': 'Odabir primatelja',
-		'Setup issues': 'Problemi postavljanja',
-		'Every saved Directory recipient needs an email address before invite-only collection can start.':
-			'Svaki spremljeni primatelj iz Imenika mora imati email adresu prije nego što može početi prikupljanje samo preko pozivnica.',
+		'Preparation issues': 'Problemi postavljanja',
+		'Every saved People recipient needs an email address before invite-only collection can start.':
+			'Svaki spremljeni primatelj iz Ljudi mora imati email adresu prije nego što može početi prikupljanje samo preko pozivnica.',
 		'Save at least one recipient selection before launch, and make sure it resolves to active people.':
 			'Spremite barem jedan odabir primatelja prije pokretanja i provjerite da odabir pronalazi aktivne osobe.',
 		'Specific email lists are available for anonymous invite-only or same-person repeat measurements only.':
@@ -2070,7 +2581,7 @@
 			'Odabir primatelja još nije spremljen. Najprije pregledajte primatelje, zatim spremite pregledani odabir prije pokretanja.',
 		'Saved for launch': 'Spremljeno za pokretanje',
 		'Reusable population': 'Ponovno upotrebljiva populacija',
-		'Directory groups': 'Grupe iz imenika',
+		'People groups': 'Grupe ljudi',
 		'One-off population': 'Jednokratna populacija',
 		'Email import': 'Uvoz email adresa',
 		'Open participation': 'Otvoreno sudjelovanje',
@@ -2086,8 +2597,8 @@
 		'Send invitations to': 'Pošalji pozivnice za',
 		'How to choose': 'Kako odabrati',
 		'Everyone in selected groups': 'Svi u odabranim grupama',
-		'Invite active people from the selected Directory groups.':
-			'Pozovite aktivne osobe iz odabranih grupa Imenika.',
+		'Invite active people from the selected People groups.':
+			'Pozovite aktivne osobe iz odabranih grupa ljudi.',
 		'Saved people answer for themselves': 'Spremljene osobe odgovaraju za sebe',
 		'Invite the saved people directly. Each person gets one private invitation.':
 			'Pozovite spremljene osobe izravno. Svaka osoba dobiva jednu privatnu pozivnicu.',
@@ -2109,25 +2620,25 @@
 		'Import recipients': 'Uvezi primatelje',
 		'Review or paste source list': 'Pregledajte ili zalijepite izvorni popis',
 		'Recipient source': 'Izvor primatelja',
-		'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:':
-			'Koristite ovo kada ovo mjerenje ima jednokratni popis primatelja. Za ponavljajuće mjerenja ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Imenik. Ograničenje:',
+		'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in People instead. Limit:':
+			'Koristite ovo kada ovo mjerenje ima jednokratni popis primatelja. Za ponavljajuće mjerenja ili ponovno upotrebljive skupine radije uvezite osobe i grupe u Ljudi. Ograničenje:',
 		'recipients per wave update.': 'primatelja po ažuriranju mjerenja.',
 		'Keep valid only': 'Zadrži samo valjane',
 		'Clear list': 'Očisti popis',
-		'Directory group': 'Grupa iz imenika',
+		'People group': 'Grupa ljudi',
 		'No groups available': 'Nema dostupnih grupa',
-		'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.':
-			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Imeniku ili prijeđite na jednokratni uvoz email adresa samo za ovo mjerenje.',
+		'Create a reusable cohort, department, class, or location in People, or switch to one-off email import for this measurement only.':
+			'Izradite ponovno upotrebljivu skupinu, odjel, razred ili lokaciju u Ljudi ili prijeđite na jednokratni uvoz email adresa samo za ovo mjerenje.',
 		'Focus person': 'Fokus osoba',
-		'Directory people': 'Osobe iz imenika',
+		'People records': 'Osobe',
 		'active people loaded': 'aktivnih osoba učitano',
 		'No active people loaded yet': 'Još nema učitanih aktivnih osoba',
-		'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.':
-			'Ovaj odabir je širok. Koristite grupu iz imenika kada mjerenje treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
+		'This selection is broad. Use a People group when the measurement should only reach a department, cohort, class, or location.':
+			'Ovaj odabir je širok. Koristite grupu ljudi kada mjerenje treba dosegnuti samo odjel, skupinu, razred ili lokaciju.',
 		'Preview rows': 'Redci pregleda',
 		'Preview recipients': 'Pregledaj primatelje',
 		'Save previewed recipients': 'Spremi pregledane primatelje',
-		'Refresh directory': 'Osvježi imenik',
+		'Refresh people': 'Osvježi ljude',
 		'Previewed selection': 'Pregledani odabir',
 		'recipient found': 'primatelj pronađen',
 		'recipients found': 'primatelja pronađeno',
@@ -2165,7 +2676,7 @@
 		Locked: 'Zaključano',
 		'This measurement is already locked. Recipient selection can only be changed before launch. Save the next draft measurement first, then choose recipients for that draft.':
 			'Ovo mjerenje je već zaključano. Odabir primatelja može se mijenjati samo prije pokretanja. Najprije spremite sljedeći nacrt mjerenja, zatim odaberite primatelje za taj nacrt.',
-		'Open Directory': 'Otvori imenik',
+		'Open People': 'Otvori ljude',
 		'Setup path': 'Put postavljanja',
 		'Number entry': 'Brojčani unos',
 		'Written response': 'Tekstualni odgovor',
@@ -2317,19 +2828,190 @@
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'template'}
-					{#if activeStep.pathState === 'done'}
+					{#if activeStep.pathState === 'done' && !templateDraftEditing}
 						<div class="record-row">
 							<div class="record-row__header">
 								<div>
-									<h5 class="record-row__title">{setupUi('Questionnaire ready')}</h5>
+									<h5 class="record-row__title">{setupUi('Questionnaire published')}</h5>
 									<p class="text-sm text-[var(--color-text-muted)]">
 										{setupQuestionnaireSavedSummary(questionnaireQuestionCount)}
 									</p>
 								</div>
 								<StatusBadge status="ready" label={setupBodyCopy.status.done} />
 							</div>
+							<div class="record-grid">
+								<div class="record-field">
+									<p class="record-field__label">{setupUi('Current version')}</p>
+									<p class="record-field__value">
+										{templateResult?.semver ?? setupUi('Saved')}
+									</p>
+								</div>
+								<div class="record-field">
+									<p class="record-field__label">{setupUi('Version state')}</p>
+									<p class="record-field__value">
+										{setupUi(templateResult?.status ?? 'published')}
+									</p>
+								</div>
+							</div>
+							<div class="mt-4 record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Version history')}</p>
+										<h5 class="record-row__title">{setupUi('Edit through a draft version')}</h5>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('Published questionnaires stay locked. Create or select a draft version before changing questions.')}
+										</p>
+									</div>
+									<button
+										type="button"
+										class="secondary-button"
+										disabled={templateVersionHistoryState === 'submitting'}
+										onclick={loadTemplateVersionHistory}
+									>
+										{templateVersionHistoryState === 'submitting'
+											? setupUi('Loading versions...')
+											: setupUi('Load versions')}
+									</button>
+								</div>
+								<div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+									<label class="field">
+										<span>{setupUi('New draft version')}</span>
+										<input bind:value={templateVersionDraftSemver} placeholder="1.1.0" />
+									</label>
+									<button
+										type="button"
+										class="primary-button self-end"
+										disabled={templateVersionDraftState === 'submitting'}
+										onclick={createDraftFromTemplateVersion}
+									>
+										{templateVersionDraftState === 'submitting'
+											? setupUi('Creating draft...')
+											: setupUi('Create editable draft')}
+									</button>
+								</div>
+								{#if templateVersionHistoryError}
+									<p class="error-line" role="alert">{templateVersionHistoryError}</p>
+								{/if}
+									{#if templateVersionDraftError}
+										<p class="error-line" role="alert">{templateVersionDraftError}</p>
+									{/if}
+									{#if templateVersionSelectionError}
+										<p class="error-line" role="alert">{templateVersionSelectionError}</p>
+									{/if}
+									{#if templateVersionRows.length > 0}
+										<div class="record-list" aria-label={setupUi('Template versions')}>
+											{#each templateVersionRows as version (version.templateVersionId)}
+												<div class="record-row">
+												<div class="record-row__header">
+													<div>
+														<p class="record-field__label">{setupUi('Version')} {version.semver}</p>
+														<h6 class="record-row__title">{setupUi(version.status)}</h6>
+														<p class="text-sm text-[var(--color-text-muted)]">
+															{version.publishedAt
+																? `${setupUi('Published')}: ${version.publishedAt}`
+																: setupUi('Not published yet')}
+														</p>
+													</div>
+													<StatusBadge
+														status={version.status === 'published' ? 'ready' : 'neutral'}
+														label={setupUi(version.status)}
+													/>
+												</div>
+												{#if version.status === 'draft'}
+													<button
+														type="button"
+														class="secondary-button"
+														disabled={templateVersionDraftState === 'submitting'}
+														onclick={() => editTemplateVersionDraft(version.templateVersionId)}
+													>
+															{setupUi('Edit this draft')}
+														</button>
+													{:else if version.status === 'published'}
+														<button
+															type="button"
+															class="secondary-button"
+															disabled={templateVersionSelectionState === 'submitting' ||
+																version.templateVersionId === selectedTemplateVersionId}
+															onclick={() => selectPublishedTemplateVersion(version.templateVersionId)}
+														>
+															{version.templateVersionId === selectedTemplateVersionId
+																? setupUi('Selected version')
+																: setupUi('Use this published version')}
+														</button>
+													{/if}
+												</div>
+											{/each}
+									</div>
+								{/if}
+							</div>
 						</div>
 					{:else}
+						{#if templateDraftEditing}
+							<div class="record-row">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Draft questionnaire')}</p>
+										<h5 class="record-row__title">
+											{setupUi('Editing version')} {templateResult?.semver}
+										</h5>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('Changes are saved to this draft version. Published versions and launched measurements stay unchanged.')}
+										</p>
+										</div>
+										<StatusBadge status="neutral" label={setupUi('Draft')} />
+									</div>
+									<div class="mt-4 flex flex-wrap items-center gap-3">
+										<button
+											type="button"
+											class="secondary-button"
+											disabled={templateDraftScoringState === 'submitting'}
+											onclick={retireTemplateDraftScoring}
+										>
+											{#if templateDraftScoringState === 'submitting'}
+												<LoaderCircle size={16} class="animate-spin" aria-hidden="true" />
+											{/if}
+											<span>{setupUi('Retire draft result setup')}</span>
+										</button>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('Use this before changing questions when draft scoring was already saved. You will rebuild results setup next.')}
+										</p>
+									</div>
+									{#if templateDraftScoringResult}
+										<p class="success-line">
+											{templateDraftScoringResult.retiredScoringRuleCount === 1
+												? setupUi('1 draft result setup retired.')
+												: setupUi(
+														`${templateDraftScoringResult.retiredScoringRuleCount} draft result setup items retired.`
+													)}
+										</p>
+									{/if}
+									{#if templateDraftScoringError}
+										<p class="error-line">{templateDraftScoringError}</p>
+									{/if}
+									<div class="mt-4 flex flex-wrap items-center gap-3">
+										<button
+											type="button"
+											class="primary-button"
+											disabled={
+												templateVersionPublishState === 'submitting' ||
+												templateQuestionErrors.length > 0
+											}
+											onclick={publishTemplateDraft}
+										>
+											{#if templateVersionPublishState === 'submitting'}
+												<LoaderCircle size={16} class="animate-spin" aria-hidden="true" />
+											{/if}
+											<span>{setupUi('Publish saved draft')}</span>
+										</button>
+										<p class="text-sm text-[var(--color-text-muted)]">
+											{setupUi('Save draft questionnaire first if you changed questions. Publishing locks this version for setup and keeps launched measurements unchanged.')}
+										</p>
+									</div>
+									{#if templateVersionPublishError}
+										<p class="error-line" role="alert">{templateVersionPublishError}</p>
+									{/if}
+								</div>
+							{/if}
 						<div class="grid gap-4 lg:grid-cols-2">
 							<label class="field">
 								<span>{setupUi('Language')}</span>
@@ -2401,6 +3083,8 @@
 												{question.textDefault.trim() || setupUi('Untitled question')}
 											</h5>
 											<p class="text-sm text-[var(--color-text-muted)]">
+												{questionAuthoringSummary(question.code)?.sectionLabel ?? question.sectionLabel}
+												-
 												{questionAuthoringSummary(question.code)?.dimensionLabel ?? question.dimensionLabel}
 												-
 												{questionAuthoringSummary(question.code)?.scaleLabel ?? questionTypeLabel(question.type)}
@@ -2433,6 +3117,19 @@
 														textDefault: event.currentTarget.value
 													})}
 											></textarea>
+										</label>
+										<label class="field">
+											<span>{setupUi('Section / page')}</span>
+											<input
+												value={question.sectionLabel}
+												oninput={(event) =>
+													updateTemplateQuestionRow(index, {
+														sectionLabel: event.currentTarget.value
+													})}
+											/>
+											<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+												{setupUi('Use sections or pages to group the respondent flow before branching is added.')}
+											</span>
 										</label>
 										<label class="field">
 											<span>{setupUi('Dimension / construct')}</span>
@@ -2688,6 +3385,45 @@
 														/>
 													</label>
 												</div>
+												{#if question.type === 'single'}
+													<div class="record-row mt-3">
+														<label class="checkbox-field">
+															<input
+																type="checkbox"
+																checked={question.choiceScoringEnabled}
+																onchange={(event) =>
+																	updateChoiceScoringEnabled(index, event.currentTarget.checked)}
+															/>
+															<span>{setupUi('Score this single-choice question')}</span>
+														</label>
+														{#if question.choiceScoringEnabled}
+															<p class="mt-2 text-sm text-[var(--color-text-muted)]">
+																{setupUi(
+																	'Each option code is converted to this tenant-defined numeric score before result calculations. Other write-in options are not scoreable in this beta.'
+																)}
+															</p>
+															<div class="mt-3 grid gap-3 lg:grid-cols-3">
+																{#each summarizeChoiceScoreOptions(question) as option, optionIndex (option.code)}
+																	<label class="field">
+																		<span>{option.label}</span>
+																		<input
+																			type="number"
+																			step="0.01"
+																			value={option.score ?? ''}
+																			oninput={(event) =>
+																				updateChoiceOptionScore(
+																					index,
+																					optionIndex,
+																					event.currentTarget.value
+																				)}
+																		/>
+																		<span class="text-xs text-[var(--color-text-muted)]">{option.code}</span>
+																	</label>
+																{/each}
+															</div>
+														{/if}
+													</div>
+												{/if}
 											{/if}
 											{#if question.type === 'ranking'}
 												<div class="mt-3 grid gap-3 lg:grid-cols-3">
@@ -2753,6 +3489,9 @@
 										{@const displayOptions = displayLogicSourceOptions(
 											question.displayLogicSourceQuestionCode
 										)}
+										{@const displayOperators = displayLogicOperatorOptions(
+											question.displayLogicSourceQuestionCode
+										)}
 										<details class="record-row">
 											<summary class="record-row__title">{setupUi('Display rule')}</summary>
 											<div class="mt-3 grid gap-3">
@@ -2769,11 +3508,11 @@
 												{#if displaySources.length === 0}
 													<p class="text-sm text-[var(--color-text-muted)]">
 														{setupUi(
-															'Add an earlier single-choice question before creating a follow-up rule.'
+															'Add an earlier single-choice or multiple-choice question before creating a follow-up rule.'
 														)}
 													</p>
 												{:else if question.displayLogicEnabled}
-													<div class="grid gap-3 lg:grid-cols-2">
+													<div class="grid gap-3 lg:grid-cols-3">
 														<label class="field">
 															<span>{setupUi('Source question')}</span>
 															<select
@@ -2785,6 +3524,24 @@
 																	<option value={source.code}>
 																		{source.textDefault.trim() || source.code}
 																	</option>
+																{/each}
+															</select>
+														</label>
+														<label class="field">
+															<span>{setupUi('Condition')}</span>
+															<select
+																value={question.displayLogicOperator}
+																onchange={(event) =>
+																	updateTemplateQuestionRow(index, {
+																		displayLogicOperator: event.currentTarget.value as
+																			| 'equals'
+																			| 'not_equals'
+																			| 'contains'
+																			| 'not_contains'
+																	})}
+															>
+																{#each displayOperators as operator (operator.value)}
+																	<option value={operator.value}>{operator.label}</option>
 																{/each}
 															</select>
 														</label>
@@ -2962,7 +3719,7 @@
 										<div class="record-row__header">
 											<div>
 												<p class="record-field__label">
-													{question.positionLabel} - {question.dimensionLabel}
+													{question.positionLabel} - {question.sectionLabel} - {question.dimensionLabel}
 												</p>
 												<p class="record-field__value">{question.text}</p>
 											</div>
@@ -3073,6 +3830,39 @@
 								{/each}
 							</div>
 						</details>
+						<details class="record-row">
+							<summary class="cursor-pointer">
+								<div class="record-row__header">
+									<div>
+										<p class="record-field__label">{setupUi('Export/codebook preview')}</p>
+										<h5 class="record-row__title">{setupUi('Answer metadata carried forward')}</h5>
+									</div>
+									<StatusBadge status="neutral" label={setupQuestionCount(answerMetadataExportSummary.length)} />
+								</div>
+							</summary>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								{setupUi(
+									'Review how each answer format will appear to exports and codebooks before launch. This does not add norms, benchmarks, or validation claims.'
+								)}
+							</p>
+							<div class="grid gap-3">
+								{#each answerMetadataExportSummary as item (item.code)}
+									<div class="record-field">
+										<p class="record-field__label">
+											{item.code} - {item.answerFormatLabel} - {item.exportValueLabel}
+										</p>
+										<p class="record-field__value">{item.label}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">{item.codebookDetail}</p>
+										<p class="text-sm text-[var(--color-text-muted)]">{item.scoreEligibilityLabel}</p>
+										<ul class="grid gap-1">
+											{#each item.constraints as constraint}
+												<li class="text-sm text-[var(--color-text-muted)]">{constraint}</li>
+											{/each}
+										</ul>
+									</div>
+								{/each}
+							</div>
+						</details>
 						{#if templateQuestionErrors.length > 0}
 							<ul class="grid gap-1" aria-label={setupBodyCopy.questionnaire.errorsLabel}>
 								{#each templateQuestionErrors as error}
@@ -3082,9 +3872,11 @@
 						{/if}
 						{@render ActionFooter({
 							id: 'template',
-							label: setupUi('Save questionnaire'),
+							label: templateDraftEditing
+								? setupUi('Save draft questionnaire')
+								: setupUi('Save questionnaire'),
 							icon: 'send',
-							onclick: createTemplateVersion
+							onclick: templateDraftEditing ? saveTemplateDraftContent : createTemplateVersion
 						})}
 					{/if}
 				{:else if activeActionIdForView === 'scoring'}
@@ -3230,7 +4022,7 @@
 											{:else}
 												<p class="text-sm text-[var(--color-text-muted)]">
 													{setupUi(
-														'Add a rating scale, recommendation scale, or number question before saving results.'
+														'Add a rating scale, recommendation scale, number, or score-mapped single-choice question before saving results.'
 													)}
 												</p>
 											{/if}
@@ -3303,6 +4095,123 @@
 														{setupUi('Used as the report/export dimension code.')}
 													</span>
 												</label>
+											</div>
+
+											<div class="record-row">
+												<h6 class="record-row__title">
+													{setupUi('Tenant-attested interpretation bands')}
+												</h6>
+												<p class="text-sm text-[var(--color-text-muted)]">
+													{setupUi(
+														'Optional tenant-defined labels for score ranges. These are not official norms, benchmarks, or validated thresholds.'
+													)}
+												</p>
+												<label class="checkbox-field">
+													<input
+														type="checkbox"
+														checked={output.interpretationEnabled ?? false}
+														onchange={(event) =>
+															toggleScoreOutputInterpretation(
+																output.localId,
+																event.currentTarget.checked
+															)}
+													/>
+													<span>{setupUi('Add tenant-defined interpretation bands')}</span>
+												</label>
+												{#if output.interpretationEnabled}
+													<label class="field">
+														<span>{setupUi('Interpretation provenance')}</span>
+														<textarea
+															rows="2"
+															value={output.interpretationProvenance ??
+																defaultTenantAttestedInterpretationProvenance}
+															oninput={(event) =>
+																updateScoreOutput(output.localId, {
+																	interpretationProvenance: event.currentTarget.value
+																})}
+														></textarea>
+														<span class="text-xs leading-5 text-[var(--color-text-muted)]">
+															{setupUi(
+																'Must say these bands are tenant-defined, not validated, and not official.'
+															)}
+														</span>
+													</label>
+													<div class="grid gap-3">
+														{#each output.interpretationBands ?? [] as band, bandIndex (band.localId)}
+															<div class="record-field">
+																<div class="record-row__header">
+																	<p class="record-field__label">
+																		{setupUi('Band')} {bandIndex + 1}
+																	</p>
+																	<button
+																		type="button"
+																		class="secondary-button"
+																		disabled={(output.interpretationBands ?? []).length <= 1}
+																		onclick={() =>
+																			removeScoreInterpretationBand(output.localId, band.localId)}
+																	>
+																		<Trash2 size={16} aria-hidden="true" />
+																		<span>{setupUi('Remove band')}</span>
+																	</button>
+																</div>
+																<div class="grid gap-3 lg:grid-cols-4">
+																	<label class="field">
+																		<span>{setupUi('Band code')}</span>
+																		<input
+																			value={band.code}
+																			oninput={(event) =>
+																				updateScoreInterpretationBand(output.localId, band.localId, {
+																					code: event.currentTarget.value
+																				})}
+																		/>
+																	</label>
+																	<label class="field">
+																		<span>{setupUi('Band label')}</span>
+																		<input
+																			value={band.label}
+																			oninput={(event) =>
+																				updateScoreInterpretationBand(output.localId, band.localId, {
+																					label: event.currentTarget.value
+																				})}
+																		/>
+																	</label>
+																	<label class="field">
+																		<span>{setupUi('Minimum score')}</span>
+																		<input
+																			type="number"
+																			step="0.01"
+																			value={band.min}
+																			oninput={(event) =>
+																				updateScoreInterpretationBand(output.localId, band.localId, {
+																					min: parseScoreBandNumber(event.currentTarget.value)
+																				})}
+																		/>
+																	</label>
+																	<label class="field">
+																		<span>{setupUi('Maximum score')}</span>
+																		<input
+																			type="number"
+																			step="0.01"
+																			value={band.max}
+																			oninput={(event) =>
+																				updateScoreInterpretationBand(output.localId, band.localId, {
+																					max: parseScoreBandNumber(event.currentTarget.value)
+																				})}
+																		/>
+																	</label>
+																</div>
+															</div>
+														{/each}
+													</div>
+													<button
+														type="button"
+														class="secondary-button"
+														onclick={() => addScoreInterpretationBand(output.localId)}
+													>
+														<Plus size={16} aria-hidden="true" />
+														<span>{setupUi('Add band')}</span>
+													</button>
+												{/if}
 											</div>
 										</div>
 									{/each}
@@ -3427,9 +4336,9 @@
 			</div>
 		</section>
 		{:else if readinessResult?.issues.length || actionErrors.readiness}
-			<section class="record-row setup-current-task" aria-label={setupUi('Setup issues')}>
+			<section class="record-row setup-current-task" aria-label={setupUi('Preparation issues')}>
 				{#if readinessResult?.issues.length}
-					<ul class="grid gap-2" aria-label={setupUi('Setup issues')}>
+					<ul class="grid gap-2" aria-label={setupUi('Preparation issues')}>
 						{#each readinessResult.issues as issue}
 							<li class="text-sm text-[var(--color-text-muted)]">
 								{launchIssueLabel(issue)}
@@ -3660,7 +4569,7 @@
 							<span class="text-xs leading-5 text-[var(--color-text-muted)]">
 								Use a class list, cohort list, HR export, or spreadsheet with an email column
 								{setupUi(
-									'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in Directory instead. Limit:'
+									'Use this when this measurement has a one-time recipient list. For repeated measurements or reusable cohorts, import people and groups in People instead. Limit:'
 								)}
 								{formatCount(maxRecipientImportRecipients)} {setupUi('recipients per wave update.')}
 							</span>
@@ -3710,18 +4619,18 @@
 				{:else if previewRequiresGroup}
 					{#if previewGroups.length === 0}
 						<div class="record-field">
-							<p class="record-field__label">{setupUi('Directory group')}</p>
+							<p class="record-field__label">{setupUi('People group')}</p>
 							<p class="record-field__value">{setupUi('No groups available')}</p>
 							<p class="text-sm text-[var(--color-text-muted)]">
 								{setupUi(
-									'Create a reusable cohort, department, class, or location in Directory, or switch to one-off email import for this measurement only.'
+									'Create a reusable cohort, department, class, or location in People, or switch to one-off email import for this measurement only.'
 								)}
 							</p>
-							<a class="secondary-button mt-3" href="/app/directory">{setupUi('Open Directory')}</a>
+							<a class="secondary-button mt-3" href="/app/directory">{setupUi('Open People')}</a>
 						</div>
 					{:else}
 						<label class="field">
-							<span>{setupUi('Directory group')}</span>
+							<span>{setupUi('People group')}</span>
 							<select
 								bind:value={previewGroupId}
 								disabled={previewGroups.length === 0 || previewState === 'submitting'}
@@ -3746,7 +4655,7 @@
 					</label>
 				{:else}
 					<div class="record-field">
-						<p class="record-field__label">{setupUi('Directory people')}</p>
+						<p class="record-field__label">{setupUi('People records')}</p>
 						<p class="record-field__value">
 							{previewSubjects.length
 								? `${formatCount(previewSubjects.length)} ${setupUi('active people loaded')}`
@@ -3754,7 +4663,7 @@
 						</p>
 						<p class="text-sm text-[var(--color-text-muted)]">
 							{setupUi(
-								'This selection is broad. Use a Directory group when the measurement should only reach a department, cohort, class, or location.'
+								'This selection is broad. Use a People group when the measurement should only reach a department, cohort, class, or location.'
 							)}
 						</p>
 					</div>
@@ -3808,7 +4717,7 @@
 					{:else}
 						<RefreshCw size={16} aria-hidden="true" />
 					{/if}
-					<span>{setupUi('Refresh directory')}</span>
+					<span>{setupUi('Refresh people')}</span>
 				</button>
 			</div>
 
@@ -4046,4 +4955,3 @@
 		<p class="error-line">{actionErrors[id]}</p>
 	{/if}
 {/snippet}
-

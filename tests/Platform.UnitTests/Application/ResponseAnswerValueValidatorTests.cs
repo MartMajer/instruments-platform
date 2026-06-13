@@ -291,8 +291,11 @@ public sealed class ResponseAnswerValueValidatorTests
     public void Valid_supported_answer_values_are_accepted()
     {
         var singleId = Guid.NewGuid();
+        var multiId = Guid.NewGuid();
+        var textId = Guid.NewGuid();
         var matrixId = Guid.NewGuid();
         var numberId = Guid.NewGuid();
+        var dateId = Guid.NewGuid();
 
         var result = ResponseAnswerValueValidator.Validate(
             [
@@ -302,20 +305,38 @@ public sealed class ResponseAnswerValueValidatorTests
                     QuestionTypes.SingleChoice,
                     """{"options":[{"code":"o01","label":"Yes"},{"code":"o02","label":"No"}]}"""),
                 new ResponseAnswerQuestionContract(
-                    matrixId,
+                    multiId,
                     "q02",
+                    QuestionTypes.MultiChoice,
+                    """{"options":[{"code":"o01","label":"Breaks"},{"code":"o02","label":"Equipment"}]}"""),
+                new ResponseAnswerQuestionContract(
+                    textId,
+                    "q03",
+                    QuestionTypes.Text,
+                    """{"text":{"multiline":true,"maxLength":500}}"""),
+                new ResponseAnswerQuestionContract(
+                    matrixId,
+                    "q04",
                     QuestionTypes.Matrix,
                     """{"matrix":{"mode":"single","rows":[{"code":"r01","label":"Neck"}],"columns":[{"code":"c01","label":"None"},{"code":"c02","label":"Severe"}]}}"""),
                 new ResponseAnswerQuestionContract(
                     numberId,
-                    "q03",
+                    "q05",
                     QuestionTypes.Number,
-                    """{"validation":{"min":0,"max":10,"integerOnly":true}}""")
+                    """{"validation":{"min":0,"max":80,"integerOnly":true}}"""),
+                new ResponseAnswerQuestionContract(
+                    dateId,
+                    "q06",
+                    QuestionTypes.Date,
+                    """{"validation":{"minDate":"2026-01-01","maxDate":"2026-12-31"}}""")
             ],
             [
                 new SaveAnswerRequest(singleId, "\"o01\""),
+                new SaveAnswerRequest(multiId, """["o01","o02"]"""),
+                new SaveAnswerRequest(textId, "\"Need clearer recovery planning.\""),
                 new SaveAnswerRequest(matrixId, """{"r01":"c02"}"""),
-                new SaveAnswerRequest(numberId, "7")
+                new SaveAnswerRequest(numberId, "7"),
+                new SaveAnswerRequest(dateId, "\"2026-06-01\"")
             ]);
 
         Assert.True(result.IsSuccess, result.Error.ToString());

@@ -347,7 +347,7 @@ export const defaultSelectedSeriesSetupWorkflowCopy: SelectedSeriesSetupWorkflow
 		sourceReady: 'The starting source is ready for this questionnaire.',
 		sourceMissing: 'Confirm a starting source before saving the questionnaire.',
 		questionnaireSaved: (name, questionCount) =>
-			`${name} is saved with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
+			`${name} is published for launch with ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}.`,
 		questionnaireMissing: 'Save the questionnaire before results setup or launch checks.',
 		resultsReady: (ruleKey) => `Result outputs are saved as ${ruleKey}.`,
 		resultsMissing: 'Choose which questionnaire answers become result outputs.',
@@ -415,10 +415,9 @@ export function toSelectedSeriesSetupWorkflowActions(
 ): SelectedSeriesSetupWorkflowAction[] {
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
-	const scoringConfigured = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
-	const campaignConfigured = Boolean(campaignId) || hasUnfinishedSetupCampaign(workspace, localState);
-	const collectionStarted = hasStartedSetupCampaign(workspace);
-	const readinessConfigured = campaignConfigured && (workspace.readiness.ready || collectionStarted);
+	const scoringConfigured = Boolean(selectSetupScoring(workspace, localState));
+	const campaignConfigured = Boolean(campaignId);
+	const readinessConfigured = Boolean(campaignId) && workspace.readiness.ready;
 
 	return [
 		{
@@ -591,7 +590,8 @@ export function toSelectedSeriesSetupDesignMap(
 ): SelectedSeriesSetupDesignMap {
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const questionnaireReady = Boolean(templateVersionId);
-	const resultsReady = Boolean(localState.scoringRuleId ?? workspace.scoring?.id);
+	const selectedScoring = selectSetupScoring(workspace, localState);
+	const resultsReady = Boolean(selectedScoring);
 	const waveStatus = summarizeWaveDesignStatus(workspace, localState, copy);
 
 	return {
@@ -615,7 +615,7 @@ export function toSelectedSeriesSetupDesignMap(
 				status: resultsReady ? 'ready' : questionnaireReady ? 'pending' : 'blocked',
 				detail: resultsReady
 					? setupMessage(copy, 'setup.designMap.resultsReady', {
-							ruleKey: workspace.scoring?.ruleKey?.trim() || copy.steps.scoring.title
+							ruleKey: selectedScoring?.ruleKey?.trim() || copy.steps.scoring.title
 						})
 					: copy.designMap.resultsMissing
 			},
@@ -771,16 +771,16 @@ export function toSelectedSeriesSetupPath(
 	const actions = toSelectedSeriesSetupWorkflowActions(workspace, localState, copy);
 	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
 	const campaignId = selectSetupCampaignId(workspace, localState);
-	const campaignDone = Boolean(campaignId) || hasUnfinishedSetupCampaign(workspace, localState);
+	const campaignDone = Boolean(campaignId);
 	const instrumentDone = Boolean(
 		localState.instrumentId ?? workspace.template?.instrumentId ?? templateVersionId
 	);
 	const doneByActionId: Record<SelectedSeriesSetupWorkflowActionId, boolean> = {
 		instrument: instrumentDone,
 		template: Boolean(templateVersionId),
-		scoring: Boolean(localState.scoringRuleId ?? workspace.scoring?.id),
+		scoring: Boolean(selectSetupScoring(workspace, localState)),
 		campaign: campaignDone,
-		readiness: campaignDone && (workspace.readiness.ready || hasStartedSetupCampaign(workspace))
+		readiness: campaignDone && workspace.readiness.ready
 	};
 	const currentAction =
 		actions.find((action) => !doneByActionId[action.id] && action.available) ??
@@ -849,19 +849,25 @@ export function selectSetupCampaignId(
 		: null;
 }
 
-function hasUnfinishedSetupCampaign(
+function selectSetupScoring(
 	workspace: CampaignSeriesSetupWorkspaceResponse,
 	localState: SelectedSeriesSetupWorkflowLocalState = {}
 ) {
-	if (localState.campaignId) {
-		return true;
+	const templateVersionId = selectSetupTemplateVersionId(workspace, localState);
+
+	if (localState.scoringRuleId) {
+		return {
+			id: localState.scoringRuleId,
+			ruleKey:
+				workspace.scoring?.templateVersionId === templateVersionId ? workspace.scoring.ruleKey : null
+		};
 	}
 
-	return setupCampaigns(workspace).some((campaign) => !isClosedSetupCampaign(campaign.status));
-}
+	if (!templateVersionId || workspace.scoring?.templateVersionId !== templateVersionId) {
+		return null;
+	}
 
-function hasStartedSetupCampaign(workspace: CampaignSeriesSetupWorkspaceResponse) {
-	return setupCampaigns(workspace).some((campaign) => campaign.status === 'live');
+	return workspace.scoring;
 }
 
 function setupCampaigns(workspace: CampaignSeriesSetupWorkspaceResponse) {
@@ -877,10 +883,6 @@ function setupCampaigns(workspace: CampaignSeriesSetupWorkspaceResponse) {
 
 function isEditableSetupCampaign(status: string | null | undefined) {
 	return status === 'draft' || status === 'scheduled';
-}
-
-function isClosedSetupCampaign(status: string | null | undefined) {
-	return status === 'closed';
 }
 
 function selectedSetupWaveName(workspace: CampaignSeriesSetupWorkspaceResponse, campaignId: string) {

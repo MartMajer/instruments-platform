@@ -273,6 +273,7 @@ public static class SimpleScoringEngine
         return NormalizeCode(opResult.Value) switch
         {
             "select_answers" => EvaluateSelectAnswers(node, inputs, answersByCode),
+            "map_choice_scores" => EvaluateMapChoiceScores(node, inputs, answersByCode),
             "reverse_code" => EvaluateReverseCode(node, scales, nodeValues),
             "mean" => EvaluateAggregateWithNodePolicy(node, "mean", missingPolicy, nodeValues),
             "sum" => EvaluateAggregateWithNodePolicy(node, "sum", missingPolicy, nodeValues),
@@ -315,6 +316,82 @@ public static class SimpleScoringEngine
                 answer.IsNa)
             {
                 entries.Add(new ScoreVectorEntry(code, null));
+                continue;
+            }
+
+            if (!TryParseNumericJson(answer.Value, out var parsed))
+            {
+                return Result.Failure<ScoreNodeValue>(
+                    Error.Validation("score.answer_not_numeric", $"Answer for '{code}' is not numeric."));
+            }
+
+            entries.Add(new ScoreVectorEntry(code, parsed));
+        }
+
+        return Result.Success<ScoreNodeValue>(new ScoreVector(entries));
+    }
+
+    private static Result<ScoreNodeValue> EvaluateMapChoiceScores(
+        JsonElement node,
+        IReadOnlyDictionary<string, AnswerInput> inputs,
+        IReadOnlyDictionary<string, SimpleScoreInput> answersByCode)
+    {
+        var inputResult = ReadRequiredString(
+            node,
+            "input",
+            "score.input_missing",
+            "map_choice_scores must reference an input.");
+        if (inputResult.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(inputResult.Error);
+        }
+
+        var inputId = NormalizeCode(inputResult.Value);
+        if (!inputs.TryGetValue(inputId, out var input))
+        {
+            return Result.Failure<ScoreNodeValue>(
+                Error.Validation("score.input_unknown", $"Scoring input '{inputId}' was not found."));
+        }
+
+        var scoreMaps = ReadChoiceScoreMaps(node);
+        if (scoreMaps.IsFailure)
+        {
+            return Result.Failure<ScoreNodeValue>(scoreMaps.Error);
+        }
+
+        var entries = new List<ScoreVectorEntry>();
+        foreach (var item in input.Items)
+        {
+            var code = NormalizeCode(item);
+            if (!answersByCode.TryGetValue(code, out var answer) ||
+                string.IsNullOrWhiteSpace(answer.Value) ||
+                answer.IsSkipped ||
+                answer.IsNa)
+            {
+                entries.Add(new ScoreVectorEntry(code, null));
+                continue;
+            }
+
+            if (scoreMaps.Value.TryGetValue(code, out var optionScores))
+            {
+                if (!TryParseStringJson(answer.Value, out var selectedOption))
+                {
+                    return Result.Failure<ScoreNodeValue>(
+                        Error.Validation(
+                            "score.choice_answer_invalid",
+                            $"Answer for '{code}' is not a choice option code."));
+                }
+
+                var normalizedOption = NormalizeCode(selectedOption);
+                if (!optionScores.TryGetValue(normalizedOption, out var mappedScore))
+                {
+                    return Result.Failure<ScoreNodeValue>(
+                        Error.Validation(
+                            "score.choice_score_unmapped",
+                            $"Answer for '{code}' uses an option without a configured score."));
+                }
+
+                entries.Add(new ScoreVectorEntry(code, mappedScore));
                 continue;
             }
 
@@ -725,6 +802,61 @@ public static class SimpleScoringEngine
         return values;
     }
 
+    private static Result<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>> ReadChoiceScoreMaps(
+        JsonElement element)
+    {
+        if (!element.TryGetProperty("option_scores", out var optionScores) ||
+            optionScores.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(
+                Error.Validation("score.choice_scores_missing", "map_choice_scores must declare option_scores."));
+        }
+
+        var scoreMaps = new Dictionary<string, IReadOnlyDictionary<string, decimal>>(StringComparer.Ordinal);
+        foreach (var itemScoreMap in optionScores.EnumerateObject())
+        {
+            var itemCode = NormalizeCode(itemScoreMap.Name);
+            if (itemScoreMap.Value.ValueKind != JsonValueKind.Object)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(
+                    Error.Validation(
+                        "score.choice_scores_invalid",
+                        $"Choice score item '{itemCode}' must map option codes to numeric scores."));
+            }
+
+            var optionMap = new Dictionary<string, decimal>(StringComparer.Ordinal);
+            foreach (var optionScore in itemScoreMap.Value.EnumerateObject())
+            {
+                if (string.IsNullOrWhiteSpace(optionScore.Name) ||
+                    optionScore.Value.ValueKind != JsonValueKind.Number ||
+                    !optionScore.Value.TryGetDecimal(out var score))
+                {
+                    return Result.Failure<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(
+                        Error.Validation(
+                            "score.choice_scores_invalid",
+                            $"Choice score item '{itemCode}' must map non-empty option codes to numeric scores."));
+                }
+
+                optionMap[NormalizeCode(optionScore.Name)] = score;
+            }
+
+            if (optionMap.Count == 0)
+            {
+                return Result.Failure<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(
+                    Error.Validation(
+                        "score.choice_scores_invalid",
+                        $"Choice score item '{itemCode}' must include at least one option score."));
+            }
+
+            scoreMaps[itemCode] = optionMap;
+        }
+
+        return scoreMaps.Count == 0
+            ? Result.Failure<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(
+                Error.Validation("score.choice_scores_missing", "map_choice_scores must declare option_scores."))
+            : Result.Success<IReadOnlyDictionary<string, IReadOnlyDictionary<string, decimal>>>(scoreMaps);
+    }
+
     private static Result<string> ReadRequiredString(
         JsonElement element,
         string propertyName,
@@ -757,6 +889,29 @@ public static class SimpleScoringEngine
                     out parsed),
                 _ => false
             };
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseStringJson(string value, out string parsed)
+    {
+        parsed = string.Empty;
+
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(root.GetString()))
+            {
+                return false;
+            }
+
+            parsed = root.GetString()!;
+            return true;
         }
         catch (JsonException)
         {

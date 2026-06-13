@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join, resolve } from 'node:path';
+import { join, resolve, win32 } from 'node:path';
 
 export type LocalViteServerOptions = {
 	host?: string;
@@ -26,7 +26,7 @@ export function resolveLocalViteServerOptions(
 ): ResolvedLocalViteServerOptions {
 	const host = options.host ?? '127.0.0.1';
 	const port = options.port ?? 5176;
-	const webRoot = resolve(options.webRoot ?? process.cwd());
+	const webRoot = resolveCrossPlatformPath(options.webRoot ?? process.cwd());
 	const nodePath = options.nodePath ?? process.execPath;
 
 	return {
@@ -40,7 +40,13 @@ export function resolveLocalViteServerOptions(
 
 export function buildLocalViteCommand(options: LocalViteServerOptions = {}): LocalViteCommand {
 	const resolved = resolveLocalViteServerOptions(options);
-	const viteEntry = join(resolved.webRoot, 'node_modules', 'vite', 'bin', 'vite.js');
+	const viteEntry = joinCrossPlatformPath(
+		resolved.webRoot,
+		'node_modules',
+		'vite',
+		'bin',
+		'vite.js'
+	);
 
 	return {
 		command: resolved.nodePath,
@@ -48,6 +54,18 @@ export function buildLocalViteCommand(options: LocalViteServerOptions = {}): Loc
 		baseUrl: resolved.baseUrl,
 		cwd: resolved.webRoot
 	};
+}
+
+function resolveCrossPlatformPath(pathValue: string) {
+	if (/^[a-zA-Z]:[\\/]/.test(pathValue)) {
+		return win32.resolve(pathValue);
+	}
+
+	return resolve(pathValue.replaceAll('\\', '/'));
+}
+
+function joinCrossPlatformPath(root: string, ...segments: string[]) {
+	return /^[a-zA-Z]:[\\/]/.test(root) ? win32.join(root, ...segments) : join(root, ...segments);
 }
 
 export async function waitForLocalVite(baseUrl: string, timeoutMs = 60_000): Promise<void> {

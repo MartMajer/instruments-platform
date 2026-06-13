@@ -1760,7 +1760,7 @@ a {
 	border-radius: 0;
 	background: transparent;
 	padding: 0.75rem clamp(0.75rem, 1.8vw, 1rem);
-	box-shadow: var(--shadow-subtle);
+	box-shadow: none;
 }
 
 .record-row[href]:hover {
@@ -7495,6 +7495,10 @@ img.app-mobile-topbar__mark {
 	background:
 		linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(244, 234, 217, 0.86)),
 		var(--color-surface);
+}
+
+.app-shell .record-row {
+	box-shadow: none;
 }
 
 .app-shell .record-field,

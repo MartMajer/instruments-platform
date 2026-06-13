@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Platform.Application.Auditing;
 using Platform.Application.Auth;
 using Platform.Application.Behaviors;
+using Platform.Application.Features.ProductSurfaces;
 using Platform.Application.Features.System.GetHealth;
 using Platform.Application.Outbox;
 using Platform.Application.Tenancy;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentActor, HttpContextCurrentActor>();
         services.AddScoped<ICurrentAuditContext, CurrentAuditContext>();
         services.AddScoped<IOutboxEventBuffer, OutboxEventBuffer>();
+        services.AddSingleton<IMicrosoftGraphAdminConsentUrlBuilder, NoOpMicrosoftGraphAdminConsentUrlBuilder>();
         services.AddSingleton<IAuthorizationPolicyProvider, PlatformAuthorizationPolicyProvider>();
         services.AddScoped<IAuthorizationHandler, TenantMemberAuthorizationHandler>();
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

@@ -175,6 +175,127 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
+    public async Task Template_version_history_endpoint_returns_template_versions()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(templateVersionId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            $"/template-versions/{templateVersionId}/versions",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionListResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(templateVersionId, payload.AnchorTemplateVersionId);
+        Assert.Equal(2, payload.Versions.Count);
+        Assert.Contains(payload.Versions, version => version.Status == "published");
+        Assert.Contains(payload.Versions, version => version.Status == "draft");
+    }
+
+    [Fact]
+    public async Task Template_version_publish_endpoint_publishes_template_graph()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(templateVersionId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/template-versions/{templateVersionId}/publish",
+            tenantId);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionDetailResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(templateVersionId, payload.TemplateVersionId);
+        Assert.Equal("published", payload.Status);
+    }
+
+    [Fact]
+    public async Task Template_version_draft_endpoint_creates_draft_from_published_template_graph()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(templateVersionId));
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/template-versions/{templateVersionId}/drafts",
+            tenantId,
+            new CreateTemplateVersionDraftRequest("1.1.0"));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionDetailResponse>();
+        Assert.NotNull(payload);
+        Assert.NotEqual(templateVersionId, payload.TemplateVersionId);
+        Assert.Equal("1.1.0", payload.Semver);
+        Assert.Equal("draft", payload.Status);
+        Assert.Single(payload.Questions);
+    }
+
+    [Fact]
+    public async Task Template_version_draft_content_endpoint_updates_draft_template_graph()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        using var client = CreateClient(new FakeSetupWorkflowStore(templateVersionId));
+        var template = SampleTemplateVersionRequest();
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            $"/template-versions/{templateVersionId}/draft-content",
+            tenantId,
+            new UpdateTemplateVersionDraftContentRequest(
+                template.Sections,
+                template.Scales,
+                template.Questions));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<TemplateVersionDetailResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(templateVersionId, payload.TemplateVersionId);
+        Assert.Equal("draft", payload.Status);
+        Assert.Single(payload.Questions);
+    }
+
+    [Fact]
+    public async Task Template_version_draft_content_endpoint_maps_draft_scoring_guard_to_conflict()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        var staleGuard = Result.Failure<TemplateVersionDetailResponse>(
+            Error.Conflict(
+                "template_version.draft_scoring_exists",
+                "Draft questionnaire content cannot be changed while draft scoring rules exist."));
+        using var client = CreateClient(new FakeSetupWorkflowStore(
+            templateVersionId,
+            updateDraftContentResult: staleGuard));
+        var template = SampleTemplateVersionRequest();
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            $"/template-versions/{templateVersionId}/draft-content",
+            tenantId,
+            new UpdateTemplateVersionDraftContentRequest(
+                template.Sections,
+                template.Scales,
+                template.Questions));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("template_version.draft_scoring_exists", problem.Title);
+    }
+
+    [Fact]
     public async Task Scoring_rule_endpoint_creates_draft_rule()
     {
         var tenantId = Guid.NewGuid();
@@ -198,6 +319,30 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         var payload = await response.Content.ReadFromJsonAsync<SetupIdResponse>();
         Assert.NotNull(payload);
         Assert.NotEqual(Guid.Empty, payload.Id);
+    }
+
+    [Fact]
+    public async Task Template_version_draft_scoring_retire_endpoint_binds_request_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore();
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Post,
+            $"/template-versions/{templateVersionId}/draft-scoring/retire",
+            tenantId,
+            body: null);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<RetireTemplateVersionDraftScoringResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(templateVersionId, payload.TemplateVersionId);
+        Assert.Equal(1, payload.RetiredScoringRuleCount);
+        Assert.Equal(tenantId, store.RetireDraftScoringTenantId);
+        Assert.Equal(templateVersionId, store.RetireDraftScoringTemplateVersionId);
     }
 
     [Fact]
@@ -242,6 +387,32 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Campaign_series_setup_template_endpoint_binds_request_and_actor()
+    {
+        var tenantId = Guid.NewGuid();
+        var campaignSeriesId = Guid.NewGuid();
+        var templateVersionId = Guid.NewGuid();
+        var store = new FakeSetupWorkflowStore();
+        using var client = CreateClient(store);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            $"/campaign-series/{campaignSeriesId}/setup-template",
+            tenantId,
+            new SelectCampaignSeriesSetupTemplateRequest(templateVersionId));
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<SelectCampaignSeriesSetupTemplateResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal(campaignSeriesId, payload.CampaignSeriesId);
+        Assert.Equal(templateVersionId, payload.TemplateVersionId);
+        Assert.Equal(tenantId, store.SelectSetupTemplateTenantId);
+        Assert.Equal(campaignSeriesId, store.SelectSetupTemplateCampaignSeriesId);
+        Assert.Equal(templateVersionId, store.SelectSetupTemplateRequest?.TemplateVersionId);
     }
 
     [Fact]
@@ -1668,7 +1839,9 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         private readonly Result<InstrumentSummaryResponse>? _createInstrumentResult;
         private readonly Result<CampaignOpenLinkResponse>? _openLinkResult;
         private readonly Result<CampaignIdentifiedEntryResponse>? _identifiedEntryResult;
+        private readonly Result<CampaignIdentifiedQueueAccessResponse>? _identifiedQueueAccessResult;
         private readonly Result<CampaignInvitationBatchResponse>? _invitationBatchResult;
+        private readonly Result<TemplateVersionDetailResponse>? _updateDraftContentResult;
 
         public FakeSetupWorkflowStore(
             Guid? templateVersionId = null,
@@ -1676,14 +1849,18 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             Result<InstrumentSummaryResponse>? createInstrumentResult = null,
             Result<CampaignOpenLinkResponse>? openLinkResult = null,
             Result<CampaignIdentifiedEntryResponse>? identifiedEntryResult = null,
-            Result<CampaignInvitationBatchResponse>? invitationBatchResult = null)
+            Result<CampaignIdentifiedQueueAccessResponse>? identifiedQueueAccessResult = null,
+            Result<CampaignInvitationBatchResponse>? invitationBatchResult = null,
+            Result<TemplateVersionDetailResponse>? updateDraftContentResult = null)
         {
             _templateVersionId = templateVersionId ?? Guid.NewGuid();
             _campaignId = campaignId ?? Guid.NewGuid();
             _createInstrumentResult = createInstrumentResult;
             _openLinkResult = openLinkResult;
             _identifiedEntryResult = identifiedEntryResult;
+            _identifiedQueueAccessResult = identifiedQueueAccessResult;
             _invitationBatchResult = invitationBatchResult;
+            _updateDraftContentResult = updateDraftContentResult;
         }
 
         public Task<Result<InstrumentSummaryResponse>> CreatePrivateInstrumentImportAsync(
@@ -1746,6 +1923,82 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 templateVersionId)));
         }
 
+        public Task<Result<TemplateVersionListResponse>> ListTemplateVersionsAsync(
+            Guid tenantId,
+            Guid anchorTemplateVersionId,
+            CancellationToken cancellationToken)
+        {
+            var templateId = Guid.NewGuid();
+
+            return Task.FromResult(Result.Success(new TemplateVersionListResponse(
+                templateId,
+                anchorTemplateVersionId,
+                [
+                    new TemplateVersionSummaryResponse(
+                        anchorTemplateVersionId,
+                        "1.0.0",
+                        "published",
+                        IsLocked: true,
+                        IsGlobal: false,
+                        DateTimeOffset.UtcNow.AddMinutes(-5),
+                        DateTimeOffset.UtcNow.AddMinutes(-4),
+                        PublishedBy: null),
+                    new TemplateVersionSummaryResponse(
+                        Guid.NewGuid(),
+                        "1.1.0",
+                        "draft",
+                        IsLocked: false,
+                        IsGlobal: false,
+                        DateTimeOffset.UtcNow,
+                        PublishedAt: null,
+                        PublishedBy: null)
+                ])));
+        }
+
+        public Task<Result<TemplateVersionDetailResponse>> PublishTemplateVersionAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid templateVersionId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(CreateTemplateVersionResponse(
+                "Private burnout pulse",
+                templateVersionId,
+                "published")));
+        }
+
+        public Task<Result<TemplateVersionDetailResponse>> CreateTemplateVersionDraftAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid sourceTemplateVersionId,
+            CreateTemplateVersionDraftRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(CreateTemplateVersionResponse(
+                "Private burnout pulse",
+                Guid.NewGuid(),
+                "draft",
+                request.Semver)));
+        }
+
+        public Task<Result<TemplateVersionDetailResponse>> UpdateTemplateVersionDraftContentAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid templateVersionId,
+            UpdateTemplateVersionDraftContentRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (_updateDraftContentResult.HasValue)
+            {
+                return Task.FromResult(_updateDraftContentResult.Value);
+            }
+
+            return Task.FromResult(Result.Success(CreateTemplateVersionResponse(
+                "Private burnout pulse",
+                templateVersionId,
+                "draft")));
+        }
+
         public Task<Result<SetupIdResponse>> CreateScoringRuleAsync(
             Guid tenantId,
             CreateScoringRuleRequest request,
@@ -1757,6 +2010,24 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
         }
 
         public int CreateScoringRuleCallCount { get; private set; }
+
+        public Guid? RetireDraftScoringTenantId { get; private set; }
+
+        public Guid? RetireDraftScoringTemplateVersionId { get; private set; }
+
+        public Task<Result<RetireTemplateVersionDraftScoringResponse>> RetireTemplateVersionDraftScoringAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid templateVersionId,
+            CancellationToken cancellationToken)
+        {
+            RetireDraftScoringTenantId = tenantId;
+            RetireDraftScoringTemplateVersionId = templateVersionId;
+
+            return Task.FromResult(Result.Success(new RetireTemplateVersionDraftScoringResponse(
+                templateVersionId,
+                1)));
+        }
 
         public Guid? ListRespondentRulesTenantId { get; private set; }
 
@@ -1778,6 +2049,28 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             CancellationToken cancellationToken)
         {
             return Task.FromResult(Result.Success(new SetupIdResponse(Guid.NewGuid())));
+        }
+
+        public Guid? SelectSetupTemplateTenantId { get; private set; }
+
+        public Guid? SelectSetupTemplateCampaignSeriesId { get; private set; }
+
+        public SelectCampaignSeriesSetupTemplateRequest? SelectSetupTemplateRequest { get; private set; }
+
+        public Task<Result<SelectCampaignSeriesSetupTemplateResponse>> SelectCampaignSeriesSetupTemplateAsync(
+            Guid tenantId,
+            Guid? actorId,
+            Guid campaignSeriesId,
+            SelectCampaignSeriesSetupTemplateRequest request,
+            CancellationToken cancellationToken)
+        {
+            SelectSetupTemplateTenantId = tenantId;
+            SelectSetupTemplateCampaignSeriesId = campaignSeriesId;
+            SelectSetupTemplateRequest = request;
+
+            return Task.FromResult(Result.Success(new SelectCampaignSeriesSetupTemplateResponse(
+                campaignSeriesId,
+                request.TemplateVersionId)));
         }
 
         public Task<Result<CampaignDraftResponse>> CreateCampaignAsync(
@@ -1974,6 +2267,35 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 $"/r/{token}")));
         }
 
+        public Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            if (_identifiedQueueAccessResult.HasValue)
+            {
+                return Task.FromResult(_identifiedQueueAccessResult.Value);
+            }
+
+            var token = $"idq_{tenantId:N}_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ";
+
+            return Task.FromResult(Result.Success(new CampaignIdentifiedQueueAccessResponse(
+                campaignId,
+                RespondentCount: 1,
+                AssignmentCount: 2,
+                CreatedAccessCount: 1,
+                ExistingAccessCount: 0,
+                [
+                    new CampaignIdentifiedQueueAccessLinkResponse(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        AssignmentCount: 2,
+                        token,
+                        $"/r/{token}",
+                        "created")
+                ])));
+        }
+
         public Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
             Guid tenantId,
             Guid campaignId,
@@ -2010,7 +2332,9 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
 
         private static TemplateVersionDetailResponse CreateTemplateVersionResponse(
             string templateName,
-            Guid templateVersionId)
+            Guid templateVersionId,
+            string status = "draft",
+            string semver = "1.0.0")
         {
             var sectionId = Guid.NewGuid();
             var scaleId = Guid.NewGuid();
@@ -2019,8 +2343,8 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 TemplateId: Guid.NewGuid(),
                 TemplateVersionId: templateVersionId,
                 TemplateName: templateName,
-                Semver: "1.0.0",
-                Status: "draft",
+                Semver: semver,
+                Status: status,
                 DefaultLocale: "en",
                 InstrumentId: null,
                 Sections:
@@ -2042,15 +2366,21 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 Questions:
                 [
                     new TemplateQuestionResponse(
-                        Guid.NewGuid(),
-                        1,
-                        "q01",
-                        "likert",
-                        scaleId,
-                        "I feel depleted after work.",
+                        Id: Guid.NewGuid(),
+                        SectionId: sectionId,
+                        Ordinal: 1,
+                        Code: "q01",
+                        Type: "likert",
+                        ScaleId: scaleId,
+                        TextDefault: "I feel depleted after work.",
+                        DescriptionDefault: null,
                         Required: true,
                         ReverseCoded: false,
-                        MeasurementLevel: "ordinal")
+                        MeasurementLevel: "ordinal",
+                        Weight: 1m,
+                        VariableLabel: "q01",
+                        Payload: "{}",
+                        MissingCodes: "[]")
                 ]);
         }
     }

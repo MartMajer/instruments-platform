@@ -24,6 +24,11 @@ public static class ScoringRuleValidator
 
     private sealed record GraphMissingPolicy(string Strategy, int? MinValidCount);
 
+    private sealed record GraphInputMetadata(HashSet<string> Items)
+    {
+        public int Count => Items.Count;
+    }
+
     public static Result<ScoringRuleValidationSummary> Validate(
         ScoringRuleValidationRequest request)
     {
@@ -543,16 +548,16 @@ public static class ScoringRuleValidator
             : Result.Success<IReadOnlyList<string>>(outputCodes);
     }
 
-    private static Result<Dictionary<string, int>> ReadGraphInputs(JsonElement document)
+    private static Result<Dictionary<string, GraphInputMetadata>> ReadGraphInputs(JsonElement document)
     {
         if (!document.TryGetProperty("inputs", out var inputs) ||
             inputs.ValueKind != JsonValueKind.Array)
         {
-            return Result.Failure<Dictionary<string, int>>(
+            return Result.Failure<Dictionary<string, GraphInputMetadata>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."));
         }
 
-        var inputItemCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var inputMetadata = new Dictionary<string, GraphInputMetadata>(StringComparer.Ordinal);
         foreach (var input in inputs.EnumerateArray())
         {
             var id = ReadRequiredString(
@@ -562,13 +567,13 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare an id.");
             if (id.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(id.Error);
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(id.Error);
             }
 
             var normalizedId = NormalizeCode(id.Value);
-            if (inputItemCounts.ContainsKey(normalizedId))
+            if (inputMetadata.ContainsKey(normalizedId))
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(
                     Error.Validation("score.input_duplicate", $"Scoring rule input '{normalizedId}' is duplicated."));
             }
 
@@ -579,12 +584,12 @@ public static class ScoringRuleValidator
                 "Scoring rule input must declare a kind.");
             if (kind.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(kind.Error);
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(kind.Error);
             }
 
             if (NormalizeCode(kind.Value) != "answers")
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(
                     Error.Validation(
                         "score.input_kind_unsupported",
                         $"Scoring rule input kind '{kind.Value}' is unsupported."));
@@ -593,34 +598,36 @@ public static class ScoringRuleValidator
             if (!input.TryGetProperty("items", out var items) ||
                 items.ValueKind != JsonValueKind.Array)
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input must declare items."));
             }
 
             var itemCodes = ReadStringArray(items, "score.items_missing", "Scoring rule item code");
             if (itemCodes.IsFailure)
             {
-                return Result.Failure<Dictionary<string, int>>(itemCodes.Error);
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(itemCodes.Error);
             }
 
             if (itemCodes.Value.Count == 0)
             {
-                return Result.Failure<Dictionary<string, int>>(
+                return Result.Failure<Dictionary<string, GraphInputMetadata>>(
                     Error.Validation("score.items_missing", "Scoring rule answer input items must not be empty."));
             }
 
-            inputItemCounts.Add(normalizedId, itemCodes.Value.Count);
+            inputMetadata.Add(
+                normalizedId,
+                new GraphInputMetadata(itemCodes.Value.Select(NormalizeCode).ToHashSet(StringComparer.Ordinal)));
         }
 
-        return inputItemCounts.Count == 0
-            ? Result.Failure<Dictionary<string, int>>(
+        return inputMetadata.Count == 0
+            ? Result.Failure<Dictionary<string, GraphInputMetadata>>(
                 Error.Validation("score.inputs_missing", "Scoring rule graph must declare inputs."))
-            : Result.Success(inputItemCounts);
+            : Result.Success(inputMetadata);
     }
 
     private static Result<Dictionary<string, GraphValueType>> ValidateGraphNodes(
         JsonElement document,
-        Dictionary<string, int> inputItemCounts,
+        Dictionary<string, GraphInputMetadata> inputItemCounts,
         HashSet<string> scaleIds,
         GraphMissingPolicy defaultMissingPolicy)
     {
@@ -684,7 +691,24 @@ public static class ScoringRuleValidator
                     }
 
                     nodeTypes.Add(normalizedId, GraphValueType.Vector);
-                    vectorItemCounts.Add(normalizedId, selectedItemCount);
+                    vectorItemCounts.Add(normalizedId, selectedItemCount.Count);
+                    break;
+
+                case "map_choice_scores":
+                    if (!inputItemCounts.TryGetValue(inputRef, out var mappedInput))
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(
+                            Error.Validation("score.input_unknown", $"Scoring rule input '{inputRef}' is unknown."));
+                    }
+
+                    var choiceMap = ValidateChoiceScoreMap(node, mappedInput);
+                    if (choiceMap.IsFailure)
+                    {
+                        return Result.Failure<Dictionary<string, GraphValueType>>(choiceMap.Error);
+                    }
+
+                    nodeTypes.Add(normalizedId, GraphValueType.Vector);
+                    vectorItemCounts.Add(normalizedId, mappedInput.Count);
                     break;
 
                 case "reverse_code":
@@ -849,6 +873,86 @@ public static class ScoringRuleValidator
             ? Result.Failure<Dictionary<string, GraphValueType>>(
                 Error.Validation("score.nodes_missing", "Scoring rule graph must declare nodes."))
             : Result.Success(nodeTypes);
+    }
+
+    private static Result<bool> ValidateChoiceScoreMap(
+        JsonElement node,
+        GraphInputMetadata input)
+    {
+        if (!node.TryGetProperty("option_scores", out var optionScores) ||
+            optionScores.ValueKind != JsonValueKind.Object)
+        {
+            return Result.Failure<bool>(
+                Error.Validation(
+                    "score.choice_scores_missing",
+                    "map_choice_scores must declare option_scores."));
+        }
+
+        var mappedItems = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var itemScoreMap in optionScores.EnumerateObject())
+        {
+            if (string.IsNullOrWhiteSpace(itemScoreMap.Name))
+            {
+                return Result.Failure<bool>(
+                    Error.Validation("score.choice_scores_invalid", "Choice score item code must not be empty."));
+            }
+
+            var itemCode = NormalizeCode(itemScoreMap.Name);
+            if (!input.Items.Contains(itemCode))
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.choice_score_item_unknown",
+                        $"Choice score item '{itemCode}' is not part of the mapped input."));
+            }
+
+            if (!mappedItems.Add(itemCode))
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.choice_scores_invalid",
+                        $"Choice score item '{itemCode}' is duplicated."));
+            }
+
+            if (itemScoreMap.Value.ValueKind != JsonValueKind.Object)
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.choice_scores_invalid",
+                        $"Choice score item '{itemCode}' must map option codes to numeric scores."));
+            }
+
+            var optionCount = 0;
+            foreach (var optionScore in itemScoreMap.Value.EnumerateObject())
+            {
+                if (string.IsNullOrWhiteSpace(optionScore.Name) ||
+                    optionScore.Value.ValueKind != JsonValueKind.Number ||
+                    !optionScore.Value.TryGetDecimal(out _))
+                {
+                    return Result.Failure<bool>(
+                        Error.Validation(
+                            "score.choice_scores_invalid",
+                            $"Choice score item '{itemCode}' must map non-empty option codes to numeric scores."));
+                }
+
+                optionCount += 1;
+            }
+
+            if (optionCount == 0)
+            {
+                return Result.Failure<bool>(
+                    Error.Validation(
+                        "score.choice_scores_invalid",
+                        $"Choice score item '{itemCode}' must include at least one option score."));
+            }
+        }
+
+        return mappedItems.Count == 0
+            ? Result.Failure<bool>(
+                Error.Validation(
+                    "score.choice_scores_missing",
+                    "map_choice_scores must declare at least one mapped choice item."))
+            : Result.Success(true);
     }
 
     private static Result<HashSet<string>> ReadScaleDefinitions(JsonElement document)

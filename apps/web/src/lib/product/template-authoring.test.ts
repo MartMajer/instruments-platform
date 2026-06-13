@@ -22,15 +22,20 @@ import {
 	questionScalePresetOptions,
 	removeTemplateQuestionRow,
 	summarizeAuthoringReadiness,
+	summarizeAnswerMetadataForExport,
 	summarizeCollectedContextQuestions,
 	summarizeQuestionAuthoringCards,
+	summarizeChoiceScoreOptions,
 	summarizeQuestionnaireBlueprintReview,
 	summarizeRespondentQuestionPreview,
 	summarizeReverseScoringReview,
 	summarizeResultsBlueprintReview,
 	summarizeScorePlan,
 	summarizeQuestionDimensions,
+	summarizeQuestionSections,
+	toDraftRespondentPreviewContract,
 	toCreateTemplateQuestions,
+	toTemplateQuestionAuthoringRowsFromTemplateVersion,
 	validateScoreOutputRows,
 	validateTemplateQuestionRows
 } from './template-authoring';
@@ -133,6 +138,124 @@ describe('template authoring helpers', () => {
 				includedQuestionCodes: ['q01', 'q02', 'q03']
 			})
 		]);
+	});
+
+	it('hydrates editable question rows from a template version detail response', () => {
+		const rows = toTemplateQuestionAuthoringRowsFromTemplateVersion({
+			templateId: 'template-id',
+			templateVersionId: 'version-id',
+			templateName: 'Workplace risk pulse',
+			semver: '1.1.0',
+			status: 'draft',
+			defaultLocale: 'en',
+			instrumentId: null,
+			sections: [
+				{ id: 'section-workload', ordinal: 1, code: 'workload', titleDefault: 'Workload' },
+				{ id: 'section-context', ordinal: 2, code: 'context', titleDefault: 'Context' }
+			],
+			scales: [
+				{
+					id: 'scale-frequency',
+					code: 'frequency',
+					type: 'likert',
+					minValue: 1,
+					maxValue: 5,
+					step: 1,
+					naAllowed: false,
+					anchors: JSON.stringify([
+						{ value: 1, label: 'Never' },
+						{ value: 5, label: 'Always' }
+					])
+				}
+			],
+			questions: [
+				{
+					id: 'q1-id',
+					sectionId: 'section-workload',
+					ordinal: 1,
+					code: 'workload_frequency',
+					type: 'likert',
+					scaleId: 'scale-frequency',
+					textDefault: 'How often was workload too high?',
+					descriptionDefault: null,
+					required: true,
+					reverseCoded: false,
+					measurementLevel: 'ordinal',
+					weight: 1,
+						variableLabel: 'Workload frequency',
+						payload: JSON.stringify({
+							authoring: { dimensionLabel: 'Work intensity' },
+							scale: { min: 1, max: 5, lowLabel: 'Never', highLabel: 'Always' }
+						}),
+					missingCodes: '[]'
+				},
+				{
+					id: 'q2-id',
+					sectionId: 'section-context',
+					ordinal: 2,
+					code: 'task_type',
+					type: 'single',
+					scaleId: null,
+					textDefault: 'Which task type dominated?',
+					descriptionDefault: null,
+					required: false,
+					reverseCoded: false,
+					measurementLevel: 'nominal',
+					weight: 1,
+						variableLabel: null,
+						payload: JSON.stringify({
+							authoring: { dimensionLabel: 'Task context' },
+							options: [
+								{ code: 'o01', label: 'Patient-facing' },
+							{ code: 'o02', label: 'Administrative', exclusive: true }
+						],
+						choice: {
+							allowOther: true,
+							otherLabel: 'Other task',
+							exclusiveOptionCode: 'o02'
+						},
+						displayLogic: {
+							mode: 'show_when',
+							sourceQuestionCode: 'workload_frequency',
+							operator: 'equals',
+							value: 'o01',
+							requiredWhenVisible: false
+						}
+					}),
+					missingCodes: '[]'
+				}
+			]
+		});
+
+		expect(rows).toHaveLength(2);
+		expect(rows[0]).toMatchObject({
+			ordinal: 1,
+			code: 'workload_frequency',
+			sectionLabel: 'Workload',
+			dimensionLabel: 'Work intensity',
+			type: 'likert',
+			scaleMin: 1,
+			scaleMax: 5,
+			scaleLowLabel: 'Never',
+			scaleHighLabel: 'Always',
+			scalePreset: 'frequency_5'
+		});
+		expect(rows[1]).toMatchObject({
+			ordinal: 2,
+			code: 'task_type',
+			sectionLabel: 'Context',
+			dimensionLabel: 'Task context',
+			type: 'single',
+			required: false,
+			choiceOptions: ['Patient-facing', 'Administrative'],
+			choiceAllowOther: true,
+			choiceOtherLabel: 'Other task',
+			choiceExclusiveOptionLabel: 'Administrative',
+			displayLogicEnabled: true,
+			displayLogicOperator: 'equals',
+			displayLogicSourceQuestionCode: 'workload_frequency',
+			displayLogicSourceOptionCode: 'o01'
+		});
 	});
 
 	it('creates separate OSH ergonomics result outputs instead of a mixed total score', () => {
@@ -242,7 +365,7 @@ describe('template authoring helpers', () => {
 				code: 'energy',
 				type: 'likert',
 				textDefault: 'I have enough energy after work.',
-				sectionCode: 'topic_1',
+				sectionCode: 'page_1',
 				scaleCode: 'scale_energy',
 				required: false,
 				reverseCoded: false,
@@ -253,6 +376,9 @@ describe('template authoring helpers', () => {
 						max: 5,
 						lowLabel: 'Strongly disagree',
 						highLabel: 'Strongly agree'
+					},
+					authoring: {
+						dimensionLabel: 'Topic 1'
 					}
 				}),
 				missingCodes: '[]'
@@ -329,6 +455,139 @@ describe('template authoring helpers', () => {
 		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({ scores: ['exhaustion', 'recovery'] });
 	});
 
+	it('builds single-choice option score mappings before aggregation', () => {
+		const rows = [
+			{
+				...createDefaultTemplateQuestionRows()[0],
+				code: 'support_level',
+				type: 'single' as const,
+				textDefault: 'How much support did you receive?',
+				choiceOptions: ['Low', 'Some', 'High'],
+				choiceScoringEnabled: true,
+				choiceOptionScores: [0, 2, 4],
+				choiceAllowOther: false,
+				reverseCoded: false
+			}
+		];
+		const outputs = createDefaultScoreOutputRows(rows);
+		const document = JSON.parse(buildScoringDocument('tenant-rule.choice', rows, outputs)) as {
+			inputs: Array<{ id: string; items: string[] }>;
+			nodes: Array<{ id: string; op: string; input: string; option_scores?: Record<string, Record<string, number>> }>;
+		};
+		const questions = toCreateTemplateQuestions(rows);
+
+		expect(validateTemplateQuestionRows(rows)).toEqual([]);
+		expect(outputs[0]?.includedQuestionCodes).toEqual(['support_level']);
+		expect(document.inputs).toEqual([
+			{ id: 'total_items', kind: 'answers', items: ['support_level'] }
+		]);
+		expect(document.nodes[0]).toMatchObject({
+			id: 'total_answers',
+			op: 'map_choice_scores',
+			input: 'total_items',
+			option_scores: {
+				support_level: { o01: 0, o02: 2, o03: 4 }
+			}
+		});
+		expect(JSON.parse(questions[0]?.payload ?? '{}')).toMatchObject({
+			choiceScoring: {
+				enabled: true,
+				optionScores: [
+					{ code: 'o01', score: 0 },
+					{ code: 'o02', score: 2 },
+					{ code: 'o03', score: 4 }
+				]
+			}
+		});
+		expect(summarizeChoiceScoreOptions(rows[0])).toEqual([
+			{ code: 'o01', label: 'Low', score: 0 },
+			{ code: 'o02', label: 'Some', score: 2 },
+			{ code: 'o03', label: 'High', score: 4 }
+		]);
+		expect(describeQuestionScoringDirection(rows[0])).toMatchObject({
+			kind: 'choice_option_scores',
+			label: 'Option scores feed result calculation'
+		});
+		expect(summarizeAnswerMetadataForExport(rows)[0]?.scoreEligibilityLabel).toBe(
+			'Score-eligible mapped option field'
+		);
+	});
+
+	it('blocks ambiguous single-choice option scoring setup', () => {
+		const row = {
+			...createDefaultTemplateQuestionRows()[0],
+			type: 'single' as const,
+			choiceOptions: ['Yes', 'No'],
+			choiceScoringEnabled: true,
+			choiceOptionScores: [1, null],
+			choiceAllowOther: true,
+			reverseCoded: false
+		};
+
+		expect(validateTemplateQuestionRows([row])).toEqual([
+			'Question 1 option scoring cannot be used with an Other write-in option.',
+			'Question 1 option 2 needs a numeric score.'
+		]);
+	});
+
+	it('builds tenant-attested interpretation metadata in score produces', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = [
+			{
+				...createDefaultScoreOutputRows(rows)[0],
+				interpretationEnabled: true,
+				interpretationProvenance:
+					'Tenant-defined internal pilot bands; not validated and not official.',
+				interpretationBands: [
+					{
+						localId: 'band-lower',
+						code: 'lower',
+						label: 'Lower tenant band',
+						min: 1,
+						max: 2.49
+					},
+					{
+						localId: 'band-middle',
+						code: 'middle',
+						label: 'Middle tenant band',
+						min: 2.5,
+						max: 3.49
+					},
+					{
+						localId: 'band-higher',
+						code: 'higher',
+						label: 'Higher tenant band',
+						min: 3.5,
+						max: 5
+					}
+				]
+			}
+		];
+
+		expect(JSON.parse(buildScoreProduces(outputs))).toEqual({
+			scores: ['total'],
+			interpretation: {
+				status: 'tenant_attested',
+				source: 'tenant_defined',
+				provenance: 'Tenant-defined internal pilot bands; not validated and not official.',
+				scores: {
+					total: [
+						{ code: 'lower', label: 'Lower tenant band', min: 1, max: 2.49 },
+						{ code: 'middle', label: 'Middle tenant band', min: 2.5, max: 3.49 },
+						{ code: 'higher', label: 'Higher tenant band', min: 3.5, max: 5 }
+					]
+				}
+			}
+		});
+		expect(summarizeResultsBlueprintReview(rows, outputs).items).toContainEqual({
+			id: 'interpretation',
+			label: 'Interpretation boundary',
+			status: 'ready',
+			detail:
+				'1 result output has tenant-defined interpretation bands. These are not official norms, benchmarks, or validated thresholds.'
+		});
+	});
+
 	it('describes scoring direction and result usage in researcher-facing language', () => {
 		const rows = createDefaultTemplateQuestionRows();
 		const outputs = [
@@ -372,6 +631,7 @@ describe('questionnaire dimension and scale intent authoring', () => {
 	it('creates default rows with researcher-facing dimension labels', () => {
 		const rows = createDefaultTemplateQuestionRows();
 
+		expect(rows.map((row) => row.sectionLabel)).toEqual(['Page 1', 'Page 1', 'Page 1']);
 		expect(rows.map((row) => row.dimensionLabel)).toEqual([
 			'Topic 1',
 			'Topic 2',
@@ -379,18 +639,30 @@ describe('questionnaire dimension and scale intent authoring', () => {
 		]);
 	});
 
-	it('uses dimension labels as template section codes', () => {
+	it('uses section labels as template section codes', () => {
 		const rows = createDefaultTemplateQuestionRows();
-		rows[0].dimensionLabel = 'Psychological demands';
-		rows[1].dimensionLabel = 'Psychological demands';
-		rows[2].dimensionLabel = 'Recovery capacity';
+		rows[0].sectionLabel = 'Opening screen';
+		rows[1].sectionLabel = 'Opening screen';
+		rows[2].sectionLabel = 'Recovery page';
 
 		const questions = toCreateTemplateQuestions(rows);
 
 		expect(questions.map((question) => question.sectionCode)).toEqual([
-			'psychological_demands',
-			'psychological_demands',
-			'recovery_capacity'
+			'opening_screen',
+			'opening_screen',
+			'recovery_page'
+		]);
+	});
+
+	it('summarizes question sections with question counts', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		rows[0].sectionLabel = 'Opening screen';
+		rows[1].sectionLabel = 'Opening screen';
+		rows[2].sectionLabel = 'Recovery page';
+
+		expect(summarizeQuestionSections(rows)).toEqual([
+			{ code: 'opening_screen', label: 'Opening screen', questionCount: 2 },
+			{ code: 'recovery_page', label: 'Recovery page', questionCount: 1 }
 		]);
 	});
 
@@ -457,6 +729,7 @@ describe('scoring plan summaries', () => {
 		rows[1] = {
 			...rows[1],
 			displayLogicEnabled: true,
+			displayLogicOperator: 'equals',
 			displayLogicSourceQuestionCode: 'q01',
 			displayLogicSourceOptionCode: 'o02'
 		};
@@ -489,6 +762,40 @@ describe('scoring plan summaries', () => {
 
 		expect(validateScoreOutputRows(outputs, rows)).toContain(
 			'Recovery minimum answered count cannot exceed 2 selected scored questions.'
+		);
+	});
+
+	it('validates tenant-attested interpretation provenance and band ranges', () => {
+		const rows = createDefaultTemplateQuestionRows();
+		const outputs = createDefaultScoreOutputRows(rows).map((output) => ({
+			...output,
+			name: 'Recovery',
+			code: 'recovery',
+			interpretationEnabled: true,
+			interpretationProvenance: 'Tenant-defined internal labels.',
+			interpretationBands: [
+				{
+					localId: 'band-low',
+					code: 'low',
+					label: 'Low',
+					min: 1,
+					max: 3
+				},
+				{
+					localId: 'band-middle',
+					code: 'middle',
+					label: 'Middle',
+					min: 2.5,
+					max: 4
+				}
+			]
+		}));
+
+		expect(validateScoreOutputRows(outputs, rows)).toEqual(
+			expect.arrayContaining([
+				'Recovery interpretation provenance must say not validated and not official.',
+				'Recovery interpretation bands must not overlap.'
+			])
 		);
 	});
 
@@ -610,6 +917,7 @@ describe('authoring density and review summaries', () => {
 		expect(summarizeQuestionAuthoringCards(rows, outputs)[0]).toMatchObject({
 			code: 'q01',
 			title: 'Write the first question for this study.',
+			sectionLabel: 'Page 1',
 			dimensionLabel: 'Topic 1',
 			scaleLabel: 'Agreement scale',
 			requiredLabel: 'Required',
@@ -662,6 +970,7 @@ describe('authoring density and review summaries', () => {
 		expect(summarizeRespondentQuestionPreview(rows)[0]).toMatchObject({
 			ordinal: 1,
 			positionLabel: 'Question 1 of 3',
+			sectionLabel: 'Page 1',
 			dimensionLabel: 'Topic 1',
 			requiredLabel: 'Required',
 			answerFormatLabel: 'Agreement scale',
@@ -694,10 +1003,16 @@ describe('authoring density and review summaries', () => {
 		const outputs = createDefaultScoreOutputRows(rows);
 
 		expect(summarizeQuestionnaireBlueprintReview(rows, outputs)).toEqual({
-			label: '2 constructs, 3 questions, 2 required',
-			items: [
-				{
-					id: 'constructs',
+				label: '1 section, 2 constructs, 3 questions, 2 required',
+				items: [
+					{
+						id: 'sections',
+						label: 'Section/page plan',
+						status: 'ready',
+						detail: 'Respondents move through Page 1 (3 questions).'
+					},
+					{
+						id: 'constructs',
 					label: 'Construct plan',
 					status: 'ready',
 					detail: 'Questions are grouped into Workload and Recovery.'
@@ -791,6 +1106,228 @@ describe('answer scale presets', () => {
 			'intensity_5',
 			'discomfort_0_10',
 			'custom'
+		]);
+	});
+});
+
+describe('draft respondent preview contract', () => {
+	it('maps every current answer type to the respondent runtime control contract', () => {
+		const base = createDefaultTemplateQuestionRows()[0];
+		const rows = [
+			{
+				...base,
+				ordinal: 1,
+				code: 'likert_item',
+				type: 'likert' as const
+			},
+			{
+				...base,
+				ordinal: 2,
+				code: 'nps_item',
+				type: 'nps' as const,
+				scaleMin: 0,
+				scaleMax: 10,
+				scaleLowLabel: 'Not likely',
+				scaleHighLabel: 'Very likely'
+			},
+			{
+				...base,
+				ordinal: 3,
+				code: 'single_item',
+				type: 'single' as const,
+				choiceOptions: ['First option', 'Second option']
+			},
+			{
+				...base,
+				ordinal: 4,
+				code: 'multi_item',
+				type: 'multi' as const,
+				choiceOptions: ['First option', 'Second option']
+			},
+			{
+				...base,
+				ordinal: 5,
+				code: 'ranking_item',
+				type: 'ranking' as const,
+				choiceOptions: ['First option', 'Second option', 'Third option']
+			},
+			{
+				...base,
+				ordinal: 6,
+				code: 'matrix_item',
+				type: 'matrix' as const,
+				matrixRows: ['Task A'],
+				matrixColumns: ['Low', 'High']
+			},
+			{
+				...base,
+				ordinal: 7,
+				code: 'number_item',
+				type: 'number' as const,
+				numberMin: 0,
+				numberMax: 10,
+				numberUnit: 'hours',
+				numberIntegerOnly: false
+			},
+			{
+				...base,
+				ordinal: 8,
+				code: 'date_item',
+				type: 'date' as const,
+				dateEarliest: '2026-01-01',
+				dateLatest: '2026-12-31'
+			},
+			{
+				...base,
+				ordinal: 9,
+				code: 'text_item',
+				type: 'text' as const,
+				textMultiline: true,
+				textMaxLength: 500
+			}
+		];
+
+		const contract = toDraftRespondentPreviewContract(rows, createDefaultScoreOutputRows(rows));
+
+		expect(contract).toMatchObject({
+			label: 'Runtime preview ready',
+			detail: 'Every draft question maps to a respondent control supported by the current runtime.',
+			questionCount: 9,
+			warningCount: 0,
+			unsupportedCount: 0
+		});
+		expect(contract.questions.map((question) => [question.code, question.controlType])).toEqual([
+			['likert_item', 'rating'],
+			['nps_item', 'rating'],
+			['single_item', 'radio'],
+			['multi_item', 'checkbox'],
+			['ranking_item', 'ranking'],
+			['matrix_item', 'matrix'],
+			['number_item', 'number'],
+			['date_item', 'date'],
+			['text_item', 'text']
+		]);
+		expect(contract.questions.find((question) => question.code === 'number_item')).toMatchObject({
+			runtimeElementType: 'text',
+			inputType: 'number',
+			scoreEligibilityLabel: 'Available for result scores'
+		});
+		expect(contract.questions.find((question) => question.code === 'text_item')).toMatchObject({
+			runtimeElementType: 'comment',
+			scoreEligibilityLabel: 'Collected for context/export only'
+		});
+	});
+
+	it('surfaces answer-format limitations before launch', () => {
+		const base = createDefaultTemplateQuestionRows()[0];
+		const rows = [
+			{
+				...base,
+				ordinal: 1,
+				code: 'under_specified_number',
+				type: 'number' as const,
+				numberMin: null,
+				numberMax: null,
+				numberUnit: '',
+				numberIntegerOnly: false
+			},
+			{
+				...base,
+				ordinal: 2,
+				code: 'under_specified_choice',
+				type: 'single' as const,
+				choiceOptions: ['Only option']
+			}
+		];
+
+		const contract = toDraftRespondentPreviewContract(rows, createDefaultScoreOutputRows(rows));
+
+		expect(contract).toMatchObject({
+			label: 'Runtime preview needs review',
+			warningCount: 2,
+			unsupportedCount: 0
+		});
+		expect(contract.questions.flatMap((question) => question.warnings)).toEqual([
+			'Number input has no min, max, unit, or decimal constraint yet.',
+			'Choice and ranking questions need at least two options.'
+		]);
+	});
+});
+
+describe('answer metadata export summaries', () => {
+	it('surfaces existing answer metadata for codebook and export review', () => {
+		const base = createDefaultTemplateQuestionRows()[0];
+		const rows = [
+			{
+				...base,
+				ordinal: 1,
+				code: 'strain',
+				type: 'number' as const,
+				numberMin: 0,
+				numberMax: 10,
+				numberUnit: 'hours',
+				numberIntegerOnly: true
+			},
+			{
+				...base,
+				ordinal: 2,
+				code: 'follow_up',
+				type: 'text' as const,
+				textMultiline: true,
+				textMaxLength: 400
+			},
+			{
+				...base,
+				ordinal: 3,
+				code: 'priority',
+				type: 'ranking' as const,
+				choiceOptions: ['Equipment', 'Breaks', 'Training'],
+				rankingMode: 'top_n' as const,
+				rankingTopN: 2
+			},
+			{
+				...base,
+				ordinal: 4,
+				code: 'exclusive_choice',
+				type: 'single' as const,
+				choiceOptions: ['Yes', 'No', 'Not applicable'],
+				choiceAllowOther: true,
+				choiceOtherLabel: 'Other reason',
+				choiceExclusiveOptionLabel: 'Not applicable'
+			}
+		];
+
+		expect(summarizeAnswerMetadataForExport(rows)).toEqual([
+			expect.objectContaining({
+				code: 'strain',
+				answerFormatLabel: 'Number entry',
+				exportValueLabel: 'numeric value',
+				scoreEligibilityLabel: 'Score-eligible numeric field',
+				constraints: ['Range 0 to 10', 'Unit: hours', 'Whole numbers only']
+			}),
+			expect.objectContaining({
+				code: 'follow_up',
+				answerFormatLabel: 'Written response',
+				exportValueLabel: 'single value',
+				scoreEligibilityLabel: 'Context/export-only field',
+				constraints: ['Long text', 'Maximum 400 characters']
+			}),
+			expect.objectContaining({
+				code: 'priority',
+				answerFormatLabel: 'Ranking',
+				exportValueLabel: 'ordered option-code array',
+				constraints: ['Options: Equipment, Breaks, Training', 'Top 2 only']
+			}),
+			expect.objectContaining({
+				code: 'exclusive_choice',
+				answerFormatLabel: 'Single choice',
+				exportValueLabel: 'single value',
+				constraints: [
+					'Options: Yes, No, Not applicable (exclusive), Other reason (write-in)',
+					'Write-in option: Other reason',
+					'Mutually exclusive option: Not applicable'
+				]
+			})
 		]);
 	});
 });

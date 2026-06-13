@@ -994,6 +994,10 @@ namespace Platform.Infrastructure.Migrations
                         .HasColumnType("character varying(1000)")
                         .HasColumnName("study_purpose");
 
+                    b.Property<Guid?>("SetupTemplateVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("setup_template_version_id");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -1014,6 +1018,10 @@ namespace Platform.Infrastructure.Migrations
 
                     b.HasIndex("TenantId", "Name")
                         .HasDatabaseName("ix_campaign_series_tenant_id_name");
+
+                    b.HasIndex("SetupTemplateVersionId")
+                        .HasDatabaseName("ix_campaign_series_setup_template_version_id")
+                        .HasFilter("setup_template_version_id IS NOT NULL");
 
                     b.ToTable("campaign_series", null, t =>
                         {
@@ -1124,6 +1132,10 @@ namespace Platform.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("recipient");
 
+                    b.Property<Guid?>("RespondentSubjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("respondent_subject_id");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -1147,6 +1159,10 @@ namespace Platform.Infrastructure.Migrations
                     b.HasIndex("CampaignId")
                         .HasDatabaseName("ix_invitation_token_campaign_id");
 
+                    b.HasIndex("RespondentSubjectId")
+                        .HasDatabaseName("ix_invitation_token_respondent_subject_id")
+                        .HasFilter("respondent_subject_id IS NOT NULL");
+
                     b.HasIndex("TenantId")
                         .HasDatabaseName("ix_invitation_token_tenant_id");
 
@@ -1156,7 +1172,9 @@ namespace Platform.Infrastructure.Migrations
 
                     b.ToTable("invitation_token", null, t =>
                         {
-                            t.HasCheckConstraint("ck_invitation_token_channel", "channel IN ('email','sms','open_link','identified_entry')");
+                            t.HasCheckConstraint("ck_invitation_token_channel", "channel IN ('email','sms','open_link','identified_entry','identified_queue')");
+
+                            t.HasCheckConstraint("ck_invitation_token_identified_queue_shape", "(channel = 'identified_queue' AND respondent_subject_id IS NOT NULL AND assignment_id IS NULL) OR (channel <> 'identified_queue' AND respondent_subject_id IS NULL)");
                         });
                 });
 
@@ -2645,6 +2663,401 @@ namespace Platform.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("ExternalTenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("external_tenant_id");
+
+                    b.Property<string>("GrantedScopes")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("granted_scopes");
+
+                    b.Property<DateTimeOffset?>("LastConsentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_consent_at");
+
+                    b.Property<DateTimeOffset?>("LastSuccessfulImportAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_successful_import_at");
+
+                    b.Property<string>("PrimaryDomain")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("primary_domain");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_directory_connection");
+
+                    b.HasAlternateKey("Id", "TenantId")
+                        .HasName("ak_directory_connection_id_tenant_id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("TenantId", "Provider")
+                        .IsUnique()
+                        .HasDatabaseName("ix_directory_connection_tenant_id_provider_active")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_directory_connection_tenant_id_status");
+
+                    b.ToTable("directory_connection", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_directory_connection_active_shape", "status <> 'active' OR external_tenant_id IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_directory_connection_provider", "provider IN ('microsoft_graph')");
+
+                            t.HasCheckConstraint("ck_directory_connection_status", "status IN ('pending_consent','active','consent_required','revoked','failed','disconnected')");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryConnectionConsentRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<Guid?>("DirectoryConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("directory_connection_id");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("FailureCategory")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("failure_category");
+
+                    b.Property<string>("NonceHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("nonce_hash");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("RequestedScopes")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("requested_scopes");
+
+                    b.Property<string>("StateHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("state_hash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_directory_connection_consent_request");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("StateHash")
+                        .IsUnique()
+                        .HasDatabaseName("ix_directory_connection_consent_request_state_hash");
+
+                    b.HasIndex("DirectoryConnectionId", "TenantId")
+                        .HasDatabaseName("ix_directory_connection_consent_request_connection_id_tenant_id")
+                        .HasFilter("directory_connection_id IS NOT NULL");
+
+                    b.HasIndex("TenantId", "Status", "ExpiresAt")
+                        .HasDatabaseName("ix_directory_connection_consent_request_tenant_id_status_expires_at");
+
+                    b.ToTable("directory_connection_consent_request", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_directory_connection_consent_request_completed_at", "completed_at IS NULL OR completed_at >= created_at");
+
+                            t.HasCheckConstraint("ck_directory_connection_consent_request_expires_at", "expires_at > created_at");
+
+                            t.HasCheckConstraint("ck_directory_connection_consent_request_provider", "provider IN ('microsoft_graph')");
+
+                            t.HasCheckConstraint("ck_directory_connection_consent_request_status", "status IN ('pending','completed','failed','expired')");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryImportRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<Guid>("DirectoryConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("directory_connection_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("RetainedFields")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("retained_fields");
+
+                    b.Property<string>("RuleDocument")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("rule_document");
+
+                    b.Property<string>("StalePolicy")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("stale_policy");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_directory_import_rule");
+
+                    b.HasAlternateKey("Id", "TenantId")
+                        .HasName("ak_directory_import_rule_id_tenant_id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("DirectoryConnectionId", "TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .HasDatabaseName("ix_directory_import_rule_tenant_id_name")
+                        .HasFilter("deleted_at IS NULL");
+
+                    b.HasIndex("TenantId", "DirectoryConnectionId", "Status")
+                        .HasDatabaseName("ix_directory_import_rule_tenant_id_connection_id_status");
+
+                    b.ToTable("directory_import_rule", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_directory_import_rule_stale_policy", "stale_policy IN ('none','mark_stale')");
+
+                            t.HasCheckConstraint("ck_directory_import_rule_status", "status IN ('draft','active','archived')");
+                        });
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryImportRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Checkpoint")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("checkpoint");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<string>("Counts")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("counts");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DirectoryConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("directory_connection_id");
+
+                    b.Property<Guid?>("DirectoryImportRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("directory_import_rule_id");
+
+                    b.Property<string>("ErrorCategory")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("error_category");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("mode");
+
+                    b.Property<Guid?>("PreviewRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("preview_run_id");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("RetainedFields")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("retained_fields");
+
+                    b.Property<string>("RuleSnapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("rule_snapshot");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("WarningCategories")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("warning_categories");
+
+                    b.HasKey("Id")
+                        .HasName("pk_directory_import_run");
+
+                    b.HasIndex("PreviewRunId")
+                        .HasDatabaseName("ix_directory_import_run_preview_run_id")
+                        .HasFilter("preview_run_id IS NOT NULL");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("DirectoryConnectionId", "TenantId");
+
+                    b.HasIndex("DirectoryImportRuleId", "TenantId");
+
+                    b.HasIndex("TenantId", "DirectoryConnectionId", "CreatedAt")
+                        .HasDatabaseName("ix_directory_import_run_tenant_id_connection_id_created_at");
+
+                    b.HasIndex("TenantId", "DirectoryImportRuleId", "CreatedAt")
+                        .HasDatabaseName("ix_directory_import_run_tenant_id_rule_id_created_at")
+                        .HasFilter("directory_import_rule_id IS NOT NULL");
+
+                    b.HasIndex("TenantId", "Status", "CreatedAt")
+                        .HasDatabaseName("ix_directory_import_run_tenant_id_status_created_at");
+
+                    b.ToTable("directory_import_run", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_directory_import_run_apply_preview", "mode <> 'apply' OR preview_run_id IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_directory_import_run_completed_at", "completed_at IS NULL OR completed_at >= created_at");
+
+                            t.HasCheckConstraint("ck_directory_import_run_mode", "mode IN ('preview','apply')");
+
+                            t.HasCheckConstraint("ck_directory_import_run_status", "status IN ('queued','running','succeeded','failed','canceled')");
+                        });
+                });
+
             modelBuilder.Entity("Platform.Domain.Operations.OperationalNotification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3421,6 +3834,7 @@ namespace Platform.Infrastructure.Migrations
 
                     b.HasIndex("TemplateVersionId", "RuleKey", "RuleVersion")
                         .IsUnique()
+                        .HasFilter("status <> 'retired'")
                         .HasDatabaseName("ix_scoring_rule_template_version_id_rule_key_rule_version");
 
                     b.ToTable("scoring_rule", null, t =>
@@ -4118,6 +4532,30 @@ namespace Platform.Infrastructure.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ReportBrandingAccentColorHex")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("report_branding_accent_color_hex");
+
+                    b.Property<string>("ReportBrandingLayoutVariant")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("report_branding_layout_variant");
+
+                    b.Property<string>("ReportBrandingOrganizationLabel")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("report_branding_organization_label");
+
+                    b.Property<string>("ReportBrandingReportTitle")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("report_branding_report_title");
+
+                    b.Property<DateTimeOffset?>("ReportBrandingUpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("report_branding_updated_at");
+
                     b.Property<string>("Region")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -4147,7 +4585,12 @@ namespace Platform.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_tenant_slug");
 
-                    b.ToTable("tenant", (string)null);
+                    b.ToTable("tenant", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tenant_report_branding_accent_color_hex", "report_branding_accent_color_hex IS NULL OR report_branding_accent_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+
+                            t.HasCheckConstraint("ck_tenant_report_branding_layout_variant", "report_branding_layout_variant IS NULL OR report_branding_layout_variant IN ('standard','compact','compliance')");
+                        });
                 });
 
             modelBuilder.Entity("Platform.Domain.Auth.AuthSession", b =>
@@ -4423,6 +4866,12 @@ namespace Platform.Infrastructure.Migrations
 
             modelBuilder.Entity("Platform.Domain.Campaigns.CampaignSeries", b =>
                 {
+                    b.HasOne("Platform.Domain.Templates.TemplateVersion", null)
+                        .WithMany()
+                        .HasForeignKey("SetupTemplateVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_campaign_series_template_version_setup_template_version_id");
+
                     b.HasOne("Platform.Domain.Tenancy.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -4455,6 +4904,12 @@ namespace Platform.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_invitation_token_campaign_campaign_id");
+
+                    b.HasOne("Platform.Domain.Subjects.Subject", null)
+                        .WithMany()
+                        .HasForeignKey("RespondentSubjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_invitation_token_subject_respondent_subject_id");
 
                     b.HasOne("Platform.Domain.Tenancy.Tenant", null)
                         .WithMany()
@@ -4827,6 +5282,106 @@ namespace Platform.Infrastructure.Migrations
                         .HasForeignKey("TemplateSectionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_translation_section_template_section_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryConnection", b =>
+                {
+                    b.HasOne("Platform.Domain.Auth.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_connection_user_account_created_by_user_id");
+
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_connection_tenant_tenant_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryConnectionConsentRequest", b =>
+                {
+                    b.HasOne("Platform.Domain.Auth.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_connection_consent_request_user_account_created_by_user_id");
+
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_connection_consent_request_tenant_tenant_id");
+
+                    b.HasOne("Platform.Domain.Integrations.DirectoryConnection", null)
+                        .WithMany()
+                        .HasForeignKey("DirectoryConnectionId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_connection_consent_request_connection_id_tenant_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryImportRule", b =>
+                {
+                    b.HasOne("Platform.Domain.Auth.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_import_rule_user_account_created_by_user_id");
+
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_import_rule_tenant_tenant_id");
+
+                    b.HasOne("Platform.Domain.Integrations.DirectoryConnection", null)
+                        .WithMany()
+                        .HasForeignKey("DirectoryConnectionId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_import_rule_connection_id_tenant_id");
+                });
+
+            modelBuilder.Entity("Platform.Domain.Integrations.DirectoryImportRun", b =>
+                {
+                    b.HasOne("Platform.Domain.Integrations.DirectoryImportRun", null)
+                        .WithMany()
+                        .HasForeignKey("PreviewRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_import_run_preview_run_id");
+
+                    b.HasOne("Platform.Domain.Auth.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_import_run_user_account_requested_by_user_id");
+
+                    b.HasOne("Platform.Domain.Tenancy.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_import_run_tenant_tenant_id");
+
+                    b.HasOne("Platform.Domain.Integrations.DirectoryConnection", null)
+                        .WithMany()
+                        .HasForeignKey("DirectoryConnectionId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_directory_import_run_connection_id_tenant_id");
+
+                    b.HasOne("Platform.Domain.Integrations.DirectoryImportRule", null)
+                        .WithMany()
+                        .HasForeignKey("DirectoryImportRuleId", "TenantId")
+                        .HasPrincipalKey("Id", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_directory_import_run_rule_id_tenant_id");
                 });
 
             modelBuilder.Entity("Platform.Domain.Operations.OperationalNotification", b =>

@@ -49,6 +49,7 @@ export type WorkspaceCommandCenterItemResponse = {
 export type TenantSettingsWorkspaceResponse = {
 	profile: TenantSettingsProfileResponse;
 	counts: TenantSettingsWorkspaceCountsResponse;
+	reportBranding: TenantSettingsReportBrandingResponse;
 	managementLinks: TenantSettingsManagementLinkResponse[];
 };
 
@@ -73,6 +74,23 @@ export type TenantSettingsWorkspaceCountsResponse = {
 	tenantMemberCount: number;
 	tenantRoleCount: number;
 	exportArtifactCount: number;
+};
+
+export type TenantSettingsReportBrandingResponse = {
+	organizationLabel: string;
+	reportTitle: string;
+	brandingSource: string;
+	logoMode: string;
+	accentColorHex: string;
+	layoutVariant: string;
+	deferredCustomizations: string[];
+};
+
+export type UpdateTenantReportBrandingRequest = {
+	organizationLabel: string;
+	reportTitle: string;
+	accentColorHex: string;
+	layoutVariant: string;
 };
 
 export type TenantSettingsManagementLinkResponse = {
@@ -157,6 +175,169 @@ export type SubjectDirectorySummaryResponse = {
 	managerRelationshipCount: number;
 };
 
+export type DirectoryConnectionStateResponse = {
+	tenantId: string;
+	provider: string;
+	status: string;
+	displayName: string;
+	primaryDomain: string | null;
+	grantedScopes: string[];
+	lastConsentAt: string | null;
+	lastSuccessfulImportAt: string | null;
+	updatedAt: string | null;
+	connected: boolean;
+};
+
+export type DirectoryImportRunHistoryResponse = {
+	tenantId: string;
+	runs: DirectoryImportRunListItemResponse[];
+};
+
+export type DirectoryImportRunListItemResponse = {
+	id: string;
+	directoryConnectionId: string;
+	directoryImportRuleId: string | null;
+	previewRunId: string | null;
+	provider: string;
+	mode: string;
+	status: string;
+	rowCount: number;
+	importedRowCount: number;
+	failedRowCount: number;
+	warningCategoryCount: number;
+	warningCategories: string[];
+	createdAt: string;
+	startedAt: string | null;
+	completedAt: string | null;
+};
+
+export type DirectoryImportRuleListResponse = {
+	tenantId: string;
+	rules: DirectoryImportRuleResponse[];
+};
+
+export type DirectoryImportRuleResponse = {
+	id: string;
+	directoryConnectionId: string;
+	name: string;
+	status: string;
+	stalePolicy: string;
+	retainedFields: string[];
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type SaveMicrosoftGraphImportRuleRequest = {
+	name: string;
+	markMissingSubjectsStale?: boolean;
+	retainedFields?: string[] | null;
+};
+
+export type MicrosoftGraphDirectoryImportUser = {
+	id: string;
+	mail?: string | null;
+	userPrincipalName?: string | null;
+	displayName?: string | null;
+	preferredLanguage?: string | null;
+	department?: string | null;
+	jobTitle?: string | null;
+	employeeType?: string | null;
+	officeLocation?: string | null;
+	userType?: string | null;
+	accountEnabled?: boolean;
+};
+
+export type MicrosoftGraphDirectoryImportGroup = {
+	id: string;
+	displayName: string;
+};
+
+export type MicrosoftGraphDirectoryImportMembership = {
+	userId: string;
+	groupId: string;
+};
+
+export type MicrosoftGraphDirectoryImportManagerRelationship = {
+	userId: string;
+	managerUserId: string;
+};
+
+export type MicrosoftGraphDirectoryImportWarning = {
+	code: string;
+	subject: string;
+	message: string;
+};
+
+export type PreviewMicrosoftGraphImportRuleRequest = {
+	microsoftTenantId: string;
+	users: MicrosoftGraphDirectoryImportUser[];
+	groups: MicrosoftGraphDirectoryImportGroup[];
+	memberships: MicrosoftGraphDirectoryImportMembership[];
+	allowUserPrincipalNameEmailFallback?: boolean;
+	excludeGuests?: boolean;
+	excludeDisabledAccounts?: boolean;
+	managerRelationships?: MicrosoftGraphDirectoryImportManagerRelationship[] | null;
+};
+
+export type ApplyMicrosoftGraphImportRuleRequest = PreviewMicrosoftGraphImportRuleRequest & {
+	previewImportRunId: string;
+};
+
+export type LiveApplyMicrosoftGraphImportRuleRequest = {
+	previewImportRunId: string;
+};
+
+export type MicrosoftGraphImportRulePreviewResponse = {
+	tenantId: string;
+	directoryImportRuleId: string;
+	directoryConnectionId: string;
+	import: SubjectDirectoryCsvImportResponse;
+	includedUserCount: number;
+	includedMembershipCount: number;
+	warnings: MicrosoftGraphDirectoryImportWarning[];
+};
+
+export type MicrosoftGraphImportRuleApplyResponse = MicrosoftGraphImportRulePreviewResponse;
+
+export type CreateMicrosoftGraphConsentRequest = {
+	requestedScopes?: string[] | null;
+};
+
+export type MicrosoftGraphConsentRequestResponse = {
+	tenantId: string;
+	consentRequestId: string;
+	directoryConnectionId: string;
+	provider: string;
+	status: string;
+	requestedScopes: string[];
+	expiresAt: string;
+	state: string;
+	nonce: string;
+	callbackPath: string;
+	adminConsentUrl?: string | null;
+};
+
+export type CompleteMicrosoftGraphConsentCallbackRequest = {
+	state: string;
+	nonce?: string | null;
+	adminConsent?: boolean;
+	microsoftTenantId?: string | null;
+	displayName?: string | null;
+	primaryDomain?: string | null;
+	error?: string | null;
+	errorDescription?: string | null;
+};
+
+export type MicrosoftGraphConsentCallbackResponse = {
+	tenantId: string;
+	consentRequestId: string;
+	directoryConnectionId: string | null;
+	provider: string;
+	status: string;
+	connectionStatus: string;
+	connected: boolean;
+};
+
 export type SubjectDirectoryItemResponse = {
 	id: string;
 	displayName: string | null;
@@ -168,6 +349,8 @@ export type SubjectDirectoryItemResponse = {
 	managerDisplayName: string | null;
 	directReportCount: number;
 	groups: SubjectGroupMembershipResponse[];
+	directoryImportStale?: boolean;
+	directoryImportStaleAt?: string | null;
 };
 
 export type SubjectGroupMembershipResponse = {
@@ -206,6 +389,10 @@ export type UpdateSubjectRequest = CreateSubjectRequest;
 export type SubjectDirectoryCsvImportRequest = {
 	csvContent: string;
 	dryRun?: boolean;
+	sourceExternalIdPrefix?: string | null;
+	markMissingSubjectsStale?: boolean;
+	previewImportRunId?: string | null;
+	directoryImportRuleId?: string | null;
 };
 
 export type SubjectDirectoryCsvImportResponse = {
@@ -219,6 +406,13 @@ export type SubjectDirectoryCsvImportResponse = {
 	skippedMembershipCount: number;
 	rows: SubjectDirectoryCsvImportRowResponse[];
 	dryRun: boolean;
+	setManagerRelationshipCount?: number;
+	skippedManagerRelationshipCount?: number;
+	missingManagerReferenceCount?: number;
+	markedStaleSubjectCount?: number;
+	clearedStaleSubjectCount?: number;
+	importAuditEventId?: string | null;
+	importRunId?: string | null;
 };
 
 export type SubjectDirectoryCsvImportRowResponse = {
@@ -497,6 +691,7 @@ export type CampaignSeriesSetupTemplateResponse = {
 
 export type CampaignSeriesSetupScoringResponse = {
 	id: string;
+	templateVersionId: string;
 	ruleKey: string;
 	ruleVersion: string;
 	status: string;
@@ -602,6 +797,7 @@ export type CampaignSeriesOperationsCampaignResponse = {
 	reportVisibilityStatus: string;
 	collectionGuidance: string;
 	openLinkAssignmentCount: number;
+	targetAwareAssignmentCount?: number;
 	queuedInvitationCount: number;
 	sentInvitationCount: number;
 	failedInvitationCount: number;
@@ -1119,10 +1315,74 @@ export function createProductApi(client: ApiClient) {
 			),
 		getWorkspaceOverview: () => client.request<WorkspaceOverviewResponse>('/workspace-overview'),
 		getTenantSettings: () => client.request<TenantSettingsWorkspaceResponse>('/tenant-settings'),
+		updateTenantReportBranding: (request: UpdateTenantReportBrandingRequest) =>
+			client.request<TenantSettingsReportBrandingResponse>(
+				'/tenant-settings/report-branding',
+				jsonRequest('PUT', request)
+			),
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),
 		listTenantMembers: () => client.request<TenantMemberRosterResponse>('/tenant-members'),
 		listTenantRoles: () => client.request<TenantRoleListResponse>('/tenant-roles'),
 		listSubjects: () => client.request<SubjectDirectoryResponse>('/subjects'),
+		getMicrosoftGraphDirectoryConnectionState: () =>
+			client.request<DirectoryConnectionStateResponse>('/directory-connections/microsoft-graph'),
+		listMicrosoftGraphDirectoryImportRuns: () =>
+			client.request<DirectoryImportRunHistoryResponse>(
+				'/directory-connections/microsoft-graph/import-runs'
+			),
+		listMicrosoftGraphDirectoryImportRules: () =>
+			client.request<DirectoryImportRuleListResponse>(
+				'/directory-connections/microsoft-graph/import-rules'
+			),
+		saveMicrosoftGraphDirectoryImportRule: (request: SaveMicrosoftGraphImportRuleRequest) =>
+			client.request<DirectoryImportRuleResponse>(
+				'/directory-connections/microsoft-graph/import-rules',
+				jsonRequest('POST', request)
+			),
+		previewMicrosoftGraphDirectoryImportRule: (
+			ruleId: string,
+			request: PreviewMicrosoftGraphImportRuleRequest
+		) =>
+			client.request<MicrosoftGraphImportRulePreviewResponse>(
+				`/directory-connections/microsoft-graph/import-rules/${encodeURIComponent(ruleId)}/preview`,
+				jsonRequest('POST', request)
+			),
+		applyMicrosoftGraphDirectoryImportRule: (
+			ruleId: string,
+			request: ApplyMicrosoftGraphImportRuleRequest
+		) =>
+			client.request<MicrosoftGraphImportRuleApplyResponse>(
+				`/directory-connections/microsoft-graph/import-rules/${encodeURIComponent(ruleId)}/apply`,
+				jsonRequest('POST', request)
+			),
+		previewLiveMicrosoftGraphDirectoryImportRule: (ruleId: string) =>
+			client.request<MicrosoftGraphImportRulePreviewResponse>(
+				`/directory-connections/microsoft-graph/import-rules/${encodeURIComponent(ruleId)}/live-preview`,
+				jsonRequest('POST', {})
+			),
+		applyLiveMicrosoftGraphDirectoryImportRule: (
+			ruleId: string,
+			request: LiveApplyMicrosoftGraphImportRuleRequest
+		) =>
+			client.request<MicrosoftGraphImportRuleApplyResponse>(
+				`/directory-connections/microsoft-graph/import-rules/${encodeURIComponent(ruleId)}/live-apply`,
+				jsonRequest('POST', request)
+			),
+		archiveMicrosoftGraphDirectoryImportRule: (ruleId: string) =>
+			client.request<DirectoryImportRuleResponse>(
+				`/directory-connections/microsoft-graph/import-rules/${encodeURIComponent(ruleId)}`,
+				jsonRequest('DELETE', {})
+			),
+		createMicrosoftGraphConsentRequest: (request: CreateMicrosoftGraphConsentRequest = {}) =>
+			client.request<MicrosoftGraphConsentRequestResponse>(
+				'/directory-connections/microsoft-graph/consent-requests',
+				jsonRequest('POST', request)
+			),
+		completeMicrosoftGraphConsentCallback: (request: CompleteMicrosoftGraphConsentCallbackRequest) =>
+			client.request<MicrosoftGraphConsentCallbackResponse>(
+				'/directory-connections/microsoft-graph/consent-callback',
+				jsonRequest('POST', request)
+			),
 		createSubject: (request: CreateSubjectRequest) =>
 			client.request<SubjectDirectoryItemResponse>('/subjects', jsonRequest('POST', request)),
 		importSubjectDirectoryCsv: (request: SubjectDirectoryCsvImportRequest) =>

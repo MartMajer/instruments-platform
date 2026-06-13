@@ -37,6 +37,36 @@ public static class SetupEndpointRouteBuilderExtensions
             .WithName("GetTemplateVersion")
             .WithTags("Setup");
 
+        app.MapGet("/template-versions/{id:guid}/versions", ListTemplateVersions)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember)
+            .WithName("ListTemplateVersions")
+            .WithTags("Setup");
+
+        app.MapPost("/template-versions/{id:guid}/publish", PublishTemplateVersion)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("PublishTemplateVersion")
+            .WithTags("Setup");
+
+        app.MapPost("/template-versions/{id:guid}/drafts", CreateTemplateVersionDraft)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("CreateTemplateVersionDraft")
+            .WithTags("Setup");
+
+        app.MapPut("/template-versions/{id:guid}/draft-content", UpdateTemplateVersionDraftContent)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UpdateTemplateVersionDraftContent")
+            .WithTags("Setup");
+
+        app.MapPost("/template-versions/{id:guid}/draft-scoring/retire", RetireTemplateVersionDraftScoring)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("RetireTemplateVersionDraftScoring")
+            .WithTags("Setup");
+
         app.MapPost("/scoring-rules", CreateScoringRule)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -47,6 +77,12 @@ public static class SetupEndpointRouteBuilderExtensions
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
             .WithName("CreateCampaignSeries")
+            .WithTags("Setup");
+
+        app.MapPut("/campaign-series/{id:guid}/setup-template", SelectCampaignSeriesSetupTemplate)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("SelectCampaignSeriesSetupTemplate")
             .WithTags("Setup");
 
         app.MapGet("/campaign-series/{id:guid}/two-wave-proof", GetCampaignSeriesTwoWaveProof)
@@ -109,6 +145,12 @@ public static class SetupEndpointRouteBuilderExtensions
             .WithName("CreateCampaignIdentifiedEntry")
             .WithTags("Setup");
 
+        app.MapPost("/campaigns/{id:guid}/identified-queue-access", CreateCampaignIdentifiedQueueAccess)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("CreateCampaignIdentifiedQueueAccess")
+            .WithTags("Setup");
+
         app.MapPost("/campaigns/{id:guid}/invitation-batches", CreateCampaignInvitationBatch)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -163,6 +205,60 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToOk(result);
     }
 
+    private static async Task<IResult> ListTemplateVersions(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ListTemplateVersionsQuery(id), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> PublishTemplateVersion(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new PublishTemplateVersionCommand(id), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CreateTemplateVersionDraft(
+        Guid id,
+        CreateTemplateVersionDraftRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new CreateTemplateVersionDraftCommand(id, request), cancellationToken);
+
+        return SetupHttpResults.ToCreated(
+            result,
+            value => $"/template-versions/{value.TemplateVersionId}");
+    }
+
+    private static async Task<IResult> UpdateTemplateVersionDraftContent(
+        Guid id,
+        UpdateTemplateVersionDraftContentRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new UpdateTemplateVersionDraftContentCommand(id, request), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> RetireTemplateVersionDraftScoring(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RetireTemplateVersionDraftScoringCommand(id), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
+    }
+
     private static async Task<IResult> CreateScoringRule(
         CreateScoringRuleRequest request,
         ISender sender,
@@ -189,6 +285,19 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToCreated(
             result,
             value => $"/campaign-series/{value.Id}");
+    }
+
+    private static async Task<IResult> SelectCampaignSeriesSetupTemplate(
+        Guid id,
+        SelectCampaignSeriesSetupTemplateRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new SelectCampaignSeriesSetupTemplateCommand(id, request),
+            cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> GetCampaignSeriesTwoWaveProof(
@@ -298,6 +407,18 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToCreated(
             result,
             value => value.RespondentPath);
+    }
+
+    private static async Task<IResult> CreateCampaignIdentifiedQueueAccess(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new CreateCampaignIdentifiedQueueAccessCommand(id), cancellationToken);
+
+        return SetupHttpResults.ToCreated(
+            result,
+            value => $"/campaigns/{value.CampaignId}/identified-queue-access");
     }
 
     private static async Task<IResult> CreateCampaignInvitationBatch(

@@ -3,18 +3,15 @@
 	import { page } from '$app/state';
 	import {
 		BarChart3,
-		BookOpen,
 		Building2,
 		ClipboardList,
-		FileDown,
 		FolderKanban,
 		Home,
 		ListChecks,
 		Network,
 		RadioTower,
 		Settings2,
-		UsersRound,
-		Waves
+		UsersRound
 	} from 'lucide-svelte';
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { surfaceNavCopy } from '$lib/i18n/ui-copy';
@@ -43,22 +40,6 @@
 					href: '/app/campaign-series',
 					icon: FolderKanban,
 					description: copy.descriptions.planStudies,
-					isDisabled: false
-				},
-				{
-					id: 'instrument-library',
-					label: copy.surfaces.instrumentLibrary,
-					href: '/app/instruments',
-					icon: BookOpen,
-					description: copy.descriptions.questionSets,
-					isDisabled: false
-				},
-				{
-					id: 'files',
-					label: copy.surfaces.exports,
-					href: '/app/exports',
-					icon: FileDown,
-					description: copy.descriptions.files,
 					isDisabled: false
 				}
 			]
@@ -141,14 +122,6 @@
 				description: activeSeriesId
 					? copy.descriptions.reportsExports
 					: copy.descriptions.selectStudyFirst,
-				isDisabled: !activeSeriesId
-			},
-			{
-				id: 'waves',
-				label: copy.surfaces.waves,
-				href: activeSeriesId ? `/app/campaign-series/${activeSeriesId}/waves` : '/app/campaign-series',
-				icon: Waves,
-				description: activeSeriesId ? copy.descriptions.compareWaves : copy.descriptions.selectStudyFirst,
 				isDisabled: !activeSeriesId
 			}
 		]

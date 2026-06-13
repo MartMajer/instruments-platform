@@ -43,6 +43,7 @@ public sealed record WorkspaceCommandCenterItemResponse(
 public sealed record TenantSettingsWorkspaceResponse(
     TenantSettingsProfileResponse Profile,
     TenantSettingsWorkspaceCountsResponse Counts,
+    TenantSettingsReportBrandingResponse ReportBranding,
     IReadOnlyList<TenantSettingsManagementLinkResponse> ManagementLinks);
 
 public sealed record TenantSettingsProfileResponse(
@@ -65,6 +66,21 @@ public sealed record TenantSettingsWorkspaceCountsResponse(
     int TenantMemberCount,
     int TenantRoleCount,
     int ExportArtifactCount);
+
+public sealed record TenantSettingsReportBrandingResponse(
+    string OrganizationLabel,
+    string ReportTitle,
+    string BrandingSource,
+    string LogoMode,
+    string AccentColorHex,
+    string LayoutVariant,
+    IReadOnlyList<string> DeferredCustomizations);
+
+public sealed record UpdateTenantReportBrandingRequest(
+    string OrganizationLabel,
+    string ReportTitle,
+    string AccentColorHex,
+    string LayoutVariant);
 
 public sealed record TenantSettingsManagementLinkResponse(
     string Id,
@@ -302,6 +318,7 @@ public sealed record CampaignSeriesSetupTemplateResponse(
 
 public sealed record CampaignSeriesSetupScoringResponse(
     Guid Id,
+    Guid TemplateVersionId,
     string RuleKey,
     string RuleVersion,
     string Status,
@@ -416,7 +433,8 @@ public sealed record CampaignSeriesOperationsCampaignResponse(
     int ProviderDeliveredEventCount = 0,
     int ProviderBouncedEventCount = 0,
     int ProviderComplainedEventCount = 0,
-    DateTimeOffset? LatestProviderEventAt = null);
+    DateTimeOffset? LatestProviderEventAt = null,
+    int TargetAwareAssignmentCount = 0);
 
 public sealed record CampaignSeriesOperationsLaunchSnapshotResponse(
     Guid Id,
@@ -906,6 +924,156 @@ public sealed record SubjectDirectorySummaryResponse(
     int GroupCount,
     int ManagerRelationshipCount);
 
+public sealed record DirectoryConnectionStateResponse(
+    Guid TenantId,
+    string Provider,
+    string Status,
+    string DisplayName,
+    string? PrimaryDomain,
+    IReadOnlyList<string> GrantedScopes,
+    DateTimeOffset? LastConsentAt,
+    DateTimeOffset? LastSuccessfulImportAt,
+    DateTimeOffset? UpdatedAt,
+    bool Connected = false);
+
+public sealed record DirectoryImportRunHistoryResponse(
+    Guid TenantId,
+    IReadOnlyList<DirectoryImportRunListItemResponse> Runs);
+
+public sealed record DirectoryImportRunListItemResponse(
+    Guid Id,
+    Guid DirectoryConnectionId,
+    Guid? DirectoryImportRuleId,
+    Guid? PreviewRunId,
+    string Provider,
+    string Mode,
+    string Status,
+    int RowCount,
+    int ImportedRowCount,
+    int FailedRowCount,
+    int WarningCategoryCount,
+    IReadOnlyList<string> WarningCategories,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt);
+
+public sealed record DirectoryImportRuleListResponse(
+    Guid TenantId,
+    IReadOnlyList<DirectoryImportRuleResponse> Rules);
+
+public sealed record DirectoryImportRuleResponse(
+    Guid Id,
+    Guid DirectoryConnectionId,
+    string Name,
+    string Status,
+    string StalePolicy,
+    IReadOnlyList<string> RetainedFields,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record MicrosoftGraphImportRuleExecutionContext(
+    Guid RuleId,
+    Guid DirectoryConnectionId,
+    string StalePolicy,
+    string MicrosoftTenantId);
+
+public sealed record SaveMicrosoftGraphImportRuleRequest(
+    string Name,
+    bool MarkMissingSubjectsStale = false,
+    IReadOnlyList<string>? RetainedFields = null);
+
+public sealed record PreviewMicrosoftGraphImportRuleRequest(
+    string MicrosoftTenantId,
+    IReadOnlyList<MicrosoftGraphDirectoryImportUser> Users,
+    IReadOnlyList<MicrosoftGraphDirectoryImportGroup> Groups,
+    IReadOnlyList<MicrosoftGraphDirectoryImportMembership> Memberships,
+    bool AllowUserPrincipalNameEmailFallback = false,
+    bool ExcludeGuests = true,
+    bool ExcludeDisabledAccounts = true,
+    IReadOnlyList<MicrosoftGraphDirectoryImportManagerRelationship>? ManagerRelationships = null);
+
+public sealed record ApplyMicrosoftGraphImportRuleRequest(
+    string MicrosoftTenantId,
+    IReadOnlyList<MicrosoftGraphDirectoryImportUser> Users,
+    IReadOnlyList<MicrosoftGraphDirectoryImportGroup> Groups,
+    IReadOnlyList<MicrosoftGraphDirectoryImportMembership> Memberships,
+    Guid PreviewImportRunId,
+    bool AllowUserPrincipalNameEmailFallback = false,
+    bool ExcludeGuests = true,
+    bool ExcludeDisabledAccounts = true,
+    IReadOnlyList<MicrosoftGraphDirectoryImportManagerRelationship>? ManagerRelationships = null);
+
+public sealed record LiveApplyMicrosoftGraphImportRuleRequest(
+    Guid PreviewImportRunId);
+
+public sealed record MicrosoftGraphImportRulePreviewResponse(
+    Guid TenantId,
+    Guid DirectoryImportRuleId,
+    Guid DirectoryConnectionId,
+    SubjectDirectoryCsvImportResponse Import,
+    int IncludedUserCount,
+    int IncludedMembershipCount,
+    IReadOnlyList<MicrosoftGraphDirectoryImportWarning> Warnings);
+
+public sealed record MicrosoftGraphImportRuleApplyResponse(
+    Guid TenantId,
+    Guid DirectoryImportRuleId,
+    Guid DirectoryConnectionId,
+    SubjectDirectoryCsvImportResponse Import,
+    int IncludedUserCount,
+    int IncludedMembershipCount,
+    IReadOnlyList<MicrosoftGraphDirectoryImportWarning> Warnings);
+
+public static class MicrosoftGraphDirectoryConsentScopes
+{
+    public const string UserReadAll = "User.Read.All";
+    public const string GroupMemberReadAll = "GroupMember.Read.All";
+    public const string GroupReadAll = "Group.Read.All";
+    public const string DirectoryReadAll = "Directory.Read.All";
+
+    public static readonly IReadOnlyList<string> Default = [UserReadAll, GroupReadAll, GroupMemberReadAll];
+
+    public static bool IsKnown(string value)
+    {
+        return value is UserReadAll or GroupMemberReadAll or GroupReadAll or DirectoryReadAll;
+    }
+}
+
+public sealed record CreateMicrosoftGraphConsentRequest(
+    IReadOnlyList<string>? RequestedScopes = null);
+
+public sealed record MicrosoftGraphConsentRequestResponse(
+    Guid TenantId,
+    Guid ConsentRequestId,
+    Guid DirectoryConnectionId,
+    string Provider,
+    string Status,
+    IReadOnlyList<string> RequestedScopes,
+    DateTimeOffset ExpiresAt,
+    string State,
+    string Nonce,
+    string CallbackPath,
+    string? AdminConsentUrl = null);
+
+public sealed record CompleteMicrosoftGraphConsentCallbackRequest(
+    string State,
+    string? Nonce = null,
+    bool AdminConsent = false,
+    string? MicrosoftTenantId = null,
+    string? DisplayName = null,
+    string? PrimaryDomain = null,
+    string? Error = null,
+    string? ErrorDescription = null);
+
+public sealed record MicrosoftGraphConsentCallbackResponse(
+    Guid TenantId,
+    Guid ConsentRequestId,
+    Guid? DirectoryConnectionId,
+    string Provider,
+    string Status,
+    string ConnectionStatus,
+    bool Connected);
+
 public sealed record SubjectDirectoryItemResponse(
     Guid Id,
     string? DisplayName,
@@ -916,7 +1084,9 @@ public sealed record SubjectDirectoryItemResponse(
     Guid? ManagerSubjectId,
     string? ManagerDisplayName,
     int DirectReportCount,
-    IReadOnlyList<SubjectGroupMembershipResponse> Groups);
+    IReadOnlyList<SubjectGroupMembershipResponse> Groups,
+    bool DirectoryImportStale = false,
+    DateTimeOffset? DirectoryImportStaleAt = null);
 
 public sealed record SubjectGroupMembershipResponse(
     Guid GroupId,
@@ -997,7 +1167,11 @@ public sealed record UpdateSubjectRequest(
 
 public sealed record SubjectDirectoryCsvImportRequest(
     string CsvContent,
-    bool DryRun = false);
+    bool DryRun = false,
+    string? SourceExternalIdPrefix = null,
+    bool MarkMissingSubjectsStale = false,
+    Guid? PreviewImportRunId = null,
+    Guid? DirectoryImportRuleId = null);
 
 public sealed record SubjectDirectoryCsvImportResponse(
     Guid TenantId,
@@ -1009,7 +1183,14 @@ public sealed record SubjectDirectoryCsvImportResponse(
     int AddedMembershipCount,
     int SkippedMembershipCount,
     IReadOnlyList<SubjectDirectoryCsvImportRowResponse> Rows,
-    bool DryRun = false);
+    bool DryRun = false,
+    int SetManagerRelationshipCount = 0,
+    int SkippedManagerRelationshipCount = 0,
+    int MissingManagerReferenceCount = 0,
+    int MarkedStaleSubjectCount = 0,
+    int ClearedStaleSubjectCount = 0,
+    Guid? ImportAuditEventId = null,
+    Guid? ImportRunId = null);
 
 public sealed record SubjectDirectoryCsvImportRowResponse(
     int RowNumber,

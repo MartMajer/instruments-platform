@@ -18,6 +18,10 @@ public sealed class RlsMigrationScriptTests
         "role_assignment",
         "audit_event",
         "outbox_event",
+        "directory_connection",
+        "directory_connection_consent_request",
+        "directory_import_rule",
+        "directory_import_run",
         "subject",
         "subject_group",
         "subject_membership",
@@ -130,6 +134,32 @@ public sealed class RlsMigrationScriptTests
     }
 
     [Fact]
+    public void Migrations_create_directory_integration_tables_with_json_rls_and_runtime_grants()
+    {
+        var script = GenerateMigrationScript();
+
+        Assert.Contains("CREATE TABLE directory_connection", script);
+        Assert.Contains("granted_scopes jsonb NOT NULL", script);
+        Assert.Contains("CREATE TABLE directory_connection_consent_request", script);
+        Assert.Contains("requested_scopes jsonb NOT NULL", script);
+        Assert.Contains("CREATE TABLE directory_import_rule", script);
+        Assert.Contains("rule_document jsonb NOT NULL", script);
+        Assert.Contains("retained_fields jsonb NOT NULL", script);
+        Assert.Contains("CREATE TABLE directory_import_run", script);
+        Assert.Contains("rule_snapshot jsonb NOT NULL", script);
+        Assert.Contains("warning_categories jsonb NOT NULL", script);
+        Assert.Contains("CONSTRAINT ck_directory_import_run_apply_preview CHECK", script);
+        Assert.Contains("CREATE POLICY directory_connection_tenant_isolation ON directory_connection", script);
+        Assert.Contains(
+            "CREATE POLICY directory_connection_consent_request_tenant_isolation ON directory_connection_consent_request",
+            script);
+        Assert.Contains("CREATE POLICY directory_import_rule_tenant_isolation ON directory_import_rule", script);
+        Assert.Contains("CREATE POLICY directory_import_run_tenant_isolation ON directory_import_run", script);
+        Assert.Contains("GRANT SELECT, INSERT, UPDATE ON TABLE directory_connection TO platform_app_runtime;", script);
+        Assert.Contains("GRANT SELECT, INSERT, UPDATE ON TABLE directory_import_run TO platform_app_runtime;", script);
+    }
+
+    [Fact]
     public void Migrations_create_worker_outbox_relay_policy_without_broad_runtime_bypass()
     {
         var script = GenerateMigrationScript();
@@ -235,6 +265,7 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains("CONSTRAINT ck_scoring_rule_document_hash CHECK", script);
         Assert.Contains("CONSTRAINT ck_scoring_rule_publish_shape CHECK", script);
         Assert.Contains("CREATE UNIQUE INDEX ix_scoring_rule_template_version_id_rule_key_rule_version", script);
+        Assert.Contains("WHERE status <> 'retired'", script);
         Assert.Contains("CREATE POLICY scoring_rule_tenant_or_global_read ON scoring_rule", script);
         Assert.Contains("CREATE POLICY scoring_rule_tenant_write ON scoring_rule", script);
     }
@@ -268,6 +299,7 @@ public sealed class RlsMigrationScriptTests
 
         Assert.Contains("CREATE TABLE campaign_series", script);
         Assert.Contains("CREATE TABLE campaign", script);
+        Assert.Contains("setup_template_version_id uuid", script);
         Assert.Contains("response_identity_mode character varying(64) NOT NULL", script);
         Assert.DoesNotContain("anonymous_default", script);
         Assert.Contains("CREATE TABLE audience", script);
@@ -288,6 +320,8 @@ public sealed class RlsMigrationScriptTests
         Assert.Contains("CONSTRAINT ck_notification_delivery_attempt_status CHECK", script);
         Assert.Contains("CONSTRAINT ck_participant_code_hash_length CHECK", script);
         Assert.Contains("CONSTRAINT ck_participant_code_argon2_parameters CHECK", script);
+        Assert.Contains("fk_campaign_series_template_version_setup_template_version_id", script);
+        Assert.Contains("CREATE INDEX ix_campaign_series_setup_template_version_id", script);
         Assert.Contains("CREATE POLICY campaign_series_tenant_isolation ON campaign_series", script);
         Assert.Contains("CREATE POLICY campaign_tenant_isolation ON campaign", script);
         Assert.Contains("CREATE POLICY audience_tenant_isolation ON audience", script);

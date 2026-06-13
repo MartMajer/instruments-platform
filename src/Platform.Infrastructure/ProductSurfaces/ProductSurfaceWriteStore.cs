@@ -1,13 +1,18 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.ProductSurfaces;
+using Platform.Domain.Auditing;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
+using Platform.Domain.Integrations;
 using Platform.Domain.Scoring;
 using Platform.Domain.Subjects;
+using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Scoring;
 using Platform.Infrastructure.Tenancy;
@@ -22,6 +27,61 @@ public sealed class ProductSurfaceWriteStore(
 {
     private readonly SubmittedResponseScoreMaterializer submittedScoreMaterializer =
         scoreMaterializer ?? new SubmittedResponseScoreMaterializer(db);
+    private static readonly TimeSpan MicrosoftGraphConsentRequestLifetime = TimeSpan.FromMinutes(20);
+    private const string MicrosoftGraphConsentCallbackPath =
+        "/app/directory";
+
+    public async Task<Result<TenantSettingsReportBrandingResponse>> UpdateTenantReportBrandingAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantReportBrandingRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenant = await db.Tenants
+            .SingleOrDefaultAsync(entity => entity.Id == tenantId && entity.DeletedAt == null, cancellationToken);
+
+        if (tenant is null)
+        {
+            return Result.Failure<TenantSettingsReportBrandingResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        try
+        {
+            tenant.UpdateReportBranding(
+                request.OrganizationLabel,
+                request.ReportTitle,
+                request.AccentColorHex,
+                request.LayoutVariant,
+                DateTimeOffset.UtcNow);
+        }
+        catch (ArgumentException exception)
+        {
+            return Result.Failure<TenantSettingsReportBrandingResponse>(
+                Error.Validation("tenant_report_branding.invalid", exception.Message));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new TenantSettingsReportBrandingResponse(
+            tenant.ReportBrandingOrganizationLabel ?? tenant.Name,
+            tenant.ReportBrandingReportTitle ?? "Campaign series report",
+            "tenant_settings",
+            "none",
+            tenant.ReportBrandingAccentColorHex ?? Tenant.DefaultReportBrandingAccentColorHex,
+            tenant.ReportBrandingLayoutVariant ?? Tenant.DefaultReportBrandingLayoutVariant,
+            [
+                "logo_upload",
+                "custom_fonts",
+                "product_shell_theming"
+            ]));
+    }
 
     public async Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
         Guid tenantId,
@@ -730,11 +790,24 @@ public sealed class ProductSurfaceWriteStore(
             return Result.Failure<SubjectDirectoryCsvImportResponse>(parsed.Error);
         }
 
+        var sourceExternalIdPrefix = NormalizeOptionalSourceExternalIdPrefix(request.SourceExternalIdPrefix);
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
             tenantId,
             actorUserId,
             cancellationToken: cancellationToken);
         var dryRun = request.DryRun;
+        var graphImportRunResult = await CreateGraphDirectoryImportRunAsync(
+            tenantId,
+            request,
+            sourceExternalIdPrefix,
+            dryRun,
+            cancellationToken);
+        if (graphImportRunResult.IsFailure)
+        {
+            return Result.Failure<SubjectDirectoryCsvImportResponse>(graphImportRunResult.Error);
+        }
+
+        var graphImportRun = graphImportRunResult.Value;
 
         var existingSubjects = await db.Subjects
             .Where(subject => subject.TenantId == tenantId && subject.DeletedAt == null)
@@ -769,12 +842,25 @@ public sealed class ProductSurfaceWriteStore(
         var createdGroupCount = 0;
         var addedMembershipCount = 0;
         var skippedMembershipCount = 0;
+        var setManagerRelationshipCount = 0;
+        var skippedManagerRelationshipCount = 0;
+        var missingManagerReferenceCount = 0;
+        var markedStaleSubjectCount = 0;
+        var clearedStaleSubjectCount = 0;
+        var appliedManagerKeys = new HashSet<(Guid SubjectId, Guid ManagerId)>();
+        var sourceExternalIdsSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var row in parsed.Value)
         {
             var values = NormalizeImportRow(row.Values);
             var issues = ValidateImportRow(values);
             var actions = new List<string>();
+            if (sourceExternalIdPrefix is not null &&
+                values.ExternalId is not null &&
+                values.ExternalId.StartsWith(sourceExternalIdPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                sourceExternalIdsSeen.Add(values.ExternalId);
+            }
 
             Subject? subject = null;
             if (issues.Count == 0)
@@ -824,6 +910,17 @@ public sealed class ProductSurfaceWriteStore(
             }
             else
             {
+                var attributes = subject.Attributes;
+                var clearedStale = false;
+                if (sourceExternalIdPrefix is not null &&
+                    values.ExternalId is not null &&
+                    values.ExternalId.StartsWith(sourceExternalIdPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var clearResult = ClearDirectoryImportStaleMarker(attributes);
+                    attributes = clearResult.Attributes;
+                    clearedStale = clearResult.Changed;
+                }
+
                 if (!dryRun)
                 {
                     subject.ChangeDirectoryProfile(
@@ -831,7 +928,13 @@ public sealed class ProductSurfaceWriteStore(
                         values.Email ?? subject.Email,
                         values.ExternalId ?? subject.ExternalId,
                         values.Locale,
-                        subject.Attributes);
+                        attributes);
+                }
+
+                if (clearedStale)
+                {
+                    clearedStaleSubjectCount++;
+                    actions.Add("cleared_stale");
                 }
 
                 updatedSubjectCount++;
@@ -890,13 +993,134 @@ public sealed class ProductSurfaceWriteStore(
                 }
             }
 
-            rows.Add(CreateImportRowResponse(row.RowNumber, "imported", values, string.Join(",", actions), []));
+            if (values.ManagerExternalId is not null)
+            {
+                if (!subjectsByExternalId.TryGetValue(values.ManagerExternalId, out var managerSubject))
+                {
+                    actions.Add("manager_not_imported");
+                    issues.Add("manager_external_id did not match an imported or existing subject.");
+                    missingManagerReferenceCount++;
+                }
+                else if (appliedManagerKeys.Contains((subject.Id, managerSubject.Id)))
+                {
+                    actions.Add("skipped_manager");
+                    skippedManagerRelationshipCount++;
+                }
+                else
+                {
+                    var activeManagerRelationships = await db.SubjectRelationships
+                        .Where(relationship =>
+                            relationship.TenantId == tenantId &&
+                            relationship.RelationshipType == SubjectRelationshipTypes.ManagerOf &&
+                            relationship.RelatedSubjectId == subject.Id &&
+                            relationship.ValidTo == null)
+                        .ToListAsync(cancellationToken);
+                    var hasSameManager = activeManagerRelationships.Any(
+                        relationship => relationship.SubjectId == managerSubject.Id);
+                    var effectiveDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                    foreach (var relationship in activeManagerRelationships)
+                    {
+                        if (relationship.SubjectId == managerSubject.Id)
+                        {
+                            continue;
+                        }
+
+                        relationship.End(ClampEndDate(relationship.ValidFrom, effectiveDate));
+                    }
+
+                    if (hasSameManager)
+                    {
+                        actions.Add("skipped_manager");
+                        skippedManagerRelationshipCount++;
+                    }
+                    else
+                    {
+                        db.SubjectRelationships.Add(new SubjectRelationship(
+                            PlatformIds.NewId(),
+                            tenantId,
+                            managerSubject.Id,
+                            subject.Id,
+                            SubjectRelationshipTypes.ManagerOf));
+                        actions.Add("set_manager");
+                        setManagerRelationshipCount++;
+                    }
+
+                    appliedManagerKeys.Add((subject.Id, managerSubject.Id));
+                }
+            }
+
+            rows.Add(CreateImportRowResponse(row.RowNumber, "imported", values, string.Join(",", actions), issues));
         }
 
-        if (!dryRun)
+        if (request.MarkMissingSubjectsStale && sourceExternalIdPrefix is not null)
         {
-            await db.SaveChangesAsync(cancellationToken);
+            var staleCandidates = existingSubjects
+                .Where(subject =>
+                    subject.ExternalId is not null &&
+                    subject.ExternalId.StartsWith(sourceExternalIdPrefix, StringComparison.OrdinalIgnoreCase) &&
+                    !sourceExternalIdsSeen.Contains(subject.ExternalId))
+                .ToArray();
+
+            foreach (var subject in staleCandidates)
+            {
+                var staleResult = MarkDirectoryImportStale(subject.Attributes, sourceExternalIdPrefix);
+                if (!staleResult.Changed)
+                {
+                    continue;
+                }
+
+                markedStaleSubjectCount++;
+                if (!dryRun)
+                {
+                    subject.ReplaceAttributes(staleResult.Attributes);
+                }
+            }
         }
+
+        var importAuditEventId = PlatformIds.NewId();
+        db.AuditEvents.Add(CreateSubjectDirectoryImportAuditEvent(
+            importAuditEventId,
+            tenantId,
+            actorUserId,
+            dryRun,
+            sourceExternalIdPrefix,
+            parsed.Value.Count,
+            rows.Count(row => row.Status == "imported"),
+            rows.Count(row => row.Status == "failed"),
+            createdSubjectCount,
+            updatedSubjectCount,
+            createdGroupCount,
+            addedMembershipCount,
+            skippedMembershipCount,
+            setManagerRelationshipCount,
+            skippedManagerRelationshipCount,
+            missingManagerReferenceCount,
+            markedStaleSubjectCount,
+            clearedStaleSubjectCount));
+        graphImportRun?.Succeed(
+            CreateDirectoryImportRunCountsJson(
+                parsed.Value.Count,
+                rows.Count(row => row.Status == "imported"),
+                rows.Count(row => row.Status == "failed"),
+                createdSubjectCount,
+                updatedSubjectCount,
+                createdGroupCount,
+                addedMembershipCount,
+                skippedMembershipCount,
+                setManagerRelationshipCount,
+                skippedManagerRelationshipCount,
+                missingManagerReferenceCount,
+                markedStaleSubjectCount,
+                clearedStaleSubjectCount),
+            CreateDirectoryImportRunWarningCategoriesJson(
+                rows.Count(row => row.Status == "failed"),
+                missingManagerReferenceCount,
+                markedStaleSubjectCount),
+            CreateDirectoryImportRunCheckpointJson(dryRun),
+            DateTimeOffset.UtcNow);
+
+        await db.SaveChangesAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -910,7 +1134,338 @@ public sealed class ProductSurfaceWriteStore(
             addedMembershipCount,
             skippedMembershipCount,
             rows,
-            dryRun));
+            dryRun,
+            setManagerRelationshipCount,
+            skippedManagerRelationshipCount,
+            missingManagerReferenceCount,
+            markedStaleSubjectCount,
+            clearedStaleSubjectCount,
+            importAuditEventId,
+            graphImportRun?.Id));
+    }
+
+    public async Task<Result<MicrosoftGraphConsentRequestResponse>> CreateMicrosoftGraphConsentRequestAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CreateMicrosoftGraphConsentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var requestedScopes = NormalizeMicrosoftGraphConsentScopes(request.RequestedScopes);
+        var now = DateTimeOffset.UtcNow;
+        var rawState = CreateUrlSafeSecret();
+        var rawNonce = CreateUrlSafeSecret();
+        var stateHash = HashConsentSecret(rawState);
+        var nonceHash = HashConsentSecret(rawNonce);
+        var requestedScopesJson = JsonSerializer.Serialize(requestedScopes);
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var connection = await db.DirectoryConnections
+            .SingleOrDefaultAsync(
+                row =>
+                    row.TenantId == tenantId &&
+                    row.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    row.DeletedAt == null,
+                cancellationToken);
+
+        if (connection is null)
+        {
+            connection = new DirectoryConnection(
+                PlatformIds.NewId(),
+                tenantId,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                externalTenantId: null,
+                displayName: "Microsoft Graph",
+                primaryDomain: null,
+                grantedScopes: "[]",
+                status: DirectoryConnectionStatuses.PendingConsent,
+                createdByUserId: actorUserId,
+                observedAt: now);
+            db.DirectoryConnections.Add(connection);
+        }
+        else
+        {
+            connection.MarkPendingConsent(now);
+        }
+
+        var consentRequest = new DirectoryConnectionConsentRequest(
+            PlatformIds.NewId(),
+            tenantId,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            stateHash,
+            nonceHash,
+            now.Add(MicrosoftGraphConsentRequestLifetime),
+            requestedScopesJson,
+            connection.Id,
+            actorUserId,
+            now);
+        db.DirectoryConnectionConsentRequests.Add(consentRequest);
+        db.AuditEvents.Add(CreateMicrosoftGraphConsentAuditEvent(
+            PlatformIds.NewId(),
+            tenantId,
+            actorUserId,
+            consentRequest.Id,
+            connection.Id,
+            "requested",
+            connection.Status,
+            requestedScopes.Count,
+            externalTenantIdPresent: false,
+            failureCategory: null));
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new MicrosoftGraphConsentRequestResponse(
+            tenantId,
+            consentRequest.Id,
+            connection.Id,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            consentRequest.Status,
+            requestedScopes,
+            consentRequest.ExpiresAt,
+            rawState,
+            rawNonce,
+            MicrosoftGraphConsentCallbackPath));
+    }
+
+    public async Task<Result<MicrosoftGraphConsentCallbackResponse>> CompleteMicrosoftGraphConsentCallbackAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        CompleteMicrosoftGraphConsentCallbackRequest request,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var stateHash = HashConsentSecret(request.State);
+        var nonceHash = string.IsNullOrWhiteSpace(request.Nonce)
+            ? null
+            : HashConsentSecret(request.Nonce);
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var consentRequest = await db.DirectoryConnectionConsentRequests
+            .SingleOrDefaultAsync(
+                row =>
+                    row.TenantId == tenantId &&
+                    row.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    row.StateHash == stateHash,
+                cancellationToken);
+
+        if (consentRequest is null)
+        {
+            return Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                Error.NotFound("directory_connection_consent.not_found", "Microsoft Graph consent request was not found."));
+        }
+
+        if (nonceHash is not null && consentRequest.NonceHash != nonceHash)
+        {
+            return Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                Error.Forbidden("directory_connection_consent.invalid_nonce", "Microsoft Graph consent request did not match."));
+        }
+
+        if (consentRequest.Status != DirectoryConnectionConsentRequestStatuses.Pending)
+        {
+            return Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                Error.Conflict("directory_connection_consent.not_pending", "Microsoft Graph consent request is no longer pending."));
+        }
+
+        var connection = consentRequest.DirectoryConnectionId.HasValue
+            ? await db.DirectoryConnections.SingleOrDefaultAsync(
+                row => row.Id == consentRequest.DirectoryConnectionId.Value && row.TenantId == tenantId,
+                cancellationToken)
+            : null;
+
+        if (consentRequest.ExpiresAt <= now)
+        {
+            consentRequest.Expire(now);
+            connection?.MarkConsentRequired(now);
+            db.AuditEvents.Add(CreateMicrosoftGraphConsentAuditEvent(
+                PlatformIds.NewId(),
+                tenantId,
+                actorUserId,
+                consentRequest.Id,
+                connection?.Id,
+                "expired",
+                connection?.Status ?? DirectoryConnectionStatuses.ConsentRequired,
+                ReadStringArray(consentRequest.RequestedScopes).Count,
+                externalTenantIdPresent: false,
+                failureCategory: "expired"));
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                Error.Conflict("directory_connection_consent.expired", "Microsoft Graph consent request expired."));
+        }
+
+        var requestedScopes = ReadStringArray(consentRequest.RequestedScopes);
+        var failureCategory = NormalizeConsentFailureCategory(request.Error);
+        if (!request.AdminConsent || failureCategory is not null)
+        {
+            failureCategory ??= "admin_consent_denied";
+            consentRequest.Fail(failureCategory, now);
+            connection?.MarkConsentRequired(now);
+            db.AuditEvents.Add(CreateMicrosoftGraphConsentAuditEvent(
+                PlatformIds.NewId(),
+                tenantId,
+                actorUserId,
+                consentRequest.Id,
+                connection?.Id,
+                "failed",
+                connection?.Status ?? DirectoryConnectionStatuses.ConsentRequired,
+                requestedScopes.Count,
+                externalTenantIdPresent: false,
+                failureCategory));
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Result.Success(new MicrosoftGraphConsentCallbackResponse(
+                tenantId,
+                consentRequest.Id,
+                connection?.Id,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                consentRequest.Status,
+                connection?.Status ?? DirectoryConnectionStatuses.ConsentRequired,
+                Connected: false));
+        }
+
+        if (string.IsNullOrWhiteSpace(request.MicrosoftTenantId))
+        {
+            return Result.Failure<MicrosoftGraphConsentCallbackResponse>(
+                Error.Validation(
+                    "directory_connection_consent.microsoft_tenant_required",
+                    "Microsoft tenant id is required when admin consent succeeds."));
+        }
+
+        if (connection is null)
+        {
+            connection = new DirectoryConnection(
+                PlatformIds.NewId(),
+                tenantId,
+                DirectoryConnectionProviders.MicrosoftGraph,
+                externalTenantId: null,
+                displayName: "Microsoft Graph",
+                primaryDomain: null,
+                grantedScopes: "[]",
+                status: DirectoryConnectionStatuses.PendingConsent,
+                createdByUserId: actorUserId,
+                observedAt: now);
+            db.DirectoryConnections.Add(connection);
+        }
+
+        connection.Activate(
+            request.MicrosoftTenantId,
+            string.IsNullOrWhiteSpace(request.DisplayName) ? "Microsoft Graph" : request.DisplayName!,
+            request.PrimaryDomain,
+            consentRequest.RequestedScopes,
+            now);
+        consentRequest.Complete(now);
+        db.AuditEvents.Add(CreateMicrosoftGraphConsentAuditEvent(
+            PlatformIds.NewId(),
+            tenantId,
+            actorUserId,
+            consentRequest.Id,
+            connection.Id,
+            "completed",
+            connection.Status,
+            requestedScopes.Count,
+            externalTenantIdPresent: true,
+            failureCategory: null));
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new MicrosoftGraphConsentCallbackResponse(
+            tenantId,
+            consentRequest.Id,
+            connection.Id,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            consentRequest.Status,
+            connection.Status,
+            Connected: true));
+    }
+
+    public async Task<Result<DirectoryImportRuleResponse>> SaveMicrosoftGraphDirectoryImportRuleAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        SaveMicrosoftGraphImportRuleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var retainedFields = NormalizeMicrosoftGraphImportRetainedFields(request.RetainedFields);
+        var retainedFieldsJson = JsonSerializer.Serialize(retainedFields);
+        var stalePolicy = request.MarkMissingSubjectsStale
+            ? DirectoryImportStalePolicies.MarkStale
+            : DirectoryImportStalePolicies.None;
+        var now = DateTimeOffset.UtcNow;
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var connection = await GetOrCreateMicrosoftGraphRuleConnectionAsync(
+            tenantId,
+            now,
+            cancellationToken);
+        var rule = new DirectoryImportRule(
+            PlatformIds.NewId(),
+            tenantId,
+            connection.Id,
+            request.Name,
+            CreateMicrosoftGraphImportRuleDocumentJson(request.MarkMissingSubjectsStale),
+            retainedFieldsJson,
+            stalePolicy,
+            DirectoryImportRuleStatuses.Active,
+            createdByUserId: null,
+            observedAt: now);
+        db.DirectoryImportRules.Add(rule);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(CreateDirectoryImportRuleResponse(rule, retainedFields));
+    }
+
+    public async Task<Result<DirectoryImportRuleResponse>> ArchiveMicrosoftGraphDirectoryImportRuleAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        Guid ruleId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var rule = await (
+                from candidate in db.DirectoryImportRules
+                join connection in db.DirectoryConnections
+                    on new { Id = candidate.DirectoryConnectionId, candidate.TenantId }
+                    equals new { connection.Id, connection.TenantId }
+                where candidate.Id == ruleId &&
+                    candidate.TenantId == tenantId &&
+                    candidate.DeletedAt == null &&
+                    connection.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                    connection.DeletedAt == null
+                select candidate)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (rule is null)
+        {
+            return Result.Failure<DirectoryImportRuleResponse>(
+                Error.NotFound("directory_import_rule.not_found", "Graph import rule was not found."));
+        }
+
+        rule.Archive(DateTimeOffset.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(CreateDirectoryImportRuleResponse(
+            rule,
+            ReadStringArray(rule.RetainedFields)));
     }
 
     public async Task<Result<SubjectGroupResponse>> CreateSubjectGroupAsync(
@@ -1314,6 +1869,449 @@ public sealed class ProductSurfaceWriteStore(
             memberCount);
     }
 
+    private static IReadOnlyList<string> NormalizeMicrosoftGraphConsentScopes(IReadOnlyList<string>? requestedScopes)
+    {
+        var sourceScopes = requestedScopes is { Count: > 0 }
+            ? requestedScopes
+            : MicrosoftGraphDirectoryConsentScopes.Default;
+        var normalizedScopes = new List<string>();
+        foreach (var requestedScope in sourceScopes)
+        {
+            if (string.IsNullOrWhiteSpace(requestedScope))
+            {
+                continue;
+            }
+
+            var normalizedScope = requestedScope.Trim();
+            if (!MicrosoftGraphDirectoryConsentScopes.IsKnown(normalizedScope) ||
+                normalizedScopes.Contains(normalizedScope, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            normalizedScopes.Add(normalizedScope);
+        }
+
+        return normalizedScopes.Count > 0
+            ? normalizedScopes
+            : MicrosoftGraphDirectoryConsentScopes.Default.ToArray();
+    }
+
+    private static string CreateUrlSafeSecret()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+    }
+
+    private static string HashConsentSecret(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value.Trim()));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static string? NormalizeConsentFailureCategory(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = new StringBuilder(value.Trim().ToLowerInvariant().Length);
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(character) || character is '.' or '_' or '-')
+            {
+                normalized.Append(character);
+            }
+            else if (normalized.Length == 0 || normalized[^1] != '_')
+            {
+                normalized.Append('_');
+            }
+
+            if (normalized.Length == DirectoryConnectionConsentRequest.FailureCategoryMaxLength)
+            {
+                break;
+            }
+        }
+
+        var category = normalized.ToString().Trim('_');
+        return string.IsNullOrWhiteSpace(category) ? "microsoft_graph_error" : category;
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return [];
+            }
+
+            return document.RootElement
+                .EnumerateArray()
+                .Where(element => element.ValueKind == JsonValueKind.String)
+                .Select(element => element.GetString())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static AuditEvent CreateMicrosoftGraphConsentAuditEvent(
+        Guid id,
+        Guid tenantId,
+        Guid actorUserId,
+        Guid consentRequestId,
+        Guid? directoryConnectionId,
+        string phase,
+        string connectionStatus,
+        int requestedScopeCount,
+        bool externalTenantIdPresent,
+        string? failureCategory)
+    {
+        var after = JsonSerializer.SerializeToDocument(new Dictionary<string, object?>
+        {
+            ["phase"] = phase,
+            ["provider"] = DirectoryConnectionProviders.MicrosoftGraph,
+            ["connection_status"] = connectionStatus,
+            ["requested_scope_count"] = requestedScopeCount,
+            ["external_tenant_id_present"] = externalTenantIdPresent,
+            ["failure_category"] = failureCategory,
+            ["directory_connection_id_present"] = directoryConnectionId.HasValue
+        });
+
+        return new AuditEvent(
+            id,
+            DateTimeOffset.UtcNow,
+            tenantId,
+            AuditActorTypes.User,
+            actorUserId,
+            correlationId: null,
+            entityType: "MicrosoftGraphDirectoryConnectionConsent",
+            entityId: consentRequestId.ToString("D"),
+            changeKind: phase == "requested" ? AuditChangeKinds.Added : AuditChangeKinds.Modified,
+            before: null,
+            after,
+            reason: "microsoft_graph_directory_consent");
+    }
+
+    private async Task<Result<DirectoryImportRun?>> CreateGraphDirectoryImportRunAsync(
+        Guid tenantId,
+        SubjectDirectoryCsvImportRequest request,
+        string? sourceExternalIdPrefix,
+        bool dryRun,
+        CancellationToken cancellationToken)
+    {
+        var microsoftTenantId = ReadMicrosoftGraphTenantId(sourceExternalIdPrefix);
+        if (microsoftTenantId is null)
+        {
+            return Result.Success<DirectoryImportRun?>(null);
+        }
+
+        if (!dryRun && !request.PreviewImportRunId.HasValue)
+        {
+            return Result.Success<DirectoryImportRun?>(null);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var connectionResult = await GetOrCreateMicrosoftGraphImportConnectionAsync(
+            tenantId,
+            microsoftTenantId,
+            now,
+            cancellationToken);
+        if (connectionResult.IsFailure)
+        {
+            return Result.Failure<DirectoryImportRun?>(connectionResult.Error);
+        }
+
+        var connection = connectionResult.Value;
+        if (request.DirectoryImportRuleId.HasValue)
+        {
+            var ruleExists = await db.DirectoryImportRules.AnyAsync(
+                rule =>
+                    rule.Id == request.DirectoryImportRuleId.Value &&
+                    rule.TenantId == tenantId &&
+                    rule.DirectoryConnectionId == connection.Id &&
+                    rule.Status == DirectoryImportRuleStatuses.Active &&
+                    rule.DeletedAt == null,
+                cancellationToken);
+            if (!ruleExists)
+            {
+                return Result.Failure<DirectoryImportRun?>(
+                    Error.NotFound("directory_import_rule.not_found", "Graph import rule was not found."));
+            }
+        }
+
+        Guid? previewRunId = null;
+        if (!dryRun)
+        {
+            var previewRun = await db.DirectoryImportRuns.SingleOrDefaultAsync(
+                run =>
+                    run.Id == request.PreviewImportRunId!.Value &&
+                    run.TenantId == tenantId &&
+                    run.DirectoryConnectionId == connection.Id &&
+                    run.Mode == DirectoryImportRunModes.Preview &&
+                    run.Status == DirectoryImportRunStatuses.Succeeded,
+                cancellationToken);
+            if (previewRun is null)
+            {
+                return Result.Failure<DirectoryImportRun?>(
+                    Error.Conflict(
+                        "directory_import_run.preview_not_found",
+                        "A completed Graph directory preview run is required before apply."));
+            }
+
+            previewRunId = previewRun.Id;
+        }
+
+        var importRun = new DirectoryImportRun(
+            PlatformIds.NewId(),
+            tenantId,
+            connection.Id,
+            dryRun ? DirectoryImportRunModes.Preview : DirectoryImportRunModes.Apply,
+            CreateDirectoryImportRunRuleSnapshotJson(request.MarkMissingSubjectsStale),
+            retainedFields: """["external_id","email","display_name","locale","group_type","group_name","role_in_group","manager_external_id"]""",
+            counts: "{}",
+            warningCategories: "[]",
+            checkpoint: "{}",
+            status: DirectoryImportRunStatuses.Queued,
+            directoryImportRuleId: request.DirectoryImportRuleId,
+            previewRunId,
+            requestedByUserId: null,
+            observedAt: now);
+        importRun.Start(now);
+        db.DirectoryImportRuns.Add(importRun);
+
+        return Result.Success<DirectoryImportRun?>(importRun);
+    }
+
+    private async Task<Result<DirectoryConnection>> GetOrCreateMicrosoftGraphImportConnectionAsync(
+        Guid tenantId,
+        string microsoftTenantId,
+        DateTimeOffset observedAt,
+        CancellationToken cancellationToken)
+    {
+        var connection = await db.DirectoryConnections.SingleOrDefaultAsync(
+            row =>
+                row.TenantId == tenantId &&
+                row.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                row.DeletedAt == null,
+            cancellationToken);
+        if (connection is not null)
+        {
+            if (connection.ExternalTenantId is not null &&
+                !string.Equals(connection.ExternalTenantId, microsoftTenantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<DirectoryConnection>(
+                    Error.Validation(
+                        "directory_import_run.connection_mismatch",
+                        "Graph import source does not match the current Microsoft Graph connection."));
+            }
+
+            return Result.Success(connection);
+        }
+
+        connection = new DirectoryConnection(
+            PlatformIds.NewId(),
+            tenantId,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            microsoftTenantId,
+            "Microsoft Graph",
+            primaryDomain: null,
+            grantedScopes: "[]",
+            status: DirectoryConnectionStatuses.ConsentRequired,
+            createdByUserId: null,
+            observedAt);
+        db.DirectoryConnections.Add(connection);
+
+        return Result.Success(connection);
+    }
+
+    private async Task<DirectoryConnection> GetOrCreateMicrosoftGraphRuleConnectionAsync(
+        Guid tenantId,
+        DateTimeOffset observedAt,
+        CancellationToken cancellationToken)
+    {
+        var connection = await db.DirectoryConnections.SingleOrDefaultAsync(
+            row =>
+                row.TenantId == tenantId &&
+                row.Provider == DirectoryConnectionProviders.MicrosoftGraph &&
+                row.DeletedAt == null,
+            cancellationToken);
+        if (connection is not null)
+        {
+            return connection;
+        }
+
+        connection = new DirectoryConnection(
+            PlatformIds.NewId(),
+            tenantId,
+            DirectoryConnectionProviders.MicrosoftGraph,
+            externalTenantId: null,
+            displayName: "Microsoft Graph",
+            primaryDomain: null,
+            grantedScopes: "[]",
+            status: DirectoryConnectionStatuses.ConsentRequired,
+            createdByUserId: null,
+            observedAt);
+        db.DirectoryConnections.Add(connection);
+
+        return connection;
+    }
+
+    private static IReadOnlyList<string> NormalizeMicrosoftGraphImportRetainedFields(
+        IReadOnlyList<string>? retainedFields)
+    {
+        string[] allowed =
+            [
+                "external_id",
+                "email",
+                "display_name",
+                "locale",
+                "group_type",
+                "group_name",
+                "role_in_group",
+                "manager_external_id"
+            ];
+        var allowedSet = allowed.ToHashSet(StringComparer.Ordinal);
+        var source = retainedFields is { Count: > 0 }
+            ? retainedFields
+            : allowed;
+        var normalized = new List<string>();
+        foreach (var field in source)
+        {
+            var value = field.Trim();
+            if (allowedSet.Contains(value) && !normalized.Contains(value, StringComparer.Ordinal))
+            {
+                normalized.Add(value);
+            }
+        }
+
+        return normalized.Count > 0 ? normalized : allowed;
+    }
+
+    private static string CreateMicrosoftGraphImportRuleDocumentJson(bool markMissingSubjectsStale)
+    {
+        return JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["source_kind"] = "msgraph",
+            ["population"] = "all_users",
+            ["mark_missing_subjects_stale"] = markMissingSubjectsStale
+        });
+    }
+
+    private static DirectoryImportRuleResponse CreateDirectoryImportRuleResponse(
+        DirectoryImportRule rule,
+        IReadOnlyList<string> retainedFields)
+    {
+        return new DirectoryImportRuleResponse(
+            rule.Id,
+            rule.DirectoryConnectionId,
+            rule.Name,
+            rule.Status,
+            rule.StalePolicy,
+            retainedFields,
+            rule.CreatedAt,
+            rule.UpdatedAt);
+    }
+
+    private static string? ReadMicrosoftGraphTenantId(string? sourceExternalIdPrefix)
+    {
+        if (string.IsNullOrWhiteSpace(sourceExternalIdPrefix) ||
+            !sourceExternalIdPrefix.StartsWith("msgraph:", StringComparison.OrdinalIgnoreCase) ||
+            !sourceExternalIdPrefix.EndsWith(':'))
+        {
+            return null;
+        }
+
+        var tenantId = sourceExternalIdPrefix["msgraph:".Length..^1].Trim();
+        return tenantId.Length > 0 ? tenantId : null;
+    }
+
+    private static string CreateDirectoryImportRunRuleSnapshotJson(bool markMissingSubjectsStale)
+    {
+        return JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["source_kind"] = "msgraph",
+            ["source_prefix_present"] = true,
+            ["mark_missing_subjects_stale"] = markMissingSubjectsStale
+        });
+    }
+
+    private static string CreateDirectoryImportRunCountsJson(
+        int rowCount,
+        int importedRowCount,
+        int failedRowCount,
+        int createdSubjectCount,
+        int updatedSubjectCount,
+        int createdGroupCount,
+        int addedMembershipCount,
+        int skippedMembershipCount,
+        int setManagerRelationshipCount,
+        int skippedManagerRelationshipCount,
+        int missingManagerReferenceCount,
+        int markedStaleSubjectCount,
+        int clearedStaleSubjectCount)
+    {
+        return JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["row_count"] = rowCount,
+            ["imported_row_count"] = importedRowCount,
+            ["failed_row_count"] = failedRowCount,
+            ["created_subject_count"] = createdSubjectCount,
+            ["updated_subject_count"] = updatedSubjectCount,
+            ["created_group_count"] = createdGroupCount,
+            ["added_membership_count"] = addedMembershipCount,
+            ["skipped_membership_count"] = skippedMembershipCount,
+            ["set_manager_relationship_count"] = setManagerRelationshipCount,
+            ["skipped_manager_relationship_count"] = skippedManagerRelationshipCount,
+            ["missing_manager_reference_count"] = missingManagerReferenceCount,
+            ["marked_stale_subject_count"] = markedStaleSubjectCount,
+            ["cleared_stale_subject_count"] = clearedStaleSubjectCount
+        });
+    }
+
+    private static string CreateDirectoryImportRunWarningCategoriesJson(
+        int failedRowCount,
+        int missingManagerReferenceCount,
+        int markedStaleSubjectCount)
+    {
+        var categories = new List<string>();
+        if (failedRowCount > 0)
+        {
+            categories.Add("row_failed");
+        }
+
+        if (missingManagerReferenceCount > 0)
+        {
+            categories.Add("manager_reference_missing");
+        }
+
+        if (markedStaleSubjectCount > 0)
+        {
+            categories.Add("subject_marked_stale");
+        }
+
+        return JsonSerializer.Serialize(categories);
+    }
+
+    private static string CreateDirectoryImportRunCheckpointJson(bool dryRun)
+    {
+        return JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["source_kind"] = "msgraph",
+            ["completed"] = true,
+            ["mode"] = dryRun ? DirectoryImportRunModes.Preview : DirectoryImportRunModes.Apply
+        });
+    }
+
     private static Result<string> NormalizeEmail(string email)
     {
         var normalized = email.Trim().ToLowerInvariant();
@@ -1409,7 +2407,8 @@ public sealed class ProductSurfaceWriteStore(
                 "locale",
                 "group_type",
                 "group_name",
-                "role_in_group"
+                "role_in_group",
+                "manager_external_id"
             ],
             StringComparer.OrdinalIgnoreCase);
         var unknownHeaders = headers
@@ -1550,6 +2549,7 @@ public sealed class ProductSurfaceWriteStore(
             ImportText(values, "group_type") ?? SubjectGroupTypes.Department,
             ImportText(values, "group_name"),
             ImportText(values, "role_in_group"),
+            ImportText(values, "manager_external_id"),
             values.TryGetValue("__row_error", out var rowError) ? rowError : null,
             emailResult.IsFailure ? emailResult.Error.Message : null);
     }
@@ -1602,6 +2602,18 @@ public sealed class ProductSurfaceWriteStore(
             issues.Add("role_in_group must be 64 characters or fewer.");
         }
 
+        if (values.ManagerExternalId is { Length: > 256 })
+        {
+            issues.Add("manager_external_id must be 256 characters or fewer.");
+        }
+
+        if (values.ExternalId is not null &&
+            values.ManagerExternalId is not null &&
+            string.Equals(values.ExternalId, values.ManagerExternalId, StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add("manager_external_id cannot match external_id.");
+        }
+
         return issues;
     }
 
@@ -1610,6 +2622,103 @@ public sealed class ProductSurfaceWriteStore(
         return values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
             ? value.Trim()
             : null;
+    }
+
+    private static string? NormalizeOptionalSourceExternalIdPrefix(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static (string Attributes, bool Changed) MarkDirectoryImportStale(
+        string attributes,
+        string sourceExternalIdPrefix)
+    {
+        var root = ParseAttributeObject(attributes);
+        if (root.TryGetPropertyValue("directory_import_stale", out var staleNode) &&
+            staleNode is not null &&
+            staleNode.GetValueKind() == System.Text.Json.JsonValueKind.True &&
+            root.TryGetPropertyValue("directory_import_stale_source", out var sourceNode) &&
+            string.Equals(sourceNode?.GetValue<string>(), sourceExternalIdPrefix, StringComparison.Ordinal))
+        {
+            return (attributes, false);
+        }
+
+        root["directory_import_stale"] = true;
+        root["directory_import_stale_source"] = sourceExternalIdPrefix;
+        root["directory_import_stale_at"] = DateTimeOffset.UtcNow.ToString("O");
+        return (root.ToJsonString(), true);
+    }
+
+    private static (string Attributes, bool Changed) ClearDirectoryImportStaleMarker(string attributes)
+    {
+        var root = ParseAttributeObject(attributes);
+        var changed = root.Remove("directory_import_stale");
+        changed = root.Remove("directory_import_stale_source") || changed;
+        changed = root.Remove("directory_import_stale_at") || changed;
+
+        return changed ? (root.ToJsonString(), true) : (attributes, false);
+    }
+
+    private static JsonObject ParseAttributeObject(string attributes)
+    {
+        return JsonNode.Parse(attributes)?.AsObject() ?? [];
+    }
+
+    private static AuditEvent CreateSubjectDirectoryImportAuditEvent(
+        Guid auditEventId,
+        Guid tenantId,
+        Guid actorUserId,
+        bool dryRun,
+        string? sourceExternalIdPrefix,
+        int rowCount,
+        int importedRowCount,
+        int failedRowCount,
+        int createdSubjectCount,
+        int updatedSubjectCount,
+        int createdGroupCount,
+        int addedMembershipCount,
+        int skippedMembershipCount,
+        int setManagerRelationshipCount,
+        int skippedManagerRelationshipCount,
+        int missingManagerReferenceCount,
+        int markedStaleSubjectCount,
+        int clearedStaleSubjectCount)
+    {
+        return new AuditEvent(
+            auditEventId,
+            DateTimeOffset.UtcNow,
+            tenantId,
+            AuditActorTypes.User,
+            actorUserId,
+            correlationId: null,
+            entityType: "SubjectDirectoryImport",
+            entityId: auditEventId.ToString("D"),
+            AuditChangeKinds.Added,
+            before: null,
+            after: AuditJson.Create(new Dictionary<string, object?>
+            {
+                ["dry_run"] = dryRun,
+                ["source_kind"] = sourceExternalIdPrefix is null
+                    ? "csv"
+                    : sourceExternalIdPrefix.StartsWith("msgraph:", StringComparison.OrdinalIgnoreCase)
+                        ? "msgraph"
+                        : "external_directory",
+                ["source_prefix_present"] = sourceExternalIdPrefix is not null,
+                ["row_count"] = rowCount,
+                ["imported_row_count"] = importedRowCount,
+                ["failed_row_count"] = failedRowCount,
+                ["created_subject_count"] = createdSubjectCount,
+                ["updated_subject_count"] = updatedSubjectCount,
+                ["created_group_count"] = createdGroupCount,
+                ["added_membership_count"] = addedMembershipCount,
+                ["skipped_membership_count"] = skippedMembershipCount,
+                ["set_manager_relationship_count"] = setManagerRelationshipCount,
+                ["skipped_manager_relationship_count"] = skippedManagerRelationshipCount,
+                ["missing_manager_reference_count"] = missingManagerReferenceCount,
+                ["marked_stale_subject_count"] = markedStaleSubjectCount,
+                ["cleared_stale_subject_count"] = clearedStaleSubjectCount
+            }),
+            reason: "subject_directory_import");
     }
 
     private static string SubjectGroupImportKey(string type, string name)
@@ -1694,6 +2803,7 @@ public sealed class ProductSurfaceWriteStore(
         string GroupType,
         string? GroupName,
         string? RoleInGroup,
+        string? ManagerExternalId,
         string? RowError,
         string? EmailError);
 

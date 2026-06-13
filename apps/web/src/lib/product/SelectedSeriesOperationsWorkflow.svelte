@@ -10,6 +10,7 @@
 		CampaignEmailDeliveryRepairReadinessResponse,
 		CampaignInvitationBatchResponse,
 		CampaignIdentifiedEntryResponse,
+		CampaignIdentifiedQueueAccessResponse,
 		CampaignOpenLinkResponse,
 		CreateCampaignTestResponsesResponse,
 		EmailDeliveryReadinessResponse,
@@ -83,6 +84,7 @@
 	let launchResult = $state<LaunchCampaignResponse | null>(null);
 	let openLinkResult = $state<CampaignOpenLinkResponse | null>(null);
 	let identifiedEntryResult = $state<CampaignIdentifiedEntryResponse | null>(null);
+	let identifiedQueueAccessResult = $state<CampaignIdentifiedQueueAccessResponse | null>(null);
 	let invitationBatchResult = $state<CampaignInvitationBatchResponse | null>(null);
 	let deliveryResult = $state<ProcessCampaignEmailDeliveriesResponse | null>(null);
 	let requeueFailedResult = $state<RequeueFailedCampaignEmailDeliveriesResponse | null>(null);
@@ -130,6 +132,12 @@
 	const selectedCampaignIsIdentified = $derived(
 		selectedCampaign?.responseIdentityMode === 'identified'
 	);
+	const selectedCampaignTargetAwareAssignmentCount = $derived(
+		selectedCampaign?.targetAwareAssignmentCount ?? null
+	);
+	const selectedCampaignSupportsIdentifiedQueueAccess = $derived(
+		selectedCampaignIsIdentified && selectedCampaignTargetAwareAssignmentCount !== 0
+	);
 	const selectedCampaignSupportsEmailInvites = $derived(
 		selectedCampaign?.responseIdentityMode === 'anonymous' ||
 			selectedCampaign?.responseIdentityMode === 'anonymous_longitudinal'
@@ -138,8 +146,9 @@
 		readinessReady: readinessResult?.ready === true,
 		launched: Boolean(launchResult),
 		openLinkCreated: Boolean(
-			openLinkResult ||
+				openLinkResult ||
 				identifiedEntryResult ||
+				identifiedQueueAccessResult ||
 				invitationBatchResult ||
 				deliveryResult ||
 				testResponseResult
@@ -164,6 +173,9 @@
 		)
 	);
 	const respondentEntry = $derived(identifiedEntryResult ?? openLinkResult);
+	const identifiedQueueLinks = $derived(
+		identifiedQueueAccessResult?.links.filter((link) => link.respondentPath) ?? []
+	);
 	const preparedInvitationCount = $derived(
 		(selectedCampaign?.queuedInvitationCount ?? 0) +
 			(selectedCampaign?.sentInvitationCount ?? 0) +
@@ -305,6 +317,7 @@
 			launchResult = result;
 			openLinkResult = null;
 			identifiedEntryResult = null;
+			identifiedQueueAccessResult = null;
 			invitationBatchResult = null;
 			deliveryResult = null;
 			requeueFailedResult = null;
@@ -344,20 +357,37 @@
 			return;
 		}
 
+		if (selectedCampaignIsIdentified) {
+			if (!selectedCampaignSupportsIdentifiedQueueAccess) {
+				actionErrors = {
+					...actionErrors,
+					openLink:
+						'Feedback task links are only available for target-aware 360 assignments. Add target-aware assignments before launch instead of using a single-entry fallback.'
+				};
+				return;
+			}
+
+			const result = await runAction('openLink', () =>
+				setupApi.createCampaignIdentifiedQueueAccess(selectedCampaign.id)
+			);
+
+			if (result) {
+				identifiedQueueAccessResult = result;
+				identifiedEntryResult = null;
+				openLinkResult = null;
+			}
+
+			return;
+		}
+
 		const result = await runAction('openLink', () =>
-			selectedCampaignIsIdentified
-				? setupApi.createCampaignIdentifiedEntry(selectedCampaign.id)
-				: setupApi.createCampaignOpenLink(selectedCampaign.id)
+			setupApi.createCampaignOpenLink(selectedCampaign.id)
 		);
 
 		if (result) {
-			if (selectedCampaignIsIdentified) {
-				identifiedEntryResult = result as CampaignIdentifiedEntryResponse;
-				openLinkResult = null;
-			} else {
-				openLinkResult = result as CampaignOpenLinkResponse;
-				identifiedEntryResult = null;
-			}
+			openLinkResult = result;
+			identifiedEntryResult = null;
+			identifiedQueueAccessResult = null;
 		}
 	}
 
@@ -386,6 +416,7 @@
 		if (result) {
 			openLinkResult = result;
 			identifiedEntryResult = null;
+			identifiedQueueAccessResult = null;
 		}
 	}
 
@@ -984,6 +1015,14 @@
 		}
 
 		return null;
+	}
+
+	function identifiedQueueAccessSummary(result: CampaignIdentifiedQueueAccessResponse | null) {
+		if (!result) {
+			return null;
+		}
+
+		return `${formatCount(result.respondentCount)} queue link${result.respondentCount === 1 ? '' : 's'}, ${formatCount(result.assignmentCount)} assigned response${result.assignmentCount === 1 ? '' : 's'}`;
 	}
 
 	function repairReadinessGuidance(result: CampaignEmailDeliveryRepairReadinessResponse) {
@@ -1607,7 +1646,7 @@
 									/>
 									<span class="text-sm text-[var(--color-text-muted)]">
 										Use this for late additions or a one-time list after launch. For the normal study
-										recipient list, use Directory groups or the saved recipient selection in Setup before
+										recipient list, use People groups or the saved recipient selection in Prepare before
 										launch. Review happens in this browser before private invitation links are created.
 										Limit: {formatCount(maxRecipientImportRecipients)} recipients per wave update.
 									</span>
@@ -1624,7 +1663,7 @@
 										></textarea>
 										<span class="text-sm text-[var(--color-text-muted)]">
 											Use this for copied spreadsheet columns or cleanup after import. One row can be an
-											email address or Name &lt;email@example.com&gt;. This does not create Directory
+											email address or Name &lt;email@example.com&gt;. This does not create People
 											people or groups.
 										</span>
 									</label>
@@ -2026,18 +2065,96 @@
 							{#if actionErrors.openLink}
 								<p class="error-line">{actionErrors.openLink}</p>
 							{/if}
+						{:else if selectedCampaignIsIdentified && !selectedCampaignSupportsIdentifiedQueueAccess}
+							<div class="action-row">
+								<button type="button" class="secondary-button" disabled>
+									<SearchCheck size={17} aria-hidden="true" />
+									<span>Feedback task links unavailable</span>
+								</button>
+								<p class="step-pill" data-state="idle">
+									Target-aware assignments required
+								</p>
+							</div>
+							<p class="text-sm text-[var(--color-text-muted)]">
+								Feedback task links are only for 360-style target-aware assignments. This wave has
+								{formatCount(selectedCampaignTargetAwareAssignmentCount ?? 0)}
+								target-aware assignments, so create a target-aware audience before launch instead
+								of issuing a single-entry fallback link.
+							</p>
+							{#if actionErrors.openLink}
+								<p class="error-line">{actionErrors.openLink}</p>
+							{/if}
 						{:else}
 							{@render ActionFooter({
 								id: 'openLink',
 								label: selectedCampaignIsIdentified
-									? operationsBodyCopy.shareAccess.createIdentifiedAccessLink
+									? 'Create feedback task links'
 									: operationsBodyCopy.shareAccess.createRespondentLink,
 								resultLabel: operationsBodyCopy.shareAccess.shareLink,
-								resultValue: respondentEntry?.respondentPath ?? null,
+								resultValue: selectedCampaignIsIdentified
+									? identifiedQueueAccessSummary(identifiedQueueAccessResult)
+									: respondentEntry?.respondentPath ?? null,
 								onclick: createRespondentAccess
 							})}
 						{/if}
 					</div>
+					{#if identifiedQueueAccessResult}
+						<div class="record-row">
+							<div class="record-row__header">
+								<div>
+									<p class="record-field__label">Identified feedback task access</p>
+									<h5 class="record-row__title">Feedback task links ready</h5>
+								</div>
+								<span class="step-pill" data-state="succeeded">{operationsBodyCopy.common.created}</span>
+							</div>
+							<dl class="record-grid">
+								<div class="record-field">
+									<dt class="record-field__label">Respondents</dt>
+									<dd class="record-field__value">
+										{formatCount(identifiedQueueAccessResult.respondentCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Assigned responses</dt>
+									<dd class="record-field__value">
+										{formatCount(identifiedQueueAccessResult.assignmentCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">New links</dt>
+									<dd class="record-field__value">
+										{formatCount(identifiedQueueAccessResult.createdAccessCount)}
+									</dd>
+								</div>
+								<div class="record-field">
+									<dt class="record-field__label">Already existed</dt>
+									<dd class="record-field__value">
+										{formatCount(identifiedQueueAccessResult.existingAccessCount)}
+									</dd>
+								</div>
+							</dl>
+							<div class="grid gap-2">
+								{#each identifiedQueueLinks.slice(0, 8) as link (link.invitationTokenId)}
+									<p class="result-line">
+										<span>{formatCount(link.assignmentCount)} assigned</span>
+										<code>{link.respondentPath}</code>
+									</p>
+								{/each}
+								{#if identifiedQueueLinks.length === 0}
+									<p class="text-sm text-[var(--color-text-muted)]">
+										Feedback task access already existed for all respondents. Existing raw links are
+										not re-shown; use the originally issued links or replace access through a future
+										support operation.
+									</p>
+								{:else if identifiedQueueLinks.length > 8}
+									<p class="text-sm text-[var(--color-text-muted)]">
+										Showing first 8 of {formatCount(identifiedQueueLinks.length)} new feedback task
+										links.
+									</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
 					{#if respondentEntry}
 						<div class="record-row">
 							<div class="record-row__header">
@@ -2375,6 +2492,3 @@
 		</p>
 	{/if}
 {/snippet}
-
-
-

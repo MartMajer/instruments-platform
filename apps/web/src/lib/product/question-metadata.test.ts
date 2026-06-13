@@ -69,16 +69,20 @@ describe('advanced question metadata', () => {
 		);
 
 		expect(payloads.weekly_hours).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			validation: { min: 0, max: 80, integerOnly: true },
 			display: { unit: 'hours/week' }
 		});
 		expect(payloads.context_note).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			text: { multiline: true, maxLength: 500 }
 		});
 		expect(payloads.followup_date).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			validation: { minDate: '2026-01-01', maxDate: '2026-12-31' }
 		});
 		expect(payloads.barriers).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			options: [
 				{ code: 'o01', label: 'Workload' },
 				{ code: 'o02', label: 'Equipment' },
@@ -92,6 +96,7 @@ describe('advanced question metadata', () => {
 			}
 		});
 		expect(payloads.priorities).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			options: [
 				{ code: 'o01', label: 'Staffing' },
 				{ code: 'o02', label: 'Tools' },
@@ -101,6 +106,7 @@ describe('advanced question metadata', () => {
 			ranking: { mode: 'top_n', topN: 2 }
 		});
 		expect(payloads.body_discomfort).toEqual({
+			authoring: { dimensionLabel: 'Metadata' },
 			matrix: {
 				mode: 'single',
 				rows: [
@@ -174,6 +180,7 @@ describe('advanced question metadata', () => {
 			code: 'barrier_detail',
 			type: 'text',
 			displayLogicEnabled: true,
+			displayLogicOperator: 'equals',
 			displayLogicSourceQuestionCode: 'has_barrier',
 			displayLogicSourceOptionCode: 'o01'
 		});
@@ -190,7 +197,49 @@ describe('advanced question metadata', () => {
 			value: 'o01',
 			requiredWhenVisible: true
 		});
+		const notEqualsPayload = JSON.parse(
+			toCreateTemplateQuestions([
+				source,
+				{
+					...followUp,
+					displayLogicOperator: 'not_equals'
+				}
+			]).find((question) => question.code === 'barrier_detail')?.payload ?? '{}'
+		);
+		expect(notEqualsPayload.displayLogic).toMatchObject({
+			operator: 'not_equals',
+			value: 'o01'
+		});
+		const multiSource = row({
+			code: 'barriers',
+			type: 'multi',
+			choiceOptions: ['Workload', 'Equipment']
+		});
+		const containsPayload = JSON.parse(
+			toCreateTemplateQuestions([
+				multiSource,
+				{
+					...followUp,
+					displayLogicSourceQuestionCode: 'barriers',
+					displayLogicOperator: 'contains'
+				}
+			]).find((question) => question.code === 'barrier_detail')?.payload ?? '{}'
+		);
+		expect(containsPayload.displayLogic).toMatchObject({
+			operator: 'contains',
+			value: 'o01'
+		});
 		expect(validateTemplateQuestionRows([source, followUp])).toEqual([]);
+		expect(
+			validateTemplateQuestionRows([
+				multiSource,
+				{
+					...followUp,
+					displayLogicSourceQuestionCode: 'barriers',
+					displayLogicOperator: 'contains'
+				}
+			])
+		).toEqual([]);
 		expect(validateTemplateQuestionRows([followUp])).toEqual(
 			expect.arrayContaining(['Question 1 display rule needs an earlier source question.'])
 		);

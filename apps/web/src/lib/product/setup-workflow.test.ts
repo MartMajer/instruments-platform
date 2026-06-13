@@ -79,6 +79,41 @@ describe('selected-series setup workflow model', () => {
 		});
 	});
 
+	it('ignores setup scoring that belongs to another template version', () => {
+		const workspace: CampaignSeriesSetupWorkspaceResponse = {
+			...configuredWorkspace,
+			summary: {
+				campaignCount: 0,
+				liveCampaignCount: 0,
+				missingPrerequisiteCount: 1
+			},
+			selectedCampaign: null,
+			scoring: {
+				...configuredWorkspace.scoring!,
+				templateVersionId: 'stale-template-version-id'
+			},
+			readiness: {
+				campaignId: null,
+				status: 'not_available',
+				ready: false
+			},
+			campaigns: []
+		};
+		const actions = toSelectedSeriesSetupWorkflowActions(workspace);
+		const design = toSelectedSeriesSetupDesignMap(workspace);
+		const path = toSelectedSeriesSetupPath(workspace);
+
+		expect(actions.find((action) => action.id === 'scoring')).toMatchObject({
+			status: 'blocked',
+			available: true
+		});
+		expect(design.items.find((item) => item.id === 'results')).toMatchObject({
+			status: 'pending',
+			detail: 'Choose which questionnaire answers become result outputs.'
+		});
+		expect(path.currentActionId).toBe('scoring');
+	});
+
 	it('does not treat launched or closed waves as editable setup campaigns', () => {
 		const liveWorkspace: CampaignSeriesSetupWorkspaceResponse = {
 			...configuredWorkspace,
@@ -138,21 +173,21 @@ describe('selected-series setup workflow model', () => {
 
 		expect(selectSetupCampaignId(liveWorkspace)).toBeNull();
 		expect(liveActions.find((action) => action.id === 'campaign')).toMatchObject({
-			status: 'ready',
+			status: 'blocked',
 			available: true,
 			disabledReason: null
 		});
 		expect(liveActions.find((action) => action.id === 'readiness')).toMatchObject({
-			status: 'ready',
-			available: true,
-			disabledReason: null
+			status: 'not_available',
+			available: false,
+			disabledReason: 'Create the measurement first.'
 		});
-		expect(livePath.completedCount).toBe(4);
+		expect(livePath.completedCount).toBe(2);
 		expect(livePath.steps.map((step) => ({ id: step.id, state: step.pathState }))).toEqual([
 			{ id: 'template', state: 'done' },
 			{ id: 'scoring', state: 'done' },
-			{ id: 'campaign', state: 'done' },
-			{ id: 'readiness', state: 'done' }
+			{ id: 'campaign', state: 'current' },
+			{ id: 'readiness', state: 'blocked' }
 		]);
 		expect(selectSetupCampaignId(closedWorkspace)).toBeNull();
 		expect(actions.find((action) => action.id === 'campaign')).toMatchObject({
@@ -306,7 +341,7 @@ describe('selected-series setup workflow model', () => {
 					id: 'questionnaire',
 					label: 'Questionnaire',
 					status: 'ready',
-					detail: 'Tenant burnout pulse template is saved with 5 questions.'
+					detail: 'Tenant burnout pulse template is published for launch with 5 questions.'
 				},
 				{
 					id: 'results',
@@ -571,13 +606,14 @@ const configuredWorkspace: CampaignSeriesSetupWorkspaceResponse = {
 		templateVersionId: 'template-version-id',
 		templateName: 'Tenant burnout pulse template',
 		semver: '1.0.0',
-		status: 'draft',
+		status: 'published',
 		defaultLocale: 'en',
 		instrumentId: null,
 		questionCount: 5
 	},
 	scoring: {
 		id: 'scoring-rule-id',
+		templateVersionId: 'template-version-id',
 		ruleKey: 'burnout.total',
 		ruleVersion: '1.0.0',
 		status: 'draft',

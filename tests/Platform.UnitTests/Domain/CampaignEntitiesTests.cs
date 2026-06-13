@@ -125,6 +125,24 @@ public sealed class CampaignEntitiesTests
     }
 
     [Fact]
+    public void Campaign_series_selects_setup_template_and_updates_timestamp()
+    {
+        var series = new CampaignSeries(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Pulse 2026",
+            new byte[32]);
+        var templateVersionId = Guid.NewGuid();
+        var selectedAt = DateTimeOffset.Parse("2026-06-12T15:20:00+00:00");
+
+        series.SelectSetupTemplate(templateVersionId, selectedAt);
+
+        Assert.Equal(templateVersionId, series.SetupTemplateVersionId);
+        Assert.Equal(selectedAt, series.UpdatedAt);
+        Assert.Throws<ArgumentException>(() => series.SelectSetupTemplate(Guid.Empty, selectedAt));
+    }
+
+    [Fact]
     public void Campaign_uses_explicit_response_identity_mode()
     {
         var campaign = new Campaign(
@@ -138,6 +156,30 @@ public sealed class CampaignEntitiesTests
         Assert.Equal(CampaignStatuses.Draft, campaign.Status);
         Assert.Equal(ResponseIdentityModes.AnonymousLongitudinal, campaign.ResponseIdentityMode);
         Assert.Equal("""{"kind":"one_shot"}""", campaign.Schedule);
+    }
+
+    [Fact]
+    public void Campaign_retargets_template_only_while_editable()
+    {
+        var campaign = new Campaign(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "May pulse",
+            ResponseIdentityModes.Anonymous);
+        var nextTemplateVersionId = Guid.NewGuid();
+        var retargetedAt = DateTimeOffset.Parse("2026-06-12T16:40:00+00:00");
+
+        campaign.RetargetTemplateVersion(nextTemplateVersionId, retargetedAt);
+
+        Assert.Equal(nextTemplateVersionId, campaign.TemplateVersionId);
+        Assert.Equal(retargetedAt, campaign.UpdatedAt);
+        Assert.Throws<ArgumentException>(() => campaign.RetargetTemplateVersion(Guid.Empty, retargetedAt));
+
+        campaign.Launch(retargetedAt.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            campaign.RetargetTemplateVersion(Guid.NewGuid(), retargetedAt.AddMinutes(2)));
     }
 
     [Fact]
@@ -162,6 +204,47 @@ public sealed class CampaignEntitiesTests
             ResponseIdentityModes.Identified,
             startAt: DateTimeOffset.Parse("2026-05-07T00:00:00+00:00"),
             endAt: DateTimeOffset.Parse("2026-05-06T00:00:00+00:00")));
+    }
+
+    [Fact]
+    public void Invitation_token_accepts_identified_queue_with_respondent_subject()
+    {
+        var respondentSubjectId = Guid.NewGuid();
+
+        var token = new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hash",
+            InvitationTokenChannels.IdentifiedQueue,
+            respondentSubjectId: respondentSubjectId);
+
+        Assert.Equal(InvitationTokenChannels.IdentifiedQueue, token.Channel);
+        Assert.Equal(respondentSubjectId, token.RespondentSubjectId);
+        Assert.Null(token.AssignmentId);
+    }
+
+    [Fact]
+    public void Invitation_token_requires_respondent_subject_for_identified_queue()
+    {
+        Assert.Throws<ArgumentException>(() => new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hash",
+            InvitationTokenChannels.IdentifiedQueue));
+    }
+
+    [Fact]
+    public void Invitation_token_rejects_respondent_subject_for_non_queue_channels()
+    {
+        Assert.Throws<ArgumentException>(() => new InvitationToken(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "hash",
+            InvitationTokenChannels.IdentifiedEntry,
+            respondentSubjectId: Guid.NewGuid()));
     }
 
     [Fact]

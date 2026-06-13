@@ -58,8 +58,9 @@ public sealed class PuppeteerSharpReportPdfRenderer(
             var browserVersion = await browser.GetVersionAsync();
             page = await browser.NewPageAsync();
             await page.SetContentAsync(request.Html);
+            await page.BringToFrontAsync();
 
-            var pdfOptions = CreatePdfOptions();
+            var pdfOptions = CreatePdfOptions(options.Value.TimeoutMilliseconds);
             var pdfBytes = await page.PdfDataAsync(pdfOptions);
 
             return Result.Success(new ReportPdfRenderResult(
@@ -94,13 +95,15 @@ public sealed class PuppeteerSharpReportPdfRenderer(
         }
     }
 
-    private static PdfOptions CreatePdfOptions()
+    private static PdfOptions CreatePdfOptions(int timeoutMilliseconds)
     {
         return new PdfOptions
         {
             Format = PaperFormat.A4,
             PrintBackground = true,
             PreferCSSPageSize = true,
+            WaitForFonts = true,
+            Timeout = timeoutMilliseconds,
             MarginOptions = new MarginOptions
             {
                 Top = "20mm",
@@ -122,6 +125,8 @@ public sealed class PuppeteerSharpReportPdfRenderer(
             format = "A4",
             options.PrintBackground,
             options.PreferCSSPageSize,
+            options.WaitForFonts,
+            options.Timeout,
             margin = new
             {
                 options.MarginOptions?.Top,

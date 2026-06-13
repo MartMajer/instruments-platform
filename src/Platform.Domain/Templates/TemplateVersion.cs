@@ -114,6 +114,7 @@ public sealed class TemplateVersion
         Status = TemplateVersionStatuses.Published;
         PublishedAt = publishedAt;
         PublishedBy = publishedBy;
+        IsLocked = true;
     }
 
     private static string NormalizeRequired(string value, string parameterName)

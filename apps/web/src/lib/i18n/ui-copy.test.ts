@@ -7,7 +7,7 @@ describe('localized UI copy', () => {
 
 		expect(copy.nav.home).toBe('Početna');
 		expect(copy.nav.studies).toBe('Studije');
-		expect(copy.nav.directory).toBe('Imenik');
+		expect(copy.nav.directory).toBe('Ljudi');
 		expect(copy.actions.signOut).toBe('Odjava');
 		expect(copy.language.label).toBe('Jezik');
 	});
@@ -18,7 +18,7 @@ describe('localized UI copy', () => {
 		expect(copy.sections.studies).toBe('Radni prostor');
 		expect(copy.sections.selectedStudy).toBe('Aktivna studija');
 		expect(copy.surfaces.exports).toBe('Datoteke');
-		expect(copy.surfaces.setup).toBe('Postavljanje');
+		expect(copy.surfaces.setup).toBe('Priprema');
 		expect(copy.descriptions.collect).toBe('Provedi prikupljanje');
 		expect(copy.descriptions.selectStudyFirst).toBe('Najprije odaberite ili izradite studiju');
 	});

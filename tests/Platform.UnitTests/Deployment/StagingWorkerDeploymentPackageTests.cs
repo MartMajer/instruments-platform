@@ -1521,7 +1521,7 @@ public sealed class StagingWorkerDeploymentPackageTests
     {
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "powershell",
+            FileName = OperatingSystem.IsWindows() ? "powershell" : "pwsh",
             WorkingDirectory = GetRepoRoot(),
             UseShellExecute = false,
             RedirectStandardOutput = true,

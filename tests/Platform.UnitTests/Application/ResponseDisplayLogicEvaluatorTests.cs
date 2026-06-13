@@ -55,6 +55,104 @@ public sealed class ResponseDisplayLogicEvaluatorTests
     }
 
     [Fact]
+    public void Not_equals_source_answer_makes_follow_up_visible_when_value_differs()
+    {
+        var sourceId = Guid.NewGuid();
+        var followUpId = Guid.NewGuid();
+
+        var evaluation = ResponseDisplayLogicEvaluator.Evaluate(
+            [
+                Question(sourceId, 1, "has_barrier", required: true),
+                Question(
+                    followUpId,
+                    2,
+                    "barrier_detail",
+                    required: true,
+                    """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"not_equals","value":"o01","requiredWhenVisible":true}}""")
+            ],
+            [
+                new ResponseDisplayLogicAnswer(sourceId, "\"o02\"", IsSkipped: false, IsNa: false)
+            ]);
+
+        Assert.Contains(followUpId, evaluation.VisibleQuestionIds);
+        Assert.Contains(followUpId, evaluation.RequiredVisibleQuestionIds);
+        Assert.DoesNotContain(followUpId, evaluation.HiddenQuestionIds);
+    }
+
+    [Fact]
+    public void Not_equals_source_answer_hides_follow_up_when_value_matches()
+    {
+        var sourceId = Guid.NewGuid();
+        var followUpId = Guid.NewGuid();
+
+        var evaluation = ResponseDisplayLogicEvaluator.Evaluate(
+            [
+                Question(sourceId, 1, "has_barrier", required: true),
+                Question(
+                    followUpId,
+                    2,
+                    "barrier_detail",
+                    required: true,
+                    """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"has_barrier","operator":"not_equals","value":"o01","requiredWhenVisible":true}}""")
+            ],
+            [
+                new ResponseDisplayLogicAnswer(sourceId, "\"o01\"", IsSkipped: false, IsNa: false)
+            ]);
+
+        Assert.DoesNotContain(followUpId, evaluation.RequiredVisibleQuestionIds);
+        Assert.Contains(followUpId, evaluation.HiddenQuestionIds);
+    }
+
+    [Fact]
+    public void Contains_source_answer_makes_follow_up_visible_when_option_is_selected()
+    {
+        var sourceId = Guid.NewGuid();
+        var followUpId = Guid.NewGuid();
+
+        var evaluation = ResponseDisplayLogicEvaluator.Evaluate(
+            [
+                Question(sourceId, 1, "barriers", required: true),
+                Question(
+                    followUpId,
+                    2,
+                    "barrier_detail",
+                    required: true,
+                    """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"barriers","operator":"contains","value":"o02","requiredWhenVisible":true}}""")
+            ],
+            [
+                new ResponseDisplayLogicAnswer(sourceId, """["o01","o02"]""", IsSkipped: false, IsNa: false)
+            ]);
+
+        Assert.Contains(followUpId, evaluation.VisibleQuestionIds);
+        Assert.Contains(followUpId, evaluation.RequiredVisibleQuestionIds);
+        Assert.DoesNotContain(followUpId, evaluation.HiddenQuestionIds);
+    }
+
+    [Fact]
+    public void Not_contains_source_answer_hides_follow_up_when_option_is_selected()
+    {
+        var sourceId = Guid.NewGuid();
+        var followUpId = Guid.NewGuid();
+
+        var evaluation = ResponseDisplayLogicEvaluator.Evaluate(
+            [
+                Question(sourceId, 1, "barriers", required: true),
+                Question(
+                    followUpId,
+                    2,
+                    "barrier_detail",
+                    required: true,
+                    """{"displayLogic":{"mode":"show_when","sourceQuestionCode":"barriers","operator":"not_contains","value":"o02","requiredWhenVisible":true}}""")
+            ],
+            [
+                new ResponseDisplayLogicAnswer(sourceId, """["o01","o02"]""", IsSkipped: false, IsNa: false)
+            ]);
+
+        Assert.DoesNotContain(followUpId, evaluation.RequiredVisibleQuestionIds);
+        Assert.Contains(followUpId, evaluation.HiddenQuestionIds);
+    }
+
+    [Fact]
     public void Malformed_rules_fail_visible_to_avoid_bypassing_required_questions()
     {
         var questionId = Guid.NewGuid();

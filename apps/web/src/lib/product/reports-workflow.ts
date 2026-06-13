@@ -149,6 +149,13 @@ type ExportCodebookColumn = {
 	hasScale: boolean;
 	hasValueLabels: boolean;
 	hasAnswerMetadata: boolean;
+	hasChoiceScoring: boolean;
+	hasDisplayLogic: boolean;
+	displayLogicMode: string | null;
+	displayLogicSourceQuestionCode: string | null;
+	displayLogicOperatorName: string | null;
+	displayLogicValue: string | null;
+	displayLogicHiddenAnswerTreatment: string | null;
 };
 
 type ExportCodebookSummary = {
@@ -1808,10 +1815,40 @@ function toExportVariablesValuesItem(
 	const answerMetadataCount = codebook.columns.filter(
 		(column) => column.hasValueLabels || column.hasAnswerMetadata
 	).length;
+	const displayLogicColumns = codebook.columns.filter((column) => column.hasDisplayLogic);
+	const choiceScoringColumns = codebook.columns.filter((column) => column.hasChoiceScoring);
 	const answerMetadataSummary =
 		answerMetadataCount > 0
 			? `, ${answerMetadataCount} answer metadata ${pluralize(answerMetadataCount, 'field', 'fields')}`
 			: '';
+	const displayLogicSummary =
+		displayLogicColumns.length > 0
+			? `, ${displayLogicColumns.length} conditional display ${pluralize(
+					displayLogicColumns.length,
+					'rule',
+					'rules'
+				)}`
+			: '';
+	const choiceScoringSummary =
+		choiceScoringColumns.length > 0
+			? `, ${choiceScoringColumns.length} option-score ${pluralize(
+					choiceScoringColumns.length,
+					'map',
+					'maps'
+				)}`
+			: '';
+	const responseDatasetDetailSegments = [
+		displayLogicColumns.length > 0
+			? `Conditional display metadata: ${displayLogicColumns
+					.map(toDisplayLogicColumnSummary)
+					.join('; ')}.`
+			: null,
+		choiceScoringColumns.length > 0
+			? `Option-score metadata: ${choiceScoringColumns
+					.map(toChoiceScoringColumnSummary)
+					.join('; ')}.`
+			: null
+	].filter((value): value is string => value !== null);
 
 	if (responseDataset) {
 		return {
@@ -1826,9 +1863,13 @@ function toExportVariablesValuesItem(
 				scoreMetadataCount,
 				'field',
 				'fields'
-			)}${answerMetadataSummary}, ${columns.length} columns total`,
+			)}${answerMetadataSummary}${displayLogicSummary}${choiceScoringSummary}, ${columns.length} columns total`,
 			detail:
-				'Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available.'
+				responseDatasetDetailSegments.length > 0
+					? `Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available. ${responseDatasetDetailSegments.join(
+							' '
+						)}`
+					: 'Question columns include codebook metadata such as question type, missing codes, scale anchors, value labels and answer constraints when available.'
 		};
 	}
 
@@ -1854,6 +1895,38 @@ function toExportVariablesValuesItem(
 		summary: `${columns.length} columns detected`,
 		detail: 'Review the codebook before using column values.'
 	};
+}
+
+function toDisplayLogicColumnSummary(column: ExportCodebookColumn) {
+	const target = column.questionCode ?? (column.name || 'conditional question');
+	const source = column.displayLogicSourceQuestionCode ?? 'source question';
+	const operator = displayLogicOperatorLabel(column.displayLogicOperatorName);
+	const expected = column.displayLogicValue ?? 'configured value';
+	const hidden = column.displayLogicHiddenAnswerTreatment ?? '__skipped';
+
+	return `${target} shown when ${source} ${operator} ${expected}; hidden answers ${hidden}`;
+}
+
+function displayLogicOperatorLabel(operatorName: string | null) {
+	if (operatorName === 'not_equals') {
+		return 'does not equal';
+	}
+
+	if (operatorName === 'contains') {
+		return 'includes';
+	}
+
+	if (operatorName === 'not_contains') {
+		return 'does not include';
+	}
+
+	return operatorName ?? 'equals';
+}
+
+function toChoiceScoringColumnSummary(column: ExportCodebookColumn) {
+	const target = column.questionCode ?? (column.name || 'choice question');
+
+	return `${target} carries tenant-defined option scores`;
 }
 
 function toExportMissingnessItem(
@@ -2306,6 +2379,10 @@ function emptyExportCodebookSummary(): ExportCodebookSummary {
 }
 
 function toExportCodebookColumn(value: Record<string, unknown>): ExportCodebookColumn {
+	const answerMetadata = isRecord(value.answerMetadata) ? value.answerMetadata : null;
+	const choiceScoring = isRecord(answerMetadata?.choiceScoring) ? answerMetadata.choiceScoring : null;
+	const displayLogic = isRecord(value.displayLogic) ? value.displayLogic : null;
+
 	return {
 		name: stringValue(value.name) ?? '',
 		source: stringValue(value.source),
@@ -2315,7 +2392,14 @@ function toExportCodebookColumn(value: Record<string, unknown>): ExportCodebookC
 		hasMissingCodes: isRecord(value.missingCodes),
 		hasScale: isRecord(value.scale),
 		hasValueLabels: isRecord(value.valueLabels),
-		hasAnswerMetadata: isRecord(value.answerMetadata)
+		hasAnswerMetadata: answerMetadata !== null,
+		hasChoiceScoring: choiceScoring !== null,
+		hasDisplayLogic: displayLogic !== null,
+		displayLogicMode: stringValue(displayLogic?.mode),
+		displayLogicSourceQuestionCode: stringValue(displayLogic?.sourceQuestionCode),
+		displayLogicOperatorName: stringValue(displayLogic?.operatorName),
+		displayLogicValue: scalarTextValue(displayLogic?.value),
+		displayLogicHiddenAnswerTreatment: stringValue(displayLogic?.hiddenAnswerTreatment)
 	};
 }
 
@@ -2344,6 +2428,18 @@ function stringValue(value: unknown) {
 
 function numberValue(value: unknown) {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function scalarTextValue(value: unknown) {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (typeof value === 'number' || typeof value === 'boolean') {
+		return String(value);
+	}
+
+	return null;
 }
 
 function uniqueStrings(values: string[]) {

@@ -98,6 +98,34 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Valid_graph_rule_with_choice_score_mapping_passes()
+    {
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-choice.total",
+            document: ChoiceScoringDocument,
+            produces: """{"scores":["total"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(["total"], result.Value.ScoreCodes);
+    }
+
+    [Fact]
+    public void Choice_score_mapping_unknown_input_item_is_rejected()
+    {
+        var request = ValidGraphRequest(
+            ruleKey: "tenant-choice.total",
+            document: ReplaceRequired(ChoiceScoringDocument, "\"q01\": {", "\"q99\": {"),
+            produces: """{"scores":["total"]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.choice_score_item_unknown", result.Error.Code);
+    }
+
+    [Fact]
     public void Produces_interpretation_metadata_matches_score_band()
     {
         var result = ScoreInterpretationMetadataParser.ParseProduces(ValidInterpretationProduces);
@@ -620,6 +648,35 @@ public sealed class ScoringRuleValidatorTests
               "explicit_reverse_items": ["q03"]
             },
             { "id": "total", "op": "mean", "input": "scored_answers" }
+          ],
+          "outputs": [
+            { "code": "total", "node": "total" }
+          ],
+          "missing_data": {
+            "defaults": { "strategy": "require_all" }
+          }
+        }
+        """;
+
+    private const string ChoiceScoringDocument = """
+        {
+          "schema_version": "1.0.0",
+          "engine_min_version": "1.0.0",
+          "rule_id": "tenant-choice.total",
+          "rule_version": "1.0.0",
+          "inputs": [
+            { "id": "core_items", "kind": "answers", "items": ["q01", "q02"] }
+          ],
+          "nodes": [
+            {
+              "id": "core_scores",
+              "op": "map_choice_scores",
+              "input": "core_items",
+              "option_scores": {
+                "q01": { "o01": 0, "o02": 2, "o03": 4 }
+              }
+            },
+            { "id": "total", "op": "mean", "input": "core_scores" }
           ],
           "outputs": [
             { "code": "total", "node": "total" }

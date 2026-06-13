@@ -77,7 +77,7 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 		...englishChrome,
 		title: 'Orient inside one study',
 		summary: 'Use the selected-study overview to understand where this study is in the lifecycle.',
-		inspectFirst: 'Inspect the lifecycle map before opening Prepare, Collect, Results, or Waves.',
+		inspectFirst: 'Inspect the lifecycle map before opening Prepare, Collect, or Results. Use Rounds only when repeated measurement applies.',
 		whenItMatters: 'Use this after choosing a study or when you need to switch lifecycle phases.',
 		nextMove: 'Open the lifecycle phase with the next blocked or ready action.'
 	},
@@ -114,7 +114,7 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 	waves: {
 		...englishChrome,
 		title: 'Advanced repeat-participation context',
-		summary: 'Use Waves for repeat-participation comparison across repeated study waves.',
+		summary: 'Use Rounds for repeat-participation comparison across repeated study rounds.',
 		inspectFirst:
 			'Inspect selected waves, compatibility, linked repeat responses, and disclosure limits.',
 		whenItMatters: 'Use this only for repeated-wave studies where change over time matters.',
@@ -133,7 +133,7 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 	instruments: {
 		...englishChrome,
 		title: 'Check launchable instruments',
-		summary: 'Review tenant-visible instruments and whether they can be used in study setup.',
+		summary: 'Review tenant-visible instruments and whether they can be used while preparing a study.',
 		inspectFirst: 'Inspect launch eligibility, rights labels, and validity labels.',
 		whenItMatters: 'Use this before creating or preparing a study that needs an instrument.',
 		nextMove: 'Open Studies and prepare a study with the right instrument context.'
@@ -142,12 +142,12 @@ const baseGuidance: Record<ProductRouteGuidanceId, ProductRouteGuidanceView> = {
 		...englishChrome,
 		title: 'Prepare people and targeting',
 		summary:
-			'Use Directory when studies need subjects, groups, memberships, or manager relationships.',
+			'Use People when studies need subjects, groups, memberships, or manager relationships.',
 		inspectFirst:
 			'Inspect subjects, groups, and manager links before launch targeting or hierarchy reporting.',
 		whenItMatters:
 			'Use this when a study needs identified audiences, groups, or hierarchy context.',
-		nextMove: 'Return to Prepare study when directory prerequisites are ready.'
+		nextMove: 'Return to Prepare study when people prerequisites are ready.'
 	},
 	team: {
 		...englishChrome,
@@ -302,7 +302,7 @@ export function toProductRouteGuidance(
 		limits.push(
 			locale === 'hr-HR'
 				? 'Ogledne studije su primjeri samo za čitanje. Duplicirajte ogledni primjer kao vlastitu studiju prije promjene postavljanja, prikupljanja ili izvještavanja.'
-				: 'Sample studies are read-only examples. Duplicate the sample as your own study before changing setup, collection, or reporting state.'
+				: 'Sample studies are read-only examples. Duplicate the sample as your own study before changing preparation, collection, or reporting state.'
 		);
 		guidance.nextMove =
 			locale === 'hr-HR'
@@ -315,7 +315,7 @@ export function toProductRouteGuidance(
 			id === 'directory'
 				? locale === 'hr-HR'
 					? 'Postavljanje imenika traži pristup upravljanju postavljanjem.'
-					: 'Directory setup requires setup management access.'
+					: 'People setup requires setup management access.'
 				: locale === 'hr-HR'
 					? 'Promjena studija traži pristup upravljanju postavljanjem.'
 					: 'Changing studies requires setup management access.'

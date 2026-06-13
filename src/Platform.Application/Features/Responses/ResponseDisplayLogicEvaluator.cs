@@ -90,7 +90,30 @@ public static class ResponseDisplayLogicEvaluator
             return false;
         }
 
-        return ScalarValue(sourceAnswer.Value) == rule.ExpectedValue;
+        if (rule.Operator is "contains" or "not_contains")
+        {
+            var selectedValues = ArrayValues(sourceAnswer.Value);
+            if (selectedValues is null)
+            {
+                return false;
+            }
+
+            var containsExpectedValue = selectedValues.Contains(rule.ExpectedValue);
+            return rule.Operator == "not_contains"
+                ? !containsExpectedValue
+                : containsExpectedValue;
+        }
+
+        var actualValue = ScalarValue(sourceAnswer.Value);
+        if (actualValue is null)
+        {
+            return false;
+        }
+
+        var matchesExpectedValue = actualValue == rule.ExpectedValue;
+        return rule.Operator == "not_equals"
+            ? !matchesExpectedValue
+            : matchesExpectedValue;
     }
 
     private static DisplayRule? ReadRule(string payload)
@@ -105,8 +128,9 @@ public static class ResponseDisplayLogicEvaluator
                 return null;
             }
 
+            var operatorName = ReadString(displayLogic, "operator");
             if (ReadString(displayLogic, "mode") != "show_when" ||
-                ReadString(displayLogic, "operator") != "equals")
+                !IsSupportedOperator(operatorName))
             {
                 return null;
             }
@@ -120,6 +144,7 @@ public static class ResponseDisplayLogicEvaluator
 
             return new DisplayRule(
                 sourceQuestionCode.Trim().ToLowerInvariant(),
+                operatorName!,
                 expectedValue.Trim());
         }
         catch (JsonException)
@@ -153,6 +178,41 @@ public static class ResponseDisplayLogicEvaluator
         }
     }
 
+    private static IReadOnlySet<string>? ArrayValues(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            return document.RootElement
+                .EnumerateArray()
+                .Select(element => element.ValueKind switch
+                {
+                    JsonValueKind.String => element.GetString(),
+                    JsonValueKind.Number => element.GetRawText(),
+                    JsonValueKind.True => "True",
+                    JsonValueKind.False => "False",
+                    _ => null
+                })
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item!.Trim())
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static string? ReadString(JsonElement element, string propertyName)
     {
         return element.TryGetProperty(propertyName, out var property) &&
@@ -161,5 +221,10 @@ public static class ResponseDisplayLogicEvaluator
             : null;
     }
 
-    private sealed record DisplayRule(string SourceQuestionCode, string ExpectedValue);
+    private static bool IsSupportedOperator(string? operatorName)
+    {
+        return operatorName is "equals" or "not_equals" or "contains" or "not_contains";
+    }
+
+    private sealed record DisplayRule(string SourceQuestionCode, string Operator, string ExpectedValue);
 }

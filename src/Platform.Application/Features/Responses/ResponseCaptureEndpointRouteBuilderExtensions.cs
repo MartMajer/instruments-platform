@@ -44,6 +44,39 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
             .WithName("CreateIdentifiedEntrySession")
             .WithTags("Responses");
 
+        app.MapGet("/respondent/identified-queues/{token}", GetIdentifiedQueue)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
+            .WithName("GetIdentifiedQueue")
+            .WithTags("Responses");
+
+        app.MapPost(
+                "/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions",
+                CreateIdentifiedQueueAssignmentSession)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Entry)
+            .WithName("CreateIdentifiedQueueAssignmentSession")
+            .WithTags("Responses");
+
+        app.MapGet(
+                "/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/draft",
+                GetIdentifiedQueueSessionDraft)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Session)
+            .WithName("GetIdentifiedQueueSessionDraft")
+            .WithTags("Responses");
+
+        app.MapPut(
+                "/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/answers",
+                SaveIdentifiedQueueAnswers)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Session)
+            .WithName("SaveIdentifiedQueueAnswers")
+            .WithTags("Responses");
+
+        app.MapPost(
+                "/respondent/identified-queues/{token}/assignments/{assignmentId:guid}/sessions/{sessionId:guid}/submit",
+                SubmitIdentifiedQueueSession)
+            .RequireRateLimiting(PublicRespondentRateLimitPolicies.Submit)
+            .WithName("SubmitIdentifiedQueueSession")
+            .WithTags("Responses");
+
         app.MapGet("/respondent/open-links/{token}/sessions/{sessionId:guid}/draft", GetOpenLinkSessionDraft)
             .RequireRateLimiting(PublicRespondentRateLimitPolicies.Session)
             .WithName("GetOpenLinkSessionDraft")
@@ -172,6 +205,76 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
         return ResponseCaptureHttpResults.ToCreated(
             result,
             value => $"/respondent/identified-entries/{token}/sessions/{value.Id}");
+    }
+
+    private static async Task<IResult> GetIdentifiedQueue(
+        string token,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetIdentifiedQueueQuery(token), cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> CreateIdentifiedQueueAssignmentSession(
+        string token,
+        Guid assignmentId,
+        CreateOpenLinkSessionRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new CreateIdentifiedQueueAssignmentSessionCommand(token, assignmentId, request),
+            cancellationToken);
+
+        return ResponseCaptureHttpResults.ToCreated(
+            result,
+            value => $"/respondent/identified-queues/{token}/assignments/{assignmentId}/sessions/{value.Id}");
+    }
+
+    private static async Task<IResult> GetIdentifiedQueueSessionDraft(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetIdentifiedQueueSessionDraftQuery(token, assignmentId, sessionId),
+            cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> SaveIdentifiedQueueAnswers(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        SaveAnswersRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new SaveIdentifiedQueueAnswersCommand(token, assignmentId, sessionId, request),
+            cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> SubmitIdentifiedQueueSession(
+        string token,
+        Guid assignmentId,
+        Guid sessionId,
+        SubmitResponseSessionRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new SubmitIdentifiedQueueSessionCommand(token, assignmentId, sessionId, request),
+            cancellationToken);
+
+        return ResponseCaptureHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> GetOpenLinkSessionDraft(

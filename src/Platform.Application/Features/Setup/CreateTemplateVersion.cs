@@ -372,11 +372,19 @@ public sealed class CreateTemplateVersionValidator
                 continue;
             }
 
-            if (!string.Equals(sourceQuestion.Type, QuestionTypes.SingleChoice, StringComparison.Ordinal))
+            if (!IsDisplayLogicSourceTypeSupported(sourceQuestion.Type))
             {
                 context.AddFailure(
                     "Request.Questions",
-                    $"Question '{question.Code}' display rule source must be a single-choice question.");
+                    $"Question '{question.Code}' display rule source must be a single-choice or multiple-choice question.");
+                continue;
+            }
+
+            if (!IsDisplayLogicOperatorAllowedForSource(rule.Operator, sourceQuestion.Type))
+            {
+                context.AddFailure(
+                    "Request.Questions",
+                    $"Question '{question.Code}' display rule operator is not supported for the source question.");
                 continue;
             }
 
@@ -447,15 +455,15 @@ public sealed class CreateTemplateVersionValidator
             var sourceQuestionCode = ReadString(displayLogic, "sourceQuestionCode");
             var value = ReadString(displayLogic, "value");
             if (mode != "show_when" ||
-                operatorName != "equals" ||
+                !IsSupportedDisplayLogicOperator(operatorName) ||
                 string.IsNullOrWhiteSpace(sourceQuestionCode) ||
                 string.IsNullOrWhiteSpace(value))
             {
-                errorMessage = "display rule must use show_when/equals with a source question and source answer.";
+                errorMessage = "display rule must use show_when with a supported operator, source question, and source answer.";
                 return false;
             }
 
-            rule = new DisplayLogicRule(NormalizeCode(sourceQuestionCode), value.Trim());
+            rule = new DisplayLogicRule(NormalizeCode(sourceQuestionCode), operatorName!, value.Trim());
             return true;
         }
         catch (JsonException)
@@ -598,7 +606,27 @@ public sealed class CreateTemplateVersionValidator
             or QuestionTypes.Ranking;
     }
 
-    private sealed record DisplayLogicRule(string SourceQuestionCode, string ExpectedValue);
+    private static bool IsSupportedDisplayLogicOperator(string? operatorName)
+    {
+        return operatorName is "equals" or "not_equals" or "contains" or "not_contains";
+    }
+
+    private static bool IsDisplayLogicSourceTypeSupported(string sourceQuestionType)
+    {
+        return sourceQuestionType is QuestionTypes.SingleChoice or QuestionTypes.MultiChoice;
+    }
+
+    private static bool IsDisplayLogicOperatorAllowedForSource(string operatorName, string sourceQuestionType)
+    {
+        return sourceQuestionType switch
+        {
+            QuestionTypes.SingleChoice => operatorName is "equals" or "not_equals",
+            QuestionTypes.MultiChoice => operatorName is "contains" or "not_contains",
+            _ => false
+        };
+    }
+
+    private sealed record DisplayLogicRule(string SourceQuestionCode, string Operator, string ExpectedValue);
 }
 
 public sealed class CreateTemplateVersionHandler(

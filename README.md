@@ -19,6 +19,14 @@ npm install --prefix apps/web
 dotnet tool restore
 ```
 
+If restore fails due to package feed, DNS, or cache issues, run:
+
+```bash
+./tools/frameworks/fix-dotnet-restore.sh
+```
+
+The script runs `dotnet restore` with repository-local cache/home paths, a connectivity check for NuGet, and a retry path with `--no-cache --disable-parallel`.
+
 Start local Postgres, apply migrations, and seed the local development tenant:
 
 ```powershell

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { join, resolve } from 'node:path';
+import { join, resolve, win32 } from 'node:path';
 
 import {
   checkFullstackPreflight,
@@ -68,7 +68,7 @@ const defaultPreflightMaxAttemptsAfterStart = 30;
 export async function runFullstackBootstrap(
   options: FullstackBootstrapOptions
 ): Promise<FullstackBootstrapReport> {
-  const repoRoot = resolve(options.repoRoot);
+  const repoRoot = resolveCrossPlatformPath(options.repoRoot);
   const timeoutMs = options.timeoutMs ?? defaultTimeoutMs;
   const runCommand = options.runCommand ?? runSystemCommand;
   const checkDocker =
@@ -104,7 +104,12 @@ export async function runFullstackBootstrap(
   });
 
   if (options.start) {
-    const startScript = join(repoRoot, 'deploy', 'staging', 'start-local-staging.ps1');
+    const startScript = joinCrossPlatformPath(
+      repoRoot,
+      'deploy',
+      'staging',
+      'start-local-staging.ps1'
+    );
     const result = await runCommand({
       filePath: 'powershell',
       args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', startScript],
@@ -182,6 +187,18 @@ export async function runFullstackBootstrap(
     commands,
     preflight: preflightReport,
   };
+}
+
+function resolveCrossPlatformPath(pathValue: string) {
+  if (/^[a-zA-Z]:[\\/]/.test(pathValue)) {
+    return win32.resolve(pathValue);
+  }
+
+  return resolve(pathValue.replaceAll('\\', '/'));
+}
+
+function joinCrossPlatformPath(root: string, ...segments: string[]) {
+  return /^[a-zA-Z]:[\\/]/.test(root) ? win32.join(root, ...segments) : join(root, ...segments);
 }
 
 async function runPreflightWithRetry(options: {

@@ -1,0 +1,56 @@
+{
+  "fixture_id": "dummy_burnout_choice_score_mapping_001",
+  "schema_version": "1.0.0",
+  "kind": "noncanonical_synthetic",
+  "instrument_code": "dummy-burnout",
+  "scoring_rule_id": "dummy-burnout.synthetic.choice-score-mapping",
+  "scoring_rule_version": "1.0.0",
+  "scoring_document": {
+    "schema_version": "1.0.0",
+    "engine_min_version": "1.0.0",
+    "rule_id": "dummy-burnout.synthetic.choice-score-mapping",
+    "rule_version": "1.0.0",
+    "inputs": [
+      { "id": "context_items", "kind": "answers", "items": ["q01", "q02"] }
+    ],
+    "nodes": [
+      {
+        "id": "context_scores",
+        "op": "map_choice_scores",
+        "input": "context_items",
+        "option_scores": {
+          "q01": { "o01": 0, "o02": 2, "o03": 4 }
+        }
+      },
+      { "id": "context_mean", "op": "mean", "input": "context_scores" }
+    ],
+    "outputs": [
+      { "code": "context_mean", "node": "context_mean" }
+    ],
+    "missing_data": {
+      "defaults": { "strategy": "require_all" }
+    },
+    "metadata": {
+      "provenance": "Synthetic non-canonical fixture for D638 choice option score mapping."
+    }
+  },
+  "produces": {
+    "scores": ["context_mean"]
+  },
+  "compatibility": {},
+  "answers": {
+    "q01": "o02",
+    "q02": 4
+  },
+  "expected_outputs": [
+    {
+      "dimension_code": "context_mean",
+      "value": 3.0000,
+      "n_valid": 2,
+      "n_expected": 2,
+      "missing_policy_status": "ok"
+    }
+  ],
+  "expected_error_code": null,
+  "tolerance": { "numeric_abs": 0.0001 }
+}

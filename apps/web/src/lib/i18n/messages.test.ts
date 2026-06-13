@@ -119,7 +119,7 @@ describe('app message catalog', () => {
 				name: 'Upitnik',
 				questionCount: 5
 			})
-		).toBe('Upitnik spremljen je s 5 pitanja.');
+		).toBe('Upitnik objavljen je za pokretanje s 5 pitanja.');
 		expect(
 			appMessage('hr-HR', 'setup.waveContext.recipientBelongsUntilLaunch', {
 				waveName: 'Mjerenje 1'

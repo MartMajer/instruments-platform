@@ -6,6 +6,7 @@ using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
 using Platform.Domain.Instruments;
+using Platform.Domain.Integrations;
 using Platform.Domain.Operations;
 using Platform.Domain.Outbox;
 using Platform.Domain.Responses;
@@ -44,6 +45,16 @@ public sealed class ApplicationDbContextModelTests
         Assert.NotNull(entity);
         Assert.Equal("tenant", entity.GetTableName());
         Assert.Equal(nameof(Tenant.Id), entity.FindPrimaryKey()!.Properties.Single().Name);
+        Assert.Equal(
+            "report_branding_organization_label",
+            entity.FindProperty(nameof(Tenant.ReportBrandingOrganizationLabel))!.GetColumnName());
+        Assert.Equal(
+            Tenant.ReportBrandingAccentColorHexLength,
+            entity.FindProperty(nameof(Tenant.ReportBrandingAccentColorHex))!.GetMaxLength());
+        Assert.Contains(entity.GetCheckConstraints(), check =>
+            check.Name == "ck_tenant_report_branding_accent_color_hex");
+        Assert.Contains(entity.GetCheckConstraints(), check =>
+            check.Name == "ck_tenant_report_branding_layout_variant");
     }
 
     [Fact]
@@ -253,6 +264,66 @@ public sealed class ApplicationDbContextModelTests
     }
 
     [Fact]
+    public void Directory_integration_entities_map_to_expected_tables_keys_indexes_and_constraints()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql("Host=localhost;Database=instruments_platform;Username=platform_app;Password=not-used")
+            .Options;
+
+        using var db = new ApplicationDbContext(options);
+
+        var model = db.GetService<IDesignTimeModel>().Model;
+        var connection = model.FindEntityType(typeof(DirectoryConnection));
+        var consentRequest = model.FindEntityType(typeof(DirectoryConnectionConsentRequest));
+        var importRule = model.FindEntityType(typeof(DirectoryImportRule));
+        var importRun = model.FindEntityType(typeof(DirectoryImportRun));
+
+        Assert.NotNull(connection);
+        Assert.NotNull(consentRequest);
+        Assert.NotNull(importRule);
+        Assert.NotNull(importRun);
+
+        Assert.Equal("directory_connection", connection.GetTableName());
+        Assert.Equal("directory_connection_consent_request", consentRequest.GetTableName());
+        Assert.Equal("directory_import_rule", importRule.GetTableName());
+        Assert.Equal("directory_import_run", importRun.GetTableName());
+
+        Assert.Equal("jsonb", connection.FindProperty(nameof(DirectoryConnection.GrantedScopes))!.GetColumnType());
+        Assert.Equal(
+            "jsonb",
+            consentRequest.FindProperty(nameof(DirectoryConnectionConsentRequest.RequestedScopes))!.GetColumnType());
+        Assert.Equal("jsonb", importRule.FindProperty(nameof(DirectoryImportRule.RuleDocument))!.GetColumnType());
+        Assert.Equal("jsonb", importRule.FindProperty(nameof(DirectoryImportRule.RetainedFields))!.GetColumnType());
+        Assert.Equal("jsonb", importRun.FindProperty(nameof(DirectoryImportRun.RuleSnapshot))!.GetColumnType());
+        Assert.Equal("jsonb", importRun.FindProperty(nameof(DirectoryImportRun.Counts))!.GetColumnType());
+        Assert.Equal("jsonb", importRun.FindProperty(nameof(DirectoryImportRun.WarningCategories))!.GetColumnType());
+        Assert.Equal("jsonb", importRun.FindProperty(nameof(DirectoryImportRun.Checkpoint))!.GetColumnType());
+
+        Assert.Contains(connection.GetIndexes(), index =>
+            index.IsUnique &&
+            index.GetFilter() == "deleted_at IS NULL" &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(DirectoryConnection.TenantId), nameof(DirectoryConnection.Provider)]));
+        Assert.Contains(consentRequest.GetIndexes(), index =>
+            index.IsUnique &&
+            index.Properties.Single().Name == nameof(DirectoryConnectionConsentRequest.StateHash));
+        Assert.Contains(importRun.GetIndexes(), index =>
+            index.GetFilter() == "preview_run_id IS NOT NULL" &&
+            index.Properties.Single().Name == nameof(DirectoryImportRun.PreviewRunId));
+
+        Assert.Contains(connection.GetCheckConstraints(), check =>
+            check.Name == "ck_directory_connection_status");
+        Assert.Contains(connection.GetCheckConstraints(), check =>
+            check.Name == "ck_directory_connection_active_shape");
+        Assert.Contains(consentRequest.GetCheckConstraints(), check =>
+            check.Name == "ck_directory_connection_consent_request_status");
+        Assert.Contains(importRule.GetCheckConstraints(), check =>
+            check.Name == "ck_directory_import_rule_stale_policy");
+        Assert.Contains(importRun.GetCheckConstraints(), check =>
+            check.Name == "ck_directory_import_run_apply_preview");
+    }
+
+    [Fact]
     public void Instrument_entities_map_to_expected_tables_keys_indexes_and_constraints()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -424,6 +495,7 @@ public sealed class ApplicationDbContextModelTests
 
         Assert.Contains(scoringRule.GetIndexes(), index =>
             index.IsUnique &&
+            index.GetFilter() == "status <> 'retired'" &&
             index.Properties.Select(property => property.Name)
                 .SequenceEqual([
                     nameof(ScoringRule.TemplateVersionId),
@@ -505,6 +577,7 @@ public sealed class ApplicationDbContextModelTests
         Assert.Equal("jsonb", audience.FindProperty(nameof(Audience.Selector))!.GetColumnType());
         Assert.Equal("jsonb", respondentRule.FindProperty(nameof(RespondentRule.Rule))!.GetColumnType());
         Assert.Equal("jsonb", operationalNotification.FindProperty(nameof(OperationalNotification.PayloadJson))!.GetColumnType());
+        Assert.Equal("uuid", series.FindProperty(nameof(CampaignSeries.SetupTemplateVersionId))!.GetColumnType());
 
         Assert.Contains(series.GetCheckConstraints(), check => check.Name == "ck_campaign_series_code_salt_length");
         Assert.Contains(campaign.GetCheckConstraints(), check => check.Name == "ck_campaign_status");
@@ -516,6 +589,13 @@ public sealed class ApplicationDbContextModelTests
         Assert.Contains(assignment.GetCheckConstraints(), check => check.Name == "ck_assignment_identity_shape");
         Assert.Contains(invitationToken.GetCheckConstraints(), check => check.Name == "ck_invitation_token_channel");
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_channel");
+        Assert.Contains(series.GetIndexes(), index =>
+            index.GetFilter() == "setup_template_version_id IS NOT NULL" &&
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(CampaignSeries.SetupTemplateVersionId)]));
+        Assert.Contains(series.GetForeignKeys(), foreignKey =>
+            foreignKey.Properties.Single().Name == nameof(CampaignSeries.SetupTemplateVersionId) &&
+            foreignKey.PrincipalEntityType.ClrType == typeof(TemplateVersion));
         Assert.Contains(notification.GetCheckConstraints(), check => check.Name == "ck_notification_status");
         Assert.Contains(notificationDeliveryAttempt.GetCheckConstraints(), check =>
             check.Name == "ck_notification_delivery_attempt_status");

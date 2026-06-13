@@ -32,6 +32,7 @@ using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Data.Interceptors;
 using Platform.Infrastructure.Notifications;
 using Platform.Infrastructure.ParticipantCodes;
+using Platform.Infrastructure.ProductSurfaces;
 using Platform.Infrastructure.Reports;
 using Platform.Infrastructure.Responses;
 using Platform.Infrastructure.Scoring;
@@ -937,6 +938,836 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.True(loaded.IsSuccess);
         Assert.Equal(created.Value.TemplateVersionId, loaded.Value.TemplateVersionId);
         Assert.Equal("Private burnout pulse", loaded.Value.TemplateName);
+        var loadedSection = Assert.Single(loaded.Value.Sections);
+        var loadedQuestion = Assert.Single(loaded.Value.Questions);
+        Assert.Equal(loadedSection.Id, loadedQuestion.SectionId);
+        Assert.Equal("{}", loadedQuestion.Payload);
+        Assert.Equal("[]", loadedQuestion.MissingCodes);
+        Assert.Equal(1m, loadedQuestion.Weight);
+        Assert.Null(loadedQuestion.DescriptionDefault);
+        Assert.Null(loadedQuestion.VariableLabel);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_creates_draft_version_from_published_template_without_mutating_source()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "template-draft", "Template Draft"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var published = await store.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+
+        var draft = await store.CreateTemplateVersionDraftAsync(
+            tenantId,
+            actorId: null,
+            published.Value.TemplateVersionId,
+            new CreateTemplateVersionDraftRequest("1.1.0"),
+            CancellationToken.None);
+
+        Assert.True(published.IsSuccess);
+        Assert.True(draft.IsSuccess);
+        Assert.NotEqual(published.Value.TemplateVersionId, draft.Value.TemplateVersionId);
+        Assert.Equal(published.Value.TemplateId, draft.Value.TemplateId);
+        Assert.Equal("published", published.Value.Status);
+        Assert.Equal("draft", draft.Value.Status);
+        Assert.Equal("1.1.0", draft.Value.Semver);
+        Assert.Single(draft.Value.Sections);
+        Assert.Single(draft.Value.Scales);
+        Assert.Single(draft.Value.Questions);
+
+        await using var verificationDb = new ApplicationDbContext(migratorOptions);
+        var sourceVersion = await verificationDb.TemplateVersions
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == published.Value.TemplateVersionId);
+        var draftVersion = await verificationDb.TemplateVersions
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == draft.Value.TemplateVersionId);
+
+        Assert.Equal(TemplateVersionStatuses.Published, sourceVersion.Status);
+        Assert.True(sourceVersion.IsLocked);
+        Assert.Equal(TemplateVersionStatuses.Draft, draftVersion.Status);
+        Assert.False(draftVersion.IsLocked);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_updates_draft_version_content_without_mutating_published_source()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "template-draft-update", "Template Draft Update"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var published = await store.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(published.IsSuccess);
+
+        var draft = await store.CreateTemplateVersionDraftAsync(
+            tenantId,
+            actorId: null,
+            published.Value.TemplateVersionId,
+            new CreateTemplateVersionDraftRequest("1.1.0"),
+            CancellationToken.None);
+        Assert.True(draft.IsSuccess);
+
+        var updated = await store.UpdateTemplateVersionDraftContentAsync(
+            tenantId,
+            actorId: null,
+            draft.Value.TemplateVersionId,
+            SampleDraftContentUpdateRequest(),
+            CancellationToken.None);
+
+        Assert.True(updated.IsSuccess);
+        Assert.Equal(draft.Value.TemplateVersionId, updated.Value.TemplateVersionId);
+        Assert.Equal(2, updated.Value.Questions.Count);
+        Assert.Contains(updated.Value.Questions, question => question.Code == "q02");
+
+        await using var verificationDb = new ApplicationDbContext(migratorOptions);
+        var sourceQuestionCount = await verificationDb.TemplateQuestions
+            .AsNoTracking()
+            .CountAsync(question => question.TemplateVersionId == published.Value.TemplateVersionId);
+        var draftQuestionCount = await verificationDb.TemplateQuestions
+            .AsNoTracking()
+            .CountAsync(question => question.TemplateVersionId == draft.Value.TemplateVersionId);
+        var sourceVersion = await verificationDb.TemplateVersions
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == published.Value.TemplateVersionId);
+        var draftVersion = await verificationDb.TemplateVersions
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == draft.Value.TemplateVersionId);
+
+        Assert.Equal(1, sourceQuestionCount);
+        Assert.Equal(2, draftQuestionCount);
+        Assert.Equal(TemplateVersionStatuses.Published, sourceVersion.Status);
+        Assert.True(sourceVersion.IsLocked);
+        Assert.Equal(TemplateVersionStatuses.Draft, draftVersion.Status);
+        Assert.False(draftVersion.IsLocked);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_blocks_draft_content_update_when_draft_scoring_exists()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "template-draft-scoring-guard", "Template Draft Scoring Guard"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var published = await store.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(published.IsSuccess);
+
+        var draft = await store.CreateTemplateVersionDraftAsync(
+            tenantId,
+            actorId: null,
+            published.Value.TemplateVersionId,
+            new CreateTemplateVersionDraftRequest("1.1.0"),
+            CancellationToken.None);
+        Assert.True(draft.IsSuccess);
+
+        var scoring = await store.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                draft.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(scoring.IsSuccess);
+
+        var updated = await store.UpdateTemplateVersionDraftContentAsync(
+            tenantId,
+            actorId: null,
+            draft.Value.TemplateVersionId,
+            SampleDraftContentUpdateRequest(),
+            CancellationToken.None);
+
+        Assert.True(updated.IsFailure);
+        Assert.Equal(ErrorType.Conflict, updated.Error.Type);
+        Assert.Equal("template_version.draft_scoring_exists", updated.Error.Code);
+
+        await using var verificationDb = new ApplicationDbContext(migratorOptions);
+        var draftQuestionCount = await verificationDb.TemplateQuestions
+            .AsNoTracking()
+            .CountAsync(question => question.TemplateVersionId == draft.Value.TemplateVersionId);
+        var draftScoringRuleCount = await verificationDb.ScoringRules
+            .AsNoTracking()
+            .CountAsync(rule =>
+                rule.TemplateVersionId == draft.Value.TemplateVersionId &&
+                rule.Status == ScoringRuleStatuses.Draft);
+
+        Assert.Equal(1, draftQuestionCount);
+        Assert.Equal(1, draftScoringRuleCount);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_retires_draft_scoring_before_draft_content_update()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "template-draft-scoring-retire", "Template Draft Scoring Retire"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var published = await store.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(published.IsSuccess);
+
+        var draft = await store.CreateTemplateVersionDraftAsync(
+            tenantId,
+            actorId: null,
+            published.Value.TemplateVersionId,
+            new CreateTemplateVersionDraftRequest("1.1.0"),
+            CancellationToken.None);
+        Assert.True(draft.IsSuccess);
+
+        var scoring = await store.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                draft.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                """{"rule_id":"burnout.total","version":"1.0.0","operations":[{"op":"mean","items":["q01"],"output":"total"}]}""",
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(scoring.IsSuccess);
+
+        var retired = await store.RetireTemplateVersionDraftScoringAsync(
+            tenantId,
+            actorId: null,
+            draft.Value.TemplateVersionId,
+            CancellationToken.None);
+        Assert.True(retired.IsSuccess, retired.Error.ToString());
+        Assert.Equal(draft.Value.TemplateVersionId, retired.Value.TemplateVersionId);
+        Assert.Equal(1, retired.Value.RetiredScoringRuleCount);
+
+        var updated = await store.UpdateTemplateVersionDraftContentAsync(
+            tenantId,
+            actorId: null,
+            draft.Value.TemplateVersionId,
+            SampleDraftContentUpdateRequest(),
+            CancellationToken.None);
+        Assert.True(updated.IsSuccess, updated.Error.ToString());
+        Assert.Equal(2, updated.Value.Questions.Count);
+
+        var rebuilt = await store.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                draft.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                GraphReverseCodedScoringDocument(),
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(rebuilt.IsSuccess, rebuilt.Error.ToString());
+        Assert.NotEqual(scoring.Value.Id, rebuilt.Value.Id);
+
+        await using var verificationDb = new ApplicationDbContext(migratorOptions);
+        var draftScoringRuleCount = await verificationDb.ScoringRules
+            .AsNoTracking()
+            .CountAsync(rule =>
+                rule.TemplateVersionId == draft.Value.TemplateVersionId &&
+                rule.Status == ScoringRuleStatuses.Draft);
+        var retiredScoringRuleCount = await verificationDb.ScoringRules
+            .AsNoTracking()
+            .CountAsync(rule =>
+                rule.TemplateVersionId == draft.Value.TemplateVersionId &&
+                rule.Status == ScoringRuleStatuses.Retired);
+
+        Assert.Equal(1, draftScoringRuleCount);
+        Assert.Equal(1, retiredScoringRuleCount);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_lists_template_versions_for_template_history()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "template-version-history", "Template Version History"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var store = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var published = await store.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(published.IsSuccess);
+
+        var draft = await store.CreateTemplateVersionDraftAsync(
+            tenantId,
+            actorId: null,
+            published.Value.TemplateVersionId,
+            new CreateTemplateVersionDraftRequest("1.1.0"),
+            CancellationToken.None);
+        Assert.True(draft.IsSuccess);
+
+        var history = await store.ListTemplateVersionsAsync(
+            tenantId,
+            published.Value.TemplateVersionId,
+            CancellationToken.None);
+
+        Assert.True(history.IsSuccess);
+        Assert.Equal(published.Value.TemplateId, history.Value.TemplateId);
+        Assert.Equal(published.Value.TemplateVersionId, history.Value.AnchorTemplateVersionId);
+        Assert.Equal(2, history.Value.Versions.Count);
+        Assert.Contains(
+            history.Value.Versions,
+            version =>
+                version.TemplateVersionId == published.Value.TemplateVersionId &&
+                version.Status == TemplateVersionStatuses.Published &&
+                version.IsLocked &&
+                version.PublishedAt.HasValue);
+        Assert.Contains(
+            history.Value.Versions,
+            version =>
+                version.TemplateVersionId == draft.Value.TemplateVersionId &&
+                version.Status == TemplateVersionStatuses.Draft &&
+                !version.IsLocked &&
+                !version.PublishedAt.HasValue);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_persists_selected_template_for_setup_workspace_without_campaign()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "setup-selected-template", "Setup Selected Template"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var setupStore = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Selected template study"),
+            CancellationToken.None);
+        Assert.True(series.IsSuccess);
+
+        var template = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(template.IsSuccess);
+        Assert.Equal(TemplateVersionStatuses.Published, template.Value.Status);
+
+        var selected = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(template.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(selected.IsSuccess, selected.Error.ToString());
+        Assert.Equal(series.Value.Id, selected.Value.CampaignSeriesId);
+        Assert.Equal(template.Value.TemplateVersionId, selected.Value.TemplateVersionId);
+
+        await using var readDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var readStore = new ProductSurfaceReadStore(readDb, new TenantDbScope(readDb));
+        var workspace = await readStore.GetCampaignSeriesSetupWorkspaceAsync(
+            tenantId,
+            series.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(workspace.IsSuccess, workspace.Error.ToString());
+        Assert.Null(workspace.Value.SelectedCampaign);
+        Assert.NotNull(workspace.Value.Template);
+        Assert.Equal(template.Value.TemplateVersionId, workspace.Value.Template.TemplateVersionId);
+        Assert.Equal(template.Value.TemplateName, workspace.Value.Template.TemplateName);
+    }
+
+    [DockerFact]
+    public async Task Setup_workspace_returns_selected_template_scoring_without_campaign_and_ignores_retired_rules()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "setup-selected-scoring", "Setup Selected Scoring"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var setupStore = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Selected scoring study"),
+            CancellationToken.None);
+        Assert.True(series.IsSuccess);
+
+        var template = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(template.IsSuccess);
+
+        var selected = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(template.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(selected.IsSuccess, selected.Error.ToString());
+
+        var activeScoring = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                template.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                GraphReverseCodedScoringDocument(),
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(activeScoring.IsSuccess, activeScoring.Error.ToString());
+
+        await using (var verificationDb = new ApplicationDbContext(migratorOptions))
+        {
+            var retiredDocument = GraphReverseCodedScoringDocument();
+            var retiredRule = ScoringRule.CreateDraft(
+                Guid.NewGuid(),
+                template.Value.TemplateVersionId,
+                "burnout.retired",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(retiredDocument))).ToLowerInvariant(),
+                retiredDocument,
+                """{"scores":["retired"]}""");
+            retiredRule.RetireDraft(DateTimeOffset.UtcNow.AddMinutes(1));
+            verificationDb.ScoringRules.Add(retiredRule);
+            await verificationDb.SaveChangesAsync();
+        }
+
+        await using var readDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var readStore = new ProductSurfaceReadStore(readDb, new TenantDbScope(readDb));
+        var workspace = await readStore.GetCampaignSeriesSetupWorkspaceAsync(
+            tenantId,
+            series.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(workspace.IsSuccess, workspace.Error.ToString());
+        Assert.Null(workspace.Value.SelectedCampaign);
+        Assert.NotNull(workspace.Value.Template);
+        Assert.Equal(template.Value.TemplateVersionId, workspace.Value.Template.TemplateVersionId);
+        Assert.NotNull(workspace.Value.Scoring);
+        Assert.Equal(activeScoring.Value.Id, workspace.Value.Scoring.Id);
+        Assert.Equal(template.Value.TemplateVersionId, workspace.Value.Scoring.TemplateVersionId);
+        Assert.Equal("burnout.total", workspace.Value.Scoring.RuleKey);
+        Assert.Equal(ScoringRuleStatuses.Draft, workspace.Value.Scoring.Status);
+        Assert.Equal("template_version", workspace.Value.Scoring.Source);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_rejects_campaign_draft_when_selected_setup_template_does_not_match()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "setup-template-campaign-guard", "Setup Template Campaign Guard"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var setupStore = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Guarded selected template study"),
+            CancellationToken.None);
+        Assert.True(series.IsSuccess);
+
+        var selectedTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(selectedTemplate.IsSuccess);
+
+        var otherTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(otherTemplate.IsSuccess);
+
+        var selected = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(selectedTemplate.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(selected.IsSuccess, selected.Error.ToString());
+
+        var rejected = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                otherTemplate.Value.TemplateVersionId,
+                "Mismatched measurement",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+
+        Assert.True(rejected.IsFailure);
+        Assert.Equal(ErrorType.Conflict, rejected.Error.Type);
+        Assert.Equal("campaign_series.setup_template_mismatch", rejected.Error.Code);
+
+        var accepted = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                selectedTemplate.Value.TemplateVersionId,
+                "Selected template measurement",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+
+        Assert.True(accepted.IsSuccess, accepted.Error.ToString());
+        Assert.Equal(selectedTemplate.Value.TemplateVersionId, accepted.Value.TemplateVersionId);
+    }
+
+    [DockerFact]
+    public async Task Setup_store_retargets_editable_draft_campaign_when_setup_template_changes()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "setup-template-retarget", "Setup Template Retarget"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var setupStore = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Retarget selected template study"),
+            CancellationToken.None);
+        Assert.True(series.IsSuccess);
+
+        var firstTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(firstTemplate.IsSuccess);
+
+        var secondTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(secondTemplate.IsSuccess);
+
+        var firstSelection = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(firstTemplate.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(firstSelection.IsSuccess, firstSelection.Error.ToString());
+
+        var draftCampaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                firstTemplate.Value.TemplateVersionId,
+                "Draft measurement",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+        Assert.True(draftCampaign.IsSuccess, draftCampaign.Error.ToString());
+
+        var secondSelection = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(secondTemplate.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(secondSelection.IsSuccess, secondSelection.Error.ToString());
+
+        await using var verificationDb = new ApplicationDbContext(migratorOptions);
+        var campaign = await verificationDb.Campaigns
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == draftCampaign.Value.Id);
+        var campaignSeries = await verificationDb.CampaignSeries
+            .AsNoTracking()
+            .SingleAsync(entity => entity.Id == series.Value.Id);
+
+        Assert.Equal(secondTemplate.Value.TemplateVersionId, campaign.TemplateVersionId);
+        Assert.Equal(secondTemplate.Value.TemplateVersionId, campaignSeries.SetupTemplateVersionId);
+
+        await using var readDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var readStore = new ProductSurfaceReadStore(readDb, new TenantDbScope(readDb));
+        var workspace = await readStore.GetCampaignSeriesSetupWorkspaceAsync(
+            tenantId,
+            series.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(workspace.IsSuccess, workspace.Error.ToString());
+        Assert.NotNull(workspace.Value.SelectedCampaign);
+        Assert.Equal(draftCampaign.Value.Id, workspace.Value.SelectedCampaign.Id);
+        Assert.Equal(secondTemplate.Value.TemplateVersionId, workspace.Value.SelectedCampaign.TemplateVersionId);
+        Assert.NotNull(workspace.Value.Template);
+        Assert.Equal(secondTemplate.Value.TemplateVersionId, workspace.Value.Template.TemplateVersionId);
+    }
+
+    [DockerFact]
+    public async Task Setup_workspace_uses_selected_setup_template_after_locked_campaign_for_future_measurement()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+
+        await using (var db = new ApplicationDbContext(migratorOptions))
+        {
+            await db.Database.MigrateAsync();
+            db.Tenants.Add(new Tenant(tenantId, "setup-future-template", "Setup Future Template"));
+            await db.SaveChangesAsync();
+        }
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var setupStore = new SetupWorkflowStore(tenantDb, new TenantDbScope(tenantDb));
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Future selected template study"),
+            CancellationToken.None);
+        Assert.True(series.IsSuccess);
+
+        var firstTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(firstTemplate.IsSuccess);
+
+        var firstSelection = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(firstTemplate.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(firstSelection.IsSuccess, firstSelection.Error.ToString());
+        var launchableScoringDocument =
+            """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "burnout.total",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "core_items", "kind": "answers", "items": ["q01"] }
+              ],
+              "nodes": [
+                { "id": "core_answers", "op": "select_answers", "input": "core_items" },
+                { "id": "total", "op": "mean", "input": "core_answers" }
+              ],
+              "outputs": [
+                { "code": "total", "node": "total" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """;
+
+        var firstScoring = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                firstTemplate.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                launchableScoringDocument,
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(firstScoring.IsSuccess, firstScoring.Error.ToString());
+
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                firstTemplate.Value.TemplateVersionId,
+                "Locked measurement",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+
+        var readiness = await setupStore.GetLaunchReadinessAsync(
+            tenantId,
+            campaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(readiness.IsSuccess, readiness.Error.ToString());
+        Assert.True(
+            readiness.Value.Ready,
+            string.Join(", ", readiness.Value.Issues.Select(issue => issue.Code)));
+
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+        Assert.Equal(CampaignStatuses.Live, launched.Value.Status);
+
+        var futureTemplate = await setupStore.CreateTemplateVersionAsync(
+            tenantId,
+            actorId: null,
+            SampleSetupTemplateRequest(),
+            CancellationToken.None);
+        Assert.True(futureTemplate.IsSuccess);
+
+        var futureScoring = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                futureTemplate.Value.TemplateVersionId,
+                "burnout.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                launchableScoringDocument,
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        Assert.True(futureScoring.IsSuccess, futureScoring.Error.ToString());
+
+        var futureSelection = await setupStore.SelectCampaignSeriesSetupTemplateAsync(
+            tenantId,
+            actorId: null,
+            series.Value.Id,
+            new SelectCampaignSeriesSetupTemplateRequest(futureTemplate.Value.TemplateVersionId),
+            CancellationToken.None);
+        Assert.True(futureSelection.IsSuccess, futureSelection.Error.ToString());
+
+        await using var readDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var readStore = new ProductSurfaceReadStore(readDb, new TenantDbScope(readDb));
+        var workspace = await readStore.GetCampaignSeriesSetupWorkspaceAsync(
+            tenantId,
+            series.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(workspace.IsSuccess, workspace.Error.ToString());
+        Assert.NotNull(workspace.Value.SelectedCampaign);
+        Assert.Equal(campaign.Value.Id, workspace.Value.SelectedCampaign.Id);
+        Assert.Equal(CampaignStatuses.Live, workspace.Value.SelectedCampaign.Status);
+        Assert.Equal(firstTemplate.Value.TemplateVersionId, workspace.Value.SelectedCampaign.TemplateVersionId);
+        Assert.NotNull(workspace.Value.Template);
+        Assert.Equal(futureTemplate.Value.TemplateVersionId, workspace.Value.Template.TemplateVersionId);
+        Assert.NotNull(workspace.Value.Scoring);
+        Assert.Equal(futureScoring.Value.Id, workspace.Value.Scoring.Id);
+        Assert.Equal(futureTemplate.Value.TemplateVersionId, workspace.Value.Scoring.TemplateVersionId);
+        Assert.Equal("template_version", workspace.Value.Scoring.Source);
+        Assert.Equal("not_available", workspace.Value.Readiness.Status);
+        Assert.Null(workspace.Value.Readiness.CampaignId);
+        Assert.Contains(workspace.Value.MissingPrerequisites, missing => missing.Code == "campaign.missing");
+
+        var futureCampaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                workspace.Value.Template.TemplateVersionId,
+                "Future measurement",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+        Assert.True(futureCampaign.IsSuccess, futureCampaign.Error.ToString());
+        Assert.Equal(futureTemplate.Value.TemplateVersionId, futureCampaign.Value.TemplateVersionId);
     }
 
     [DockerFact]
@@ -2577,8 +3408,14 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal("text/html; charset=utf-8", download.Value.ContentType);
         Assert.Equal(created.Value.ChecksumSha256, download.Value.ChecksumSha256);
         Assert.Contains("<!doctype html>", download.Value.Content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Seeded Tenant", download.Value.Content, StringComparison.Ordinal);
         Assert.Contains("Report proof series", download.Value.Content, StringComparison.Ordinal);
         Assert.Contains("generated-at", download.Value.Content, StringComparison.Ordinal);
+        Assert.Contains("Result charts", download.Value.Content, StringComparison.Ordinal);
+        Assert.Contains("data-chart-source=\"server_inline_svg\"", download.Value.Content, StringComparison.Ordinal);
+        Assert.Contains("Result outputs", download.Value.Content, StringComparison.Ordinal);
+        Assert.Contains("Method and safeguards", download.Value.Content, StringComparison.Ordinal);
+        Assert.Contains("missing_policy_status_summary", retrieved.Value.CodebookJson, StringComparison.Ordinal);
         Assert.DoesNotContain("token", download.Value.Content, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("wdr_", download.Value.Content, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("participant_code", download.Value.Content, StringComparison.OrdinalIgnoreCase);
@@ -2588,6 +3425,23 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal(
             "campaign_series_report_html",
             codebook.RootElement.GetProperty("artifactType").GetString());
+        Assert.Contains(
+            codebook.RootElement.GetProperty("sections").EnumerateArray(),
+            section => section.GetString() == "result_outputs");
+        Assert.Contains(
+            codebook.RootElement.GetProperty("sections").EnumerateArray(),
+            section => section.GetString() == "result_charts");
+        Assert.Equal(
+            "server_inline_svg",
+            codebook.RootElement.GetProperty("charts").GetProperty("source").GetString());
+        var branding = codebook.RootElement.GetProperty("branding");
+        Assert.Equal("typed_slots_no_arbitrary_css", branding.GetProperty("boundary").GetString());
+        Assert.Equal("tenant_profile", branding.GetProperty("brandingSource").GetString());
+        Assert.Equal("Seeded Tenant", branding.GetProperty("organizationLabel").GetString());
+        Assert.Equal("none", branding.GetProperty("logoMode").GetString());
+        Assert.Contains(
+            branding.GetProperty("allowedSlots").EnumerateArray(),
+            slot => slot.GetString() == "accent_color_hex");
     }
 
     [DockerFact]
@@ -2673,6 +3527,36 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Equal(
             "fake-pdf",
             metadata.RootElement.GetProperty("renderer").GetProperty("name").GetString());
+        using var codebook = JsonDocument.Parse(retrieved.Value.CodebookJson);
+        Assert.Equal(
+            "campaign_series_report_pdf",
+            codebook.RootElement.GetProperty("artifactType").GetString());
+        Assert.Equal(
+            "fake-pdf",
+            codebook.RootElement.GetProperty("renderer").GetProperty("name").GetString());
+        var sourceHtmlCodebook = codebook.RootElement.GetProperty("sourceHtmlCodebook");
+        Assert.Equal(
+            "campaign_series_report_html",
+            sourceHtmlCodebook.GetProperty("artifactType").GetString());
+        Assert.Contains(
+            sourceHtmlCodebook.GetProperty("sections").EnumerateArray(),
+            section => section.GetString() == "result_outputs");
+        Assert.Contains(
+            sourceHtmlCodebook.GetProperty("sections").EnumerateArray(),
+            section => section.GetString() == "result_charts");
+        Assert.Equal(
+            "server_inline_svg",
+            sourceHtmlCodebook.GetProperty("charts").GetProperty("source").GetString());
+        var sourceBranding = sourceHtmlCodebook.GetProperty("branding");
+        Assert.Equal("typed_slots_no_arbitrary_css", sourceBranding.GetProperty("boundary").GetString());
+        Assert.Equal("tenant_profile", sourceBranding.GetProperty("brandingSource").GetString());
+        Assert.Equal("Seeded Tenant", sourceBranding.GetProperty("organizationLabel").GetString());
+        Assert.Contains(
+            sourceBranding.GetProperty("allowedSlots").EnumerateArray(),
+            slot => slot.GetString() == "report_title");
+        Assert.Contains(
+            sourceHtmlCodebook.GetProperty("fields").EnumerateArray(),
+            field => field.GetString() == "missing_policy_status_summary");
         await verifyTransaction.CommitAsync();
     }
 
@@ -3978,6 +4862,122 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Single_choice_option_scoring_materializes_report_and_response_export_metadata()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        var versionId = await SeedTenantSingleChoiceOptionScoringTemplateVersionAsync(
+            migratorOptions,
+            tenantId);
+
+        await CreateRuntimeRoleAsync(migratorOptions);
+
+        await using var tenantDb = new ApplicationDbContext(CreateRuntimeOptions());
+        var tenantDbScope = new TenantDbScope(tenantDb);
+        var setupStore = new SetupWorkflowStore(tenantDb, tenantDbScope);
+        var responseStore = new ResponseCaptureStore(tenantDb, tenantDbScope);
+        var scoreStore = new ScoreComputationStore(tenantDb, tenantDbScope);
+        var reportStore = new ReportProofStore(tenantDb, tenantDbScope);
+        var exportStore = new ReportProofExportStore(tenantDb, tenantDbScope, reportStore);
+
+        var series = await setupStore.CreateCampaignSeriesAsync(
+            tenantId,
+            new CreateCampaignSeriesRequest("Choice scoring proof series"),
+            CancellationToken.None);
+        var scoringRule = await setupStore.CreateScoringRuleAsync(
+            tenantId,
+            new CreateScoringRuleRequest(
+                versionId,
+                "choice.total",
+                "1.0.0",
+                "scoring-rule/v1",
+                "engine/v1",
+                ChoiceOptionScoringDocument(),
+                """{"scores":["total"]}"""),
+            CancellationToken.None);
+        var campaign = await setupStore.CreateCampaignAsync(
+            tenantId,
+            actorId: null,
+            new CreateCampaignRequest(
+                versionId,
+                "Choice scoring proof wave",
+                ResponseIdentityModes.Anonymous,
+                CampaignSeriesId: series.Value.Id),
+            CancellationToken.None);
+        var launched = await setupStore.LaunchCampaignAsync(
+            tenantId,
+            actorId: null,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(series.IsSuccess, series.Error.ToString());
+        Assert.True(scoringRule.IsSuccess, scoringRule.Error.ToString());
+        Assert.True(campaign.IsSuccess, campaign.Error.ToString());
+        Assert.True(launched.IsSuccess, launched.Error.ToString());
+
+        for (var index = 0; index < 5; index++)
+        {
+            await SubmitAndScoreReportProofResponseAsync(
+                tenantDb,
+                tenantDbScope,
+                responseStore,
+                scoreStore,
+                tenantId,
+                campaign.Value.Id,
+                value: "\"o03\"");
+        }
+
+        var report = await reportStore.GetCampaignReportProofAsync(
+            tenantId,
+            campaign.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(report.IsSuccess, report.Error.ToString());
+        var score = Assert.Single(report.Value.Scores);
+        Assert.Equal("total", score.DimensionCode);
+        Assert.Equal("visible", score.Disclosure);
+        Assert.Equal(5, score.SubmittedResponseCount);
+        Assert.Equal(5, score.ScoreCount);
+        Assert.Equal(5, score.NValidTotal);
+        Assert.Equal(5, score.NExpectedTotal);
+        Assert.Equal("ok", score.MissingPolicyStatusSummary);
+        Assert.Equal(4.0000m, score.Mean);
+
+        var artifact = await exportStore.CreateCampaignSeriesResponseExportAsync(
+            tenantId,
+            series.Value.Id,
+            CancellationToken.None);
+
+        Assert.True(artifact.IsSuccess, artifact.Error.ToString());
+        Assert.Equal("campaign_series_response_csv_codebook", artifact.Value.ArtifactType);
+        Assert.Equal("succeeded", artifact.Value.Status);
+        Assert.Contains("answer_q01", artifact.Value.CsvContent);
+        Assert.Contains("score_total", artifact.Value.CsvContent);
+        Assert.Contains("o03", artifact.Value.CsvContent);
+        Assert.Contains(",1,1,ok", artifact.Value.CsvContent);
+
+        using var codebook = JsonDocument.Parse(artifact.Value.CodebookJson);
+        var answerColumn = codebook.RootElement
+            .GetProperty("columns")
+            .EnumerateArray()
+            .Single(column =>
+                column.GetProperty("source").GetString() == "answer" &&
+                column.GetProperty("questionCode").GetString() == "q01");
+        Assert.Equal("answer_q01", answerColumn.GetProperty("name").GetString());
+        Assert.Equal("single", answerColumn.GetProperty("questionType").GetString());
+        Assert.Equal("High support", answerColumn.GetProperty("valueLabels").GetProperty("o03").GetString());
+        var choiceScoring = answerColumn.GetProperty("answerMetadata").GetProperty("choiceScoring");
+        Assert.True(choiceScoring.GetProperty("enabled").GetBoolean());
+        var highSupportScore = choiceScoring
+            .GetProperty("optionScores")
+            .EnumerateArray()
+            .Single(option => option.GetProperty("code").GetString() == "o03")
+            .GetProperty("score")
+            .GetDecimal();
+        Assert.Equal(4m, highSupportScore);
+    }
+
+    [DockerFact]
     public async Task Campaign_series_response_export_store_persists_item_csv_codebook_and_local_trajectory_ids()
     {
         var tenantId = Guid.NewGuid();
@@ -3987,7 +4987,8 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             tenantId,
             "Response export proof",
             includeMatrixQuestion: true,
-            includeDisplayLogicQuestion: true);
+            includeDisplayLogicQuestion: true,
+            includeM3QuestionTypes: true);
         await SubmitFiveLinkedScoredWaveComparisonResponsesAsync(scenario);
         await CloseScenarioCampaignAsync(
             scenario.Db,
@@ -4020,9 +5021,17 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         Assert.Contains("response_row_id,trajectory_id,campaign_series_id,campaign_id,wave_label,campaign_status,campaign_closed_at,campaign_data_finality,launch_packet_schema_version,launch_packet_sections,launch_packet_source", artifact.Value.CsvContent);
         Assert.Contains("template;instrument;scoring;policies;identity;respondent_rules;launch_readiness;provenance", artifact.Value.CsvContent);
         Assert.Contains("answer_q01", artifact.Value.CsvContent);
+        Assert.Contains("answer_m3_single", artifact.Value.CsvContent);
+        Assert.Contains("answer_m3_multi", artifact.Value.CsvContent);
+        Assert.Contains("answer_m3_text", artifact.Value.CsvContent);
+        Assert.Contains("answer_m3_number", artifact.Value.CsvContent);
+        Assert.Contains("answer_m3_date", artifact.Value.CsvContent);
         Assert.Contains("answer_body_discomfort_r01,answer_body_discomfort_r02", artifact.Value.CsvContent);
         Assert.Contains("answer_recovery_followup", artifact.Value.CsvContent);
         Assert.Contains(",c02,c03,", artifact.Value.CsvContent);
+        Assert.Contains("Need clearer recovery planning.", artifact.Value.CsvContent);
+        Assert.Contains("42", artifact.Value.CsvContent);
+        Assert.Contains("2026-06-01", artifact.Value.CsvContent);
         Assert.Contains(
             "score_total_n_valid,score_total_n_expected,score_total_missing_policy_status",
             artifact.Value.CsvContent);
@@ -4067,6 +5076,34 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             column =>
                 column.GetProperty("name").GetString() == "score_total_n_valid" &&
                 column.GetProperty("source").GetString() == "score_output_metadata");
+        var m3Columns = codebook.RootElement.GetProperty("columns").EnumerateArray().ToArray();
+        Assert.Contains(
+            m3Columns,
+            column =>
+                column.GetProperty("name").GetString() == "answer_m3_single" &&
+                column.GetProperty("questionType").GetString() == "single" &&
+                column.GetProperty("valueLabels").GetProperty("o02").GetString() == "Posture");
+        Assert.Contains(
+            m3Columns,
+            column =>
+                column.GetProperty("name").GetString() == "answer_m3_multi" &&
+                column.GetProperty("questionType").GetString() == "multi" &&
+                column.GetProperty("valueLabels").GetProperty("o02").GetString() == "Equipment");
+        Assert.Contains(
+            m3Columns,
+            column =>
+                column.GetProperty("name").GetString() == "answer_m3_text" &&
+                column.GetProperty("questionType").GetString() == "text");
+        Assert.Contains(
+            m3Columns,
+            column =>
+                column.GetProperty("name").GetString() == "answer_m3_number" &&
+                column.GetProperty("questionType").GetString() == "number");
+        Assert.Contains(
+            m3Columns,
+            column =>
+                column.GetProperty("name").GetString() == "answer_m3_date" &&
+                column.GetProperty("questionType").GetString() == "date");
         var matrixColumn = codebook.RootElement
             .GetProperty("columns")
             .EnumerateArray()
@@ -4087,7 +5124,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         var displayLogic = displayLogicColumn.GetProperty("displayLogic");
         Assert.Equal("show_when", displayLogic.GetProperty("mode").GetString());
         Assert.Equal("q01", displayLogic.GetProperty("sourceQuestionCode").GetString());
-        Assert.Equal("equals", displayLogic.GetProperty("operatorName").GetString());
+        Assert.Equal("not_equals", displayLogic.GetProperty("operatorName").GetString());
         Assert.Equal(3, displayLogic.GetProperty("value").GetInt32());
         Assert.True(displayLogic.GetProperty("requiredWhenVisible").GetBoolean());
         Assert.Equal("__skipped", displayLogic.GetProperty("hiddenAnswerTreatment").GetString());
@@ -9183,6 +10220,26 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             ]);
     }
 
+    private static UpdateTemplateVersionDraftContentRequest SampleDraftContentUpdateRequest()
+    {
+        var template = SampleSetupTemplateRequest();
+
+        return new UpdateTemplateVersionDraftContentRequest(
+            template.Sections,
+            template.Scales,
+            [
+                template.Questions[0],
+                new CreateTemplateQuestionRequest(
+                    2,
+                    "q02",
+                    QuestionTypes.Likert,
+                    "I can recover after difficult work.",
+                    SectionCode: "core",
+                    ScaleCode: "agreement",
+                    MeasurementLevel: MeasurementLevels.Ordinal)
+            ]);
+    }
+
     private static async Task<Guid> CreateSetupCampaignSeriesAsync(
         SetupWorkflowStore setupStore,
         Guid tenantId,
@@ -9276,14 +10333,16 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         string name,
         string produces = """{"scores":["total"]}""",
         bool includeMatrixQuestion = false,
-        bool includeDisplayLogicQuestion = false)
+        bool includeDisplayLogicQuestion = false,
+        bool includeM3QuestionTypes = false)
     {
         var migratorOptions = CreateMigratorOptions();
         var versionId = await SeedTenantTemplateVersionAsync(
             migratorOptions,
             tenantId,
             includeMatrixQuestion,
-            includeDisplayLogicQuestion);
+            includeDisplayLogicQuestion,
+            includeM3QuestionTypes);
 
         await CreateRuntimeRoleAsync(migratorOptions);
 
@@ -9507,6 +10566,31 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
             requests.Add(new SaveAnswerRequest(
                 matrixQuestion.Id,
                 """{"r01":"c02","r02":"c03"}"""));
+        }
+
+        if (questionByCode.TryGetValue("m3_single", out var singleQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(singleQuestion.Id, "\"o02\""));
+        }
+
+        if (questionByCode.TryGetValue("m3_multi", out var multiQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(multiQuestion.Id, """["o01","o02"]"""));
+        }
+
+        if (questionByCode.TryGetValue("m3_text", out var textQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(textQuestion.Id, "\"Need clearer recovery planning.\""));
+        }
+
+        if (questionByCode.TryGetValue("m3_number", out var numberQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(numberQuestion.Id, "42"));
+        }
+
+        if (questionByCode.TryGetValue("m3_date", out var dateQuestion))
+        {
+            requests.Add(new SaveAnswerRequest(dateQuestion.Id, "\"2026-06-01\""));
         }
 
         return requests.ToArray();
@@ -9865,10 +10949,12 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId,
         bool includeMatrixQuestion = false,
-        bool includeDisplayLogicQuestion = false)
+        bool includeDisplayLogicQuestion = false,
+        bool includeM3QuestionTypes = false)
     {
         var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Seeded tenant pulse");
         var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        version.Publish(null, DateTimeOffset.UtcNow);
         var section = new TemplateSection(Guid.NewGuid(), version.Id, 1, "core", "Core");
         var scale = new QuestionScale(
             Guid.NewGuid(),
@@ -9926,7 +11012,81 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 variableLabel: "Recovery support follow-up",
                 measurementLevel: MeasurementLevels.Nominal,
                 payload:
-                    """{"text":{"multiline":true},"displayLogic":{"mode":"show_when","sourceQuestionCode":"q01","operator":"equals","value":3,"requiredWhenVisible":true}}"""));
+                    """{"text":{"multiline":true},"displayLogic":{"mode":"show_when","sourceQuestionCode":"q01","operator":"not_equals","value":3,"requiredWhenVisible":true}}"""));
+        }
+
+        if (includeM3QuestionTypes)
+        {
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "m3_single",
+                QuestionTypes.SingleChoice,
+                scaleId: null,
+                "Which strain area matters most?",
+                required: true,
+                variableLabel: "Primary strain area",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"options":[{"code":"o01","label":"Workload"},{"code":"o02","label":"Posture"}]}"""));
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "m3_multi",
+                QuestionTypes.MultiChoice,
+                scaleId: null,
+                "Which support gaps apply?",
+                required: true,
+                variableLabel: "Support gaps",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"options":[{"code":"o01","label":"Breaks"},{"code":"o02","label":"Equipment"}]}"""));
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "m3_text",
+                QuestionTypes.Text,
+                scaleId: null,
+                "What context should the consultant know?",
+                required: true,
+                variableLabel: "Consultant context",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"text":{"multiline":true,"maxLength":500}}"""));
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "m3_number",
+                QuestionTypes.Number,
+                scaleId: null,
+                "How many strain hours happened this week?",
+                required: true,
+                variableLabel: "Strain hours",
+                measurementLevel: MeasurementLevels.Scale,
+                payload:
+                    """{"validation":{"min":0,"max":80,"integerOnly":true},"display":{"unit":"hours/week"}}"""));
+            questions.Add(new TemplateQuestion(
+                Guid.NewGuid(),
+                version.Id,
+                section.Id,
+                questions.Count + 1,
+                "m3_date",
+                QuestionTypes.Date,
+                scaleId: null,
+                "When did the issue start?",
+                required: true,
+                variableLabel: "Issue start date",
+                measurementLevel: MeasurementLevels.Nominal,
+                payload:
+                    """{"validation":{"minDate":"2026-01-01","maxDate":"2026-12-31"}}"""));
         }
 
         await using var db = new ApplicationDbContext(options);
@@ -9942,12 +11102,68 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         return version.Id;
     }
 
+    private static async Task<Guid> SeedTenantSingleChoiceOptionScoringTemplateVersionAsync(
+        DbContextOptions<ApplicationDbContext> options,
+        Guid tenantId)
+    {
+        var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Seeded choice scoring pulse");
+        var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        version.Publish(null, DateTimeOffset.UtcNow);
+        var section = new TemplateSection(Guid.NewGuid(), version.Id, 1, "core", "Core");
+        var question = new TemplateQuestion(
+            Guid.NewGuid(),
+            version.Id,
+            section.Id,
+            1,
+            "q01",
+            QuestionTypes.SingleChoice,
+            scaleId: null,
+            "How much support did you receive?",
+            required: true,
+            measurementLevel: MeasurementLevels.Nominal,
+            payload:
+                """
+                {
+                  "options": [
+                    { "code": "o01", "label": "Low support" },
+                    { "code": "o02", "label": "Some support" },
+                    { "code": "o03", "label": "High support" }
+                  ],
+                  "choice": {
+                    "allowOther": false,
+                    "otherLabel": null,
+                    "exclusiveOptionCode": null
+                  },
+                  "choiceScoring": {
+                    "enabled": true,
+                    "optionScores": [
+                      { "code": "o01", "score": 0 },
+                      { "code": "o02", "score": 2 },
+                      { "code": "o03", "score": 4 }
+                    ]
+                  }
+                }
+                """);
+
+        await using var db = new ApplicationDbContext(options);
+        await db.Database.MigrateAsync();
+        db.Tenants.Add(new Tenant(tenantId, $"tenant-{tenantId:N}", "Seeded Tenant"));
+        db.SurveyTemplates.Add(template);
+        db.TemplateVersions.Add(version);
+        db.TemplateSections.Add(section);
+        db.TemplateQuestions.Add(question);
+        await db.SaveChangesAsync();
+
+        return version.Id;
+    }
+
     private static async Task<Guid> SeedTenantTemplateVersionWithThreeQuestionsAsync(
         DbContextOptions<ApplicationDbContext> options,
         Guid tenantId)
     {
         var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Seeded tenant graph pulse");
         var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        version.Publish(null, DateTimeOffset.UtcNow);
         var section = new TemplateSection(Guid.NewGuid(), version.Id, 1, "core", "Core");
         var scale = new QuestionScale(
             Guid.NewGuid(),
@@ -10010,6 +11226,42 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
         return version.Id;
     }
 
+    private static string ChoiceOptionScoringDocument()
+    {
+        return """
+            {
+              "schema_version": "1.0.0",
+              "engine_min_version": "1.0.0",
+              "rule_id": "choice.total",
+              "rule_version": "1.0.0",
+              "inputs": [
+                { "id": "support_items", "kind": "answers", "items": ["q01"] }
+              ],
+              "nodes": [
+                {
+                  "id": "support_scores",
+                  "op": "map_choice_scores",
+                  "input": "support_items",
+                  "option_scores": {
+                    "q01": {
+                      "o01": 0,
+                      "o02": 2,
+                      "o03": 4
+                    }
+                  }
+                },
+                { "id": "total", "op": "mean", "input": "support_scores" }
+              ],
+              "outputs": [
+                { "code": "total", "node": "total" }
+              ],
+              "missing_data": {
+                "defaults": { "strategy": "require_all" }
+              }
+            }
+            """;
+    }
+
     private static string GraphReverseCodedScoringDocument()
     {
         return """
@@ -10054,6 +11306,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
     {
         var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Response capture pulse");
         var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        version.Publish(null, DateTimeOffset.UtcNow);
         var section = new TemplateSection(Guid.NewGuid(), version.Id, 1, "core", "Core");
         var scale = new QuestionScale(
             Guid.NewGuid(),
