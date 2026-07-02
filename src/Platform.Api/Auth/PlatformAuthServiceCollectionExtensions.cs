@@ -31,6 +31,8 @@ public static class PlatformAuthServiceCollectionExtensions
 
         if (IsDevelopmentAuthenticationEnabled(configuration, environment))
         {
+            services.AddScoped<IPlatformSessionRevoker, NoOpPlatformSessionRevoker>();
+
             services
                 .AddAuthentication(DevelopmentAuthenticationOptions.SchemeName)
                 .AddScheme<DevelopmentAuthenticationOptions, DevelopmentAuthenticationHandler>(
@@ -48,6 +50,7 @@ public static class PlatformAuthServiceCollectionExtensions
             return services;
         }
 
+        services.AddScoped<IPlatformSessionRevoker, NoOpPlatformSessionRevoker>();
         AddJwtBearerAuthentication(services, configuration, environment);
 
         return services;

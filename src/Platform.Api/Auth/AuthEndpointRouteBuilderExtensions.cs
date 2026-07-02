@@ -195,7 +195,14 @@ public static class AuthEndpointRouteBuilderExtensions
 
         await revoker.RevokeAsync(context.User, context.RequestAborted);
 
-        await context.SignOutAsync(PlatformAuthenticationSchemes.AppCookie);
+        // Development header auth and JWT bearer register no cookie scheme;
+        // logout must still complete instead of crashing on SignOutAsync.
+        var schemeProvider = context.RequestServices.GetRequiredService<IAuthenticationSchemeProvider>();
+        var appCookieScheme = await schemeProvider.GetSchemeAsync(PlatformAuthenticationSchemes.AppCookie);
+        if (appCookieScheme is not null)
+        {
+            await context.SignOutAsync(PlatformAuthenticationSchemes.AppCookie);
+        }
 
         if (providerLogout.Value)
         {

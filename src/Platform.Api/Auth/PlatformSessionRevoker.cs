@@ -22,6 +22,18 @@ public interface IPlatformSessionRevocationStore
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Used when no revocable session store exists (development header auth and
+/// JWT bearer modes). Logout has nothing to revoke; the endpoint must still work.
+/// </summary>
+public sealed class NoOpPlatformSessionRevoker : IPlatformSessionRevoker
+{
+    public Task RevokeAsync(ClaimsPrincipal? principal, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class PlatformSessionRevoker(
     IPlatformSessionRevocationStore store) : IPlatformSessionRevoker
 {
