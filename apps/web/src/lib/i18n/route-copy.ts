@@ -2058,7 +2058,7 @@ const en = {
 				unavailableMessage: 'Select two comparable waves before reviewing the wave dashboard.',
 				title: (baselineName: string, comparisonName: string) =>
 					`${baselineName} vs ${comparisonName} wave dashboard`,
-				campaigns: 'Campaigns',
+				campaigns: 'Measurements',
 				longitudinalWaves: 'Repeat-participation waves',
 				submittedWaves: 'Submitted waves',
 				missingPrerequisites: 'Missing prerequisites',

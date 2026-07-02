@@ -105,11 +105,11 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	await expect(ownStudies.getByText('Your study', { exact: true })).toBeVisible();
 	await overview.getByText('Workspace overview', { exact: true }).click();
 	const totals = overview.getByRole('group', { name: 'Workspace totals' });
-	await expect(totals.getByText('Campaign series', { exact: true })).toBeVisible();
+	await expect(totals.getByText('Studies', { exact: true })).toBeVisible();
 	await expect(totals.getByText('3', { exact: true })).toBeVisible();
-	await expect(totals.getByText('Campaigns', { exact: true })).toBeVisible();
+	await expect(totals.getByText('Measurements', { exact: true })).toBeVisible();
 	await expect(totals.getByText('9', { exact: true })).toBeVisible();
-	await expect(totals.getByText('Live campaigns', { exact: true })).toBeVisible();
+	await expect(totals.getByText('Live measurements', { exact: true })).toBeVisible();
 	await expect(totals.getByText('2', { exact: true })).toBeVisible();
 	await expect(totals.getByText('Submitted responses', { exact: true })).toBeVisible();
 	await expect(totals.getByText('128', { exact: true })).toBeVisible();
@@ -1218,7 +1218,7 @@ test('renders campaign-series list items from the product read model', async ({ 
 	await expect(page.getByRole('heading', { name: 'Studies', exact: true })).toBeVisible();
 	await expect(seriesItem).toHaveAttribute('href', `/app/campaign-series/${sampleSeriesId}`);
 	await expect(seriesArticle.getByText('Pending', { exact: true })).toBeVisible();
-	await expect(seriesArticle.getByText('Campaigns', { exact: true })).toBeVisible();
+	await expect(seriesArticle.getByText('Measurements', { exact: true })).toBeVisible();
 	await expect(seriesArticle.getByText('7', { exact: true })).toBeVisible();
 	await expect(seriesArticle.getByText('Submitted responses', { exact: true })).toBeVisible();
 	await expect(seriesArticle.getByText('128', { exact: true })).toBeVisible();
@@ -3050,8 +3050,8 @@ test('operations workspace loads the dedicated read model and renders operations
 	await expect(details).toBeVisible();
 	await details.locator('summary').click();
 	await expect(details.getByRole('heading', { name: 'Operational details' })).toBeVisible();
-	await expect(details.getByText('Campaigns', { exact: true }).first()).toBeVisible();
-	await expect(details.getByText('Live campaigns', { exact: true }).first()).toBeVisible();
+	await expect(details.getByText('Measurements', { exact: true }).first()).toBeVisible();
+	await expect(details.getByText('Live measurements', { exact: true }).first()).toBeVisible();
 	await expect(details.getByText('Respondent links', { exact: true }).first()).toBeVisible();
 	await expect(details.getByText('Queued emails', { exact: true }).first()).toBeVisible();
 	await expect(details.getByText('Sent emails', { exact: true }).first()).toBeVisible();

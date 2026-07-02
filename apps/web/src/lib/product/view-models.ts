@@ -1191,8 +1191,8 @@ export function toCampaignSeriesOperationsWorkspaceView(
 		referenceDescription:
 			'Launch records, prerequisite checks, and selected wave details stay here for review.',
 		summaryRows: [
-			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
-			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
+			{ label: 'Measurements', value: formatCount(workspace.summary.campaignCount) },
+			{ label: 'Live measurements', value: formatCount(workspace.summary.liveCampaignCount) },
 			{
 				label: 'Respondent links',
 				value: formatCount(workspace.summary.openLinkAssignmentCount)
@@ -1311,8 +1311,8 @@ export function toCampaignSeriesReportsWorkspaceView(
 			'Selected wave details, limitations, prerequisite checks, and export records stay here for review.',
 		resultsOverview: toReportsResultsOverview(workspace, scoreCoverage),
 		summaryRows: [
-			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
-			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
+			{ label: 'Measurements', value: formatCount(workspace.summary.campaignCount) },
+			{ label: 'Live measurements', value: formatCount(workspace.summary.liveCampaignCount) },
 			{
 				label: 'Reportable campaigns',
 				value: formatCount(workspace.summary.reportableCampaignCount)
@@ -1382,8 +1382,8 @@ export function toCampaignSeriesWavesWorkspaceView(
 		surfaceLabel: 'Compare rounds',
 		surfaceEyebrow: 'Repeated-round comparison',
 		summaryRows: [
-			{ label: 'Campaigns', value: formatCount(workspace.summary.campaignCount) },
-			{ label: 'Live campaigns', value: formatCount(workspace.summary.liveCampaignCount) },
+			{ label: 'Measurements', value: formatCount(workspace.summary.campaignCount) },
+			{ label: 'Live measurements', value: formatCount(workspace.summary.liveCampaignCount) },
 			{
 				label: 'Repeat-participation waves',
 				value: formatCount(workspace.summary.longitudinalWaveCount)
@@ -1763,17 +1763,124 @@ function toWorkspaceCommandItem(
 ) {
 	const surfaceLabel = toWorkspaceCommandSurfaceLabel(item.surface, locale);
 	const rows: DisplayRow[] = [{ label: appMessage(locale, 'workspace.row.surface'), value: surfaceLabel }];
+	const localized = localizeWorkspaceCommand(item, locale);
 
 	return {
 		id: item.id,
-		title: item.title.trim() || appMessage(locale, 'workspace.command.untitled'),
-		description: item.description.trim() || appMessage(locale, 'workspace.command.defaultDescription'),
+		title: localized?.title ?? (item.title.trim() || appMessage(locale, 'workspace.command.untitled')),
+		description:
+			localized?.description ??
+			(item.description.trim() || appMessage(locale, 'workspace.command.defaultDescription')),
 		href: item.route,
-		actionLabel: item.actionLabel.trim() || appMessage(locale, 'workspace.command.defaultAction'),
+		actionLabel:
+			localized?.actionLabel ??
+			(item.actionLabel.trim() || appMessage(locale, 'workspace.command.defaultAction')),
 		status: toProductReadModelBadgeStatus(item.state),
 		priority: item.priority,
 		surfaceLabel,
 		rows
+	};
+}
+
+/**
+ * The command-center read model carries English display strings; presentation
+ * vocabulary and hr localization are applied here by command id. Unknown ids
+ * fall back to the backend strings unchanged.
+ */
+function localizeWorkspaceCommand(
+	item: WorkspaceOverviewResponse['commandCenter']['items'][number],
+	locale: AppLocale
+): { title: string; description: string; actionLabel: string } | null {
+	const nameFromTitle = / for (.+)$/.exec(item.title.trim())?.[1] ?? '';
+	type MessageKey = Parameters<typeof appMessage>[1];
+	const named = (key: MessageKey) => appMessage(locale, key, { name: nameFromTitle });
+	const plain = (key: MessageKey) => appMessage(locale, key);
+
+	if (item.id === 'campaign_series.create') {
+		const empty = item.title.trim().toLowerCase().startsWith('no ');
+		return empty
+			? {
+					title: plain('briefing.command.create.emptyTitle'),
+					description: plain('briefing.command.create.emptyDescription'),
+					actionLabel: plain('briefing.command.create.emptyAction')
+				}
+			: {
+					title: plain('briefing.command.create.title'),
+					description: plain('briefing.command.create.description'),
+					actionLabel: plain('briefing.command.create.action')
+				};
+	}
+
+	if (item.id === 'directory.setup') {
+		return {
+			title: plain('briefing.command.directory.title'),
+			description: plain('briefing.command.directory.description'),
+			actionLabel: plain('briefing.command.directory.action')
+		};
+	}
+
+	if (item.id === 'team.pending_provider_links') {
+		return {
+			title: plain('briefing.command.team.title'),
+			description: plain('briefing.command.team.description'),
+			actionLabel: plain('briefing.command.team.action')
+		};
+	}
+
+	if (item.id === 'workspace.review') {
+		return {
+			title: plain('briefing.command.review.title'),
+			description: plain('briefing.command.review.description'),
+			actionLabel: plain('briefing.command.review.action')
+		};
+	}
+
+	const seriesCommand = /^series\.[0-9a-f]{32}\.([a-z_]+)$/.exec(item.id)?.[1];
+	if (!seriesCommand || !nameFromTitle) {
+		return null;
+	}
+
+	const familyKeys = {
+		setup: [
+			'briefing.command.protocol.title',
+			'briefing.command.protocol.description',
+			'briefing.command.protocol.action'
+		],
+		operations: [
+			'briefing.command.field.title',
+			'briefing.command.field.description',
+			'briefing.command.field.action'
+		],
+		reports: [
+			'briefing.command.evidence.title',
+			'briefing.command.evidence.description',
+			'briefing.command.evidence.action'
+		],
+		score_remediation: [
+			'briefing.command.scoring.title',
+			'briefing.command.scoring.description',
+			'briefing.command.scoring.action'
+		],
+		exports: [
+			'briefing.command.exports.title',
+			'briefing.command.exports.description',
+			'briefing.command.exports.action'
+		],
+		waves: [
+			'briefing.command.rounds.title',
+			'briefing.command.rounds.description',
+			'briefing.command.rounds.action'
+		]
+	} as const;
+	const keys = familyKeys[seriesCommand as keyof typeof familyKeys];
+	if (!keys) {
+		return null;
+	}
+
+	return {
+		title: named(keys[0]),
+		description: plain(keys[1]),
+		actionLabel: plain(keys[2])
 	};
 }
 
@@ -1906,8 +2013,8 @@ function hasActiveCampaignSeriesFilters(query: CampaignSeriesPortfolioQuery) {
 
 function toCampaignSeriesHubTotalRows(totals: CampaignSeriesHubResponse['totals']): DisplayRow[] {
 	return [
-		{ label: 'Campaigns', value: formatCount(totals.campaignCount) },
-		{ label: 'Live campaigns', value: formatCount(totals.liveCampaignCount) },
+		{ label: 'Measurements', value: formatCount(totals.campaignCount) },
+		{ label: 'Live measurements', value: formatCount(totals.liveCampaignCount) },
 		{ label: 'Submitted responses', value: formatCount(totals.submittedResponseCount) },
 		{ label: 'Scores', value: formatCount(totals.scoreCount) },
 		{ label: 'Export files', value: formatCount(totals.exportArtifactCount) }
@@ -1921,8 +2028,8 @@ function toSelectedSeriesSummaryRows(
 	switch (surface) {
 		case 'setup':
 			return [
-				{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
-				{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) }
+				{ label: 'Measurements', value: formatCount(hub.totals.campaignCount) },
+				{ label: 'Live measurements', value: formatCount(hub.totals.liveCampaignCount) }
 			];
 		case 'reports':
 			return [
@@ -1933,8 +2040,8 @@ function toSelectedSeriesSummaryRows(
 		case 'operations':
 		case 'waves':
 			return [
-				{ label: 'Campaigns', value: formatCount(hub.totals.campaignCount) },
-				{ label: 'Live campaigns', value: formatCount(hub.totals.liveCampaignCount) },
+				{ label: 'Measurements', value: formatCount(hub.totals.campaignCount) },
+				{ label: 'Live measurements', value: formatCount(hub.totals.liveCampaignCount) },
 				{ label: 'Submitted responses', value: formatCount(hub.totals.submittedResponseCount) }
 			];
 	}

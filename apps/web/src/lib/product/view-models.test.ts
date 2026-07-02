@@ -211,9 +211,9 @@ describe('product view models', () => {
 			})
 		]);
 		expect(view.totalRows).toEqual([
-			{ label: 'Campaign series', value: '1' },
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Studies', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Submitted responses', value: '14' },
 			{ label: 'Export files', value: '3' }
 		]);
@@ -248,8 +248,8 @@ describe('product view models', () => {
 					href: '/app/campaign-series/series-id/reports'
 				},
 				rows: [
-					{ label: 'Campaigns', value: '2' },
-					{ label: 'Live campaigns', value: '1' },
+					{ label: 'Measurements', value: '2' },
+					{ label: 'Live measurements', value: '1' },
 					{ label: 'Submitted responses', value: '14' },
 					{ label: 'Latest activity', value: '03. 05. 2026. 13:00' }
 				]
@@ -337,7 +337,7 @@ describe('product view models', () => {
 			managementLinks: [
 				{
 					id: 'campaign-series',
-					label: 'Campaign series',
+					label: 'Studies',
 					description: 'Create and select tenant campaign series.',
 					route: '/app/campaign-series'
 				},
@@ -368,9 +368,9 @@ describe('product view models', () => {
 			{ label: 'Updated', value: '11. 05. 2026. 11:00' }
 		]);
 		expect(view.metricRows).toEqual([
-			{ label: 'Campaign series', value: '4' },
-			{ label: 'Campaigns', value: '7' },
-			{ label: 'Live campaigns', value: '2' },
+			{ label: 'Studies', value: '4' },
+			{ label: 'Measurements', value: '7' },
+			{ label: 'Live measurements', value: '2' },
 			{ label: 'Submitted responses', value: '128' },
 			{ label: 'Subjects', value: '42' },
 			{ label: 'Subject groups', value: '6' },
@@ -626,8 +626,8 @@ describe('product view models', () => {
 					href: '/app/campaign-series/series-id/reports'
 				},
 				rows: [
-					{ label: 'Campaigns', value: '2' },
-					{ label: 'Live campaigns', value: '1' },
+					{ label: 'Measurements', value: '2' },
+					{ label: 'Live measurements', value: '1' },
 					{ label: 'Submitted responses', value: '14' },
 					{ label: 'Latest activity', value: '03. 05. 2026. 13:00' }
 				]
@@ -773,8 +773,8 @@ describe('product view models', () => {
 				href: '/app/campaign-series/series-id'
 			},
 			rows: [
-				{ label: 'Campaigns', value: '2' },
-				{ label: 'Live campaigns', value: '1' },
+				{ label: 'Measurements', value: '2' },
+				{ label: 'Live measurements', value: '1' },
 				{ label: 'Submitted responses', value: '14' },
 				{ label: 'Latest activity', value: '03. 05. 2026. 13:00' },
 				{ label: 'Archived', value: '2026-05-11T13:15:00Z' }
@@ -1007,8 +1007,8 @@ describe('product view models', () => {
 			reason: null
 		});
 		expect(view.totalRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
 			{ label: 'Export files', value: '3' }
@@ -1284,8 +1284,8 @@ describe('product view models', () => {
 		expect(view.title).toBe('Quarterly burnout pulse');
 		expect(view.surfaceLabel).toBe('Prepare study');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' }
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' }
 		]);
 		expect(view.governanceRows).toEqual([
 			{ label: 'Consent', value: 'preview', status: 'proof_only' },
@@ -1302,8 +1302,8 @@ describe('product view models', () => {
 		expect(view.title).toBe('Quarterly burnout pulse');
 		expect(view.subtitle).toBe('1 campaign, 0 live');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '1' },
-			{ label: 'Live campaigns', value: '0' },
+			{ label: 'Measurements', value: '1' },
+			{ label: 'Live measurements', value: '0' },
 			{ label: 'Missing prerequisites', value: '1' }
 		]);
 		expect(view.readiness).toEqual({
@@ -1464,8 +1464,8 @@ describe('product view models', () => {
 
 		expect(view.surfaceLabel).toBe('Collect responses');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Submitted responses', value: '31' }
 		]);
 		expect(view.campaignRows).toEqual([
@@ -1490,8 +1490,8 @@ describe('product view models', () => {
 		expect(view.subtitle).toBe('2 campaigns, 1 live');
 		expect(view.surfaceLabel).toBe('Collect responses');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Respondent links', value: '1' },
 			{ label: 'Queued emails', value: '1' },
 			{ label: 'Sent emails', value: '8' },
@@ -1946,8 +1946,8 @@ describe('product view models', () => {
 			}
 		]);
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Reportable campaigns', value: '1' },
 			{ label: 'Submitted responses', value: '31' },
 			{ label: 'Scores', value: '28' },
@@ -2276,8 +2276,8 @@ describe('product view models', () => {
 		expect(view.subtitle).toBe('2 campaigns, 2 live');
 		expect(view.surfaceLabel).toBe('Compare rounds');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '2' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '2' },
 			{ label: 'Repeat-participation waves', value: '2' },
 			{ label: 'Submitted waves', value: '2' },
 			{ label: 'Linked repeat responses', value: '6' },
@@ -2447,8 +2447,8 @@ describe('product view models', () => {
 
 		expect(view.surfaceLabel).toBe('Compare rounds');
 		expect(view.summaryRows).toEqual([
-			{ label: 'Campaigns', value: '2' },
-			{ label: 'Live campaigns', value: '1' },
+			{ label: 'Measurements', value: '2' },
+			{ label: 'Live measurements', value: '1' },
 			{ label: 'Submitted responses', value: '31' }
 		]);
 		expect(view.campaignRows[0].rows).toContainEqual({
