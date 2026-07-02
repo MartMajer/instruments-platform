@@ -33,7 +33,8 @@ test('submits a public open-link response without setup auth headers', async ({ 
 			answers: [
 				{
 					questionId: sampleOpenLinkEntry.questions[0].id,
-					value: '4'
+					value: '4',
+					isSkipped: false
 				}
 			]
 		});
@@ -75,7 +76,7 @@ test('submits a public open-link response without setup auth headers', async ({ 
 	await expect(page.getByTestId('surveyjs-runtime')).toBeVisible();
 	await expect(page.getByTestId('surveyjs-runtime').locator('.sd-root-modern')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Complete' })).toHaveCount(0);
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
@@ -83,7 +84,7 @@ test('submits a public open-link response without setup auth headers', async ({ 
 	const receipt = page.getByRole('region', { name: 'Response receipt' });
 	await expect(receipt.getByRole('heading', { name: 'Response submitted' })).toBeVisible();
 	await expect(receipt.getByText('Your response for Wave 1 was received.')).toBeVisible();
-	await expect(receipt.getByText('2026-05-07T12:05:00Z')).toBeVisible();
+	await expect(receipt.getByText(/May 7, 2026/)).toBeVisible();
 	await expect(receipt.getByText('Response mode')).toBeVisible();
 	await expect(receipt.getByText('anonymous', { exact: true })).toBeVisible();
 	await expect(receipt.getByText('Consent version')).toBeVisible();
@@ -199,7 +200,7 @@ test('hides and skips conditional follow-up until source answer matches', async 
 	await page.getByRole('button', { name: 'Back to edit' }).click();
 	await survey.getByText('Yes', { exact: true }).click();
 	await expect(survey.getByText('Rate disruption severity.')).toBeVisible();
-	await respondentAnswer(page).fill('4');
+	await survey.getByRole('spinbutton').fill('4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect.poll(() => savedPayloads.at(-1)).toEqual({
 		answers: [
@@ -227,7 +228,8 @@ test('saves answers for review before final submit', async ({ page }) => {
 			answers: [
 				{
 					questionId: sampleOpenLinkEntry.questions[0].id,
-					value: '4'
+					value: '4',
+					isSkipped: false
 				}
 			]
 		});
@@ -257,7 +259,7 @@ test('saves answers for review before final submit', async ({ page }) => {
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
@@ -270,7 +272,7 @@ test('saves answers for review before final submit', async ({ page }) => {
 	]);
 
 	await page.getByRole('button', { name: 'Back to edit' }).click();
-	await expect(respondentAnswer(page)).toHaveValue('4');
+	await expectRespondentAnswerValue(page, '4');
 
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
@@ -331,13 +333,13 @@ test('restores saved respondent draft after reload', async ({ page }) => {
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
 
 	await page.reload();
 
-	await expect(respondentAnswer(page)).toHaveValue('4');
+	await expectRespondentAnswerValue(page, '4');
 	await expect(page.getByText('Answers saved')).toBeVisible();
 	expect(calls).toEqual([
 		'/respondent/open-links/{token}',
@@ -440,7 +442,7 @@ test('restores submitted respondent draft to receipt after reload', async ({ pag
 	const receipt = page.getByRole('region', { name: 'Response receipt' });
 	await expect(receipt.getByRole('heading', { name: 'Response submitted' })).toBeVisible();
 	await expect(receipt.getByText('Your response for Wave 1 was received.')).toBeVisible();
-	await expect(receipt.getByText(submittedAt)).toBeVisible();
+	await expect(receipt.getByText(/May 7, 2026/)).toBeVisible();
 	await expect(receipt.getByText('Answers received')).toBeVisible();
 	await expect(receipt.getByText('1', { exact: true })).toBeVisible();
 	await expect(page.getByTestId('surveyjs-runtime')).toHaveCount(0);
@@ -496,7 +498,7 @@ test('public session handle scrubs raw token URL and uses handle endpoints', asy
 		.poll(() => new URL(page.url()).pathname)
 		.toBe(`/r/${publicSessionHandle}`);
 
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
 
@@ -562,7 +564,9 @@ test('identified entry token uses identified endpoints then public session handl
 	await page.goto(`/r/${identifiedEntryToken}`);
 
 	await expect(page.getByRole('heading', { name: 'Identified wave' })).toBeVisible();
-	await expect(page.getByText('identified', { exact: true })).toBeVisible();
+	await expect(
+		page.getByText('Identified — this response is linked to your name for this feedback task.')
+	).toBeVisible();
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
@@ -571,7 +575,7 @@ test('identified entry token uses identified endpoints then public session handl
 		.poll(() => new URL(page.url()).pathname)
 		.toBe(`/r/${publicSessionHandle}`);
 
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
 
@@ -880,7 +884,7 @@ test('public session handle route restores draft without raw token entry call', 
 	await page.goto(`/r/${publicSessionHandle}`);
 
 	await expect(page.getByRole('heading', { name: 'Wave 1' })).toBeVisible();
-	await expect(respondentAnswer(page)).toHaveValue('4');
+	await expectRespondentAnswerValue(page, '4');
 	await expect(page.getByText('Answers saved')).toBeVisible();
 	expect(rawEntryRequests).toBe(0);
 });
@@ -916,7 +920,8 @@ test('restores unsaved local answers after failed public-handle save and reload'
 			answers: [
 				{
 					questionId: sampleOpenLinkEntry.questions[0].id,
-					value: '5'
+					value: '5',
+					isSkipped: false
 				}
 			]
 		});
@@ -967,7 +972,7 @@ test('restores unsaved local answers after failed public-handle save and reload'
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByLabel('Participant code').fill(participantCode);
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('5');
+	await fillRespondentAnswer(page, '5');
 	await expect(page.getByRole('alert')).toContainText('Answers could not be saved.');
 	const storedValues = await page.evaluate(() => Object.values(sessionStorage).join('\n'));
 	expect(storedValues).not.toContain(openLinkToken);
@@ -975,7 +980,7 @@ test('restores unsaved local answers after failed public-handle save and reload'
 
 	await page.reload();
 
-	await expect(respondentAnswer(page)).toHaveValue('5');
+	await expectRespondentAnswerValue(page, '5');
 	await expect(page.getByText('Unsaved answers restored on this device')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Save and review' }).click();
@@ -1030,7 +1035,7 @@ test('restores local unsaved draft when public draft read fails', async ({ page 
 	await page.goto(`/r/${publicSessionHandle}`);
 
 	await expect(page.getByRole('heading', { name: 'Wave 1' })).toBeVisible();
-	await expect(respondentAnswer(page)).toHaveValue('5');
+	await expectRespondentAnswerValue(page, '5');
 	await expect(page.getByText('Unsaved answers restored on this device')).toBeVisible();
 	expect(rawEntryRequests).toBe(0);
 });
@@ -1059,14 +1064,15 @@ test('autosaves changed respondent answers after session creation', async ({ pag
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 
 	await expect.poll(() => savedPayloads).toEqual([
 		{
 			answers: [
 				{
 					questionId: sampleOpenLinkEntry.questions[0].id,
-					value: '4'
+					value: '4',
+					isSkipped: false
 				}
 			]
 		}
@@ -1092,7 +1098,7 @@ test('warns before leaving with unsaved respondent answers', async ({ page }) =>
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 
 	const blockedWhileDirty = await dispatchBeforeUnload(page);
 	expect(blockedWhileDirty).toBe(true);
@@ -1128,12 +1134,12 @@ test('invalidates reviewed answers after editing', async ({ page }) => {
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Back to edit' }).click();
-	await respondentAnswer(page).fill('5');
+	await fillRespondentAnswer(page, '5');
 
 	await expect(page.getByText('Unsaved changes')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Submit reviewed response' })).toHaveCount(0);
@@ -1142,7 +1148,8 @@ test('invalidates reviewed answers after editing', async ({ page }) => {
 		answers: [
 			{
 				questionId: sampleOpenLinkEntry.questions[0].id,
-				value: '5'
+				value: '5',
+				isSkipped: false
 			}
 		]
 	});
@@ -1185,10 +1192,10 @@ test('failed autosave preserves respondent answers for manual retry', async ({ p
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('5');
+	await fillRespondentAnswer(page, '5');
 
 	await expect(page.getByRole('alert')).toContainText('Answers could not be saved.');
-	await expect(respondentAnswer(page)).toHaveValue('5');
+	await expectRespondentAnswerValue(page, '5');
 
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
@@ -1235,7 +1242,7 @@ test('requires participant code before starting anonymous longitudinal open-link
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await expect(page.getByTestId('surveyjs-runtime')).toBeVisible();
 	await expect(respondentAnswer(page)).toBeVisible();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
 
@@ -1332,7 +1339,12 @@ test('validates respondent answers before submit', async ({ page }) => {
 	});
 
 	await page.route('**/respondent/open-links/*', async (route) => {
-		await route.fulfill({ json: sampleOpenLinkEntry });
+		await route.fulfill({
+			json: {
+				...sampleOpenLinkEntry,
+				questions: [{ ...sampleOpenLinkEntry.questions[0], type: 'number' }]
+			}
+		});
 	});
 
 	await page.goto(`/r/${openLinkToken}`);
@@ -1341,7 +1353,7 @@ test('validates respondent answers before submit', async ({ page }) => {
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
-	const answer = respondentAnswer(page);
+	const answer = page.getByTestId('surveyjs-runtime').getByRole('spinbutton');
 	await answer.fill('');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('alert')).toContainText('q01 requires an answer.');
@@ -1405,12 +1417,11 @@ test('retries respondent save without losing answers', async ({ page }) => {
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
-	const answer = respondentAnswer(page);
-	await answer.fill('5');
+	await fillRespondentAnswer(page, '5');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 
 	await expect(page.getByRole('alert')).toContainText('Answers could not be saved.');
-	await expect(answer).toHaveValue('5');
+	await expectRespondentAnswerValue(page, '5');
 
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
@@ -1457,7 +1468,7 @@ test('retries reviewed submit without leaving review state', async ({ page }) =>
 	await page.getByRole('checkbox', { name: 'Data processing' }).check();
 	await page.getByRole('checkbox', { name: 'Research participation' }).check();
 	await page.getByRole('button', { name: 'Continue' }).click();
-	await respondentAnswer(page).fill('4');
+	await fillRespondentAnswer(page, '4');
 	await page.getByRole('button', { name: 'Save and review' }).click();
 	await page.getByRole('button', { name: 'Submit reviewed response' }).click();
 
@@ -1517,7 +1528,9 @@ test('keeps respondent flow usable on mobile', async ({ page }) => {
 
 	await continueButton.click();
 	await expect(page.getByTestId('surveyjs-runtime')).toBeVisible();
-	await expect(respondentAnswer(page)).toBeVisible();
+	// On a narrow viewport the SurveyJS rating renders as a dropdown, not a radiogroup.
+	const answerDropdown = page.getByTestId('surveyjs-runtime').getByRole('combobox');
+	await expect(answerDropdown).toBeVisible();
 
 	const saveButton = page.getByRole('button', { name: 'Save and review' });
 	await expect(async () => {
@@ -1525,7 +1538,8 @@ test('keeps respondent flow usable on mobile', async ({ page }) => {
 		expect(box?.width).toBeGreaterThanOrEqual(320);
 	}).toPass();
 
-	await respondentAnswer(page).fill('4');
+	await answerDropdown.click();
+	await page.getByRole('option', { name: '4', exact: true }).click();
 	await saveButton.click();
 	await expect(page.getByRole('heading', { name: 'Review response' })).toBeVisible();
 	const submitButton = page.getByRole('button', { name: 'Submit reviewed response' });
@@ -1725,7 +1739,18 @@ function assertNoSetupAuthHeaders(headers: Record<string, string>) {
 }
 
 function respondentAnswer(page: Page) {
-	return page.getByTestId('surveyjs-runtime').getByRole('spinbutton');
+	// The scale question renders as a SurveyJS rating (radiogroup), not a numeric input.
+	return page.getByTestId('surveyjs-runtime').getByRole('radiogroup');
+}
+
+async function fillRespondentAnswer(page: Page, value: string) {
+	await page.getByTestId('surveyjs-runtime').locator(`[data-text="${value}"]`).click();
+}
+
+async function expectRespondentAnswerValue(page: Page, value: string) {
+	await expect(
+		page.getByTestId('surveyjs-runtime').getByRole('radio', { name: value, exact: true })
+	).toBeChecked();
 }
 
 async function dispatchBeforeUnload(page: Page) {

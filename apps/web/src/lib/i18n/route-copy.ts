@@ -749,6 +749,27 @@ const en = {
 		loadingSurvey: 'Loading survey',
 		surveyUnavailable: 'Survey unavailable',
 		tryAgain: 'Try again',
+		identityPromise: {
+			anonymous: 'Anonymous — your name is never stored with your answers.',
+			anonymousLongitudinal:
+				'Anonymous — a private code links your rounds; your name is never stored with your answers.',
+			identified: 'Identified — this response is linked to your name for this feedback task.'
+		},
+		questionsEstimate: (count: number) => {
+			const minutes = Math.max(1, Math.round(count * 0.5));
+			return `${count} ${count === 1 ? 'question' : 'questions'} · about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+		},
+		queueIntro: (label: string) =>
+			`Feedback tasks for ${label}. Choose one person to give feedback for.`,
+		queueTitle: 'Feedback tasks',
+		queueBody:
+			'Each task is a separate response. You can return to this link until all feedback tasks are complete.',
+		queueEmpty: 'No feedback tasks are available.',
+		queueAssignedPerson: 'Assigned person',
+		queueStatusSubmitted: 'Submitted',
+		queueStatusInProgress: 'In progress',
+		queueStatusNotStarted: 'Not started',
+		backToQueue: 'Back to queue',
 		responseReceipt: 'Response receipt',
 		participantCode: 'Participant code',
 		continue: 'Continue',
@@ -3221,6 +3242,27 @@ const hr: typeof en = {
 		loadingSurvey: 'Učitavanje upitnika',
 		surveyUnavailable: 'Upitnik nije dostupan',
 		tryAgain: 'Pokušaj ponovno',
+		identityPromise: {
+			anonymous: 'Anonimno — vaše ime se nikada ne sprema uz odgovore.',
+			anonymousLongitudinal:
+				'Anonimno — privatni kod povezuje vaše krugove; ime se nikada ne sprema uz odgovore.',
+			identified: 'Identificirano — ovaj odgovor povezan je s vašim imenom za ovaj zadatak povratne informacije.'
+		},
+		questionsEstimate: (count: number) => {
+			const minutes = Math.max(1, Math.round(count * 0.5));
+			return `${count} ${count === 1 ? 'pitanje' : 'pitanja'} · oko ${minutes} min`;
+		},
+		queueIntro: (label: string) =>
+			`Zadaci povratne informacije za: ${label}. Odaberite jednu osobu za koju dajete povratnu informaciju.`,
+		queueTitle: 'Zadaci povratne informacije',
+		queueBody:
+			'Svaki zadatak je zaseban odgovor. Na ovu se poveznicu možete vraćati dok svi zadaci nisu dovršeni.',
+		queueEmpty: 'Nema dostupnih zadataka povratne informacije.',
+		queueAssignedPerson: 'Dodijeljena osoba',
+		queueStatusSubmitted: 'Predano',
+		queueStatusInProgress: 'U tijeku',
+		queueStatusNotStarted: 'Nije započeto',
+		backToQueue: 'Natrag na zadatke',
 		responseReceipt: 'Potvrda odgovora',
 		participantCode: 'Kod sudionika',
 		continue: 'Nastavi',

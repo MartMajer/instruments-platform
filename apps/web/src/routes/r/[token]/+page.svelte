@@ -849,10 +849,28 @@
 
 	function queueAssignmentStatus(assignment: QueueAssignment) {
 		if (assignment.submittedAt) {
-			return 'Submitted';
+			return text.respondent.queueStatusSubmitted;
 		}
 
-		return assignment.sessionId ? 'In progress' : 'Not started';
+		return assignment.sessionId
+			? text.respondent.queueStatusInProgress
+			: text.respondent.queueStatusNotStarted;
+	}
+
+	function identityPromise(mode: string) {
+		if (mode === 'anonymous') {
+			return text.respondent.identityPromise.anonymous;
+		}
+
+		if (mode === 'anonymous_longitudinal') {
+			return text.respondent.identityPromise.anonymousLongitudinal;
+		}
+
+		if (mode === 'identified') {
+			return text.respondent.identityPromise.identified;
+		}
+
+		return mode.replaceAll('_', ' ');
 	}
 
 	function setGrantAccepted(grant: string, accepted: boolean) {
@@ -945,21 +963,18 @@
 			</section>
 		{:else if queue && !entry}
 			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
-				<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
-					{queue.responseIdentityMode}
-				</p>
+				<p class="respondent-promise">{identityPromise(queue.responseIdentityMode)}</p>
 				<h1 class="serif-heading text-3xl">{queue.name}</h1>
 				<p class="text-sm text-[var(--color-text-muted)]">
-					Feedback tasks for {queue.respondent.label}. Choose one person to give feedback for.
+					{text.respondent.queueIntro(queue.respondent.label)}
 				</p>
 			</header>
 
 			<section class="setup-panel" aria-label="Assigned feedback tasks">
 				<div class="grid gap-2">
-					<h2 class="setup-panel__title">Feedback tasks</h2>
+					<h2 class="setup-panel__title">{text.respondent.queueTitle}</h2>
 					<p class="text-sm text-[var(--color-text-muted)]">
-						Each task is a separate response. You can return to this link until all feedback tasks
-						are complete.
+						{text.respondent.queueBody}
 					</p>
 				</div>
 
@@ -970,14 +985,14 @@
 							class="secondary-button justify-between"
 							onclick={() => void startQueueAssignment(assignment)}
 						>
-							<span>{assignment.target?.label ?? 'Assigned person'}</span>
+							<span>{assignment.target?.label ?? text.respondent.queueAssignedPerson}</span>
 							<span>{queueAssignmentStatus(assignment)}</span>
 						</button>
 					{/each}
 				</div>
 
 				{#if queue.assignments.length === 0}
-					<p class="text-sm text-[var(--color-text-muted)]">No feedback tasks are available.</p>
+					<p class="text-sm text-[var(--color-text-muted)]">{text.respondent.queueEmpty}</p>
 				{/if}
 
 				{#if actionError}
@@ -986,14 +1001,17 @@
 			</section>
 		{:else if entry}
 			<header class="grid gap-2 border-b border-[var(--color-border)] pb-4">
-				<p class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
-					{entry.responseIdentityMode}
-				</p>
+				<p class="respondent-promise">{identityPromise(entry.responseIdentityMode)}</p>
 				<h1 class="serif-heading text-3xl">{entry.name}</h1>
+				{#if !session && !submitted}
+					<p class="text-sm text-[var(--color-text-muted)]">
+						{text.respondent.questionsEstimate(entry.questions.length)}
+					</p>
+				{/if}
 				{#if queue}
 					<button type="button" class="secondary-button w-fit" onclick={returnToQueue}>
 						<ArrowLeft size={17} aria-hidden="true" />
-						<span>Back to queue</span>
+						<span>{text.respondent.backToQueue}</span>
 					</button>
 				{/if}
 			</header>
@@ -1027,7 +1045,7 @@
 					{#if queue}
 						<button type="button" class="secondary-button" onclick={returnToQueue}>
 							<ArrowLeft size={17} aria-hidden="true" />
-							<span>Back to queue</span>
+							<span>{text.respondent.backToQueue}</span>
 						</button>
 					{/if}
 				</section>
@@ -1042,7 +1060,7 @@
 
 					<div class="grid gap-2">
 						{#each allConsentGrants as grant (grant)}
-							<label class="checkbox-field">
+							<label class="checkbox-field consent-grant">
 								<input
 									type="checkbox"
 									checked={acceptedGrants[grant] ?? false}
