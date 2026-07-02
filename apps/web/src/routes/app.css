@@ -8586,3 +8586,115 @@ img.app-mobile-topbar__mark {
 	color: var(--color-text-subtle);
 	white-space: nowrap;
 }
+
+/* ============ UX8 — public entry flattened to Spectra (ADR-0018) ============ */
+/* Appended overrides: the older public-entry rules above stay for the chrome
+   contract tests; visual flattening happens here. */
+
+.launchpad,
+.registration-page {
+	background: var(--color-background);
+}
+
+.launchpad__glow {
+	display: none;
+}
+
+.public-nav {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface);
+	box-shadow: none;
+	backdrop-filter: none;
+}
+
+.launchpad-brand__mark {
+	border-radius: var(--radius-control);
+	box-shadow: none;
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+}
+
+.launchpad-hero h1,
+.registration-copy h1,
+.signin-copy h1 {
+	color: var(--color-text);
+}
+
+.launchpad-button {
+	border-radius: var(--radius-control);
+	box-shadow: none;
+}
+
+.launchpad-button--primary {
+	background: var(--color-accent);
+	border: 1px solid var(--color-accent);
+	color: #f5f9fd;
+}
+
+.launchpad-button--primary:hover {
+	background: var(--color-accent-strong);
+}
+
+.launchpad-button--secondary {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border-strong);
+	color: var(--color-text);
+}
+
+.showcase {
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-section);
+	background: var(--color-surface-raised);
+	box-shadow: 0 14px 40px rgba(14, 24, 34, 0.08);
+}
+
+.showcase-panel,
+.workflow-lane a,
+.command-card,
+.registration-panel,
+.setup-panel {
+	border-radius: var(--radius-panel);
+	box-shadow: none;
+	border: 1px solid var(--color-border);
+}
+
+.registration-panel,
+.setup-panel {
+	background: var(--color-surface-raised);
+}
+
+.registration-steps > * {
+	border-radius: var(--radius-panel);
+	border: 1px solid var(--color-border);
+	box-shadow: none;
+	background: var(--color-surface);
+}
+
+.registration-form input,
+.registration-form select {
+	border-radius: var(--radius-control);
+}
+
+.registration-form button[type='submit'],
+.primary-button {
+	border-radius: var(--radius-control);
+}
+
+.launchpad::before {
+	display: none;
+}
+
+.showcase-rail {
+	background: var(--color-surface-muted);
+	border-right: 1px solid var(--color-border);
+}
+
+.showcase-rail__link--active {
+	border-radius: var(--radius-control);
+}
+
+.showcase-rail__logo,
+.showcase__chrome {
+	border-radius: var(--radius-control);
+}

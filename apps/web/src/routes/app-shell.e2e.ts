@@ -15,7 +15,7 @@ test('renders an app-first study operations product entry at the root route', as
 
 	await expect(
 		page.getByRole('heading', {
-			name: /Run research and wellbeing studies without rebuilding the data stack/i
+			name: /Run studies, response collection, and results without rebuilding the data stack/i
 		})
 	).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Create workspace' }).first()).toHaveAttribute(
