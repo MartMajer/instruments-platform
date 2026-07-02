@@ -6952,7 +6952,7 @@ table {
 }
 
 .registration-submit:hover:not(:disabled) {
-	background: #a75331;
+	background: #06416f;
 }
 
 .secondary-button {
@@ -6972,9 +6972,9 @@ table {
 }
 
 .registration-alert--error {
-	border-color: rgba(8, 86, 154, 0.28);
-	background: rgba(8, 86, 154, 0.12);
-	color: #7b311f;
+	border-color: rgba(172, 48, 49, 0.28);
+	background: rgba(172, 48, 49, 0.08);
+	color: #ac3031;
 }
 
 .public-language-switcher {
@@ -7221,7 +7221,7 @@ table {
 	border: 1px solid rgba(20, 24, 28, 0.14);
 	border-radius: 1rem;
 	background:
-		linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(237, 224, 202, 0.72)),
+		linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(238, 242, 246, 0.72)),
 		#ffffff;
 	box-shadow: 0 14px 30px rgba(20, 24, 28, 0.14);
 }
@@ -7411,7 +7411,7 @@ img.app-mobile-topbar__mark {
 .app-shell .primary-button:hover,
 .app-shell button.primary-button:hover,
 .app-shell .registration-submit:hover:not(:disabled) {
-	background: #a75331;
+	background: #06416f;
 	box-shadow: 0 20px 42px rgba(8, 86, 154, 0.26);
 }
 
@@ -7473,7 +7473,7 @@ img.app-mobile-topbar__mark {
 .app-shell .export-card {
 	border-color: rgba(20, 24, 28, 0.13);
 	background:
-		linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 238, 224, 0.78)),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(243, 246, 249, 0.82)),
 		var(--color-surface);
 	box-shadow: 0 16px 42px rgba(20, 24, 28, 0.08);
 }
@@ -7559,7 +7559,7 @@ img.app-mobile-topbar__mark {
 @media (min-width: 1024px) {
 	.app-sidebar {
 		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 225, 205, 0.9)),
+			linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 242, 246, 0.9)),
 			var(--color-surface);
 	}
 }
@@ -8159,7 +8159,7 @@ img.app-mobile-topbar__mark {
 	border: 1px solid rgba(20, 24, 28, 0.18);
 	border-radius: 1rem;
 	background:
-		linear-gradient(135deg, rgba(255, 249, 234, 0.92), rgba(255, 255, 255, 0.88)),
+		linear-gradient(135deg, rgba(248, 250, 253, 0.92), rgba(255, 255, 255, 0.88)),
 		var(--color-surface);
 	padding: 0.62rem 0.7rem;
 	box-shadow: 0 12px 28px rgba(31, 45, 38, 0.08);
@@ -8180,7 +8180,7 @@ img.app-mobile-topbar__mark {
 
 .app-account-menu__summary:hover,
 .app-account-menu[open] .app-account-menu__summary {
-	border-color: rgba(192, 116, 33, 0.42);
+	border-color: rgba(8, 86, 154, 0.42);
 	box-shadow: 0 16px 34px rgba(31, 45, 38, 0.12);
 	transform: translateY(-1px);
 }
@@ -9250,4 +9250,70 @@ img.app-mobile-topbar__mark {
 	.field-live-row__open {
 		grid-column: 2;
 	}
+}
+
+/* UX9b — Studies portfolio mockup density (ADR-0018) */
+.study-section__title {
+	font-family: var(--font-serif);
+	font-size: 1.25rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.portfolio-row__title-link {
+	font-family: var(--font-serif);
+	font-size: 1.05rem;
+	font-weight: 600;
+	color: var(--color-text);
+	text-decoration: none;
+}
+
+.portfolio-row__title-link:hover {
+	color: var(--color-accent);
+}
+
+.portfolio-row .record-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 1.5rem;
+	margin: 0;
+}
+
+.portfolio-row .record-field {
+	display: inline-flex;
+	flex-direction: row;
+	align-items: baseline;
+	gap: 0.35rem;
+	border: 0;
+	background: none;
+	padding: 0;
+	min-width: 0;
+}
+
+.portfolio-row .record-field .record-field__label {
+	font-size: 0.68rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--color-text-subtle);
+	white-space: nowrap;
+}
+
+.portfolio-row .record-field .record-field__value {
+	font-family: var(--font-mono);
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-text-muted);
+}
+
+.portfolio-row__body > .secondary-button {
+	width: fit-content;
+	padding: 0.3rem 0.7rem;
+	font-size: 0.78rem;
+	color: var(--color-accent);
+}
+
+.study-lifecycle-group__header p {
+	font-size: 0.8rem;
+	color: var(--color-text-subtle);
 }
