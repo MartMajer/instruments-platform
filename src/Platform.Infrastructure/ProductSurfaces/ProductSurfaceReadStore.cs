@@ -5,6 +5,7 @@ using Platform.Application.Auth;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
+using Platform.Domain.Consent;
 using Platform.Domain.Integrations;
 using Platform.Domain.Reports;
 using Platform.Domain.Scoring;
@@ -1383,6 +1384,9 @@ public sealed class ProductSurfaceReadStore(
             })
             .ToArray();
         var selectedCampaign = SelectOperationsCampaign(campaigns);
+        var groupCoverage = selectedCampaign is null
+            ? null
+            : await LoadOperationsGroupCoverageAsync(campaignSeriesId, selectedCampaign.Id, cancellationToken);
         var missingPrerequisites = CreateOperationsMissingPrerequisites(campaignResponses);
         var summaryCollectionStatus = DetermineSeriesCollectionStatus(campaignResponses);
         var summaryReportVisibilityStatus = DetermineSeriesReportVisibilityStatus(campaignResponses);
@@ -1425,11 +1429,111 @@ public sealed class ProductSurfaceReadStore(
                 : campaignResponses.Single(campaign => campaign.Id == selectedCampaign.Id),
             missingPrerequisites,
             campaignResponses,
-            ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()));
+            ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()),
+            groupCoverage);
 
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(response);
+    }
+
+    private async Task<CampaignSeriesOperationsGroupCoverageSummaryResponse> LoadOperationsGroupCoverageAsync(
+        Guid campaignSeriesId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        var kMin = await db.DisclosurePolicies
+            .AsNoTracking()
+            .Where(policy => policy.CampaignSeriesId == campaignSeriesId && policy.RetiredAt == null)
+            .OrderByDescending(policy => policy.CreatedAt)
+            .Select(policy => (int?)policy.KMin)
+            .FirstOrDefaultAsync(cancellationToken) ?? DisclosurePolicy.MinimumKMin;
+
+        var assignmentRows = await db.Assignments
+            .AsNoTracking()
+            .Where(assignment => assignment.CampaignId == campaignId)
+            .Select(assignment => new
+            {
+                assignment.Id,
+                assignment.RespondentSubjectId,
+                Submitted = db.ResponseSessions.Any(session =>
+                    session.AssignmentId == assignment.Id && session.SubmittedAt != null)
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var subjectIds = assignmentRows
+            .Where(row => row.RespondentSubjectId.HasValue)
+            .Select(row => row.RespondentSubjectId!.Value)
+            .Distinct()
+            .ToArray();
+
+        var memberships = subjectIds.Length == 0
+            ? []
+            : await db.SubjectMemberships
+                .AsNoTracking()
+                .Where(membership => subjectIds.Contains(membership.SubjectId))
+                .Join(
+                    db.SubjectGroups.AsNoTracking(),
+                    membership => membership.GroupId,
+                    group => group.Id,
+                    (membership, group) => new { membership.SubjectId, group.Id, group.Name })
+                .ToArrayAsync(cancellationToken);
+
+        var groupsBySubject = memberships
+            .GroupBy(row => row.SubjectId)
+            .ToDictionary(rows => rows.Key, rows => rows.Select(row => (row.Id, row.Name)).ToArray());
+
+        var invitedByGroup = new Dictionary<Guid, (string Name, int Invited, int Submitted)>();
+        var unattributedInvited = 0;
+        var unattributedSubmitted = 0;
+
+        foreach (var row in assignmentRows)
+        {
+            var groups = row.RespondentSubjectId.HasValue
+                ? groupsBySubject.GetValueOrDefault(row.RespondentSubjectId.Value)
+                : null;
+
+            if (groups is null || groups.Length == 0)
+            {
+                unattributedInvited++;
+                if (row.Submitted)
+                {
+                    unattributedSubmitted++;
+                }
+
+                continue;
+            }
+
+            foreach (var (groupId, groupName) in groups)
+            {
+                if (!invitedByGroup.TryGetValue(groupId, out var entry))
+                {
+                    entry = (groupName, 0, 0);
+                }
+
+                invitedByGroup[groupId] = (
+                    entry.Name,
+                    entry.Invited + 1,
+                    entry.Submitted + (row.Submitted ? 1 : 0));
+            }
+        }
+
+        var groupRows = invitedByGroup
+            .Select(pair => new CampaignSeriesOperationsGroupCoverageResponse(
+                pair.Key,
+                pair.Value.Name,
+                pair.Value.Invited,
+                pair.Value.Submitted,
+                pair.Value.Submitted >= kMin))
+            .OrderByDescending(row => row.SubmittedCount)
+            .ThenBy(row => row.GroupName, StringComparer.Ordinal)
+            .ToArray();
+
+        return new CampaignSeriesOperationsGroupCoverageSummaryResponse(
+            kMin,
+            unattributedInvited,
+            unattributedSubmitted,
+            groupRows);
     }
 
     public async Task<Result<CampaignSeriesReportsWorkspaceResponse>> GetCampaignSeriesReportsWorkspaceAsync(

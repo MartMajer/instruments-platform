@@ -2220,6 +2220,102 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Campaign_series_operations_workspace_reports_safe_group_coverage()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        var template = await SeedTenantShellAsync(runtimeOptions, tenantId, "tenant-group-coverage");
+        var series = await SeedSeriesAsync(runtimeOptions, tenantId, "Coverage series");
+        var scoringRule = await SeedScoringRuleAsync(runtimeOptions, tenantId, template.TemplateVersionId);
+        var liveCampaign = await SeedCampaignAsync(
+            runtimeOptions,
+            tenantId,
+            template.TemplateVersionId,
+            series.Id,
+            "Coverage wave",
+            status: CampaignStatuses.Live,
+            responseIdentityMode: ResponseIdentityModes.Identified);
+        await SeedLaunchSnapshotAsync(
+            runtimeOptions,
+            tenantId,
+            liveCampaign,
+            template.TemplateVersionId,
+            scoringRule.Id,
+            DateTimeOffset.Parse("2026-06-01T09:00:00+00:00"),
+            configured: true);
+
+        var group = await SeedSubjectGroupAsync(runtimeOptions, tenantId, SubjectGroupTypes.Department, "ICU");
+        var submittedMember = await SeedSubjectAsync(
+            runtimeOptions, tenantId, "Submitted Member", "submitted@example.test", "cov-1");
+        var invitedMember = await SeedSubjectAsync(
+            runtimeOptions, tenantId, "Invited Member", "invited@example.test", "cov-2");
+        await SeedSubjectMembershipAsync(
+            runtimeOptions, tenantId, submittedMember.Id, group.Id, SubjectGroupRoles.Member);
+        await SeedSubjectMembershipAsync(
+            runtimeOptions, tenantId, invitedMember.Id, group.Id, SubjectGroupRoles.Member);
+
+        await SeedSubmittedIdentifiedResponseAsync(
+            runtimeOptions,
+            tenantId,
+            liveCampaign.Id,
+            template.QuestionId,
+            submittedMember.Id,
+            DateTimeOffset.Parse("2026-06-02T10:00:00+00:00"));
+
+        // invited but not yet submitted: assignment without a response session
+        await using (var seedDb = new ApplicationDbContext(runtimeOptions))
+        {
+            var seedScope = new TenantDbScope(seedDb);
+            await using var seedTransaction = await seedScope.BeginTransactionAsync(tenantId);
+            seedDb.Assignments.Add(Assignment.CreateIdentified(
+                Guid.NewGuid(),
+                tenantId,
+                liveCampaign.Id,
+                "self",
+                invitedMember.Id,
+                targetSubjectId: invitedMember.Id));
+            await seedDb.SaveChangesAsync();
+            await seedTransaction.CommitAsync();
+        }
+
+        // a respondent without any group membership stays unattributed
+        var soloSubject = await SeedSubjectAsync(
+            runtimeOptions, tenantId, "Solo Member", "solo@example.test", "cov-3");
+        await SeedSubmittedIdentifiedResponseAsync(
+            runtimeOptions,
+            tenantId,
+            liveCampaign.Id,
+            template.QuestionId,
+            soloSubject.Id,
+            DateTimeOffset.Parse("2026-06-02T11:00:00+00:00"));
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceReadStore(db, new TenantDbScope(db));
+
+        var result = await store.GetCampaignSeriesOperationsWorkspaceAsync(
+            tenantId,
+            series.Id,
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        var coverage = result.Value.GroupCoverage;
+        Assert.NotNull(coverage);
+        Assert.Equal(DisclosurePolicy.MinimumKMin, coverage.KMin);
+
+        var groupRow = Assert.Single(coverage.Groups);
+        Assert.Equal(group.Id, groupRow.GroupId);
+        Assert.Equal("ICU", groupRow.GroupName);
+        Assert.Equal(2, groupRow.InvitedCount);
+        Assert.Equal(1, groupRow.SubmittedCount);
+        Assert.False(groupRow.MeetsThreshold);
+
+        Assert.Equal(1, coverage.UnattributedInvitedCount);
+        Assert.Equal(1, coverage.UnattributedSubmittedCount);
+    }
+
+    [DockerFact]
     public async Task Campaign_series_operations_workspace_returns_collection_monitor_state()
     {
         var tenantId = Guid.NewGuid();

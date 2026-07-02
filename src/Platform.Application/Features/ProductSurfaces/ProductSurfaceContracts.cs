@@ -359,7 +359,26 @@ public sealed record CampaignSeriesOperationsWorkspaceResponse(
     CampaignSeriesOperationsCampaignResponse? SelectedCampaign,
     IReadOnlyList<CampaignSeriesOperationsMissingPrerequisiteResponse> MissingPrerequisites,
     IReadOnlyList<CampaignSeriesOperationsCampaignResponse> Campaigns,
-    CampaignSeriesScoreCoverageResponse? ScoreCoverage = null);
+    CampaignSeriesScoreCoverageResponse? ScoreCoverage = null,
+    CampaignSeriesOperationsGroupCoverageSummaryResponse? GroupCoverage = null);
+
+/// <summary>
+/// Safe per-group collection coverage for the selected campaign: counts only,
+/// no identities, no answer content. Groups below the disclosure k-threshold
+/// are shown so operators can steer collection before reporting suppression.
+/// </summary>
+public sealed record CampaignSeriesOperationsGroupCoverageSummaryResponse(
+    int KMin,
+    int UnattributedInvitedCount,
+    int UnattributedSubmittedCount,
+    IReadOnlyList<CampaignSeriesOperationsGroupCoverageResponse> Groups);
+
+public sealed record CampaignSeriesOperationsGroupCoverageResponse(
+    Guid GroupId,
+    string GroupName,
+    int InvitedCount,
+    int SubmittedCount,
+    bool MeetsThreshold);
 
 public sealed record CampaignSeriesOperationsSeriesResponse(
     Guid Id,
