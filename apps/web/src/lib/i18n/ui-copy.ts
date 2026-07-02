@@ -194,7 +194,7 @@ const appShellCopies: LocaleDictionary<AppShellCopy> = {
 			tenantSetupWorkspace: 'Tenant setup workspace'
 		},
 		nav: {
-			home: 'Home',
+			home: 'Briefing',
 			studies: 'Studies',
 			study: 'Study',
 			directory: 'People',
@@ -249,7 +249,7 @@ const appShellCopies: LocaleDictionary<AppShellCopy> = {
 			tenantSetupWorkspace: 'Radni prostor za postavljanje'
 		},
 		nav: {
-			home: 'Početna',
+			home: 'Stanje',
 			studies: 'Studije',
 			study: 'Studija',
 			directory: 'Ljudi',
@@ -296,7 +296,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			internalTools: 'Internal tools'
 		},
 		surfaces: {
-			home: 'Home',
+			home: 'Briefing',
 			studies: 'Studies',
 			instrumentLibrary: 'Instrument library',
 			exports: 'Files',
@@ -304,9 +304,9 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			team: 'Team',
 			settings: 'Settings',
 			overview: 'Overview',
-			setup: 'Prepare',
-			collect: 'Collect',
-			results: 'Results',
+			setup: 'Protocol',
+			collect: 'Field',
+			results: 'Evidence',
 			waves: 'Rounds',
 			demoFixtures: 'Demo fixtures'
 		},
@@ -339,7 +339,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			internalTools: 'Interni alati'
 		},
 		surfaces: {
-			home: 'Početna',
+			home: 'Stanje',
 			studies: 'Studije',
 			instrumentLibrary: 'Knjižnica instrumenata',
 			exports: 'Datoteke',
@@ -347,9 +347,9 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 			team: 'Tim',
 			settings: 'Postavke',
 			overview: 'Pregled',
-			setup: 'Priprema',
-			collect: 'Prikupljanje',
-			results: 'Rezultati',
+			setup: 'Protokol',
+			collect: 'Teren',
+			results: 'Nalazi',
 			waves: 'Krugovi',
 			demoFixtures: 'Demo stanja'
 		},

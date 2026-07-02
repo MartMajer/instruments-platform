@@ -16,6 +16,8 @@
 	import { appLocaleFromPageData } from '$lib/i18n/localization';
 	import { surfaceNavCopy } from '$lib/i18n/ui-copy';
 
+	let { variant = 'sidebar' }: { variant?: 'sidebar' | 'topbar' } = $props();
+
 	const activeSeriesId = $derived(page.params.seriesId);
 	const demoSurfacesEnabled = $derived(env.PUBLIC_DEMO_SURFACES_ENABLED === 'true');
 	const locale = $derived(appLocaleFromPageData(page.data));
@@ -153,8 +155,56 @@
 		selectedSeriesSection,
 		...utilitySections
 	]);
+
+	const topbarGlobalSections = $derived([...globalNavigationSections, ...utilitySections]);
 </script>
 
+{#if variant === 'topbar'}
+	<nav class="vs-nav" aria-label={copy.aria.productNavigation}>
+		<div class="vs-nav__global">
+			{#each topbarGlobalSections as section (section.id)}
+				{@const sectionLabelId = `vs-nav-${section.id}-label`}
+				<div class="vs-nav__group" role="group" aria-labelledby={sectionLabelId}>
+					<p id={sectionLabelId} class="vs-nav__group-label">{section.label}</p>
+					<ol class="vs-nav__list">
+						{#each section.surfaces as surface (surface.id)}
+							<li>
+								<a
+									href={surface.href}
+									aria-current={page.url.pathname === surface.href ? 'page' : undefined}
+									class="vs-nav__link"
+								>
+									{surface.label}
+								</a>
+							</li>
+						{/each}
+					</ol>
+				</div>
+			{/each}
+		</div>
+		{#if activeSeriesId}
+			<div class="vs-nav__group vs-nav__group--study" role="group" aria-labelledby="vs-nav-active-study-label">
+				<p id="vs-nav-active-study-label" class="vs-nav__group-label">{selectedSeriesSection.label}</p>
+				<ol class="vs-nav__list">
+					{#each selectedSeriesSection.surfaces as surface, index (surface.id)}
+						<li>
+							<a
+								href={surface.href}
+								aria-current={page.url.pathname === surface.href ? 'page' : undefined}
+								class="vs-nav__link vs-nav__link--phase"
+							>
+								<span class="vs-nav__phase-num" aria-hidden="true">
+									{String(index + 1).padStart(2, '0')}
+								</span>
+								{surface.label}
+							</a>
+						</li>
+					{/each}
+				</ol>
+			</div>
+		{/if}
+	</nav>
+{:else}
 <nav class="product-nav" aria-label={copy.aria.productNavigation}>
 	{#each navigationSections as section (section.id)}
 		{@const sectionLabelId = `product-nav-${section.id}-label`}
@@ -190,3 +240,4 @@
 		</div>
 	{/each}
 </nav>
+{/if}

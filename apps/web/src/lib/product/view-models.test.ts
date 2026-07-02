@@ -165,18 +165,18 @@ describe('product view models', () => {
 		expect(view.lifecycleSteps).toEqual([
 			{
 				id: 'prepare',
-				label: 'Prepare',
-				description: 'Set up the instrument, questions, scoring, and launch rules.'
+				label: 'Protocol',
+				description: 'Compose the instrument, questions, scoring, and launch rules.'
 			},
 			{
 				id: 'collect',
-				label: 'Collect',
-				description: 'Launch the study and track response progress.'
+				label: 'Field',
+				description: 'Launch the wave and watch responses and coverage build.'
 			},
 			{
 				id: 'review',
-				label: 'Review',
-				description: 'Inspect coverage, findings, limitations, and comparisons.'
+				label: 'Evidence',
+				description: 'Read compiled findings, limitations, and comparisons.'
 			},
 			{
 				id: 'export',
@@ -224,6 +224,7 @@ describe('product view models', () => {
 				href: '/app/campaign-series/series-id',
 				status: 'proof_only',
 				archived: false,
+				waveDots: ['done', 'live'],
 				archiveActionLabel: 'Archive',
 				canMutate: true,
 				duplicateAction: null,
@@ -262,9 +263,9 @@ describe('product view models', () => {
 		const view = toWorkspaceOverviewView(sampleWorkspaceOverview, 'hr-HR');
 
 		expect(view.lifecycleSteps.map((step) => step.label)).toEqual([
-			'Priprema',
-			'Prikupljanje',
-			'Pregled',
+			'Protokol',
+			'Teren',
+			'Nalazi',
 			'Izvoz'
 		]);
 		expect(view.totalRows.map((row) => row.label)).toEqual([
@@ -601,6 +602,7 @@ describe('product view models', () => {
 				href: '/app/campaign-series/series-id',
 				status: 'pending',
 				archived: false,
+				waveDots: ['done', 'live'],
 				archiveActionLabel: 'Archive',
 				canMutate: true,
 				duplicateAction: null,
@@ -747,6 +749,7 @@ describe('product view models', () => {
 			href: '/app/campaign-series/series-id',
 			status: 'archived',
 			archived: true,
+			waveDots: ['done', 'live'],
 			archiveActionLabel: 'Restore',
 			canMutate: true,
 			duplicateAction: null,

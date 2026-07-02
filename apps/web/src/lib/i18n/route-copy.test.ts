@@ -90,7 +90,7 @@ describe('localized route body copy', () => {
 	it('provides Croatian workspace route copy', () => {
 		const copy = routePageCopy('hr-HR');
 
-		expect(copy.workspaceHome.title).toBe('Početna');
+		expect(copy.workspaceHome.title).toBe('Stanje');
 		expect(copy.workspaceHome.heroTitle).toBe(
 			'Izradite studiju, prikupite odgovore, pregledajte rezultate i pripremite dokaze.'
 		);
@@ -125,9 +125,9 @@ describe('localized route body copy', () => {
 		const copy = routePageCopy('hr-HR');
 
 		expect(copy.selectedStudy.overview.title).toBe('Pregled');
-		expect(copy.selectedStudy.surfaces.setup.title).toBe('Priprema studije');
-		expect(copy.selectedStudy.surfaces.operations.title).toBe('Prikupljanje odgovora');
-		expect(copy.selectedStudy.surfaces.reports.title).toBe('Pregled rezultata');
+		expect(copy.selectedStudy.surfaces.setup.title).toBe('Protokol studije');
+		expect(copy.selectedStudy.surfaces.operations.title).toBe('Teren');
+		expect(copy.selectedStudy.surfaces.reports.title).toBe('Nalazi');
 		expect(copy.selectedStudy.surfaces.waves.title).toBe('Usporedba krugova');
 		expect(copy.selectedStudy.surfaceChrome.collectionDetails.title).toBe('Operativni detalji');
 		expect(copy.selectedStudy.reportsWorkflow.surface.flowKicker).toBe('Tijek studije · Rezultati');

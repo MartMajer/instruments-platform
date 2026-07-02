@@ -9,12 +9,15 @@ export function createSessionHeadersFromEnv(
 	if (env.PUBLIC_DEV_AUTH_ENABLED === 'true') {
 		const tenantId = env.PUBLIC_DEV_TENANT_ID || defaultDevTenantId;
 		const userId = env.PUBLIC_DEV_USER_ID || defaultDevUserId;
+		const permissions = env.PUBLIC_DEV_PERMISSIONS?.trim() || 'setup.manage';
+		const email = env.PUBLIC_DEV_EMAIL?.trim();
 
 		return {
 			'X-Tenant-Id': tenantId,
 			'X-Dev-User-Id': userId,
 			'X-Dev-Tenant-Memberships': tenantId,
-			'X-Dev-Permissions': 'setup.manage'
+			'X-Dev-Permissions': permissions,
+			...(email ? { 'X-Dev-Email': email } : {})
 		};
 	}
 

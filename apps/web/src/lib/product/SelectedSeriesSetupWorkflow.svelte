@@ -2759,6 +2759,38 @@
 	};
 </script>
 
+<aside class="product-panel launch-check" role="group" aria-label={setupBodyCopy.launchCheckAria}>
+	<div class="product-panel__header">
+		<div>
+			<p class="product-kicker">{setupBodyCopy.launchCheckKicker}</p>
+			<h3 class="product-title">{setupBodyCopy.launchCheckTitle}</h3>
+			<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+				{setupBodyCopy.launchCheckBody}
+			</p>
+		</div>
+	</div>
+	<ol class="launch-check__list">
+		{#each setupPath.steps as step (step.id)}
+			<li class="launch-check__item" data-state={step.pathState}>
+				<span class="launch-check__icon" data-state={step.pathState} aria-hidden="true">
+					{step.pathState === 'done' ? '✓' : step.id === currentActionId ? '!' : '·'}
+				</span>
+				<button
+					type="button"
+					class="launch-check__step"
+					disabled={!canSelectSetupAction(step.id)}
+					onclick={() => selectSetupAction(step.id)}
+				>
+					{step.title}
+				</button>
+				<span class="launch-check__state">
+					{step.pathState === 'done' ? setupBodyCopy.status.done : step.id === currentActionId ? setupBodyCopy.status.current : setupBodyCopy.status.pending}
+				</span>
+			</li>
+		{/each}
+	</ol>
+</aside>
+
 <section class="product-panel" role="group" aria-label={setupBodyCopy.progressAriaLabel}>
 	<div class="product-panel__header">
 		<div>

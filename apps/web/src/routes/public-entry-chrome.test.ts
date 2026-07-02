@@ -54,11 +54,10 @@ describe('public entry chrome', () => {
 		expect(appShell).toContain("id: 'setup'");
 		expect(appShell).toContain("id: 'collect'");
 		expect(appShell).toContain("id: 'results'");
-		expect(appShell).toContain("id: 'waves'");
 		expect(appShell).not.toContain('class="app-mobile-bottom-nav__link"\n\t\t\t\t\t\taria-current={mobileMenuOpen');
 		expect(appCss).toMatch(/\.app-mobile-bottom-nav,[\s\S]*display:\s*none/);
 		expect(appCss).toMatch(
-			/@media[\s\S]*\.app-mobile-bottom-nav\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/
+			/@media[\s\S]*\.app-mobile-bottom-nav\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/
 		);
 		expect(appCss).not.toContain(".app-mobile-bottom-nav {\n\tdisplay: grid;\n\tgrid-template-columns");
 	});

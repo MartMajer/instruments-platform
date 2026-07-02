@@ -144,7 +144,7 @@
 	class:app-shell--product={isProductShell}
 >
 	<div class="app-shell__grid" class:app-shell__grid--entry={isPublicEntry}>
-		{#if !isPublicEntry}
+		{#if !isPublicEntry && !isProductShell}
 			<aside class="app-sidebar">
 				<div class="app-brand">
 					<img class="app-brand__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
@@ -155,17 +155,7 @@
 				</div>
 				<LocaleSwitcher compact />
 
-				{#if isProductShell}
-					<div class="app-sidebar__body">
-						<SurfaceNav />
-					</div>
-					{#if account}
-						<div class="app-sidebar__account" aria-label={copy.aria.workspacePosture}>
-							{@render account()}
-						</div>
-					{/if}
-				{:else}
-					<nav class="mt-5" aria-label={copy.aria.setupStages}>
+				<nav class="mt-5" aria-label={copy.aria.setupStages}>
 						<ol class="grid gap-2">
 							{#each setupStages as stage, index (stage.href)}
 								{@const Icon = stageIcons[index]}
@@ -194,12 +184,25 @@
 							{/each}
 						</ol>
 					</nav>
-				{/if}
 			</aside>
 		{/if}
 
 		<div class="min-w-0">
 			{#if isProductShell}
+				<header class="vs-topbar">
+					<a class="vs-topbar__brand" href={resolve('/app')}>
+						<img src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
+						<span>Validated Scale</span>
+					</a>
+					<SurfaceNav variant="topbar" />
+					<div class="vs-topbar__right" aria-label={copy.aria.workspacePosture}>
+						<LocaleSwitcher compact />
+						{#if account}
+							{@render account()}
+						{/if}
+					</div>
+				</header>
+
 				<header class="app-mobile-topbar" aria-label={copy.aria.mobileWorkspaceNavigation}>
 					<a class="app-mobile-topbar__brand" href={resolve('/app')}>
 						<img class="app-mobile-topbar__mark" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />

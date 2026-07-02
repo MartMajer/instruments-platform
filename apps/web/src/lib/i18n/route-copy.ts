@@ -173,7 +173,7 @@ const en = {
 	},
 	workspaceHome: {
 		eyebrow: 'Workspace',
-		title: 'Home',
+		title: 'Briefing',
 		description:
 			'Start real study work, explore read-only examples, and continue active studies from one place.',
 		loading: 'Loading workspace overview',
@@ -811,24 +811,24 @@ const en = {
 		},
 		surfaces: {
 			setup: {
-				eyebrow: 'Prepare',
-				title: 'Prepare study',
-				description: 'Work through the preparation steps in order before collection starts.',
-				ariaLabel: 'Prepare workspace'
+				eyebrow: 'Protocol',
+				title: 'Study protocol',
+				description: 'The protocol chapters below must compile cleanly before fielding starts.',
+				ariaLabel: 'Protocol workspace'
 			},
 			operations: {
-				eyebrow: 'Study collection',
-				title: 'Collect responses',
+				eyebrow: 'Field',
+				title: 'Field',
 				description:
-					'Start collection, share respondent access, monitor submissions, and close the response window.',
-				ariaLabel: 'Collection workspace'
+					'Open collection, share respondent access, watch coverage build, and close the response window.',
+				ariaLabel: 'Field workspace'
 			},
 			reports: {
-				eyebrow: 'Study results',
-				title: 'Review results',
+				eyebrow: 'Evidence',
+				title: 'Evidence',
 				description:
-					'Review available findings, score coverage, limitations, and export next use for this study.',
-				ariaLabel: 'Results workspace'
+					'Read compiled findings, score coverage, and limitations, then export citable artifacts.',
+				ariaLabel: 'Evidence workspace'
 			},
 			waves: {
 				eyebrow: 'Rounds',
@@ -839,6 +839,11 @@ const en = {
 			}
 		},
 		setupBody: {
+			launchCheckAria: 'Launch check',
+			launchCheckKicker: 'Launch check',
+			launchCheckTitle: 'Compiled from the protocol steps',
+			launchCheckBody:
+				'Every step below reports its state. Launch stays locked until the required steps pass.',
 			progressAriaLabel: 'Study preparation progress',
 			progressKicker: 'Prepare study',
 			progressTitle: 'Study preparation progress',
@@ -2581,7 +2586,7 @@ const hr: typeof en = {
 	},
 	workspaceHome: {
 		eyebrow: 'Radni prostor',
-		title: 'Početna',
+		title: 'Stanje',
 		description:
 			'Pokrenite stvaran rad na studiji, istražite primjere i nastavite aktivne studije s jednog mjesta.',
 		loading: 'Učitavanje pregleda radnog prostora',
@@ -3216,24 +3221,24 @@ const hr: typeof en = {
 		},
 		surfaces: {
 			setup: {
-				eyebrow: 'Priprema',
-				title: 'Priprema studije',
-				description: 'Prođite korake postavljanja redom prije početka prikupljanja.',
-				ariaLabel: 'Radni prostor pripreme'
+				eyebrow: 'Protokol',
+				title: 'Protokol studije',
+				description: 'Poglavlja protokola u nastavku moraju biti potpuna prije početka terena.',
+				ariaLabel: 'Radni prostor protokola'
 			},
 			operations: {
-				eyebrow: 'Prikupljanje studije',
-				title: 'Prikupljanje odgovora',
+				eyebrow: 'Teren',
+				title: 'Teren',
 				description:
-					'Pokrenite prikupljanje, podijelite pristup sudionicima, pratite odgovore i zatvorite prozor odgovaranja.',
-				ariaLabel: 'Radni prostor prikupljanja'
+					'Pokrenite prikupljanje, podijelite pristup sudionicima, pratite pokrivenost i zatvorite prozor odgovaranja.',
+				ariaLabel: 'Radni prostor terena'
 			},
 			reports: {
-				eyebrow: 'Rezultati studije',
-				title: 'Pregled rezultata',
+				eyebrow: 'Nalazi',
+				title: 'Nalazi',
 				description:
-					'Pregledajte dostupne nalaze, pokrivenost bodovanja, ograničenja i sljedeću upotrebu izvoza za ovu studiju.',
-				ariaLabel: 'Radni prostor rezultata'
+					'Pregledajte dostupne nalaze, pokrivenost bodovanja, ograničenja i izvoze dokaza za ovu studiju.',
+				ariaLabel: 'Radni prostor nalaza'
 			},
 			waves: {
 				eyebrow: 'Krugovi',
@@ -3244,6 +3249,11 @@ const hr: typeof en = {
 			}
 		},
 		setupBody: {
+			launchCheckAria: 'Provjera pokretanja',
+			launchCheckKicker: 'Provjera pokretanja',
+			launchCheckTitle: 'Sastavljeno iz koraka protokola',
+			launchCheckBody:
+				'Svaki korak u nastavku prikazuje svoje stanje. Pokretanje ostaje zaključano dok obavezni koraci ne prođu.',
 			progressAriaLabel: 'Napredak pripreme studije',
 			progressKicker: 'Priprema studije',
 			progressTitle: 'Napredak pripreme studije',

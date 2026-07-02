@@ -479,9 +479,9 @@
 		place-items: center;
 		padding: clamp(1rem, 4vw, 3rem);
 		background:
-			radial-gradient(circle at 20% 10%, rgba(15, 118, 110, 0.16), transparent 30rem),
-			radial-gradient(circle at 85% 20%, rgba(245, 158, 11, 0.13), transparent 26rem),
-			linear-gradient(135deg, #f8faf7 0%, #eef4ef 100%);
+			radial-gradient(circle at 20% 10%, rgba(8, 86, 154, 0.16), transparent 30rem),
+			radial-gradient(circle at 85% 20%, rgba(0, 128, 101, 0.09), transparent 26rem),
+			linear-gradient(135deg, #f8fafd 0%, #eef2f6 100%);
 	}
 
 	.auth-boundary-shell :global(.setup-panel) {

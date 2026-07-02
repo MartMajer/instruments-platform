@@ -5,7 +5,7 @@ describe('localized UI copy', () => {
 	test('provides Croatian app shell navigation labels', () => {
 		const copy = appShellCopy('hr-HR');
 
-		expect(copy.nav.home).toBe('Početna');
+		expect(copy.nav.home).toBe('Stanje');
 		expect(copy.nav.studies).toBe('Studije');
 		expect(copy.nav.directory).toBe('Ljudi');
 		expect(copy.actions.signOut).toBe('Odjava');
@@ -18,7 +18,7 @@ describe('localized UI copy', () => {
 		expect(copy.sections.studies).toBe('Radni prostor');
 		expect(copy.sections.selectedStudy).toBe('Aktivna studija');
 		expect(copy.surfaces.exports).toBe('Datoteke');
-		expect(copy.surfaces.setup).toBe('Priprema');
+		expect(copy.surfaces.setup).toBe('Protokol');
 		expect(copy.descriptions.collect).toBe('Provedi prikupljanje');
 		expect(copy.descriptions.selectStudyFirst).toBe('Najprije odaberite ili izradite studiju');
 	});

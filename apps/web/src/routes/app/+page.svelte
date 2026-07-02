@@ -112,27 +112,6 @@
 				</div>
 			</section>
 
-			<section class="workspace-home-section" aria-label={text.workspaceHome.startAria}>
-				<div class="workspace-home-section__header">
-					<div>
-						<p class="workspace-home-kicker">{text.workspaceHome.start}</p>
-						<h2>{text.workspaceHome.startTitle}</h2>
-					</div>
-					<p>{text.workspaceHome.startBody}</p>
-				</div>
-				<div class="workspace-home-action-grid">
-					{#each firstRunActions as action}
-						<a class="workspace-home-action" href={action.href}>
-							<span class="workspace-home-action__header">
-								<strong>{action.title}</strong>
-								<StatusBadge status="neutral" label={action.status} />
-							</span>
-							<span>{action.description}</span>
-						</a>
-					{/each}
-				</div>
-			</section>
-
 			<section class="workspace-home-section" aria-label={text.workspaceHome.nextActions}>
 				<div class="workspace-home-section__header">
 					<div>
@@ -176,6 +155,27 @@
 						{/each}
 					</div>
 				{/if}
+			</section>
+
+			<section class="workspace-home-section" aria-label={text.workspaceHome.startAria}>
+				<div class="workspace-home-section__header">
+					<div>
+						<p class="workspace-home-kicker">{text.workspaceHome.start}</p>
+						<h2>{text.workspaceHome.startTitle}</h2>
+					</div>
+					<p>{text.workspaceHome.startBody}</p>
+				</div>
+				<div class="workspace-home-action-grid">
+					{#each firstRunActions as action}
+						<a class="workspace-home-action" href={action.href}>
+							<span class="workspace-home-action__header">
+								<strong>{action.title}</strong>
+								<StatusBadge status="neutral" label={action.status} />
+							</span>
+							<span>{action.description}</span>
+						</a>
+					{/each}
+				</div>
 			</section>
 
 			<section id="sample-studies" class="workspace-home-section workspace-home-section--samples" aria-label={text.workspaceHome.sampleStudies}>

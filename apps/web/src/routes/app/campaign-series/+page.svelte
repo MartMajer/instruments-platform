@@ -640,6 +640,13 @@
 																			class="record-row__title portfolio-row__title-link"
 																			href={item.href}>{item.title}</a
 																		>
+																		{#if item.waveDots.length > 0}
+																			<span class="wave-strip" aria-hidden="true">
+																				{#each item.waveDots as dot, dotIndex (dotIndex)}
+																					<span class="wave-strip__dot wave-strip__dot--{dot}"></span>
+																				{/each}
+																			</span>
+																		{/if}
 																		<span class="action-row">
 																			<StatusBadge
 																				status={item.ownership.badgeStatus}

@@ -39,7 +39,7 @@ const retrySeriesId = 'b79f2bb3-f68f-4b71-9dc9-c344a3730a0e';
 const sampleSessionUserId = '22222222-2222-4222-8222-222222222222';
 const sampleSessionTenantId = '11111111-1111-4111-8111-111111111111';
 const sampleSessionEmail = 'owner@example.test';
-const selectedSeriesSurfaceLabels = ['Overview', 'Prepare', 'Collect', 'Results'];
+const selectedSeriesSurfaceLabels = ['Overview', 'Protocol', 'Field', 'Evidence'];
 // M1.2 note: stale pre-product-spine product-surface contracts are temporarily skipped in this file.
 // Keep the current M1 spine tests active; modernize skipped legacy contracts in focused slices.
 const ownSeriesOwnership = {
@@ -76,7 +76,7 @@ test.beforeEach(async ({ page }) => {
 test('renders the authenticated product shell and workspace overview', async ({ page }) => {
 	await page.goto('/app');
 
-	await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Briefing', exact: true })).toBeVisible();
 	await expect(
 		page.getByText('UX02 product surfaces - read-model bridge', { exact: true })
 	).toHaveCount(0);
@@ -117,7 +117,7 @@ test('renders the authenticated product shell and workspace overview', async ({ 
 	await expect(totals.getByText('5', { exact: true })).toBeVisible();
 	await expect(page.locator(`[href*="${oldFoundationSeriesId}"]`)).toHaveCount(0);
 
-	await expect(nav.getByRole('link', { name: /^Home\b/ })).toBeVisible();
+	await expect(nav.getByRole('link', { name: /^Briefing/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: /^Studies\b/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: /^Team\b/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: 'Demo fixtures' })).toHaveCount(0);
@@ -157,14 +157,14 @@ test('ui03 product workspace uses quiet section styling instead of raised cards'
 test('renders self-serve home cockpit for sample and own studies', async ({ page }) => {
 	await page.goto('/app');
 
-	await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Briefing', exact: true })).toBeVisible();
 	const overview = page.getByRole('region', { name: 'Workspace home' });
 	const lifecycle = overview.locator('[aria-label="Study workflow"]');
 	const sampleStudies = overview.getByRole('region', { name: 'Sample studies' });
 	const ownStudies = overview.getByRole('region', { name: 'Your studies' });
 	const suggestedActions = overview.getByRole('region', { name: 'Next actions' });
 
-	for (const label of ['Prepare', 'Collect', 'Review', 'Export']) {
+	for (const label of ['Protocol', 'Field', 'Evidence', 'Export']) {
 		await expect(lifecycle.getByText(label, { exact: true })).toBeVisible();
 	}
 	await expectElementBefore(sampleStudies, ownStudies);
@@ -199,9 +199,9 @@ test('home leads with the action queue before secondary study context', async ({
 	const lifecycle = overview.locator('[aria-label="Study workflow"]');
 	const totals = overview.getByText('Workspace overview', { exact: true });
 
-	await expectElementBefore(lifecycle, startHere);
-	await expectElementBefore(startHere, nextWork);
-	await expectElementBefore(nextWork, sampleStudies);
+	await expectElementBefore(lifecycle, nextWork);
+	await expectElementBefore(nextWork, startHere);
+	await expectElementBefore(startHere, sampleStudies);
 	await expectElementBefore(sampleStudies, ownStudies);
 	await expectElementBefore(ownStudies, totals);
 });
@@ -360,7 +360,7 @@ test('self-serve walkthrough contract exposes starter states and duplicate-to-ed
 	const lifecycle = overview.locator('[aria-label="Study workflow"]');
 	const homeSamples = overview.getByRole('region', { name: 'Sample studies' });
 
-	for (const label of ['Prepare', 'Collect', 'Review', 'Export']) {
+	for (const label of ['Protocol', 'Field', 'Evidence', 'Export']) {
 		await expect(lifecycle.getByText(label, { exact: true })).toBeVisible();
 	}
 
@@ -475,7 +475,7 @@ test('self-serve walkthrough contract exposes starter states and duplicate-to-ed
 		)
 	).toBeVisible();
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
-	const setupWorkspace = page.getByRole('region', { name: 'Prepare workspace' });
+	const setupWorkspace = page.getByRole('region', { name: 'Protocol workspace' });
 	await expect(setupWorkspace.getByRole('region', { name: 'Sample study read-only state' })).toBeVisible();
 	await expect(setupWorkspace.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 
@@ -655,6 +655,7 @@ test('renders home empty states with sample and own study guidance', async ({ pa
 test('renders grouped product navigation by intent on the home surface', async ({ page }) => {
 	await page.goto('/app');
 
+
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
 	const studies = nav.getByRole('group', { name: 'Workspace', exact: true });
 	const people = nav.getByRole('group', { name: 'People and access' });
@@ -665,7 +666,7 @@ test('renders grouped product navigation by intent on the home surface', async (
 	await expect(admin).toBeVisible();
 
 	for (const link of [
-		{ label: /^Home\b/, href: '/app' },
+		{ label: /^Briefing/, href: '/app' },
 		{ label: /^Studies\b/, href: '/app/campaign-series' }
 	]) {
 		await expect(studies.getByRole('link', { name: link.label })).toHaveAttribute(
@@ -710,9 +711,9 @@ test('renders selected-study navigation separately from global studies links', a
 	);
 	for (const link of [
 		{ label: /^Overview\b/, href: `/app/campaign-series/${sampleSeriesId}` },
-		{ label: /^Prepare\b/, href: `/app/campaign-series/${sampleSeriesId}/setup` },
-		{ label: /^Collect\b/, href: `/app/campaign-series/${sampleSeriesId}/operations` },
-		{ label: /^Results\b/, href: `/app/campaign-series/${sampleSeriesId}/reports` }
+		{ label: /^Protocol/, href: `/app/campaign-series/${sampleSeriesId}/setup` },
+		{ label: /^Field/, href: `/app/campaign-series/${sampleSeriesId}/operations` },
+		{ label: /^Evidence/, href: `/app/campaign-series/${sampleSeriesId}/reports` }
 	]) {
 		await expect(selectedStudy.getByRole('link', { name: link.label })).toHaveAttribute(
 			'href',
@@ -720,7 +721,7 @@ test('renders selected-study navigation separately from global studies links', a
 		);
 		await expect(studies.getByRole('link', { name: link.label })).toHaveCount(0);
 	}
-	await expect(selectedStudy.getByRole('link', { name: /^Results\b/ })).toHaveAttribute(
+	await expect(selectedStudy.getByRole('link', { name: /^Evidence/ })).toHaveAttribute(
 		'aria-current',
 		'page'
 	);
@@ -1224,7 +1225,7 @@ test('renders campaign-series list items from the product read model', async ({ 
 	await expect(page.locator(`[href*="${oldFoundationSeriesId}"]`)).toHaveCount(0);
 
 	const nav = page.getByRole('navigation', { name: 'Product navigation' });
-	await expect(nav.getByRole('link', { name: /^Home\b/ })).toBeVisible();
+	await expect(nav.getByRole('link', { name: /^Briefing/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: /^Studies\b/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: /^Team\b/ })).toBeVisible();
 	await expect(nav.getByRole('link', { name: 'Demo fixtures' })).toHaveCount(0);
@@ -1487,7 +1488,7 @@ test('duplicates a sample study from the portfolio and routes to setup', async (
 
 	await expect.poll(() => duplicateRequests).toEqual([{ name: createdSeriesName }]);
 	await expect(page).toHaveURL(`/app/campaign-series/${createdSeriesId}/setup`);
-	await expect(page.getByRole('region', { name: 'Prepare workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 });
 
@@ -1505,12 +1506,12 @@ test('renders product surfaces read-only without setup management permission', a
 	await expect(page.getByRole('button', { name: /^Archive\b/i })).toHaveCount(0);
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
-	await expect(page.getByRole('region', { name: 'Prepare workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create instrument import' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Generate new sample values' })).toHaveCount(0);
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
-	const collection = page.getByRole('region', { name: 'Collection workspace' });
+	const collection = page.getByRole('region', { name: 'Field workspace' });
 	await expect(collection).toBeVisible();
 	await expect(
 		collection.getByText('Collection actions require workspace management access.', { exact: true })
@@ -1520,7 +1521,7 @@ test('renders product surfaces read-only without setup management permission', a
 	await expect(page.getByRole('button', { name: 'Remediate missing scores' })).toHaveCount(0);
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
-	await expect(page.getByRole('region', { name: 'Results workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Evidence workspace' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create results matrix export' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Create response export' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Review export file' })).toHaveCount(0);
@@ -1859,7 +1860,7 @@ test('creates a campaign series from the list and routes to setup', async ({ pag
 			})
 		})
 	]);
-	await expect(page.getByRole('region', { name: 'Prepare workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 });
 
@@ -2083,7 +2084,7 @@ test('duplicates a sample study from the selected overview and routes to setup',
 
 	await expect.poll(() => duplicateRequests).toEqual([{ name: createdSeriesName }]);
 	await expect(page).toHaveURL(`/app/campaign-series/${createdSeriesId}/setup`);
-	await expect(page.getByRole('region', { name: 'Prepare workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 });
 
@@ -2312,18 +2313,18 @@ test('renders the campaign-series product route map', async ({ page }) => {
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/setup`,
-			heading: 'Prepare study',
-			region: 'Prepare workspace'
+			heading: 'Study protocol',
+			region: 'Protocol workspace'
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
-			heading: 'Collect responses',
-			region: 'Collection workspace'
+			heading: 'Field',
+			region: 'Field workspace'
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
-			heading: 'Review results',
-			region: 'Results workspace'
+			heading: 'Evidence',
+			region: 'Evidence workspace'
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/waves`,
@@ -2345,11 +2346,11 @@ test('renders the campaign-series product route map', async ({ page }) => {
 				: route.path.endsWith(`/${sampleSeriesId}`)
 					? /^Overview\b/
 					: route.path.endsWith('/setup')
-						? /^Prepare\b/
+						? /^Protocol/
 						: route.path.endsWith('/operations')
-							? /^Collect\b/
+							? /^Field/
 							: route.path.endsWith('/reports')
-								? /^Results\b/
+								? /^Evidence/
 								: null;
 		await expect(nav.locator('[aria-current="page"]')).toHaveCount(expectedCurrentNav ? 1 : 0);
 		if (expectedCurrentNav) {
@@ -2366,15 +2367,15 @@ test('renders the campaign-series product route map', async ({ page }) => {
 				'href',
 				`/app/campaign-series/${sampleSeriesId}`
 			);
-			await expect(selectedStudy.getByRole('link', { name: /^Prepare\b/ })).toHaveAttribute(
+			await expect(selectedStudy.getByRole('link', { name: /^Protocol/ })).toHaveAttribute(
 				'href',
 				`/app/campaign-series/${sampleSeriesId}/setup`
 			);
-			await expect(selectedStudy.getByRole('link', { name: /^Collect\b/ })).toHaveAttribute(
+			await expect(selectedStudy.getByRole('link', { name: /^Field/ })).toHaveAttribute(
 				'href',
 				`/app/campaign-series/${sampleSeriesId}/operations`
 			);
-			await expect(selectedStudy.getByRole('link', { name: /^Results\b/ })).toHaveAttribute(
+			await expect(selectedStudy.getByRole('link', { name: /^Evidence/ })).toHaveAttribute(
 				'href',
 				`/app/campaign-series/${sampleSeriesId}/reports`
 			);
@@ -2456,17 +2457,17 @@ test('renders selected-series context on child product routes', async ({ page })
 	const routes = [
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/setup`,
-			region: 'Prepare workspace',
+			region: 'Protocol workspace',
 			expected: []
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
-			region: 'Collection workspace',
+			region: 'Field workspace',
 			expected: []
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
-			region: 'Results workspace',
+			region: 'Evidence workspace',
 			expected: []
 		},
 		{
@@ -2633,7 +2634,7 @@ test('M3 OSH exit path surfaces prepare collect results and PDF evidence', async
 	});
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const preparation = setup.getByRole('group', { name: 'Study preparation progress' });
 	await expect(preparation).toBeVisible();
 	await expect(preparation).toContainText('Build questionnaire');
@@ -2641,7 +2642,7 @@ test('M3 OSH exit path surfaces prepare collect results and PDF evidence', async
 	await expect(preparation).toContainText('Ready to collect');
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const collection = operations.getByRole('group', { name: 'Study collection flow' });
 	await expect(collection).toBeVisible();
 	await expect(collection.getByRole('heading', { name: 'Collection flow' })).toBeVisible();
@@ -2651,7 +2652,7 @@ test('M3 OSH exit path surfaces prepare collect results and PDF evidence', async
 	);
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	const useReview = workflow.getByRole('region', { name: 'Results use review' });
@@ -2705,7 +2706,7 @@ test('labels sample selected-series child routes as read-only starter content', 
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setupWorkspace = page.getByRole('region', { name: 'Prepare workspace' });
+	const setupWorkspace = page.getByRole('region', { name: 'Protocol workspace' });
 	const readOnlyState = setupWorkspace.getByRole('region', {
 		name: 'Sample study read-only state'
 	});
@@ -2731,19 +2732,19 @@ test.skip('selected-series destinations put primary work before reference contex
 	const destinations = [
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/setup`,
-			shell: 'Prepare workspace',
+			shell: 'Protocol workspace',
 			primary: { role: 'group' as const, name: 'Preparation actions' },
 			reference: { role: 'region' as const, name: 'Setup reference' }
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
-			shell: 'Collection workspace',
+			shell: 'Field workspace',
 			primary: { role: 'group' as const, name: 'Collection progress' },
 			reference: { role: 'region' as const, name: 'Collection reference' }
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
-			shell: 'Results workspace',
+			shell: 'Evidence workspace',
 			primary: { role: 'group' as const, name: 'Results overview' },
 			reference: { role: 'region' as const, name: 'Results reference' }
 		},
@@ -2777,9 +2778,9 @@ test('product wayfinding keeps selected-series workspace context and current rou
 }) => {
 	const workspaceLinks = [
 		{ label: /^Overview\b/, href: `/app/campaign-series/${sampleSeriesId}` },
-		{ label: /^Prepare\b/, href: `/app/campaign-series/${sampleSeriesId}/setup` },
-		{ label: /^Collect\b/, href: `/app/campaign-series/${sampleSeriesId}/operations` },
-		{ label: /^Results\b/, href: `/app/campaign-series/${sampleSeriesId}/reports` }
+		{ label: /^Protocol/, href: `/app/campaign-series/${sampleSeriesId}/setup` },
+		{ label: /^Field/, href: `/app/campaign-series/${sampleSeriesId}/operations` },
+		{ label: /^Evidence/, href: `/app/campaign-series/${sampleSeriesId}/reports` }
 	];
 	const destinations = [
 		{
@@ -2792,24 +2793,24 @@ test('product wayfinding keeps selected-series workspace context and current rou
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/setup`,
-			shell: 'Prepare workspace',
-			current: 'Prepare',
+			shell: 'Protocol workspace',
+			current: 'Protocol',
 			primary: { role: 'group' as const, name: 'Preparation actions' },
 			reference: { role: 'region' as const, name: 'Setup reference' },
 			safetyLabels: ['Consent', 'Retention']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
-			shell: 'Collection workspace',
-			current: 'Collect',
+			shell: 'Field workspace',
+			current: 'Field',
 			primary: { role: 'group' as const, name: 'Collection progress' },
 			reference: { role: 'region' as const, name: 'Collection reference' },
 			safetyLabels: ['Preview ready']
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
-			shell: 'Results workspace',
-			current: 'Results',
+			shell: 'Evidence workspace',
+			current: 'Evidence',
 			primary: { role: 'group' as const, name: 'Results overview' },
 			reference: { role: 'region' as const, name: 'Results reference' },
 			safetyLabels: ['Preview ready', 'Finality and provenance', 'Suppressed scores']
@@ -2859,17 +2860,17 @@ test('product vocabulary avoids proof-harness phrases in normal app workflows', 
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/setup`,
-			surface: 'Prepare workspace',
+			surface: 'Protocol workspace',
 			allowedLabels: []
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/operations`,
-			surface: 'Collection workspace',
+			surface: 'Field workspace',
 			allowedLabels: []
 		},
 		{
 			path: `/app/campaign-series/${sampleSeriesId}/reports`,
-			surface: 'Results workspace',
+			surface: 'Evidence workspace',
 			allowedLabels: []
 		},
 		{
@@ -2952,7 +2953,7 @@ test('product UI foundation exposes stable landmarks and route hierarchy', async
 	await expect(hub.getByRole('group', { name: 'Study lifecycle' })).toHaveCount(0);
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const resultsContext = reports.getByRole('region', { name: 'Study context' });
 	const resultsActions = reports.getByRole('group', { name: 'Review and export actions' });
 	const resultsDetails = reports.getByRole('group', { name: 'Results details' });
@@ -3034,7 +3035,7 @@ test('operations workspace loads the dedicated read model and renders operations
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	const details = operations.locator('details[aria-label="Collection details"]');
 
@@ -3104,9 +3105,9 @@ test('operations route leads with collection progress before reference detail', 
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
-	await expect(page.getByRole('heading', { name: 'Collect responses', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Field', exact: true })).toBeVisible();
 
-	const collection = page.getByRole('region', { name: 'Collection workspace' });
+	const collection = page.getByRole('region', { name: 'Field workspace' });
 	const progress = collection.getByRole('group', { name: 'Study collection flow' });
 	const reference = collection.locator('details[aria-label="Collection details"]');
 
@@ -3239,7 +3240,7 @@ test('operations workflow exposes one current operations task for a draft campai
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	const currentStep = workflow.getByRole('region', { name: 'Collection step' });
 	await expect(workflow.getByRole('heading', { name: 'Collection flow' })).toBeVisible();
@@ -3304,7 +3305,7 @@ test('retries operations workspace with the route series id', async ({ page }) =
 
 	await page.getByRole('button', { name: 'Retry surface' }).click();
 
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	await expect(workflow).toBeVisible();
 	await expect(workflow.getByRole('heading', { name: 'Collection flow' })).toBeVisible();
@@ -3493,7 +3494,7 @@ test('operations workflow runs primary actions against the selected campaign', a
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
 
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	const currentTask = workflow.getByRole('region', { name: 'Collection step' });
 	await expect(workflow).toBeVisible();
@@ -3550,7 +3551,7 @@ test('reports workspace loads the dedicated read model and renders report state'
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	const details = reports.locator('details[aria-label="Results details"]');
 
@@ -3595,9 +3596,9 @@ test('reports route leads with result availability, limits, and export next use'
 }) => {
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	await expect(page.getByRole('heading', { name: 'Review results', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Evidence', exact: true })).toBeVisible();
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	const useReview = workflow.getByRole('region', { name: 'Results use review' });
 	const exportPreview = workflow.getByRole('region', { name: 'Export preview' });
@@ -3665,7 +3666,7 @@ test.skip('Results summary render known and unsupported manifest widgets before 
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const widgets = reports.getByRole('region', { name: 'Results summary' });
 	await expect(widgets).toBeVisible();
 	await expect(widgets.getByRole('article', { name: 'Score coverage' })).toBeVisible();
@@ -3682,7 +3683,7 @@ test('Results summary render the current backend-known manifest without unsuppor
 }) => {
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	await expect(workflow.getByRole('article', { name: 'Visual analytics' })).toBeVisible();
@@ -3730,7 +3731,7 @@ test('Results summary manifest delay does not block reports workspace', async ({
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	await expect(workflow.getByRole('region', { name: 'Results use review' })).toBeVisible();
@@ -3752,7 +3753,7 @@ test.skip('report snapshot renders selected campaign aggregate proof as route co
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const snapshot = reports.getByRole('group', { name: 'Report snapshot' });
 
 	await expect(snapshot).toBeVisible();
@@ -3814,7 +3815,7 @@ test.skip('report dashboard renders selected campaign decision surface semantics
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const snapshot = reports.getByRole('group', { name: 'Report snapshot' });
 	const dashboard = snapshot.getByRole('group', { name: 'Report dashboard' });
 
@@ -3929,7 +3930,7 @@ test.skip('report snapshot blocks without calling report proof when no reportabl
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const snapshot = reports.getByRole('group', { name: 'Report snapshot' });
 
 	await expect(snapshot.getByText('Not available', { exact: true })).toBeVisible();
@@ -3965,7 +3966,7 @@ test.skip('report snapshot keeps endpoint failures local and recovers on retry',
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const snapshot = reports.getByRole('group', { name: 'Report snapshot' });
 
 	await expect(snapshot.getByText('Temporary report snapshot failure.')).toBeVisible();
@@ -4008,7 +4009,7 @@ test.skip('reports workflow exposes one current reports task for a reportable ca
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	const currentTask = workflow.getByRole('region', { name: 'Current review task' });
 
@@ -4084,7 +4085,7 @@ test('retries reports workspace with the route series id', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Retry surface' }).click();
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	await expect(workflow.getByRole('heading', { name: 'Review and export results' })).toBeVisible();
@@ -4229,7 +4230,7 @@ test('reports workflow runs primary report and export actions against the select
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	const useReview = workflow.getByRole('region', { name: 'Results use review' });
@@ -4336,7 +4337,7 @@ test('reports workflow retries a failed report PDF artifact', async ({ page }) =
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	const exportPreview = workflow.getByRole('region', { name: 'Export preview' });
 	await exportPreview.getByRole('button', { name: 'Create report PDF' }).click();
@@ -4390,7 +4391,7 @@ test('reports workflow restores existing report PDF delivery controls from works
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const reportPdfResult = reports
 		.getByRole('group', { name: 'Review and export actions' })
 		.getByRole('region', { name: 'Report PDF result' });
@@ -4848,7 +4849,7 @@ test('setup workflow renders primary setup actions instead of the proof workbenc
 }) => {
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	await expect(setup.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 	await expect(
 		setup.getByRole('heading', { name: 'Study preparation progress', exact: true })
@@ -4861,9 +4862,9 @@ test('setup route leads with a study preparation path before the current task', 
 }) => {
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	await expect(page.getByRole('heading', { name: 'Prepare study', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Study protocol', exact: true })).toBeVisible();
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const setupPath = workflow.locator('.setup-path');
 
@@ -4888,7 +4889,7 @@ test('setup action hierarchy starts editable studies on the current setup task',
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const setupPath = workflow.locator('.setup-path');
 	const currentTask = workflow.getByRole('region', {
@@ -4983,7 +4984,7 @@ test('setup workflow exposes one current setup task for an empty series', async 
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await expect(workflow.getByRole('region', { name: 'Build questionnaire' })).toContainText(
 		'Questionnaire'
@@ -5081,7 +5082,7 @@ test('setup template authoring edits question rows and generated scoring default
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await expect(workflow).toContainText('Questionnaire');
 
@@ -5239,7 +5240,7 @@ test('setup template authoring saves M3 required answer formats together', async
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
@@ -5387,7 +5388,7 @@ test('setup template authoring saves single-choice option scoring', async ({ pag
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
@@ -5502,7 +5503,7 @@ test('setup template authoring saves conditional display logic and scoring warni
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
@@ -5625,7 +5626,7 @@ test('setup result authoring saves tenant-attested interpretation bands', async 
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await workflow.getByRole('button', { name: 'Save questionnaire' }).click();
 	await expect.poll(() => templateBodies).toHaveLength(1);
@@ -5902,7 +5903,7 @@ test('setup workflow creates an editable draft from a published questionnaire ve
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await expect(workflow.getByText('Edit through a draft version')).toBeVisible();
@@ -6068,7 +6069,7 @@ test('setup version-history hydration preserves section and dimension labels', a
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await workflow.getByRole('button', { name: 'Load versions' }).click();
@@ -6136,7 +6137,7 @@ test('setup workflow previews respondent-rule audience from the selected campaig
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
 	await expect(preview).toBeVisible();
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
@@ -6254,7 +6255,7 @@ test('setup workflow saves respondent rules and shows safe assignments', async (
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const preview = setup.getByRole('region', { name: 'Preview recipients, then save the selection' });
 	await preview.getByLabel('Send invitations to').selectOption('manager_of_target');
 	await preview.getByLabel('Focus person').selectOption(sampleSubjectDirectory.subjects[0].id);
@@ -6324,7 +6325,7 @@ test('setup workflow creates a campaign draft from setup-workspace state and ref
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 	await page.reload();
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	const resultsStep = workflow.getByRole('button', { name: /Review results setup/ });
 	await expect(resultsStep).toContainText('Done');
@@ -6523,7 +6524,7 @@ test('setup workflow creates a future measurement from selected template after l
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await workflow.getByRole('button', { name: 'Load versions' }).click();
@@ -6563,7 +6564,7 @@ test('setup workflow keeps setup state visible when a setup action fails', async
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
-	const setup = page.getByRole('region', { name: 'Prepare workspace' });
+	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	await expect(setup.getByText('Launch readiness failed.')).toBeVisible();
 	await expect(setup.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
 	await expect(setup.getByText(sampleSeriesId, { exact: true })).toHaveCount(0);
@@ -6613,7 +6614,7 @@ test('anchors selected-series campaign draft creation to the route series', asyn
 	expect(unexpectedSeriesCreates).toBe(0);
 	await expect.poll(() => campaignCreates).toHaveLength(1);
 	expect(campaignCreates[0].campaignSeriesId).toBe(sampleSeriesId);
-	await expect(page.getByRole('region', { name: 'Prepare workspace' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 });
 
 test('renders selected-series not-found state on child routes', async ({ page }) => {
@@ -6708,7 +6709,7 @@ test('retries selected-series child route with the route series id', async ({ pa
 
 	await page.getByRole('button', { name: 'Retry surface' }).click();
 
-	const reports = page.getByRole('region', { name: 'Results workspace' });
+	const reports = page.getByRole('region', { name: 'Evidence workspace' });
 	const workflow = reports.getByRole('group', { name: 'Review and export actions' });
 	await expect(workflow).toBeVisible();
 	await expect(workflow.getByRole('heading', { name: 'Review and export results' })).toBeVisible();

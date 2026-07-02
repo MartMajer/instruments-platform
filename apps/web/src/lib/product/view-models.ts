@@ -3676,12 +3676,20 @@ function toCampaignSeriesCard(item: CampaignSeriesListItemResponse, locale: AppL
 		});
 	}
 
+	const liveWaves = Math.max(0, Math.min(item.liveCampaignCount, item.campaignCount));
+	const doneWaves = Math.max(0, Math.min(item.campaignCount - liveWaves, 8 - Math.min(liveWaves, 8)));
+	const waveDots: Array<'done' | 'live'> = [
+		...Array<'done'>(doneWaves).fill('done'),
+		...Array<'live'>(Math.min(liveWaves, 8)).fill('live')
+	];
+
 	return {
 		id: item.id,
 		title,
 		href: `/app/campaign-series/${item.id}`,
 		status: archived ? 'archived' : toProductReadModelBadgeStatus(item.readinessStatus),
 		archived,
+		waveDots,
 		archiveActionLabel: archived
 			? appMessage(locale, 'portfolio.action.restore')
 			: appMessage(locale, 'portfolio.action.archive'),

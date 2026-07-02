@@ -638,7 +638,7 @@ test('operations identified queue link opens queue assignment and submits throug
 	});
 
 	await page.goto(`/app/campaign-series/${identifiedQueueSeriesId}/operations`);
-	const operations = page.getByRole('region', { name: 'Collection workspace' });
+	const operations = page.getByRole('region', { name: 'Field workspace' });
 	const workflow = operations.getByRole('group', { name: 'Study collection flow' });
 	const currentStep = workflow.getByRole('region', { name: 'Collection step' });
 	await currentStep.getByRole('button', { name: 'Create feedback task links' }).click();
