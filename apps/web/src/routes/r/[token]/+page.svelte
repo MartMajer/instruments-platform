@@ -946,7 +946,7 @@
 	<title>{entry?.name ?? queue?.name ?? text.respondent.metaFallback} - Validated Scale</title>
 </svelte:head>
 
-<main class="min-h-screen bg-[var(--color-background)] px-4 py-6 text-[var(--color-text)] sm:px-6">
+<main class="respondent-shell min-h-screen bg-[var(--color-background)] px-4 py-6 text-[var(--color-text)] sm:px-6">
 	<section class="mx-auto grid max-w-2xl gap-5">
 		{#if loading}
 			<div class="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-muted)]">
