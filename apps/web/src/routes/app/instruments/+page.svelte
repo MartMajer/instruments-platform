@@ -120,6 +120,12 @@
 					</div>
 				{/if}
 
+				<article class="governed-catalog" aria-label={text.instruments.governedCatalog.title}>
+					<p class="product-kicker">{text.instruments.governedCatalog.kicker}</p>
+					<h3 class="governed-catalog__title">{text.instruments.governedCatalog.title}</h3>
+					<p class="governed-catalog__body">{text.instruments.governedCatalog.body}</p>
+				</article>
+
 				<div class="grid gap-3 border-t border-[var(--color-border)] pt-4">
 					<div>
 						<p class="product-kicker">{text.instruments.nextStep}</p>

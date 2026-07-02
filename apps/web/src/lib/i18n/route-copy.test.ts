@@ -167,7 +167,7 @@ describe('localized route body copy', () => {
 		expect(copy.portfolio.studyModelStudyBody).toContain('study container');
 		expect(copy.portfolio.studyModelStartingPointBody).toContain('Provides source material');
 		expect(copy.instruments.description).toBe(
-			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Prepare.'
+			'Review reusable questionnaire sources that can seed a study. The study itself is built inside its protocol.'
 		);
 		expect(copy.selectedStudy.setupBody.questionnaire.blueprintTitle).toBe(
 			'Questionnaire check'

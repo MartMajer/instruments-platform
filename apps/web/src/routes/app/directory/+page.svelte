@@ -37,6 +37,8 @@
 
 	const productApi = createProductApiFromEnv(env);
 	const requestGate = createProductRequestGate();
+	// Platform default kMin; study disclosure policies may set their own threshold.
+	const DEFAULT_REPORTING_K = 5;
 	const authContext = getProductAuthContext();
 	const locale = $derived(appLocaleFromPageData(page.data));
 	const text = $derived(routePageCopy(locale));
@@ -765,6 +767,12 @@
 			</div>
 		</dl>
 
+		<article class="identity-explainer" aria-label={text.directory.identityExplainer.title}>
+			<p class="product-kicker">{text.directory.identityExplainer.kicker}</p>
+			<h3 class="identity-explainer__title">{text.directory.identityExplainer.title}</h3>
+			<p class="identity-explainer__body">{text.directory.identityExplainer.body}</p>
+		</article>
+
 		<details class="rounded border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3">
 			<summary class="cursor-pointer text-sm font-semibold text-[var(--color-text)]">
 				{text.directory.howUsed}
@@ -1457,6 +1465,11 @@
 									<span class="record-field__value">{group.memberCount}</span>
 								</span>
 							</span>
+							{#if group.memberCount > 0 && group.memberCount < DEFAULT_REPORTING_K}
+								<span class="k-flag">
+									{text.directory.kFlagSmall(group.memberCount, DEFAULT_REPORTING_K)}
+								</span>
+							{/if}
 						</article>
 					{/each}
 				</div>

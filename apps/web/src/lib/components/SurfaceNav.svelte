@@ -7,6 +7,7 @@
 		ClipboardList,
 		FolderKanban,
 		Home,
+		LibraryBig,
 		ListChecks,
 		Network,
 		RadioTower,
@@ -42,6 +43,14 @@
 					href: '/app/campaign-series',
 					icon: FolderKanban,
 					description: copy.descriptions.planStudies,
+					isDisabled: false
+				},
+				{
+					id: 'instruments',
+					label: copy.surfaces.instrumentLibrary,
+					href: '/app/instruments',
+					icon: LibraryBig,
+					description: copy.descriptions.questionSets,
 					isDisabled: false
 				}
 			]

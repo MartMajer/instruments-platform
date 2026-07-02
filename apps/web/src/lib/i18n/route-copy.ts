@@ -427,7 +427,7 @@ const en = {
 		eyebrow: 'Instrument library',
 		title: 'Instruments',
 		description:
-			'Review reusable questionnaire sources that can seed a study. The study itself is built inside Prepare.',
+			'Review reusable questionnaire sources that can seed a study. The study itself is built inside its protocol.',
 		loading: 'Loading instrument library',
 		errorTitle: 'Instrument library unavailable',
 		retry: 'Retry instruments',
@@ -437,7 +437,12 @@ const en = {
 		noInstrumentsBody: 'No tenant-visible instruments are available yet.',
 		nextStep: 'Next step',
 		createOrOpen: 'Create or open a study',
-		studiesBody: 'Select a study to build questionnaires, scoring, audiences, and launch state.'
+		studiesBody: 'Select a study to build questionnaires, scoring, audiences, and launch state.',
+		governedCatalog: {
+			kicker: 'Future tier',
+			title: 'Official catalog — governed',
+			body: 'Officially named, validated instruments require verified rights evidence before they can be published on this platform. That governed tier is not available yet; today studies run on instruments your workspace provides or imports privately.'
+		}
 	},
 	exports: {
 		eyebrow: 'Exports',
@@ -458,6 +463,13 @@ const en = {
 		eyebrow: 'People and groups',
 		title: 'People and groups',
 		description: 'Create respondents, reusable audiences, and manager links for study targeting.',
+		identityExplainer: {
+			kicker: 'How identity is handled',
+			title: 'Identity lives here — and only here',
+			body: 'Names and contact details stay in People. Answers are stored separately, and results only ever show group-level values at or above the study reporting threshold — small groups fold into a wider row instead of appearing on their own.'
+		},
+		kFlagSmall: (memberCount: number, k: number) =>
+			`Group of ${memberCount} — below the default reporting threshold (k = ${k}); it will not appear as its own row in results.`,
 		accessTitle: 'People access requires setup management',
 		accessMessage: 'People and group data is only available to setup managers.',
 		setup: 'People setup',
@@ -2887,7 +2899,7 @@ const hr: typeof en = {
 		eyebrow: 'Knjižnica instrumenata',
 		title: 'Instrumenti',
 		description:
-			'Pregledajte ponovno upotrebljive skupove pitanja koji mogu pokrenuti studiju. Izrada prilagođene studije odvija se u Postavljanju.',
+			'Pregledajte ponovno upotrebljive skupove pitanja koji mogu pokrenuti studiju. Izrada prilagođene studije odvija se u protokolu studije.',
 		loading: 'Učitavanje knjižnice instrumenata',
 		errorTitle: 'Knjižnica instrumenata nije dostupna',
 		retry: 'Pokušaj instrumente ponovno',
@@ -2897,7 +2909,12 @@ const hr: typeof en = {
 		noInstrumentsBody: 'Još nema instrumenata vidljivih ovoj organizaciji.',
 		nextStep: 'Sljedeći korak',
 		createOrOpen: 'Izradite ili otvorite studiju',
-		studiesBody: 'Odaberite studiju za izradu upitnika, bodovanja, publike i stanja pokretanja.'
+		studiesBody: 'Odaberite studiju za izradu upitnika, bodovanja, publike i stanja pokretanja.',
+		governedCatalog: {
+			kicker: 'Buduća razina',
+			title: 'Službeni katalog — pod nadzorom',
+			body: 'Službeno imenovani, validirani instrumenti zahtijevaju potvrđene dokaze o pravima prije objave na platformi. Ta nadzirana razina još nije dostupna; danas studije koriste instrumente koje vaš radni prostor osigurava ili privatno uvozi.'
+		}
 	},
 	exports: {
 		eyebrow: 'Izvozi',
@@ -2918,6 +2935,13 @@ const hr: typeof en = {
 		eyebrow: 'Ljudi i grupe',
 		title: 'Ljudi i grupe',
 		description: 'Izradite sudionike, ponovno upotrebljive publike i managerske veze za ciljanje studija.',
+		identityExplainer: {
+			kicker: 'Kako se postupa s identitetom',
+			title: 'Identitet živi ovdje — i samo ovdje',
+			body: 'Imena i kontakti ostaju u Ljudima. Odgovori se pohranjuju odvojeno, a rezultati prikazuju samo grupne vrijednosti na ili iznad praga izvještavanja studije — male se grupe spajaju u širi redak umjesto zasebnog prikaza.'
+		},
+		kFlagSmall: (memberCount: number, k: number) =>
+			`Grupa od ${memberCount} — ispod zadanog praga izvještavanja (k = ${k}); neće se prikazati kao zaseban redak u rezultatima.`,
 		accessTitle: 'Pristup ljudima zahtijeva upravljanje postavljanjem',
 		accessMessage: 'Podaci o ljudima i grupama dostupni su samo setup managerima.',
 		setup: 'Postavljanje ljudi',

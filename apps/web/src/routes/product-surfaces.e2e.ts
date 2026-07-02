@@ -667,7 +667,8 @@ test('renders grouped product navigation by intent on the home surface', async (
 
 	for (const link of [
 		{ label: /^Briefing/, href: '/app' },
-		{ label: /^Studies\b/, href: '/app/campaign-series' }
+		{ label: /^Studies\b/, href: '/app/campaign-series' },
+		{ label: /^Instruments\b/, href: '/app/instruments' }
 	]) {
 		await expect(studies.getByRole('link', { name: link.label })).toHaveAttribute(
 			'href',
@@ -813,6 +814,10 @@ test('renders instrument library summary and visible instruments', async ({ page
 	const library = page.getByRole('region', { name: 'Instrument library' });
 	await expect(library.locator('.metric-card')).toHaveCount(0);
 	await expect(page.getByText('Instrument library unavailable')).toHaveCount(0);
+
+	const governedCatalog = page.getByRole('article', { name: 'Official catalog — governed' });
+	await expect(governedCatalog).toBeVisible();
+	await expect(governedCatalog).toContainText('verified rights evidence');
 });
 
 test('renders export file library summary and latest artifacts', async ({ page }) => {
@@ -1078,7 +1083,13 @@ test('directory targeting overview explains hierarchy before setup actions', asy
 
 	await expect(overview).toBeVisible();
 	await expect(overview.getByText('Build the audience list first', { exact: true })).toBeVisible();
+	await expect(
+		overview.getByText('Identity lives here — and only here', { exact: true })
+	).toBeVisible();
 	await expect(overview.getByText('How people data is used', { exact: true })).toBeVisible();
+	await expect(
+		subjectGroups.getByText(/below the default reporting threshold \(k = 5\)/)
+	).toBeVisible();
 	const overviewCounts = overview.locator('[aria-label="People and targeting counts"]');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'People' })).toContainText('2');
 	await expect(overviewCounts.locator('div').filter({ hasText: 'Groups' })).toContainText('1');

@@ -298,7 +298,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 		surfaces: {
 			home: 'Briefing',
 			studies: 'Studies',
-			instrumentLibrary: 'Instrument library',
+			instrumentLibrary: 'Instruments',
 			exports: 'Files',
 			directory: 'People',
 			team: 'Team',
@@ -313,7 +313,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 		descriptions: {
 			startHere: 'Start here',
 			planStudies: 'Plan studies',
-			questionSets: 'Question sets',
+			questionSets: 'Instrument versions and rights',
 			files: 'Files',
 			audiencesGroups: 'People and groups',
 			workspaceAccess: 'Workspace access',
@@ -341,7 +341,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 		surfaces: {
 			home: 'Stanje',
 			studies: 'Studije',
-			instrumentLibrary: 'Knjižnica instrumenata',
+			instrumentLibrary: 'Instrumenti',
 			exports: 'Datoteke',
 			directory: 'Ljudi',
 			team: 'Tim',
@@ -356,7 +356,7 @@ const surfaceNavCopies: LocaleDictionary<SurfaceNavCopy> = {
 		descriptions: {
 			startHere: 'Počnite ovdje',
 			planStudies: 'Planiraj studije',
-			questionSets: 'Skupovi pitanja',
+			questionSets: 'Verzije instrumenata i prava',
 			files: 'Datoteke',
 			audiencesGroups: 'Ljudi i grupe',
 			workspaceAccess: 'Pristup radnom prostoru',
