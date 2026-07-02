@@ -180,6 +180,18 @@ const en = {
 		errorTitle: 'Workspace overview unavailable',
 		retry: 'Retry overview',
 		homeAria: 'Workspace home',
+		briefingSummary: (studies: number, live: number, responses: number) =>
+			`${studies} ${studies === 1 ? 'study' : 'studies'} · ${live} live ${live === 1 ? 'measurement' : 'measurements'} · ${responses} ${responses === 1 ? 'response' : 'responses'} collected`,
+		briefingAttention: (count: number) =>
+			count === 0
+				? 'Nothing needs your attention right now.'
+				: `${count} ${count === 1 ? 'item needs' : 'items need'} your attention.`,
+		attentionMeta: 'Derived from study state — not a to-do list you maintain.',
+		inFieldNow: 'In the field now',
+		inFieldMeta: 'Live collection · updates continuously.',
+		openFieldView: 'Open Field view',
+		liveWavesLabel: (count: number) => `${count} live ${count === 1 ? 'wave' : 'waves'}`,
+		fieldResponses: (count: number) => `${count} ${count === 1 ? 'response' : 'responses'}`,
 		heroAria: 'Workspace onboarding',
 		heroKicker: 'Research workspace',
 		heroTitle: 'Build the study, collect responses, review results, and export evidence.',
@@ -2676,6 +2688,24 @@ const hr: typeof en = {
 		errorTitle: 'Pregled radnog prostora nije dostupan',
 		retry: 'Pokušaj pregled ponovno',
 		homeAria: 'Početna radnog prostora',
+		briefingSummary: (studies: number, live: number, responses: number) =>
+			`${studies} ${studies === 1 ? 'studija' : studies < 5 ? 'studije' : 'studija'} · ${live} ${live === 1 ? 'aktivno mjerenje' : live < 5 ? 'aktivna mjerenja' : 'aktivnih mjerenja'} · ${responses} ${responses === 1 ? 'prikupljen odgovor' : responses < 5 ? 'prikupljena odgovora' : 'prikupljenih odgovora'}`,
+		briefingAttention: (count: number) =>
+			count === 0
+				? 'Trenutno ništa ne traži vašu pažnju.'
+				: count === 1
+					? '1 stavka traži vašu pažnju.'
+					: count < 5
+						? `${count} stavke traže vašu pažnju.`
+						: `${count} stavki traži vašu pažnju.`,
+		attentionMeta: 'Izvedeno iz stanja studija — nije popis koji sami održavate.',
+		inFieldNow: 'Trenutno na terenu',
+		inFieldMeta: 'Prikupljanje uživo · stalno se osvježava.',
+		openFieldView: 'Otvori teren',
+		liveWavesLabel: (count: number) =>
+			count === 1 ? '1 aktivno mjerenje' : count < 5 ? `${count} aktivna mjerenja` : `${count} aktivnih mjerenja`,
+		fieldResponses: (count: number) =>
+			count === 1 ? '1 odgovor' : count < 5 ? `${count} odgovora` : `${count} odgovora`,
 		heroAria: 'Uvod u radni prostor',
 		heroKicker: 'Radni prostor za istraživanja',
 		heroTitle: 'Izradite studiju, prikupite odgovore, pregledajte rezultate i pripremite dokaze.',
