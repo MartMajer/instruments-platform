@@ -8784,3 +8784,89 @@ img.app-mobile-topbar__mark {
 	background: var(--color-text-muted);
 	transform: translateX(-1px);
 }
+
+/* UX5 — evidence document (ADR-0018) */
+.evidence-doc__title {
+	font-family: var(--font-serif);
+	font-size: 1.3rem;
+	font-weight: 600;
+	line-height: 1.25;
+	letter-spacing: -0.01em;
+	color: var(--color-text);
+}
+
+.evidence-provenance {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 1.6rem;
+	margin-top: 0.75rem;
+	padding: 0.6rem 0.1rem;
+	border-top: 1px solid var(--color-border);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.evidence-provenance__item {
+	display: flex;
+	align-items: baseline;
+	gap: 0.45rem;
+	min-width: 0;
+}
+
+.evidence-provenance__item dt {
+	font-size: 0.66rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: var(--color-text-subtle);
+	white-space: nowrap;
+}
+
+.evidence-provenance__item dd {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: 0.74rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.evidence-findings {
+	margin-top: 0.85rem;
+}
+
+.evidence-findings__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.evidence-findings__title {
+	font-family: var(--font-serif);
+	font-size: 1rem;
+	font-weight: 600;
+	color: var(--color-text);
+}
+
+.evidence-findings__list {
+	margin-top: 0.5rem;
+	display: grid;
+	gap: 0.45rem;
+	padding-left: 1.4rem;
+	list-style: decimal;
+}
+
+.evidence-findings__list li {
+	font-size: 0.9rem;
+	line-height: 1.55;
+	color: var(--color-text);
+	padding-left: 0.25rem;
+}
+
+.evidence-findings__list li::marker {
+	font-family: var(--font-serif);
+	font-weight: 600;
+	color: var(--color-accent);
+}

@@ -2565,3 +2565,202 @@ function toHandoffNextAction(
 
 	return 'Review the share-ready export.';
 }
+
+export type SelectedSeriesEvidenceProvenanceItem = {
+	id: 'instrument' | 'scoring' | 'methodHash' | 'disclosure' | 'identity' | 'fielded' | 'finality';
+	label: string;
+	value: string;
+};
+
+export type SelectedSeriesEvidenceFinding = {
+	id: string;
+	text: string;
+};
+
+export type SelectedSeriesEvidenceDocument = {
+	title: string;
+	provenance: SelectedSeriesEvidenceProvenanceItem[];
+	findings: SelectedSeriesEvidenceFinding[];
+	reportableDimensionCount: number;
+	suppressedDimensionCount: number;
+};
+
+export type SelectedSeriesEvidenceCopy = {
+	kicker: string;
+	provenanceAria: string;
+	findingsTitle: string;
+	findingsAria: string;
+	provenanceLabels: {
+		instrument: string;
+		scoring: string;
+		methodHash: string;
+		disclosure: string;
+		identity: string;
+		fielded: string;
+		finality: string;
+	};
+	disclosureValue: (version: string, kMin: number, strategy: string) => string;
+	identityValue: (mode: string) => string;
+	findings: {
+		coverage: (visibleCount: number, totalCount: number, kMin: number) => string;
+		noneReportable: (kMin: number) => string;
+		noScores: string;
+		dimensionMean: (
+			dimensionCode: string,
+			mean: string,
+			scoreCount: number | string,
+			range: string | null
+		) => string;
+		suppressed: (count: number, kMin: number) => string;
+	};
+};
+
+export const defaultSelectedSeriesEvidenceCopy: SelectedSeriesEvidenceCopy = {
+	kicker: 'Evidence · Internal preview',
+	provenanceAria: 'Evidence provenance',
+	findingsTitle: 'What the data says',
+	findingsAria: 'Compiled findings',
+	provenanceLabels: {
+		instrument: 'Instrument version',
+		scoring: 'Scoring method',
+		methodHash: 'Method hash',
+		disclosure: 'Disclosure policy',
+		identity: 'Responses',
+		fielded: 'Fielded',
+		finality: 'Data finality'
+	},
+	disclosureValue: (version, kMin, strategy) => `v${version} · k ≥ ${kMin} · ${strategy}`,
+	identityValue: (mode) => mode,
+	findings: {
+		coverage: (visibleCount, totalCount, kMin) =>
+			`${visibleCount} of ${totalCount} score dimensions ${visibleCount === 1 ? 'is' : 'are'} reportable at the disclosure threshold of at least ${kMin} responses per group.`,
+		noneReportable: (kMin) =>
+			`No score dimension meets the disclosure threshold of at least ${kMin} responses per group; aggregate values stay withheld.`,
+		noScores: 'No scores are available for this wave yet.',
+		dimensionMean: (dimensionCode, mean, scoreCount, range) =>
+			`${dimensionCode}: mean ${mean} across ${scoreCount} scored responses${range ? ` (range ${range})` : ''}.`,
+		suppressed: (count, kMin) =>
+			`Withheld dimensions: ${count} — each group has fewer than ${kMin} responses. The platform enforces this suppression; it cannot be overridden.`
+	}
+};
+
+function humanizeEvidenceToken(value: string | null | undefined): string {
+	return (value ?? '').replaceAll('_', ' ').trim();
+}
+
+function shortEvidenceId(value: string | null | undefined, length = 8): string | null {
+	const trimmed = (value ?? '').trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	return trimmed.length > length ? `${trimmed.slice(0, length)}…` : trimmed;
+}
+
+function evidenceDateValue(value: string | null | undefined): string | null {
+	const trimmed = (value ?? '').trim();
+	if (trimmed.length < 10) {
+		return null;
+	}
+
+	return trimmed.slice(0, 10);
+}
+
+export function toSelectedSeriesEvidenceDocument(
+	reportProof: CampaignReportProofResponse,
+	copy: SelectedSeriesEvidenceCopy = defaultSelectedSeriesEvidenceCopy
+): SelectedSeriesEvidenceDocument {
+	const snapshot = reportProof.launchSnapshot;
+	const policy = reportProof.disclosurePolicy;
+	const visibleScores = reportProof.scores.filter((score) => score.disclosure === 'visible');
+	const suppressedDimensionCount = reportProof.scores.length - visibleScores.length;
+
+	const provenance: SelectedSeriesEvidenceProvenanceItem[] = [];
+	const instrumentVersion = shortEvidenceId(snapshot.templateVersionId);
+	if (instrumentVersion) {
+		provenance.push({
+			id: 'instrument',
+			label: copy.provenanceLabels.instrument,
+			value: instrumentVersion
+		});
+	}
+
+	const scoringMethod = shortEvidenceId(snapshot.scoringRuleId);
+	if (scoringMethod) {
+		provenance.push({ id: 'scoring', label: copy.provenanceLabels.scoring, value: scoringMethod });
+	}
+
+	const methodHash = shortEvidenceId(snapshot.scoringRuleDocumentHash, 12);
+	if (methodHash) {
+		provenance.push({ id: 'methodHash', label: copy.provenanceLabels.methodHash, value: methodHash });
+	}
+
+	provenance.push({
+		id: 'disclosure',
+		label: copy.provenanceLabels.disclosure,
+		value: copy.disclosureValue(
+			policy.version,
+			policy.kMin,
+			humanizeEvidenceToken(policy.suppressionStrategy)
+		)
+	});
+	provenance.push({
+		id: 'identity',
+		label: copy.provenanceLabels.identity,
+		value: copy.identityValue(humanizeEvidenceToken(snapshot.responseIdentityMode))
+	});
+
+	const fielded = evidenceDateValue(snapshot.launchedAt);
+	if (fielded) {
+		provenance.push({ id: 'fielded', label: copy.provenanceLabels.fielded, value: fielded });
+	}
+
+	const finality = reportProof.dataFinality
+		? humanizeEvidenceToken(reportProof.dataFinality)
+		: evidenceDateValue(reportProof.closedAt);
+	if (finality) {
+		provenance.push({ id: 'finality', label: copy.provenanceLabels.finality, value: finality });
+	}
+
+	const findings: SelectedSeriesEvidenceFinding[] = [];
+	if (reportProof.scores.length === 0) {
+		findings.push({ id: 'no-scores', text: copy.findings.noScores });
+	} else if (visibleScores.length === 0) {
+		findings.push({ id: 'none-reportable', text: copy.findings.noneReportable(policy.kMin) });
+	} else {
+		findings.push({
+			id: 'coverage',
+			text: copy.findings.coverage(visibleScores.length, reportProof.scores.length, policy.kMin)
+		});
+		for (const score of visibleScores) {
+			const range =
+				score.min !== null && score.max !== null && score.min !== score.max
+					? `${score.min}–${score.max}`
+					: null;
+			findings.push({
+				id: `dimension-${score.dimensionCode}`,
+				text: copy.findings.dimensionMean(
+					score.dimensionCode,
+					score.mean === null ? '—' : score.mean.toFixed(2),
+					score.scoreCount ?? '—',
+					range
+				)
+			});
+		}
+	}
+
+	if (suppressedDimensionCount > 0) {
+		findings.push({
+			id: 'suppressed',
+			text: copy.findings.suppressed(suppressedDimensionCount, policy.kMin)
+		});
+	}
+
+	return {
+		title: reportProof.campaignName,
+		provenance,
+		findings,
+		reportableDimensionCount: visibleScores.length,
+		suppressedDimensionCount
+	};
+}

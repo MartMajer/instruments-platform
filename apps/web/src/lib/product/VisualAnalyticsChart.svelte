@@ -60,6 +60,13 @@
 		}
 	}
 
+	// Validated Spectra chart palette (ADR-0018): series-1 indigo, series-2 teal (CVD-checked pair).
+	// Status colors are never used as series colors; gray is reserved for reference annotations.
+	const chartSeriesColors = ['#08569a', '#008065'];
+	const chartInk = '#14181c';
+	const chartMutedInk = '#636a6f';
+	const chartHairline = '#dce2e8';
+
 	function toChartOption(chartView: VisualAnalyticsChartView): EChartsOption {
 		const secondaryValues = chartView.points.map((point) => point.secondaryValue);
 		const hasSecondarySeries = secondaryValues.some((value) => value !== null);
@@ -69,7 +76,7 @@
 				name: chartView.primarySeriesLabel,
 				data: chartView.points.map((point) => point.primaryValue),
 				barMaxWidth: 32,
-				itemStyle: { color: '#2563eb' }
+				itemStyle: { color: chartSeriesColors[0], borderRadius: [2, 2, 0, 0] }
 			}
 		];
 
@@ -79,24 +86,35 @@
 				name: chartView.secondarySeriesLabel,
 				data: secondaryValues.map((value) => value ?? null),
 				barMaxWidth: 32,
-				itemStyle: { color: '#0f766e' }
+				itemStyle: { color: chartSeriesColors[1], borderRadius: [2, 2, 0, 0] }
 			});
 		}
 
 		return {
 			animation: false,
+			textStyle: { color: chartMutedInk },
 			grid: { left: 48, right: 16, top: 32, bottom: 48 },
-			legend: { show: hasSecondarySeries, bottom: 0 },
-			tooltip: { trigger: 'axis' },
+			legend: { show: hasSecondarySeries, bottom: 0, textStyle: { color: chartMutedInk } },
+			tooltip: {
+				trigger: 'axis',
+				backgroundColor: '#ffffff',
+				borderColor: chartHairline,
+				textStyle: { color: chartInk, fontSize: 12 }
+			},
 			xAxis: {
 				type: 'category',
 				data: chartView.points.map((point) => point.label),
-				axisLabel: { interval: 0 }
+				axisLabel: { interval: 0, color: chartMutedInk },
+				axisLine: { lineStyle: { color: chartHairline } },
+				axisTick: { show: false }
 			},
 			yAxis: {
 				type: 'value',
 				name: chartView.yAxisLabel,
-				nameGap: 28
+				nameGap: 28,
+				nameTextStyle: { color: chartMutedInk },
+				axisLabel: { color: chartMutedInk },
+				splitLine: { lineStyle: { color: chartHairline } }
 			},
 			series
 		};

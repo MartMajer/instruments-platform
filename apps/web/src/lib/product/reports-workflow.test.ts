@@ -2,12 +2,14 @@
 import type { CampaignSeriesReportsWorkspaceResponse } from '$lib/api/product';
 import type { CampaignReportProofResponse, ReportProofExportArtifactResponse } from '$lib/api/setup';
 import {
+	toSelectedSeriesEvidenceDocument,
 	toSelectedSeriesExportPreview,
 	toSelectedSeriesScoreMethodReview,
 	toSelectedSeriesResultsPacketReview,
 	toSelectedSeriesResultsHandoffStatus,
 	toSelectedSeriesReportsPath,
 	toSelectedSeriesReportsWorkflowActions,
+	type SelectedSeriesEvidenceCopy,
 	type SelectedSeriesReportsWorkflowCopy
 } from './reports-workflow';
 import { routePageCopy } from '../i18n/route-copy';
@@ -1418,3 +1420,96 @@ const reportSummaryExportArtifact: ReportProofExportArtifactResponse = {
 };
 
 
+
+describe('selected-series evidence document', () => {
+	it('compiles provenance and findings from the report proof', () => {
+		const doc = toSelectedSeriesEvidenceDocument(reportProof);
+
+		expect(doc.title).toBe('Wave 1');
+		expect(doc.reportableDimensionCount).toBe(2);
+		expect(doc.suppressedDimensionCount).toBe(0);
+		expect(doc.provenance).toEqual([
+			{ id: 'instrument', label: 'Instrument version', value: 'template…' },
+			{ id: 'scoring', label: 'Scoring method', value: 'scoring-…' },
+			{ id: 'methodHash', label: 'Method hash', value: 'hash' },
+			{
+				id: 'disclosure',
+				label: 'Disclosure policy',
+				value: 'v1.0.0 · k ≥ 5 · suppress small groups'
+			},
+			{ id: 'identity', label: 'Responses', value: 'anonymous' },
+			{ id: 'fielded', label: 'Fielded', value: '2026-05-05' }
+		]);
+		expect(doc.findings.map((finding) => finding.text)).toEqual([
+			'2 of 2 score dimensions are reportable at the disclosure threshold of at least 5 responses per group.',
+			'posture_strain: mean 6.70 across 10 scored responses (range 4–9).',
+			'recovery_control: mean 3.20 across 12 scored responses (range 1–5).'
+		]);
+	});
+
+	it('reports withheld dimensions and data finality when scores are suppressed', () => {
+		const doc = toSelectedSeriesEvidenceDocument({
+			...reportProof,
+			dataFinality: 'closed_final',
+			scores: [
+				...reportProof.scores,
+				{
+					dimensionCode: 'exhaustion',
+					disclosure: 'suppressed',
+					submittedResponseCount: 4,
+					scoreCount: null,
+					mean: null,
+					min: null,
+					max: null,
+					suppressionReason: 'cohort_lt_k_min'
+				}
+			]
+		});
+
+		expect(doc.reportableDimensionCount).toBe(2);
+		expect(doc.suppressedDimensionCount).toBe(1);
+		expect(doc.provenance).toContainEqual({
+			id: 'finality',
+			label: 'Data finality',
+			value: 'closed final'
+		});
+		expect(doc.findings[0].text).toBe(
+			'2 of 3 score dimensions are reportable at the disclosure threshold of at least 5 responses per group.'
+		);
+		expect(doc.findings.at(-1)?.text).toBe(
+			'Withheld dimensions: 1 — each group has fewer than 5 responses. The platform enforces this suppression; it cannot be overridden.'
+		);
+	});
+
+	it('states when nothing is reportable', () => {
+		const doc = toSelectedSeriesEvidenceDocument({
+			...reportProof,
+			scores: reportProof.scores.map((score) => ({
+				...score,
+				disclosure: 'suppressed',
+				scoreCount: null,
+				mean: null,
+				min: null,
+				max: null,
+				suppressionReason: 'cohort_lt_k_min'
+			}))
+		});
+
+		expect(doc.reportableDimensionCount).toBe(0);
+		expect(doc.findings.map((finding) => finding.id)).toEqual(['none-reportable', 'suppressed']);
+		expect(doc.findings[0].text).toBe(
+			'No score dimension meets the disclosure threshold of at least 5 responses per group; aggregate values stay withheld.'
+		);
+	});
+
+	it('localizes the evidence document for Croatian route copy', () => {
+		const copy: SelectedSeriesEvidenceCopy =
+			routePageCopy('hr-HR').selectedStudy.reportsWorkflow.component.evidence;
+		const doc = toSelectedSeriesEvidenceDocument(reportProof, copy);
+
+		expect(doc.provenance.find((item) => item.id === 'identity')?.value).toBe('anonimni');
+		expect(doc.findings[0].text).toBe(
+			'2 od 2 dimenzija rezultata mogu se prikazati uz prag objave od najmanje 5 odgovora po grupi.'
+		);
+	});
+});

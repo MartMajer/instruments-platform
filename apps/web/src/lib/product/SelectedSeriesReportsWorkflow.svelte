@@ -17,6 +17,7 @@
 	import { routePageCopy } from '$lib/i18n/route-copy';
 	import ReportWidgetsSection from '$lib/product/widgets/ReportWidgetsSection.svelte';
 	import {
+		toSelectedSeriesEvidenceDocument,
 		toSelectedSeriesExportPreview,
 		toSelectedSeriesScoreMethodReview,
 		toSelectedSeriesResultsPacketReview,
@@ -464,6 +465,28 @@
 		return (content ?? '').trim().split(/\r?\n/).slice(0, 6).join('\n');
 	}
 
+	let citationCopied = $state(false);
+	let citationCopyTimer: ReturnType<typeof setTimeout> | null = null;
+
+	async function copyEvidenceCitation(doc: {
+		title: string;
+		provenance: { label: string; value: string }[];
+	}) {
+		const citation = `${doc.title} — ${doc.provenance
+			.map((item) => `${item.label}: ${item.value}`)
+			.join('; ')}`;
+		try {
+			await navigator.clipboard.writeText(citation);
+			citationCopied = true;
+			if (citationCopyTimer) {
+				clearTimeout(citationCopyTimer);
+			}
+			citationCopyTimer = setTimeout(() => (citationCopied = false), 2000);
+		} catch {
+			citationCopied = false;
+		}
+	}
+
 	function triggerCsvDownload(result: ExportArtifactDownloadResponse) {
 		if (typeof document === 'undefined') {
 			return;
@@ -784,19 +807,43 @@
 
 {#snippet ReportProofResult()}
 	{#if reportProofResult}
-		<section class="score-result-panel report-proof-panel" aria-label={reportsUi.reportPreviewAria}>
+		{@const evidenceDoc = toSelectedSeriesEvidenceDocument(reportProofResult, reportsUi.evidence)}
+		<section
+			class="score-result-panel report-proof-panel evidence-doc"
+			aria-label={reportsUi.reportPreviewAria}
+		>
 			<div class="score-result-panel__header">
 				<div>
-					<p class="product-kicker">{reportsUi.resultsPreview}</p>
-					<h4 class="record-row__title">{reportsUi.aggregateResultPreview}</h4>
+					<p class="product-kicker">{reportsUi.evidence.kicker}</p>
+					<h4 class="evidence-doc__title">{evidenceDoc.title}</h4>
 				</div>
 				<StatusBadge status="ready" label={reportsUi.internalPreview} />
 			</div>
-			<div class="response-lab__meta">
-				<span>{reportsUi.internalPreview}</span>
-				<span>{humanize(reportProofResult.launchSnapshot.responseIdentityMode)} {reportsUi.responsesSuffix}</span>
-				<span>{reportsUi.minimumGroup(reportProofResult.disclosurePolicy.kMin)}</span>
-			</div>
+			<dl class="evidence-provenance" aria-label={reportsUi.evidence.provenanceAria}>
+				{#each evidenceDoc.provenance as item (item.id)}
+					<div class="evidence-provenance__item">
+						<dt>{item.label}</dt>
+						<dd>{item.value}</dd>
+					</div>
+				{/each}
+			</dl>
+			<section class="evidence-findings" aria-label={reportsUi.evidence.findingsAria}>
+				<div class="evidence-findings__header">
+					<h5 class="evidence-findings__title">{reportsUi.evidence.findingsTitle}</h5>
+					<button
+						type="button"
+						class="secondary-button"
+						onclick={() => copyEvidenceCitation(evidenceDoc)}
+					>
+						{citationCopied ? reportsUi.evidence.citationCopied : reportsUi.evidence.copyCitation}
+					</button>
+				</div>
+				<ol class="evidence-findings__list">
+					{#each evidenceDoc.findings as finding (finding.id)}
+						<li>{finding.text}</li>
+					{/each}
+				</ol>
+			</section>
 			<div class="score-card-list" aria-label={reportsUi.reportPreviewScoresAria}>
 				{#each reportProofResult.scores as score (score.dimensionCode)}
 					{@const scoreMetadata =

@@ -1823,6 +1823,42 @@ const en = {
 				resultsPreview: 'Results preview',
 				aggregateResultPreview: 'Aggregate result preview',
 				internalPreview: 'Internal preview',
+				evidence: {
+					kicker: 'Evidence · Internal preview',
+					provenanceAria: 'Evidence provenance',
+					findingsTitle: 'What the data says',
+					findingsAria: 'Compiled findings',
+					copyCitation: 'Copy citation',
+					citationCopied: 'Citation copied',
+					provenanceLabels: {
+						instrument: 'Instrument version',
+						scoring: 'Scoring method',
+						methodHash: 'Method hash',
+						disclosure: 'Disclosure policy',
+						identity: 'Responses',
+						fielded: 'Fielded',
+						finality: 'Data finality'
+					},
+					disclosureValue: (version: string, kMin: number, strategy: string) =>
+						`v${version} · k ≥ ${kMin} · ${strategy}`,
+					identityValue: (mode: string) => mode,
+					findings: {
+						coverage: (visibleCount: number, totalCount: number, kMin: number) =>
+							`${visibleCount} of ${totalCount} score dimensions ${visibleCount === 1 ? 'is' : 'are'} reportable at the disclosure threshold of at least ${kMin} responses per group.`,
+						noneReportable: (kMin: number) =>
+							`No score dimension meets the disclosure threshold of at least ${kMin} responses per group; aggregate values stay withheld.`,
+						noScores: 'No scores are available for this wave yet.',
+						dimensionMean: (
+							dimensionCode: string,
+							mean: string,
+							scoreCount: number | string,
+							range: string | null
+						) =>
+							`${dimensionCode}: mean ${mean} across ${scoreCount} scored responses${range ? ` (range ${range})` : ''}.`,
+						suppressed: (count: number, kMin: number) =>
+							`Withheld dimensions: ${count} — each group has fewer than ${kMin} responses. The platform enforces this suppression; it cannot be overridden.`
+					}
+				},
 				responsesSuffix: 'responses',
 				minimumGroup: (kMin: number) => `Minimum group ${kMin}`,
 				reportPreviewScoresAria: 'Report preview scores',
@@ -4251,6 +4287,43 @@ const hr: typeof en = {
 				resultsPreview: 'Pregled rezultata',
 				aggregateResultPreview: 'Pregled agregiranih rezultata',
 				internalPreview: 'Interni pregled',
+				evidence: {
+					kicker: 'Nalazi · Interni pregled',
+					provenanceAria: 'Podrijetlo nalaza',
+					findingsTitle: 'Što podaci pokazuju',
+					findingsAria: 'Sastavljeni nalazi',
+					copyCitation: 'Kopiraj citat',
+					citationCopied: 'Citat kopiran',
+					provenanceLabels: {
+						instrument: 'Verzija instrumenta',
+						scoring: 'Metoda bodovanja',
+						methodHash: 'Sažetak metode',
+						disclosure: 'Pravila objave',
+						identity: 'Odgovori',
+						fielded: 'Na terenu od',
+						finality: 'Konačnost podataka'
+					},
+					disclosureValue: (version: string, kMin: number, strategy: string) =>
+						`v${version} · k ≥ ${kMin} · ${strategy}`,
+					identityValue: (mode: string) =>
+						mode === 'anonymous' ? 'anonimni' : mode === 'identified' ? 'identificirani' : mode,
+					findings: {
+						coverage: (visibleCount: number, totalCount: number, kMin: number) =>
+							`${visibleCount} od ${totalCount} dimenzija rezultata ${visibleCount === 1 ? 'može' : 'mogu'} se prikazati uz prag objave od najmanje ${kMin} odgovora po grupi.`,
+						noneReportable: (kMin: number) =>
+							`Nijedna dimenzija ne doseže prag objave od najmanje ${kMin} odgovora po grupi; agregirane vrijednosti ostaju skrivene.`,
+						noScores: 'Za ovo mjerenje još nema rezultata.',
+						dimensionMean: (
+							dimensionCode: string,
+							mean: string,
+							scoreCount: number | string,
+							range: string | null
+						) =>
+							`${dimensionCode}: prosjek ${mean} na ${scoreCount} bodovanih odgovora${range ? ` (raspon ${range})` : ''}.`,
+						suppressed: (count: number, kMin: number) =>
+							`Skrivene dimenzije: ${count} — svaka grupa ima manje od ${kMin} odgovora. Platforma provodi ovo skrivanje i ne može se zaobići.`
+					}
+				},
 				responsesSuffix: 'odgovori',
 				minimumGroup: (kMin: number) => `Najmanja grupa ${kMin}`,
 				reportPreviewScoresAria: 'Rezultati u pregledu izvještaja',
