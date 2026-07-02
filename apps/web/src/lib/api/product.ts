@@ -736,6 +736,22 @@ export type CampaignSeriesOperationsWorkspaceResponse = {
 	missingPrerequisites: CampaignSeriesOperationsMissingPrerequisiteResponse[];
 	campaigns: CampaignSeriesOperationsCampaignResponse[];
 	scoreCoverage?: CampaignSeriesScoreCoverageResponse | null;
+	groupCoverage?: CampaignSeriesOperationsGroupCoverageSummaryResponse | null;
+};
+
+export type CampaignSeriesOperationsGroupCoverageSummaryResponse = {
+	kMin: number;
+	unattributedInvitedCount: number;
+	unattributedSubmittedCount: number;
+	groups: CampaignSeriesOperationsGroupCoverageResponse[];
+};
+
+export type CampaignSeriesOperationsGroupCoverageResponse = {
+	groupId: string;
+	groupName: string;
+	invitedCount: number;
+	submittedCount: number;
+	meetsThreshold: boolean;
 };
 
 export type CampaignSeriesOperationsSeriesResponse = CampaignSeriesOwnershipMetadata & {

@@ -1154,6 +1154,20 @@ const en = {
 			}
 		},
 		operationsBody: {
+			coverage: {
+				ariaLabel: 'Evidence coverage',
+				kicker: 'Evidence coverage',
+				title: (kMin: number) => `What will be reportable at k = ${kMin}`,
+				body: 'Groups below the reporting threshold when collection closes fold into aggregate rows instead of appearing on their own. Counts only - never identities or answers.',
+				groupColumn: 'Group',
+				progressColumn: 'Submitted / invited',
+				statusColumn: 'Status',
+				reportable: 'Reportable',
+				needsMore: (count: number) => `${count} more needed`,
+				unattributed: (invited: number, submitted: number) =>
+					`${submitted} of ${invited} responses are not linked to any group and count only in totals.`,
+				empty: 'No group-linked invitations in the selected measurement yet.'
+			},
 			progressAriaLabel: 'Study collection flow',
 			progressKicker: 'Study collection',
 			progressTitle: 'Collection flow',
@@ -3564,6 +3578,20 @@ const hr: typeof en = {
 			}
 		},
 		operationsBody: {
+			coverage: {
+				ariaLabel: 'Pokrivenost nalaza',
+				kicker: 'Pokrivenost nalaza',
+				title: (kMin: number) => `Što će biti izvještivo uz k = ${kMin}`,
+				body: 'Grupe ispod praga izvještavanja pri zatvaranju prikupljanja ulaze u skupne retke umjesto da se prikazuju zasebno. Samo brojevi - nikad identiteti ni odgovori.',
+				groupColumn: 'Grupa',
+				progressColumn: 'Predano / pozvano',
+				statusColumn: 'Status',
+				reportable: 'Izvještivo',
+				needsMore: (count: number) => `potrebno još ${count}`,
+				unattributed: (invited: number, submitted: number) =>
+					`${submitted} od ${invited} odgovora nije povezano ni s jednom grupom i broji se samo u ukupnim brojkama.`,
+				empty: 'U odabranom mjerenju još nema pozivnica povezanih s grupama.'
+			},
 			progressAriaLabel: 'Tijek prikupljanja studije',
 			progressKicker: 'Prikupljanje studije',
 			progressTitle: 'Tijek prikupljanja',

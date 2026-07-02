@@ -2442,6 +2442,68 @@
 	{/if}
 </section>
 
+{#if workspace.groupCoverage}
+	{@const coverage = workspace.groupCoverage}
+	<section class="product-panel coverage-board" role="group" aria-label={operationsBodyCopy.coverage.ariaLabel}>
+		<div class="product-panel__header">
+			<div>
+				<p class="product-kicker">{operationsBodyCopy.coverage.kicker}</p>
+				<h3 class="product-title">{operationsBodyCopy.coverage.title(coverage.kMin)}</h3>
+				<p class="mt-1 text-sm leading-6 text-[var(--color-text-muted)]">
+					{operationsBodyCopy.coverage.body}
+				</p>
+			</div>
+		</div>
+
+		{#if coverage.groups.length === 0}
+			<p class="text-sm text-[var(--color-text-muted)]">{operationsBodyCopy.coverage.empty}</p>
+		{:else}
+			<div class="coverage-board__rows">
+				<div class="coverage-board__row coverage-board__row--head" aria-hidden="true">
+					<span>{operationsBodyCopy.coverage.groupColumn}</span>
+					<span class="coverage-board__count">{operationsBodyCopy.coverage.progressColumn}</span>
+					<span></span>
+					<span>{operationsBodyCopy.coverage.statusColumn}</span>
+				</div>
+				{#each coverage.groups as group (group.groupId)}
+					<div class="coverage-board__row">
+						<span class="coverage-board__name">{group.groupName}</span>
+						<span class="coverage-board__count">{group.submittedCount} / {group.invitedCount}</span>
+						<span class="coverage-board__meter" role="presentation">
+							<span
+								class="coverage-board__fill"
+								class:coverage-board__fill--met={group.meetsThreshold}
+								style={`width: ${Math.min(100, Math.round((group.submittedCount / Math.max(coverage.kMin, 1)) * 100))}%`}
+							></span>
+							{#if !group.meetsThreshold}
+								<span class="coverage-board__kmark" style="left: 100%"></span>
+							{/if}
+						</span>
+						<span>
+							{#if group.meetsThreshold}
+								<StatusBadge status="ready" label={operationsBodyCopy.coverage.reportable} />
+							{:else}
+								<StatusBadge
+									status="pending"
+									label={operationsBodyCopy.coverage.needsMore(Math.max(0, coverage.kMin - group.submittedCount))}
+								/>
+							{/if}
+						</span>
+					</div>
+				{/each}
+			</div>
+			{#if coverage.unattributedInvitedCount > 0}
+				<p class="mt-3 text-xs leading-5 text-[var(--color-text-subtle)]">
+					{operationsBodyCopy.coverage.unattributed(
+						coverage.unattributedInvitedCount,
+						coverage.unattributedSubmittedCount
+					)}
+				</p>
+			{/if}
+		{/if}
+	</section>
+{/if}
+
 {#snippet ActionFooter({
 	id,
 	label,
