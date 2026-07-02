@@ -1,15 +1,27 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const sampleSeriesId = '985c65ad-f919-4c87-a40d-7445868dc587';
+// The all-in-one proof workflow moved off the product study surfaces onto the
+// internal /proof-lab route; these tests pin that placement.
+const proofLabPath = '/proof-lab';
 
 test.beforeEach(async ({ page }) => {
 	await routeAuthenticatedSession(page);
 });
 
-test('places setup workflow actions on the setup surface', async ({ page }) => {
-	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
+test('keeps the proof workflow behind the internal proof lab boundary', async ({ page }) => {
+	await page.goto(proofLabPath);
 
-	await expect(page.getByRole('region', { name: 'Setup workspace' })).toBeVisible();
+	const boundary = page.getByRole('region', { name: 'Internal proof lab boundary' });
+	await expect(boundary).toBeVisible();
+	await expect(boundary).toContainText('Internal proof lab');
+	await expect(boundary).toContainText(
+		'This route keeps the all-in-one proof workflow out of the product entry path.'
+	);
+});
+
+test('places setup workflow actions on the proof lab', async ({ page }) => {
+	await page.goto(proofLabPath);
+
 	await expect(page.getByRole('button', { name: 'Create instrument import' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save questionnaire' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save result outputs' })).toBeVisible();
@@ -17,28 +29,20 @@ test('places setup workflow actions on the setup surface', async ({ page }) => {
 	await expect(page.getByRole('button', { name: 'Check launch readiness' })).toBeVisible();
 });
 
-test('places launch and delivery actions on the operations surface', async ({ page }) => {
-	await page.goto(`/app/campaign-series/${sampleSeriesId}/operations`);
+test('places launch and delivery actions on the proof lab', async ({ page }) => {
+	await page.goto(proofLabPath);
 
-	await expect(page.getByRole('region', { name: 'Campaign operations' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Launch wave' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create open link' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Queue email invitations' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Process local delivery' })).toBeVisible();
 });
 
-test('places the report proof entry point on the reports surface', async ({ page }) => {
-	await page.goto(`/app/campaign-series/${sampleSeriesId}/reports`);
+test('places report and two-wave proof actions on the proof lab', async ({ page }) => {
+	await page.goto(proofLabPath);
 
-	await expect(page.getByRole('region', { name: 'Reports and governed exports' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Load response lab' })).toBeVisible();
-	await expect(page.getByRole('region', { name: 'Response lab' })).toBeVisible();
-});
-
-test('places two-wave proof actions on the waves surface', async ({ page }) => {
-	await page.goto(`/app/campaign-series/${sampleSeriesId}/waves`);
-
-	await expect(page.getByRole('region', { name: 'Waves and linked trajectories' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Two-wave proof' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Create two-wave proof' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Refresh two-wave proof' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'View wave comparison proof' })).toBeVisible();

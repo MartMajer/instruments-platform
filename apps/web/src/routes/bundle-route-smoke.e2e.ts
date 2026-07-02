@@ -54,8 +54,8 @@ test.describe('BUILD-004 route-smoke dependency requests', () => {
 			page,
 			`/app/campaign-series/${sampleSeriesId}/setup`,
 			async () => {
-				await expect(page.getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
-				await expect(page.getByRole('region', { name: 'Setup workspace' })).toBeVisible();
+				await expect(page.getByRole('heading', { name: 'Study protocol', exact: true })).toBeVisible();
+				await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
 			}
 		);
 
@@ -73,8 +73,8 @@ test.describe('BUILD-004 route-smoke dependency requests', () => {
 			page,
 			`/app/campaign-series/${sampleSeriesId}/operations`,
 			async () => {
-				await expect(page.getByRole('heading', { name: 'Operations', exact: true })).toBeVisible();
-				await expect(page.getByRole('region', { name: 'Campaign operations' })).toBeVisible();
+				await expect(page.getByRole('heading', { name: 'Field', exact: true })).toBeVisible();
+				await expect(page.getByRole('region', { name: 'Field workspace' })).toBeVisible();
 			}
 		);
 
@@ -87,7 +87,7 @@ test.describe('BUILD-004 route-smoke dependency requests', () => {
 		expectNoTextLeaks(operationsRequests);
 	});
 
-	test('requests ECharts only when report visual analytics mounts', async ({ page }) => {
+	test('does not request chart chunks on the reports surface (SVG dashboards)', async ({ page }) => {
 		const dependencyAssets = await readDependencyAssets();
 		await routeAuthenticatedSession(page);
 		await routeProductReadModels(page);
@@ -97,15 +97,12 @@ test.describe('BUILD-004 route-smoke dependency requests', () => {
 			page,
 			`/app/campaign-series/${sampleSeriesId}/reports`,
 			async () => {
-				await expect(page.getByRole('group', { name: 'Report visual analytics' })).toBeVisible();
-				await expect(page.getByTestId('report-visual-analytics-chart')).toHaveAttribute(
-					'data-chart-state',
-					'ready'
-				);
+				await expect(page.getByRole('heading', { name: 'Evidence', exact: true })).toBeVisible();
+				await expect(page.getByRole('region', { name: 'Evidence workspace' })).toBeVisible();
 			}
 		);
 
-		expectSomeDependencyRequests(reportRequests, dependencyAssets.echarts, 'ECharts');
+		expectNoDependencyRequests(reportRequests, dependencyAssets.echarts, 'ECharts');
 		expectNoDependencyRequests(reportRequests, dependencyAssets.surveyCreator, 'Survey Creator');
 	});
 

@@ -36,15 +36,15 @@ test('shows email verification status without blocking an authenticated tenant s
 
 	await page.goto('/app');
 
-	const verificationStatus = page.getByRole('status', { name: 'Email verification required' });
+	const verificationStatus = page.getByRole('status', { name: 'Email verification is required' });
 	await expect(verificationStatus).toBeVisible();
 	await expect(verificationStatus.getByRole('heading', { name: 'Verify your email' })).toBeVisible();
 	await expect(verificationStatus).toContainText(
 		'Open the verification email from your sign-in provider to keep access after signing out.'
 	);
-	await expect(page.getByRole('region', { name: 'Signed-in workspace account' })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
-	await expect(page.getByRole('region', { name: 'Self-serve study cockpit' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Signed-in workspace account' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Briefing' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Workspace home' })).toBeVisible();
 });
 
 test('does not show email verification status for a fully verified authenticated tenant session', async ({
@@ -52,9 +52,9 @@ test('does not show email verification status for a fully verified authenticated
 }) => {
 	await page.goto('/app');
 
-	await expect(page.getByRole('status', { name: 'Email verification required' })).toHaveCount(0);
-	await expect(page.getByRole('region', { name: 'Signed-in workspace account' })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+	await expect(page.getByRole('status', { name: 'Email verification is required' })).toHaveCount(0);
+	await expect(page.getByRole('group', { name: 'Signed-in workspace account' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Briefing' })).toBeVisible();
 });
 
 test('does not show email verification status when verification is explicitly not required', async ({
@@ -68,9 +68,9 @@ test('does not show email verification status when verification is explicitly no
 
 	await page.goto('/app');
 
-	await expect(page.getByRole('status', { name: 'Email verification required' })).toHaveCount(0);
-	await expect(page.getByRole('region', { name: 'Signed-in workspace account' })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Home' })).toBeVisible();
+	await expect(page.getByRole('status', { name: 'Email verification is required' })).toHaveCount(0);
+	await expect(page.getByRole('group', { name: 'Signed-in workspace account' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Briefing' })).toBeVisible();
 });
 
 test('uses the last authenticated workspace for home sign-in after sign-out', async ({ page }) => {
@@ -85,12 +85,13 @@ test('uses the last authenticated workspace for home sign-in after sign-out', as
 	});
 
 	await page.goto('/app');
-	await expect(page.getByRole('region', { name: 'Signed-in workspace account' })).toBeVisible();
-	await expect(
-		page
-			.getByRole('region', { name: 'Signed-in workspace account' })
-			.getByRole('link', { name: 'Sign out' })
-	).toHaveAttribute('href', new RegExp(`returnUrl=.*tenantId%3D${registeredTenantId}`));
+	const accountMenu = page.getByRole('group', { name: 'Signed-in workspace account' });
+	await expect(accountMenu).toBeVisible();
+	await accountMenu.locator('summary').click();
+	await expect(accountMenu.getByRole('link', { name: 'Sign out' })).toHaveAttribute(
+		'href',
+		new RegExp(`returnUrl=.*tenantId%3D${registeredTenantId}`)
+	);
 
 	await page.goto('/');
 
@@ -117,7 +118,7 @@ test('removes stale auth failure marker after successful workspace sign-in', asy
 	await page.goto('/app?auth=failed');
 
 	await expect(page).toHaveURL(/\/app$/);
-	await expect(page.getByRole('region', { name: 'Signed-in workspace account' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Signed-in workspace account' })).toBeVisible();
 });
 
 test('shows email verification recovery on registration with sign-in-specific copy', async ({
@@ -143,7 +144,7 @@ test('shows email verification recovery on registration with sign-in-specific co
 	const recovery = page.getByRole('status').filter({ hasText: 'Verify email, then sign in' });
 	await expect(recovery).toBeVisible();
 	await expect(recovery).toContainText(
-		'Open the verification email from your sign-in provider, then retry registration sign-in with the same email.'
+		'Open the verification email, then retry account setup with the same email.'
 	);
 	await expect(page.getByRole('link', { name: 'Retry registration sign-in' })).toHaveAttribute(
 		'href',
@@ -232,7 +233,7 @@ test('stores structured pending registration metadata before Auth0 registration 
 	await page.goto('/register');
 	await page.getByRole('textbox', { name: 'Email' }).fill('owner@example.com');
 	await page.getByRole('textbox', { name: 'Workspace name' }).fill('Example Lab');
-	await page.getByLabel('Beta access code').fill('beta-code');
+	await page.getByLabel('Access code').fill('beta-code');
 	await page.getByRole('button', { name: 'Create account' }).click();
 
 	await page.waitForFunction(() =>
@@ -290,7 +291,7 @@ test('remembers workspace account after registration workspace creation', async 
 	await page.goto('/register');
 	await expect(page.getByText(`Account ready: ${registeredEmail}`)).toBeVisible();
 	await page.getByRole('textbox', { name: 'Workspace name' }).fill('Example Lab');
-	await page.getByLabel('Beta access code').fill('beta-code');
+	await page.getByLabel('Access code').fill('beta-code');
 	await page.getByRole('button', { name: 'Create workspace' }).click();
 
 	await page.waitForFunction(
@@ -344,8 +345,10 @@ test('shows first-run workspace runway on the app home page', async ({ page }) =
 
 	await page.goto('/app');
 
-	const runway = page.getByRole('region', { name: 'First-run workspace runway' });
-	await expect(runway.getByRole('heading', { name: 'Set up your workspace' })).toBeVisible();
+	const runway = page.getByRole('region', { name: 'Start here' });
+	await expect(
+		runway.getByRole('heading', { name: 'Start with one concrete action.' })
+	).toBeVisible();
 	await expect(runway.getByRole('link', { name: /Create first study/ })).toHaveAttribute(
 		'href',
 		'/app/campaign-series'
@@ -354,13 +357,9 @@ test('shows first-run workspace runway on the app home page', async ({ page }) =
 		'href',
 		'/app/team'
 	);
-	await expect(runway.getByRole('link', { name: /Set up directory/ })).toHaveAttribute(
+	await expect(runway.getByRole('link', { name: /Set up people/ })).toHaveAttribute(
 		'href',
 		'/app/directory'
-	);
-	await expect(runway.getByRole('link', { name: /Review instruments/ })).toHaveAttribute(
-		'href',
-		'/app/instruments'
 	);
 });
 
@@ -394,7 +393,7 @@ test('explains directory hierarchy setup order', async ({ page }) => {
 
 	await page.goto('/app/directory');
 
-	const overview = page.getByRole('region', { name: 'Audience directory overview' });
+	const overview = page.getByRole('region', { name: 'People and groups' });
 	await expect(overview).toContainText('Build the audience list first');
 	await expect(overview).toContainText('People');
 	await expect(overview).toContainText('Groups');
