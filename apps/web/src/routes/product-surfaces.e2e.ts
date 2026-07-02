@@ -477,7 +477,7 @@ test('self-serve walkthrough contract exposes starter states and duplicate-to-ed
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 	const setupWorkspace = page.getByRole('region', { name: 'Protocol workspace' });
 	await expect(setupWorkspace.getByRole('region', { name: 'Sample study read-only state' })).toBeVisible();
-	await expect(setupWorkspace.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(setupWorkspace.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 
 	await page.unroute('**/auth/session');
 	await routeAuthenticatedSession(page, []);
@@ -1489,7 +1489,7 @@ test('duplicates a sample study from the portfolio and routes to setup', async (
 	await expect.poll(() => duplicateRequests).toEqual([{ name: createdSeriesName }]);
 	await expect(page).toHaveURL(`/app/campaign-series/${createdSeriesId}/setup`);
 	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
-	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 });
 
 test('renders product surfaces read-only without setup management permission', async ({ page }) => {
@@ -1861,7 +1861,7 @@ test('creates a campaign series from the list and routes to setup', async ({ pag
 		})
 	]);
 	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
-	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 });
 
 test('renders selected study overview from the product read model', async ({ page }) => {
@@ -2085,7 +2085,7 @@ test('duplicates a sample study from the selected overview and routes to setup',
 	await expect.poll(() => duplicateRequests).toEqual([{ name: createdSeriesName }]);
 	await expect(page).toHaveURL(`/app/campaign-series/${createdSeriesId}/setup`);
 	await expect(page.getByRole('region', { name: 'Protocol workspace' })).toBeVisible();
-	await expect(page.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(page.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 });
 
 test('shows archived selected campaign-series state and restores from hub', async ({ page }) => {
@@ -2635,7 +2635,7 @@ test('M3 OSH exit path surfaces prepare collect results and PDF evidence', async
 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const preparation = setup.getByRole('group', { name: 'Study preparation progress' });
+	const preparation = setup.getByRole('group', { name: 'Protocol progress' });
 	await expect(preparation).toBeVisible();
 	await expect(preparation).toContainText('Build questionnaire');
 	await expect(preparation).toContainText('Review results setup');
@@ -2711,7 +2711,7 @@ test('labels sample selected-series child routes as read-only starter content', 
 		name: 'Sample study read-only state'
 	});
 	const studyContext = setupWorkspace.getByRole('region', { name: 'Study context' });
-	const preparation = setupWorkspace.getByRole('group', { name: 'Study preparation progress' });
+	const preparation = setupWorkspace.getByRole('group', { name: 'Protocol progress' });
 
 	await expect(readOnlyState).toBeVisible();
 	await expect(readOnlyState.getByText('Sample study', { exact: true })).toBeVisible();
@@ -2723,7 +2723,7 @@ test('labels sample selected-series child routes as read-only starter content', 
 	).toBeVisible();
 	await expect(studyContext).toBeVisible();
 	await expect(preparation).toBeVisible();
-	await expect(preparation.getByRole('heading', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(preparation.getByRole('heading', { name: 'Protocol progress' })).toBeVisible();
 	await expectElementBefore(readOnlyState, studyContext);
 	await expectElementBefore(studyContext, preparation);
 });
@@ -4850,9 +4850,9 @@ test('setup workflow renders primary setup actions instead of the proof workbenc
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	await expect(setup.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(setup.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 	await expect(
-		setup.getByRole('heading', { name: 'Study preparation progress', exact: true })
+		setup.getByRole('heading', { name: 'Protocol progress', exact: true })
 	).toBeVisible();
 	await expect(setup.getByRole('region', { name: 'Proof action workbench' })).toHaveCount(0);
 });
@@ -4865,7 +4865,7 @@ test('setup route leads with a study preparation path before the current task', 
 	await expect(page.getByRole('heading', { name: 'Study protocol', exact: true })).toBeVisible();
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const setupPath = workflow.locator('.setup-path');
 
 	await expect(setupPath).toBeVisible();
@@ -4890,7 +4890,7 @@ test('setup action hierarchy starts editable studies on the current setup task',
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const setupPath = workflow.locator('.setup-path');
 	const currentTask = workflow.getByRole('region', {
 		name: /Build questionnaire|Review results setup|Measurement and recipients|Ready to collect/
@@ -4985,7 +4985,7 @@ test('setup workflow exposes one current setup task for an empty series', async 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await expect(workflow.getByRole('region', { name: 'Build questionnaire' })).toContainText(
 		'Questionnaire'
 	);
@@ -5083,7 +5083,7 @@ test('setup template authoring edits question rows and generated scoring default
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await expect(workflow).toContainText('Questionnaire');
 
 	const questionRows = workflow.locator('.question-row');
@@ -5241,7 +5241,7 @@ test('setup template authoring saves M3 required answer formats together', async
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
 	await workflow.getByRole('button', { name: 'Add question' }).click();
@@ -5389,7 +5389,7 @@ test('setup template authoring saves single-choice option scoring', async ({ pag
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
 
@@ -5504,7 +5504,7 @@ test('setup template authoring saves conditional display logic and scoring warni
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const questionRows = workflow.locator('.question-row');
 	await expect(questionRows).toHaveCount(3);
 
@@ -5627,7 +5627,7 @@ test('setup result authoring saves tenant-attested interpretation bands', async 
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await workflow.getByRole('button', { name: 'Save questionnaire' }).click();
 	await expect.poll(() => templateBodies).toHaveLength(1);
 
@@ -5904,7 +5904,7 @@ test('setup workflow creates an editable draft from a published questionnaire ve
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await expect(workflow.getByText('Edit through a draft version')).toBeVisible();
 
@@ -6070,7 +6070,7 @@ test('setup version-history hydration preserves section and dimension labels', a
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await workflow.getByRole('button', { name: 'Load versions' }).click();
 	await expect(workflow.getByText('Version 1.1.0')).toBeVisible();
@@ -6326,7 +6326,7 @@ test('setup workflow creates a campaign draft from setup-workspace state and ref
 	await page.reload();
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	const resultsStep = workflow.getByRole('button', { name: /Review results setup/ });
 	await expect(resultsStep).toContainText('Done');
 	await resultsStep.click();
@@ -6341,7 +6341,7 @@ test('setup workflow creates a campaign draft from setup-workspace state and ref
 		templateVersionId: campaignDraftSetupWorkspace.template?.templateVersionId ?? ''
 	});
 	await expect.poll(() => setupWorkspaceRequestCount).toBeGreaterThanOrEqual(2);
-	await expect(setup.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(setup.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 	await expect(setup.getByText('1', { exact: true }).first()).toBeVisible();
 });
 
@@ -6525,7 +6525,7 @@ test('setup workflow creates a future measurement from selected template after l
 	await page.goto(`/app/campaign-series/${sampleSeriesId}/setup`);
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
-	const workflow = setup.getByRole('group', { name: 'Study preparation progress' });
+	const workflow = setup.getByRole('group', { name: 'Protocol progress' });
 	await workflow.getByRole('button', { name: /Build questionnaire/ }).click();
 	await workflow.getByRole('button', { name: 'Load versions' }).click();
 	await expect(workflow.getByText('Version 1.0.1')).toBeVisible();
@@ -6566,7 +6566,7 @@ test('setup workflow keeps setup state visible when a setup action fails', async
 
 	const setup = page.getByRole('region', { name: 'Protocol workspace' });
 	await expect(setup.getByText('Launch readiness failed.')).toBeVisible();
-	await expect(setup.getByRole('group', { name: 'Study preparation progress' })).toBeVisible();
+	await expect(setup.getByRole('group', { name: 'Protocol progress' })).toBeVisible();
 	await expect(setup.getByText(sampleSeriesId, { exact: true })).toHaveCount(0);
 });
 

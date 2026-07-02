@@ -2775,14 +2775,19 @@
 				<span class="launch-check__icon" data-state={step.pathState} aria-hidden="true">
 					{step.pathState === 'done' ? '✓' : step.id === currentActionId ? '!' : '·'}
 				</span>
-				<button
-					type="button"
-					class="launch-check__step"
-					disabled={!canSelectSetupAction(step.id)}
-					onclick={() => selectSetupAction(step.id)}
-				>
-					{step.title}
-				</button>
+				<span class="launch-check__body">
+					<button
+						type="button"
+						class="launch-check__step"
+						disabled={!canSelectSetupAction(step.id)}
+						onclick={() => selectSetupAction(step.id)}
+					>
+						{step.title}
+					</button>
+					{#if step.description}
+						<span class="launch-check__desc">{step.description}</span>
+					{/if}
+				</span>
 				<span class="launch-check__state">
 					{step.pathState === 'done' ? setupBodyCopy.status.done : step.id === currentActionId ? setupBodyCopy.status.current : setupBodyCopy.status.pending}
 				</span>

@@ -149,7 +149,7 @@ describe('localized route body copy', () => {
 	it('provides Croatian selected-study setup body copy', () => {
 		const copy = routePageCopy('hr-HR').selectedStudy.setupBody;
 
-		expect(copy.progressTitle).toBe('Napredak pripreme studije');
+		expect(copy.progressTitle).toBe('Napredak protokola');
 		expect(copy.questionnaire.paletteTitle).toBe('Odaberite početni predložak upitnika');
 		expect(copy.questionnaire.blueprintTitle).toBe('Provjera upitnika');
 		expect(copy.questionnaire.addQuestion).toBe('Dodaj pitanje');

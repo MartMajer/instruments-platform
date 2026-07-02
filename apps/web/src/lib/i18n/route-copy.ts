@@ -844,11 +844,11 @@ const en = {
 			launchCheckTitle: 'Compiled from the protocol steps',
 			launchCheckBody:
 				'Every step below reports its state. Launch stays locked until the required steps pass.',
-			progressAriaLabel: 'Study preparation progress',
-			progressKicker: 'Prepare study',
-			progressTitle: 'Study preparation progress',
+			progressAriaLabel: 'Protocol progress',
+			progressKicker: 'Protocol',
+			progressTitle: 'Protocol progress',
 			progressBody:
-				'Study is the project. Setup turns the starting point into a questionnaire, result outputs, Measurement 1 recipients, and the launch check.',
+				'The protocol turns the starting point into a questionnaire, result outputs, Measurement 1 recipients, and the launch check.',
 			readOnlyTitle: 'Read-only access',
 			readOnlyBody: 'Setup workflow actions require setup management access.',
 			requiredStepsComplete: (completed: number, total: number) =>
@@ -3254,11 +3254,11 @@ const hr: typeof en = {
 			launchCheckTitle: 'Sastavljeno iz koraka protokola',
 			launchCheckBody:
 				'Svaki korak u nastavku prikazuje svoje stanje. Pokretanje ostaje zaključano dok obavezni koraci ne prođu.',
-			progressAriaLabel: 'Napredak pripreme studije',
-			progressKicker: 'Priprema studije',
-			progressTitle: 'Napredak pripreme studije',
+			progressAriaLabel: 'Napredak protokola',
+			progressKicker: 'Protokol',
+			progressTitle: 'Napredak protokola',
 			progressBody:
-				'Studija je projekt. Postavljanje pretvara početni model u upitnik, rezultate, primatelje za Mjerenje 1 i provjeru pokretanja.',
+				'Protokol pretvara početni model u upitnik, rezultate, primatelje za Mjerenje 1 i provjeru pokretanja.',
 			readOnlyTitle: 'Pristup samo za čitanje',
 			readOnlyBody: 'Radnje postavljanja zahtijevaju pravo za upravljanje postavljanjem.',
 			requiredStepsComplete: (completed: number, total: number) =>
