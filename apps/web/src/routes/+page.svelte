@@ -168,13 +168,16 @@
 				<strong>{text.publicEntry.previewChrome}</strong>
 			</div>
 			<div class="showcase__body">
-				<aside class="showcase-rail" aria-hidden="true">
-					<img class="showcase-rail__logo" src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
-					<span class="showcase-rail__link showcase-rail__link--active">{text.publicEntry.showcaseStudies}</span>
-					<span class="showcase-rail__link">{text.publicEntry.showcaseCollect}</span>
-					<span class="showcase-rail__link">{text.publicEntry.showcaseResults}</span>
-					<span class="showcase-rail__link">{text.publicEntry.showcaseExports}</span>
-				</aside>
+				<div class="showcase-topbar" aria-hidden="true">
+					<span class="showcase-topbar__brand">
+						<img src="/brand/validated-scale-mark.svg" alt="" aria-hidden="true" />
+						<span>Validated Scale</span>
+					</span>
+					<span class="showcase-topbar__link showcase-topbar__link--active">{text.publicEntry.showcaseStudies}</span>
+					<span class="showcase-topbar__link"><em>01</em>{text.publicEntry.showcaseCollect}</span>
+					<span class="showcase-topbar__link"><em>02</em>{text.publicEntry.showcaseResults}</span>
+					<span class="showcase-topbar__link"><em>03</em>{text.publicEntry.showcaseExports}</span>
+				</div>
 
 				<main class="showcase-main">
 					<div class="showcase-main__topline">
