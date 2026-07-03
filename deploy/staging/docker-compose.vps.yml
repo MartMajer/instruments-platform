@@ -35,3 +35,10 @@ services:
       PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-false}
     ports: !override
       - "127.0.0.1:${WEB_HTTP_PORT:-5174}:3000"
+
+  web-next:
+    environment:
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-https://staging-api.example.com}
+      PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-false}
+    ports: !override
+      - "127.0.0.1:${WEBNEXT_HTTP_PORT:-5175}:3000"
