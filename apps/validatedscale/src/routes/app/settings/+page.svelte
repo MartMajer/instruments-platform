@@ -115,23 +115,23 @@
 			<section class="panel block">
 				<h2 class="eyebrow">{t('Profile')}</h2>
 				<dl>
-					<div><dt>Organization</dt><dd>{settings.profile.name}</dd></div>
-					<div><dt>Workspace</dt><dd class="datum">{settings.profile.slug}</dd></div>
-					<div><dt>Region</dt><dd>{settings.profile.region}</dd></div>
-					<div><dt>Default locale</dt><dd class="datum">{settings.profile.defaultLocale}</dd></div>
-					<div><dt>Status</dt><dd>{humanizeToken(settings.profile.status)}</dd></div>
-					<div><dt>Created</dt><dd>{formatDate(settings.profile.createdAt)}</dd></div>
+					<div><dt>{t('Organization')}</dt><dd>{settings.profile.name}</dd></div>
+					<div><dt>{t('Workspace')}</dt><dd class="datum">{settings.profile.slug}</dd></div>
+					<div><dt>{t('Region')}</dt><dd>{settings.profile.region}</dd></div>
+					<div><dt>{t('Default locale')}</dt><dd class="datum">{settings.profile.defaultLocale}</dd></div>
+					<div><dt>{t('Status')}</dt><dd>{t(humanizeToken(settings.profile.status))}</dd></div>
+					<div><dt>{t('Created')}</dt><dd>{formatDate(settings.profile.createdAt)}</dd></div>
 				</dl>
 			</section>
 
 			<section class="panel block">
 				<h2 class="eyebrow">{t('Report branding')}</h2>
 				<form class="brand-form" onsubmit={saveBranding}>
-					<label class="eyebrow" for="b-label">Organization label</label>
+					<label class="eyebrow" for="b-label">{t('Organization label')}</label>
 					<input id="b-label" bind:value={brandLabel} />
-					<label class="eyebrow" for="b-title">Report title</label>
+					<label class="eyebrow" for="b-title">{t('Report title')}</label>
 					<input id="b-title" bind:value={brandTitle} />
-					<label class="eyebrow" for="b-accent">Accent</label>
+					<label class="eyebrow" for="b-accent">{t('Accent')}</label>
 					<div class="accent-row">
 						<input id="b-accent" type="color" bind:value={brandAccent} aria-label="Accent color" />
 						<span class="datum">{brandAccent}</span>
@@ -171,7 +171,7 @@
 					</ul>
 				{/if}
 				<form class="add-member" onsubmit={addMember}>
-					<input type="email" required bind:value={memberEmail} placeholder="colleague@institution.org" aria-label="New member email" />
+					<input type="email" required bind:value={memberEmail} placeholder="colleague@institution.org" aria-label={t('New member email')} />
 					{#if roles}
 						<select bind:value={memberRole} aria-label="New member role">
 							{#each roles.roles as role (role.roleId)}
@@ -189,12 +189,12 @@
 			<section class="panel block">
 				<h2 class="eyebrow">{t('Counts')}</h2>
 				<dl>
-					<div><dt>Studies</dt><dd class="datum">{formatCount(settings.counts.campaignSeriesCount)}</dd></div>
-					<div><dt>Waves</dt><dd class="datum">{formatCount(settings.counts.campaignCount)}</dd></div>
-					<div><dt>Responses</dt><dd class="datum">{formatCount(settings.counts.submittedResponseCount)}</dd></div>
-					<div><dt>People</dt><dd class="datum">{formatCount(settings.counts.subjectCount)}</dd></div>
-					<div><dt>Members</dt><dd class="datum">{formatCount(settings.counts.tenantMemberCount)}</dd></div>
-					<div><dt>Exports</dt><dd class="datum">{formatCount(settings.counts.exportArtifactCount)}</dd></div>
+					<div><dt>{t('Studies')}</dt><dd class="datum">{formatCount(settings.counts.campaignSeriesCount)}</dd></div>
+					<div><dt>{t('Waves')}</dt><dd class="datum">{formatCount(settings.counts.campaignCount)}</dd></div>
+					<div><dt>{t('Responses')}</dt><dd class="datum">{formatCount(settings.counts.submittedResponseCount)}</dd></div>
+					<div><dt>{t('People')}</dt><dd class="datum">{formatCount(settings.counts.subjectCount)}</dd></div>
+					<div><dt>{t('Members')}</dt><dd class="datum">{formatCount(settings.counts.tenantMemberCount)}</dd></div>
+					<div><dt>{t('Exports')}</dt><dd class="datum">{formatCount(settings.counts.exportArtifactCount)}</dd></div>
 				</dl>
 			</section>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/core/locale.svelte';
 	import { onMount } from 'svelte';
 	import { createSetupApi, type InstrumentSummaryResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
@@ -323,7 +324,7 @@
 
 <form class="composer" onsubmit={compose}>
 	<div class="presets">
-		<span class="eyebrow">Start from an example</span>
+		<span class="eyebrow">{t('Start from an example')}</span>
 		<div class="preset-row">
 			{#each presets as preset (preset.key)}
 				<button type="button" class="preset" onclick={() => applyPreset(preset.key)}>
@@ -335,11 +336,11 @@
 
 	<div class="row">
 		<div class="field grow">
-			<label class="eyebrow" for="tpl-name">Questionnaire name</label>
+			<label class="eyebrow" for="tpl-name">{t('Questionnaire name')}</label>
 			<input id="tpl-name" bind:value={templateName} placeholder={`${seriesName} questionnaire`} />
 		</div>
 		<div class="field">
-			<label class="eyebrow" for="tpl-locale">Language</label>
+			<label class="eyebrow" for="tpl-locale">{t('Language')}</label>
 			<select id="tpl-locale" bind:value={locale}>
 				<option value="en">English</option>
 				<option value="hr-HR">Hrvatski</option>
@@ -347,9 +348,9 @@
 		</div>
 		{#if instruments.length > 0}
 			<div class="field">
-				<label class="eyebrow" for="tpl-instrument">Instrument (optional)</label>
+				<label class="eyebrow" for="tpl-instrument">{t('Instrument (optional)')}</label>
 				<select id="tpl-instrument" bind:value={instrumentId}>
-					<option value="">None — custom items</option>
+					<option value="">{t('None — custom items')}</option>
 					{#each instruments as instrument (instrument.id)}
 						<option value={instrument.id}>{instrument.code} — {instrument.fullName}</option>
 					{/each}
@@ -359,36 +360,36 @@
 	</div>
 
 	<fieldset class="scale">
-		<legend class="eyebrow">Response scale (applies to all items)</legend>
+		<legend class="eyebrow">{t('Response scale (applies to all items)')}</legend>
 		<div class="row">
 			<div class="field small">
-				<label class="eyebrow" for="s-min">Min</label>
+				<label class="eyebrow" for="s-min">{t('Min')}</label>
 				<input id="s-min" class="datum" type="number" min="0" max="9" bind:value={scaleMin} />
 			</div>
 			<div class="field small">
-				<label class="eyebrow" for="s-max">Max</label>
+				<label class="eyebrow" for="s-max">{t('Max')}</label>
 				<input id="s-max" class="datum" type="number" min="1" max="11" bind:value={scaleMax} />
 			</div>
 			<div class="field grow">
-				<label class="eyebrow" for="s-low">Low anchor</label>
+				<label class="eyebrow" for="s-low">{t('Low anchor')}</label>
 				<input id="s-low" bind:value={lowAnchor} />
 			</div>
 			<div class="field grow">
-				<label class="eyebrow" for="s-high">High anchor</label>
+				<label class="eyebrow" for="s-high">{t('High anchor')}</label>
 				<input id="s-high" bind:value={highAnchor} />
 			</div>
 			<div class="field">
-				<label class="eyebrow" for="s-calc">Score</label>
+				<label class="eyebrow" for="s-calc">{t('Score')}</label>
 				<select id="s-calc" bind:value={calculation}>
-					<option value="mean">Mean of items</option>
-					<option value="sum">Sum of items</option>
+					<option value="mean">{t('Mean of items')}</option>
+					<option value="sum">{t('Sum of items')}</option>
 				</select>
 			</div>
 		</div>
 	</fieldset>
 
 	<fieldset class="items">
-		<legend class="eyebrow">Items</legend>
+		<legend class="eyebrow">{t('Items')}</legend>
 		{#each items as item, index (index)}
 			<div class="item-row">
 				<span class="datum item-code">{code(index)}</span>
@@ -403,10 +404,10 @@
 					aria-label={`Item ${index + 1} text`}
 				/>
 				<select bind:value={item.kind} aria-label={`Item ${index + 1} type`}>
-					<option value="likert">Scale</option>
-					<option value="single">Choice</option>
-					<option value="multi">Multi-choice</option>
-					<option value="text">Open text</option>
+					<option value="likert">{t('Scale')}</option>
+					<option value="single">{t('Choice')}</option>
+					<option value="multi">{t('Multi-choice')}</option>
+					<option value="text">{t('Open text')}</option>
 				</select>
 				{#if item.kind === 'likert'}
 					<label class="reverse" class:on={item.reverse} title="Reverse-coded item">
@@ -433,7 +434,7 @@
 			{/if}
 		{/each}
 		<button type="button" class="add" onclick={() => (items = [...items, blankItem()])}>
-			+ Add item
+			+ {t('Add item')}
 		</button>
 	</fieldset>
 

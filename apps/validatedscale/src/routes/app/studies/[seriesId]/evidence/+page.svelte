@@ -137,10 +137,10 @@
 			</p>
 			<h1 class="doc-title">{t('Evidence')}</h1>
 			<p class="datum provenance">
-				{formatCount(workspace.summary.submittedResponseCount)} responses ·
-				{formatCount(workspace.summary.visibleScoreCount)} scores visible ·
-				{formatCount(workspace.summary.suppressedScoreCount)} suppressed
-				{#if dashboard}· reporting threshold k = {dashboard.disclosureKMin}{/if}
+				{formatCount(workspace.summary.submittedResponseCount)} {t('responses')} ·
+				{formatCount(workspace.summary.visibleScoreCount)} {t('scores visible')} ·
+				{formatCount(workspace.summary.suppressedScoreCount)} {t('suppressed')}
+				{#if dashboard}· {t('reporting threshold')} k = {dashboard.disclosureKMin}{/if}
 			</p>
 
 			<nav class="phases" aria-label="Study phases">
@@ -152,10 +152,9 @@
 
 		{#if visibleOutputs.length === 0 && bars.length === 0}
 			<div class="panel nothing">
-				<span class="eyebrow">No reportable scores yet</span>
+				<span class="eyebrow">{t('No reportable scores yet')}</span>
 				<p>
-					Evidence appears when a wave has submitted, scored responses above the reporting
-					threshold. Until then, nothing is shown — by design.
+					{t('Evidence appears when a wave has submitted, scored responses above the reporting threshold. Until then, nothing is shown — by design.')}
 				</p>
 			</div>
 		{:else}
@@ -163,7 +162,7 @@
 				<div class="main">
 					{#if bars.length > 0}
 						<section class="findings-chart">
-							<h2 class="eyebrow">Score profile {#if dashboard?.selectedCampaignName}— {dashboard.selectedCampaignName}{/if}</h2>
+							<h2 class="eyebrow">{t('Score profile')} {#if dashboard?.selectedCampaignName}— {dashboard.selectedCampaignName}{/if}</h2>
 							<div class="chart" role="img" aria-label="Mean score by dimension">
 								{#each bars as bar (bar.id)}
 									<div
@@ -181,7 +180,7 @@
 											{:else}
 												<div class="bar-suppressed"></div>
 												<span class="datum bar-value suppressed-note">
-													suppressed{bar.suppressionReason ? ` — ${humanizeToken(bar.suppressionReason)}` : ''}
+													suppressed{bar.suppressionReason ? ` — ${t(humanizeToken(bar.suppressionReason))}` : ''}
 												</span>
 											{/if}
 										</div>
@@ -218,7 +217,7 @@
 													<td class="num datum">{fmt(row.min, 1)}–{fmt(row.max, 1)}</td>
 												{:else}
 													<td colspan="5" class="suppress-cell">
-														Suppressed — {humanizeToken(row.suppressionReason) || 'below reporting threshold'}
+														Suppressed — {t(humanizeToken(row.suppressionReason)) || 'below reporting threshold'}
 													</td>
 												{/if}
 											</tr>
@@ -324,8 +323,8 @@
 									<div class="artifact-main">
 										<span class="artifact-name">{artifact.fileName}</span>
 										<span class="datum artifact-meta">
-											{humanizeToken(artifact.status)} · {formatDateTime(artifact.createdAt)}
-											{#if artifact.failureReasonCode}· {humanizeToken(artifact.failureReasonCode)}{/if}
+											{t(humanizeToken(artifact.status))} · {formatDateTime(artifact.createdAt)}
+											{#if artifact.failureReasonCode}· {t(humanizeToken(artifact.failureReasonCode))}{/if}
 										</span>
 									</div>
 									{#if artifact.canDownload}
@@ -335,7 +334,7 @@
 									{/if}
 								</li>
 							{:else}
-								<li class="artifact-none">No exports yet.</li>
+								<li class="artifact-none">{t('No exports yet.')}</li>
 							{/each}
 						</ul>
 					</div>

@@ -186,13 +186,13 @@
 		<h1 class="doc-title">{t('People')}</h1>
 		{#if directory}
 			<p class="datum meta">
-				{formatCount(directory.summary.subjectCount)} people ·
-				{formatCount(directory.summary.groupCount)} groups
+				{formatCount(directory.summary.subjectCount)} {t('people')} ·
+				{formatCount(directory.summary.groupCount)} {t('groups')}
 			</p>
 		{/if}
 	</div>
 	<div class="tools">
-		<input type="search" placeholder="Find a person or group" aria-label="Find a person or group" bind:value={search} />
+		<input type="search" placeholder={t('Find a person or group')} aria-label={t('Find a person or group')} bind:value={search} />
 		<button class="btn btn-ghost" onclick={() => (panel = panel === 'add' ? 'none' : 'add')}>{t('Add person')}</button>
 		<button class="btn btn-ghost" onclick={() => (panel = panel === 'import' ? 'none' : 'import')}>{t('Import CSV')}</button>
 		<button
@@ -210,11 +210,11 @@
 {#if panel === 'add'}
 	<form class="panel author" onsubmit={addPerson}>
 		<div class="field">
-			<label class="eyebrow" for="p-name">Name</label>
+			<label class="eyebrow" for="p-name">{t('Name')}</label>
 			<input id="p-name" bind:value={personName} />
 		</div>
 		<div class="field">
-			<label class="eyebrow" for="p-email">Email</label>
+			<label class="eyebrow" for="p-email">{t('Email')}</label>
 			<input id="p-email" type="email" bind:value={personEmail} />
 		</div>
 		{#if personError}<p class="error" role="alert">{personError}</p>{/if}
@@ -224,17 +224,17 @@
 	</form>
 {:else if panel === 'import'}
 	<div class="panel author import">
-		<label class="eyebrow" for="csv">CSV — headers like display_name,email,external_id,group_name</label>
+		<label class="eyebrow" for="csv">{t('CSV — headers like')} display_name,email,external_id,group_name</label>
 		<textarea id="csv" rows="6" bind:value={csvContent} placeholder={'display_name,email\nAna Kovač,ana@example.org'}></textarea>
 		{#if csvNote}<p class="note" role="status">{csvNote}</p>{/if}
 		<div class="import-actions">
-			<button class="btn btn-ghost" disabled={csvBusy} onclick={() => importCsv(true)}>Preview (dry run)</button>
-			<button class="btn btn-ink" disabled={csvBusy} onclick={() => importCsv(false)}>Import</button>
+			<button class="btn btn-ghost" disabled={csvBusy} onclick={() => importCsv(true)}>{t('Preview (dry run)')}</button>
+			<button class="btn btn-ink" disabled={csvBusy} onclick={() => importCsv(false)}>{t('Import')}</button>
 		</div>
 	</div>
 {:else if panel === 'graph'}
 	<div class="panel author import">
-		<span class="eyebrow">Microsoft Entra directory</span>
+		<span class="eyebrow">{t('Microsoft Entra directory')}</span>
 		{#if graphState?.connected}
 			<p class="note">
 				Connected to <strong>{graphState.displayName}</strong>
@@ -245,7 +245,7 @@
 				<ul class="graph-list">
 					{#each graphRules.rules as rule (rule.id)}
 						<li>
-							<span>{rule.name} <span class="datum graph-meta">{humanizeToken(rule.status)}</span></span>
+							<span>{rule.name} <span class="datum graph-meta">{t(humanizeToken(rule.status))}</span></span>
 						</li>
 					{/each}
 				</ul>
@@ -257,7 +257,7 @@
 					{#each graphRuns.runs.slice(0, 5) as run (run.id)}
 						<li>
 							<span class="datum graph-meta">
-								{formatDateTime(run.createdAt)} · {humanizeToken(run.status)} ·
+								{formatDateTime(run.createdAt)} · {t(humanizeToken(run.status))} ·
 								{formatCount(run.importedRowCount)}/{formatCount(run.rowCount)} rows
 							</span>
 						</li>
@@ -266,11 +266,10 @@
 			{/if}
 		{:else}
 			<p class="note">
-				Connect your Microsoft 365 directory to import people and groups automatically. This
-				opens Microsoft's admin-consent page for your organization.
+				{t("Connect your Microsoft 365 directory to import people and groups automatically. This opens Microsoft's admin-consent page for your organization.")}
 			</p>
 			<button class="btn btn-ink graph-connect" disabled={graphBusy} onclick={requestConsent}>
-				{graphBusy ? 'Opening consent…' : 'Connect Microsoft directory'}
+				{graphBusy ? t('Opening consent…') : t('Connect Microsoft directory')}
 			</button>
 		{/if}
 		{#if graphNote}<p class="note" role="status">{graphNote}</p>{/if}
@@ -280,22 +279,22 @@
 {#if loadState === 'ready'}
 	<div class="filters">
 		<select bind:value={groupFilter} aria-label="Filter by group">
-			<option value="">All groups</option>
+			<option value="">{t('All groups')}</option>
 			{#each groupOptions as name (name)}
 				<option value={name}>{name}</option>
 			{/each}
 		</select>
 		<select bind:value={emailFilter} aria-label="Filter by email">
-			<option value="all">With or without email</option>
-			<option value="with">Has email</option>
-			<option value="without">No email</option>
+			<option value="all">{t('With or without email')}</option>
+			<option value="with">{t('Has email')}</option>
+			<option value="without">{t('No email')}</option>
 		</select>
 		<select bind:value={sortBy} aria-label="Sort">
-			<option value="name">Sort by name</option>
-			<option value="email">Sort by email</option>
-			<option value="group">Sort by group</option>
+			<option value="name">{t('Sort by name')}</option>
+			<option value="email">{t('Sort by email')}</option>
+			<option value="group">{t('Sort by group')}</option>
 		</select>
-		<span class="datum showing">{formatCount(filtered.length)} shown</span>
+		<span class="datum showing">{formatCount(filtered.length)} {t('shown')}</span>
 	</div>
 {/if}
 

@@ -146,7 +146,7 @@
 					</span>
 				{/if}
 				{#if lastReadAt}
-					<span class="datum read-at">read {lastReadAt.toLocaleTimeString('en-GB')}</span>
+					<span class="datum read-at">{t('read')} {lastReadAt.toLocaleTimeString('en-GB')}</span>
 				{/if}
 			</div>
 
@@ -158,10 +158,10 @@
 		</header>
 
 		{#if loadState === 'loading'}
-			<p class="reading-note" role="status">Reading the field…</p>
+			<p class="reading-note" role="status">{t('Reading the field…')}</p>
 		{:else if loadState === 'error'}
 			<p class="reading-note" role="alert">
-				The field did not respond. <button class="retry" onclick={() => read()}>Read again</button>
+				{t('The field did not respond.')} <button class="retry" onclick={() => read()}>{t('Read again')}</button>
 			</p>
 		{:else if workspace}
 			<section class="board">
@@ -173,31 +173,31 @@
 						)}
 					</span>
 					<span class="sub">
-						{formatCount(workspace.summary.sentInvitationCount)} sent ·
-						{formatCount(workspace.summary.openLinkAssignmentCount)} open link
+						{formatCount(workspace.summary.sentInvitationCount)} {t('sent')} ·
+						{formatCount(workspace.summary.openLinkAssignmentCount)} {t('open link')}
 					</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow dim-label">{t('Started')}</span>
 					<span class="datum value">{formatCount(workspace.summary.startedResponseCount)}</span>
-					<span class="sub">{formatCount(workspace.summary.draftResponseCount)} in draft</span>
+					<span class="sub">{formatCount(workspace.summary.draftResponseCount)} {t('in draft')}</span>
 				</div>
 				<div class="tile accent">
 					<span class="eyebrow dim-label">{t('Submitted')}</span>
 					<span class="datum value">{formatCount(workspace.summary.submittedResponseCount)}</span>
 					<span class="sub">
-						last {formatDateTime(workspace.summary.latestResponseSubmittedAt)}
+						{t('last')} {formatDateTime(workspace.summary.latestResponseSubmittedAt)}
 					</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow dim-label">{t('Delivery')}</span>
 					<span class="datum value">
 						{formatCount(workspace.summary.failedInvitationCount)}
-						<span class="value-unit">failed</span>
+						<span class="value-unit">{t('failed')}</span>
 					</span>
 					<span class="sub">
-						{formatCount(workspace.summary.bouncedInvitationCount ?? 0)} bounced ·
-						{formatCount(workspace.summary.deliveryAttemptCount)} attempts
+						{formatCount(workspace.summary.bouncedInvitationCount ?? 0)} {t('bounced')} ·
+						{formatCount(workspace.summary.deliveryAttemptCount)} {t('attempts')}
 					</span>
 				</div>
 			</section>
@@ -207,7 +207,7 @@
 			{#if workspace.groupCoverage && workspace.groupCoverage.groups.length > 0}
 				<section class="coverage">
 					<h2 class="eyebrow dim-label">
-						Group coverage — reporting threshold k = {workspace.groupCoverage.kMin}
+						{t('Group coverage — reporting threshold')} k = {workspace.groupCoverage.kMin}
 					</h2>
 					<div class="meters">
 						{#each workspace.groupCoverage.groups as group (group.groupId)}
@@ -237,13 +237,13 @@
 							<div class="wave-main">
 								<strong>{wave.name}</strong>
 								<span class="datum wave-meta">
-									{humanizeToken(wave.status)} · {humanizeToken(wave.responseIdentityMode)}
-									{#if wave.latestLaunchAt}· launched {formatDateTime(wave.latestLaunchAt)}{/if}
+									{t(humanizeToken(wave.status))} · {t(humanizeToken(wave.responseIdentityMode))}
+									{#if wave.latestLaunchAt}· {t('launched')} {formatDateTime(wave.latestLaunchAt)}{/if}
 								</span>
 							</div>
 							<span class="datum wave-count">
 								{formatCount(wave.submittedResponseCount)}
-								<span class="dim">submitted</span>
+								<span class="dim">{t('submitted')}</span>
 							</span>
 							{#if wave.status.toLowerCase() === 'live'}
 								<span class="link-actions">
@@ -268,7 +268,7 @@
 						{#if inviteFor === wave.id}
 							<li class="minted">
 								<div class="invite-inner">
-									<span class="eyebrow dim-label">Invite respondents — one email per line</span>
+									<span class="eyebrow dim-label">{t('Invite respondents — one email per line')}</span>
 									<textarea
 										rows="3"
 										bind:value={inviteEmails}
@@ -287,14 +287,14 @@
 						{#if mintedLink?.campaignId === wave.id}
 							<li class="minted">
 								<div class="minted-inner">
-									<span class="eyebrow dim-label">Respondent link — shown once, save it now</span>
+									<span class="eyebrow dim-label">{t('Respondent link — shown once, save it now')}</span>
 									<code class="datum minted-url">{mintedLink.url}</code>
 									<button class="link-btn" onclick={copyLink}>{copied ? t('Copied') : t('Copy link')}</button>
 								</div>
 							</li>
 						{/if}
 					{:else}
-						<li class="none">No waves launched yet. Launch from the protocol.</li>
+						<li class="none">{t('No waves launched yet. Launch from the protocol.')}</li>
 					{/each}
 				</ul>
 				{#if linkError}<p class="link-error" role="alert">{linkError}</p>{/if}

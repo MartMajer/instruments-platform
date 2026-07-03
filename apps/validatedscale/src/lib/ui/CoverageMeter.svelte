@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/core/locale.svelte';
 	/**
 	 * A bullet-style coverage meter for the Field console.
 	 * Fill = submitted; hollow remainder = invited; the engraved tick = the
@@ -30,7 +31,7 @@
 		<span class="meter-label">{label}</span>
 		<span class="datum reading">
 			{submitted}<span class="dim">/{invited}</span>
-			<span class="verdict" class:below={!meets}>{meets ? 'reportable' : `below k=${kMin}`}</span>
+			<span class="verdict" class:below={!meets}>{meets ? t('reportable') : `${t('below')} k=${kMin}`}</span>
 		</span>
 	</div>
 	<div class="track">

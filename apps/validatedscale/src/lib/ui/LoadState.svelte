@@ -1,10 +1,11 @@
 <script lang="ts">
+	import { t } from '$lib/core/locale.svelte';
 	import type { Snippet } from 'svelte';
 
 	let {
 		state,
 		error = null,
-		emptyTitle = 'Nothing here yet',
+		emptyTitle = '',
 		emptyBody = '',
 		children
 	}: {
@@ -19,17 +20,17 @@
 {#if state === 'loading'}
 	<div class="panel state" role="status" aria-live="polite">
 		<span class="pulse" aria-hidden="true"></span>
-		<span class="eyebrow">Reading</span>
+		<span class="eyebrow">{t('Reading')}</span>
 	</div>
 {:else if state === 'error'}
 	<div class="panel state error" role="alert">
-		<span class="eyebrow" style="color: var(--color-danger)">Could not load</span>
-		<p>{error ?? 'The workspace did not respond. Reload to try again.'}</p>
+		<span class="eyebrow" style="color: var(--color-danger)">{t('Could not load')}</span>
+		<p>{error ?? t('The workspace did not respond. Reload to try again.')}</p>
 	</div>
 {:else if state === 'empty'}
 	<div class="panel state">
-		<span class="eyebrow">{emptyTitle}</span>
-		{#if emptyBody}<p>{emptyBody}</p>{/if}
+		<span class="eyebrow">{t(emptyTitle || 'Nothing here yet')}</span>
+		{#if emptyBody}<p>{t(emptyBody)}</p>{/if}
 	</div>
 {:else if children}
 	{@render children()}

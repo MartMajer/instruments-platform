@@ -72,7 +72,7 @@
 		if (study.archived) return { cls: 'chip', label: t('Archived') };
 		if (study.liveCampaignCount > 0) return { cls: 'chip chip-live', label: t('In field') };
 		if (study.submittedResponseCount > 0) return { cls: 'chip', label: t('Collected') };
-		return { cls: 'chip chip-stain', label: humanizeToken(study.readinessStatus) };
+		return { cls: 'chip chip-stain', label: t(humanizeToken(study.readinessStatus)) };
 	}
 </script>
 

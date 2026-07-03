@@ -162,15 +162,15 @@
 	<form class="panel import" onsubmit={runImport}>
 		<div class="row">
 			<div class="field">
-				<label class="eyebrow" for="i-code">Code</label>
+				<label class="eyebrow" for="i-code">{t('Code')}</label>
 				<input id="i-code" class="datum" required bind:value={form.code} placeholder="WB-SCALE" />
 			</div>
 			<div class="field">
-				<label class="eyebrow" for="i-version">Version</label>
+				<label class="eyebrow" for="i-version">{t('Version')}</label>
 				<input id="i-version" class="datum" required bind:value={form.version} />
 			</div>
 			<div class="field grow">
-				<label class="eyebrow" for="i-name">Full name</label>
+				<label class="eyebrow" for="i-name">{t('Full name')}</label>
 				<input id="i-name" required bind:value={form.fullName} placeholder="Workplace Wellbeing Scale" />
 			</div>
 		</div>
@@ -185,12 +185,12 @@
 			></textarea>
 		</div>
 		<div class="field">
-			<label class="eyebrow" for="i-cite">Citation (APA, optional)</label>
+			<label class="eyebrow" for="i-cite">{t('Citation (APA, optional)')}</label>
 			<input id="i-cite" bind:value={form.citationApa} />
 		</div>
 		{#if importError}<p class="error" role="alert">{importError}</p>{/if}
 		<button class="btn btn-stain" type="submit" disabled={importBusy}>
-			{importBusy ? 'Importing…' : 'Import as tenant-provided'}
+			{importBusy ? t('Importing…') : t('Import as tenant-provided')}
 		</button>
 	</form>
 {/if}
@@ -209,18 +209,18 @@
 						class:chip-stain={entry.licenseBadge === 'free'}
 					>
 						{entry.licenseBadge === 'public-domain'
-							? 'Public domain'
+							? t('Public domain')
 							: entry.licenseBadge === 'free'
-								? 'Free standard'
-								: 'Rights required'}
+								? t('Free standard')
+								: t('Rights required')}
 					</span>
 				</div>
-				<h3 class="doc-title g-name">{entry.name}</h3>
-				<p class="g-measures">{entry.measures}</p>
+				<h3 class="doc-title g-name">{t(entry.name)}</h3>
+				<p class="g-measures">{t(entry.measures)}</p>
 				<p class="datum g-meta">
-					{entry.itemCount} items · ~{entry.minutes} min · {entry.audience}
+					{entry.itemCount} {t('items')} · ~{entry.minutes} min · {t(entry.audience)}
 				</p>
-				<p class="g-license">{entry.license}</p>
+				<p class="g-license">{t(entry.license)}</p>
 				{#if entry.autoload}
 					<div class="g-actions">
 						<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
@@ -231,7 +231,7 @@
 						</button>
 					</div>
 				{:else}
-					<p class="g-how">{entry.howToGet}</p>
+					<p class="g-how">{t(entry.howToGet ?? '')}</p>
 				{/if}
 			</article>
 		{/each}
@@ -297,8 +297,8 @@
 					<span class="datum code">{instrument.code} v{instrument.version}</span>
 					<span class="name doc-title">{instrument.fullName}</span>
 				</div>
-				<span class="chip">{humanizeToken(instrument.validityLabel)}</span>
-				<span class="datum rights">{humanizeToken(instrument.rightsStatus)}</span>
+				<span class="chip">{t(humanizeToken(instrument.validityLabel))}</span>
+				<span class="datum rights">{t(humanizeToken(instrument.rightsStatus))}</span>
 			</li>
 		{/each}
 	</ul>

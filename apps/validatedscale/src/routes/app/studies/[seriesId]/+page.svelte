@@ -271,13 +271,13 @@
 	function prerequisiteHint(code: string, message: string): { text: string; anchor: string | null } {
 		const lowered = `${code} ${message}`.toLowerCase();
 		if (lowered.includes('campaign')) {
-			return { text: 'This study has no wave yet. Add one in chapter 05 — Waves.', anchor: '#waves' };
+			return { text: t('This study has no wave yet. Add one in chapter 05 — Waves.'), anchor: '#waves' };
 		}
 		if (lowered.includes('template') || lowered.includes('instrument') || lowered.includes('question')) {
-			return { text: 'No instrument is attached yet. Compose or pick one in chapter 02 — Instrument.', anchor: '#instrument' };
+			return { text: t('No instrument is attached yet. Compose or pick one in chapter 02 — Instrument.'), anchor: '#instrument' };
 		}
 		if (lowered.includes('scoring')) {
-			return { text: 'No scoring rule is bound. It is created with the questionnaire in chapter 02.', anchor: '#instrument' };
+			return { text: t('No scoring rule is bound. It is created with the questionnaire in chapter 02.'), anchor: '#instrument' };
 		}
 		if (lowered.includes('consent') || lowered.includes('retention') || lowered.includes('disclosure')) {
 			return { text: message, anchor: '#policies' };
@@ -342,7 +342,7 @@
 						<dl class="facts">
 							<div>
 								<dt>{t('Identity mode')}</dt>
-								<dd>{humanizeToken(launchCandidate.responseIdentityMode)}</dd>
+								<dd>{t(humanizeToken(launchCandidate.responseIdentityMode))}</dd>
 							</div>
 							<div>
 								<dt>{t('Default locale')}</dt>
@@ -350,7 +350,7 @@
 							</div>
 							<div>
 								<dt>{t('Current wave')}</dt>
-								<dd>{launchCandidate.name} — {humanizeToken(launchCandidate.status)}</dd>
+								<dd>{launchCandidate.name} — {t(humanizeToken(launchCandidate.status))}</dd>
 							</div>
 						</dl>
 					{:else if hub.campaigns.length > 0}
@@ -360,8 +360,7 @@
 						</p>
 					{:else}
 						<p class="prose">
-							No wave is defined yet. The study design becomes binding when the first wave
-							launches.
+							{t('No wave is defined yet. The study design becomes binding when the first wave launches.')}
 						</p>
 					{/if}
 				</section>
@@ -395,7 +394,7 @@
 							</div>
 							<div>
 								<dt>{t('Status')}</dt>
-								<dd>{humanizeToken(workspace.template.status)}</dd>
+								<dd>{t(humanizeToken(workspace.template.status))}</dd>
 							</div>
 						</dl>
 						<div class="instrument-actions">
@@ -429,9 +428,7 @@
 						{/if}
 					{:else}
 						<p class="prose">
-							No instrument attached yet. Compose the questionnaire here — items on one
-							response scale, scoring included — or import a validated instrument from the
-							<a href="/app/instruments">library</a> first.
+							{t('No instrument attached yet. Compose the questionnaire here — or import a validated instrument from the')} <a href="/app/instruments">{t('library')}</a>.
 						</p>
 						<div class="compose-wrap">
 							<Composer {seriesId} seriesName={hub.name} onDone={load} />
@@ -451,17 +448,16 @@
 							</div>
 							<div>
 								<dt>{t('Status')}</dt>
-								<dd>{humanizeToken(workspace.scoring.status)}</dd>
+								<dd>{t(humanizeToken(workspace.scoring.status))}</dd>
 							</div>
 							<div>
 								<dt>{t('Source')}</dt>
-								<dd>{humanizeToken(workspace.scoring.source)}</dd>
+								<dd>{t(humanizeToken(workspace.scoring.source))}</dd>
 							</div>
 						</dl>
 					{:else}
 						<p class="prose">
-							No scoring rule bound. Responses will be stored but not scored until one is
-							attached.
+							{t('No scoring rule bound. Responses will be stored but not scored until one is attached.')}
 						</p>
 					{/if}
 				</section>
@@ -480,8 +476,7 @@
 							{/if}
 						</div>
 						<p class="policy-explain">
-							What respondents agree to before answering — your words, versioned. Publish a
-							new version below; earlier waves keep the version they launched with.
+							{t('What respondents agree to before answering — your words, versioned. Publish a new version below; earlier waves keep the version they launched with.')}
 						</p>
 						<div class="policy-actions">
 							<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
@@ -493,27 +488,27 @@
 							<form class="consent-editor" onsubmit={publishConsent}>
 								<div class="consent-row">
 									<div class="field">
-										<label class="eyebrow" for="c-locale">Language</label>
+										<label class="eyebrow" for="c-locale">{t('Language')}</label>
 										<select id="c-locale" bind:value={consentLocale}>
 											<option value="en">English</option>
 											<option value="hr-HR">Hrvatski</option>
 										</select>
 									</div>
 									<div class="field">
-										<label class="eyebrow" for="c-version">Version</label>
+										<label class="eyebrow" for="c-version">{t('Version')}</label>
 										<input id="c-version" class="datum" required bind:value={consentVersion} placeholder="2.0.0" />
 									</div>
 									<div class="field grow">
-										<label class="eyebrow" for="c-title">Title</label>
+										<label class="eyebrow" for="c-title">{t('Title')}</label>
 										<input id="c-title" required bind:value={consentTitle} placeholder="Informed consent — nurse workload study" />
 									</div>
 								</div>
 								<div class="field">
-									<label class="eyebrow" for="c-body">Consent text (shown to every respondent before items)</label>
+									<label class="eyebrow" for="c-body">{t('Consent text (shown to every respondent before items)')}</label>
 									<textarea id="c-body" rows="7" required bind:value={consentBody} placeholder={'What the study measures, who runs it, that answers are anonymous, the k-threshold for reporting, the right to stop at any time, your ethics reference…'}></textarea>
 								</div>
 								<button class="btn btn-stain consent-submit" type="submit" disabled={consentBusy}>
-									{consentBusy ? 'Publishing…' : 'Publish — retires the current version'}
+									{consentBusy ? t('Publishing…') : t('Publish — retires the current version')}
 								</button>
 								<p class="consent-hint">
 									Launched waves keep the consent version they launched with; this version binds
@@ -524,12 +519,12 @@
 					</div>
 
 					<p class="guarantees">
-						<span class="eyebrow guarantees-label">Platform guarantees</span>
-						Responses are anonymized
+						<span class="eyebrow guarantees-label">{t('Platform guarantees')}</span>
+						{t('Responses are anonymized')}
 						<span class="datum">{policyDetail(workspace.policies.retention.details, 'Retain for') ?? '2 years'}</span>
-						after each wave closes, and nothing is ever reported for groups smaller than
+						{t('after each wave closes, and nothing is ever reported for groups smaller than')}
 						<span class="datum">{policyDetail(workspace.policies.disclosure.details, 'Minimum group size') ?? '5'}</span>
-						people. These hold for every study and bind at launch.
+						{t('people. These hold for every study and bind at launch.')}
 					</p>
 				</section>
 
@@ -544,7 +539,7 @@
 								<li>
 									<strong>{wave.name}</strong>
 									<span class="datum meta">
-										{humanizeToken(wave.status)}
+										{t(humanizeToken(wave.status))}
 										{#if wave.latestLaunchAt}· launched {formatDateTime(wave.latestLaunchAt)}{/if}
 										· {formatCount(wave.submittedResponseCount)} responses
 									</span>
@@ -557,15 +552,15 @@
 								{#if recipientsFor === wave.id}
 									<li class="recipients-row">
 										<div class="recipients-form">
-											<span class="eyebrow">Who answers this wave</span>
+											<span class="eyebrow">{t('Who answers this wave')}</span>
 											<div class="recipients-controls">
 												<select bind:value={recipientKind} aria-label="Recipient rule">
-													<option value="self">Everyone in the directory (about themselves)</option>
-													<option value="all_in_group">Members of a group (about themselves)</option>
+													<option value="self">{t('Everyone in the directory (about themselves)')}</option>
+													<option value="all_in_group">{t('Members of a group (about themselves)')}</option>
 												</select>
 												{#if recipientKind === 'all_in_group'}
 													<select bind:value={recipientGroupId} aria-label="Group">
-														<option value="" disabled>Choose a group</option>
+														<option value="" disabled>{t('Choose a group')}</option>
 														{#each groups as group (group.id)}
 															<option value={group.id}>{group.name} ({group.memberCount})</option>
 														{/each}
@@ -576,13 +571,12 @@
 													disabled={recipientBusy || (recipientKind === 'all_in_group' && !recipientGroupId)}
 													onclick={() => saveRecipients(wave.id)}
 												>
-													{recipientBusy ? 'Saving…' : 'Save recipients'}
+													{recipientBusy ? t('Saving…') : t('Save recipients')}
 												</button>
 											</div>
 											{#if recipientNote}<p class="recipients-note" role="status">{recipientNote}</p>{/if}
 											<p class="recipients-note">
-												Recipients come from <a href="/app/people">People</a>. Anonymous waves skip
-												this — they collect through open links or email invitations in Field.
+												{t('Recipients come from')} <a href="/app/people">{t('People')}</a>. {t('Anonymous waves skip this — they collect through open links or email invitations in Field.')}
 											</p>
 										</div>
 									</li>
@@ -590,7 +584,7 @@
 							{/each}
 						</ul>
 					{:else if !workspace.template}
-						<p class="prose">Waves become available once an instrument is attached.</p>
+						<p class="prose">{t('Waves become available once an instrument is attached.')}</p>
 					{/if}
 
 					{#if workspace.template}
@@ -624,8 +618,8 @@
 					{#if readiness}
 						{#if readiness.ready}
 							<p class="ready">
-								<span class="chip chip-live">Ready</span>
-								All prerequisites hold.
+								<span class="chip chip-live">{t('Ready')}</span>
+								{t('All prerequisites hold.')}
 							</p>
 						{:else}
 							<ul class="issues">
@@ -641,7 +635,7 @@
 							<button class="btn btn-stain launch-btn" disabled={launching} onclick={launch}>
 								{launching ? t('Launching…') : `${t('Launch')} ${launchCandidate.name}`}
 							</button>
-							<p class="lock-note">Instrument and scoring lock at launch.</p>
+							<p class="lock-note">{t('Instrument and scoring lock at launch.')}</p>
 						{/if}
 						{#if launchError}<p class="error" role="alert">{launchError}</p>{/if}
 					{:else if workspace.missingPrerequisites.length > 0}
@@ -654,7 +648,7 @@
 							{/each}
 						</ul>
 					{:else}
-						<p class="quiet-note">No wave is awaiting launch.</p>
+						<p class="quiet-note">{t('No wave is awaiting launch.')}</p>
 					{/if}
 				</div>
 
@@ -673,10 +667,10 @@
 					{#if lifecycleError}<p class="error" role="alert">{lifecycleError}</p>{/if}
 					<h2 class="eyebrow governance-h">{t('Governance')}</h2>
 					<dl class="gov">
-						<div><dt>Consent</dt><dd>{humanizeToken(hub.governance.consentStatus)}</dd></div>
-						<div><dt>Retention</dt><dd>{humanizeToken(hub.governance.retentionStatus)}</dd></div>
-						<div><dt>Disclosure</dt><dd>{humanizeToken(hub.governance.disclosureStatus)}</dd></div>
-						<div><dt>Scoring</dt><dd>{humanizeToken(hub.governance.scoringStatus)}</dd></div>
+						<div><dt>{t('Consent')}</dt><dd>{t(humanizeToken(hub.governance.consentStatus))}</dd></div>
+						<div><dt>{t('Retention')}</dt><dd>{t(humanizeToken(hub.governance.retentionStatus))}</dd></div>
+						<div><dt>{t('Disclosure')}</dt><dd>{t(humanizeToken(hub.governance.disclosureStatus))}</dd></div>
+						<div><dt>{t('Scoring')}</dt><dd>{t(humanizeToken(hub.governance.scoringStatus))}</dd></div>
 					</dl>
 				</div>
 			</aside>

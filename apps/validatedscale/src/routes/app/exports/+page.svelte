@@ -49,10 +49,10 @@
 	<h1 class="doc-title">{t('Exports')}</h1>
 	{#if library}
 		<p class="datum meta">
-			{formatCount(library.summary.totalCount)} artifacts ·
-			{formatCount(library.summary.downloadableCount)} downloadable ·
-			{formatCount(library.summary.pendingCount)} pending ·
-			{formatCount(library.summary.failedCount)} failed
+			{formatCount(library.summary.totalCount)} {t('artifacts')} ·
+			{formatCount(library.summary.downloadableCount)} {t('downloadable')} ·
+			{formatCount(library.summary.pendingCount)} {t('pending')} ·
+			{formatCount(library.summary.failedCount)} {t('failed')}
 		</p>
 	{/if}
 </header>
@@ -73,8 +73,8 @@
 						<th>{t('Study')}</th>
 						<th>{t('Type')}</th>
 						<th>{t('Status')}</th>
-						<th class="num">Rows</th>
-						<th class="num">Size</th>
+						<th class="num">{t('Rows')}</th>
+						<th class="num">{t('Size')}</th>
 						<th>{t('Created')}</th>
 						<th></th>
 					</tr>
@@ -84,14 +84,14 @@
 						<tr>
 							<td class="file">{artifact.fileName}</td>
 							<td>{artifact.targetLabel}</td>
-							<td>{humanizeToken(artifact.artifactType)}</td>
+							<td>{t(humanizeToken(artifact.artifactType))}</td>
 							<td>
 								<span
 									class="chip"
 									class:chip-live={artifact.status.toLowerCase() === 'completed'}
 									class:chip-danger={artifact.status.toLowerCase() === 'failed'}
 								>
-									{humanizeToken(artifact.status)}
+									{t(humanizeToken(artifact.status))}
 								</span>
 							</td>
 							<td class="num datum">{formatCount(artifact.rowCount)}</td>

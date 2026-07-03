@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { createProductApi, type WorkspaceOverviewResponse } from '$lib/api/product';
 	import { api } from '$lib/core/client';
-	import { t } from '$lib/core/locale.svelte';
+	import { localeState, t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import { mapPlatformRoute } from '$lib/core/routes';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -12,15 +12,29 @@
 	let overview = $state<WorkspaceOverviewResponse | null>(null);
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
 
-	const today = new Intl.DateTimeFormat('en-GB', {
-		weekday: 'long',
-		day: 'numeric',
-		month: 'long'
-	}).format(new Date());
+	const today = $derived(
+		new Intl.DateTimeFormat(localeState.current === 'hr' ? 'hr-HR' : 'en-GB', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long'
+		}).format(new Date())
+	);
 
 	const attention = $derived(
 		(overview?.commandCenter.items ?? []).slice().sort((a, b) => a.priority - b.priority)
 	);
+
+	/** hr number agreement: 1 val je · 2–4 vala su · 5+ valova je. */
+	function waveHeadline(count: number): string {
+		if (localeState.current !== 'hr') {
+			return count === 1 ? `${t('wave is')} ${t('in the field')}.` : `${t('waves are')} ${t('in the field')}.`;
+		}
+		const mod10 = count % 10;
+		const mod100 = count % 100;
+		if (mod10 === 1 && mod100 !== 11) return 'val je na terenu.';
+		if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'vala su na terenu.';
+		return 'valova je na terenu.';
+	}
 
 	const liveStudies = $derived(
 		(overview?.studyCollections.ownStudies ?? []).filter((s) => s.liveCampaignCount > 0)
@@ -44,7 +58,7 @@
 		{#if loadState === 'ready' && overview}
 			{#if overview.totals.liveCampaignCount > 0}
 				{formatCount(overview.totals.liveCampaignCount)}
-				{overview.totals.liveCampaignCount === 1 ? 'wave is' : 'waves are'} in the field.
+				{waveHeadline(overview.totals.liveCampaignCount)}
 			{:else if overview.totals.campaignSeriesCount > 0}
 				{t('Nothing is collecting today.')}
 			{:else}
@@ -71,7 +85,7 @@
 									<strong>{item.title}</strong>
 									<p>{item.description}</p>
 								</div>
-								<a class="btn btn-ghost" href={mapPlatformRoute(item.route)}>{item.actionLabel}</a>
+								<a class="btn btn-ghost" href={mapPlatformRoute(item.route)}>{t(item.actionLabel)}</a>
 							</li>
 						{/each}
 					</ol>
@@ -85,7 +99,7 @@
 								<span class="pip" aria-hidden="true"></span>
 								<a class="live-name doc-title" href={`/app/studies/${study.id}`}>{study.name}</a>
 								<span class="datum meta">
-									{formatCount(study.submittedResponseCount)} responses · last
+									{formatCount(study.submittedResponseCount)} {t('responses')} · {t('last')}
 									{formatDateTime(study.latestSubmissionAt)}
 								</span>
 								<a class="field-link" href={`/app/studies/${study.id}/field`}>{t('Field')} →</a>
@@ -127,7 +141,7 @@
 					{#each overview.recentSeries.slice(0, 5) as series (series.id)}
 						<li>
 							<a href={`/app/studies/${series.id}`}>{series.name}</a>
-							<span class="datum">{humanizeToken(series.readinessStatus)}</span>
+							<span class="datum">{t(humanizeToken(series.readinessStatus))}</span>
 						</li>
 					{:else}
 						<li class="quiet">{t('No studies yet. Start one from Studies.')}</li>
