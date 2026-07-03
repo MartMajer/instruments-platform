@@ -112,17 +112,38 @@
 		}
 	}
 
-	const filtered = $derived(
-		(directory?.subjects ?? []).filter((subject) => {
-			const term = search.trim().toLowerCase();
+	let groupFilter = $state('');
+	let emailFilter = $state<'all' | 'with' | 'without'>('all');
+	let sortBy = $state<'name' | 'email' | 'group'>('name');
+
+	const groupOptions = $derived.by(() => {
+		const names = new Set<string>();
+		for (const subject of directory?.subjects ?? []) {
+			for (const group of subject.groups) names.add(group.groupName);
+		}
+		return [...names].sort((a, b) => a.localeCompare(b));
+	});
+
+	const filtered = $derived.by(() => {
+		const term = search.trim().toLowerCase();
+		const rows = (directory?.subjects ?? []).filter((subject) => {
+			if (groupFilter && !subject.groups.some((g) => g.groupName === groupFilter)) return false;
+			if (emailFilter === 'with' && !subject.email) return false;
+			if (emailFilter === 'without' && subject.email) return false;
 			if (!term) return true;
 			return (
 				(subject.displayName ?? '').toLowerCase().includes(term) ||
 				(subject.email ?? '').toLowerCase().includes(term) ||
 				subject.groups.some((group) => group.groupName.toLowerCase().includes(term))
 			);
-		})
-	);
+		});
+		return rows.toSorted((a, b) => {
+			if (sortBy === 'email') return (a.email ?? '~').localeCompare(b.email ?? '~');
+			if (sortBy === 'group')
+				return (a.groups[0]?.groupName ?? '~').localeCompare(b.groups[0]?.groupName ?? '~');
+			return (a.displayName ?? '~').localeCompare(b.displayName ?? '~');
+		});
+	});
 
 	onMount(load);
 </script>
@@ -223,6 +244,28 @@
 			</button>
 		{/if}
 		{#if graphNote}<p class="note" role="status">{graphNote}</p>{/if}
+	</div>
+{/if}
+
+{#if loadState === 'ready'}
+	<div class="filters">
+		<select bind:value={groupFilter} aria-label="Filter by group">
+			<option value="">All groups</option>
+			{#each groupOptions as name (name)}
+				<option value={name}>{name}</option>
+			{/each}
+		</select>
+		<select bind:value={emailFilter} aria-label="Filter by email">
+			<option value="all">With or without email</option>
+			<option value="with">Has email</option>
+			<option value="without">No email</option>
+		</select>
+		<select bind:value={sortBy} aria-label="Sort">
+			<option value="name">Sort by name</option>
+			<option value="email">Sort by email</option>
+			<option value="group">Sort by group</option>
+		</select>
+		<span class="datum showing">{formatCount(filtered.length)} shown</span>
 	</div>
 {/if}
 
@@ -372,6 +415,29 @@
 	.error {
 		font-size: 0.8125rem;
 		color: var(--color-danger);
+	}
+
+	.filters {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		margin-bottom: 1rem;
+	}
+
+	.filters select {
+		font: inherit;
+		font-size: 0.8125rem;
+		padding: 0.4375rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.showing {
+		margin-left: auto;
+		font-size: 0.75rem;
+		color: var(--color-ink-3);
 	}
 
 	.table-wrap {

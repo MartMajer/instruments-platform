@@ -125,6 +125,44 @@
 		}
 	}
 
+	let groups = $state<{ id: string; name: string; memberCount: number }[]>([]);
+	let recipientsFor = $state<string | null>(null);
+	let recipientKind = $state<'self' | 'all_in_group'>('self');
+	let recipientGroupId = $state('');
+	let recipientBusy = $state(false);
+	let recipientNote = $state<string | null>(null);
+
+	async function toggleRecipients(campaignId: string) {
+		recipientsFor = recipientsFor === campaignId ? null : campaignId;
+		recipientNote = null;
+		if (recipientsFor && groups.length === 0) {
+			const list = await product.listSubjectGroups().catch(() => null);
+			groups = (list?.groups ?? []).map((g) => ({ id: g.id, name: g.name, memberCount: g.memberCount }));
+		}
+	}
+
+	async function saveRecipients(campaignId: string) {
+		if (recipientBusy) return;
+		recipientBusy = true;
+		recipientNote = null;
+		try {
+			const rule =
+				recipientKind === 'all_in_group'
+					? { kind: 'all_in_group', role: 'group_member', group_id: recipientGroupId }
+					: { kind: 'self', role: 'self' };
+			const saved = await setup.updateCampaignRespondentRules(campaignId, {
+				rules: [{ rule: JSON.stringify(rule) }]
+			});
+			const pairs = saved.rules?.[0]?.assignmentPairCount ?? null;
+			recipientNote = pairs != null ? `Saved — ${pairs} recipients resolved from the directory.` : 'Recipients saved.';
+			await load();
+		} catch {
+			recipientNote = 'Recipients could not be saved. Anonymous open-link waves do not need them.';
+		} finally {
+			recipientBusy = false;
+		}
+	}
+
 	let lifecycleBusy = $state(false);
 	let lifecycleError = $state<string | null>(null);
 
@@ -159,6 +197,24 @@
 		} finally {
 			lifecycleBusy = false;
 		}
+	}
+
+	/** Backend prerequisites speak backend ("campaign"); translate + point at the right chapter. */
+	function prerequisiteHint(code: string, message: string): { text: string; anchor: string | null } {
+		const lowered = `${code} ${message}`.toLowerCase();
+		if (lowered.includes('campaign')) {
+			return { text: 'This study has no wave yet. Add one in chapter 05 — Waves.', anchor: '#waves' };
+		}
+		if (lowered.includes('template') || lowered.includes('instrument') || lowered.includes('question')) {
+			return { text: 'No instrument is attached yet. Compose or pick one in chapter 02 — Instrument.', anchor: '#instrument' };
+		}
+		if (lowered.includes('scoring')) {
+			return { text: 'No scoring rule is bound. It is created with the questionnaire in chapter 02.', anchor: '#instrument' };
+		}
+		if (lowered.includes('consent') || lowered.includes('retention') || lowered.includes('disclosure')) {
+			return { text: message, anchor: '#policies' };
+		}
+		return { text: message, anchor: null };
 	}
 
 	function policyChip(status: string): string {
@@ -238,6 +294,23 @@
 					{/if}
 				</section>
 
+				<section id="participation">
+					<h2><span class="datum ch">·</span> Who takes part</h2>
+					<p class="prose">
+						People reach this study through the <strong>Field</strong> phase once a wave is
+						live: share an <strong>open link</strong> (anyone with the link, anonymous or with
+						a participant code), or <strong>queue email invitations</strong> to specific
+						addresses. For invite lists, keep your cohort in
+						<a href="/app/people">People</a> — add them by hand, CSV, or a Microsoft
+						directory connection.
+					</p>
+					{#if hub.campaigns.some((c) => c.status.toLowerCase() === 'live')}
+						<p class="prose">
+							<a href={`/app/studies/${seriesId}/field`}>Open Field →</a>
+						</p>
+					{/if}
+				</section>
+
 				<section id="instrument">
 					<h2><span class="datum ch">02</span> Instrument</h2>
 					{#if workspace.template}
@@ -300,25 +373,33 @@
 				<section id="policies">
 					<h2><span class="datum ch">04</span> Policies</h2>
 					<p class="prose">
-						Every study carries these three policies from the moment it is registered; they
-						bind at launch.
+						Every study receives these three policies with safe defaults when it is
+						registered, and they bind at launch. Editing them in the app is not available
+						yet — the defaults are the platform's protective posture (consent required,
+						anonymize after retention, nothing reported below the k threshold).
 					</p>
-					<ul class="policies">
+					<div class="policy-grid">
 						{#each [{ label: 'Consent', policy: workspace.policies.consent }, { label: 'Retention', policy: workspace.policies.retention }, { label: 'Disclosure', policy: workspace.policies.disclosure }] as entry (entry.label)}
-							<li>
-								<span class={policyChip(entry.policy.status)}>{entry.label}</span>
-								<span class="policy-detail">
-									{humanizeToken(entry.policy.status)}
+							<div class="policy-card">
+								<div class="policy-head">
+									<span class={policyChip(entry.policy.status)}>{entry.label}</span>
 									{#if entry.policy.version}
 										<span class="datum quiet">v{entry.policy.version}</span>
 									{/if}
+								</div>
+								<dl class="policy-facts">
 									{#each entry.policy.details ?? [] as detail (detail.label)}
-										· {detail.label}: <span class="datum">{detail.value}</span>
+										<div>
+											<dt>{detail.label}</dt>
+											<dd class="datum">{detail.value}</dd>
+										</div>
+									{:else}
+										<div><dt>Status</dt><dd>{humanizeToken(entry.policy.status)}</dd></div>
 									{/each}
-								</span>
-							</li>
+								</dl>
+							</div>
 						{/each}
-					</ul>
+					</div>
 				</section>
 
 				<section id="waves">
@@ -336,7 +417,45 @@
 										{#if wave.latestLaunchAt}· launched {formatDateTime(wave.latestLaunchAt)}{/if}
 										· {formatCount(wave.submittedResponseCount)} responses
 									</span>
+									{#if !wave.latestLaunchAt && wave.responseIdentityMode.toLowerCase() === 'identified'}
+										<button class="recipients-btn" onclick={() => toggleRecipients(wave.id)}>
+											Recipients
+										</button>
+									{/if}
 								</li>
+								{#if recipientsFor === wave.id}
+									<li class="recipients-row">
+										<div class="recipients-form">
+											<span class="eyebrow">Who answers this wave</span>
+											<div class="recipients-controls">
+												<select bind:value={recipientKind} aria-label="Recipient rule">
+													<option value="self">Everyone in the directory (about themselves)</option>
+													<option value="all_in_group">Members of a group (about themselves)</option>
+												</select>
+												{#if recipientKind === 'all_in_group'}
+													<select bind:value={recipientGroupId} aria-label="Group">
+														<option value="" disabled>Choose a group</option>
+														{#each groups as group (group.id)}
+															<option value={group.id}>{group.name} ({group.memberCount})</option>
+														{/each}
+													</select>
+												{/if}
+												<button
+													class="btn btn-ghost"
+													disabled={recipientBusy || (recipientKind === 'all_in_group' && !recipientGroupId)}
+													onclick={() => saveRecipients(wave.id)}
+												>
+													{recipientBusy ? 'Saving…' : 'Save recipients'}
+												</button>
+											</div>
+											{#if recipientNote}<p class="recipients-note" role="status">{recipientNote}</p>{/if}
+											<p class="recipients-note">
+												Recipients come from <a href="/app/people">People</a>. Anonymous waves skip
+												this — they collect through open links or email invitations in Field.
+											</p>
+										</div>
+									</li>
+								{/if}
 							{/each}
 						</ul>
 					{:else if !workspace.template}
@@ -380,8 +499,9 @@
 						{:else}
 							<ul class="issues">
 								{#each readiness.issues as issue (issue.code)}
+									{@const hint = prerequisiteHint(issue.code, issue.message)}
 									<li class:severe={issue.severity.toLowerCase() === 'error'}>
-										{issue.message}
+										{#if hint.anchor}<a href={hint.anchor}>{hint.text}</a>{:else}{hint.text}{/if}
 									</li>
 								{/each}
 							</ul>
@@ -396,8 +516,9 @@
 					{:else if workspace.missingPrerequisites.length > 0}
 						<ul class="issues">
 							{#each workspace.missingPrerequisites as missing (missing.code)}
+								{@const hint = prerequisiteHint(missing.code, missing.message)}
 								<li class:severe={missing.severity.toLowerCase() === 'error'}>
-									{missing.message}
+									{#if hint.anchor}<a href={hint.anchor}>{hint.text}</a>{:else}{hint.text}{/if}
 								</li>
 							{/each}
 						</ul>
@@ -588,22 +709,46 @@
 		font-size: 0.8125rem;
 	}
 
-	.policies {
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
+	.policy-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+		gap: 1rem;
+		margin-top: 1rem;
 	}
 
-	.policies li {
-		display: flex;
-		align-items: baseline;
-		gap: 0.75rem;
+	.policy-card {
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-instrument);
+		padding: 0.875rem;
+		background: var(--color-surface);
 	}
 
-	.policy-detail {
-		font-size: 0.9375rem;
-		color: var(--color-ink-2);
+	.policy-head {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.625rem;
+	}
+
+	.policy-facts div {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.3125rem 0;
+		border-bottom: 1px dashed var(--color-line);
+		font-size: 0.8125rem;
+	}
+
+	.policy-facts div:last-child {
+		border-bottom: none;
+	}
+
+	.policy-facts dt {
+		color: var(--color-ink-3);
+	}
+
+	.policy-facts dd {
+		text-align: right;
 	}
 
 	.waves-rail {
@@ -659,6 +804,56 @@
 		border-bottom: none;
 	}
 
+	.recipients-btn {
+		margin-left: auto;
+		background: none;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 560;
+		color: var(--color-stain);
+		padding: 0.3125rem 0.625rem;
+		cursor: pointer;
+	}
+
+	.recipients-row {
+		background: var(--color-stain-wash);
+		border-radius: var(--radius-instrument);
+		padding: 0.875rem !important;
+	}
+
+	.recipients-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+		width: 100%;
+	}
+
+	.recipients-controls {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.recipients-controls select {
+		font: inherit;
+		font-size: 0.875rem;
+		padding: 0.4375rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.recipients-note {
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+	}
+
+	.recipients-note a {
+		color: var(--color-stain);
+	}
+
 	.waves .meta {
 		font-size: 0.75rem;
 		color: var(--color-ink-3);
@@ -708,6 +903,15 @@
 
 	.issues li.severe {
 		border-left-color: var(--color-danger);
+	}
+
+	.issues a {
+		color: var(--color-stain);
+		text-decoration: none;
+	}
+
+	.issues a:hover {
+		text-decoration: underline;
 	}
 
 	.launch-btn {
