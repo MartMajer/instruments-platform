@@ -1,0 +1,6 @@
+{
+	"projectId": "f9730e21-23da-40e7-a5f9-a1826450c72a",
+	"shape": "styles-only",
+	"readmeHeader": ".design-sync/conventions.md",
+	"notes": "Off-script sync: product components are Svelte (apps/validatedscale) and cannot ship to the React design runtime. This project carries tokens/fonts/vocabulary CSS/guidelines only, hand-assembled into ds-bundle/ from apps/validatedscale/src/app.css. No _ds_bundle.js, no components/, no _ds_sync.json (nothing to anchor) — a re-sync rebuilds ds-bundle by copying token/vocabulary values from app.css and re-validating names, then re-uploads."
+}

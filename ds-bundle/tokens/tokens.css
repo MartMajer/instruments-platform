@@ -1,0 +1,56 @@
+/*
+ * ValidatedScale design tokens — "the instrument and the manuscript".
+ * Source of truth: apps/validatedscale/src/app.css (values copied verbatim).
+ * Cold porcelain ground, graphite-blue ink, one identity accent (stain violet).
+ * No warm tones outside status semantics.
+ */
+:root {
+	/* type roles */
+	--font-ui: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+	--font-doc: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+	/* ground + ink (cold porcelain / graphite-blue) */
+	--color-ground: #f2f4f8;
+	--color-surface: #ffffff;
+	--color-sunk: #e9edf3;
+	--color-ink: #151c25;
+	--color-ink-2: #3c4754;
+	--color-ink-3: #66717f;
+	--color-line: #d7dde5;
+	--color-line-2: #aab4c0;
+
+	/* identity: stain violet */
+	--color-stain: #4530a6;
+	--color-stain-deep: #33217f;
+	--color-stain-wash: #edeafa;
+	--color-stain-line: #c9c0ee;
+
+	/* console (live-monitoring surfaces only — lifted graphite, not blue-black) */
+	--color-console: #242932;
+	--color-console-2: #2a303a;
+	--color-console-3: #353c47;
+	--color-console-line: #434b57;
+	--color-console-ink: #eceff4;
+	--color-console-dim: #9aa3af;
+	--color-stain-bright: #9c8bf5;
+
+	/* status — cold semantics */
+	--color-live: #0e7a5f;
+	--color-live-wash: #e2f3ee;
+	--color-info: #0f5a9e;
+	--color-info-wash: #e3eef9;
+	--color-warn: #8f6400;
+	--color-warn-wash: #f7efd8;
+	--color-danger: #b3323e;
+	--color-danger-wash: #f9e8ea;
+
+	/* chart tokens — CVD/contrast-validated for their surfaces:
+	   light trio on #ffffff, dark meter fill on #2a303a */
+	--color-series-1: #08569a;
+	--color-series-2: #008065;
+	--color-chart-violet: #5b46c8;
+	--color-chart-violet-dark: #8673ee;
+
+	--radius-instrument: 4px;
+}
