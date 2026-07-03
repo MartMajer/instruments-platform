@@ -226,8 +226,8 @@
 	async function duplicateStudy() {
 		if (!hub || lifecycleBusy) return;
 		const name = await promptDialog({
-			title: t('Duplicate study'),
-			body: t('The protocol is copied — instrument, scoring, policies. Waves and responses are not.'),
+			title: t('Duplicate as my study'),
+			body: t('Copies this example into an editable study of your own — protocol included, responses not.'),
 			confirmLabel: t('Duplicate'),
 			initialValue: `${hub.name} (copy)`
 		});
@@ -661,9 +661,11 @@
 				<div class="panel governance">
 					<h2 class="eyebrow">{t('Study')}</h2>
 					<div class="lifecycle-actions">
-						<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
-							{t('Duplicate study')}
-						</button>
+						{#if hub.isSample}
+							<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
+								{t('Duplicate as my study')}
+							</button>
+						{/if}
 						<button class="quiet-action" disabled={lifecycleBusy} onclick={toggleArchive}>
 							{hub.archived ? t('Restore from archive') : t('Archive study')}
 						</button>

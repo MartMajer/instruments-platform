@@ -240,7 +240,7 @@ function nmqScoring(): string {
 				id: 'regions_answers',
 				op: 'map_choice_scores',
 				input: 'regions_items',
-				option_scores: { yes: 1, no: 0 }
+				option_scores: Object.fromEntries(items.map((item) => [item, { yes: 1, no: 0 }]))
 			},
 			{
 				id: 'regions_score',

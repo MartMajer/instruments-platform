@@ -28,6 +28,8 @@ export function t(english: string): string {
 
 /** English source string → Croatian. Keep alphabetized by English. */
 const HR: Record<string, string> = {
+	'Copies this example into an editable study of your own — protocol included, responses not.': 'Kopira ovaj primjer u vašu vlastitu studiju koju možete uređivati — protokol da, odgovori ne.',
+	'Duplicate as my study': 'Dupliciraj kao svoju studiju',
 	'Close editor': 'Zatvori uređivač',
 	'Hide items': 'Sakrij čestice',
 	'Revise questionnaire': 'Izmijeni upitnik',
