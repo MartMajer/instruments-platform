@@ -37,7 +37,11 @@ export const respondentCopy = {
 		unsubscribeDone: 'You will not receive further emails for this study.',
 		typeUnsupported: 'Write your answer below.',
 		submitFailed: 'Your answers could not be submitted. They are saved — try again.',
-		startFailed: 'The survey could not be started. Reload the page to try again.'
+		startFailed: 'The survey could not be started. Reload the page to try again.',
+		queueHint: 'You have been asked to answer about the following. Each one is a short, separate questionnaire.',
+		aboutYourself: 'About yourself',
+		answer: 'Answer',
+		done: 'Done'
 	},
 	hr: {
 		invitedTo: 'Pozvani ste sudjelovati u istraživanju',
@@ -70,6 +74,10 @@ export const respondentCopy = {
 		unsubscribeDone: 'Nećete više primati e-poštu za ovo istraživanje.',
 		typeUnsupported: 'Upišite svoj odgovor u polje ispod.',
 		submitFailed: 'Odgovore nije bilo moguće poslati. Spremljeni su — pokušajte ponovno.',
-		startFailed: 'Upitnik nije bilo moguće pokrenuti. Osvježite stranicu i pokušajte ponovno.'
+		startFailed: 'Upitnik nije bilo moguće pokrenuti. Osvježite stranicu i pokušajte ponovno.',
+		queueHint: 'Zamoljeni ste odgovoriti o sljedećem. Svaki je kratak, zaseban upitnik.',
+		aboutYourself: 'O sebi',
+		answer: 'Odgovori',
+		done: 'Gotovo'
 	}
 } satisfies Record<RespondentLocale, Record<string, string>>;

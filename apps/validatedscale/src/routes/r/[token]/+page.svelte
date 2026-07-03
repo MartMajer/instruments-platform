@@ -4,6 +4,7 @@
 	import { ApiError } from '$lib/api/client';
 	import {
 		createSetupApi,
+		type IdentifiedQueueResponse,
 		type OpenLinkEntryResponse,
 		type RespondentQuestionResponse,
 		type ResponseSessionResponse
@@ -16,10 +17,12 @@
 	const setup = createSetupApi(api());
 	const token = $derived(page.params.token!);
 
-	let phase = $state<'loading' | 'gone' | 'closed' | 'consent' | 'survey' | 'submitted'>('loading');
+	let phase = $state<'loading' | 'gone' | 'closed' | 'consent' | 'queue' | 'survey' | 'submitted'>('loading');
 	let entry = $state<OpenLinkEntryResponse | null>(null);
 	let session = $state<ResponseSessionResponse | null>(null);
 	let identifiedEntry = $state(false);
+	let queue = $state<IdentifiedQueueResponse | null>(null);
+	let activeAssignmentId = $state<string | null>(null);
 
 	let consentAccepted = $state(false);
 	let participantCode = $state('');
@@ -62,8 +65,24 @@
 					entry = await setup.getIdentifiedEntry(token);
 					identifiedEntry = true;
 				} catch {
-					phase = 'gone';
-					return;
+					try {
+						queue = await setup.getIdentifiedQueue(token);
+						entry = {
+							campaignId: queue.campaignId,
+							assignmentId: '',
+							templateVersionId: queue.templateVersionId,
+							name: queue.name,
+							status: queue.status,
+							responseIdentityMode: queue.responseIdentityMode,
+							requiresParticipantCode: false,
+							defaultLocale: queue.defaultLocale,
+							consentDocument: queue.consentDocument,
+							questions: queue.questions
+						};
+					} catch {
+						phase = 'gone';
+						return;
+					}
 				}
 			} else {
 				phase = 'gone';
@@ -106,6 +125,35 @@
 		phase = 'consent';
 	});
 
+	async function startAssignment(assignmentId: string) {
+		if (!entry || !queue || starting) return;
+		starting = true;
+		startError = null;
+		try {
+			session = await setup.createIdentifiedQueueAssignmentSession(token, assignmentId, {
+				locale: entry.defaultLocale,
+				acceptedConsentDocumentId: entry.consentDocument.id,
+				acceptedGrants: entry.consentDocument.requiredGrants
+			});
+			activeAssignmentId = assignmentId;
+			answers = {};
+			startedAtMs = Date.now();
+			phase = 'survey';
+		} catch {
+			startError = copy.startFailed;
+		} finally {
+			starting = false;
+		}
+	}
+
+	async function backToQueue() {
+		queue = await setup.getIdentifiedQueue(token).catch(() => queue);
+		session = null;
+		activeAssignmentId = null;
+		const open = queue?.assignments.filter((a) => !a.submittedAt) ?? [];
+		phase = open.length === 0 ? 'submitted' : 'queue';
+	}
+
 	async function begin() {
 		if (!entry || starting) return;
 		starting = true;
@@ -118,6 +166,12 @@
 				acceptedGrants: entry.consentDocument.requiredGrants,
 				participantCode: entry.requiresParticipantCode ? participantCode.trim() : null
 			};
+			if (queue) {
+				startError = null;
+				starting = false;
+				phase = 'queue';
+				return;
+			}
 			session = identifiedEntry
 				? await setup.createIdentifiedEntrySession(token, request)
 				: await setup.createOpenLinkSession(token, request);
@@ -158,7 +212,9 @@
 						isNa: answers[question.id] === 'NA' || undefined
 					}))
 			};
-			if (identifiedEntry) {
+			if (queue && activeAssignmentId) {
+				await setup.saveIdentifiedQueueAnswers(token, activeAssignmentId, session.id, payload);
+			} else if (identifiedEntry) {
 				await setup.saveAnswers(session.id, payload);
 			} else {
 				await setup.saveOpenLinkAnswers(token, session.id, payload);
@@ -191,7 +247,12 @@
 			const saved = await save();
 			if (!saved) throw new Error('save-failed');
 			const submitRequest = { timeTakenMs: Date.now() - startedAtMs };
-			if (identifiedEntry) {
+			if (queue && activeAssignmentId) {
+				await setup.submitIdentifiedQueueSession(token, activeAssignmentId, session.id, submitRequest);
+				submitting = false;
+				await backToQueue();
+				return;
+			} else if (identifiedEntry) {
 				await setup.submitResponseSession(session.id, submitRequest);
 			} else {
 				await setup.submitOpenLinkSession(token, session.id, submitRequest);
@@ -273,6 +334,34 @@
 					<p class="consent-note">{copy.consentRequiredNote}</p>
 				{/if}
 			</section>
+		</article>
+	{:else if phase === 'queue' && queue && entry}
+		<article class="sheet">
+			<p class="eyebrow study-kicker">{entry.name}</p>
+			<h1 class="doc-title study-title small">
+				{queue.respondent.displayName ?? queue.respondent.label}
+			</h1>
+			<p class="queue-hint">
+				{copy.queueHint}
+			</p>
+			<ul class="queue-list">
+				{#each queue.assignments as assignment (assignment.assignmentId)}
+					<li>
+						<div class="queue-who">
+							<strong>{assignment.target?.displayName ?? assignment.target?.label ?? copy.aboutYourself}</strong>
+							<span class="datum queue-role">{assignment.role}</span>
+						</div>
+						{#if assignment.submittedAt}
+							<span class="chip chip-live">{copy.done}</span>
+						{:else}
+							<button class="btn btn-stain queue-start" disabled={starting} onclick={() => startAssignment(assignment.assignmentId)}>
+								{copy.answer}
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+			{#if startError}<p class="error" role="alert">{startError}</p>{/if}
 		</article>
 	{:else if phase === 'survey' && entry}
 		<div class="progress" role="progressbar" aria-valuenow={answeredCount} aria-valuemin={0} aria-valuemax={questions.length} aria-label={copy.progressLabel}>
@@ -517,6 +606,43 @@
 		color: var(--color-ink-3);
 		min-width: 4rem;
 		text-align: right;
+	}
+
+	.queue-hint {
+		margin: 0.75rem 0 1rem;
+		font-size: 0.875rem;
+		line-height: 1.55;
+		color: var(--color-ink-2);
+	}
+
+	.queue-list {
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.queue-list li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.875rem 0;
+		border-bottom: 1px dashed var(--color-line);
+	}
+
+	.queue-who {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.queue-role {
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.queue-start {
+		padding: 0.5rem 1rem;
 	}
 
 	.items {
