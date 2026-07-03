@@ -8,6 +8,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { downloadExportArtifact } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -134,7 +135,7 @@
 				<a href="/app/studies">Studies</a> /
 				<a href={`/app/studies/${seriesId}`}>{workspace.series.name}</a>
 			</p>
-			<h1 class="doc-title">Evidence</h1>
+			<h1 class="doc-title">{t('Evidence')}</h1>
 			<p class="datum provenance">
 				{formatCount(workspace.summary.submittedResponseCount)} responses ·
 				{formatCount(workspace.summary.visibleScoreCount)} scores visible ·
@@ -143,9 +144,9 @@
 			</p>
 
 			<nav class="phases" aria-label="Study phases">
-				<a class="phase" href={`/app/studies/${seriesId}`}>Protocol</a>
-				<a class="phase" href={`/app/studies/${seriesId}/field`}>Field</a>
-				<span class="phase current">Evidence</span>
+				<a class="phase" href={`/app/studies/${seriesId}`}>{t('Protocol')}</a>
+				<a class="phase" href={`/app/studies/${seriesId}/field`}>{t('Field')}</a>
+				<span class="phase current">{t('Evidence')}</span>
 			</nav>
 		</header>
 
@@ -192,12 +193,12 @@
 
 					{#if visibleOutputs.length > 0}
 						<section class="findings">
-							<h2 class="eyebrow">Findings</h2>
+							<h2 class="eyebrow">{t('Findings')}</h2>
 							<div class="table-wrap">
 								<table>
 									<thead>
 										<tr>
-											<th>Dimension</th>
+											<th>{t('Dimension')}</th>
 											<th class="num">n</th>
 											<th class="num">Mean</th>
 											<th class="num">Median</th>
@@ -230,13 +231,13 @@
 
 					{#if waveMatrix.length > 0}
 						<section class="trajectory">
-							<h2 class="eyebrow">Across waves</h2>
+							<h2 class="eyebrow">{t('Across waves')}</h2>
 							<div class="table-wrap">
 								<table>
 									<thead>
 										<tr>
-											<th>Dimension</th>
-											<th class="trend-h">Trend</th>
+											<th>{t('Dimension')}</th>
+											<th class="trend-h">{t('Trend')}</th>
 											{#each waveMatrix[0][1] as wave (wave.campaignId)}
 												<th class="num">{wave.campaignName}</th>
 											{/each}
@@ -288,7 +289,7 @@
 
 					{#if (analytics?.insights ?? []).length > 0}
 						<section class="notes">
-							<h2 class="eyebrow">Notes</h2>
+							<h2 class="eyebrow">{t('Notes')}</h2>
 							<ul>
 								{#each analytics?.insights ?? [] as note (note.title)}
 									<li>
@@ -303,16 +304,16 @@
 
 				<aside class="side">
 					<div class="panel exports">
-						<h2 class="eyebrow">Exports</h2>
+						<h2 class="eyebrow">{t('Exports')}</h2>
 						<div class="export-actions">
 							<button class="btn btn-ghost" disabled={exportBusy !== null} onclick={() => runExport('responses')}>
-								{exportBusy === 'responses' ? 'Queueing…' : 'Responses CSV + codebook'}
+								{exportBusy === 'responses' ? t('Queueing…') : t('Responses CSV + codebook')}
 							</button>
 							<button class="btn btn-ghost" disabled={exportBusy !== null} onclick={() => runExport('matrix')}>
-								{exportBusy === 'matrix' ? 'Queueing…' : 'Results matrix CSV'}
+								{exportBusy === 'matrix' ? t('Queueing…') : t('Results matrix CSV')}
 							</button>
 							<button class="btn btn-ghost" disabled={exportBusy !== null} onclick={() => runExport('pdf')}>
-								{exportBusy === 'pdf' ? 'Queueing…' : 'Report PDF'}
+								{exportBusy === 'pdf' ? t('Queueing…') : t('Report PDF')}
 							</button>
 						</div>
 						{#if exportNote}<p class="export-note" role="status">{exportNote}</p>{/if}
@@ -328,9 +329,9 @@
 										</span>
 									</div>
 									{#if artifact.canDownload}
-										<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>Download</button>
+										<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>{t('Download')}</button>
 									{:else if artifact.status.toLowerCase() === 'failed'}
-										<button class="dl" onclick={() => retry(artifact.id)}>Retry</button>
+										<button class="dl" onclick={() => retry(artifact.id)}>{t('Retry')}</button>
 									{/if}
 								</li>
 							{:else}

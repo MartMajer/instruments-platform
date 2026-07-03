@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { createProductApi, type WorkspaceOverviewResponse } from '$lib/api/product';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import { mapPlatformRoute } from '$lib/core/routes';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -45,9 +46,9 @@
 				{formatCount(overview.totals.liveCampaignCount)}
 				{overview.totals.liveCampaignCount === 1 ? 'wave is' : 'waves are'} in the field.
 			{:else if overview.totals.campaignSeriesCount > 0}
-				Nothing is collecting today.
+				{t('Nothing is collecting today.')}
 			{:else}
-				Your workspace is ready.
+				{t('Your workspace is ready.')}
 			{/if}
 		{:else}
 			Today
@@ -59,9 +60,9 @@
 	{#if overview}
 		<div class="grid">
 			<section class="main">
-				<h2 class="eyebrow">Needs attention</h2>
+				<h2 class="eyebrow">{t('Needs attention')}</h2>
 				{#if attention.length === 0}
-					<p class="quiet">Nothing needs your attention. The field runs itself today.</p>
+					<p class="quiet">{t('Nothing needs your attention. The field runs itself today.')}</p>
 				{:else}
 					<ol class="attention">
 						{#each attention as item (item.id)}
@@ -77,7 +78,7 @@
 				{/if}
 
 				{#if liveStudies.length > 0}
-					<h2 class="eyebrow live-h">In the field now</h2>
+					<h2 class="eyebrow live-h">{t('In the field now')}</h2>
 					<ul class="live">
 						{#each liveStudies as study (study.id)}
 							<li>
@@ -87,7 +88,7 @@
 									{formatCount(study.submittedResponseCount)} responses · last
 									{formatDateTime(study.latestSubmissionAt)}
 								</span>
-								<a class="field-link" href={`/app/studies/${study.id}/field`}>Field →</a>
+								<a class="field-link" href={`/app/studies/${study.id}/field`}>{t('Field')} →</a>
 							</li>
 						{/each}
 					</ul>
@@ -95,33 +96,33 @@
 			</section>
 
 			<aside class="side">
-				<h2 class="eyebrow">Workspace</h2>
+				<h2 class="eyebrow">{t('Workspace')}</h2>
 				<dl class="counters">
 					<div>
-						<dt>Studies</dt>
+						<dt>{t('Studies')}</dt>
 						<dd class="datum">{formatCount(overview.totals.campaignSeriesCount)}</dd>
 					</div>
 					<div>
-						<dt>Waves</dt>
+						<dt>{t('Waves')}</dt>
 						<dd class="datum">{formatCount(overview.totals.campaignCount)}</dd>
 					</div>
 					<div>
-						<dt>In field</dt>
+						<dt>{t('In field')}</dt>
 						<dd class="datum" class:stain={overview.totals.liveCampaignCount > 0}>
 							{formatCount(overview.totals.liveCampaignCount)}
 						</dd>
 					</div>
 					<div>
-						<dt>Responses</dt>
+						<dt>{t('Responses')}</dt>
 						<dd class="datum">{formatCount(overview.totals.submittedResponseCount)}</dd>
 					</div>
 					<div>
-						<dt>Exports</dt>
+						<dt>{t('Exports')}</dt>
 						<dd class="datum">{formatCount(overview.totals.exportArtifactCount)}</dd>
 					</div>
 				</dl>
 
-				<h2 class="eyebrow recent-h">Recent studies</h2>
+				<h2 class="eyebrow recent-h">{t('Recent studies')}</h2>
 				<ul class="recent">
 					{#each overview.recentSeries.slice(0, 5) as series (series.id)}
 						<li>
@@ -129,7 +130,7 @@
 							<span class="datum">{humanizeToken(series.readinessStatus)}</span>
 						</li>
 					{:else}
-						<li class="quiet">No studies yet. Start one from Studies.</li>
+						<li class="quiet">{t('No studies yet. Start one from Studies.')}</li>
 					{/each}
 				</ul>
 			</aside>

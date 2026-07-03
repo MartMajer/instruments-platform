@@ -8,6 +8,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi, type LaunchReadinessResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import Composer from '$lib/protocol/Composer.svelte';
 	import { confirmDialog, promptDialog } from '$lib/ui/dialog.svelte';
@@ -57,11 +58,11 @@
 	}
 
 	const chapters = [
-		{ n: '01', id: 'design', title: 'Design' },
-		{ n: '02', id: 'instrument', title: 'Instrument' },
-		{ n: '03', id: 'scoring', title: 'Scoring' },
-		{ n: '04', id: 'policies', title: 'Policies' },
-		{ n: '05', id: 'waves', title: 'Waves' }
+		{ n: '01', id: 'design', title: t('Design') },
+		{ n: '02', id: 'instrument', title: t('Instrument') },
+		{ n: '03', id: 'scoring', title: t('Scoring') },
+		{ n: '04', id: 'policies', title: t('Policies') },
+		{ n: '05', id: 'waves', title: t('Waves') }
 	];
 
 	const launchCandidate = $derived(
@@ -110,9 +111,9 @@
 	async function launch() {
 		if (!launchCandidate || launching) return;
 		const proceed = await confirmDialog({
-			title: `Launch ${launchCandidate.name}?`,
-			body: 'Instrument, scoring and policies lock at launch. Collection starts immediately.',
-			confirmLabel: 'Launch'
+			title: `${t('Launch')} ${launchCandidate.name}?`,
+			body: t('Instrument, scoring and policies lock at launch. Collection starts immediately.'),
+			confirmLabel: t('Launch')
 		});
 		if (!proceed) return;
 
@@ -224,9 +225,9 @@
 	async function duplicateStudy() {
 		if (!hub || lifecycleBusy) return;
 		const name = await promptDialog({
-			title: 'Duplicate study',
-			body: 'The protocol is copied — instrument, scoring, policies. Waves and responses are not.',
-			confirmLabel: 'Duplicate',
+			title: t('Duplicate study'),
+			body: t('The protocol is copied — instrument, scoring, policies. Waves and responses are not.'),
+			confirmLabel: t('Duplicate'),
 			initialValue: `${hub.name} (copy)`
 		});
 		if (!name) return;
@@ -245,9 +246,9 @@
 		if (!hub || lifecycleBusy) return;
 		if (!hub.archived) {
 			const proceed = await confirmDialog({
-				title: `Archive ${hub.name}?`,
-				body: 'The study leaves the portfolio but stays readable and can be restored at any time.',
-				confirmLabel: 'Archive',
+				title: `${t('Archive')} ${hub.name}?`,
+				body: t('The study leaves the portfolio but stays readable and can be restored at any time.'),
+				confirmLabel: t('Archive'),
 				danger: true
 			});
 			if (!proceed) return;
@@ -311,9 +312,9 @@
 			</p>
 
 			<nav class="phases" aria-label="Study phases">
-				<span class="phase current">Protocol</span>
-				<a class="phase" href={`/app/studies/${seriesId}/field`}>Field</a>
-				<a class="phase" href={`/app/studies/${seriesId}/evidence`}>Evidence</a>
+				<span class="phase current">{t('Protocol')}</span>
+				<a class="phase" href={`/app/studies/${seriesId}/field`}>{t('Field')}</a>
+				<a class="phase" href={`/app/studies/${seriesId}/evidence`}>{t('Evidence')}</a>
 			</nav>
 		</header>
 
@@ -335,19 +336,19 @@
 
 			<article class="doc">
 				<section id="design">
-					<h2><span class="datum ch">01</span> Design</h2>
+					<h2><span class="datum ch">01</span> {t('Design')}</h2>
 					{#if launchCandidate}
 						<dl class="facts">
 							<div>
-								<dt>Identity mode</dt>
+								<dt>{t('Identity mode')}</dt>
 								<dd>{humanizeToken(launchCandidate.responseIdentityMode)}</dd>
 							</div>
 							<div>
-								<dt>Default locale</dt>
+								<dt>{t('Default locale')}</dt>
 								<dd class="datum">{launchCandidate.defaultLocale}</dd>
 							</div>
 							<div>
-								<dt>Current wave</dt>
+								<dt>{t('Current wave')}</dt>
 								<dd>{launchCandidate.name} — {humanizeToken(launchCandidate.status)}</dd>
 							</div>
 						</dl>
@@ -365,14 +366,9 @@
 				</section>
 
 				<section id="participation">
-					<h2><span class="datum ch">·</span> Who takes part</h2>
+					<h2><span class="datum ch">·</span> {t('Who takes part')}</h2>
 					<p class="prose">
-						People reach this study through the <strong>Field</strong> phase once a wave is
-						live: share an <strong>open link</strong> (anyone with the link, anonymous or with
-						a participant code), or <strong>queue email invitations</strong> to specific
-						addresses. For invite lists, keep your cohort in
-						<a href="/app/people">People</a> — add them by hand, CSV, or a Microsoft
-						directory connection.
+						{t('People reach this study through Field once a wave is live: share an open link (anonymous or with a participant code), or queue email invitations. For invite lists, keep your cohort in')} <a href="/app/people">{t('People')}</a>.
 					</p>
 					{#if hub.campaigns.some((c) => c.status.toLowerCase() === 'live')}
 						<p class="prose">
@@ -382,22 +378,22 @@
 				</section>
 
 				<section id="instrument">
-					<h2><span class="datum ch">02</span> Instrument</h2>
+					<h2><span class="datum ch">02</span> {t('Instrument')}</h2>
 					{#if workspace.template}
 						<dl class="facts">
 							<div>
-								<dt>Template</dt>
+								<dt>{t('Template')}</dt>
 								<dd>
 									{workspace.template.templateName}
 									<span class="datum quiet">v{workspace.template.semver}</span>
 								</dd>
 							</div>
 							<div>
-								<dt>Items</dt>
+								<dt>{t('Items')}</dt>
 								<dd class="datum">{formatCount(workspace.template.questionCount)}</dd>
 							</div>
 							<div>
-								<dt>Status</dt>
+								<dt>{t('Status')}</dt>
 								<dd>{humanizeToken(workspace.template.status)}</dd>
 							</div>
 						</dl>
@@ -428,21 +424,21 @@
 				</section>
 
 				<section id="scoring">
-					<h2><span class="datum ch">03</span> Scoring</h2>
+					<h2><span class="datum ch">03</span> {t('Scoring')}</h2>
 					{#if workspace.scoring}
 						<dl class="facts">
 							<div>
-								<dt>Rule</dt>
+								<dt>{t('Rule')}</dt>
 								<dd class="datum">
 									{workspace.scoring.ruleKey} v{workspace.scoring.ruleVersion}
 								</dd>
 							</div>
 							<div>
-								<dt>Status</dt>
+								<dt>{t('Status')}</dt>
 								<dd>{humanizeToken(workspace.scoring.status)}</dd>
 							</div>
 							<div>
-								<dt>Source</dt>
+								<dt>{t('Source')}</dt>
 								<dd>{humanizeToken(workspace.scoring.source)}</dd>
 							</div>
 						</dl>
@@ -455,7 +451,7 @@
 				</section>
 
 				<section id="policies">
-					<h2><span class="datum ch">04</span> Consent &amp; data guarantees</h2>
+					<h2><span class="datum ch">04</span> {t('Consent & data guarantees')}</h2>
 
 					<div class="consent-card">
 						<div class="policy-head">
@@ -473,7 +469,7 @@
 						</p>
 						<div class="policy-actions">
 							<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
-								{consentOpen ? 'Close consent editor' : 'Publish new consent version'}
+								{consentOpen ? t('Close consent editor') : t('Publish new consent version')}
 							</button>
 							{#if consentNote}<p class="consent-note" role="status">{consentNote}</p>{/if}
 						</div>
@@ -522,7 +518,7 @@
 				</section>
 
 				<section id="waves">
-					<h2><span class="datum ch">05</span> Waves</h2>
+					<h2><span class="datum ch">05</span> {t('Waves')}</h2>
 					{#if waveMarks.length > 0}
 						<div class="waves-rail">
 							<WaveRail marks={waveMarks} />
@@ -538,7 +534,7 @@
 									</span>
 									{#if !wave.latestLaunchAt && wave.responseIdentityMode.toLowerCase() === 'identified'}
 										<button class="recipients-btn" onclick={() => toggleRecipients(wave.id)}>
-											Recipients
+											{t('Recipients')}
 										</button>
 									{/if}
 								</li>
@@ -598,7 +594,7 @@
 								<option value="hr-HR">Hrvatski</option>
 							</select>
 							<button class="btn btn-ghost" type="submit" disabled={waveBusy}>
-								{waveBusy ? 'Adding…' : 'Add wave'}
+								{waveBusy ? t('Adding…') : t('Add wave')}
 							</button>
 						</form>
 						{#if waveError}<p class="error" role="alert">{waveError}</p>{/if}
@@ -608,7 +604,7 @@
 
 			<aside class="margin">
 				<div class="panel launch">
-					<h2 class="eyebrow">Launch check</h2>
+					<h2 class="eyebrow">{t('Launch check')}</h2>
 					{#if readiness}
 						{#if readiness.ready}
 							<p class="ready">
@@ -627,7 +623,7 @@
 						{/if}
 						{#if launchCandidate && readiness.ready}
 							<button class="btn btn-stain launch-btn" disabled={launching} onclick={launch}>
-								{launching ? 'Launching…' : `Launch ${launchCandidate.name}`}
+								{launching ? t('Launching…') : `${t('Launch')} ${launchCandidate.name}`}
 							</button>
 							<p class="lock-note">Instrument and scoring lock at launch.</p>
 						{/if}
@@ -647,17 +643,17 @@
 				</div>
 
 				<div class="panel governance">
-					<h2 class="eyebrow">Study</h2>
+					<h2 class="eyebrow">{t('Study')}</h2>
 					<div class="lifecycle-actions">
 						<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
-							Duplicate study
+							{t('Duplicate study')}
 						</button>
 						<button class="quiet-action" disabled={lifecycleBusy} onclick={toggleArchive}>
-							{hub.archived ? 'Restore from archive' : 'Archive study'}
+							{hub.archived ? t('Restore from archive') : t('Archive study')}
 						</button>
 					</div>
 					{#if lifecycleError}<p class="error" role="alert">{lifecycleError}</p>{/if}
-					<h2 class="eyebrow governance-h">Governance</h2>
+					<h2 class="eyebrow governance-h">{t('Governance')}</h2>
 					<dl class="gov">
 						<div><dt>Consent</dt><dd>{humanizeToken(hub.governance.consentStatus)}</dd></div>
 						<div><dt>Retention</dt><dd>{humanizeToken(hub.governance.retentionStatus)}</dd></div>

@@ -7,6 +7,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
 	import { confirmDialog } from '$lib/ui/dialog.svelte';
@@ -52,9 +53,9 @@
 	async function closeWave(campaignId: string, name: string) {
 		if (closeBusy) return;
 		const proceed = await confirmDialog({
-			title: `Close ${name}?`,
-			body: "Collection stops and the wave's data becomes final for reporting. This cannot be undone.",
-			confirmLabel: 'Close wave',
+			title: `${t('Close wave')}: ${name}?`,
+			body: t("Collection stops and the wave's data becomes final for reporting. This cannot be undone."),
+			confirmLabel: t('Close wave'),
 			danger: true
 		});
 		if (!proceed) return;
@@ -137,11 +138,11 @@
 			</p>
 
 			<div class="title-row">
-				<h1 class="doc-title">Field</h1>
+				<h1 class="doc-title">{t('Field')}</h1>
 				{#if loadState === 'ready'}
 					<span class="live-flag" class:on={live}>
 						<span class="pip" aria-hidden="true"></span>
-						{live ? 'Collecting' : 'Not collecting'}
+						{live ? t('Collecting') : t('Not collecting')}
 					</span>
 				{/if}
 				{#if lastReadAt}
@@ -150,9 +151,9 @@
 			</div>
 
 			<nav class="phases" aria-label="Study phases">
-				<a class="phase" href={`/app/studies/${seriesId}`}>Protocol</a>
-				<span class="phase current">Field</span>
-				<a class="phase" href={`/app/studies/${seriesId}/evidence`}>Evidence</a>
+				<a class="phase" href={`/app/studies/${seriesId}`}>{t('Protocol')}</a>
+				<span class="phase current">{t('Field')}</span>
+				<a class="phase" href={`/app/studies/${seriesId}/evidence`}>{t('Evidence')}</a>
 			</nav>
 		</header>
 
@@ -165,7 +166,7 @@
 		{:else if workspace}
 			<section class="board">
 				<div class="tile">
-					<span class="eyebrow dim-label">Invited</span>
+					<span class="eyebrow dim-label">{t('Invited')}</span>
 					<span class="datum value">
 						{formatCount(
 							workspace.summary.sentInvitationCount + workspace.summary.openLinkAssignmentCount
@@ -177,19 +178,19 @@
 					</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow dim-label">Started</span>
+					<span class="eyebrow dim-label">{t('Started')}</span>
 					<span class="datum value">{formatCount(workspace.summary.startedResponseCount)}</span>
 					<span class="sub">{formatCount(workspace.summary.draftResponseCount)} in draft</span>
 				</div>
 				<div class="tile accent">
-					<span class="eyebrow dim-label">Submitted</span>
+					<span class="eyebrow dim-label">{t('Submitted')}</span>
 					<span class="datum value">{formatCount(workspace.summary.submittedResponseCount)}</span>
 					<span class="sub">
 						last {formatDateTime(workspace.summary.latestResponseSubmittedAt)}
 					</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow dim-label">Delivery</span>
+					<span class="eyebrow dim-label">{t('Delivery')}</span>
 					<span class="datum value">
 						{formatCount(workspace.summary.failedInvitationCount)}
 						<span class="value-unit">failed</span>
@@ -229,7 +230,7 @@
 			{/if}
 
 			<section class="waves">
-				<h2 class="eyebrow dim-label">Waves</h2>
+				<h2 class="eyebrow dim-label">{t('Waves')}</h2>
 				<ul>
 					{#each workspace.campaigns as wave (wave.id)}
 						<li class:selected={wave.id === selected?.id}>
@@ -247,19 +248,19 @@
 							{#if wave.status.toLowerCase() === 'live'}
 								<span class="link-actions">
 									<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
-										Invite by email
+										{t('Invite by email')}
 									</button>
 									{#if wave.openLinkAssignmentCount > 0}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
-											Replace lost link
+											{t('Replace lost link')}
 										</button>
 									{:else}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, false)}>
-											Create open link
+											{t('Create open link')}
 										</button>
 									{/if}
 									<button class="link-btn" disabled={closeBusy === wave.id} onclick={() => closeWave(wave.id, wave.name)}>
-										{closeBusy === wave.id ? 'Closing…' : 'Close wave'}
+										{closeBusy === wave.id ? t('Closing…') : t('Close wave')}
 									</button>
 								</span>
 							{/if}
@@ -276,7 +277,7 @@
 									></textarea>
 									<div class="invite-row">
 										<button class="link-btn" disabled={inviteBusy} onclick={() => sendInvitations(wave.id)}>
-											{inviteBusy ? 'Queueing…' : 'Queue invitations'}
+											{inviteBusy ? t('Queueing…') : t('Queue invitations')}
 										</button>
 										{#if inviteResult}<span class="invite-result" role="status">{inviteResult}</span>{/if}
 									</div>
@@ -288,7 +289,7 @@
 								<div class="minted-inner">
 									<span class="eyebrow dim-label">Respondent link — shown once, save it now</span>
 									<code class="datum minted-url">{mintedLink.url}</code>
-									<button class="link-btn" onclick={copyLink}>{copied ? 'Copied' : 'Copy link'}</button>
+									<button class="link-btn" onclick={copyLink}>{copied ? t('Copied') : t('Copy link')}</button>
 								</div>
 							</li>
 						{/if}
@@ -301,7 +302,7 @@
 
 			{#if workspace.missingPrerequisites.length > 0}
 				<section class="prereqs">
-					<h2 class="eyebrow dim-label">Field notes</h2>
+					<h2 class="eyebrow dim-label">{t('Field notes')}</h2>
 					<ul>
 						{#each workspace.missingPrerequisites as item (item.code)}
 							<li>{item.message}</li>

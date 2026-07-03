@@ -7,6 +7,7 @@
 		type TenantSettingsWorkspaceResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -104,15 +105,15 @@
 <svelte:head><title>Settings — ValidatedScale</title></svelte:head>
 
 <header class="head">
-	<p class="eyebrow">Workspace</p>
-	<h1 class="doc-title">Settings</h1>
+	<p class="eyebrow">{t('Workspace')}</p>
+	<h1 class="doc-title">{t('Settings')}</h1>
 </header>
 
 <LoadState state={loadState}>
 	{#if settings}
 		<div class="grid">
 			<section class="panel block">
-				<h2 class="eyebrow">Profile</h2>
+				<h2 class="eyebrow">{t('Profile')}</h2>
 				<dl>
 					<div><dt>Organization</dt><dd>{settings.profile.name}</dd></div>
 					<div><dt>Workspace</dt><dd class="datum">{settings.profile.slug}</dd></div>
@@ -124,7 +125,7 @@
 			</section>
 
 			<section class="panel block">
-				<h2 class="eyebrow">Report branding</h2>
+				<h2 class="eyebrow">{t('Report branding')}</h2>
 				<form class="brand-form" onsubmit={saveBranding}>
 					<label class="eyebrow" for="b-label">Organization label</label>
 					<input id="b-label" bind:value={brandLabel} />
@@ -137,13 +138,13 @@
 					</div>
 					{#if brandNote}<p class="note" role="status">{brandNote}</p>{/if}
 					<button class="btn btn-ink" type="submit" disabled={brandBusy}>
-						{brandBusy ? 'Saving…' : 'Save branding'}
+						{brandBusy ? t('Saving…') : t('Save branding')}
 					</button>
 				</form>
 			</section>
 
 			<section class="panel block team">
-				<h2 class="eyebrow">Team</h2>
+				<h2 class="eyebrow">{t('Team')}</h2>
 				{#if roster}
 					<ul class="members">
 						{#each roster.members as member (member.userId)}
@@ -179,14 +180,14 @@
 						</select>
 					{/if}
 					<button class="btn btn-ghost" type="submit" disabled={memberBusy}>
-						{memberBusy ? 'Adding…' : 'Add member'}
+						{memberBusy ? t('Adding…') : t('Add member')}
 					</button>
 				</form>
 				{#if memberNote}<p class="note" role="status">{memberNote}</p>{/if}
 			</section>
 
 			<section class="panel block">
-				<h2 class="eyebrow">Counts</h2>
+				<h2 class="eyebrow">{t('Counts')}</h2>
 				<dl>
 					<div><dt>Studies</dt><dd class="datum">{formatCount(settings.counts.campaignSeriesCount)}</dd></div>
 					<div><dt>Waves</dt><dd class="datum">{formatCount(settings.counts.campaignCount)}</dd></div>

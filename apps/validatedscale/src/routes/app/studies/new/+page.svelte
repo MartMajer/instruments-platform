@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { t } from '$lib/core/locale.svelte';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 
@@ -28,15 +29,14 @@
 
 <header class="head">
 	<p class="eyebrow"><a href="/app/studies">Studies</a> / New</p>
-	<h1 class="doc-title">Register a study</h1>
+	<h1 class="doc-title">{t('Register a study')}</h1>
 	<p class="hint">
-		A study holds one protocol: an instrument, an identity mode, policies, and one or more
-		waves. Name it the way you would in the paper.
+		{t('A study holds one protocol: an instrument, an identity mode, policies, and one or more waves. Name it the way you would in the paper.')}
 	</p>
 </header>
 
 <form class="panel card" onsubmit={create}>
-	<label class="eyebrow" for="name">Study title</label>
+	<label class="eyebrow" for="name">{t('Study title')}</label>
 	<input
 		id="name"
 		required
@@ -48,9 +48,9 @@
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 
 	<button class="btn btn-ink" type="submit" disabled={busy}>
-		{busy ? 'Registering…' : 'Register study'}
+		{busy ? t('Registering…') : t('Register study')}
 	</button>
-	<p class="note">You attach the instrument and policies in the protocol, before launch.</p>
+	<p class="note">{t('You attach the instrument and policies in the protocol, before launch.')}</p>
 </form>
 
 <style>

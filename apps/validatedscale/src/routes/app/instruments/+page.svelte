@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { createSetupApi, type InstrumentSummaryResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { humanizeToken } from '$lib/core/format';
 	import { gallery } from '$lib/instruments/gallery';
 	import { promptDialog } from '$lib/ui/dialog.svelte';
@@ -19,9 +20,9 @@
 		if (!entry?.autoload || !entry.template || useBusy) return;
 
 		const studyName = await promptDialog({
-			title: `Start a study with ${entry.code}`,
+			title: `${t('Start a study with')} ${entry.code}`,
 			body: `${entry.itemCount} items load ready to launch — you add recipients and waves. Name the study the way you would in the paper.`,
-			confirmLabel: 'Create study',
+			confirmLabel: t('Create study'),
 			initialValue: `${entry.code} study`
 		});
 		if (!studyName) return;
@@ -143,15 +144,15 @@
 
 <header class="head">
 	<div>
-		<p class="eyebrow">Library</p>
-		<h1 class="doc-title">Instruments</h1>
+		<p class="eyebrow">{t('Library')}</p>
+		<h1 class="doc-title">{t('Instruments')}</h1>
 		<p class="hint">
 			Instruments you provide, with your rights attestation. Nothing here is an official
 			platform publication of a named instrument.
 		</p>
 	</div>
 	<button class="btn btn-ink" onclick={() => (importOpen = !importOpen)}>
-		{importOpen ? 'Close' : 'Import instrument'}
+		{importOpen ? t('Close') : t('Import instrument')}
 	</button>
 </header>
 
@@ -193,7 +194,7 @@
 {/if}
 
 <section class="gallery">
-	<h2 class="eyebrow">Instrument gallery — press Use, then add recipients and waves</h2>
+	<h2 class="eyebrow">{t('Instrument gallery — press Use, then add recipients and waves')}</h2>
 	{#if useError}<p class="use-error" role="alert">{useError}</p>{/if}
 	<div class="gallery-grid">
 		{#each gallery as entry (entry.code)}
@@ -221,10 +222,10 @@
 				{#if entry.autoload}
 					<div class="g-actions">
 						<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
-							{useBusy === entry.code ? (useStep ?? 'Setting up…') : `Use ${entry.code}`}
+							{useBusy === entry.code ? (useStep ?? 'Setting up…') : `${t('Use')} ${entry.code}`}
 						</button>
 						<button class="g-preview-btn" onclick={() => (previewFor = entry.code)}>
-							View all {entry.itemCount} items
+							{t('View all')} {entry.itemCount} {t('items')}
 						</button>
 					</div>
 				{:else}
@@ -274,7 +275,7 @@
 				<p class="g-cite datum">{entry.citation}</p>
 				<div class="im-actions">
 					<button class="btn btn-stain" disabled={useBusy !== null} onclick={() => { previewFor = null; useInstrument(entry.code); }}>
-						Use {entry.code}
+						{t('Use')} {entry.code}
 					</button>
 				</div>
 			</div>

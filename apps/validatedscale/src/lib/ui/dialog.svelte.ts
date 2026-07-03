@@ -1,3 +1,4 @@
+import { t } from '$lib/core/locale.svelte';
 /** App-wide modal dialogs replacing native confirm()/prompt(). One DialogHost renders these. */
 type DialogRequest = {
 	kind: 'confirm' | 'prompt';
@@ -24,8 +25,8 @@ export function confirmDialog(options: {
 			kind: 'confirm',
 			title: options.title,
 			body: options.body,
-			confirmLabel: options.confirmLabel ?? 'Confirm',
-			cancelLabel: 'Cancel',
+			confirmLabel: options.confirmLabel ?? t('Confirm'),
+			cancelLabel: t('Cancel'),
 			danger: options.danger,
 			resolve: (value) => resolve(value === true)
 		};
@@ -44,8 +45,8 @@ export function promptDialog(options: {
 			kind: 'prompt',
 			title: options.title,
 			body: options.body,
-			confirmLabel: options.confirmLabel ?? 'Continue',
-			cancelLabel: 'Cancel',
+			confirmLabel: options.confirmLabel ?? t('Continue'),
+			cancelLabel: t('Cancel'),
 			placeholder: options.placeholder,
 			initialValue: options.initialValue,
 			resolve: (value) => resolve(typeof value === 'string' ? value : null)

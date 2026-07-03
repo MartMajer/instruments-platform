@@ -5,6 +5,7 @@
 		type CampaignSeriesListItemResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -58,19 +59,19 @@
 		const archived = filtered.filter((s) => s.archived);
 
 		return [
-			{ key: 'field', title: 'In the field', note: 'collecting now', items: inField },
-			{ key: 'prep', title: 'In preparation', note: 'not yet launched', items: preparing },
-			{ key: 'done', title: 'Collected', note: 'waves closed, evidence available', items: collected },
-			{ key: 'archived', title: 'Archived', note: '', items: archived }
+			{ key: 'field', title: t('In the field'), note: t('collecting now'), items: inField },
+			{ key: 'prep', title: t('In preparation'), note: t('not yet launched'), items: preparing },
+			{ key: 'done', title: t('Collected'), note: t('waves closed, evidence available'), items: collected },
+			{ key: 'archived', title: t('Archived'), note: '', items: archived }
 		].filter((bucket) => bucket.items.length > 0);
 	});
 
 	onMount(load);
 
 	function stateChip(study: CampaignSeriesListItemResponse): { cls: string; label: string } {
-		if (study.archived) return { cls: 'chip', label: 'Archived' };
-		if (study.liveCampaignCount > 0) return { cls: 'chip chip-live', label: 'In field' };
-		if (study.submittedResponseCount > 0) return { cls: 'chip', label: 'Collected' };
+		if (study.archived) return { cls: 'chip', label: t('Archived') };
+		if (study.liveCampaignCount > 0) return { cls: 'chip chip-live', label: t('In field') };
+		if (study.submittedResponseCount > 0) return { cls: 'chip', label: t('Collected') };
 		return { cls: 'chip chip-stain', label: humanizeToken(study.readinessStatus) };
 	}
 </script>
@@ -79,20 +80,20 @@
 
 <header class="head">
 	<div>
-		<p class="eyebrow">Portfolio</p>
-		<h1 class="doc-title">Studies</h1>
+		<p class="eyebrow">{t('Portfolio')}</p>
+		<h1 class="doc-title">{t('Studies')}</h1>
 	</div>
 	<div class="tools">
 		<input
 			type="search"
-			placeholder="Find a study"
-			aria-label="Find a study"
+			placeholder={t('Find a study')}
+			aria-label={t('Find a study')}
 			bind:value={search}
 		/>
 		<button class="btn btn-ghost" disabled={sampleBusy} onclick={addExamples}>
-			{sampleBusy ? 'Adding…' : 'Add example studies'}
+			{sampleBusy ? t('Adding…') : t('Add example studies')}
 		</button>
-		<a class="btn btn-ink" href="/app/studies/new">New study</a>
+		<a class="btn btn-ink" href="/app/studies/new">{t('New study')}</a>
 	</div>
 </header>
 
@@ -115,18 +116,18 @@
 							<a class="name doc-title" href={`/app/studies/${study.id}`}>{study.name}</a>
 							<span class="datum meta">
 								{formatCount(study.campaignCount)}
-								{study.campaignCount === 1 ? 'wave' : 'waves'}
-								· {formatCount(study.submittedResponseCount)} responses
-								· updated {formatDate(study.updatedAt)}
+								{study.campaignCount === 1 ? t('wave') : t('waves')}
+								· {formatCount(study.submittedResponseCount)} {t('responses')}
+								· {t('updated')} {formatDate(study.updatedAt)}
 							</span>
 						</div>
 						<span class={chip.cls}>{chip.label}</span>
 						{#if study.liveCampaignCount > 0}
-							<a class="go" href={`/app/studies/${study.id}/field`}>Field →</a>
+							<a class="go" href={`/app/studies/${study.id}/field`}>{t('Field')} →</a>
 						{:else if study.submittedResponseCount > 0}
-							<a class="go" href={`/app/studies/${study.id}/evidence`}>Evidence →</a>
+							<a class="go" href={`/app/studies/${study.id}/evidence`}>{t('Evidence')} →</a>
 						{:else}
-							<a class="go" href={`/app/studies/${study.id}`}>Protocol →</a>
+							<a class="go" href={`/app/studies/${study.id}`}>{t('Protocol')} →</a>
 						{/if}
 					</li>
 				{/each}

@@ -71,7 +71,7 @@
 					onclick={() => (menuOpen = !menuOpen)}
 				>
 					<span class="avatar datum" aria-hidden="true">{initials}</span>
-					<span class="account-email">{session.current?.email ?? 'Account'}</span>
+					<span class="account-email">{session.current?.email ?? t('Account')}</span>
 				</button>
 
 				{#if menuOpen}

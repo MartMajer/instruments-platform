@@ -8,6 +8,7 @@
 		type SubjectDirectoryResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -152,8 +153,8 @@
 
 <header class="head">
 	<div>
-		<p class="eyebrow">Directory</p>
-		<h1 class="doc-title">People</h1>
+		<p class="eyebrow">{t('Directory')}</p>
+		<h1 class="doc-title">{t('People')}</h1>
 		{#if directory}
 			<p class="datum meta">
 				{formatCount(directory.summary.subjectCount)} people ·
@@ -163,8 +164,8 @@
 	</div>
 	<div class="tools">
 		<input type="search" placeholder="Find a person or group" aria-label="Find a person or group" bind:value={search} />
-		<button class="btn btn-ghost" onclick={() => (panel = panel === 'add' ? 'none' : 'add')}>Add person</button>
-		<button class="btn btn-ghost" onclick={() => (panel = panel === 'import' ? 'none' : 'import')}>Import CSV</button>
+		<button class="btn btn-ghost" onclick={() => (panel = panel === 'add' ? 'none' : 'add')}>{t('Add person')}</button>
+		<button class="btn btn-ghost" onclick={() => (panel = panel === 'import' ? 'none' : 'import')}>{t('Import CSV')}</button>
 		<button
 			class="btn btn-ghost"
 			onclick={() => {
@@ -172,7 +173,7 @@
 				if (panel === 'graph') void loadGraph();
 			}}
 		>
-			Microsoft directory
+			{t('Microsoft directory')}
 		</button>
 	</div>
 </header>
@@ -189,7 +190,7 @@
 		</div>
 		{#if personError}<p class="error" role="alert">{personError}</p>{/if}
 		<button class="btn btn-ink" type="submit" disabled={personBusy || (!personName.trim() && !personEmail.trim())}>
-			{personBusy ? 'Adding…' : 'Add person'}
+			{personBusy ? t('Adding…') : t('Add person')}
 		</button>
 	</form>
 {:else if panel === 'import'}
@@ -278,10 +279,10 @@
 		<table>
 			<thead>
 				<tr>
-					<th>Name</th>
-					<th>Email</th>
-					<th>Groups</th>
-					<th>Manager</th>
+					<th>{t('Name')}</th>
+					<th>{t('Email')}</th>
+					<th>{t('Groups')}</th>
+					<th>{t('Manager')}</th>
 				</tr>
 			</thead>
 			<tbody>

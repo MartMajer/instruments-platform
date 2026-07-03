@@ -6,6 +6,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { t } from '$lib/core/locale.svelte';
 	import { downloadExportArtifact } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -44,8 +45,8 @@
 <svelte:head><title>Exports — ValidatedScale</title></svelte:head>
 
 <header class="head">
-	<p class="eyebrow">Artifact library</p>
-	<h1 class="doc-title">Exports</h1>
+	<p class="eyebrow">{t('Artifact library')}</p>
+	<h1 class="doc-title">{t('Exports')}</h1>
 	{#if library}
 		<p class="datum meta">
 			{formatCount(library.summary.totalCount)} artifacts ·
@@ -68,13 +69,13 @@
 			<table>
 				<thead>
 					<tr>
-						<th>File</th>
-						<th>Study</th>
-						<th>Type</th>
-						<th>Status</th>
+						<th>{t('File')}</th>
+						<th>{t('Study')}</th>
+						<th>{t('Type')}</th>
+						<th>{t('Status')}</th>
 						<th class="num">Rows</th>
 						<th class="num">Size</th>
-						<th>Created</th>
+						<th>{t('Created')}</th>
 						<th></th>
 					</tr>
 				</thead>
@@ -98,7 +99,7 @@
 							<td class="datum when">{formatDateTime(artifact.createdAt)}</td>
 							<td class="act">
 								{#if artifact.canDownload}
-									<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>Download</button>
+									<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>{t('Download')}</button>
 								{/if}
 							</td>
 						</tr>
