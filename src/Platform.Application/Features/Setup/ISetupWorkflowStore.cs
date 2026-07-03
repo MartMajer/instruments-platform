@@ -65,6 +65,12 @@ public interface ISetupWorkflowStore
         CreateCampaignSeriesRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<ConsentDocumentSummaryResponse>> PublishCampaignSeriesConsentDocumentAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        PublishConsentDocumentRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<SelectCampaignSeriesSetupTemplateResponse>> SelectCampaignSeriesSetupTemplateAsync(
         Guid tenantId,
         Guid? actorId,

@@ -79,6 +79,12 @@ public static class SetupEndpointRouteBuilderExtensions
             .WithName("CreateCampaignSeries")
             .WithTags("Setup");
 
+        app.MapPost("/campaign-series/{id:guid}/consent-documents", PublishCampaignSeriesConsentDocument)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("PublishCampaignSeriesConsentDocument")
+            .WithTags("Setup");
+
         app.MapPut("/campaign-series/{id:guid}/setup-template", SelectCampaignSeriesSetupTemplate)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -285,6 +291,19 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToCreated(
             result,
             value => $"/campaign-series/{value.Id}");
+    }
+
+    private static async Task<IResult> PublishCampaignSeriesConsentDocument(
+        Guid id,
+        PublishConsentDocumentRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new PublishCampaignSeriesConsentDocumentCommand(id, request),
+            cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> SelectCampaignSeriesSetupTemplate(

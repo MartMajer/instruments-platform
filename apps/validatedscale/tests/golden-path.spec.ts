@@ -24,6 +24,14 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	await page.locator('.item-row').nth(1).locator('.reverse').click();
 	await page.getByRole('button', { name: /Create questionnaire/ }).click();
 
+	// publish a custom consent version before launching
+	await page.getByRole('button', { name: 'Publish new consent version' }).click();
+	await page.fill('#c-version', '2.0.0');
+	await page.fill('#c-title', 'Informed consent — golden path');
+	await page.fill('#c-body', 'This study is anonymous. Results only appear for groups of five or more. You can stop at any time.');
+	await page.getByRole('button', { name: /Publish — retires/ }).click();
+	await expect(page.locator('.consent-note')).toContainText('Published v2.0.0', { timeout: 15_000 });
+
 	// wave + launch
 	const waveInput = page.locator('.add-wave input');
 	await expect(waveInput).toBeVisible({ timeout: 20_000 });
@@ -44,6 +52,8 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
 	const respondent = await phone.newPage();
 	await respondent.goto(url!);
+	// the launched wave must carry the custom consent version published above
+	await expect(respondent.locator('.consent-version')).toContainText('v2.0.0');
 	await respondent.getByRole('checkbox').check();
 	await respondent.getByRole('button', { name: 'Begin' }).click();
 	for (const [row, rating] of [[0, '4'], [1, '2'], [2, '5']] as const) {

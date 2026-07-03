@@ -125,6 +125,41 @@
 		}
 	}
 
+	let consentOpen = $state(false);
+	let consentLocale = $state('en');
+	let consentVersion = $state('');
+	let consentTitle = $state('');
+	let consentBody = $state('');
+	let consentBusy = $state(false);
+	let consentNote = $state<string | null>(null);
+
+	async function publishConsent(event: SubmitEvent) {
+		event.preventDefault();
+		if (consentBusy) return;
+		consentBusy = true;
+		consentNote = null;
+
+		try {
+			const published = await setup.publishCampaignSeriesConsentDocument(seriesId, {
+				locale: consentLocale,
+				version: consentVersion.trim(),
+				title: consentTitle.trim(),
+				bodyMarkdown: consentBody.trim()
+			});
+			consentNote = `Published v${published.version} (${published.locale}); ${published.retiredCount} previous version${published.retiredCount === 1 ? '' : 's'} retired. Applies to waves launched from now on.`;
+			consentOpen = false;
+			consentVersion = '';
+			consentTitle = '';
+			consentBody = '';
+			await load();
+		} catch {
+			consentNote =
+				'Publishing failed. The version must be new for this study and language, and sample studies are read-only.';
+		} finally {
+			consentBusy = false;
+		}
+	}
+
 	let groups = $state<{ id: string; name: string; memberCount: number }[]>([]);
 	let recipientsFor = $state<string | null>(null);
 	let recipientKind = $state<'self' | 'all_in_group'>('self');
@@ -378,6 +413,44 @@
 						yet — the defaults are the platform's protective posture (consent required,
 						anonymize after retention, nothing reported below the k threshold).
 					</p>
+					<div class="policy-actions">
+						<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
+							{consentOpen ? 'Close consent editor' : 'Publish new consent version'}
+						</button>
+						{#if consentNote}<p class="consent-note" role="status">{consentNote}</p>{/if}
+					</div>
+					{#if consentOpen}
+						<form class="consent-editor" onsubmit={publishConsent}>
+							<div class="consent-row">
+								<div class="field">
+									<label class="eyebrow" for="c-locale">Language</label>
+									<select id="c-locale" bind:value={consentLocale}>
+										<option value="en">English</option>
+										<option value="hr-HR">Hrvatski</option>
+									</select>
+								</div>
+								<div class="field">
+									<label class="eyebrow" for="c-version">Version</label>
+									<input id="c-version" class="datum" required bind:value={consentVersion} placeholder="2.0.0" />
+								</div>
+								<div class="field grow">
+									<label class="eyebrow" for="c-title">Title</label>
+									<input id="c-title" required bind:value={consentTitle} placeholder="Informed consent — nurse workload study" />
+								</div>
+							</div>
+							<div class="field">
+								<label class="eyebrow" for="c-body">Consent text (shown to every respondent before items)</label>
+								<textarea id="c-body" rows="7" required bind:value={consentBody} placeholder={'What the study measures, who runs it, that answers are anonymous, the k-threshold for reporting, the right to stop at any time, your ethics reference…'}></textarea>
+							</div>
+							<button class="btn btn-stain consent-submit" type="submit" disabled={consentBusy}>
+								{consentBusy ? 'Publishing…' : 'Publish — retires the current version'}
+							</button>
+							<p class="consent-hint">
+								Launched waves keep the consent version they launched with; this version binds
+								to waves launched after publishing. Grants carry over unchanged.
+							</p>
+						</form>
+					{/if}
 					<div class="policy-grid">
 						{#each [{ label: 'Consent', policy: workspace.policies.consent }, { label: 'Retention', policy: workspace.policies.retention }, { label: 'Disclosure', policy: workspace.policies.disclosure }] as entry (entry.label)}
 							<div class="policy-card">
@@ -707,6 +780,73 @@
 	.quiet {
 		color: var(--color-ink-3);
 		font-size: 0.8125rem;
+	}
+
+	.policy-actions {
+		margin-top: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		align-items: flex-start;
+	}
+
+	.consent-note {
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+	}
+
+	.consent-editor {
+		margin-top: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.875rem;
+		padding: 1.25rem;
+		border: 1px solid var(--color-stain-line);
+		background: var(--color-stain-wash);
+		border-radius: var(--radius-instrument);
+	}
+
+	.consent-row {
+		display: flex;
+		gap: 0.875rem;
+		flex-wrap: wrap;
+	}
+
+	.consent-editor .field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+
+	.consent-editor .field.grow {
+		flex: 1;
+		min-width: 14rem;
+	}
+
+	.consent-editor input,
+	.consent-editor select,
+	.consent-editor textarea {
+		font: inherit;
+		font-size: 0.9375rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.consent-editor textarea {
+		font-family: var(--font-doc);
+		line-height: 1.6;
+		resize: vertical;
+	}
+
+	.consent-submit {
+		align-self: flex-start;
+	}
+
+	.consent-hint {
+		font-size: 0.75rem;
+		color: var(--color-ink-3);
 	}
 
 	.policy-grid {

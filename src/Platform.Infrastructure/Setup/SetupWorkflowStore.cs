@@ -886,6 +886,107 @@ public sealed class SetupWorkflowStore(
         return Result.Success(new SetupIdResponse(series.Id));
     }
 
+    public async Task<Result<ConsentDocumentSummaryResponse>> PublishCampaignSeriesConsentDocumentAsync(
+        Guid tenantId,
+        Guid campaignSeriesId,
+        PublishConsentDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var series = await db.CampaignSeries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == campaignSeriesId, cancellationToken);
+
+        if (series is null || series.TenantId != tenantId)
+        {
+            return Result.Failure<ConsentDocumentSummaryResponse>(
+                Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
+        }
+
+        if (series.Archived || series.IsSample)
+        {
+            return Result.Failure<ConsentDocumentSummaryResponse>(
+                Error.Forbidden(
+                    "campaign_series.read_only",
+                    "This campaign series cannot change consent documents."));
+        }
+
+        var locale = request.Locale.Trim();
+        var version = request.Version.Trim();
+
+        var duplicateVersionExists = await db.ConsentDocuments
+            .AsNoTracking()
+            .AnyAsync(
+                document => document.CampaignSeriesId == campaignSeriesId &&
+                    document.Locale == locale &&
+                    document.Version == version,
+                cancellationToken);
+
+        if (duplicateVersionExists)
+        {
+            return Result.Failure<ConsentDocumentSummaryResponse>(
+                Error.Conflict(
+                    "consent_document.duplicate_version",
+                    "A consent document with this version already exists for this study and locale."));
+        }
+
+        var publishedAt = DateTimeOffset.UtcNow;
+
+        var activeDocuments = await db.ConsentDocuments
+            .Where(
+                document => document.CampaignSeriesId == campaignSeriesId &&
+                    document.Locale == locale &&
+                    document.PublishedAt <= publishedAt &&
+                    (document.RetiredAt == null || document.RetiredAt > publishedAt))
+            .ToListAsync(cancellationToken);
+
+        // Carry grants forward from the newest active document so publishing a
+        // reworded consent never silently changes what respondents grant.
+        var grantSource = activeDocuments
+            .OrderByDescending(document => document.PublishedAt)
+            .FirstOrDefault();
+
+        foreach (var document in activeDocuments)
+        {
+            document.Retire(publishedAt.AddTicks(1));
+        }
+
+        db.ConsentDocuments.Add(new ConsentDocument(
+            PlatformIds.NewId(),
+            tenantId,
+            campaignSeriesId,
+            locale,
+            version,
+            request.Title.Trim(),
+            request.BodyMarkdown.Trim(),
+            grantSource?.RequiredGrants ?? DefaultRequiredConsentGrants,
+            grantSource?.OptionalGrants ?? DefaultOptionalConsentGrants,
+            publishedAt.AddTicks(2)));
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        var created = await db.ConsentDocuments
+            .AsNoTracking()
+            .Where(
+                document => document.CampaignSeriesId == campaignSeriesId &&
+                    document.Locale == locale &&
+                    document.Version == version)
+            .SingleAsync(cancellationToken);
+
+        return Result.Success(new ConsentDocumentSummaryResponse(
+            created.Id,
+            campaignSeriesId,
+            created.Locale,
+            created.Version,
+            created.Title,
+            created.PublishedAt,
+            activeDocuments.Count));
+    }
+
     public async Task<Result<SelectCampaignSeriesSetupTemplateResponse>> SelectCampaignSeriesSetupTemplateAsync(
         Guid tenantId,
         Guid? actorId,

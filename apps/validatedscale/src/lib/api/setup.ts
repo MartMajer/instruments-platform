@@ -184,6 +184,23 @@ export type CreateCampaignSeriesRequest = {
 	studyBrief?: CreateCampaignSeriesStudyBriefRequest | null;
 };
 
+export type PublishConsentDocumentRequest = {
+	locale: string;
+	version: string;
+	title: string;
+	bodyMarkdown: string;
+};
+
+export type ConsentDocumentSummaryResponse = {
+	id: string;
+	campaignSeriesId: string;
+	locale: string;
+	version: string;
+	title: string;
+	publishedAt: string;
+	retiredCount: number;
+};
+
 export type SelectCampaignSeriesSetupTemplateRequest = {
 	templateVersionId: string;
 };
@@ -915,6 +932,15 @@ export function createSetupApi(client: ApiClient) {
 			},
 		createCampaignSeries(request: CreateCampaignSeriesRequest) {
 			return client.request<SetupIdResponse>('/campaign-series', jsonPost(request));
+		},
+		publishCampaignSeriesConsentDocument(
+			campaignSeriesId: string,
+			request: PublishConsentDocumentRequest
+		) {
+			return client.request<ConsentDocumentSummaryResponse>(
+				`/campaign-series/${campaignSeriesId}/consent-documents`,
+				jsonPost(request)
+			);
 		},
 		selectCampaignSeriesSetupTemplate(
 			campaignSeriesId: string,

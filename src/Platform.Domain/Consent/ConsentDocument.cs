@@ -71,6 +71,23 @@ public sealed class ConsentDocument
         return PublishedAt <= at && (!RetiredAt.HasValue || RetiredAt.Value > at);
     }
 
+    public void Retire(DateTimeOffset retiredAt)
+    {
+        if (RetiredAt.HasValue)
+        {
+            throw new InvalidOperationException("Consent document is already retired.");
+        }
+
+        if (retiredAt <= PublishedAt)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(retiredAt),
+                "Retirement time must be after publication time.");
+        }
+
+        RetiredAt = retiredAt;
+    }
+
     internal static string NormalizeGrantArray(string value, string parameterName)
     {
         var normalized = NormalizeRequired(value, parameterName);

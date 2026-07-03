@@ -149,4 +149,69 @@ public sealed class ConsentEntitiesTests
             invalidGrantJson,
             DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void Retire_SetsRetirementAfterPublication()
+    {
+        var publishedAt = DateTimeOffset.UtcNow;
+        var document = new ConsentDocument(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "en",
+            "1.0.0",
+            "Participant disclosure",
+            "Consent body",
+            RequiredGrants,
+            OptionalGrants,
+            publishedAt);
+
+        var retiredAt = publishedAt.AddMinutes(5);
+        document.Retire(retiredAt);
+
+        Assert.Equal(retiredAt, document.RetiredAt);
+        Assert.False(document.IsUsableAt(retiredAt.AddMinutes(1)));
+        Assert.True(document.IsUsableAt(publishedAt.AddMinutes(1)));
+    }
+
+    [Fact]
+    public void Retire_RejectsSecondRetirement()
+    {
+        var publishedAt = DateTimeOffset.UtcNow;
+        var document = new ConsentDocument(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "en",
+            "1.0.0",
+            "Participant disclosure",
+            "Consent body",
+            RequiredGrants,
+            OptionalGrants,
+            publishedAt);
+
+        document.Retire(publishedAt.AddMinutes(5));
+
+        Assert.Throws<InvalidOperationException>(() => document.Retire(publishedAt.AddMinutes(10)));
+    }
+
+    [Fact]
+    public void Retire_RejectsRetirementBeforePublication()
+    {
+        var publishedAt = DateTimeOffset.UtcNow;
+        var document = new ConsentDocument(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "en",
+            "1.0.0",
+            "Participant disclosure",
+            "Consent body",
+            RequiredGrants,
+            OptionalGrants,
+            publishedAt);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => document.Retire(publishedAt.AddMinutes(-1)));
+    }
+
 }

@@ -141,6 +141,21 @@ public sealed record CreateCampaignSeriesRequest(
 
 public sealed record SelectCampaignSeriesSetupTemplateRequest(Guid TemplateVersionId);
 
+public sealed record PublishConsentDocumentRequest(
+    string Locale,
+    string Version,
+    string Title,
+    string BodyMarkdown);
+
+public sealed record ConsentDocumentSummaryResponse(
+    Guid Id,
+    Guid CampaignSeriesId,
+    string Locale,
+    string Version,
+    string Title,
+    DateTimeOffset PublishedAt,
+    int RetiredCount);
+
 public sealed record SelectCampaignSeriesSetupTemplateResponse(Guid CampaignSeriesId, Guid TemplateVersionId);
 
 public sealed record CreateCampaignSeriesStudyBriefRequest(
