@@ -5,12 +5,46 @@
 		createProductApi,
 		type CampaignSeriesOperationsWorkspaceResponse
 	} from '$lib/api/product';
+	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
 
 	const product = createProductApi(api());
+	const setup = createSetupApi(api());
 	const seriesId = $derived(page.params.seriesId!);
+
+	let mintedLink = $state<{ campaignId: string; url: string } | null>(null);
+	let linkBusy = $state<string | null>(null);
+	let linkError = $state<string | null>(null);
+	let copied = $state(false);
+
+	async function mintLink(campaignId: string, replace: boolean) {
+		if (linkBusy) return;
+		linkBusy = campaignId;
+		linkError = null;
+		copied = false;
+
+		try {
+			const link = replace
+				? await setup.replaceCampaignOpenLink(campaignId)
+				: await setup.createCampaignOpenLink(campaignId);
+			mintedLink = { campaignId, url: `${location.origin}/r/${link.token}` };
+			await read(true);
+		} catch {
+			linkError = replace
+				? 'The link could not be replaced. Try again.'
+				: 'The link could not be created. If one already exists, use "Replace lost link".';
+		} finally {
+			linkBusy = null;
+		}
+	}
+
+	async function copyLink() {
+		if (!mintedLink) return;
+		await navigator.clipboard.writeText(mintedLink.url);
+		copied = true;
+	}
 
 	let workspace = $state<CampaignSeriesOperationsWorkspaceResponse | null>(null);
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
@@ -160,11 +194,34 @@
 								{formatCount(wave.submittedResponseCount)}
 								<span class="dim">submitted</span>
 							</span>
+							{#if wave.status.toLowerCase() === 'live'}
+								<span class="link-actions">
+									{#if wave.openLinkAssignmentCount > 0}
+										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
+											Replace lost link
+										</button>
+									{:else}
+										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, false)}>
+											Create open link
+										</button>
+									{/if}
+								</span>
+							{/if}
 						</li>
+						{#if mintedLink?.campaignId === wave.id}
+							<li class="minted">
+								<div class="minted-inner">
+									<span class="eyebrow dim-label">Respondent link — shown once, save it now</span>
+									<code class="datum minted-url">{mintedLink.url}</code>
+									<button class="link-btn" onclick={copyLink}>{copied ? 'Copied' : 'Copy link'}</button>
+								</div>
+							</li>
+						{/if}
 					{:else}
 						<li class="none">No waves launched yet. Launch from the protocol.</li>
 					{/each}
 				</ul>
+				{#if linkError}<p class="link-error" role="alert">{linkError}</p>{/if}
 			</section>
 
 			{#if workspace.missingPrerequisites.length > 0}
@@ -424,6 +481,54 @@
 	.wave-count .dim {
 		font-size: 0.75rem;
 		color: var(--color-console-dim);
+	}
+
+	.link-actions {
+		flex-shrink: 0;
+	}
+
+	.link-btn {
+		background: none;
+		border: 1px solid var(--color-console-line);
+		border-radius: var(--radius-instrument);
+		color: var(--color-chart-violet-dark);
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 560;
+		padding: 0.375rem 0.75rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.link-btn:hover {
+		border-color: var(--color-chart-violet-dark);
+	}
+
+	.minted {
+		background: var(--color-console-2);
+		border-radius: var(--radius-instrument);
+	}
+
+	.minted-inner {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+		width: 100%;
+	}
+
+	.minted-url {
+		font-size: 0.8125rem;
+		color: var(--color-console-ink);
+		word-break: break-all;
+		flex: 1;
+		min-width: 16rem;
+	}
+
+	.link-error {
+		margin-top: 0.75rem;
+		font-size: 0.8125rem;
+		color: #f0b429;
 	}
 
 	.prereqs {

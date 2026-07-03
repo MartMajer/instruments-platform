@@ -9,6 +9,7 @@
 	import { createSetupApi, type LaunchReadinessResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
+	import Composer from '$lib/protocol/Composer.svelte';
 	import LoadState from '$lib/ui/LoadState.svelte';
 	import WaveRail from '$lib/ui/WaveRail.svelte';
 
@@ -23,6 +24,36 @@
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
 	let launching = $state(false);
 	let launchError = $state<string | null>(null);
+
+	let waveName = $state('');
+	let waveIdentityMode = $state('anonymous');
+	let waveLocale = $state('en');
+	let waveBusy = $state(false);
+	let waveError = $state<string | null>(null);
+
+	async function addWave(event: SubmitEvent) {
+		event.preventDefault();
+		if (!workspace?.template || waveBusy) return;
+		waveBusy = true;
+		waveError = null;
+
+		try {
+			await setup.createCampaign({
+				templateVersionId: workspace.template.templateVersionId,
+				name: waveName.trim() || `Wave ${(hub?.campaigns.length ?? 0) + 1}`,
+				responseIdentityMode: waveIdentityMode,
+				campaignSeriesId: seriesId,
+				schedule: '{}',
+				defaultLocale: waveLocale
+			});
+			waveName = '';
+			await load();
+		} catch {
+			waveError = 'The wave could not be created. Try again.';
+		} finally {
+			waveBusy = false;
+		}
+	}
 
 	const chapters = [
 		{ n: '01', id: 'design', title: 'Design' },
@@ -192,7 +223,14 @@
 							</div>
 						</dl>
 					{:else}
-						<p class="prose">No instrument attached yet. Choose one from the library.</p>
+						<p class="prose">
+							No instrument attached yet. Compose the questionnaire here — items on one
+							response scale, scoring included — or import a validated instrument from the
+							<a href="/app/instruments">library</a> first.
+						</p>
+						<div class="compose-wrap">
+							<Composer {seriesId} seriesName={hub.name} onDone={load} />
+						</div>
 					{/if}
 				</section>
 
@@ -269,8 +307,31 @@
 								</li>
 							{/each}
 						</ul>
-					{:else}
-						<p class="prose">No waves defined yet.</p>
+					{:else if !workspace.template}
+						<p class="prose">Waves become available once an instrument is attached.</p>
+					{/if}
+
+					{#if workspace.template}
+						<form class="add-wave" onsubmit={addWave}>
+							<input
+								bind:value={waveName}
+								placeholder={`Wave ${(hub.campaigns.length ?? 0) + 1} — e.g. Baseline`}
+								aria-label="New wave name"
+							/>
+							<select bind:value={waveIdentityMode} aria-label="Identity mode">
+								<option value="anonymous">Anonymous</option>
+								<option value="anonymous_longitudinal">Anonymous longitudinal</option>
+								<option value="identified">Identified</option>
+							</select>
+							<select bind:value={waveLocale} aria-label="Wave language">
+								<option value="en">English</option>
+								<option value="hr-HR">Hrvatski</option>
+							</select>
+							<button class="btn btn-ghost" type="submit" disabled={waveBusy}>
+								{waveBusy ? 'Adding…' : 'Add wave'}
+							</button>
+						</form>
+						{#if waveError}<p class="error" role="alert">{waveError}</p>{/if}
 					{/if}
 				</section>
 			</article>
@@ -505,6 +566,36 @@
 
 	.waves-rail {
 		margin: 0.75rem 0 1.5rem;
+	}
+
+	.compose-wrap {
+		margin-top: 1.25rem;
+	}
+
+	.prose a {
+		color: var(--color-stain);
+	}
+
+	.add-wave {
+		display: flex;
+		gap: 0.625rem;
+		margin-top: 1.25rem;
+		flex-wrap: wrap;
+	}
+
+	.add-wave input,
+	.add-wave select {
+		font: inherit;
+		font-size: 0.875rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.add-wave input {
+		flex: 1;
+		min-width: 12rem;
 	}
 
 	.waves {
