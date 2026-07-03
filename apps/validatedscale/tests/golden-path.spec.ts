@@ -56,4 +56,11 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	// field shows the submission
 	await page.reload();
 	await expect(page.locator('.tile.accent .value')).toHaveText('1', { timeout: 15_000 });
+
+	// clean up: archive the test study so it never pollutes the portfolio
+	await page.getByRole('link', { name: 'Protocol' }).click();
+	await page.getByRole('button', { name: 'Archive study' }).click();
+	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({
+		timeout: 15_000
+	});
 });

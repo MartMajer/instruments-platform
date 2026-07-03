@@ -90,6 +90,29 @@
 		const sign = value > 0 ? '+' : '';
 		return `${sign}${value.toFixed(2)}`;
 	}
+
+	/** SVG polyline points for one dimension's mean across waves (small multiple). */
+	function trendPoints(rows: { mean: number | null; disclosure: string }[]): string {
+		const visible = rows.map((row) =>
+			row.disclosure.toLowerCase() === 'visible' && row.mean != null ? row.mean : null
+		);
+		const values = visible.filter((value): value is number => value !== null);
+		if (values.length < 2) return '';
+		const min = Math.min(...values);
+		const max = Math.max(...values);
+		const span = max - min || 1;
+		const width = 96;
+		const height = 26;
+		const step = width / (visible.length - 1);
+		return visible
+			.map((value, index) =>
+				value === null
+					? null
+					: `${(index * step).toFixed(1)},${(height - 4 - ((value - min) / span) * (height - 8) + 2).toFixed(1)}`
+			)
+			.filter((point): point is string => point !== null)
+			.join(' ');
+	}
 </script>
 
 <svelte:head><title>Evidence — ValidatedScale</title></svelte:head>
@@ -203,6 +226,7 @@
 									<thead>
 										<tr>
 											<th>Dimension</th>
+											<th class="trend-h">Trend</th>
 											{#each waveMatrix[0][1] as wave (wave.campaignId)}
 												<th class="num">{wave.campaignName}</th>
 											{/each}
@@ -212,6 +236,20 @@
 										{#each waveMatrix as [dimension, rows] (dimension)}
 											<tr>
 												<td>{dimension}</td>
+												<td class="trend-cell">
+													{#if trendPoints(rows)}
+														<svg width="96" height="26" role="img" aria-label={`${dimension} mean across waves`}>
+															<polyline
+																points={trendPoints(rows)}
+																fill="none"
+																stroke="var(--color-chart-violet)"
+																stroke-width="2"
+																stroke-linecap="round"
+																stroke-linejoin="round"
+															/>
+														</svg>
+													{/if}
+												</td>
 												{#each rows as wave (wave.campaignId)}
 													<td class="num datum">
 														{#if wave.disclosure.toLowerCase() === 'visible'}
@@ -474,6 +512,14 @@
 		color: var(--color-ink-3);
 		font-style: italic;
 		font-size: 0.8125rem;
+	}
+
+	.trend-h {
+		width: 7rem;
+	}
+
+	.trend-cell svg {
+		display: block;
 	}
 
 	.delta {

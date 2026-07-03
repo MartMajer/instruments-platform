@@ -34,13 +34,13 @@
 	--color-stain-wash: #edeafa;
 	--color-stain-line: #c9c0ee;
 
-	/* console (Field view — the one dark surface) */
-	--color-console: #0f151d;
-	--color-console-2: #171f2a;
-	--color-console-3: #212b38;
-	--color-console-line: #2c3846;
-	--color-console-ink: #e7edf4;
-	--color-console-dim: #8a96a5;
+	/* console (Field view — the one dark surface): lifted graphite, not blue-black */
+	--color-console: #242932;
+	--color-console-2: #2a303a;
+	--color-console-3: #353c47;
+	--color-console-line: #434b57;
+	--color-console-ink: #eceff4;
+	--color-console-dim: #9aa3af;
 	--color-stain-bright: #9c8bf5;
 
 	/* status — cold semantics */

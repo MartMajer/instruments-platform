@@ -18,11 +18,78 @@
 	let instruments = $state<InstrumentSummaryResponse[]>([]);
 	let instrumentId = $state<string>('');
 
+	/* Original example item sets — generic wording, no named-instrument text. */
+	const presets = [
+		{
+			key: 'workload',
+			label: 'Workload & recovery (8 items)',
+			name: 'Workload and recovery questionnaire',
+			low: 'Strongly disagree',
+			high: 'Strongly agree',
+			calculation: 'mean' as const,
+			items: [
+				{ text: 'I have enough time to complete my assigned tasks.', reverse: false },
+				{ text: 'My workload is predictable from week to week.', reverse: false },
+				{ text: 'I often have to skip breaks to keep up with work.', reverse: true },
+				{ text: 'After a working day, I recover before the next one begins.', reverse: false },
+				{ text: 'I feel drained at the end of a typical shift.', reverse: true },
+				{ text: 'I can influence how my work is scheduled.', reverse: false },
+				{ text: 'Urgent requests regularly disrupt my planned work.', reverse: true },
+				{ text: 'I have the resources I need to do my job well.', reverse: false }
+			]
+		},
+		{
+			key: 'wellbeing',
+			label: 'Wellbeing check-in (5 items)',
+			name: 'Wellbeing check-in',
+			low: 'Never',
+			high: 'Always',
+			calculation: 'mean' as const,
+			items: [
+				{ text: 'Over the past two weeks, I have felt calm and relaxed.', reverse: false },
+				{ text: 'I have felt cheerful and in good spirits.', reverse: false },
+				{ text: 'I have woken up feeling fresh and rested.', reverse: false },
+				{ text: 'My daily life has been filled with things that interest me.', reverse: false },
+				{ text: 'I have felt worried or tense.', reverse: true }
+			]
+		},
+		{
+			key: 'ergonomics',
+			label: 'Workstation comfort (7 items)',
+			name: 'Workstation comfort survey',
+			low: 'Never',
+			high: 'Very often',
+			calculation: 'mean' as const,
+			items: [
+				{ text: 'I experience neck or shoulder discomfort during work.', reverse: true },
+				{ text: 'I experience lower-back discomfort during work.', reverse: true },
+				{ text: 'I experience wrist or hand discomfort during work.', reverse: true },
+				{ text: 'My screen, chair and desk are adjusted to suit me.', reverse: false },
+				{ text: 'I can vary my working posture during the day.', reverse: false },
+				{ text: 'I experience eye strain during screen work.', reverse: true },
+				{ text: 'I take short movement breaks during the working day.', reverse: false }
+			]
+		}
+	];
+
+	function applyPreset(key: string) {
+		const preset = presets.find((candidate) => candidate.key === key);
+		if (!preset) return;
+		templateName = preset.name;
+		lowAnchor = preset.low;
+		highAnchor = preset.high;
+		calculation = preset.calculation;
+		scaleMin = 1;
+		scaleMax = 5;
+		items = preset.items.map((item) => ({ kind: 'likert' as ItemKind, options: '', ...item }));
+	}
+
 	onMount(async () => {
 		instruments = await setup.listInstruments().catch(() => []);
 	});
 
-	type ItemRow = { text: string; reverse: boolean };
+	type ItemKind = 'likert' | 'single' | 'multi' | 'text';
+	type ItemRow = { text: string; reverse: boolean; kind: ItemKind; options: string };
 
 	let templateName = $state('');
 	let locale = $state('en');
@@ -31,11 +98,8 @@
 	let lowAnchor = $state('Strongly disagree');
 	let highAnchor = $state('Strongly agree');
 	let calculation = $state<'mean' | 'sum'>('mean');
-	let items = $state<ItemRow[]>([
-		{ text: '', reverse: false },
-		{ text: '', reverse: false },
-		{ text: '', reverse: false }
-	]);
+	const blankItem = (): ItemRow => ({ text: '', reverse: false, kind: 'likert', options: '' });
+	let items = $state<ItemRow[]>([blankItem(), blankItem(), blankItem()]);
 
 	let busy = $state(false);
 	let step = $state<string | null>(null);
@@ -57,6 +121,7 @@
 	}
 
 	function scoringDocument(rows: { code: string; reverse: boolean }[]): string {
+		// rows here are the scale-backed items only
 		const reverseItems = rows.filter((row) => row.reverse).map((row) => row.code);
 		const hasReverse = reverseItems.length > 0;
 		const aggregateInput = hasReverse ? 'total_scored_answers' : 'total_answers';
@@ -100,8 +165,19 @@
 		const rows = validItems.map((item, index) => ({
 			code: code(index),
 			text: item.text.trim(),
-			reverse: item.reverse
+			reverse: item.kind === 'likert' ? item.reverse : false,
+			kind: item.kind,
+			options: item.options
+				.split(/[\n;,]+/)
+				.map((option) => option.trim())
+				.filter((option) => option.length > 0)
 		}));
+		const scaleRows = rows.filter((row) => row.kind === 'likert');
+		if (scaleRows.length === 0) {
+			error = 'At least one scale item is needed so the study produces a score.';
+			busy = false;
+			return;
+		}
 		const anchors = JSON.stringify([
 			{ value: scaleMin, label: lowAnchor.trim() },
 			{ value: scaleMax, label: highAnchor.trim() }
@@ -115,7 +191,7 @@
 				defaultLocale: locale,
 				instrumentId: instrumentId || null,
 				sections: [{ ordinal: 1, code: 'MAIN', titleDefault: 'Questions' }],
-				scales: rows.map((row) => ({
+				scales: scaleRows.map((row) => ({
 					code: `S_${row.code}`,
 					type: 'likert',
 					minValue: scaleMin,
@@ -127,14 +203,22 @@
 				questions: rows.map((row, index) => ({
 					ordinal: index + 1,
 					code: row.code,
-					type: 'likert',
+					type: row.kind,
 					textDefault: row.text,
 					sectionCode: 'MAIN',
-					scaleCode: `S_${row.code}`,
-					required: true,
+					scaleCode: row.kind === 'likert' ? `S_${row.code}` : null,
+					required: row.kind !== 'text',
 					reverseCoded: row.reverse,
 					measurementLevel: null,
-					payload: '{}',
+					payload:
+						row.kind === 'single' || row.kind === 'multi'
+							? JSON.stringify({
+									options: row.options.map((label, optionIndex) => ({
+										code: `o${String(optionIndex + 1).padStart(2, '0')}`,
+										label
+									}))
+								})
+							: '{}',
 					missingCodes: '[]'
 				}))
 			});
@@ -151,7 +235,7 @@
 				ruleVersion: '1.0.0',
 				schemaVersion: '1.0.0',
 				engineMinVersion: '1.0.0',
-				document: scoringDocument(rows),
+				document: scoringDocument(scaleRows),
 				produces: JSON.stringify({ scores: ['total'] }),
 				compatibility: '{}'
 			});
@@ -172,6 +256,17 @@
 </script>
 
 <form class="composer" onsubmit={compose}>
+	<div class="presets">
+		<span class="eyebrow">Start from an example</span>
+		<div class="preset-row">
+			{#each presets as preset (preset.key)}
+				<button type="button" class="preset" onclick={() => applyPreset(preset.key)}>
+					{preset.label}
+				</button>
+			{/each}
+		</div>
+	</div>
+
 	<div class="row">
 		<div class="field grow">
 			<label class="eyebrow" for="tpl-name">Questionnaire name</label>
@@ -234,13 +329,25 @@
 				<input
 					class="grow"
 					bind:value={item.text}
-					placeholder="Statement the respondent rates on the scale"
+					placeholder={item.kind === 'likert'
+						? 'Statement the respondent rates on the scale'
+						: item.kind === 'text'
+							? 'Open question (free text, optional)'
+							: 'Question with answer options'}
 					aria-label={`Item ${index + 1} text`}
 				/>
-				<label class="reverse" class:on={item.reverse} title="Reverse-coded item">
-					<input type="checkbox" bind:checked={item.reverse} />
-					R
-				</label>
+				<select bind:value={item.kind} aria-label={`Item ${index + 1} type`}>
+					<option value="likert">Scale</option>
+					<option value="single">Choice</option>
+					<option value="multi">Multi-choice</option>
+					<option value="text">Open text</option>
+				</select>
+				{#if item.kind === 'likert'}
+					<label class="reverse" class:on={item.reverse} title="Reverse-coded item">
+						<input type="checkbox" bind:checked={item.reverse} />
+						R
+					</label>
+				{/if}
 				<button
 					type="button"
 					class="remove"
@@ -250,8 +357,16 @@
 					×
 				</button>
 			</div>
+			{#if item.kind === 'single' || item.kind === 'multi'}
+				<input
+					class="options-input"
+					bind:value={item.options}
+					placeholder="Options, comma-separated — Day shift, Night shift, Rotating"
+					aria-label={`Item ${index + 1} options`}
+				/>
+			{/if}
 		{/each}
-		<button type="button" class="add" onclick={() => (items = [...items, { text: '', reverse: false }])}>
+		<button type="button" class="add" onclick={() => (items = [...items, blankItem()])}>
 			+ Add item
 		</button>
 	</fieldset>
@@ -278,6 +393,36 @@
 		border: 1px solid var(--color-stain-line);
 		background: var(--color-stain-wash);
 		border-radius: var(--radius-instrument);
+	}
+
+	.presets {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.preset-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.preset {
+		background: var(--color-surface);
+		border: 1px solid var(--color-stain-line);
+		border-radius: 999px;
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 540;
+		color: var(--color-stain);
+		padding: 0.4375rem 0.875rem;
+		cursor: pointer;
+	}
+
+	.preset:hover {
+		background: var(--color-stain);
+		border-color: var(--color-stain);
+		color: #fff;
 	}
 
 	fieldset {
@@ -334,6 +479,11 @@
 		color: var(--color-stain);
 		width: 2rem;
 		flex-shrink: 0;
+	}
+
+	.options-input {
+		margin-left: 2.625rem;
+		font-size: 0.8125rem;
 	}
 
 	.reverse {

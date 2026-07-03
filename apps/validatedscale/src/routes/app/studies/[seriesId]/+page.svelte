@@ -64,8 +64,8 @@
 	];
 
 	const launchCandidate = $derived(
-		workspace?.selectedCampaign ??
-			workspace?.campaigns.find((c) => c.latestLaunchAt === null) ??
+		workspace?.campaigns.find((c) => c.latestLaunchAt === null) ??
+			workspace?.selectedCampaign ??
 			null
 	);
 
@@ -93,8 +93,8 @@
 			loadState = 'ready';
 
 			const candidate =
-				setupResponse.selectedCampaign ??
 				setupResponse.campaigns.find((c) => c.latestLaunchAt === null) ??
+				setupResponse.selectedCampaign ??
 				null;
 			if (candidate) {
 				readiness = await setup.getLaunchReadiness(candidate.id).catch(() => null);

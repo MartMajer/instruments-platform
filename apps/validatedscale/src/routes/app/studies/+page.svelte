@@ -13,6 +13,28 @@
 	let items = $state<CampaignSeriesListItemResponse[]>([]);
 	let loadState = $state<'loading' | 'error' | 'empty' | 'ready'>('loading');
 	let search = $state('');
+	let sampleBusy = $state(false);
+
+	async function load() {
+		try {
+			const response = await product.listCampaignSeries();
+			items = response.items;
+			loadState = items.length === 0 ? 'empty' : 'ready';
+		} catch {
+			loadState = 'error';
+		}
+	}
+
+	async function addExamples() {
+		if (sampleBusy) return;
+		sampleBusy = true;
+		try {
+			await product.ensureSampleStudies();
+			await load();
+		} finally {
+			sampleBusy = false;
+		}
+	}
 
 	type Bucket = {
 		key: string;
@@ -43,15 +65,7 @@
 		].filter((bucket) => bucket.items.length > 0);
 	});
 
-	onMount(async () => {
-		try {
-			const response = await product.listCampaignSeries();
-			items = response.items;
-			loadState = items.length === 0 ? 'empty' : 'ready';
-		} catch {
-			loadState = 'error';
-		}
-	});
+	onMount(load);
 
 	function stateChip(study: CampaignSeriesListItemResponse): { cls: string; label: string } {
 		if (study.archived) return { cls: 'chip', label: 'Archived' };
@@ -75,6 +89,9 @@
 			aria-label="Find a study"
 			bind:value={search}
 		/>
+		<button class="btn btn-ghost" disabled={sampleBusy} onclick={addExamples}>
+			{sampleBusy ? 'Adding…' : 'Add example studies'}
+		</button>
 		<a class="btn btn-ink" href="/app/studies/new">New study</a>
 	</div>
 </header>
@@ -82,7 +99,7 @@
 <LoadState
 	state={loadState}
 	emptyTitle="No studies yet"
-	emptyBody="A study pairs one instrument with a cohort and one or more waves. Create the first one to see the protocol take shape."
+	emptyBody="A study pairs one instrument with a cohort and one or more waves. Create your first one, or add three example studies with prefilled waves and responses to explore the product."
 >
 	{#each buckets as bucket (bucket.key)}
 		<section class="bucket">
