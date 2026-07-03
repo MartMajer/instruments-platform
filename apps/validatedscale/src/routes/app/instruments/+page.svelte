@@ -356,6 +356,7 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
 		gap: 1rem;
+		align-items: start;
 	}
 
 	.g-card {
@@ -426,6 +427,9 @@
 	}
 
 	.g-items {
+		max-height: 15rem;
+		overflow-y: auto;
+		padding-right: 0.5rem;
 		margin: 0.5rem 0 0 1.125rem;
 		display: flex;
 		flex-direction: column;
