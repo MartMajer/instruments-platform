@@ -252,6 +252,10 @@
 		return { text: message, anchor: null };
 	}
 
+	function policyDetail(details: { label: string; value: string }[] | null | undefined, label: string): string | null {
+		return details?.find((d) => d.label.toLowerCase() === label.toLowerCase())?.value ?? null;
+	}
+
 	function policyChip(status: string): string {
 		const normalized = status.toLowerCase();
 		if (normalized.includes('ready') || normalized.includes('active')) return 'chip chip-live';
@@ -406,72 +410,70 @@
 				</section>
 
 				<section id="policies">
-					<h2><span class="datum ch">04</span> Policies</h2>
-					<p class="prose">
-						Three safety rules every study carries. They are set with protective defaults at
-						registration and bind to each wave at launch — launched waves keep theirs forever.
-					</p>
-					<div class="policy-actions">
-						<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
-							{consentOpen ? 'Close consent editor' : 'Publish new consent version'}
-						</button>
-						{#if consentNote}<p class="consent-note" role="status">{consentNote}</p>{/if}
-					</div>
-					{#if consentOpen}
-						<form class="consent-editor" onsubmit={publishConsent}>
-							<div class="consent-row">
-								<div class="field">
-									<label class="eyebrow" for="c-locale">Language</label>
-									<select id="c-locale" bind:value={consentLocale}>
-										<option value="en">English</option>
-										<option value="hr-HR">Hrvatski</option>
-									</select>
-								</div>
-								<div class="field">
-									<label class="eyebrow" for="c-version">Version</label>
-									<input id="c-version" class="datum" required bind:value={consentVersion} placeholder="2.0.0" />
-								</div>
-								<div class="field grow">
-									<label class="eyebrow" for="c-title">Title</label>
-									<input id="c-title" required bind:value={consentTitle} placeholder="Informed consent — nurse workload study" />
-								</div>
-							</div>
-							<div class="field">
-								<label class="eyebrow" for="c-body">Consent text (shown to every respondent before items)</label>
-								<textarea id="c-body" rows="7" required bind:value={consentBody} placeholder={'What the study measures, who runs it, that answers are anonymous, the k-threshold for reporting, the right to stop at any time, your ethics reference…'}></textarea>
-							</div>
-							<button class="btn btn-stain consent-submit" type="submit" disabled={consentBusy}>
-								{consentBusy ? 'Publishing…' : 'Publish — retires the current version'}
+					<h2><span class="datum ch">04</span> Consent &amp; data guarantees</h2>
+
+					<div class="consent-card">
+						<div class="policy-head">
+							<span class={policyChip(workspace.policies.consent.status)}>Consent</span>
+							{#if workspace.policies.consent.version}
+								<span class="datum quiet">v{workspace.policies.consent.version}</span>
+							{/if}
+							{#if policyDetail(workspace.policies.consent.details, 'Title')}
+								<span class="consent-current">{policyDetail(workspace.policies.consent.details, 'Title')}</span>
+							{/if}
+						</div>
+						<p class="policy-explain">
+							What respondents agree to before answering — your words, versioned. Publish a
+							new version below; earlier waves keep the version they launched with.
+						</p>
+						<div class="policy-actions">
+							<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
+								{consentOpen ? 'Close consent editor' : 'Publish new consent version'}
 							</button>
-							<p class="consent-hint">
-								Launched waves keep the consent version they launched with; this version binds
-								to waves launched after publishing. Grants carry over unchanged.
-							</p>
-						</form>
-					{/if}
-					<div class="policy-grid">
-						{#each [{ label: 'Consent', explain: 'What respondents agree to before answering — your words, versioned. Publish a new version below; earlier waves keep the version they launched with.', policy: workspace.policies.consent }, { label: 'Retention', explain: 'How long response data is kept and what happens then. The default — anonymize after the retention period — is the answer you give when anyone asks.', policy: workspace.policies.retention }, { label: 'Disclosure', explain: 'The smallest group a number is ever shown for. Below this, results are suppressed — no one can slice a report down to a person. The floor cannot be lowered.', policy: workspace.policies.disclosure }] as entry (entry.label)}
-							<div class="policy-card">
-								<div class="policy-head">
-									<span class={policyChip(entry.policy.status)}>{entry.label}</span>
-									{#if entry.policy.version}
-										<span class="datum quiet">v{entry.policy.version}</span>
-									{/if}
+							{#if consentNote}<p class="consent-note" role="status">{consentNote}</p>{/if}
+						</div>
+						{#if consentOpen}
+							<form class="consent-editor" onsubmit={publishConsent}>
+								<div class="consent-row">
+									<div class="field">
+										<label class="eyebrow" for="c-locale">Language</label>
+										<select id="c-locale" bind:value={consentLocale}>
+											<option value="en">English</option>
+											<option value="hr-HR">Hrvatski</option>
+										</select>
+									</div>
+									<div class="field">
+										<label class="eyebrow" for="c-version">Version</label>
+										<input id="c-version" class="datum" required bind:value={consentVersion} placeholder="2.0.0" />
+									</div>
+									<div class="field grow">
+										<label class="eyebrow" for="c-title">Title</label>
+										<input id="c-title" required bind:value={consentTitle} placeholder="Informed consent — nurse workload study" />
+									</div>
 								</div>
-								<p class="policy-explain">{entry.explain}</p>
-								<dl class="policy-facts">
-									{#each entry.policy.details ?? [] as detail (detail.label)}
-										<div>
-											<dt>{detail.label}</dt>
-											<dd class="datum">{detail.value}</dd>
-										</div>
-									{:else}
-										<div><dt>Status</dt><dd>{humanizeToken(entry.policy.status)}</dd></div>
-									{/each}
-								</dl>
-							</div>
-						{/each}
+								<div class="field">
+									<label class="eyebrow" for="c-body">Consent text (shown to every respondent before items)</label>
+									<textarea id="c-body" rows="7" required bind:value={consentBody} placeholder={'What the study measures, who runs it, that answers are anonymous, the k-threshold for reporting, the right to stop at any time, your ethics reference…'}></textarea>
+								</div>
+								<button class="btn btn-stain consent-submit" type="submit" disabled={consentBusy}>
+									{consentBusy ? 'Publishing…' : 'Publish — retires the current version'}
+								</button>
+								<p class="consent-hint">
+									Launched waves keep the consent version they launched with; this version binds
+									to waves launched after publishing. Grants carry over unchanged.
+								</p>
+							</form>
+						{/if}
 					</div>
+
+					<p class="guarantees">
+						<span class="eyebrow guarantees-label">Platform guarantees</span>
+						Responses are anonymized
+						<span class="datum">{policyDetail(workspace.policies.retention.details, 'Retain for') ?? '2 years'}</span>
+						after each wave closes, and nothing is ever reported for groups smaller than
+						<span class="datum">{policyDetail(workspace.policies.disclosure.details, 'Minimum group size') ?? '5'}</span>
+						people. These hold for every study and bind at launch.
+					</p>
 				</section>
 
 				<section id="waves">
@@ -848,18 +850,30 @@
 		color: var(--color-ink-3);
 	}
 
-	.policy-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-		gap: 1rem;
+	.consent-card {
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-instrument);
+		padding: 1.125rem 1.25rem;
+		background: var(--color-surface);
 		margin-top: 1rem;
 	}
 
-	.policy-card {
-		border: 1px solid var(--color-line);
-		border-radius: var(--radius-instrument);
-		padding: 0.875rem;
-		background: var(--color-surface);
+	.consent-current {
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+	}
+
+	.guarantees {
+		margin-top: 1.25rem;
+		font-size: 0.875rem;
+		line-height: 1.7;
+		color: var(--color-ink-2);
+		max-width: 56ch;
+	}
+
+	.guarantees-label {
+		display: block;
+		margin-bottom: 0.25rem;
 	}
 
 	.policy-head {
@@ -876,26 +890,6 @@
 		margin-bottom: 0.75rem;
 	}
 
-	.policy-facts div {
-		display: flex;
-		justify-content: space-between;
-		gap: 0.75rem;
-		padding: 0.3125rem 0;
-		border-bottom: 1px dashed var(--color-line);
-		font-size: 0.8125rem;
-	}
-
-	.policy-facts div:last-child {
-		border-bottom: none;
-	}
-
-	.policy-facts dt {
-		color: var(--color-ink-3);
-	}
-
-	.policy-facts dd {
-		text-align: right;
-	}
 
 	.waves-rail {
 		margin: 0.75rem 0 1.5rem;
