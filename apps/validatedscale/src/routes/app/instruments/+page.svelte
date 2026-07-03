@@ -223,28 +223,10 @@
 						<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
 							{useBusy === entry.code ? (useStep ?? 'Setting up…') : `Use ${entry.code}`}
 						</button>
-						<button class="g-preview-btn" onclick={() => (previewFor = previewFor === entry.code ? null : entry.code)}>
-							{previewFor === entry.code ? 'Hide items' : `View all ${entry.itemCount} items`}
+						<button class="g-preview-btn" onclick={() => (previewFor = entry.code)}>
+							View all {entry.itemCount} items
 						</button>
 					</div>
-					{#if previewFor === entry.code && entry.template}
-						<ol class="g-items">
-							{#each entry.template.questions as question (question.code)}
-								<li>
-									{question.textDefault}
-									{#if question.scaleCode}
-										{@const scale = entry.template.scales.find((s) => s.code === question.scaleCode)}
-										{#if scale}
-											<span class="datum g-scale">{scale.minValue}–{scale.maxValue}</span>
-										{/if}
-									{:else}
-										<span class="datum g-scale">yes / no</span>
-									{/if}
-								</li>
-							{/each}
-						</ol>
-						<p class="g-cite datum">{entry.citation}</p>
-					{/if}
 				{:else}
 					<p class="g-how">{entry.howToGet}</p>
 				{/if}
@@ -252,6 +234,53 @@
 		{/each}
 	</div>
 </section>
+
+{#if previewFor}
+	{@const entry = gallery.find((candidate) => candidate.code === previewFor)}
+	{#if entry?.template}
+		<div class="scrim" role="presentation" onclick={() => (previewFor = null)}>
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<div
+				class="items-modal panel"
+				role="dialog"
+				aria-modal="true"
+				tabindex="-1"
+				aria-label={`${entry.code} items`}
+				onclick={(event) => event.stopPropagation()}
+				onkeydown={(event) => { if (event.key === 'Escape') previewFor = null; }}
+			>
+				<div class="im-head">
+					<div>
+						<span class="datum g-code">{entry.code}</span>
+						<h2 class="doc-title im-title">{entry.name}</h2>
+					</div>
+					<button class="im-close" aria-label="Close" onclick={() => (previewFor = null)}>×</button>
+				</div>
+				<ol class="g-items">
+					{#each entry.template.questions as question (question.code)}
+						<li>
+							{question.textDefault}
+							{#if question.scaleCode}
+								{@const scale = entry.template.scales.find((s) => s.code === question.scaleCode)}
+								{#if scale}
+									<span class="datum g-scale">{scale.minValue}–{scale.maxValue}</span>
+								{/if}
+							{:else}
+								<span class="datum g-scale">yes / no</span>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+				<p class="g-cite datum">{entry.citation}</p>
+				<div class="im-actions">
+					<button class="btn btn-stain" disabled={useBusy !== null} onclick={() => { previewFor = null; useInstrument(entry.code); }}>
+						Use {entry.code}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+{/if}
 
 <LoadState
 	state={loadState}
@@ -356,7 +385,6 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
 		gap: 1rem;
-		align-items: start;
 	}
 
 	.g-card {
@@ -426,11 +454,56 @@
 		padding: 0;
 	}
 
-	.g-items {
-		max-height: 15rem;
+	.scrim {
+		position: fixed;
+		inset: 0;
+		background: rgb(21 28 37 / 0.45);
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		padding: 10vh 1rem 2rem;
+		z-index: 100;
+	}
+
+	.items-modal {
+		width: min(36rem, 100%);
+		max-height: 78vh;
 		overflow-y: auto;
-		padding-right: 0.5rem;
-		margin: 0.5rem 0 0 1.125rem;
+		padding: 1.75rem;
+		border-top: 3px solid var(--color-stain);
+	}
+
+	.im-head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.im-title {
+		font-size: 1.25rem;
+		margin-top: 0.25rem;
+	}
+
+	.im-close {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		line-height: 1;
+		color: var(--color-ink-3);
+		cursor: pointer;
+	}
+
+	.im-close:hover {
+		color: var(--color-ink);
+	}
+
+	.im-actions {
+		margin-top: 1.25rem;
+	}
+
+	.g-items {
+		margin: 1rem 0 0 1.125rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
