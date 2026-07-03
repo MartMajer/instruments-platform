@@ -125,4 +125,19 @@ public interface IProductSurfaceWriteStore
         Guid actorUserId,
         SetSubjectManagerRequest request,
         CancellationToken cancellationToken);
+
+    Task<Result<TenantEmailTemplateSettingsResponse>> UpdateTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        UpdateEmailTemplateRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<ResetEmailTemplateResponse>> ResetTenantEmailTemplateAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        string templateCode,
+        string locale,
+        CancellationToken cancellationToken);
 }

@@ -45,6 +45,14 @@ public sealed record RecordProviderDeliveryEventRequest(
     string? ProviderMessageId = null,
     string? Reason = null);
 
+public sealed record RecordProviderDeliveryEventByProviderMessageIdRequest(
+    string Provider,
+    string ProviderMessageId,
+    string EventType,
+    DateTimeOffset? OccurredAt = null,
+    string? ProviderEventId = null,
+    string? Reason = null);
+
 public sealed record RecordProviderDeliveryEventResponse(
     Guid NotificationId,
     Guid DeliveryAttemptId,

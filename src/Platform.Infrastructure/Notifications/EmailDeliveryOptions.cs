@@ -27,6 +27,8 @@ public sealed class EmailDeliveryOptions
 
     public AwsSesEmailDeliveryOptions AwsSes { get; set; } = new();
 
+    public AzureCommunicationServicesEmailDeliveryOptions AzureCommunicationServices { get; set; } = new();
+
     public void EnsureValidProviderConfiguration()
     {
         var readiness = EmailDeliveryReadinessEvaluator.Create(new EmailDeliveryReadinessConfiguration(
@@ -43,7 +45,11 @@ public sealed class EmailDeliveryOptions
             Smtp.UserName,
             Smtp.Password,
             ProviderWebhookSecret,
-            AwsSes.SnsTopicArn));
+            AwsSes.SnsTopicArn,
+            AzureCommunicationServices.ConnectionString,
+            AzureCommunicationServices.Endpoint,
+            AzureCommunicationServices.AccessKey,
+            AzureCommunicationServices.EventGridWebhookSecret));
         var blockers = readiness.Issues
             .Where(issue => issue.Severity == EmailDeliveryReadinessEvaluator.BlockingSeverity)
             .Select(issue => issue.Code)
@@ -72,4 +78,17 @@ public sealed class SmtpEmailDeliveryOptions
 public sealed class AwsSesEmailDeliveryOptions
 {
     public string? SnsTopicArn { get; set; }
+}
+
+public sealed class AzureCommunicationServicesEmailDeliveryOptions
+{
+    public string? ConnectionString { get; set; }
+
+    public string? Endpoint { get; set; }
+
+    public string? AccessKey { get; set; }
+
+    public string? EventGridWebhookSecret { get; set; }
+
+    public bool DisableUserEngagementTracking { get; set; } = true;
 }

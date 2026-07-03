@@ -3,6 +3,7 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Platform.Infrastructure.Data;
@@ -12,9 +13,11 @@ using Platform.Infrastructure.Data;
 namespace Platform.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702225252_AddEmailTemplatesAndNotificationLocale")]
+    partial class AddEmailTemplatesAndNotificationLocale
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1395,11 +1398,6 @@ namespace Platform.Infrastructure.Migrations
 
                     b.HasIndex("NotificationId", "CreatedAt")
                         .HasDatabaseName("ix_notification_delivery_attempt_notification_id_created_at");
-
-                    b.HasIndex("Provider", "ProviderMessageId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_notification_delivery_attempt_provider_message_id")
-                        .HasFilter("provider_message_id IS NOT NULL");
 
                     b.HasIndex("TenantId", "NotificationId")
                         .HasDatabaseName("ix_notification_delivery_attempt_tenant_id_notification_id");

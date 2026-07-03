@@ -361,6 +361,234 @@ public sealed class NotificationDeliveryStore(
             DuplicateEvent: false));
     }
 
+    public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+        RecordProviderDeliveryEventByProviderMessageIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        return RecordProviderDeliveryEventByProviderMessageIdCoreAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdCoreAsync(
+        RecordProviderDeliveryEventByProviderMessageIdRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!NotificationDeliveryEventTypes.IsKnown(request.EventType))
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.type_invalid",
+                    "Delivery event type must be accepted, delivered, bounced, or complained."));
+        }
+
+        var provider = SanitizeProvider(request.Provider);
+        if (provider == UnknownProvider)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.provider_invalid",
+                    "Delivery event provider is invalid."));
+        }
+
+        var providerMessageId = NormalizeProviderMessageIdLookupValue(request.ProviderMessageId);
+        if (providerMessageId is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.Validation(
+                    "notification_delivery_event.provider_message_id_invalid",
+                    "Provider message id is invalid."));
+        }
+
+        var resolution = await ResolveProviderMessageIdAsync(
+            provider,
+            providerMessageId,
+            cancellationToken);
+        if (resolution is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.NotFound(
+                    "notification_delivery_event.delivery_attempt_not_found",
+                    "Delivery attempt was not found."));
+        }
+
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            resolution.TenantId,
+            cancellationToken: cancellationToken);
+
+        var attempt = await db.NotificationDeliveryAttempts
+            .SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == resolution.TenantId &&
+                    entity.Id == resolution.DeliveryAttemptId,
+                cancellationToken);
+        var notification = attempt is null
+            ? null
+            : await db.Notifications.SingleOrDefaultAsync(
+                entity =>
+                    entity.TenantId == resolution.TenantId &&
+                    entity.Id == resolution.NotificationId &&
+                    entity.Id == attempt.NotificationId,
+                cancellationToken);
+        if (attempt is null || notification is null)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(
+                Error.NotFound(
+                    "notification_delivery_event.delivery_attempt_not_found",
+                    "Delivery attempt was not found."));
+        }
+
+        var receivedAt = DateTimeOffset.UtcNow;
+        var occurredAt = request.OccurredAt ?? receivedAt;
+        var timestampValidation = ValidateProviderEventOccurredAt(notification, occurredAt, receivedAt);
+        if (timestampValidation.HasValue)
+        {
+            return Result.Failure<RecordProviderDeliveryEventResponse>(timestampValidation.Value);
+        }
+
+        var providerEventId = HashProviderEventId(request.ProviderEventId);
+        if (providerEventId is not null)
+        {
+            var duplicate = await db.NotificationDeliveryEvents
+                .AsNoTracking()
+                .AnyAsync(
+                    deliveryEvent =>
+                        deliveryEvent.TenantId == resolution.TenantId &&
+                        deliveryEvent.Provider == attempt.Provider &&
+                        deliveryEvent.ProviderEventId == providerEventId,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Result.Success(new RecordProviderDeliveryEventResponse(
+                    notification.Id,
+                    attempt.Id,
+                    request.EventType,
+                    notification.Status,
+                    SuppressionCreated: false,
+                    DuplicateEvent: true));
+            }
+        }
+        else
+        {
+            var duplicate = await db.NotificationDeliveryEvents
+                .AsNoTracking()
+                .AnyAsync(
+                    deliveryEvent =>
+                        deliveryEvent.TenantId == resolution.TenantId &&
+                        deliveryEvent.DeliveryAttemptId == attempt.Id &&
+                        deliveryEvent.EventType == request.EventType &&
+                        deliveryEvent.ProviderEventId == null,
+                    cancellationToken);
+            if (duplicate)
+            {
+                return Result.Success(new RecordProviderDeliveryEventResponse(
+                    notification.Id,
+                    attempt.Id,
+                    request.EventType,
+                    notification.Status,
+                    SuppressionCreated: false,
+                    DuplicateEvent: true));
+            }
+        }
+
+        var staleForStateReconciliation = await HasNewerProviderDeliveryEventAsync(
+            resolution.TenantId,
+            attempt.Id,
+            request.EventType,
+            occurredAt,
+            cancellationToken);
+        db.NotificationDeliveryEvents.Add(new NotificationDeliveryEvent(
+            PlatformIds.NewId(),
+            resolution.TenantId,
+            notification.Id,
+            attempt.Id,
+            attempt.Provider,
+            request.EventType,
+            occurredAt,
+            receivedAt,
+            providerEventId,
+            providerMessageId,
+            SanitizeProviderEventReason(request.Reason)));
+
+        var suppressionCreated = false;
+        if (staleForStateReconciliation)
+        {
+            suppressionCreated = false;
+        }
+        else if (request.EventType is NotificationDeliveryEventTypes.Accepted or NotificationDeliveryEventTypes.Delivered)
+        {
+            ReconcilePositiveProviderEvent(notification, attempt, providerMessageId, occurredAt);
+        }
+        else if (request.EventType is NotificationDeliveryEventTypes.Bounced or NotificationDeliveryEventTypes.Complained)
+        {
+            var suppressionReason = request.EventType == NotificationDeliveryEventTypes.Complained
+                ? EmailSuppression.ProviderComplainedReason
+                : EmailSuppression.ProviderBouncedReason;
+            if (CanNegativeProviderEventMarkBounced(notification, occurredAt))
+            {
+                notification.MarkBounced(suppressionReason, occurredAt);
+            }
+
+            ReconcileNegativeProviderEvent(attempt, suppressionReason, occurredAt);
+
+            suppressionCreated = await EnsureProviderSuppressionAsync(
+                resolution.TenantId,
+                notification.Recipient,
+                suppressionReason,
+                cancellationToken);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new RecordProviderDeliveryEventResponse(
+            notification.Id,
+            attempt.Id,
+            request.EventType,
+            notification.Status,
+            suppressionCreated,
+            DuplicateEvent: false));
+    }
+
+    private async Task<ProviderMessageIdResolution?> ResolveProviderMessageIdAsync(
+        string provider,
+        string providerMessageId,
+        CancellationToken cancellationToken)
+    {
+        return await db.Database
+            .SqlQueryRaw<ProviderMessageIdResolution>(
+                """
+                SELECT tenant_id AS "TenantId",
+                       notification_id AS "NotificationId",
+                       delivery_attempt_id AS "DeliveryAttemptId"
+                FROM resolve_notification_delivery_attempt_by_provider_message_id({0}, {1})
+                """,
+                provider,
+                providerMessageId)
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
+    private static string? NormalizeProviderMessageIdLookupValue(string? providerMessageId)
+    {
+        if (string.IsNullOrWhiteSpace(providerMessageId) ||
+            providerMessageId.Length != providerMessageId.Trim().Length ||
+            providerMessageId.Length > MaxProviderMessageIdLength ||
+            providerMessageId.Any(char.IsControl) ||
+            ContainsSensitiveDeliveryValue(providerMessageId))
+        {
+            return null;
+        }
+
+        return providerMessageId;
+    }
+
+    private sealed class ProviderMessageIdResolution
+    {
+        public Guid TenantId { get; set; }
+
+        public Guid NotificationId { get; set; }
+
+        public Guid DeliveryAttemptId { get; set; }
+    }
+
     public async Task<Result<ProcessCampaignEmailDeliveriesResponse>> ProcessCampaignEmailDeliveriesAsync(
         Guid tenantId,
         Guid campaignId,
@@ -610,14 +838,19 @@ public sealed class NotificationDeliveryStore(
             tenantId,
             cancellationToken: cancellationToken);
 
-        var campaign = await db.Campaigns
-            .AsNoTracking()
-            .Where(campaign => campaign.TenantId == tenantId && campaign.Id == campaignId)
-            .Select(campaign => new
-            {
-                campaign.Status,
-                campaign.Name
-            })
+        var campaign = await (
+                from campaignRow in db.Campaigns.AsNoTracking()
+                join tenant in db.Tenants.AsNoTracking()
+                    on campaignRow.TenantId equals tenant.Id
+                where campaignRow.TenantId == tenantId && campaignRow.Id == campaignId
+                select new
+                {
+                    campaignRow.Status,
+                    campaignRow.Name,
+                    campaignRow.DefaultLocale,
+                    WorkspaceName = tenant.Name,
+                    TenantDefaultLocale = tenant.DefaultLocale
+                })
             .SingleOrDefaultAsync(cancellationToken);
         if (campaign is null)
         {
@@ -634,6 +867,7 @@ public sealed class NotificationDeliveryStore(
         }
 
         await FailStalePreparedAttemptsAsync(tenantId, campaignId, cancellationToken);
+        var customTemplates = await LoadCustomEmailTemplatesAsync(tenantId, cancellationToken);
 
         var notifications = await db.Notifications
             .FromSqlInterpolated(
@@ -707,6 +941,17 @@ public sealed class NotificationDeliveryStore(
                 notification.Recipient,
                 assignmentId: assignment.Id));
 
+            var (subject, bodyText) = ResolveInvitationEmailContent(
+                customTemplates,
+                notification.TemplateCode,
+                notification.Locale,
+                campaign.DefaultLocale,
+                campaign.TenantDefaultLocale,
+                campaign.WorkspaceName,
+                campaign.Name,
+                respondentUrl,
+                unsubscribeUrl);
+
             var attemptId = PlatformIds.NewId();
             var providerDeliveryKey = GenerateProviderDeliveryKey();
             var preparedAt = DateTimeOffset.UtcNow;
@@ -723,8 +968,8 @@ public sealed class NotificationDeliveryStore(
                 attemptId,
                 notification.Recipient,
                 BuildDeliveryAttemptKey(tenantId, providerDeliveryKey),
-                BuildEmailSubject(campaign.Name),
-                BuildEmailBody(campaign.Name, respondentUrl, unsubscribeUrl, deliveryOptions.InvitationFooterText),
+                subject,
+                bodyText,
                 respondentPath,
                 unsubscribeUrl));
         }
@@ -1485,6 +1730,89 @@ public sealed class NotificationDeliveryStore(
         }
 
         return issues;
+    }
+
+    private async Task<IReadOnlyDictionary<(string TemplateCode, string Locale), EmailTemplateContent>>
+        LoadCustomEmailTemplatesAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+    {
+        var rows = await db.EmailTemplates
+            .AsNoTracking()
+            .Where(template =>
+                template.TenantId == tenantId &&
+                template.Status == EmailTemplateStatuses.Active)
+            .Select(template => new
+            {
+                template.TemplateCode,
+                template.Locale,
+                template.Subject,
+                template.BodyText
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            template => (template.TemplateCode, EmailTemplateLocales.Normalize(template.Locale)),
+            template => new EmailTemplateContent(
+                template.TemplateCode,
+                EmailTemplateLocales.Normalize(template.Locale),
+                template.Subject,
+                template.BodyText));
+    }
+
+    private (string Subject, string BodyText) ResolveInvitationEmailContent(
+        IReadOnlyDictionary<(string TemplateCode, string Locale), EmailTemplateContent> customTemplates,
+        string templateCode,
+        string notificationLocale,
+        string campaignDefaultLocale,
+        string tenantDefaultLocale,
+        string workspaceName,
+        string campaignName,
+        string respondentUrl,
+        string unsubscribeUrl)
+    {
+        var locale = ResolveDeliveryLocale(notificationLocale, campaignDefaultLocale, tenantDefaultLocale);
+        if (customTemplates.TryGetValue((templateCode, locale), out var customContent))
+        {
+            var rendered = EmailTemplateRenderer.Render(
+                customContent,
+                new EmailTemplateRenderContext(
+                    templateCode,
+                    locale,
+                    workspaceName,
+                    respondentUrl,
+                    unsubscribeUrl));
+            if (rendered.IsSuccess)
+            {
+                return (rendered.Value.Subject, rendered.Value.BodyText);
+            }
+        }
+
+        return (
+            BuildEmailSubject(campaignName),
+            BuildEmailBody(campaignName, respondentUrl, unsubscribeUrl, deliveryOptions.InvitationFooterText));
+    }
+
+    private static string ResolveDeliveryLocale(
+        string notificationLocale,
+        string campaignDefaultLocale,
+        string tenantDefaultLocale)
+    {
+        foreach (var candidate in new[]
+        {
+            notificationLocale,
+            campaignDefaultLocale,
+            tenantDefaultLocale,
+            EmailTemplateLocales.English
+        })
+        {
+            if (EmailTemplateLocales.IsSupported(candidate))
+            {
+                return EmailTemplateLocales.Normalize(candidate);
+            }
+        }
+
+        return EmailTemplateLocales.English;
     }
 
     private static string BuildEmailSubject(string campaignName)

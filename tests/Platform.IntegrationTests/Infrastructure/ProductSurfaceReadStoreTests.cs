@@ -4785,6 +4785,7 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
                 notification_delivery_attempt,
                 notification_delivery_event,
                 email_suppression,
+                email_template,
                 participant_code,
                 response_session,
                 answer,

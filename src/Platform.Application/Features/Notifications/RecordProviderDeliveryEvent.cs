@@ -46,3 +46,39 @@ public sealed class RecordProviderDeliveryEventHandler(
             cancellationToken);
     }
 }
+
+public sealed record RecordProviderDeliveryEventByProviderMessageIdCommand(
+    RecordProviderDeliveryEventByProviderMessageIdRequest Request)
+    : IRequest<Result<RecordProviderDeliveryEventResponse>>;
+
+public sealed class RecordProviderDeliveryEventByProviderMessageIdValidator
+    : AbstractValidator<RecordProviderDeliveryEventByProviderMessageIdCommand>
+{
+    public RecordProviderDeliveryEventByProviderMessageIdValidator()
+    {
+        RuleFor(command => command.Request.Provider).NotEmpty().MaximumLength(64);
+        RuleFor(command => command.Request.ProviderMessageId).NotEmpty().MaximumLength(256);
+        RuleFor(command => command.Request.EventType)
+            .NotEmpty()
+            .Must(NotificationDeliveryEventTypes.IsKnown)
+            .WithMessage("Delivery event type must be accepted, delivered, bounced, or complained.");
+        RuleFor(command => command.Request.ProviderEventId)
+            .MaximumLength(NotificationDeliveryEvent.ProviderEventIdMaxLength);
+        RuleFor(command => command.Request.Reason)
+            .MaximumLength(NotificationDeliveryEvent.ReasonMaxLength);
+    }
+}
+
+public sealed class RecordProviderDeliveryEventByProviderMessageIdHandler(
+    INotificationDeliveryStore store)
+    : IRequestHandler<RecordProviderDeliveryEventByProviderMessageIdCommand, Result<RecordProviderDeliveryEventResponse>>
+{
+    public Task<Result<RecordProviderDeliveryEventResponse>> Handle(
+        RecordProviderDeliveryEventByProviderMessageIdCommand command,
+        CancellationToken cancellationToken)
+    {
+        return store.RecordProviderDeliveryEventByProviderMessageIdAsync(
+            command.Request,
+            cancellationToken);
+    }
+}

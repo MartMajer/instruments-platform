@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Auth;
+using Platform.Application.Features.Notifications;
 using Platform.Application.Features.ProductSurfaces;
 using Platform.Domain.Auth;
 using Platform.Domain.Campaigns;
@@ -142,6 +143,27 @@ public sealed class ProductSurfaceReadStore(
                 artifact => artifact.TenantId == tenantId && artifact.DeletedAt == null,
                 cancellationToken);
 
+        var customEmailTemplateRows = await db.EmailTemplates
+            .AsNoTracking()
+            .Where(template =>
+                template.TenantId == tenantId &&
+                template.Status == EmailTemplateStatuses.Active)
+            .Select(template => new
+            {
+                template.TemplateCode,
+                template.Locale,
+                template.Subject,
+                template.BodyText
+            })
+            .ToListAsync(cancellationToken);
+        var customEmailTemplates = customEmailTemplateRows.ToDictionary(
+            template => (template.TemplateCode, EmailTemplateLocales.Normalize(template.Locale)),
+            template => new EmailTemplateContent(
+                template.TemplateCode,
+                EmailTemplateLocales.Normalize(template.Locale),
+                template.Subject,
+                template.BodyText));
+
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new TenantSettingsWorkspaceResponse(
@@ -157,6 +179,7 @@ public sealed class ProductSurfaceReadStore(
                 tenantRoleCount,
                 exportArtifactCount),
             CreateTenantSettingsReportBranding(tenantSettings),
+            TenantEmailTemplateSettingsFactory.Create(customEmailTemplates),
             CreateTenantSettingsManagementLinks()));
     }
 

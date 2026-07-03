@@ -21,7 +21,8 @@ public sealed class Notification
         string recipient,
         DateTimeOffset? scheduledFor = null,
         DateTimeOffset? sentAt = null,
-        string? error = null)
+        string? error = null,
+        string locale = EmailTemplateLocales.English)
     {
         if (!NotificationChannels.IsKnown(channel))
         {
@@ -44,6 +45,7 @@ public sealed class Notification
         ScheduledFor = scheduledFor;
         SentAt = sentAt;
         Error = error is null ? null : NotificationDeliveryTextSafety.SanitizeFailureError(error);
+        Locale = EmailTemplateLocales.Normalize(locale);
         CreatedAt = DateTimeOffset.UtcNow;
         UpdatedAt = CreatedAt;
     }
@@ -70,6 +72,8 @@ public sealed class Notification
 
     public string? Error { get; private set; }
 
+    public string Locale { get; private set; } = EmailTemplateLocales.English;
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -80,7 +84,8 @@ public sealed class Notification
         Guid campaignId,
         Guid assignmentId,
         string recipient,
-        DateTimeOffset? scheduledFor = null)
+        DateTimeOffset? scheduledFor = null,
+        string locale = EmailTemplateLocales.English)
     {
         return new Notification(
             id,
@@ -91,7 +96,8 @@ public sealed class Notification
             InvitationTemplateCode,
             NotificationStatuses.Queued,
             recipient,
-            scheduledFor);
+            scheduledFor,
+            locale: locale);
     }
 
     public void MarkSent(DateTimeOffset sentAt)

@@ -17,7 +17,11 @@ public sealed record EmailDeliveryReadinessConfiguration(
     string? SmtpUserName,
     string? SmtpPassword,
     string? ProviderWebhookSecret,
-    string? AwsSesSnsTopicArn);
+    string? AwsSesSnsTopicArn,
+    string? AzureCommunicationServicesConnectionString = null,
+    string? AzureCommunicationServicesEndpoint = null,
+    string? AzureCommunicationServicesAccessKey = null,
+    string? AzureCommunicationServicesEventGridWebhookSecret = null);
 
 public static class EmailDeliveryReadinessEvaluator
 {
@@ -38,6 +42,7 @@ public static class EmailDeliveryReadinessEvaluator
         {
             EmailDeliveryProviderNames.LocalDev => "local_dev",
             EmailDeliveryProviderNames.Smtp => "smtp",
+            EmailDeliveryProviderNames.AzureCommunicationEmail => "azure_communication_email",
             _ => "unknown"
         };
         var issues = new List<EmailDeliveryReadinessIssueResponse>();
@@ -49,37 +54,53 @@ public static class EmailDeliveryReadinessEvaluator
                 "This environment uses local development email proof mode. It will not send real respondent email.",
                 "info"));
         }
-        else if (provider != EmailDeliveryProviderNames.Smtp)
-        {
-            issues.Add(new EmailDeliveryReadinessIssueResponse(
-                "email_delivery.provider_unknown",
-                "EmailDelivery:Provider must be local-dev or smtp.",
-                BlockingSeverity));
-        }
-        else
+        else if (provider == EmailDeliveryProviderNames.Smtp)
         {
             AddSmtpReadinessIssues(configuration, issues);
         }
-
-        var webhookSecret = configuration.ProviderWebhookSecret?.Trim();
-        var hasWebhookSecret = !string.IsNullOrWhiteSpace(webhookSecret);
-        var webhookConfigured = webhookSecret is { Length: >= 32 };
-        var usesNativeAwsSes = provider == EmailDeliveryProviderNames.Smtp &&
-            IsAwsSesProvider(configuration.ManagedProviderName);
-        if (!webhookConfigured && !usesNativeAwsSes)
+        else if (provider == EmailDeliveryProviderNames.AzureCommunicationEmail)
         {
-            var webhookIssueBlocksRealEmail = provider == EmailDeliveryProviderNames.Smtp;
+            AddAzureCommunicationEmailReadinessIssues(configuration, issues);
+        }
+        else
+        {
             issues.Add(new EmailDeliveryReadinessIssueResponse(
-                hasWebhookSecret
-                    ? "email_delivery.provider_webhook_secret_unsafe"
-                    : "email_delivery.provider_webhook_disabled",
-                hasWebhookSecret
-                    ? "Provider event webhook secret is configured but too short. Use at least 32 characters before real SMTP sends."
-                    : "Provider event webhook intake must be configured before real SMTP sends.",
-                webhookIssueBlocksRealEmail ? BlockingSeverity : "warning"));
+                "email_delivery.provider_unknown",
+                "EmailDelivery:Provider must be local-dev, smtp, or azure-communication-email.",
+                BlockingSeverity));
         }
 
-        var canSendRealEmail = provider == EmailDeliveryProviderNames.Smtp &&
+        bool webhookConfigured;
+        if (provider == EmailDeliveryProviderNames.Smtp)
+        {
+            var webhookSecret = configuration.ProviderWebhookSecret?.Trim();
+            var hasWebhookSecret = !string.IsNullOrWhiteSpace(webhookSecret);
+            webhookConfigured = webhookSecret is { Length: >= 32 };
+            var usesNativeAwsSes = IsAwsSesProvider(configuration.ManagedProviderName);
+            if (!webhookConfigured && !usesNativeAwsSes)
+            {
+                issues.Add(new EmailDeliveryReadinessIssueResponse(
+                    hasWebhookSecret
+                        ? "email_delivery.provider_webhook_secret_unsafe"
+                        : "email_delivery.provider_webhook_disabled",
+                    hasWebhookSecret
+                        ? "Provider event webhook secret is configured but too short. Use at least 32 characters before real SMTP sends."
+                        : "Provider event webhook intake must be configured before real SMTP sends.",
+                    BlockingSeverity));
+            }
+        }
+        else if (provider == EmailDeliveryProviderNames.AzureCommunicationEmail)
+        {
+            var eventGridSecret = configuration.AzureCommunicationServicesEventGridWebhookSecret?.Trim();
+            webhookConfigured = eventGridSecret is { Length: >= 32 };
+        }
+        else
+        {
+            webhookConfigured = false;
+        }
+
+        var canSendRealEmail = (provider == EmailDeliveryProviderNames.Smtp ||
+            provider == EmailDeliveryProviderNames.AzureCommunicationEmail) &&
             issues.All(issue => issue.Severity != BlockingSeverity);
 
         return new EmailDeliveryReadinessResponse(
@@ -218,6 +239,132 @@ public static class EmailDeliveryReadinessEvaluator
             issues.Add(new EmailDeliveryReadinessIssueResponse(
                 "email_delivery.smtp_credentials_incomplete",
                 "SMTP username and password must be both configured or both omitted.",
+                BlockingSeverity));
+        }
+    }
+
+    private static void AddAzureCommunicationEmailReadinessIssues(
+        EmailDeliveryReadinessConfiguration configuration,
+        ICollection<EmailDeliveryReadinessIssueResponse> issues)
+    {
+        if (!IsExplicitTrue(configuration.SenderDomainVerified))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.sender_domain_unverified",
+                "Verify sender-domain authentication with Azure Communication Services before real email sends.",
+                BlockingSeverity));
+        }
+
+        var verifiedSenderDomain = NormalizeSenderDomain(configuration.VerifiedSenderDomain);
+        if (verifiedSenderDomain is null)
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.verified_sender_domain_missing",
+                "Set EmailDelivery:VerifiedSenderDomain to the domain authenticated with Azure Communication Services.",
+                BlockingSeverity));
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.FromAddress) ||
+            !IsValidEmailAddress(configuration.FromAddress))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.from_address_missing",
+                "A valid EmailDelivery:FromAddress is required before Azure Communication Services sends.",
+                BlockingSeverity));
+        }
+        else if (verifiedSenderDomain is not null &&
+            !SenderAddressUsesVerifiedDomain(configuration.FromAddress, verifiedSenderDomain))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.from_address_domain_mismatch",
+                "EmailDelivery:FromAddress must use EmailDelivery:VerifiedSenderDomain.",
+                BlockingSeverity));
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.PublicAppBaseUrl) ||
+            !IsSafePublicAppBaseUrl(configuration.PublicAppBaseUrl))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.public_app_base_url_missing",
+                "A safe HTTPS EmailDelivery:PublicAppBaseUrl is required so invitation links are absolute.",
+                BlockingSeverity));
+        }
+
+        if (string.IsNullOrWhiteSpace(configuration.InvitationFooterText))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.invitation_footer_missing",
+                "EmailDelivery:InvitationFooterText is required before Azure Communication Services sends.",
+                BlockingSeverity));
+        }
+        else if (configuration.InvitationFooterText.Length > 2000)
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.invitation_footer_too_long",
+                "EmailDelivery:InvitationFooterText must be 2000 characters or less.",
+                BlockingSeverity));
+        }
+
+        AddAzureCommunicationServicesCredentialIssues(configuration, issues);
+        AddAzureCommunicationServicesEventGridIssues(configuration, issues);
+    }
+
+    private static void AddAzureCommunicationServicesCredentialIssues(
+        EmailDeliveryReadinessConfiguration configuration,
+        ICollection<EmailDeliveryReadinessIssueResponse> issues)
+    {
+        var connectionString = configuration.AzureCommunicationServicesConnectionString?.Trim();
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            if (IsSafeAzureCommunicationServicesConnectionString(connectionString))
+            {
+                return;
+            }
+
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.acs_credentials_missing",
+                "Configure a safe Azure Communication Services connection string, or endpoint plus access key.",
+                BlockingSeverity));
+            return;
+        }
+
+        var endpoint = configuration.AzureCommunicationServicesEndpoint?.Trim();
+        var accessKey = configuration.AzureCommunicationServicesAccessKey?.Trim();
+        if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(accessKey))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.acs_credentials_missing",
+                "Configure a safe Azure Communication Services connection string, or endpoint plus access key.",
+                BlockingSeverity));
+            return;
+        }
+
+        if (!IsSafeAzureCommunicationServicesEndpoint(endpoint))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.acs_endpoint_invalid",
+                "EmailDelivery:AzureCommunicationServices:Endpoint must be a safe HTTPS Azure Communication Services endpoint.",
+                BlockingSeverity));
+        }
+    }
+
+    private static void AddAzureCommunicationServicesEventGridIssues(
+        EmailDeliveryReadinessConfiguration configuration,
+        ICollection<EmailDeliveryReadinessIssueResponse> issues)
+    {
+        var secret = configuration.AzureCommunicationServicesEventGridWebhookSecret?.Trim();
+        if (string.IsNullOrWhiteSpace(secret))
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.acs_event_grid_webhook_secret_missing",
+                "Configure EmailDelivery:AzureCommunicationServices:EventGridWebhookSecret before Azure Communication Services sends.",
+                BlockingSeverity));
+        }
+        else if (secret.Length < 32)
+        {
+            issues.Add(new EmailDeliveryReadinessIssueResponse(
+                "email_delivery.acs_event_grid_webhook_secret_unsafe",
+                "EmailDelivery:AzureCommunicationServices:EventGridWebhookSecret must be at least 32 characters.",
                 BlockingSeverity));
         }
     }
@@ -459,6 +606,50 @@ public static class EmailDeliveryReadinessEvaluator
             !string.IsNullOrWhiteSpace(uri.Host) &&
             string.IsNullOrWhiteSpace(uri.UserInfo) &&
             (string.IsNullOrWhiteSpace(uri.AbsolutePath) || uri.AbsolutePath == "/") &&
+            string.IsNullOrWhiteSpace(uri.Query) &&
+            string.IsNullOrWhiteSpace(uri.Fragment) &&
+            !IsLocalhost(uri.Host);
+    }
+
+    private static bool IsSafeAzureCommunicationServicesConnectionString(string value)
+    {
+        if (value.Length != value.Trim().Length ||
+            value.Length > 2048 ||
+            value.Any(char.IsControl))
+        {
+            return false;
+        }
+
+        var parts = value
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => part.Split('=', 2))
+            .Where(part => part.Length == 2)
+            .ToDictionary(
+                part => part[0],
+                part => part[1],
+                StringComparer.OrdinalIgnoreCase);
+
+        return parts.TryGetValue("endpoint", out var endpoint) &&
+            IsSafeAzureCommunicationServicesEndpoint(endpoint) &&
+            parts.TryGetValue("accesskey", out var accessKey) &&
+            !string.IsNullOrWhiteSpace(accessKey) &&
+            accessKey.Length <= 512 &&
+            !accessKey.Any(char.IsControl);
+    }
+
+    private static bool IsSafeAzureCommunicationServicesEndpoint(string value)
+    {
+        if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme == Uri.UriSchemeHttps &&
+            !string.IsNullOrWhiteSpace(uri.Host) &&
+            uri.Host.EndsWith(".communication.azure.com", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(uri.AbsolutePath) &&
+            (uri.AbsolutePath == "/" || string.IsNullOrWhiteSpace(uri.AbsolutePath.Trim('/'))) &&
+            string.IsNullOrWhiteSpace(uri.UserInfo) &&
             string.IsNullOrWhiteSpace(uri.Query) &&
             string.IsNullOrWhiteSpace(uri.Fragment) &&
             !IsLocalhost(uri.Host);

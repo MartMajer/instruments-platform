@@ -126,6 +126,51 @@ public sealed class NotificationDeliveryCommandTests
         Assert.Same(request, store.RequeueRequest);
     }
 
+    [Fact]
+    public void ByProviderMessageId_validator_rejects_empty_provider_and_message_id()
+    {
+        var validator = new RecordProviderDeliveryEventByProviderMessageIdValidator();
+
+        var result = validator.Validate(new RecordProviderDeliveryEventByProviderMessageIdCommand(
+            new RecordProviderDeliveryEventByProviderMessageIdRequest(
+                Provider: string.Empty,
+                ProviderMessageId: string.Empty,
+                EventType: "delivered")));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, failure => failure.PropertyName == "Request.Provider");
+        Assert.Contains(result.Errors, failure => failure.PropertyName == "Request.ProviderMessageId");
+    }
+
+    [Fact]
+    public void ByProviderMessageId_validator_rejects_unknown_event_type()
+    {
+        var validator = new RecordProviderDeliveryEventByProviderMessageIdValidator();
+
+        var result = validator.Validate(new RecordProviderDeliveryEventByProviderMessageIdCommand(
+            new RecordProviderDeliveryEventByProviderMessageIdRequest(
+                Provider: "azure-communication-email",
+                ProviderMessageId: "msg-123",
+                EventType: "unknown")));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, failure => failure.PropertyName == "Request.EventType");
+    }
+
+    [Fact]
+    public void ByProviderMessageId_validator_accepts_valid_request()
+    {
+        var validator = new RecordProviderDeliveryEventByProviderMessageIdValidator();
+
+        var result = validator.Validate(new RecordProviderDeliveryEventByProviderMessageIdCommand(
+            new RecordProviderDeliveryEventByProviderMessageIdRequest(
+                Provider: "azure-communication-email",
+                ProviderMessageId: "msg-123",
+                EventType: "delivered")));
+
+        Assert.True(result.IsValid);
+    }
+
     private static ProcessCampaignEmailDeliveriesResponse CreateEmptyProcessResponse(Guid campaignId)
     {
         return new ProcessCampaignEmailDeliveriesResponse(
@@ -267,6 +312,19 @@ public sealed class NotificationDeliveryCommandTests
             return Task.FromResult(Result.Success(new ListProviderDeliveryEventsResponse(
                 limit,
                 Events: [])));
+        }
+
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+            RecordProviderDeliveryEventByProviderMessageIdRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
         }
     }
 }

@@ -10030,6 +10030,7 @@ public sealed class PostgresMigrationTests : IAsyncLifetime
                 notification_delivery_attempt,
                 notification_delivery_event,
                 email_suppression,
+                email_template,
                 operational_notification,
                 participant_code,
                 response_session,

@@ -72,4 +72,49 @@ public sealed class EmailDeliveryFailureClassifierTests
 
         Assert.Equal("smtp_auth_failed", failureClass);
     }
+
+    [Fact]
+    public void Classify_identifies_azure_communication_email_auth_failures()
+    {
+        var exception = new InvalidOperationException("The request is not authorized. Check the access key.");
+
+        var failureClass = EmailDeliveryFailureClassifier.Classify(
+            exception,
+            provider: "azure-communication-email",
+            managedProviderName: null,
+            fromAddress: "no-reply@validatedscale.com",
+            recipient: "researcher@example.com");
+
+        Assert.Equal("azure_communication_email_auth_failed", failureClass);
+    }
+
+    [Fact]
+    public void Classify_identifies_azure_communication_email_rate_limiting()
+    {
+        var exception = new InvalidOperationException("429 Too Many Requests. Rate limit exceeded.");
+
+        var failureClass = EmailDeliveryFailureClassifier.Classify(
+            exception,
+            provider: "azure-communication-email",
+            managedProviderName: null,
+            fromAddress: "no-reply@validatedscale.com",
+            recipient: "researcher@example.com");
+
+        Assert.Equal("azure_communication_email_rate_limited", failureClass);
+    }
+
+    [Fact]
+    public void Classify_keeps_unmatched_azure_communication_email_failure_generic()
+    {
+        var exception = new InvalidOperationException("Unexpected service failure.");
+
+        var failureClass = EmailDeliveryFailureClassifier.Classify(
+            exception,
+            provider: "azure-communication-email",
+            managedProviderName: null,
+            fromAddress: "no-reply@validatedscale.com",
+            recipient: "researcher@example.com");
+
+        Assert.Equal("azure_communication_email_unknown", failureClass);
+    }
 }

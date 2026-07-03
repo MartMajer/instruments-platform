@@ -13,6 +13,10 @@ public static class EmailDeliveryFailureClassifier
     public const string SesSenderIdentityNotVerified = "ses_sender_identity_not_verified";
     public const string SesSandboxRecipientNotVerified = "ses_sandbox_recipient_not_verified";
     public const string SesThrottled = "ses_throttled";
+    public const string AzureCommunicationEmailUnknown = "azure_communication_email_unknown";
+    public const string AzureCommunicationEmailAuthFailed = "azure_communication_email_auth_failed";
+    public const string AzureCommunicationEmailRateLimited = "azure_communication_email_rate_limited";
+    public const string AzureCommunicationEmailSenderDomainRejected = "azure_communication_email_sender_domain_rejected";
 
     public static string Classify(
         Exception exception,
@@ -22,6 +26,12 @@ public static class EmailDeliveryFailureClassifier
         string? recipient)
     {
         var message = CollectMessages(exception);
+
+        if (string.Equals(provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return ClassifyAzureCommunicationEmail(message);
+        }
+
         var isAwsSes = IsAwsSes(provider, managedProviderName, message);
 
         if (isAwsSes && Contains(message, "email address is not verified"))
@@ -82,7 +92,42 @@ public static class EmailDeliveryFailureClassifier
             SesIdentityNotVerified or
             SesSenderIdentityNotVerified or
             SesSandboxRecipientNotVerified or
-            SesThrottled;
+            SesThrottled or
+            AzureCommunicationEmailUnknown or
+            AzureCommunicationEmailAuthFailed or
+            AzureCommunicationEmailRateLimited or
+            AzureCommunicationEmailSenderDomainRejected;
+    }
+
+    private static string ClassifyAzureCommunicationEmail(string message)
+    {
+        if (Contains(message, "401") ||
+            Contains(message, "403") ||
+            Contains(message, "authentication") ||
+            Contains(message, "authorization") ||
+            Contains(message, "unauthorized") ||
+            Contains(message, "forbidden") ||
+            Contains(message, "credential") ||
+            Contains(message, "access key"))
+        {
+            return AzureCommunicationEmailAuthFailed;
+        }
+
+        if (Contains(message, "429") ||
+            Contains(message, "too many requests") ||
+            Contains(message, "rate limit") ||
+            Contains(message, "throttl"))
+        {
+            return AzureCommunicationEmailRateLimited;
+        }
+
+        if ((Contains(message, "sender") || Contains(message, "domain")) &&
+            (Contains(message, "verify") || Contains(message, "verified") || Contains(message, "not allowed")))
+        {
+            return AzureCommunicationEmailSenderDomainRejected;
+        }
+
+        return AzureCommunicationEmailUnknown;
     }
 
     private static bool IsAwsSes(string? provider, string? managedProviderName, string message)

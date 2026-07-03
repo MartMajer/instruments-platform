@@ -2542,6 +2542,19 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 limit,
                 Events: [])));
         }
+
+        public Task<Result<RecordProviderDeliveryEventResponse>> RecordProviderDeliveryEventByProviderMessageIdAsync(
+            RecordProviderDeliveryEventByProviderMessageIdRequest request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(providerEventResponse ?? Result.Success(new RecordProviderDeliveryEventResponse(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                request.EventType,
+                "sent",
+                SuppressionCreated: false,
+                DuplicateEvent: false)));
+        }
       }
 
     private sealed class FakeOperationalNotificationStore(

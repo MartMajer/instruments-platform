@@ -354,6 +354,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                 "#2563eb",
                 "standard",
                 ["logo_upload", "custom_fonts", "product_shell_theming"]),
+            [],
             [
                 new TenantSettingsManagementLinkResponse(
                     "campaign-series",
@@ -2973,6 +2974,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                         "#2563eb",
                         "standard",
                         []),
+                    [],
                     [])));
         }
 
@@ -3208,7 +3210,9 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<MicrosoftGraphConsentCallbackResponse>? completeMicrosoftGraphConsentCallbackResult = null,
         Result<DirectoryImportRuleResponse>? saveMicrosoftGraphDirectoryImportRuleResult = null,
         Result<DirectoryImportRuleResponse>? archiveMicrosoftGraphDirectoryImportRuleResult = null,
-        Result<TenantSettingsReportBrandingResponse>? updateTenantReportBrandingResult = null)
+        Result<TenantSettingsReportBrandingResponse>? updateTenantReportBrandingResult = null,
+        Result<TenantEmailTemplateSettingsResponse>? updateTenantEmailTemplateResult = null,
+        Result<ResetEmailTemplateResponse>? resetTenantEmailTemplateResult = null)
         : IProductSurfaceWriteStore
     {
         public Guid TenantId { get; private set; }
@@ -3574,6 +3578,61 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(setSubjectManagerResult ??
                 Result.Failure<SubjectDirectoryItemResponse>(
                     Error.NotFound("subject.not_found", "Subject was not found.")));
+        }
+
+        public string? EmailTemplateCode { get; private set; }
+
+        public string? EmailTemplateLocale { get; private set; }
+
+        public UpdateEmailTemplateRequest? UpdateEmailTemplateRequest { get; private set; }
+
+        public Task<Result<TenantEmailTemplateSettingsResponse>> UpdateTenantEmailTemplateAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            string templateCode,
+            string locale,
+            UpdateEmailTemplateRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            EmailTemplateCode = templateCode;
+            EmailTemplateLocale = locale;
+            UpdateEmailTemplateRequest = request;
+
+            return Task.FromResult(updateTenantEmailTemplateResult ??
+                Result.Success(new TenantEmailTemplateSettingsResponse(
+                    templateCode,
+                    locale,
+                    request.Subject,
+                    request.BodyText,
+                    IsCustom: true,
+                    ValidationIssues: [])));
+        }
+
+        public Task<Result<ResetEmailTemplateResponse>> ResetTenantEmailTemplateAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            string templateCode,
+            string locale,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            EmailTemplateCode = templateCode;
+            EmailTemplateLocale = locale;
+
+            return Task.FromResult(resetTenantEmailTemplateResult ??
+                Result.Success(new ResetEmailTemplateResponse(
+                    new TenantEmailTemplateSettingsResponse(
+                        templateCode,
+                        locale,
+                        "Study invitation",
+                        "Default body text that is long enough to pass validation checks here.",
+                        IsCustom: false,
+                        ValidationIssues: []))));
         }
     }
 
