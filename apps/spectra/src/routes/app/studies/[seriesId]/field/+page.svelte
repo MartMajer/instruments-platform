@@ -46,6 +46,24 @@
 		copied = true;
 	}
 
+	let closeBusy = $state<string | null>(null);
+
+	async function closeWave(campaignId: string, name: string) {
+		if (closeBusy) return;
+		if (!confirm(`Close "${name}"? Collection stops and its data becomes final for reporting.`)) {
+			return;
+		}
+		closeBusy = campaignId;
+		try {
+			await product.closeCampaign(seriesId, campaignId);
+			await read(true);
+		} catch {
+			linkError = 'The wave could not be closed. Try again.';
+		} finally {
+			closeBusy = null;
+		}
+	}
+
 	let inviteFor = $state<string | null>(null);
 	let inviteEmails = $state('');
 	let inviteBusy = $state(false);
@@ -235,6 +253,9 @@
 											Create open link
 										</button>
 									{/if}
+									<button class="link-btn" disabled={closeBusy === wave.id} onclick={() => closeWave(wave.id, wave.name)}>
+										{closeBusy === wave.id ? 'Closing…' : 'Close wave'}
+									</button>
 								</span>
 							{/if}
 						</li>

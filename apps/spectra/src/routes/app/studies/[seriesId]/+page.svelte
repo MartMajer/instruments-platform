@@ -125,6 +125,42 @@
 		}
 	}
 
+	let lifecycleBusy = $state(false);
+	let lifecycleError = $state<string | null>(null);
+
+	async function duplicateStudy() {
+		if (!hub || lifecycleBusy) return;
+		const name = prompt('Name for the duplicated study:', `${hub.name} (copy)`);
+		if (!name?.trim()) return;
+		lifecycleBusy = true;
+		lifecycleError = null;
+		try {
+			const copy = await product.duplicateCampaignSeries(seriesId, { name: name.trim() });
+			location.assign(`/app/studies/${copy.id}`);
+		} catch {
+			lifecycleError = 'Duplication failed. Try again.';
+			lifecycleBusy = false;
+		}
+	}
+
+	async function toggleArchive() {
+		if (!hub || lifecycleBusy) return;
+		if (!hub.archived && !confirm(`Archive "${hub.name}"? It stays readable and can be restored.`)) {
+			return;
+		}
+		lifecycleBusy = true;
+		lifecycleError = null;
+		try {
+			if (hub.archived) await product.restoreCampaignSeries(seriesId);
+			else await product.archiveCampaignSeries(seriesId);
+			await load();
+		} catch {
+			lifecycleError = 'The archive state could not be changed.';
+		} finally {
+			lifecycleBusy = false;
+		}
+	}
+
 	function policyChip(status: string): string {
 		const normalized = status.toLowerCase();
 		if (normalized.includes('ready') || normalized.includes('active')) return 'chip chip-live';
@@ -371,7 +407,17 @@
 				</div>
 
 				<div class="panel governance">
-					<h2 class="eyebrow">Governance</h2>
+					<h2 class="eyebrow">Study</h2>
+					<div class="lifecycle-actions">
+						<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
+							Duplicate study
+						</button>
+						<button class="quiet-action" disabled={lifecycleBusy} onclick={toggleArchive}>
+							{hub.archived ? 'Restore from archive' : 'Archive study'}
+						</button>
+					</div>
+					{#if lifecycleError}<p class="error" role="alert">{lifecycleError}</p>{/if}
+					<h2 class="eyebrow governance-h">Governance</h2>
 					<dl class="gov">
 						<div><dt>Consent</dt><dd>{humanizeToken(hub.governance.consentStatus)}</dd></div>
 						<div><dt>Retention</dt><dd>{humanizeToken(hub.governance.retentionStatus)}</dd></div>
@@ -686,6 +732,35 @@
 		margin-top: 0.5rem;
 		font-size: 0.8125rem;
 		color: var(--color-danger);
+	}
+
+	.lifecycle-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		margin: 0.75rem 0 1.25rem;
+	}
+
+	.quiet-action {
+		background: none;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 540;
+		color: var(--color-ink-2);
+		padding: 0.4375rem 0.625rem;
+		cursor: pointer;
+		text-align: left;
+	}
+
+	.quiet-action:hover {
+		border-color: var(--color-ink);
+		color: var(--color-ink);
+	}
+
+	.governance-h {
+		margin-top: 0.5rem;
 	}
 
 	.gov {
