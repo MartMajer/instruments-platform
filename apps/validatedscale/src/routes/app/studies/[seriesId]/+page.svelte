@@ -10,6 +10,7 @@
 	import { api } from '$lib/core/client';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import Composer from '$lib/protocol/Composer.svelte';
+	import { confirmDialog, promptDialog } from '$lib/ui/dialog.svelte';
 	import LoadState from '$lib/ui/LoadState.svelte';
 	import WaveRail from '$lib/ui/WaveRail.svelte';
 
@@ -108,9 +109,12 @@
 
 	async function launch() {
 		if (!launchCandidate || launching) return;
-		if (!confirm(`Launch "${launchCandidate.name}"? Instrument and scoring are locked at launch.`)) {
-			return;
-		}
+		const proceed = await confirmDialog({
+			title: `Launch ${launchCandidate.name}?`,
+			body: 'Instrument, scoring and policies lock at launch. Collection starts immediately.',
+			confirmLabel: 'Launch'
+		});
+		if (!proceed) return;
 
 		launching = true;
 		launchError = null;
@@ -122,6 +126,22 @@
 			launchError = 'Launch failed. Check the readiness issues and try again.';
 		} finally {
 			launching = false;
+		}
+	}
+
+	let itemsOpen = $state(false);
+	let templateItems = $state<{ code: string; text: string }[] | null>(null);
+
+	async function toggleItems() {
+		itemsOpen = !itemsOpen;
+		if (itemsOpen && !templateItems && workspace?.template) {
+			const detail = await setup
+				.getTemplateVersion(workspace.template.templateVersionId)
+				.catch(() => null);
+			templateItems = (detail?.questions ?? [])
+				.slice()
+				.sort((a, b) => a.ordinal - b.ordinal)
+				.map((q) => ({ code: q.code, text: q.textDefault }));
 		}
 	}
 
@@ -203,8 +223,13 @@
 
 	async function duplicateStudy() {
 		if (!hub || lifecycleBusy) return;
-		const name = prompt('Name for the duplicated study:', `${hub.name} (copy)`);
-		if (!name?.trim()) return;
+		const name = await promptDialog({
+			title: 'Duplicate study',
+			body: 'The protocol is copied — instrument, scoring, policies. Waves and responses are not.',
+			confirmLabel: 'Duplicate',
+			initialValue: `${hub.name} (copy)`
+		});
+		if (!name) return;
 		lifecycleBusy = true;
 		lifecycleError = null;
 		try {
@@ -218,8 +243,14 @@
 
 	async function toggleArchive() {
 		if (!hub || lifecycleBusy) return;
-		if (!hub.archived && !confirm(`Archive "${hub.name}"? It stays readable and can be restored.`)) {
-			return;
+		if (!hub.archived) {
+			const proceed = await confirmDialog({
+				title: `Archive ${hub.name}?`,
+				body: 'The study leaves the portfolio but stays readable and can be restored at any time.',
+				confirmLabel: 'Archive',
+				danger: true
+			});
+			if (!proceed) return;
 		}
 		lifecycleBusy = true;
 		lifecycleError = null;
@@ -370,6 +401,20 @@
 								<dd>{humanizeToken(workspace.template.status)}</dd>
 							</div>
 						</dl>
+						<button class="quiet-action items-toggle" onclick={toggleItems}>
+							{itemsOpen ? 'Hide items' : 'View the items respondents will see'}
+						</button>
+						{#if itemsOpen}
+							{#if templateItems}
+								<ol class="item-preview">
+									{#each templateItems as item (item.code)}
+										<li><span class="datum item-preview-code">{item.code}</span>{item.text}</li>
+									{/each}
+								</ol>
+							{:else}
+								<p class="prose">Loading items…</p>
+							{/if}
+						{/if}
 					{:else}
 						<p class="prose">
 							No instrument attached yet. Compose the questionnaire here — items on one
@@ -897,6 +942,37 @@
 
 	.compose-wrap {
 		margin-top: 1.25rem;
+	}
+
+	.items-toggle {
+		margin-top: 1rem;
+	}
+
+	.item-preview {
+		margin: 0.875rem 0 0 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.item-preview li {
+		display: flex;
+		gap: 0.75rem;
+		padding: 0.5rem 0;
+		border-bottom: 1px dashed var(--color-line);
+		font-size: 0.9375rem;
+		line-height: 1.5;
+	}
+
+	.item-preview li:last-child {
+		border-bottom: none;
+	}
+
+	.item-preview-code {
+		font-size: 0.6875rem;
+		color: var(--color-stain);
+		flex-shrink: 0;
+		width: 4.5rem;
 	}
 
 	.prose a {

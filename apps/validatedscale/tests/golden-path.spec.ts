@@ -37,10 +37,10 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	await expect(waveInput).toBeVisible({ timeout: 20_000 });
 	await waveInput.fill('Baseline');
 	await page.getByRole('button', { name: 'Add wave' }).click();
-	const launch = page.getByRole('button', { name: /Launch/ });
+	const launch = page.getByRole('button', { name: /Launch Baseline/ });
 	await expect(launch).toBeVisible({ timeout: 20_000 });
-	page.on('dialog', (dialog) => void dialog.accept());
 	await launch.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 
 	// field: mint the open link
 	await page.getByRole('link', { name: 'Field' }).click();
@@ -70,6 +70,7 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	// clean up: archive the test study so it never pollutes the portfolio
 	await page.getByRole('link', { name: 'Protocol' }).click();
 	await page.getByRole('button', { name: 'Archive study' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
 	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({
 		timeout: 15_000
 	});

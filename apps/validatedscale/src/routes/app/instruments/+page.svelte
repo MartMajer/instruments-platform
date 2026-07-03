@@ -4,10 +4,12 @@
 	import { api } from '$lib/core/client';
 	import { humanizeToken } from '$lib/core/format';
 	import { gallery } from '$lib/instruments/gallery';
+	import { promptDialog } from '$lib/ui/dialog.svelte';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
 	const setup = createSetupApi(api());
 
+	let previewFor = $state<string | null>(null);
 	let useBusy = $state<string | null>(null);
 	let useStep = $state<string | null>(null);
 	let useError = $state<string | null>(null);
@@ -16,11 +18,13 @@
 		const entry = gallery.find((candidate) => candidate.code === code);
 		if (!entry?.autoload || !entry.template || useBusy) return;
 
-		const studyName = prompt(
-			`Name the study this ${entry.code} run belongs to:`,
-			`${entry.code} study`
-		);
-		if (!studyName?.trim()) return;
+		const studyName = await promptDialog({
+			title: `Start a study with ${entry.code}`,
+			body: `${entry.itemCount} items load ready to launch — you add recipients and waves. Name the study the way you would in the paper.`,
+			confirmLabel: 'Create study',
+			initialValue: `${entry.code} study`
+		});
+		if (!studyName) return;
 
 		useBusy = code;
 		useError = null;
@@ -215,9 +219,32 @@
 				</p>
 				<p class="g-license">{entry.license}</p>
 				{#if entry.autoload}
-					<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
-						{useBusy === entry.code ? (useStep ?? 'Setting up…') : `Use ${entry.code}`}
-					</button>
+					<div class="g-actions">
+						<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
+							{useBusy === entry.code ? (useStep ?? 'Setting up…') : `Use ${entry.code}`}
+						</button>
+						<button class="g-preview-btn" onclick={() => (previewFor = previewFor === entry.code ? null : entry.code)}>
+							{previewFor === entry.code ? 'Hide items' : `View all ${entry.itemCount} items`}
+						</button>
+					</div>
+					{#if previewFor === entry.code && entry.template}
+						<ol class="g-items">
+							{#each entry.template.questions as question (question.code)}
+								<li>
+									{question.textDefault}
+									{#if question.scaleCode}
+										{@const scale = entry.template.scales.find((s) => s.code === question.scaleCode)}
+										{#if scale}
+											<span class="datum g-scale">{scale.minValue}–{scale.maxValue}</span>
+										{/if}
+									{:else}
+										<span class="datum g-scale">yes / no</span>
+									{/if}
+								</li>
+							{/each}
+						</ol>
+						<p class="g-cite datum">{entry.citation}</p>
+					{/if}
 				{:else}
 					<p class="g-how">{entry.howToGet}</p>
 				{/if}
@@ -376,9 +403,48 @@
 		color: var(--color-ink-3);
 	}
 
-	.g-use {
-		align-self: flex-start;
+	.g-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
 		margin-top: 0.25rem;
+	}
+
+	.g-use {
+		flex-shrink: 0;
+	}
+
+	.g-preview-btn {
+		background: none;
+		border: none;
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 560;
+		color: var(--color-stain);
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.g-items {
+		margin: 0.5rem 0 0 1.125rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		line-height: 1.5;
+		color: var(--color-ink-2);
+	}
+
+	.g-scale {
+		margin-left: 0.375rem;
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.g-cite {
+		margin-top: 0.625rem;
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
 	}
 
 	.g-how {

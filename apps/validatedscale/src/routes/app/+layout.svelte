@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { session, loadSession, logoutUrl } from '$lib/core/session.svelte';
+	import DialogHost from '$lib/ui/DialogHost.svelte';
 
 	let { children } = $props();
 
@@ -41,6 +42,8 @@
 </script>
 
 <svelte:window onclick={closeMenu} />
+
+<DialogHost />
 
 {#if session.status === 'authenticated'}
 	<div class="app">

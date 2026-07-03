@@ -9,6 +9,7 @@
 	import { api } from '$lib/core/client';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
+	import { confirmDialog } from '$lib/ui/dialog.svelte';
 
 	const product = createProductApi(api());
 	const setup = createSetupApi(api());
@@ -50,9 +51,13 @@
 
 	async function closeWave(campaignId: string, name: string) {
 		if (closeBusy) return;
-		if (!confirm(`Close "${name}"? Collection stops and its data becomes final for reporting.`)) {
-			return;
-		}
+		const proceed = await confirmDialog({
+			title: `Close ${name}?`,
+			body: "Collection stops and the wave's data becomes final for reporting. This cannot be undone.",
+			confirmLabel: 'Close wave',
+			danger: true
+		});
+		if (!proceed) return;
 		closeBusy = campaignId;
 		try {
 			await product.closeCampaign(seriesId, campaignId);
