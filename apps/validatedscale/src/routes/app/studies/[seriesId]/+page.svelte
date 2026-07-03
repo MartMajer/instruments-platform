@@ -408,10 +408,8 @@
 				<section id="policies">
 					<h2><span class="datum ch">04</span> Policies</h2>
 					<p class="prose">
-						Every study receives these three policies with safe defaults when it is
-						registered, and they bind at launch. Editing them in the app is not available
-						yet — the defaults are the platform's protective posture (consent required,
-						anonymize after retention, nothing reported below the k threshold).
+						Three safety rules every study carries. They are set with protective defaults at
+						registration and bind to each wave at launch — launched waves keep theirs forever.
 					</p>
 					<div class="policy-actions">
 						<button class="quiet-action" onclick={() => (consentOpen = !consentOpen)}>
@@ -452,7 +450,7 @@
 						</form>
 					{/if}
 					<div class="policy-grid">
-						{#each [{ label: 'Consent', policy: workspace.policies.consent }, { label: 'Retention', policy: workspace.policies.retention }, { label: 'Disclosure', policy: workspace.policies.disclosure }] as entry (entry.label)}
+						{#each [{ label: 'Consent', explain: 'What respondents agree to before answering — your words, versioned. Publish a new version below; earlier waves keep the version they launched with.', policy: workspace.policies.consent }, { label: 'Retention', explain: 'How long response data is kept and what happens then. The default — anonymize after the retention period — is the answer you give when anyone asks.', policy: workspace.policies.retention }, { label: 'Disclosure', explain: 'The smallest group a number is ever shown for. Below this, results are suppressed — no one can slice a report down to a person. The floor cannot be lowered.', policy: workspace.policies.disclosure }] as entry (entry.label)}
 							<div class="policy-card">
 								<div class="policy-head">
 									<span class={policyChip(entry.policy.status)}>{entry.label}</span>
@@ -460,6 +458,7 @@
 										<span class="datum quiet">v{entry.policy.version}</span>
 									{/if}
 								</div>
+								<p class="policy-explain">{entry.explain}</p>
 								<dl class="policy-facts">
 									{#each entry.policy.details ?? [] as detail (detail.label)}
 										<div>
@@ -868,6 +867,13 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-bottom: 0.625rem;
+	}
+
+	.policy-explain {
+		font-size: 0.8125rem;
+		line-height: 1.55;
+		color: var(--color-ink-2);
+		margin-bottom: 0.75rem;
 	}
 
 	.policy-facts div {
