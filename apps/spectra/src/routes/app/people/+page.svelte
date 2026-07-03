@@ -11,6 +11,69 @@
 	let loadState = $state<'loading' | 'error' | 'empty' | 'ready'>('loading');
 	let search = $state('');
 
+	let panel = $state<'none' | 'add' | 'import'>('none');
+	let personName = $state('');
+	let personEmail = $state('');
+	let personBusy = $state(false);
+	let personError = $state<string | null>(null);
+
+	let csvContent = $state('');
+	let csvBusy = $state(false);
+	let csvNote = $state<string | null>(null);
+
+	async function load() {
+		try {
+			directory = await product.listSubjects();
+			loadState = directory.subjects.length === 0 ? 'empty' : 'ready';
+		} catch {
+			loadState = 'error';
+		}
+	}
+
+	async function addPerson(event: SubmitEvent) {
+		event.preventDefault();
+		if (personBusy) return;
+		personBusy = true;
+		personError = null;
+
+		try {
+			await product.createSubject({
+				displayName: personName.trim() || null,
+				email: personEmail.trim() || null
+			});
+			personName = '';
+			personEmail = '';
+			panel = 'none';
+			await load();
+		} catch {
+			personError = 'The person could not be added. Check the fields and try again.';
+		} finally {
+			personBusy = false;
+		}
+	}
+
+	async function importCsv(dryRun: boolean) {
+		if (csvBusy || csvContent.trim().length === 0) return;
+		csvBusy = true;
+		csvNote = null;
+
+		try {
+			const result = await product.importSubjectDirectoryCsv({ csvContent, dryRun });
+			const issues = result.rows.filter((row) => row.issues.length > 0).length;
+			csvNote = dryRun
+				? `Preview: ${result.rowCount} rows read, ${issues} with issues. Nothing was saved.`
+				: `Imported: ${result.createdSubjectCount} created, ${result.updatedSubjectCount} updated, ${issues} rows with issues.`;
+			if (!dryRun) {
+				csvContent = '';
+				await load();
+			}
+		} catch {
+			csvNote = 'The CSV was not accepted. Expected headers like display_name,email,external_id.';
+		} finally {
+			csvBusy = false;
+		}
+	}
+
 	const filtered = $derived(
 		(directory?.subjects ?? []).filter((subject) => {
 			const term = search.trim().toLowerCase();
@@ -23,14 +86,7 @@
 		})
 	);
 
-	onMount(async () => {
-		try {
-			directory = await product.listSubjects();
-			loadState = directory.subjects.length === 0 ? 'empty' : 'ready';
-		} catch {
-			loadState = 'error';
-		}
-	});
+	onMount(load);
 </script>
 
 <svelte:head><title>People — Spectra</title></svelte:head>
@@ -46,8 +102,39 @@
 			</p>
 		{/if}
 	</div>
-	<input type="search" placeholder="Find a person or group" aria-label="Find a person or group" bind:value={search} />
+	<div class="tools">
+		<input type="search" placeholder="Find a person or group" aria-label="Find a person or group" bind:value={search} />
+		<button class="btn btn-ghost" onclick={() => (panel = panel === 'add' ? 'none' : 'add')}>Add person</button>
+		<button class="btn btn-ghost" onclick={() => (panel = panel === 'import' ? 'none' : 'import')}>Import CSV</button>
+	</div>
 </header>
+
+{#if panel === 'add'}
+	<form class="panel author" onsubmit={addPerson}>
+		<div class="field">
+			<label class="eyebrow" for="p-name">Name</label>
+			<input id="p-name" bind:value={personName} />
+		</div>
+		<div class="field">
+			<label class="eyebrow" for="p-email">Email</label>
+			<input id="p-email" type="email" bind:value={personEmail} />
+		</div>
+		{#if personError}<p class="error" role="alert">{personError}</p>{/if}
+		<button class="btn btn-ink" type="submit" disabled={personBusy || (!personName.trim() && !personEmail.trim())}>
+			{personBusy ? 'Adding…' : 'Add person'}
+		</button>
+	</form>
+{:else if panel === 'import'}
+	<div class="panel author import">
+		<label class="eyebrow" for="csv">CSV — headers like display_name,email,external_id,group_name</label>
+		<textarea id="csv" rows="6" bind:value={csvContent} placeholder={'display_name,email\nAna Kovač,ana@example.org'}></textarea>
+		{#if csvNote}<p class="note" role="status">{csvNote}</p>{/if}
+		<div class="import-actions">
+			<button class="btn btn-ghost" disabled={csvBusy} onclick={() => importCsv(true)}>Preview (dry run)</button>
+			<button class="btn btn-ink" disabled={csvBusy} onclick={() => importCsv(false)}>Import</button>
+		</div>
+	</div>
+{/if}
 
 <LoadState
 	state={loadState}
@@ -100,14 +187,72 @@
 		color: var(--color-ink-3);
 	}
 
-	.head input {
+	.tools {
+		display: flex;
+		gap: 0.625rem;
+		flex-wrap: wrap;
+	}
+
+	.tools input {
 		font: inherit;
 		font-size: 0.875rem;
 		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-line-2);
 		border-radius: var(--radius-instrument);
 		background: var(--color-surface);
-		width: 16rem;
+		width: 14rem;
+	}
+
+	.author {
+		display: flex;
+		align-items: flex-end;
+		gap: 1rem;
+		flex-wrap: wrap;
+		padding: 1.25rem;
+		margin-bottom: 2rem;
+		border-top: 3px solid var(--color-stain);
+	}
+
+	.author.import {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+
+	.author input,
+	.author textarea {
+		font: inherit;
+		font-size: 0.9375rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.author textarea {
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		resize: vertical;
+	}
+
+	.import-actions {
+		display: flex;
+		gap: 0.625rem;
+	}
+
+	.note {
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+	}
+
+	.error {
+		font-size: 0.8125rem;
+		color: var(--color-danger);
 	}
 
 	.table-wrap {
@@ -150,7 +295,8 @@
 			align-items: stretch;
 		}
 
-		.head input {
+		.tools input {
+			flex: 1;
 			width: auto;
 		}
 	}

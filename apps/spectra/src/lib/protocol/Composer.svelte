@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { createSetupApi } from '$lib/api/setup';
+	import { onMount } from 'svelte';
+	import { createSetupApi, type InstrumentSummaryResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 
 	let {
@@ -13,6 +14,13 @@
 	} = $props();
 
 	const setup = createSetupApi(api());
+
+	let instruments = $state<InstrumentSummaryResponse[]>([]);
+	let instrumentId = $state<string>('');
+
+	onMount(async () => {
+		instruments = await setup.listInstruments().catch(() => []);
+	});
 
 	type ItemRow = { text: string; reverse: boolean };
 
@@ -105,7 +113,7 @@
 				templateName: templateName.trim() || `${seriesName} questionnaire`,
 				semver: '1.0.0',
 				defaultLocale: locale,
-				instrumentId: null,
+				instrumentId: instrumentId || null,
 				sections: [{ ordinal: 1, code: 'MAIN', titleDefault: 'Questions' }],
 				scales: rows.map((row) => ({
 					code: `S_${row.code}`,
@@ -176,6 +184,17 @@
 				<option value="hr-HR">Hrvatski</option>
 			</select>
 		</div>
+		{#if instruments.length > 0}
+			<div class="field">
+				<label class="eyebrow" for="tpl-instrument">Instrument (optional)</label>
+				<select id="tpl-instrument" bind:value={instrumentId}>
+					<option value="">None — custom items</option>
+					{#each instruments as instrument (instrument.id)}
+						<option value={instrument.id}>{instrument.code} — {instrument.fullName}</option>
+					{/each}
+				</select>
+			</div>
+		{/if}
 	</div>
 
 	<fieldset class="scale">

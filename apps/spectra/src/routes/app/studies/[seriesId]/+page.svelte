@@ -263,29 +263,25 @@
 
 				<section id="policies">
 					<h2><span class="datum ch">04</span> Policies</h2>
+					<p class="prose">
+						Every study carries these three policies from the moment it is registered; they
+						bind at launch.
+					</p>
 					<ul class="policies">
-						<li>
-							<span class={policyChip(workspace.policies.consent.status)}>Consent</span>
-							<span class="policy-detail">
-								{humanizeToken(workspace.policies.consent.status)}
-								{#if workspace.policies.consent.version}
-									<span class="datum quiet">v{workspace.policies.consent.version}</span>
-								{/if}
-							</span>
-						</li>
-						<li>
-							<span class={policyChip(workspace.policies.retention.status)}>Retention</span>
-							<span class="policy-detail">{humanizeToken(workspace.policies.retention.status)}</span>
-						</li>
-						<li>
-							<span class={policyChip(workspace.policies.disclosure.status)}>Disclosure</span>
-							<span class="policy-detail">
-								{humanizeToken(workspace.policies.disclosure.status)}
-								{#each workspace.policies.disclosure.details ?? [] as detail (detail.label)}
-									· {detail.label}: <span class="datum">{detail.value}</span>
-								{/each}
-							</span>
-						</li>
+						{#each [{ label: 'Consent', policy: workspace.policies.consent }, { label: 'Retention', policy: workspace.policies.retention }, { label: 'Disclosure', policy: workspace.policies.disclosure }] as entry (entry.label)}
+							<li>
+								<span class={policyChip(entry.policy.status)}>{entry.label}</span>
+								<span class="policy-detail">
+									{humanizeToken(entry.policy.status)}
+									{#if entry.policy.version}
+										<span class="datum quiet">v{entry.policy.version}</span>
+									{/if}
+									{#each entry.policy.details ?? [] as detail (detail.label)}
+										· {detail.label}: <span class="datum">{detail.value}</span>
+									{/each}
+								</span>
+							</li>
+						{/each}
 					</ul>
 				</section>
 

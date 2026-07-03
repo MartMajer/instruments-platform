@@ -14,8 +14,13 @@ export function serializeAnswer(question: RespondentQuestionResponse, value: unk
 		return '';
 	}
 
-	if (question.type === 'multi') {
+	if (question.type === 'multi' || question.type === 'ranking') {
 		return JSON.stringify(Array.isArray(value) ? value.map(String) : [String(value)]);
+	}
+
+	if (question.type === 'matrix') {
+		const record = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+		return JSON.stringify(record);
 	}
 
 	if (question.type === 'likert' || question.type === 'nps' || question.type === 'number') {
@@ -26,8 +31,15 @@ export function serializeAnswer(question: RespondentQuestionResponse, value: unk
 }
 
 export function deserializeAnswer(question: RespondentQuestionResponse, raw: string | null): unknown {
+	const emptyFor = () =>
+		question.type === 'multi' || question.type === 'ranking'
+			? []
+			: question.type === 'matrix'
+				? {}
+				: '';
+
 	if (raw == null || raw === '') {
-		return question.type === 'multi' ? [] : '';
+		return emptyFor();
 	}
 
 	if (question.type === 'likert' || question.type === 'nps' || question.type === 'number') {
@@ -36,12 +48,15 @@ export function deserializeAnswer(question: RespondentQuestionResponse, raw: str
 
 	try {
 		const parsed = JSON.parse(raw);
-		if (question.type === 'multi') {
+		if (question.type === 'multi' || question.type === 'ranking') {
 			return Array.isArray(parsed) ? parsed.map(String) : [];
+		}
+		if (question.type === 'matrix') {
+			return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 		}
 		return typeof parsed === 'string' ? parsed : String(parsed);
 	} catch {
-		return question.type === 'multi' ? [] : raw;
+		return emptyFor();
 	}
 }
 
@@ -91,7 +106,41 @@ export function scaleRange(question: RespondentQuestionResponse): number[] {
 	return values;
 }
 
+export type MatrixChoice = { code: string; label: string };
+
+export function parseMatrix(question: RespondentQuestionResponse): {
+	rows: MatrixChoice[];
+	columns: MatrixChoice[];
+} {
+	try {
+		const payload = JSON.parse(question.payload ?? '{}');
+		const matrix = payload?.matrix && typeof payload.matrix === 'object' ? payload.matrix : {};
+		const read = (key: 'rows' | 'columns', prefix: string): MatrixChoice[] => {
+			const entries = Array.isArray(matrix[key]) ? matrix[key] : [];
+			return entries.map((entry: unknown, index: number) => {
+				const candidate =
+					entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
+				const code =
+					(typeof candidate.code === 'string' && candidate.code) ||
+					`${prefix}${String(index + 1).padStart(2, '0')}`;
+				const label = (typeof candidate.label === 'string' && candidate.label) || code;
+				return { code, label };
+			});
+		};
+		return { rows: read('rows', 'r'), columns: read('columns', 'c') };
+	} catch {
+		return { rows: [], columns: [] };
+	}
+}
+
 export function isAnswered(question: RespondentQuestionResponse, value: unknown): boolean {
-	if (question.type === 'multi') return Array.isArray(value) && value.length > 0;
+	if (question.type === 'multi' || question.type === 'ranking') {
+		return Array.isArray(value) && value.length > 0;
+	}
+	if (question.type === 'matrix') {
+		const rows = parseMatrix(question).rows;
+		const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+		return rows.length > 0 && rows.every((row) => typeof record[row.code] === 'string');
+	}
 	return value !== undefined && value !== null && value !== '';
 }

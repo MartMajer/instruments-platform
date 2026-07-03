@@ -46,6 +46,33 @@
 		copied = true;
 	}
 
+	let inviteFor = $state<string | null>(null);
+	let inviteEmails = $state('');
+	let inviteBusy = $state(false);
+	let inviteResult = $state<string | null>(null);
+
+	async function sendInvitations(campaignId: string) {
+		const recipients = inviteEmails
+			.split(/[\n,;]+/)
+			.map((email) => email.trim())
+			.filter((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+			.map((email) => ({ email }));
+		if (recipients.length === 0 || inviteBusy) return;
+
+		inviteBusy = true;
+		inviteResult = null;
+		try {
+			const batch = await setup.createCampaignInvitationBatch(campaignId, { recipients });
+			inviteResult = `${batch.createdInvitationCount} of ${batch.requestedRecipientCount} invitations queued.`;
+			inviteEmails = '';
+			await read(true);
+		} catch {
+			inviteResult = 'Invitations could not be queued. Check email readiness and try again.';
+		} finally {
+			inviteBusy = false;
+		}
+	}
+
 	let workspace = $state<CampaignSeriesOperationsWorkspaceResponse | null>(null);
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
 	let lastReadAt = $state<Date | null>(null);
@@ -196,6 +223,9 @@
 							</span>
 							{#if wave.status.toLowerCase() === 'live'}
 								<span class="link-actions">
+									<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
+										Invite by email
+									</button>
 									{#if wave.openLinkAssignmentCount > 0}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
 											Replace lost link
@@ -208,6 +238,25 @@
 								</span>
 							{/if}
 						</li>
+						{#if inviteFor === wave.id}
+							<li class="minted">
+								<div class="invite-inner">
+									<span class="eyebrow dim-label">Invite respondents — one email per line</span>
+									<textarea
+										rows="3"
+										bind:value={inviteEmails}
+										placeholder={'ana@example.org\nmarko@example.org'}
+										aria-label="Recipient emails"
+									></textarea>
+									<div class="invite-row">
+										<button class="link-btn" disabled={inviteBusy} onclick={() => sendInvitations(wave.id)}>
+											{inviteBusy ? 'Queueing…' : 'Queue invitations'}
+										</button>
+										{#if inviteResult}<span class="invite-result" role="status">{inviteResult}</span>{/if}
+									</div>
+								</div>
+							</li>
+						{/if}
 						{#if mintedLink?.campaignId === wave.id}
 							<li class="minted">
 								<div class="minted-inner">
@@ -529,6 +578,35 @@
 		margin-top: 0.75rem;
 		font-size: 0.8125rem;
 		color: #f0b429;
+	}
+
+	.invite-inner {
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+		width: 100%;
+	}
+
+	.invite-inner textarea {
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		background: var(--color-console);
+		border: 1px solid var(--color-console-line);
+		border-radius: var(--radius-instrument);
+		color: var(--color-console-ink);
+		padding: 0.625rem;
+		resize: vertical;
+	}
+
+	.invite-row {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.invite-result {
+		font-size: 0.8125rem;
+		color: var(--color-console-dim);
 	}
 
 	.prereqs {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { RespondentQuestionResponse } from '$lib/api/setup';
-	import { parseAnchors, parseOptions, scaleRange } from './answers';
+	import { parseAnchors, parseMatrix, parseOptions, scaleRange } from './answers';
 
 	let {
 		question,
@@ -29,6 +29,38 @@
 		if (index >= 0) current.splice(index, 1);
 		else current.push(code);
 		value = current;
+	}
+
+	const matrix = $derived(parseMatrix(question));
+
+	function setMatrixCell(rowCode: string, columnCode: string) {
+		const current =
+			value && typeof value === 'object' && !Array.isArray(value)
+				? { ...(value as Record<string, string>) }
+				: {};
+		current[rowCode] = columnCode;
+		value = current;
+	}
+
+	function matrixCell(rowCode: string): string {
+		const record =
+			value && typeof value === 'object' && !Array.isArray(value)
+				? (value as Record<string, string>)
+				: {};
+		return record[rowCode] ?? '';
+	}
+
+	function toggleRank(code: string) {
+		const current = Array.isArray(value) ? [...(value as string[])] : [];
+		const index = current.indexOf(code);
+		if (index >= 0) current.splice(index, 1);
+		else current.push(code);
+		value = current;
+	}
+
+	function rankOf(code: string): number {
+		const current = Array.isArray(value) ? (value as string[]) : [];
+		return current.indexOf(code);
 	}
 </script>
 
@@ -89,6 +121,47 @@
 				<input type="checkbox" checked={selected} onchange={() => toggleMulti(option.code)} />
 				<span>{option.label}</span>
 			</label>
+		{/each}
+	</div>
+{:else if question.type === 'matrix'}
+	<div class="matrix-wrap">
+		<table class="matrix">
+			<thead>
+				<tr>
+					<th></th>
+					{#each matrix.columns as column (column.code)}
+						<th scope="col">{column.label}</th>
+					{/each}
+				</tr>
+			</thead>
+			<tbody>
+				{#each matrix.rows as row (row.code)}
+					<tr>
+						<th scope="row">{row.label}</th>
+						{#each matrix.columns as column (column.code)}
+							<td>
+								<input
+									type="radio"
+									name={`${question.id}-${row.code}`}
+									aria-label={`${row.label}: ${column.label}`}
+									checked={matrixCell(row.code) === column.code}
+									onchange={() => setMatrixCell(row.code, column.code)}
+								/>
+							</td>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+{:else if question.type === 'ranking'}
+	<div class="choices" role="group" aria-label={question.textDefault}>
+		{#each options as option (option.code)}
+			{@const rank = rankOf(option.code)}
+			<button type="button" class="choice rank" class:on={rank >= 0} onclick={() => toggleRank(option.code)}>
+				<span class="rank-n datum">{rank >= 0 ? rank + 1 : '·'}</span>
+				<span>{option.label}</span>
+			</button>
 		{/each}
 	</div>
 {:else if question.type === 'number'}
@@ -209,6 +282,64 @@
 
 	.choice input {
 		accent-color: var(--color-stain);
+	}
+
+	.matrix-wrap {
+		overflow-x: auto;
+	}
+
+	.matrix {
+		border-collapse: collapse;
+		font-size: 0.875rem;
+	}
+
+	.matrix th {
+		font-weight: 520;
+		text-align: left;
+		padding: 0.5rem 0.75rem 0.5rem 0;
+		color: var(--color-ink-2);
+	}
+
+	.matrix thead th {
+		font-size: 0.75rem;
+		color: var(--color-ink-3);
+		text-align: center;
+		padding: 0.375rem 0.625rem;
+	}
+
+	.matrix td {
+		text-align: center;
+		padding: 0.375rem 0.625rem;
+		border-top: 1px dashed var(--color-line);
+	}
+
+	.matrix input {
+		accent-color: var(--color-stain);
+		width: 1.125rem;
+		height: 1.125rem;
+	}
+
+	.rank {
+		font: inherit;
+		text-align: left;
+	}
+
+	.rank-n {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		border-radius: 999px;
+		border: 1px solid var(--color-line-2);
+		font-size: 0.75rem;
+		flex-shrink: 0;
+	}
+
+	.rank.on .rank-n {
+		background: var(--color-stain);
+		border-color: var(--color-stain);
+		color: #fff;
 	}
 
 	.field {
