@@ -6,10 +6,13 @@
 	let {
 		seriesId,
 		seriesName,
+		revise = null,
 		onDone
 	}: {
 		seriesId: string;
 		seriesName: string;
+		/** When set, edits an existing questionnaire into a new published version. */
+		revise?: { templateVersionId: string; semver: string } | null;
 		onDone: () => void;
 	} = $props();
 
@@ -86,6 +89,47 @@
 
 	onMount(async () => {
 		instruments = await setup.listInstruments().catch(() => []);
+
+		if (revise) {
+			const detail = await setup.getTemplateVersion(revise.templateVersionId).catch(() => null);
+			if (!detail) return;
+			templateName = detail.templateName;
+			locale = detail.defaultLocale;
+			instrumentId = detail.instrumentId ?? '';
+			const firstScale = detail.scales[0];
+			if (firstScale) {
+				scaleMin = firstScale.minValue;
+				scaleMax = firstScale.maxValue;
+				try {
+					const anchors = JSON.parse(firstScale.anchors) as { value: number; label: string }[];
+					lowAnchor = anchors.find((a) => a.value === firstScale.minValue)?.label ?? lowAnchor;
+					highAnchor = anchors.find((a) => a.value === firstScale.maxValue)?.label ?? highAnchor;
+				} catch {
+					/* keep defaults */
+				}
+			}
+			items = detail.questions
+				.slice()
+				.sort((a, b) => a.ordinal - b.ordinal)
+				.map((question) => {
+					const kind: ItemKind = ['likert', 'single', 'multi', 'text'].includes(question.type)
+						? (question.type as ItemKind)
+						: 'text';
+					let options = '';
+					try {
+						const payload = JSON.parse(question.payload || '{}');
+						if (Array.isArray(payload?.options)) {
+							options = payload.options
+								.map((option: { label?: string }) => option?.label ?? '')
+								.filter(Boolean)
+								.join(', ');
+						}
+					} catch {
+						/* no options */
+					}
+					return { text: question.textDefault, reverse: question.reverseCoded, kind, options };
+				});
+		}
 	});
 
 	type ItemKind = 'likert' | 'single' | 'multi' | 'text';
@@ -109,6 +153,14 @@
 
 	function code(index: number): string {
 		return `Q${String(index + 1).padStart(2, '0')}`;
+	}
+
+	function bumpSemver(semver: string): string {
+		const parts = semver.split('.').map((part) => parseInt(part, 10));
+		if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
+			return `${parts[0]}.${parts[1] + 1}.0`;
+		}
+		return `${semver}.1`;
 	}
 
 	function slug(): string {
@@ -184,12 +236,7 @@
 		]);
 
 		try {
-			step = 'Creating questionnaire…';
-			const template = await setup.createTemplateVersion({
-				templateName: templateName.trim() || `${seriesName} questionnaire`,
-				semver: '1.0.0',
-				defaultLocale: locale,
-				instrumentId: instrumentId || null,
+			const content = {
 				sections: [{ ordinal: 1, code: 'MAIN', titleDefault: 'Questions' }],
 				scales: scaleRows.map((row) => ({
 					code: `S_${row.code}`,
@@ -221,9 +268,28 @@
 							: '{}',
 					missingCodes: '[]'
 				}))
-			});
+			};
 
-			if (template.status?.toLowerCase() === 'draft') {
+			let template;
+			if (revise) {
+				step = 'Creating new version…';
+				template = await setup.createTemplateVersionDraft(revise.templateVersionId, {
+					semver: bumpSemver(revise.semver)
+				});
+				step = 'Saving items…';
+				await setup.updateTemplateVersionDraftContent(template.templateVersionId, content);
+			} else {
+				step = 'Creating questionnaire…';
+				template = await setup.createTemplateVersion({
+					templateName: templateName.trim() || `${seriesName} questionnaire`,
+					semver: '1.0.0',
+					defaultLocale: locale,
+					instrumentId: instrumentId || null,
+					...content
+				});
+			}
+
+			if (revise || template.status?.toLowerCase() === 'draft') {
 				step = 'Publishing…';
 				await setup.publishTemplateVersion(template.templateVersionId);
 			}
@@ -375,11 +441,12 @@
 
 	<div class="actions">
 		<button class="btn btn-stain" type="submit" disabled={busy || validItems.length === 0}>
-			{busy ? (step ?? 'Working…') : `Create questionnaire (${validItems.length} items)`}
+			{busy ? (step ?? 'Working…') : revise ? `Publish revised version (${validItems.length} items)` : `Create questionnaire (${validItems.length} items)`}
 		</button>
 		<p class="note">
-			Creates the questionnaire, publishes it, binds a {calculation} score with reverse-coding,
-			and attaches it to this study.
+			{revise
+				? 'Publishes a new version and attaches it — waves already launched keep the version they launched with.'
+				: `Creates the questionnaire, publishes it, binds a ${calculation} score with reverse-coding, and attaches it to this study.`}
 		</p>
 	</div>
 </form>

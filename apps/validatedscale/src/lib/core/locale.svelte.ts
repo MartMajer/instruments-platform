@@ -28,6 +28,10 @@ export function t(english: string): string {
 
 /** English source string → Croatian. Keep alphabetized by English. */
 const HR: Record<string, string> = {
+	'Close editor': 'Zatvori uređivač',
+	'Hide items': 'Sakrij čestice',
+	'Revise questionnaire': 'Izmijeni upitnik',
+	'View the items respondents will see': 'Prikaži čestice koje će ispitanici vidjeti',
 	'A study holds one protocol: an instrument, an identity mode, policies, and one or more waves. Name it the way you would in the paper.': 'Studija sadrži jedan protokol: instrument, način identiteta, pravila i jedan ili više valova. Nazovite je onako kako biste je nazvali u radu.',
 	'Archive': 'Arhiviraj',
 	"Collection stops and the wave's data becomes final for reporting. This cannot be undone.": 'Prikupljanje se zaustavlja i podaci vala postaju konačni za izvještavanje. Ovo se ne može poništiti.',

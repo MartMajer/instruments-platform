@@ -130,6 +130,7 @@
 		}
 	}
 
+	let reviseOpen = $state(false);
 	let itemsOpen = $state(false);
 	let templateItems = $state<{ code: string; text: string }[] | null>(null);
 
@@ -397,9 +398,24 @@
 								<dd>{humanizeToken(workspace.template.status)}</dd>
 							</div>
 						</dl>
-						<button class="quiet-action items-toggle" onclick={toggleItems}>
-							{itemsOpen ? 'Hide items' : 'View the items respondents will see'}
-						</button>
+						<div class="instrument-actions">
+							<button class="quiet-action" onclick={toggleItems}>
+								{itemsOpen ? t('Hide items') : t('View the items respondents will see')}
+							</button>
+							<button class="quiet-action" onclick={() => (reviseOpen = !reviseOpen)}>
+								{reviseOpen ? t('Close editor') : t('Revise questionnaire')}
+							</button>
+						</div>
+						{#if reviseOpen && workspace.template}
+							<div class="compose-wrap">
+								<Composer
+									{seriesId}
+									seriesName={hub.name}
+									revise={{ templateVersionId: workspace.template.templateVersionId, semver: workspace.template.semver }}
+									onDone={() => { reviseOpen = false; templateItems = null; itemsOpen = false; void load(); }}
+								/>
+							</div>
+						{/if}
 						{#if itemsOpen}
 							{#if templateItems}
 								<ol class="item-preview">
@@ -940,8 +956,11 @@
 		margin-top: 1.25rem;
 	}
 
-	.items-toggle {
+	.instrument-actions {
 		margin-top: 1rem;
+		display: flex;
+		gap: 0.625rem;
+		flex-wrap: wrap;
 	}
 
 	.item-preview {
