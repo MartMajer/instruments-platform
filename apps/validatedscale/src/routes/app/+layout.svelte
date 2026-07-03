@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { session, loadSession, logoutUrl } from '$lib/core/session.svelte';
 	import DialogHost from '$lib/ui/DialogHost.svelte';
+	import { initLocale, localeState, setLocale, t } from '$lib/core/locale.svelte';
 
 	let { children } = $props();
 
@@ -28,6 +29,7 @@
 	}
 
 	onMount(async () => {
+		initLocale();
 		const current = await loadSession();
 		if (!current) {
 			location.assign('/signin');
@@ -56,7 +58,7 @@
 			<nav aria-label="Primary">
 				{#each nav as item (item.href)}
 					<a href={item.href} class:active={isActive(item)} aria-current={isActive(item) ? 'page' : undefined}>
-						{item.label}
+						{t(item.label)}
 					</a>
 				{/each}
 			</nav>
@@ -74,8 +76,12 @@
 
 				{#if menuOpen}
 					<div class="menu panel" role="menu">
-						<a role="menuitem" href="/app/settings">Workspace settings</a>
-						<a role="menuitem" href={logoutUrl()}>Sign out</a>
+						<a role="menuitem" href="/app/settings">{t('Workspace settings')}</a>
+						<a role="menuitem" href={logoutUrl()}>{t('Sign out')}</a>
+						<div class="locale-row" role="group" aria-label="Language">
+							<button class:on={localeState.current === 'en'} onclick={() => setLocale('en')}>EN</button>
+							<button class:on={localeState.current === 'hr'} onclick={() => setLocale('hr')}>HR</button>
+						</div>
 					</div>
 				{/if}
 			</div>
@@ -206,6 +212,32 @@
 	.menu a:hover {
 		background: var(--color-stain-wash);
 		color: var(--color-stain-deep);
+	}
+
+	.locale-row {
+		display: flex;
+		gap: 0.25rem;
+		padding: 0.5rem 0.625rem 0.25rem;
+		border-top: 1px solid var(--color-line);
+		margin-top: 0.25rem;
+	}
+
+	.locale-row button {
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 600;
+		padding: 0.25rem 0.5rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: 3px;
+		background: none;
+		cursor: pointer;
+		color: var(--color-ink-2);
+	}
+
+	.locale-row button.on {
+		background: var(--color-stain);
+		border-color: var(--color-stain);
+		color: #fff;
 	}
 
 	.content {
