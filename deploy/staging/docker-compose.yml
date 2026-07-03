@@ -106,6 +106,11 @@ services:
       EmailDelivery__Smtp__EnableSsl: ${EmailDelivery__Smtp__EnableSsl:-true}
       EmailDelivery__Smtp__UserName: ${EmailDelivery__Smtp__UserName:-}
       EmailDelivery__Smtp__Password: ${EmailDelivery__Smtp__Password:-}
+      EmailDelivery__AzureCommunicationServices__ConnectionString: ${EmailDelivery__AzureCommunicationServices__ConnectionString:-}
+      EmailDelivery__AzureCommunicationServices__Endpoint: ${EmailDelivery__AzureCommunicationServices__Endpoint:-}
+      EmailDelivery__AzureCommunicationServices__AccessKey: ${EmailDelivery__AzureCommunicationServices__AccessKey:-}
+      EmailDelivery__AzureCommunicationServices__EventGridWebhookSecret: ${EmailDelivery__AzureCommunicationServices__EventGridWebhookSecret:-}
+      EmailDelivery__AzureCommunicationServices__DisableUserEngagementTracking: ${EmailDelivery__AzureCommunicationServices__DisableUserEngagementTracking:-true}
       ExportArtifacts__ObjectStore__Provider: ${ExportArtifacts__ObjectStore__Provider:-local}
       ExportArtifacts__ObjectStore__RootPath: ${ExportArtifacts__ObjectStore__RootPath:-/var/lib/instruments-platform/export-artifacts}
       ExportArtifacts__ObjectStore__S3__Endpoint: ${ExportArtifacts__ObjectStore__S3__Endpoint:-}
