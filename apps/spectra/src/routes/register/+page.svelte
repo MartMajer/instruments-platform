@@ -100,7 +100,7 @@
 
 			<form onsubmit={complete}>
 				<label class="eyebrow" for="org">Organization</label>
-				<input id="org" required bind:value={organizationName} placeholder="Algebra University" />
+				<input id="org" required bind:value={organizationName} />
 
 				<label class="eyebrow" for="code">Access code</label>
 				<input id="code" required bind:value={accessCode} autocomplete="off" />
@@ -130,7 +130,7 @@
 				/>
 
 				<label class="eyebrow" for="org">Organization</label>
-				<input id="org" required bind:value={organizationName} placeholder="Algebra University" />
+				<input id="org" required bind:value={organizationName} />
 
 				<label class="eyebrow" for="code">Access code</label>
 				<input id="code" required bind:value={accessCode} autocomplete="off" />

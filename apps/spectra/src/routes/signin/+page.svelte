@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { env } from '$env/dynamic/public';
 	import { createRegistrationApi } from '$lib/api/registration';
 	import { ApiError } from '$lib/api/client';
 	import {
@@ -8,6 +9,7 @@
 	import { api } from '$lib/core/client';
 
 	const registration = createRegistrationApi(api());
+	const devAuth = env.PUBLIC_DEV_AUTH_ENABLED === 'true';
 
 	let email = $state('');
 	let busy = $state(false);
@@ -50,6 +52,17 @@
 	<a class="eyebrow brand" href="/">Spectra</a>
 
 	<main class="panel card">
+		{#if devAuth}
+			<div class="dev-gate">
+				<span class="eyebrow">Local development</span>
+				<p class="hint">
+					Dev auth is on — no real sign-in is configured locally. Enter the local workspace
+					directly.
+				</p>
+				<a class="btn btn-stain dev-enter" href="/app">Enter local workspace</a>
+			</div>
+		{/if}
+
 		<h1 class="doc-title">Sign in</h1>
 		<p class="hint">Enter your work email and we take you to your workspace.</p>
 
@@ -99,6 +112,27 @@
 		width: min(26rem, 100%);
 		padding: 2rem;
 		border-top: 3px solid var(--color-stain);
+	}
+
+	.dev-gate {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 1rem;
+		margin-bottom: 1.75rem;
+		background: var(--color-stain-wash);
+		border: 1px solid var(--color-stain-line);
+		border-radius: var(--radius-instrument);
+	}
+
+	.dev-gate .hint {
+		margin-top: 0;
+	}
+
+	.dev-enter {
+		margin-top: 0.375rem;
+		text-decoration: none;
 	}
 
 	h1 {
