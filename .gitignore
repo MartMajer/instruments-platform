@@ -27,6 +27,6 @@ dist/
 /apps/web/.svelte-kit/
 /apps/web/build/
 /apps/web/test-results/
-/apps/spectra/.svelte-kit/
-/apps/spectra/build/
-/apps/spectra/test-results/
+/apps/validatedscale/.svelte-kit/
+/apps/validatedscale/build/
+/apps/validatedscale/test-results/
