@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import {
 		createProductApi,
 		type DirectoryConnectionStateResponse,
@@ -24,6 +25,31 @@
 	let graphRuns = $state<DirectoryImportRunHistoryResponse | null>(null);
 	let graphBusy = $state(false);
 	let graphNote = $state<string | null>(null);
+
+	/** Microsoft admin-consent redirects back with state (+ tenant/error params). */
+	async function completeConsentCallbackIfPresent() {
+		const params = page.url.searchParams;
+		const state = params.get('state');
+		if (!state) return;
+
+		try {
+			await product.completeMicrosoftGraphConsentCallback({
+				state,
+				adminConsent: params.get('admin_consent') === 'True',
+				microsoftTenantId: params.get('tenant'),
+				error: params.get('error'),
+				errorDescription: params.get('error_description')
+			});
+			graphNote = 'Microsoft directory connected.';
+			panel = 'graph';
+			await loadGraph();
+		} catch {
+			graphNote = 'The Microsoft consent could not be completed. Start the connection again.';
+			panel = 'graph';
+		} finally {
+			history.replaceState(null, '', '/app/people');
+		}
+	}
 
 	async function loadGraph() {
 		graphState = await product.getMicrosoftGraphDirectoryConnectionState().catch(() => null);
@@ -146,7 +172,10 @@
 		});
 	});
 
-	onMount(load);
+	onMount(() => {
+		void load();
+		void completeConsentCallbackIfPresent();
+	});
 </script>
 
 <svelte:head><title>People — ValidatedScale</title></svelte:head>
