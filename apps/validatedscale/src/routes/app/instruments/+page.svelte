@@ -140,6 +140,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={(event) => { if (event.key === 'Escape') previewFor = null; }} />
+
 <svelte:head><title>Instruments — ValidatedScale</title></svelte:head>
 
 <header class="head">
