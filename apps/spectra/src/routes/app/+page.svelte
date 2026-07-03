@@ -1,0 +1,301 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { createProductApi, type WorkspaceOverviewResponse } from '$lib/api/product';
+	import { api } from '$lib/core/client';
+	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
+	import LoadState from '$lib/ui/LoadState.svelte';
+
+	const product = createProductApi(api());
+
+	let overview = $state<WorkspaceOverviewResponse | null>(null);
+	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
+
+	const today = new Intl.DateTimeFormat('en-GB', {
+		weekday: 'long',
+		day: 'numeric',
+		month: 'long'
+	}).format(new Date());
+
+	const attention = $derived(
+		(overview?.commandCenter.items ?? []).slice().sort((a, b) => a.priority - b.priority)
+	);
+
+	const liveStudies = $derived(
+		(overview?.studyCollections.ownStudies ?? []).filter((s) => s.liveCampaignCount > 0)
+	);
+
+	onMount(async () => {
+		try {
+			overview = await product.getWorkspaceOverview();
+			loadState = 'ready';
+		} catch {
+			loadState = 'error';
+		}
+	});
+</script>
+
+<svelte:head><title>Today — Spectra</title></svelte:head>
+
+<header class="head">
+	<p class="eyebrow">{today}</p>
+	<h1 class="doc-title">
+		{#if loadState === 'ready' && overview}
+			{#if overview.totals.liveCampaignCount > 0}
+				{formatCount(overview.totals.liveCampaignCount)}
+				{overview.totals.liveCampaignCount === 1 ? 'wave is' : 'waves are'} in the field.
+			{:else if overview.totals.campaignSeriesCount > 0}
+				Nothing is collecting today.
+			{:else}
+				Your workspace is ready.
+			{/if}
+		{:else}
+			Today
+		{/if}
+	</h1>
+</header>
+
+<LoadState state={loadState}>
+	{#if overview}
+		<div class="grid">
+			<section class="main">
+				<h2 class="eyebrow">Needs attention</h2>
+				{#if attention.length === 0}
+					<p class="quiet">Nothing needs your attention. The field runs itself today.</p>
+				{:else}
+					<ol class="attention">
+						{#each attention as item (item.id)}
+							<li>
+								<div>
+									<strong>{item.title}</strong>
+									<p>{item.description}</p>
+								</div>
+								<a class="btn btn-ghost" href={item.route}>{item.actionLabel}</a>
+							</li>
+						{/each}
+					</ol>
+				{/if}
+
+				{#if liveStudies.length > 0}
+					<h2 class="eyebrow live-h">In the field now</h2>
+					<ul class="live">
+						{#each liveStudies as study (study.id)}
+							<li>
+								<span class="pip" aria-hidden="true"></span>
+								<a class="live-name doc-title" href={`/app/studies/${study.id}`}>{study.name}</a>
+								<span class="datum meta">
+									{formatCount(study.submittedResponseCount)} responses · last
+									{formatDateTime(study.latestSubmissionAt)}
+								</span>
+								<a class="field-link" href={`/app/studies/${study.id}/field`}>Field →</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
+
+			<aside class="side">
+				<h2 class="eyebrow">Workspace</h2>
+				<dl class="counters">
+					<div>
+						<dt>Studies</dt>
+						<dd class="datum">{formatCount(overview.totals.campaignSeriesCount)}</dd>
+					</div>
+					<div>
+						<dt>Waves</dt>
+						<dd class="datum">{formatCount(overview.totals.campaignCount)}</dd>
+					</div>
+					<div>
+						<dt>In field</dt>
+						<dd class="datum" class:stain={overview.totals.liveCampaignCount > 0}>
+							{formatCount(overview.totals.liveCampaignCount)}
+						</dd>
+					</div>
+					<div>
+						<dt>Responses</dt>
+						<dd class="datum">{formatCount(overview.totals.submittedResponseCount)}</dd>
+					</div>
+					<div>
+						<dt>Exports</dt>
+						<dd class="datum">{formatCount(overview.totals.exportArtifactCount)}</dd>
+					</div>
+				</dl>
+
+				<h2 class="eyebrow recent-h">Recent studies</h2>
+				<ul class="recent">
+					{#each overview.recentSeries.slice(0, 5) as series (series.id)}
+						<li>
+							<a href={`/app/studies/${series.id}`}>{series.name}</a>
+							<span class="datum">{humanizeToken(series.readinessStatus)}</span>
+						</li>
+					{:else}
+						<li class="quiet">No studies yet. Start one from Studies.</li>
+					{/each}
+				</ul>
+			</aside>
+		</div>
+	{/if}
+</LoadState>
+
+<style>
+	.head {
+		margin-bottom: 2rem;
+	}
+
+	.head h1 {
+		font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+		margin-top: 0.375rem;
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: 1fr 17rem;
+		gap: 3rem;
+	}
+
+	.quiet {
+		font-size: 0.9375rem;
+		color: var(--color-ink-3);
+		margin-top: 0.75rem;
+	}
+
+	.attention {
+		margin-top: 0.75rem;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.attention li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		padding: 1rem 0;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.attention strong {
+		font-weight: 580;
+	}
+
+	.attention p {
+		margin-top: 0.25rem;
+		font-size: 0.875rem;
+		color: var(--color-ink-2);
+		max-width: 52ch;
+	}
+
+	.live-h {
+		margin-top: 2.5rem;
+	}
+
+	.live {
+		list-style: none;
+		margin-top: 0.75rem;
+	}
+
+	.live li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		padding: 0.875rem 0;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.live .pip {
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: var(--color-live);
+		align-self: center;
+		flex-shrink: 0;
+	}
+
+	.live-name {
+		font-size: 1.125rem;
+		text-decoration: none;
+		color: var(--color-ink);
+	}
+
+	.live-name:hover {
+		color: var(--color-stain);
+	}
+
+	.live .meta {
+		font-size: 0.75rem;
+		color: var(--color-ink-3);
+	}
+
+	.field-link {
+		margin-left: auto;
+		font-size: 0.8125rem;
+		font-weight: 560;
+		color: var(--color-stain);
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.counters {
+		margin-top: 0.75rem;
+		border-top: 1px solid var(--color-line);
+	}
+
+	.counters div {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		padding: 0.625rem 0;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.counters dt {
+		font-size: 0.875rem;
+		color: var(--color-ink-2);
+	}
+
+	.counters dd {
+		font-size: 1rem;
+	}
+
+	.counters dd.stain {
+		color: var(--color-stain);
+		font-weight: 600;
+	}
+
+	.recent-h {
+		margin-top: 2.5rem;
+	}
+
+	.recent {
+		list-style: none;
+		margin-top: 0.75rem;
+	}
+
+	.recent li {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.5rem 0;
+		font-size: 0.875rem;
+	}
+
+	.recent a {
+		color: var(--color-ink);
+		text-decoration: none;
+	}
+
+	.recent a:hover {
+		color: var(--color-stain);
+	}
+
+	.recent .datum {
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	@media (max-width: 54rem) {
+		.grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

@@ -1,0 +1,259 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/archivo';
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/*
+ * Spectra design tokens — "the instrument and the manuscript"
+ *
+ * Chrome behaves like a precision instrument: graphite ink, engraved tick
+ * rails, mono data. Study content reads like a research manuscript: serif
+ * titles and prose. One identity accent — stain violet, after the laboratory
+ * stains that make invisible structures visible. Field view is the app's only
+ * dark surface: a live console. No warm tones outside status semantics.
+ */
+@theme {
+	--font-ui: 'Archivo Variable', 'Archivo', ui-sans-serif, system-ui, sans-serif;
+	--font-doc: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+	/* ground + ink (cold porcelain / graphite-blue) */
+	--color-ground: #f2f4f8;
+	--color-surface: #ffffff;
+	--color-sunk: #e9edf3;
+	--color-ink: #151c25;
+	--color-ink-2: #3c4754;
+	--color-ink-3: #66717f;
+	--color-line: #d7dde5;
+	--color-line-2: #aab4c0;
+
+	/* identity: stain violet */
+	--color-stain: #4530a6;
+	--color-stain-deep: #33217f;
+	--color-stain-wash: #edeafa;
+	--color-stain-line: #c9c0ee;
+
+	/* console (Field view — the one dark surface) */
+	--color-console: #0f151d;
+	--color-console-2: #171f2a;
+	--color-console-3: #212b38;
+	--color-console-line: #2c3846;
+	--color-console-ink: #e7edf4;
+	--color-console-dim: #8a96a5;
+	--color-stain-bright: #9c8bf5;
+
+	/* status — cold semantics */
+	--color-live: #0e7a5f;
+	--color-live-wash: #e2f3ee;
+	--color-info: #0f5a9e;
+	--color-info-wash: #e3eef9;
+	--color-warn: #8f6400;
+	--color-warn-wash: #f7efd8;
+	--color-danger: #b3323e;
+	--color-danger-wash: #f9e8ea;
+
+	/* chart tokens — validated (dataviz six checks) for their surfaces:
+	   light trio on #ffffff, dark meter fill on #171f2a */
+	--color-series-1: #08569a;
+	--color-series-2: #008065;
+	--color-chart-violet: #5b46c8;
+	--color-chart-violet-dark: #8673ee;
+
+	--radius-instrument: 4px;
+}
+
+@layer base {
+	html {
+		background: var(--color-ground);
+		color: var(--color-ink);
+		font-family: var(--font-ui);
+		font-size: 15px;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	body {
+		min-height: 100dvh;
+	}
+
+	::selection {
+		background: var(--color-stain);
+		color: #fff;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--color-stain);
+		outline-offset: 2px;
+		border-radius: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
+	}
+}
+
+@layer components {
+	/* Instrument-label eyebrow: expanded caps, engraved feel */
+	.eyebrow {
+		font-family: var(--font-ui);
+		font-variation-settings: 'wdth' 125;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--color-ink-3);
+	}
+
+	.eyebrow-stain {
+		color: var(--color-stain);
+	}
+
+	/* Manuscript title */
+	.doc-title {
+		font-family: var(--font-doc);
+		font-weight: 560;
+		letter-spacing: -0.01em;
+		color: var(--color-ink);
+	}
+
+	/* Mono datum: counts, codes, tick labels */
+	.datum {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/*
+	 * Signature: the calibrated rail.
+	 * A repeating engraved tick track. Horizontal by default; the --rail-* vars
+	 * tune pitch and ink so gauges, timelines and margin rulers share one motif.
+	 */
+	.rail-h {
+		--rail-pitch: 8px;
+		--rail-ink: var(--color-line-2);
+		background-image: repeating-linear-gradient(
+			to right,
+			var(--rail-ink) 0 1px,
+			transparent 1px var(--rail-pitch)
+		);
+		background-size: 100% 6px;
+		background-position: bottom;
+		background-repeat: no-repeat;
+	}
+
+	.rail-v {
+		--rail-pitch: 8px;
+		--rail-ink: var(--color-line-2);
+		background-image: repeating-linear-gradient(
+			to bottom,
+			var(--rail-ink) 0 1px,
+			transparent 1px var(--rail-pitch)
+		);
+		background-size: 6px 100%;
+		background-repeat: no-repeat;
+	}
+
+	/* Buttons: instrument controls. Primary = inked. */
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-family: var(--font-ui);
+		font-size: 0.875rem;
+		font-weight: 560;
+		line-height: 1;
+		padding: 0.625rem 1rem;
+		border-radius: var(--radius-instrument);
+		border: 1px solid transparent;
+		cursor: pointer;
+		transition:
+			background-color 120ms ease,
+			border-color 120ms ease,
+			color 120ms ease;
+	}
+
+	.btn-ink {
+		background: var(--color-ink);
+		color: #fff;
+	}
+
+	.btn-ink:hover {
+		background: var(--color-stain-deep);
+	}
+
+	.btn-ghost {
+		background: transparent;
+		color: var(--color-ink);
+		border-color: var(--color-line-2);
+	}
+
+	.btn-ghost:hover {
+		border-color: var(--color-ink);
+	}
+
+	.btn-stain {
+		background: var(--color-stain);
+		color: #fff;
+	}
+
+	.btn-stain:hover {
+		background: var(--color-stain-deep);
+	}
+
+	.btn[disabled],
+	.btn[aria-disabled='true'] {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	/* Panel: quiet surface, hairline, tight radius. No decorative shadows. */
+	.panel {
+		background: var(--color-surface);
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-instrument);
+	}
+
+	/* State chips */
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.75rem;
+		font-weight: 560;
+		line-height: 1;
+		padding: 0.3125rem 0.5625rem;
+		border-radius: 999px;
+		border: 1px solid var(--color-line);
+		background: var(--color-surface);
+		color: var(--color-ink-2);
+	}
+
+	.chip-live {
+		border-color: color-mix(in oklab, var(--color-live) 35%, white);
+		background: var(--color-live-wash);
+		color: var(--color-live);
+	}
+
+	.chip-stain {
+		border-color: var(--color-stain-line);
+		background: var(--color-stain-wash);
+		color: var(--color-stain);
+	}
+
+	.chip-warn {
+		border-color: color-mix(in oklab, var(--color-warn) 35%, white);
+		background: var(--color-warn-wash);
+		color: var(--color-warn);
+	}
+
+	.chip-danger {
+		border-color: color-mix(in oklab, var(--color-danger) 30%, white);
+		background: var(--color-danger-wash);
+		color: var(--color-danger);
+	}
+}
