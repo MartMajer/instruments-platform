@@ -8,6 +8,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { downloadExportArtifact } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -72,12 +73,21 @@
 		}
 	}
 
-	async function download(artifactId: string) {
+	async function download(artifactId: string, fileName?: string | null) {
 		try {
-			const signed = await setup.getExportArtifactSignedDownloadUrl(artifactId);
-			location.assign(signed.url);
+			await downloadExportArtifact(artifactId, fileName);
 		} catch {
-			exportNote = 'Download link could not be created. Try again.';
+			exportNote = 'The download failed. Try again.';
+		}
+	}
+
+	async function retry(artifactId: string) {
+		try {
+			await setup.retryCampaignSeriesReportPdfArtifact(artifactId);
+			exportNote = 'Retry queued.';
+			await load();
+		} catch {
+			exportNote = 'The retry was not accepted.';
 		}
 	}
 
@@ -314,10 +324,13 @@
 										<span class="artifact-name">{artifact.fileName}</span>
 										<span class="datum artifact-meta">
 											{humanizeToken(artifact.status)} · {formatDateTime(artifact.createdAt)}
+											{#if artifact.failureReasonCode}· {humanizeToken(artifact.failureReasonCode)}{/if}
 										</span>
 									</div>
 									{#if artifact.canDownload}
-										<button class="dl" onclick={() => download(artifact.id)}>Download</button>
+										<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>Download</button>
+									{:else if artifact.status.toLowerCase() === 'failed'}
+										<button class="dl" onclick={() => retry(artifact.id)}>Retry</button>
 									{/if}
 								</li>
 							{:else}

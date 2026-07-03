@@ -6,6 +6,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { downloadExportArtifact } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -25,12 +26,11 @@
 		}
 	});
 
-	async function download(artifactId: string) {
+	async function download(artifactId: string, fileName?: string | null) {
 		try {
-			const signed = await setup.getExportArtifactSignedDownloadUrl(artifactId);
-			location.assign(signed.url);
+			await downloadExportArtifact(artifactId, fileName);
 		} catch {
-			note = 'Download link could not be created. Try again.';
+			note = 'The download failed. Try again.';
 		}
 	}
 
@@ -98,7 +98,7 @@
 							<td class="datum when">{formatDateTime(artifact.createdAt)}</td>
 							<td class="act">
 								{#if artifact.canDownload}
-									<button class="dl" onclick={() => download(artifact.id)}>Download</button>
+									<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>Download</button>
 								{/if}
 							</td>
 						</tr>
