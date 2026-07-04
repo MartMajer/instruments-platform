@@ -121,6 +121,9 @@ services:
       Reports__PdfRenderer__BrowserExecutablePath: ${Reports__PdfRenderer__BrowserExecutablePath:-/usr/bin/chromium}
       Reports__PdfRenderer__TimeoutMilliseconds: ${Reports__PdfRenderer__TimeoutMilliseconds:-30000}
       Reports__PdfRenderer__DisableSandbox: ${Reports__PdfRenderer__DisableSandbox:-true}
+      MicrosoftGraph__ClientId: ${MicrosoftGraph__ClientId:-}
+      MicrosoftGraph__ClientSecret: ${MicrosoftGraph__ClientSecret:-}
+      MicrosoftGraph__RedirectUri: ${MicrosoftGraph__RedirectUri:-}
     volumes:
       - platform_staging_export_artifacts:/var/lib/instruments-platform/export-artifacts
       - platform_staging_data_protection_keys:/root/.aspnet/DataProtection-Keys
