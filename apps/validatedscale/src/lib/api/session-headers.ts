@@ -50,12 +50,26 @@ function createAuthEndpointUrl(
 		return configured;
 	}
 
-	const apiBaseUrl = env.PUBLIC_API_BASE_URL?.trim();
-	if (apiBaseUrl && /^https?:\/\//i.test(apiBaseUrl)) {
-		return new URL(fallbackPath, `${apiBaseUrl.replace(/\/+$/, '')}/`).toString();
+	return resolveApiUrl(env, fallbackPath);
+}
+
+/**
+ * Registration endpoints (/registration/intents, /registration/workspace-sign-in)
+ * hand back a same-origin-relative "/auth/login?..." path, but /auth/login only
+ * exists on the API host, not the web app's origin. Resolve it against
+ * PUBLIC_API_BASE_URL before navigating, same as the rest of the app's auth links.
+ */
+export function resolveApiUrl(env: Record<string, string | undefined>, urlFromApi: string) {
+	if (/^https?:\/\//i.test(urlFromApi)) {
+		return urlFromApi;
 	}
 
-	return fallbackPath;
+	const apiBaseUrl = env.PUBLIC_API_BASE_URL?.trim();
+	if (apiBaseUrl && /^https?:\/\//i.test(apiBaseUrl)) {
+		return new URL(urlFromApi, `${apiBaseUrl.replace(/\/+$/, '')}/`).toString();
+	}
+
+	return urlFromApi;
 }
 
 function setLoginQueryParameters(loginUrl: string, tenantId: string, loginHint: string | undefined) {

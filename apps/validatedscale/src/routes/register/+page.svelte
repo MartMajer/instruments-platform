@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { env } from '$env/dynamic/public';
 	import { createRegistrationApi } from '$lib/api/registration';
 	import { ApiError } from '$lib/api/client';
 	import {
 		rememberLastTenantId,
-		rememberLastWorkspaceEmail
+		rememberLastWorkspaceEmail,
+		resolveApiUrl
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
 	import { problemMessage } from '$lib/core/problem';
@@ -61,7 +63,7 @@
 				accessCode: accessCode.trim(),
 				returnUrl: `${location.origin}/register`
 			});
-			location.assign(response.loginUrl);
+			location.assign(resolveApiUrl(env, response.loginUrl));
 		} catch (cause) {
 			busy = false;
 			error = describe(cause);

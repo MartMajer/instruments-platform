@@ -4,7 +4,8 @@
 	import { ApiError } from '$lib/api/client';
 	import {
 		readLastWorkspaceEmail,
-		rememberLastWorkspaceEmail
+		rememberLastWorkspaceEmail,
+		resolveApiUrl
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
 	import { problemMessage } from '$lib/core/problem';
@@ -33,7 +34,7 @@
 				returnUrl: `${location.origin}/app`
 			});
 			rememberLastWorkspaceEmail(globalThis.localStorage, email.trim());
-			location.assign(result.loginUrl);
+			location.assign(resolveApiUrl(env, result.loginUrl));
 		} catch (cause) {
 			busy = false;
 			if (cause instanceof ApiError && cause.status === 404) {
