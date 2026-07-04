@@ -2,10 +2,11 @@
 
 **Product:** ValidatedScale — runs validated psychometric instruments as rigorous studies. Protocol (declare instrument, identity mode, consent, scoring — locked at launch) → Field (live collection: open links, email invitations, coverage against a k-anonymity threshold) → Evidence (versioned scores, wave comparison, analysis-ready CSV/SPSS-friendly exports with codebooks).
 
-**Audiences, in priority order:**
-1. Academic researchers (occupational health, ergonomics, psychology) — care about: anonymous longitudinal linking via self-generated participant codes, IRB-friendly consent records, exports their statistician won't have to fix, EU hosting with no DPA hassle.
-2. OSH consultants (EU) — care about: white-label per-client workspaces, legally mandated psychosocial risk assessments, compliance-ready reports.
-3. Hospital / HR wellbeing officers — care about: continuous monitoring, k-protected dashboards nobody can re-identify individuals from.
+**Audiences — three priority personas plus a deliberately broad tail (the platform is a generic validated-instrument engine; never present it as only-for-three):**
+1. Academic researchers (occupational health, ergonomics, psychology) — anonymous longitudinal linking, IRB-friendly consent records, clean exports, EU hosting.
+2. OSH consultants (EU) — white-label per-client workspaces, mandated psychosocial risk assessments, compliance-ready reports.
+3. Hospital / HR wellbeing officers — continuous monitoring, k-protected dashboards.
+Beyond these (compact grid, one line each): universities & student affairs (student wellbeing pulses, course evaluations, PhD programmes); HR & people teams (engagement/workload with trustworthy anonymity); healthcare quality teams (patient experience, staff safety climate); public sector (police/emergency/schools workforce monitoring, procurement-grade); consultancies & agencies (white-label client studies); any longitudinal study (measure the same people twice without knowing names). Close with an open line: any questionnaire the customer has the right to use.
 
 **Voice:** measured, precise, quietly confident — a scientific instrument, not a SaaS hype page. Plain verbs, concrete claims. The current hero is "Measurement you can defend." — that register.
 

@@ -294,7 +294,7 @@
 
 	<!-- ============ Audiences ============ -->
 	<section class="audiences">
-		<span class="eyebrow">Who runs studies here — three kinds of rigor</span>
+		<span class="eyebrow">Who runs studies here</span>
 		<div class="aud-rows">
 			<div class="aud">
 				<div class="aud-who">
@@ -328,6 +328,37 @@
 					including you, can re-identify an individual from a report.
 				</p>
 			</div>
+		</div>
+
+		<div class="more-aud">
+			<span class="eyebrow">And anywhere questionnaires carry weight</span>
+			<div class="more-grid">
+				<div>
+					<div class="doc-title more-t">Universities &amp; student affairs</div>
+					<p>Student wellbeing pulses, course evaluations, PhD-programme monitoring — anonymous by construction, so students actually answer.</p>
+				</div>
+				<div>
+					<div class="doc-title more-t">HR &amp; people teams</div>
+					<p>Engagement and workload tracking employees can trust: nobody, including you, can drill a dashboard down to one person.</p>
+				</div>
+				<div>
+					<div class="doc-title more-t">Healthcare quality teams</div>
+					<p>Patient-experience and staff safety-climate surveys with consent records and retention rules an auditor will accept.</p>
+				</div>
+				<div>
+					<div class="doc-title more-t">Public sector</div>
+					<p>Workforce stress monitoring for police, emergency services, schools — procurement-grade governance, EU-hosted.</p>
+				</div>
+				<div>
+					<div class="doc-title more-t">Consultancies &amp; agencies</div>
+					<p>Run client studies in white-label workspaces; deliver defensible reports instead of spreadsheets.</p>
+				</div>
+				<div>
+					<div class="doc-title more-t">Any longitudinal study</div>
+					<p>If you measure the same people twice and need to link answers without knowing names, this is the instrument for it.</p>
+				</div>
+			</div>
+			<p class="more-note">Bring any questionnaire you have the right to use — the platform runs it with the same rigor.</p>
 		</div>
 	</section>
 
@@ -1110,6 +1141,48 @@
 		font-size: 0.9375rem;
 		line-height: 1.6;
 		color: var(--color-ink-2);
+	}
+
+	.more-aud {
+		margin-top: 3rem;
+	}
+
+	.more-grid {
+		margin-top: 1.25rem;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 2rem 2.5rem;
+	}
+
+	.more-t {
+		font-size: 1.0625rem;
+	}
+
+	.more-grid p {
+		margin-top: 0.375rem;
+		font-size: 0.875rem;
+		line-height: 1.55;
+		color: var(--color-ink-2);
+	}
+
+	.more-note {
+		margin-top: 2rem;
+		font-size: 0.875rem;
+		color: var(--color-ink-3);
+		border-top: 1px solid var(--color-line);
+		padding-top: 1.25rem;
+	}
+
+	@media (max-width: 62rem) {
+		.more-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (max-width: 44rem) {
+		.more-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	/* respondent glimpse */
