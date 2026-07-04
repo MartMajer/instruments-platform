@@ -164,6 +164,35 @@
 		</div>
 	</section>
 
+	<!-- ============ Product shot ============ -->
+	<section class="shot" aria-label="The product">
+		<div class="shot-inner">
+			<div class="browser">
+				<div class="browser-bar">
+					<span class="dot"></span><span class="dot"></span><span class="dot"></span>
+					<span class="datum browser-url">validatedscale.com/app</span>
+				</div>
+				<img
+					src="/marketing/protocol.png"
+					alt="A study protocol in ValidatedScale: numbered chapters for design, instrument, scoring and policies, with the launch check in the margin"
+					loading="lazy"
+					width="1440"
+					height="860"
+				/>
+			</div>
+			<div class="phone">
+				<img
+					src="/marketing/respondent.png"
+					alt="The respondent's consent sheet on a phone: study title, plain-language consent, participant code, and a Begin button"
+					loading="lazy"
+					width="390"
+					height="780"
+				/>
+			</div>
+		</div>
+		<p class="shot-caption datum">The protocol a researcher writes, and the sheet a respondent sees. Synthetic data.</p>
+	</section>
+
 	<!-- ============ 01 Protocol ============ -->
 	<section id="protocol" class="split">
 		<span aria-hidden="true" class="datum ghost-number">01</span>
@@ -751,6 +780,91 @@
 		font-size: 0.875rem;
 		line-height: 1.55;
 		color: var(--color-ink-2);
+	}
+
+	/* product shot */
+	.shot {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 0 1.5rem 4rem;
+	}
+
+	.shot-inner {
+		position: relative;
+	}
+
+	.browser {
+		border: 1px solid var(--color-line);
+		border-radius: 8px;
+		overflow: hidden;
+		background: var(--color-surface);
+		box-shadow: 0 24px 60px rgb(21 28 37 / 0.12);
+	}
+
+	.browser-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.625rem 0.875rem;
+		border-bottom: 1px solid var(--color-line);
+		background: var(--color-sunk);
+	}
+
+	.dot {
+		width: 9px;
+		height: 9px;
+		border-radius: 999px;
+		background: var(--color-line-2);
+	}
+
+	.browser-url {
+		margin-left: 0.75rem;
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.browser img {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
+
+	.phone {
+		position: absolute;
+		right: 2.5rem;
+		bottom: -2.5rem;
+		width: clamp(11rem, 16vw, 14rem);
+		border: 1px solid var(--color-line);
+		border-radius: 14px;
+		overflow: hidden;
+		background: var(--color-surface);
+		box-shadow: 0 18px 44px rgb(21 28 37 / 0.18);
+	}
+
+	.phone img {
+		display: block;
+		width: 100%;
+		height: auto;
+		aspect-ratio: 390 / 640;
+		object-fit: cover;
+		object-position: top;
+	}
+
+	.shot-caption {
+		margin-top: 4rem;
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+		text-align: center;
+	}
+
+	@media (max-width: 44rem) {
+		.phone {
+			display: none;
+		}
+
+		.shot-caption {
+			margin-top: 1rem;
+		}
 	}
 
 	/* numbered splits */
