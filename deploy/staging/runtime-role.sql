@@ -80,6 +80,17 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     choice_option
 TO :"runtime_user";
 
+-- Mirrors the conditional grant in migration AddDirectoryIntegrationPersistence,
+-- which is a no-op when this role doesn't exist yet (fresh database, migrator
+-- runs before this script). Kept in sync here so a from-scratch deploy doesn't
+-- leave these tables ungranted.
+GRANT SELECT, INSERT, UPDATE ON TABLE
+    directory_connection,
+    directory_connection_consent_request,
+    directory_import_rule,
+    directory_import_run
+TO :"runtime_user";
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
     tenant,
     user_account,
