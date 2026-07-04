@@ -166,22 +166,6 @@ services:
   web:
     build:
       context: ../..
-      dockerfile: deploy/staging/web.Dockerfile
-    environment:
-      NODE_ENV: production
-      HOST: 0.0.0.0
-      PORT: 3000
-      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://127.0.0.1:5055}
-      PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-true}
-    ports:
-      - "${WEB_HTTP_PORT:-5174}:3000"
-    depends_on:
-      api:
-        condition: service_started
-
-  web-next:
-    build:
-      context: ../..
       dockerfile: deploy/staging/validatedscale.Dockerfile
     environment:
       NODE_ENV: production
@@ -190,7 +174,7 @@ services:
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://127.0.0.1:5055}
       PUBLIC_DEV_AUTH_ENABLED: ${PUBLIC_DEV_AUTH_ENABLED:-true}
     ports:
-      - "${WEBNEXT_HTTP_PORT:-5175}:3000"
+      - "${WEB_HTTP_PORT:-5174}:3000"
     depends_on:
       api:
         condition: service_started
