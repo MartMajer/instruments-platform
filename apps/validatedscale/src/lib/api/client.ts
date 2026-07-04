@@ -38,10 +38,19 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 	const fetchImpl = options.fetch ?? fetch;
 	const csrfEnabled = options.csrf === true;
 	let csrfToken: string | null = null;
+	// /auth/csrf requires an authenticated tenant session; anonymous flows
+	// (registration, sign-in, respondents) legitimately get 401 there and the
+	// backend does not enforce CSRF for them. Remember that outcome so
+	// anonymous autosave loops don't re-probe on every write.
+	let csrfUnavailable = false;
 
-	async function getCsrfToken() {
+	async function getCsrfToken(): Promise<string | null> {
 		if (csrfToken) {
 			return csrfToken;
+		}
+
+		if (csrfUnavailable) {
+			return null;
 		}
 
 		const response = await fetchImpl(joinUrl(baseUrl, '/auth/csrf'), {
@@ -49,6 +58,11 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 			headers: withDefaultHeaders(defaultHeaders, undefined)
 		});
 		const body = await readBody(response);
+
+		if (response.status === 401 || response.status === 403) {
+			csrfUnavailable = true;
+			return null;
+		}
 
 		if (!response.ok) {
 			throw new ApiError(
@@ -71,7 +85,10 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 		const headers = withDefaultHeaders(defaultHeaders, init.headers);
 
 		if (shouldAttachCsrf(csrfEnabled, path, init.method, headers)) {
-			headers.set('X-CSRF-TOKEN', await getCsrfToken());
+			const token = await getCsrfToken();
+			if (token) {
+				headers.set('X-CSRF-TOKEN', token);
+			}
 		}
 
 		return headers;
