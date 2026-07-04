@@ -18,8 +18,7 @@ export async function downloadExportArtifact(artifactId: string, fileName?: stri
 	}
 
 	const file = await setup.downloadExportArtifactCsv(artifactId);
-	const blob = new Blob([file.content], { type: file.contentType || 'text/csv' });
-	const url = URL.createObjectURL(blob);
+	const url = URL.createObjectURL(file.content);
 	const anchor = document.createElement('a');
 	anchor.href = url;
 	anchor.download = file.fileName || fileName || `export-${artifactId}.csv`;

@@ -7,7 +7,8 @@ describe('createSetupApi', () => {
 		const request = vi.fn(async <T>(path: string): Promise<T> => responseFor(path) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const listedRules = await api.listCampaignRespondentRules('campaign-id');
@@ -42,7 +43,8 @@ describe('createSetupApi', () => {
 		const request = vi.fn(async <T>(path: string): Promise<T> => responseFor(path) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const created = await api.createCampaignIdentifiedEntry('campaign-id');
@@ -83,7 +85,8 @@ describe('createSetupApi', () => {
 		const request = vi.fn(async <T>(): Promise<T> => ({ id: 'template-version-id', status: 'published' }) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const published = await api.publishTemplateVersion('template-version-id');
@@ -102,7 +105,8 @@ describe('createSetupApi', () => {
 		}) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const selected = await api.selectCampaignSeriesSetupTemplate('series-id', {
@@ -124,7 +128,8 @@ describe('createSetupApi', () => {
 		const request = vi.fn(async <T>(): Promise<T> => ({ status: 'draft', semver: '1.1.0' }) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const draft = await api.createTemplateVersionDraft('template-version-id', { semver: '1.1.0' });
@@ -168,7 +173,8 @@ describe('createSetupApi', () => {
 		);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const draft = await api.updateTemplateVersionDraftContent('template-version-id', {
@@ -201,7 +207,8 @@ describe('createSetupApi', () => {
 		}) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const retired = await api.retireTemplateVersionDraftScoring('template-version-id');
@@ -222,7 +229,8 @@ describe('createSetupApi', () => {
 		}) as T);
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: vi.fn() as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: vi.fn() as ApiClient['requestBlob']
 		});
 
 		const history = await api.listTemplateVersions('template-version-id');
@@ -234,15 +242,16 @@ describe('createSetupApi', () => {
 
 	it('calls the GF05 setup endpoints with the expected methods', async () => {
 		const request = vi.fn(async <T>(path: string): Promise<T> => responseFor(path) as T);
-		const requestText = vi.fn(async () => ({
-			body: 'campaign_id,dimension_code,disclosure\r\n',
+		const requestBlob = vi.fn(async () => ({
+			body: new Blob(['campaign_id,dimension_code,disclosure\r\n'], { type: 'text/csv' }),
 			contentType: 'text/csv',
 			contentDisposition: 'attachment; filename="campaign-report-proof.csv"',
 			byteSize: 36
 		}));
 		const api = createSetupApi({
 			request: request as ApiClient['request'],
-			requestText: requestText as ApiClient['requestText']
+			requestText: vi.fn() as ApiClient['requestText'],
+			requestBlob: requestBlob as ApiClient['requestBlob']
 		});
 
 		const session = await api.getCurrentSession();
@@ -407,12 +416,7 @@ describe('createSetupApi', () => {
 		);
 		expect(request).toHaveBeenNthCalledWith(29, '/export-artifacts/artifact-id');
 		expect(request).toHaveBeenCalledTimes(29);
-		expect(requestText).toHaveBeenCalledWith(
-			'/export-artifacts/artifact-id/download',
-			expect.objectContaining({
-				headers: { accept: 'text/csv' }
-			})
-		);
+		expect(requestBlob).toHaveBeenCalledWith('/export-artifacts/artifact-id/download');
 		expect(session.tenantId).toBe('tenant-id');
 		expect(session.permissions).toContain('setup.manage');
 		expect(launch.retentionPolicyId).toBe('retention-policy-id');

@@ -17,6 +17,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -34,6 +37,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -50,6 +56,9 @@ describe('createProductApi', () => {
 				return sampleTenantSettings.reportBranding as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -89,6 +98,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -106,6 +118,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -122,6 +137,9 @@ describe('createProductApi', () => {
 				return { roles: [] } as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -147,6 +165,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -176,6 +197,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -196,6 +220,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -215,6 +242,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -241,6 +271,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -286,6 +319,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -333,6 +369,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -402,6 +441,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -474,6 +516,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -521,6 +566,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -564,6 +612,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -601,6 +652,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -648,6 +702,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -683,6 +740,9 @@ describe('createProductApi', () => {
 				return sampleSubject as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -738,6 +798,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -765,6 +828,9 @@ describe('createProductApi', () => {
 				return sampleSubject as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -806,6 +872,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -822,6 +891,9 @@ describe('createProductApi', () => {
 				return sampleSubjectGroup as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -868,6 +940,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -906,6 +981,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -939,6 +1017,9 @@ describe('createProductApi', () => {
 				return { member: sampleTenantMember } as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -976,6 +1057,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1004,6 +1088,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1020,6 +1107,9 @@ describe('createProductApi', () => {
 				return { items: [] } as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1048,6 +1138,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1082,6 +1175,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1127,6 +1223,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1162,6 +1261,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1196,6 +1298,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1246,6 +1351,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1293,6 +1401,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1328,6 +1439,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1369,6 +1483,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1406,6 +1523,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1445,6 +1565,9 @@ describe('createProductApi', () => {
 			},
 			requestText: async () => {
 				throw new Error('not used');
+			},
+			requestBlob: async () => {
+				throw new Error('not used');
 			}
 		});
 
@@ -1461,6 +1584,9 @@ describe('createProductApi', () => {
 				return sampleReportsWidgetManifest as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});
@@ -1519,6 +1645,9 @@ describe('createProductApi', () => {
 				} as T;
 			},
 			requestText: async () => {
+				throw new Error('not used');
+			},
+			requestBlob: async () => {
 				throw new Error('not used');
 			}
 		});

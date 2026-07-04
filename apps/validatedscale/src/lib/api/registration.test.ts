@@ -15,6 +15,9 @@ describe('registration api', () => {
 			},
 			async requestText() {
 				throw new Error('not used');
+			},
+			async requestBlob() {
+				throw new Error('not used');
 			}
 		};
 
@@ -46,6 +49,9 @@ describe('registration api', () => {
 			},
 			async requestText() {
 				throw new Error('not used');
+			},
+			async requestBlob() {
+				throw new Error('not used');
 			}
 		};
 
@@ -68,6 +74,9 @@ describe('registration api', () => {
 				} as T;
 			},
 			async requestText() {
+				throw new Error('not used');
+			},
+			async requestBlob() {
 				throw new Error('not used');
 			}
 		});
@@ -95,6 +104,9 @@ describe('registration api', () => {
 				return { appUrl: '/app', tenantId: 'tenant-id', email: 'owner@example.test' } as T;
 			},
 			async requestText() {
+				throw new Error('not used');
+			},
+			async requestBlob() {
 				throw new Error('not used');
 			}
 		};

@@ -864,7 +864,7 @@ export type ExportArtifactDownloadResponse = {
 	fileName: string | null;
 	contentType: string;
 	byteSize: number;
-	content: string;
+	content: Blob;
 };
 
 export type ExportArtifactSignedDownloadUrlResponse = {
@@ -1267,11 +1267,7 @@ export function createSetupApi(client: ApiClient) {
 			);
 		},
 		async downloadExportArtifactCsv(artifactId: string) {
-			const response = await client.requestText(`/export-artifacts/${artifactId}/download`, {
-				headers: {
-					accept: 'text/csv'
-				}
-			});
+			const response = await client.requestBlob(`/export-artifacts/${artifactId}/download`);
 
 			return {
 				artifactId,

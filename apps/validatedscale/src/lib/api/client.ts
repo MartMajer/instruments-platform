@@ -12,10 +12,18 @@ export type ApiClientOptions = {
 export type ApiClient = {
 	request<T>(path: string, init?: RequestInit): Promise<T>;
 	requestText(path: string, init?: RequestInit): Promise<ApiTextResponse>;
+	requestBlob(path: string, init?: RequestInit): Promise<ApiBlobResponse>;
 };
 
 export type ApiTextResponse = {
 	body: string;
+	contentType: string;
+	contentDisposition: string | null;
+	byteSize: number;
+};
+
+export type ApiBlobResponse = {
+	body: Blob;
 	contentType: string;
 	contentDisposition: string | null;
 	byteSize: number;
@@ -134,6 +142,31 @@ export function createApiClient(options: ApiClientOptions = {}): ApiClient {
 				contentType: response.headers.get('content-type') ?? '',
 				contentDisposition: response.headers.get('content-disposition'),
 				byteSize: new TextEncoder().encode(body).length
+			};
+		},
+		async requestBlob(path: string, init: RequestInit = {}) {
+			const response = await fetchImpl(joinUrl(baseUrl, path), {
+				...init,
+				credentials: init.credentials ?? 'include',
+				headers: await buildHeaders(path, init)
+			});
+
+			if (!response.ok) {
+				const text = await response.text();
+				throw new ApiError(
+					`API request failed with status ${response.status}`,
+					response.status,
+					text.length > 0 ? text : null
+				);
+			}
+
+			const body = await response.blob();
+
+			return {
+				body,
+				contentType: response.headers.get('content-type') ?? '',
+				contentDisposition: response.headers.get('content-disposition'),
+				byteSize: body.size
 			};
 		}
 	};
