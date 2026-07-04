@@ -552,7 +552,7 @@
 				<a href="mailto:majeric.martin@gmail.com?subject=ValidatedScale%20methods%20description" class="btn btn-ghost">
 					Get the methods description
 				</a>
-				<span class="datum cta-note">Replies from the founders, usually within a day.</span>
+				<span class="datum cta-note">We reply within one working day.</span>
 			</div>
 		</div>
 	</section>
