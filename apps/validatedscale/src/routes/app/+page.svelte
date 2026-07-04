@@ -27,13 +27,13 @@
 	/** hr number agreement: 1 val je · 2–4 vala su · 5+ valova je. */
 	function waveHeadline(count: number): string {
 		if (localeState.current !== 'hr') {
-			return count === 1 ? `${t('wave is')} ${t('in the field')}.` : `${t('waves are')} ${t('in the field')}.`;
+			return count === 1 ? 'wave is in the field.' : 'waves are in the field.';
 		}
 		const mod10 = count % 10;
 		const mod100 = count % 100;
-		if (mod10 === 1 && mod100 !== 11) return 'val je na terenu.';
-		if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'vala su na terenu.';
-		return 'valova je na terenu.';
+		if (mod10 === 1 && mod100 !== 11) return 'krug prikuplja odgovore.';
+		if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'kruga prikupljaju odgovore.';
+		return 'krugova prikuplja odgovore.';
 	}
 
 	const liveStudies = $derived(

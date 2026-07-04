@@ -8,7 +8,7 @@
 	} from '$lib/api/product';
 	import { createSetupApi, type LaunchReadinessResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
-	import { t } from '$lib/core/locale.svelte';
+	import { t, waveWord } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import Composer from '$lib/protocol/Composer.svelte';
 	import { confirmDialog, promptDialog } from '$lib/ui/dialog.svelte';
@@ -307,9 +307,9 @@
 			</p>
 			<h1 class="doc-title">{hub.name}</h1>
 			<p class="datum registered">
-				Registered {formatDate(hub.createdAt)} · {formatCount(hub.totals.campaignCount)}
-				{hub.totals.campaignCount === 1 ? 'wave' : 'waves'} ·
-				{formatCount(hub.totals.submittedResponseCount)} responses
+				{t('Registered')} {formatDate(hub.createdAt)} · {formatCount(hub.totals.campaignCount)}
+				{waveWord(hub.totals.campaignCount)} ·
+				{formatCount(hub.totals.submittedResponseCount)} {t('responses')}
 			</p>
 
 			<nav class="phases" aria-label="Study phases">

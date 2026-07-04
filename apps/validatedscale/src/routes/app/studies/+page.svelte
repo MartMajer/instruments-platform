@@ -5,7 +5,7 @@
 		type CampaignSeriesListItemResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
-	import { t } from '$lib/core/locale.svelte';
+	import { t, waveWord } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -116,7 +116,7 @@
 							<a class="name doc-title" href={`/app/studies/${study.id}`}>{study.name}</a>
 							<span class="datum meta">
 								{formatCount(study.campaignCount)}
-								{study.campaignCount === 1 ? t('wave') : t('waves')}
+								{waveWord(study.campaignCount)}
 								· {formatCount(study.submittedResponseCount)} {t('responses')}
 								· {t('updated')} {formatDate(study.updatedAt)}
 							</span>
