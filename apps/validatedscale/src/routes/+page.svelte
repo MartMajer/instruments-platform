@@ -55,7 +55,7 @@
 	<title>ValidatedScale — Measurement you can defend</title>
 	<meta
 		name="description"
-		content="ValidatedScale runs your validated instruments as rigorous studies: locked protocols, k-protected field monitoring, and analysis-ready evidence."
+		content="ValidatedScale runs your validated instruments as rigorous studies: locked protocols, live field monitoring under a k-anonymity threshold, and evidence that is ready for analysis."
 	/>
 </svelte:head>
 
@@ -88,7 +88,7 @@
 			<p class="lede">
 				ValidatedScale runs your validated instruments as rigorous studies. The protocol locks
 				at launch, the field is monitored against a k-anonymity threshold, and the evidence
-				exports analysis-ready — with a codebook your statistician won't have to fix.
+				exports arrive ready for analysis, with a codebook your statistician won't have to fix.
 			</p>
 			<div class="hero-actions">
 				<a href="/register" class="btn btn-stain">Start a study</a>
@@ -101,7 +101,7 @@
 				<div class="device-head">
 					<div>
 						<span class="eyebrow">Study timeline</span>
-						<div class="doc-title device-title">Nurse workload — longitudinal, anonymous</div>
+						<div class="doc-title device-title">Nurse workload · longitudinal, anonymous</div>
 					</div>
 					<span class="chip chip-live"><span class="live-dot"></span>Collecting</span>
 				</div>
@@ -135,7 +135,7 @@
 						<span class="datum meter-k-label">k = 5</span>
 					</div>
 					<span class="meter-verdict">
-						Reportable — <span class="datum" data-fx="count">12 of 14</span> units above threshold
+						Reportable: <span class="datum" data-fx="count">12 of 14</span> units above threshold
 					</span>
 				</div>
 			</div>
@@ -151,7 +151,7 @@
 			</div>
 			<div>
 				<span class="eyebrow">GDPR-native</span>
-				<p>Purpose, retention, and lawful basis are declared in the protocol — not in a PDF afterthought.</p>
+				<p>Purpose, retention, and lawful basis are declared in the protocol, not in a PDF afterthought.</p>
 			</div>
 			<div>
 				<span class="eyebrow">k-anonymity</span>
@@ -159,7 +159,7 @@
 			</div>
 			<div>
 				<span class="eyebrow">Consent records</span>
-				<p>Versioned consent text, timestamped agreement — ready for your IRB or ethics board.</p>
+				<p>Versioned consent text and timestamped agreement, ready for your IRB or ethics board.</p>
 			</div>
 		</div>
 	</section>
@@ -172,7 +172,7 @@
 			<h2 class="doc-title">Declared once. Locked at launch.</h2>
 			<p>
 				A study begins as a document: the instrument you hold the rights to, the identity mode,
-				the consent text, the scoring rules. When you launch, the protocol locks — what you
+				the consent text, the scoring rules. When you launch, the protocol locks. What you
 				report later is exactly what you declared.
 			</p>
 			<p>
@@ -188,7 +188,7 @@
 			<div class="spec-rows">
 				<div><span class="datum n">01</span><span class="k">Design</span><span>Longitudinal, 4 waves, 14 units</span></div>
 				<div><span class="datum n">02</span><span class="k">Instrument</span><span>Tenant-provided, <span class="datum">22</span> items · <span class="datum">3</span> subscales · <span class="datum">v2.1</span></span></div>
-				<div><span class="datum n">03</span><span class="k">Identity</span><span>Anonymous — self-generated codes</span></div>
+				<div><span class="datum n">03</span><span class="k">Identity</span><span>Anonymous · self-generated codes</span></div>
 				<div><span class="datum n">04</span><span class="k">Consent</span><span>Version <span class="datum">3</span> · ethics ref <span class="datum">2026-114</span></span></div>
 				<div><span class="datum n">05</span><span class="k">Scoring</span><span>Subscale means · reverse-keys declared · k = <span class="datum">5</span></span></div>
 			</div>
@@ -202,7 +202,7 @@
 			<div class="ch-row"><span class="datum ch bright">02</span><span class="eyebrow dim">Field</span></div>
 			<h2 class="doc-title console-h">Watch coverage, not people.</h2>
 			<p class="console-lede">
-				Open links or email invitations — the console shows what a defensible dataset needs:
+				Share open links or send email invitations. The console shows what a defensible dataset needs:
 				response counts, unit coverage against the k threshold, and nothing that identifies an
 				individual.
 			</p>
@@ -232,12 +232,12 @@
 
 			<div class="meters">
 				<div class="row">
-					<span class="unit">Ward B — nights</span>
+					<span class="unit">Ward B, nights</span>
 					<div class="track"><div class="fill" data-fx="fill" style="width: 78%"></div><div class="k"></div></div>
 					<span class="datum reading">n = 25 · reportable</span>
 				</div>
 				<div class="row">
-					<span class="unit">Ward C — days</span>
+					<span class="unit">Ward C, days</span>
 					<div class="track"><div class="fill" data-fx="fill" style="width: 56%"></div><div class="k"></div></div>
 					<span class="datum reading">n = 18 · reportable</span>
 				</div>
@@ -250,7 +250,7 @@
 
 			<div class="console-live">
 				<span class="pulse-dot"></span>
-				<span>Collecting — the console updates as responses arrive. Individuals never appear.</span>
+				<span>Collecting. The console updates as responses arrive, and individuals never appear.</span>
 			</div>
 		</div>
 	</section>
@@ -259,7 +259,7 @@
 	<section id="evidence" class="split evidence">
 		<span aria-hidden="true" class="datum ghost-number ghost-right">03</span>
 		<div class="panel results">
-			<div class="doc-title spec-title">Subscale scores — wave 3</div>
+			<div class="doc-title spec-title">Subscale scores · wave 3</div>
 			<div class="datum results-meta">n = 412 · 3 scores · 1 unit suppressed · k = 5 · scoring v2.1</div>
 			<div class="results-table">
 				<div class="thead">
@@ -269,7 +269,7 @@
 				<div class="trow"><span>Demands</span><span class="datum num">412</span><span class="datum num">3.42</span><span class="datum num delta">+0.11</span></div>
 				<div class="trow"><span>Control</span><span class="datum num">409</span><span class="datum num">3.87</span><span class="datum num delta">−0.04</span></div>
 				<div class="trow"><span>Support</span><span class="datum num">411</span><span class="datum num">4.05</span><span class="datum num delta">+0.19</span></div>
-				<div class="suppressed-note">Outpatient — suppressed, below reporting threshold (k = 5)</div>
+				<div class="suppressed-note">Outpatient: suppressed, below reporting threshold (k = 5)</div>
 			</div>
 			<div class="results-files">
 				<span class="datum file">scores_w3_v2.1.csv</span>
@@ -281,12 +281,12 @@
 			<div class="ch-row"><span class="datum ch">03</span><span class="eyebrow">Evidence</span></div>
 			<h2 class="doc-title">Results your statistician can cite.</h2>
 			<p>
-				Scores are computed by the locked scoring rules and versioned — re-open a study in two
-				years and get the same numbers. Waves compare side by side, linked by participant codes
+				Scores are computed by the locked scoring rules and versioned. Re-open a study in two
+				years and you get the same numbers. Waves compare side by side, linked by participant codes
 				no one can reverse.
 			</p>
 			<p>
-				Exports arrive analysis-ready: clean CSV, SPSS-friendly labels, and a codebook that
+				Exports arrive ready for analysis: clean CSV, labels SPSS understands, and a codebook that
 				documents every variable, recode, and suppression.
 			</p>
 		</div>
@@ -302,7 +302,7 @@
 					<div class="aud-sub">Occupational health · ergonomics · psychology</div>
 				</div>
 				<p>
-					Anonymous longitudinal linking via self-generated codes, IRB-friendly consent records,
+					Anonymous longitudinal linking via self-generated codes, consent records your IRB will accept,
 					and exports that go straight into analysis. EU hosting means no data-processing
 					agreement odyssey.
 				</p>
@@ -314,7 +314,7 @@
 				</div>
 				<p>
 					White-label workspaces per client, legally mandated assessments run to protocol, and
-					compliance-ready reports with the suppression rules written in — defensible in front
+					reports with the suppression rules written in, ready for compliance review and defensible in front
 					of any works council.
 				</p>
 			</div>
@@ -324,7 +324,7 @@
 					<div class="aud-sub">Hospitals · HR · continuous monitoring</div>
 				</div>
 				<p>
-					Wave-over-wave monitoring on dashboards that are k-protected by construction — nobody,
+					Monitoring wave over wave, on dashboards where the protection is structural: nobody,
 					including you, can re-identify an individual from a report.
 				</p>
 			</div>
@@ -335,7 +335,7 @@
 			<div class="more-grid">
 				<div>
 					<div class="doc-title more-t">Universities &amp; student affairs</div>
-					<p>Student wellbeing pulses, course evaluations, PhD-programme monitoring — anonymous by construction, so students actually answer.</p>
+					<p>Student wellbeing pulses, course evaluations, PhD programme monitoring. The anonymity is structural, so students actually answer.</p>
 				</div>
 				<div>
 					<div class="doc-title more-t">HR &amp; people teams</div>
@@ -347,7 +347,7 @@
 				</div>
 				<div>
 					<div class="doc-title more-t">Public sector</div>
-					<p>Workforce stress monitoring for police, emergency services, schools — procurement-grade governance, EU-hosted.</p>
+					<p>Workforce stress monitoring for police, emergency services and schools, with governance that survives procurement. EU-hosted.</p>
 				</div>
 				<div>
 					<div class="doc-title more-t">Consultancies &amp; agencies</div>
@@ -358,7 +358,7 @@
 					<p>If you measure the same people twice and need to link answers without knowing names, this is the instrument for it.</p>
 				</div>
 			</div>
-			<p class="more-note">Bring any questionnaire you have the right to use — the platform runs it with the same rigor.</p>
+			<p class="more-note">Bring any questionnaire you have the right to use. The platform runs it with the same rigor.</p>
 		</div>
 	</section>
 
@@ -373,8 +373,8 @@
 				inflate completion.
 			</p>
 			<p>
-				In anonymous studies they build their own participant code from stable personal facts —
-				it links their waves without ever identifying them.
+				In anonymous studies they build their own participant code from stable personal facts.
+				It links their waves without ever identifying them.
 			</p>
 		</div>
 		<div class="panel sheet">
@@ -388,7 +388,7 @@
 				<span class="check">✓</span>
 				<span>I have read the above and agree to take part</span>
 			</div>
-			<div class="btn btn-stain begin">Begin — 22 items</div>
+			<div class="btn btn-stain begin">Begin · 22 items</div>
 			<div class="sheet-progress">
 				<div class="rail-h progress-rail"></div>
 				<span class="datum">8 / 22</span>
@@ -408,17 +408,17 @@
 			</div>
 			<div>
 				<div class="doc-title tier">Research group</div>
-				<p>Longitudinal studies, collaborator seats, grant-friendly invoicing.</p>
+				<p>Longitudinal studies, collaborator seats, invoicing that fits grant budgets.</p>
 				<span class="datum price">€ — / year</span>
 			</div>
 			<div>
 				<div class="doc-title tier">Consultancy</div>
-				<p>White-label client workspaces and compliance-ready reporting.</p>
+				<p>White-label client workspaces and reports that stand up to compliance review.</p>
 				<span class="datum price">€ — / client</span>
 			</div>
 		</div>
 		<p class="price-note">
-			Pricing is being finalised with pilot partners —
+			Pricing is being finalised with pilot partners, so
 			<a href="/register">ask us for current numbers</a>.
 		</p>
 	</section>
@@ -430,8 +430,8 @@
 				<span class="eyebrow eyebrow-stain">For your next proposal</span>
 				<h2 class="doc-title">Write us into your next grant.</h2>
 				<p>
-					We'll give you a methods-section-ready description of the platform — data flows,
-					anonymity model, consent handling, hosting — plus a signed DPA and whatever your
+					We'll give you a description of the platform ready to paste into your methods section: data flows,
+					anonymity model, consent handling, hosting. Plus a signed DPA and whatever your
 					ethics board asks for.
 				</p>
 			</div>
