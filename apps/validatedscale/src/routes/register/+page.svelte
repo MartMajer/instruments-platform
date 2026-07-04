@@ -61,7 +61,7 @@
 				email: email.trim(),
 				organizationName: organizationName.trim(),
 				accessCode: accessCode.trim(),
-				returnUrl: `${location.origin}/register`
+				returnUrl: `${location.origin}/app`
 			});
 			location.assign(resolveApiUrl(env, response.loginUrl));
 		} catch (cause) {
