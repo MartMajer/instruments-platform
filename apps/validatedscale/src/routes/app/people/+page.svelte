@@ -142,6 +142,17 @@
 	let groupFilter = $state('');
 	let emailFilter = $state<'all' | 'with' | 'without'>('all');
 	let sortBy = $state<'name' | 'email' | 'group'>('name');
+	let hideSampleRespondents = $state(true);
+
+	/** Sample studies seed subjects flagged `sample_study` in attributes; older seeds only carry the name prefix. */
+	function isSampleRespondent(subject: SubjectDirectoryResponse['subjects'][number]): boolean {
+		try {
+			if (JSON.parse(subject.attributes || '{}')?.sample_study === true) return true;
+		} catch {
+			// malformed attributes — fall through to the name check
+		}
+		return (subject.displayName ?? '').startsWith('Sample respondent');
+	}
 
 	const groupOptions = $derived.by(() => {
 		const names = new Set<string>();
@@ -154,6 +165,7 @@
 	const filtered = $derived.by(() => {
 		const term = search.trim().toLowerCase();
 		const rows = (directory?.subjects ?? []).filter((subject) => {
+			if (hideSampleRespondents && isSampleRespondent(subject)) return false;
 			if (groupFilter && !subject.groups.some((g) => g.groupName === groupFilter)) return false;
 			if (emailFilter === 'with' && !subject.email) return false;
 			if (emailFilter === 'without' && subject.email) return false;
@@ -294,6 +306,10 @@
 			<option value="email">{t('Sort by email')}</option>
 			<option value="group">{t('Sort by group')}</option>
 		</select>
+		<label class="sample-filter">
+			<input type="checkbox" bind:checked={hideSampleRespondents} />
+			{t('Hide sample respondents')}
+		</label>
 		<span class="datum showing">{formatCount(filtered.length)} {t('shown')}</span>
 	</div>
 {/if}
@@ -461,6 +477,14 @@
 		border: 1px solid var(--color-line-2);
 		border-radius: var(--radius-instrument);
 		background: var(--color-surface);
+	}
+
+	.sample-filter {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
 	}
 
 	.showing {
