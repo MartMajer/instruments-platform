@@ -193,6 +193,37 @@
 		<p class="shot-caption datum">The protocol a researcher writes, and the sheet a respondent sees. Synthetic data.</p>
 	</section>
 
+	<!-- ============ Works with your stack ============ -->
+	<section class="stack" aria-label="Integrations">
+		<span class="eyebrow">Works with what you already use</span>
+		<div class="stack-grid">
+			<div class="stack-tile">
+				<span class="stack-name">Microsoft Entra ID</span>
+				<p>Your people sign in with their workplace account. No new passwords to manage.</p>
+			</div>
+			<div class="stack-tile">
+				<span class="stack-name">Microsoft 365 directory</span>
+				<p>Import people and groups from your organization's directory, with admin consent.</p>
+			</div>
+			<div class="stack-tile">
+				<span class="stack-name">Email invitations</span>
+				<p>Invitations and reminders from a verified sender domain, with delivery tracking.</p>
+			</div>
+			<div class="stack-tile">
+				<span class="stack-name">CSV import</span>
+				<p>Bring a cohort from any spreadsheet. Preview first, import when the rows are clean.</p>
+			</div>
+			<div class="stack-tile">
+				<span class="stack-name">SPSS · R · Stata</span>
+				<p>Exports ship with a codebook that documents every variable, so any stats tool reads them.</p>
+			</div>
+			<div class="stack-tile">
+				<span class="stack-name">Your questionnaire</span>
+				<p>Any instrument you hold the rights to imports as a first-class citizen.</p>
+			</div>
+		</div>
+	</section>
+
 	<!-- ============ 01 Protocol ============ -->
 	<section id="protocol" class="split">
 		<span aria-hidden="true" class="datum ghost-number">01</span>
@@ -425,6 +456,58 @@
 		</div>
 	</section>
 
+	<!-- ============ Security posture ============ -->
+	<section class="posture" aria-label="Security and compliance">
+		<span class="eyebrow">Security posture, in plain words</span>
+		<h2 class="doc-title posture-h">No badges. Mechanisms.</h2>
+		<div class="posture-grid">
+			<div class="posture-tile">
+				<span class="datum posture-k">EU</span>
+				<span class="posture-name">Data residency</span>
+				<p>Stored and processed in the EU, full stop.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">RLS</span>
+				<span class="posture-name">Tenant isolation</span>
+				<p>Row-level security in the database, failing closed. One workspace can never read another.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">k ≥ 5</span>
+				<span class="posture-name">Anonymity floor</span>
+				<p>The reporting threshold can be raised, never lowered. It is a constraint in the engine, not a setting.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">v1 · v2</span>
+				<span class="posture-name">Consent evidence</span>
+				<p>Every consent text is versioned; every agreement is timestamped against its exact version.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">2y →</span>
+				<span class="posture-name">Retention, automated</span>
+				<p>Each study declares how long data lives and what happens then. Anonymization is the default.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">log</span>
+				<span class="posture-name">Audit trail</span>
+				<p>Who did what and when, recorded across setup, launch, collection and export.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">Art. 17</span>
+				<span class="posture-name">Right to erasure</span>
+				<p>A built-in withdrawal workflow: requests are tracked, approved and executed, not emailed around.</p>
+			</div>
+			<div class="posture-tile">
+				<span class="datum posture-k">DPA</span>
+				<span class="posture-name">Paperwork</span>
+				<p>A signed data-processing agreement and a methods description for your ethics board, on request.</p>
+			</div>
+		</div>
+		<p class="posture-note">
+			Formal certifications are on our roadmap. The mechanisms above are in the product today,
+			and we would rather show you how they work than show you a logo.
+		</p>
+	</section>
+
 	<!-- ============ Pricing ============ -->
 	<section id="pricing" class="pricing">
 		<span class="eyebrow">Pricing</span>
@@ -475,9 +558,31 @@
 	</section>
 
 	<footer>
+		<div class="footer-cols">
+			<div class="footer-brand">
+				<span class="eyebrow">ValidatedScale</span>
+				<span class="tagline">Your validated instruments, run rigorously.</span>
+			</div>
+			<div>
+				<span class="eyebrow footer-h">Product</span>
+				<a href="#protocol">Protocol</a>
+				<a href="#field">Field</a>
+				<a href="#evidence">Evidence</a>
+				<a href="#pricing">Pricing</a>
+			</div>
+			<div>
+				<span class="eyebrow footer-h">Trust</span>
+				<a href="#contact">Data processing agreement</a>
+				<a href="#contact">Methods description</a>
+				<a href="#contact">Ethics board support</a>
+			</div>
+			<div>
+				<span class="eyebrow footer-h">Contact</span>
+				<a href="/register">Request access</a>
+				<a href="mailto:majeric.martin@gmail.com">Email the founders</a>
+			</div>
+		</div>
 		<div class="footer-inner">
-			<span class="eyebrow">ValidatedScale</span>
-			<span class="tagline">Your validated instruments, run rigorously.</span>
 			<span class="datum footer-note">EU-hosted · GDPR · k-anonymity enforced</span>
 		</div>
 	</footer>
@@ -1475,6 +1580,144 @@
 		font-size: 0.75rem;
 		color: var(--color-ink-3);
 		text-align: center;
+	}
+
+	/* stack + posture */
+	.stack {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 0 1.5rem 4rem;
+	}
+
+	.stack-grid {
+		margin-top: 1.25rem;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1px;
+		background: var(--color-line);
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-instrument);
+		overflow: hidden;
+	}
+
+	.stack-tile {
+		background: var(--color-surface);
+		padding: 1.25rem 1.5rem;
+	}
+
+	.stack-name {
+		font-weight: 600;
+		font-size: 0.9375rem;
+	}
+
+	.stack-tile p {
+		margin-top: 0.375rem;
+		font-size: 0.8125rem;
+		line-height: 1.55;
+		color: var(--color-ink-2);
+	}
+
+	.posture {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 2rem 1.5rem 4.5rem;
+	}
+
+	.posture-h {
+		font-size: 2rem;
+		margin: 0.875rem 0 1.5rem;
+	}
+
+	.posture-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 2rem 2.5rem;
+		border-top: 1px solid var(--color-line);
+		padding-top: 2rem;
+	}
+
+	.posture-k {
+		display: inline-block;
+		font-size: 0.8125rem;
+		color: var(--color-stain);
+		border: 1px solid var(--color-stain-line);
+		border-radius: 3px;
+		padding: 0.1875rem 0.4375rem;
+		background: var(--color-stain-wash);
+	}
+
+	.posture-name {
+		display: block;
+		margin-top: 0.625rem;
+		font-weight: 600;
+		font-size: 0.9375rem;
+	}
+
+	.posture-tile p {
+		margin-top: 0.375rem;
+		font-size: 0.8125rem;
+		line-height: 1.55;
+		color: var(--color-ink-2);
+	}
+
+	.posture-note {
+		margin-top: 2.25rem;
+		font-size: 0.875rem;
+		color: var(--color-ink-3);
+		max-width: 56ch;
+	}
+
+	.footer-cols {
+		max-width: 74rem;
+		margin: 0 auto;
+		padding: 2.5rem 1.5rem 1rem;
+		display: grid;
+		grid-template-columns: 2fr 1fr 1fr 1fr;
+		gap: 2rem;
+	}
+
+	.footer-brand {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.footer-cols a {
+		display: block;
+		font-size: 0.875rem;
+		color: var(--color-ink-2);
+		text-decoration: none;
+		padding: 0.1875rem 0;
+	}
+
+	.footer-cols a:hover {
+		color: var(--color-stain);
+	}
+
+	.footer-h {
+		display: block;
+		margin-bottom: 0.5rem;
+	}
+
+	@media (max-width: 62rem) {
+		.stack-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.posture-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.footer-cols {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+
+	@media (max-width: 44rem) {
+		.stack-grid,
+		.posture-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 
 	/* footer */
