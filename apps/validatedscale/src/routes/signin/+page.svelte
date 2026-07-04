@@ -7,6 +7,7 @@
 		rememberLastWorkspaceEmail
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
+	import { problemMessage } from '$lib/core/problem';
 
 	const registration = createRegistrationApi(api());
 	const devAuth = env.PUBLIC_DEV_AUTH_ENABLED === 'true';
@@ -40,7 +41,13 @@
 			} else if (cause instanceof ApiError && cause.status === 429) {
 				error = 'Too many attempts. Wait a minute, then try again.';
 			} else {
-				error = 'Sign-in is unavailable right now. Try again shortly.';
+				error = problemMessage(
+					cause,
+					{
+						'registration.email_invalid': 'That email address does not look valid. Check it and try again.'
+					},
+					'Sign-in is unavailable right now. Try again shortly.'
+				);
 			}
 		}
 	}

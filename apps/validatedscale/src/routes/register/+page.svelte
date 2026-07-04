@@ -7,6 +7,7 @@
 		rememberLastWorkspaceEmail
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
+	import { problemMessage } from '$lib/core/problem';
 
 	const registration = createRegistrationApi(api());
 
@@ -32,13 +33,19 @@
 		if (cause instanceof ApiError && cause.status === 409) {
 			return 'This email already belongs to a workspace. Sign in instead.';
 		}
-		if (cause instanceof ApiError && cause.status === 403) {
-			return 'That access code was not accepted. Check it and try again.';
-		}
 		if (cause instanceof ApiError && cause.status === 429) {
 			return 'Too many attempts. Wait a minute, then try again.';
 		}
-		return 'Registration is unavailable right now. Try again shortly.';
+		return problemMessage(
+			cause,
+			{
+				'registration.invalid_access_code': 'That access code was not accepted. Check it and try again.',
+				'registration.email_invalid': 'That email address does not look valid. Check it and try again.',
+				'registration.organization_invalid': 'That organization name was not accepted. Try a plainer one.',
+				'registration.invalid_return_url': 'Something went wrong with the sign-in redirect. Reload the page and try again.'
+			},
+			'Registration is unavailable right now. Try again shortly.'
+		);
 	}
 
 	async function start(event: SubmitEvent) {

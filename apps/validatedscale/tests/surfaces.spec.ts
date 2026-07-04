@@ -68,3 +68,18 @@ test('gallery: NMQ loads 27 yes/no items with choice-map scoring', async ({ page
 	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
 	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({ timeout: 15_000 });
 });
+
+test('register: invalid access code gets an honest message, not a generic outage', async ({ page }) => {
+	await page.goto('/register');
+	await page.getByRole('heading', { name: 'Create a workspace' }).waitFor();
+	await page.fill('#email', 'someone@example.org');
+	await page.fill('#org', 'Test Org');
+	await page.fill('#code', 'definitely-wrong-code');
+	await page.getByRole('button', { name: 'Continue' }).click();
+	// the honest reason must surface (access-code message on staging, backend detail locally) —
+	// never the generic outage text this bug used to show
+	const error = page.locator('.error');
+	await expect(error).toBeVisible({ timeout: 15_000 });
+	await expect(error).not.toContainText('unavailable right now');
+	await expect(error).toContainText(/access code|not enabled/);
+});
