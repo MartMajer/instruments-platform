@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 
 	let root = $state<HTMLElement | null>(null);
-	let flow = $state<HTMLVideoElement | null>(null);
 
 	// Scroll-in effects ported from the approved landing design:
 	// fill (meters grow), draw (rail reveals), count (numbers count up).
@@ -47,9 +46,6 @@
 			{ threshold: 0.3 }
 		);
 		root.querySelectorAll('[data-fx]').forEach((el) => io.observe(el));
-
-		// (reduced-motion users already returned above, so the loop only plays here)
-		void flow?.play().catch(() => {});
 
 		return () => io.disconnect();
 	});
@@ -176,20 +172,13 @@
 					<span class="dot"></span><span class="dot"></span><span class="dot"></span>
 					<span class="datum browser-url">validatedscale.com/app</span>
 				</div>
-				<video
-					bind:this={flow}
-					muted
-					loop
-					playsinline
-					preload="metadata"
-					poster="/marketing/protocol.png"
-					width="1280"
-					height="720"
-					aria-label="A silent walkthrough: creating a wellbeing study, launching a round, answering it on a phone, and reading the evidence"
-				>
-					<source src="/marketing/flow.webm" type="video/webm" />
-					<source src="/marketing/flow.mp4" type="video/mp4" />
-				</video>
+				<img
+					src="/marketing/protocol.png"
+					alt="A study protocol in ValidatedScale: numbered chapters for design, instrument, scoring and policies, with the launch check in the margin"
+					loading="lazy"
+					width="1440"
+					height="860"
+				/>
 			</div>
 			<div class="phone">
 				<img
@@ -201,7 +190,7 @@
 				/>
 			</div>
 		</div>
-		<p class="shot-caption datum">One take: write the study, launch a round, answer it on a phone, read the evidence. Synthetic data.</p>
+		<p class="shot-caption datum">The protocol a researcher writes, and the sheet a respondent sees. Synthetic data.</p>
 	</section>
 
 	<!-- ============ 01 Protocol ============ -->
@@ -834,7 +823,7 @@
 		color: var(--color-ink-3);
 	}
 
-	.browser video {
+	.browser img {
 		display: block;
 		width: 100%;
 		height: auto;
