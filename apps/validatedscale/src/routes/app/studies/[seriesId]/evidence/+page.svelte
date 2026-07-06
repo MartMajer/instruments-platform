@@ -9,6 +9,7 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t } from '$lib/core/locale.svelte';
+	import { insightCopy } from '$lib/core/backend-copy';
 	import { downloadExportArtifact } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -132,7 +133,7 @@
 	{#if workspace}
 		<header class="head">
 			<p class="eyebrow">
-				<a href="/app/studies">Studies</a> /
+				<a href="/app/studies">{t('Studies')}</a> /
 				<a href={`/app/studies/${seriesId}`}>{workspace.series.name}</a>
 			</p>
 			<h1 class="doc-title">{t('Evidence')}</h1>
@@ -180,7 +181,7 @@
 											{:else}
 												<div class="bar-suppressed"></div>
 												<span class="datum bar-value suppressed-note">
-													suppressed{bar.suppressionReason ? ` — ${t(humanizeToken(bar.suppressionReason))}` : ''}
+													{t('suppressed')}{bar.suppressionReason ? ` — ${t(humanizeToken(bar.suppressionReason))}` : ''}
 												</span>
 											{/if}
 										</div>
@@ -199,10 +200,10 @@
 										<tr>
 											<th>{t('Dimension')}</th>
 											<th class="num">n</th>
-											<th class="num">Mean</th>
-											<th class="num">Median</th>
+											<th class="num">{t('Mean')}</th>
+											<th class="num">{t('Median')}</th>
 											<th class="num">SD</th>
-											<th class="num">Range</th>
+											<th class="num">{t('Range')}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -217,7 +218,7 @@
 													<td class="num datum">{fmt(row.min, 1)}–{fmt(row.max, 1)}</td>
 												{:else}
 													<td colspan="5" class="suppress-cell">
-														Suppressed — {t(humanizeToken(row.suppressionReason)) || 'below reporting threshold'}
+														{t('Suppressed')} — {t(humanizeToken(row.suppressionReason)) || t('below reporting threshold')}
 													</td>
 												{/if}
 											</tr>
@@ -274,7 +275,7 @@
 																</span>
 															{/if}
 														{:else}
-															<span class="suppress-cell">suppr.</span>
+															<span class="suppress-cell">{t('suppr.')}</span>
 														{/if}
 													</td>
 												{/each}
@@ -291,9 +292,10 @@
 							<h2 class="eyebrow">{t('Notes')}</h2>
 							<ul>
 								{#each analytics?.insights ?? [] as note (note.title)}
+									{@const copy = insightCopy(note)}
 									<li>
-										<strong>{note.title}</strong>
-										<p>{note.detail}</p>
+										<strong>{copy.title}</strong>
+										<p>{copy.detail}</p>
 									</li>
 								{/each}
 							</ul>
@@ -346,9 +348,9 @@
 			<div class="tooltip datum" style={`left: ${hover.x + 12}px; top: ${hover.y + 12}px`} role="status">
 				<strong>{hover.bar.label}</strong>
 				{#if hover.bar.value != null}
-					mean {fmt(hover.bar.value)}{#if hover.bar.count != null}&nbsp;· n = {hover.bar.count}{/if}
+					{t('mean')} {fmt(hover.bar.value)}{#if hover.bar.count != null}&nbsp;· n = {hover.bar.count}{/if}
 				{:else}
-					suppressed
+					{t('suppressed')}
 				{/if}
 			</div>
 		{/if}

@@ -249,9 +249,9 @@
 		<span class="eyebrow">{t('Microsoft Entra directory')}</span>
 		{#if graphState?.connected}
 			<p class="note">
-				Connected to <strong>{graphState.displayName}</strong>
+				{t('Connected to')} <strong>{graphState.displayName}</strong>
 				{#if graphState.primaryDomain}({graphState.primaryDomain}){/if}
-				· last import {formatDateTime(graphState.lastSuccessfulImportAt)}
+				· {t('last import')} {formatDateTime(graphState.lastSuccessfulImportAt)}
 			</p>
 			{#if graphRules && graphRules.rules.length > 0}
 				<ul class="graph-list">
@@ -262,7 +262,7 @@
 					{/each}
 				</ul>
 			{:else}
-				<p class="note">No import rules defined yet. Rules are created per group/scope after connection.</p>
+				<p class="note">{t('No import rules defined yet. Rules are created per group/scope after connection.')}</p>
 			{/if}
 			{#if graphRuns && graphRuns.runs.length > 0}
 				<ul class="graph-list">
@@ -270,7 +270,7 @@
 						<li>
 							<span class="datum graph-meta">
 								{formatDateTime(run.createdAt)} · {t(humanizeToken(run.status))} ·
-								{formatCount(run.importedRowCount)}/{formatCount(run.rowCount)} rows
+								{formatCount(run.importedRowCount)}/{formatCount(run.rowCount)} {t('rows')}
 							</span>
 						</li>
 					{/each}
@@ -290,7 +290,7 @@
 
 {#if loadState === 'ready'}
 	<div class="filters">
-		<select bind:value={groupFilter} aria-label="Filter by group">
+		<select bind:value={groupFilter} aria-label={t('All groups')}>
 			<option value="">{t('All groups')}</option>
 			{#each groupOptions as name (name)}
 				<option value={name}>{name}</option>
@@ -316,8 +316,10 @@
 
 <LoadState
 	state={loadState}
-	emptyTitle="Nobody here yet"
-	emptyBody="People are added by CSV import or a Microsoft directory connection, and are only needed for identified or invite-only studies. Anonymous open-link studies work without a directory."
+	emptyTitle={t('Nobody here yet')}
+	emptyBody={t(
+		'People are added by CSV import or a Microsoft directory connection, and are only needed for identified or invite-only studies. Anonymous open-link studies work without a directory.'
+	)}
 >
 	<div class="table-wrap">
 		<table>

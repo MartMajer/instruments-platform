@@ -44,6 +44,8 @@ export type WorkspaceCommandCenterItemResponse = {
 	campaignSeriesId: string | null;
 	campaignId: string | null;
 	requiredPermission: string | null;
+	/** Values the title/description were composed from, for localized recomposition. */
+	params?: Record<string, string> | null;
 };
 
 export type TenantSettingsWorkspaceResponse = {
@@ -1098,6 +1100,8 @@ export type CampaignSeriesResultsInsightResponse = {
 	severity: string;
 	title: string;
 	detail: string;
+	/** The one number the sentence was composed from (count or k), for localized recomposition. */
+	count?: number | null;
 };
 
 export type FinalityProvenanceWidgetData = {

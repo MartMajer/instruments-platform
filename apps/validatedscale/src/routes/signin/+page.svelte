@@ -8,6 +8,7 @@
 		resolveApiUrl
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
+	import { initLocale, localeState, setLocale, t } from '$lib/core/locale.svelte';
 	import { problemMessage } from '$lib/core/problem';
 
 	const registration = createRegistrationApi(api());
@@ -18,6 +19,7 @@
 	let error = $state<string | null>(null);
 
 	$effect(() => {
+		initLocale();
 		email = readLastWorkspaceEmail(globalThis.localStorage) || email;
 	});
 
@@ -38,16 +40,18 @@
 		} catch (cause) {
 			busy = false;
 			if (cause instanceof ApiError && cause.status === 404) {
-				error = 'No workspace uses this email. Check the address, or create a workspace.';
+				error = t('No workspace uses this email. Check the address, or create a workspace.');
 			} else if (cause instanceof ApiError && cause.status === 429) {
-				error = 'Too many attempts. Wait a minute, then try again.';
+				error = t('Too many attempts. Wait a minute, then try again.');
 			} else {
 				error = problemMessage(
 					cause,
 					{
-						'registration.email_invalid': 'That email address does not look valid. Check it and try again.'
+						'registration.email_invalid': t(
+							'That email address does not look valid. Check it and try again.'
+						)
 					},
-					'Sign-in is unavailable right now. Try again shortly.'
+					t('Sign-in is unavailable right now. Try again shortly.')
 				);
 			}
 		}
@@ -62,20 +66,19 @@
 	<main class="panel card">
 		{#if devAuth}
 			<div class="dev-gate">
-				<span class="eyebrow">Local development</span>
+				<span class="eyebrow">{t('Local development')}</span>
 				<p class="hint">
-					Dev auth is on — no real sign-in is configured locally. Enter the local workspace
-					directly.
+					{t('Dev auth is on — no real sign-in is configured locally. Enter the local workspace directly.')}
 				</p>
-				<a class="btn btn-stain dev-enter" href="/app">Enter local workspace</a>
+				<a class="btn btn-stain dev-enter" href="/app">{t('Enter local workspace')}</a>
 			</div>
 		{/if}
 
-		<h1 class="doc-title">Sign in</h1>
-		<p class="hint">Enter your work email and we take you to your workspace.</p>
+		<h1 class="doc-title">{t('Sign in')}</h1>
+		<p class="hint">{t('Enter your work email and we take you to your workspace.')}</p>
 
 		<form onsubmit={signIn}>
-			<label class="eyebrow" for="email">Email</label>
+			<label class="eyebrow" for="email">{t('Email')}</label>
 			<input
 				id="email"
 				type="email"
@@ -90,14 +93,19 @@
 			{/if}
 
 			<button class="btn btn-ink" type="submit" disabled={busy}>
-				{busy ? 'Opening workspace…' : 'Continue'}
+				{busy ? t('Opening workspace…') : t('Continue')}
 			</button>
 		</form>
 
 		<p class="alt">
-			New here? <a href="/register">Create a workspace</a>
+			{t('New here?')} <a href="/register">{t('Create a workspace')}</a>
 		</p>
 	</main>
+
+	<div class="lang" role="group" aria-label="Language / Jezik">
+		<button class:on={localeState.current === 'en'} onclick={() => setLocale('en')}>EN</button>
+		<button class:on={localeState.current === 'hr'} onclick={() => setLocale('hr')}>HR</button>
+	</div>
 </div>
 
 <style>
@@ -191,5 +199,28 @@
 
 	.alt a {
 		color: var(--color-stain);
+	}
+
+	.lang {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.lang button {
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 560;
+		letter-spacing: 0.04em;
+		padding: 0.25rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: none;
+		color: var(--color-ink-3);
+		cursor: pointer;
+	}
+
+	.lang button.on {
+		color: var(--color-stain);
+		border-color: var(--color-stain);
 	}
 </style>

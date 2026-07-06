@@ -28,7 +28,7 @@
 <svelte:head><title>New study — ValidatedScale</title></svelte:head>
 
 <header class="head">
-	<p class="eyebrow"><a href="/app/studies">Studies</a> / New</p>
+	<p class="eyebrow"><a href="/app/studies">{t('Studies')}</a> / {t('New')}</p>
 	<h1 class="doc-title">{t('Register a study')}</h1>
 	<p class="hint">
 		{t('A study holds one protocol: an instrument, an identity mode, policies, and one or more waves. Name it the way you would in the paper.')}
@@ -42,7 +42,7 @@
 		required
 		minlength="3"
 		bind:value={name}
-		placeholder="Nurse burnout and workload, three-wave cohort"
+		placeholder={t('Nurse burnout and workload, three-wave cohort')}
 	/>
 
 	{#if error}<p class="error" role="alert">{error}</p>{/if}

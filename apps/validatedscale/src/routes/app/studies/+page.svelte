@@ -99,8 +99,10 @@
 
 <LoadState
 	state={loadState}
-	emptyTitle="No studies yet"
-	emptyBody="A study pairs one instrument with a cohort and one or more waves. Create your first one, or add three example studies with prefilled waves and responses to explore the product."
+	emptyTitle={t('No studies yet')}
+	emptyBody={t(
+		'A study pairs one instrument with a cohort and one or more waves. Create your first one, or add three example studies with prefilled waves and responses to explore the product.'
+	)}
 >
 	{#each buckets as bucket (bucket.key)}
 		<section class="bucket">

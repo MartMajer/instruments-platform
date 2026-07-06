@@ -8,6 +8,7 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t } from '$lib/core/locale.svelte';
+	import { collectionGuidanceCopy, prerequisiteCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
 	import { confirmDialog } from '$lib/ui/dialog.svelte';
@@ -133,8 +134,8 @@
 	<div class="inner">
 		<header class="head">
 			<p class="eyebrow crumbs">
-				<a href="/app/studies">Studies</a> /
-				<a href={`/app/studies/${seriesId}`}>{workspace?.series.name ?? 'Study'}</a>
+				<a href="/app/studies">{t('Studies')}</a> /
+				<a href={`/app/studies/${seriesId}`}>{workspace?.series.name ?? t('Study')}</a>
 			</p>
 
 			<div class="title-row">
@@ -202,7 +203,13 @@
 				</div>
 			</section>
 
-			<p class="guidance">{workspace.summary.collectionGuidance}</p>
+			<p class="guidance">
+				{collectionGuidanceCopy(
+					workspace.summary.collectionStatus,
+					workspace.summary.reportVisibilityStatus,
+					workspace.summary.collectionGuidance
+				)}
+			</p>
 
 			{#if workspace.groupCoverage && workspace.groupCoverage.groups.length > 0}
 				<section class="coverage">
@@ -222,8 +229,8 @@
 					</div>
 					{#if workspace.groupCoverage.unattributedSubmittedCount > 0}
 						<p class="unattributed">
-							{formatCount(workspace.groupCoverage.unattributedSubmittedCount)} submissions
-							are not attributed to a group.
+							{formatCount(workspace.groupCoverage.unattributedSubmittedCount)}
+							{t('submissions are not attributed to a group.')}
 						</p>
 					{/if}
 				</section>
@@ -305,7 +312,7 @@
 					<h2 class="eyebrow dim-label">{t('Field notes')}</h2>
 					<ul>
 						{#each workspace.missingPrerequisites as item (item.code)}
-							<li>{item.message}</li>
+							<li>{prerequisiteCopy(item.code, item.message).text}</li>
 						{/each}
 					</ul>
 				</section>

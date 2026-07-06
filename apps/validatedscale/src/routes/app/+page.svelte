@@ -3,6 +3,7 @@
 	import { createProductApi, type WorkspaceOverviewResponse } from '$lib/api/product';
 	import { api } from '$lib/core/client';
 	import { localeState, t } from '$lib/core/locale.svelte';
+	import { commandCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import { mapPlatformRoute } from '$lib/core/routes';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -65,7 +66,7 @@
 				{t('Your workspace is ready.')}
 			{/if}
 		{:else}
-			Today
+			{t('Today')}
 		{/if}
 	</h1>
 </header>
@@ -80,10 +81,11 @@
 				{:else}
 					<ol class="attention">
 						{#each attention as item (item.id)}
+							{@const copy = commandCopy(item)}
 							<li>
 								<div>
-									<strong>{item.title}</strong>
-									<p>{item.description}</p>
+									<strong>{copy.title}</strong>
+									<p>{copy.description}</p>
 								</div>
 								<a class="btn btn-ghost" href={mapPlatformRoute(item.route)}>{t(item.actionLabel)}</a>
 							</li>

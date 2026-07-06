@@ -61,8 +61,10 @@
 
 <LoadState
 	state={loadState}
-	emptyTitle="No exports yet"
-	emptyBody="Exports are queued from a study's Evidence page — responses CSV with codebook, results matrix, or report PDF."
+	emptyTitle={t('No exports yet')}
+	emptyBody={t(
+		"Exports are queued from a study's Evidence page — responses CSV with codebook, results matrix, or report PDF."
+	)}
 >
 	{#if library}
 		<div class="table-wrap">

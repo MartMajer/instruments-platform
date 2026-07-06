@@ -337,7 +337,7 @@
 	<div class="row">
 		<div class="field grow">
 			<label class="eyebrow" for="tpl-name">{t('Questionnaire name')}</label>
-			<input id="tpl-name" bind:value={templateName} placeholder={`${seriesName} questionnaire`} />
+			<input id="tpl-name" bind:value={templateName} placeholder={`${seriesName} ${t('questionnaire')}`} />
 		</div>
 		<div class="field">
 			<label class="eyebrow" for="tpl-locale">{t('Language')}</label>
@@ -397,10 +397,10 @@
 					class="grow"
 					bind:value={item.text}
 					placeholder={item.kind === 'likert'
-						? 'Statement the respondent rates on the scale'
+						? t('Statement the respondent rates on the scale')
 						: item.kind === 'text'
-							? 'Open question (free text, optional)'
-							: 'Question with answer options'}
+							? t('Open question (free text, optional)')
+							: t('Question with answer options')}
 					aria-label={`Item ${index + 1} text`}
 				/>
 				<select bind:value={item.kind} aria-label={`Item ${index + 1} type`}>
@@ -410,7 +410,7 @@
 					<option value="text">{t('Open text')}</option>
 				</select>
 				{#if item.kind === 'likert'}
-					<label class="reverse" class:on={item.reverse} title="Reverse-coded item">
+					<label class="reverse" class:on={item.reverse} title={t('Reverse-coded item')}>
 						<input type="checkbox" bind:checked={item.reverse} />
 						R
 					</label>
@@ -428,7 +428,7 @@
 				<input
 					class="options-input"
 					bind:value={item.options}
-					placeholder="Options, comma-separated — Day shift, Night shift, Rotating"
+					placeholder={t('Options, comma-separated — Day shift, Night shift, Rotating')}
 					aria-label={`Item ${index + 1} options`}
 				/>
 			{/if}
@@ -442,12 +442,16 @@
 
 	<div class="actions">
 		<button class="btn btn-stain" type="submit" disabled={busy || validItems.length === 0}>
-			{busy ? (step ?? 'Working…') : revise ? `Publish revised version (${validItems.length} items)` : `Create questionnaire (${validItems.length} items)`}
+			{busy
+				? (step ?? t('Working…'))
+				: revise
+					? `${t('Publish revised version')} (${validItems.length} ${t('items')})`
+					: `${t('Create questionnaire')} (${validItems.length} ${t('items')})`}
 		</button>
 		<p class="note">
 			{revise
-				? 'Publishes a new version and attaches it — waves already launched keep the version they launched with.'
-				: `Creates the questionnaire, publishes it, binds a ${calculation} score with reverse-coding, and attaches it to this study.`}
+				? t('Publishes a new version and attaches it — waves already launched keep the version they launched with.')
+				: `${t('Creates the questionnaire, publishes it, binds the score with reverse-coding, and attaches it to this study.')} (${calculation === 'mean' ? t('Mean of items') : t('Sum of items')})`}
 		</p>
 	</div>
 </form>

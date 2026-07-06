@@ -9,6 +9,7 @@
 	import { createSetupApi, type LaunchReadinessResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t, waveWord } from '$lib/core/locale.svelte';
+	import { prerequisiteCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import Composer from '$lib/protocol/Composer.svelte';
 	import { confirmDialog, promptDialog } from '$lib/ui/dialog.svelte';
@@ -268,22 +269,7 @@
 	}
 
 	/** Backend prerequisites speak backend ("campaign"); translate + point at the right chapter. */
-	function prerequisiteHint(code: string, message: string): { text: string; anchor: string | null } {
-		const lowered = `${code} ${message}`.toLowerCase();
-		if (lowered.includes('campaign')) {
-			return { text: t('This study has no wave yet. Add one in chapter 05 — Waves.'), anchor: '#waves' };
-		}
-		if (lowered.includes('template') || lowered.includes('instrument') || lowered.includes('question')) {
-			return { text: t('No instrument is attached yet. Compose or pick one in chapter 02 — Instrument.'), anchor: '#instrument' };
-		}
-		if (lowered.includes('scoring')) {
-			return { text: t('No scoring rule is bound. It is created with the questionnaire in chapter 02.'), anchor: '#instrument' };
-		}
-		if (lowered.includes('consent') || lowered.includes('retention') || lowered.includes('disclosure')) {
-			return { text: message, anchor: '#policies' };
-		}
-		return { text: message, anchor: null };
-	}
+	const prerequisiteHint = prerequisiteCopy;
 
 	function policyDetail(details: { label: string; value: string }[] | null | undefined, label: string): string | null {
 		return details?.find((d) => d.label.toLowerCase() === label.toLowerCase())?.value ?? null;
@@ -303,7 +289,7 @@
 	{#if hub && workspace}
 		<header class="head">
 			<p class="eyebrow">
-				<a href="/app/studies">Studies</a> / Protocol
+				<a href="/app/studies">{t('Studies')}</a> / {t('Protocol')}
 			</p>
 			<h1 class="doc-title">{hub.name}</h1>
 			<p class="datum registered">
@@ -355,8 +341,8 @@
 						</dl>
 					{:else if hub.campaigns.length > 0}
 						<p class="prose">
-							All {formatCount(hub.campaigns.length)} waves of this study have been launched.
-							Design settings are locked in each wave's snapshot.
+							{t('All waves of this study have been launched.')}
+							{t("Design settings are locked in each wave's snapshot.")}
 						</p>
 					{:else}
 						<p class="prose">
@@ -372,7 +358,7 @@
 					</p>
 					{#if hub.campaigns.some((c) => c.status.toLowerCase() === 'live')}
 						<p class="prose">
-							<a href={`/app/studies/${seriesId}/field`}>Open Field →</a>
+							<a href={`/app/studies/${seriesId}/field`}>{t('Open Field')} →</a>
 						</p>
 					{/if}
 				</section>
@@ -423,7 +409,7 @@
 									{/each}
 								</ol>
 							{:else}
-								<p class="prose">Loading items…</p>
+								<p class="prose">{t('Loading items…')}</p>
 							{/if}
 						{/if}
 					{:else}
@@ -467,7 +453,7 @@
 
 					<div class="consent-card">
 						<div class="policy-head">
-							<span class={policyChip(workspace.policies.consent.status)}>Consent</span>
+							<span class={policyChip(workspace.policies.consent.status)}>{t('Consent')}</span>
 							{#if workspace.policies.consent.version}
 								<span class="datum quiet">v{workspace.policies.consent.version}</span>
 							{/if}
@@ -511,8 +497,9 @@
 									{consentBusy ? t('Publishing…') : t('Publish — retires the current version')}
 								</button>
 								<p class="consent-hint">
-									Launched waves keep the consent version they launched with; this version binds
-									to waves launched after publishing. Grants carry over unchanged.
+									{t(
+										'Launched waves keep the consent version they launched with; this version binds to waves launched after publishing. Grants carry over unchanged.'
+									)}
 								</p>
 							</form>
 						{/if}
@@ -591,15 +578,15 @@
 						<form class="add-wave" onsubmit={addWave}>
 							<input
 								bind:value={waveName}
-								placeholder={`Wave ${(hub.campaigns.length ?? 0) + 1} — e.g. Baseline`}
-								aria-label="New wave name"
+								placeholder={`${t('Wave')} ${(hub.campaigns.length ?? 0) + 1} — ${t('e.g. Baseline')}`}
+								aria-label={t('New wave name')}
 							/>
-							<select bind:value={waveIdentityMode} aria-label="Identity mode">
-								<option value="anonymous">Anonymous</option>
-								<option value="anonymous_longitudinal">Anonymous longitudinal</option>
-								<option value="identified">Identified</option>
+							<select bind:value={waveIdentityMode} aria-label={t('Identity mode')}>
+								<option value="anonymous">{t('Anonymous')}</option>
+								<option value="anonymous_longitudinal">{t('Anonymous longitudinal')}</option>
+								<option value="identified">{t('Identified')}</option>
 							</select>
-							<select bind:value={waveLocale} aria-label="Wave language">
+							<select bind:value={waveLocale} aria-label={t('Wave language')}>
 								<option value="en">English</option>
 								<option value="hr-HR">Hrvatski</option>
 							</select>
