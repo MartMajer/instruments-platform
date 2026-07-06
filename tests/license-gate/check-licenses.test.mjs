@@ -119,15 +119,14 @@ describe('dependency discovery helpers', () => {
     assert.match(markdown, /MIT/);
   });
 
-  it('lists NuGet packages without running a second implicit restore', () => {
+  it('lists NuGet packages including transitives as JSON', () => {
     assert.deepEqual(buildDotnetListPackageArgs('/repo/Platform.slnx'), [
       'list',
       '/repo/Platform.slnx',
       'package',
       '--include-transitive',
       '--format',
-      'json',
-      '--no-restore'
+      'json'
     ]);
   });
 });
