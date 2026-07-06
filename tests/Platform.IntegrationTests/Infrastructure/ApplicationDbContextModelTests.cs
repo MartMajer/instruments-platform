@@ -40,7 +40,7 @@ public sealed class ApplicationDbContextModelTests
 
         using var db = new ApplicationDbContext(options);
 
-        var entity = db.Model.FindEntityType(typeof(Tenant));
+        var entity = db.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(Tenant));
 
         Assert.NotNull(entity);
         Assert.Equal("tenant", entity.GetTableName());

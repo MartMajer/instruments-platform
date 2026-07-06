@@ -2,7 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Platform.Infrastructure.Data;
 
 namespace Platform.IntegrationTests.Api;
 
@@ -488,8 +493,7 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
             {
                 var settings = new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:PlatformDb"] =
-                        "Host=127.0.0.1;Port=1;Database=health_unavailable;Username=platform_app;Password=SuperSecretPassword123;Timeout=1;Command Timeout=1",
+                    ["ConnectionStrings:PlatformDb"] = UnreachableConnectionString,
                     ["Authentication:Dev:Enabled"] = developmentAuthEnabled.ToString(),
                     ["Authentication:Oidc:InteractiveEnabled"] = oidcInteractiveEnabled.ToString()
                 };
@@ -578,8 +582,21 @@ public sealed class HealthEndpointTests(WebApplicationFactory<Program> factory)
 
                 configuration.AddInMemoryCollection(settings);
             });
+            builder.ConfigureTestServices(services =>
+            {
+                // With minimal hosting, the in-memory configuration above is applied before the
+                // app's own appsettings JSON providers, so a running local dev database would win
+                // over the unreachable connection string. Overriding the DbContext registration
+                // makes the unreachable database deterministic regardless of provider ordering.
+                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+                services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseNpgsql(UnreachableConnectionString));
+            });
         }).CreateClient();
     }
+
+    private const string UnreachableConnectionString =
+        "Host=127.0.0.1;Port=1;Database=health_unavailable;Username=platform_app;Password=SuperSecretPassword123;Timeout=1;Command Timeout=1";
 
     private static string CreateNonTempObjectStoreRoot()
     {
