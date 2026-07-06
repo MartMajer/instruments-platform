@@ -41,7 +41,10 @@ public sealed record WorkspaceCommandCenterItemResponse(
     int Priority,
     Guid? CampaignSeriesId = null,
     Guid? CampaignId = null,
-    string? RequiredPermission = null);
+    string? RequiredPermission = null,
+    // Values the Title/Description sentences were composed from, so localized
+    // clients can recompose them per locale instead of showing English.
+    IReadOnlyDictionary<string, string>? Params = null);
 
 public sealed record TenantSettingsWorkspaceResponse(
     TenantSettingsProfileResponse Profile,
@@ -925,7 +928,10 @@ public sealed record CampaignSeriesResultsInsightResponse(
     string Kind,
     string Severity,
     string Title,
-    string Detail);
+    string Detail,
+    // The one number the Title/Detail sentence was composed from (count or k),
+    // so localized clients can recompose the sentence per locale.
+    int? Count = null);
 
 public sealed record FinalityProvenanceWidgetDataResponse(
     int PreliminaryLiveReportCount,

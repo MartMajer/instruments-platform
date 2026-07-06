@@ -2122,7 +2122,8 @@ public sealed class ProductSurfaceReadStore(
                 "score_outputs",
                 "ready",
                 $"{visibleOutputCount} visible result output{PluralSuffix(visibleOutputCount)} ready",
-                "Review mean, median, spread, range, and missing-answer coverage before sharing conclusions."));
+                "Review mean, median, spread, range, and missing-answer coverage before sharing conclusions.",
+                Count: visibleOutputCount));
         }
 
         if (groupRows.Count == 0)
@@ -2139,7 +2140,8 @@ public sealed class ProductSurfaceReadStore(
                 "groups",
                 "pending",
                 "Some groups are hidden",
-                $"Rows under the disclosure minimum of {selectedCampaign.DisclosureKMin ?? 0} responses are hidden."));
+                $"Rows under the disclosure minimum of {selectedCampaign.DisclosureKMin ?? 0} responses are hidden.",
+                Count: selectedCampaign.DisclosureKMin ?? 0));
         }
         else
         {
@@ -2152,7 +2154,8 @@ public sealed class ProductSurfaceReadStore(
                 "groups",
                 "ready",
                 $"{visibleGroupCount} group comparison{PluralSuffix(visibleGroupCount)} ready",
-                "Review group rows as aggregate comparisons only; do not use them to identify respondents."));
+                "Review group rows as aggregate comparisons only; do not use them to identify respondents.",
+                Count: visibleGroupCount));
         }
 
         var comparableWaveCount = waveRows
@@ -2167,7 +2170,8 @@ public sealed class ProductSurfaceReadStore(
                 "waves",
                 "ready",
                 $"{comparableWaveCount} measurements can be compared",
-                "Use wave rows for change-over-time review. Treat live measurements as preliminary.")
+                "Use wave rows for change-over-time review. Treat live measurements as preliminary.",
+                Count: comparableWaveCount)
             : new CampaignSeriesResultsInsightResponse(
                 "waves",
                 "pending",
@@ -2580,7 +2584,12 @@ public sealed class ProductSurfaceReadStore(
                     "/app/directory",
                     "Open Directory",
                     Priority: 20,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["subjects"] = directory.SubjectCount.ToString(),
+                        ["groups"] = directory.GroupCount.ToString()
+                    }));
             }
         }
 
@@ -2600,7 +2609,8 @@ public sealed class ProductSurfaceReadStore(
                     "Open setup",
                     Priority: 30,
                     CampaignSeriesId: setupSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string> { ["name"] = setupSeries.Name }));
             }
         }
 
@@ -2616,7 +2626,12 @@ public sealed class ProductSurfaceReadStore(
                 $"/app/campaign-series/{operationsSeries.Id}/operations",
                 "Open operations",
                 Priority: 40,
-                CampaignSeriesId: operationsSeries.Id));
+                CampaignSeriesId: operationsSeries.Id,
+                Params: new Dictionary<string, string>
+                {
+                    ["name"] = operationsSeries.Name,
+                    ["count"] = operationsSeries.LiveCampaignCount.ToString()
+                }));
         }
 
         var reportSeries = activeSeries.FirstOrDefault(item => item.SubmittedResponseCount > 0);
@@ -2631,7 +2646,12 @@ public sealed class ProductSurfaceReadStore(
                 $"/app/campaign-series/{reportSeries.Id}/reports",
                 "Open reports",
                 Priority: 50,
-                CampaignSeriesId: reportSeries.Id));
+                CampaignSeriesId: reportSeries.Id,
+                Params: new Dictionary<string, string>
+                {
+                    ["name"] = reportSeries.Name,
+                    ["count"] = reportSeries.SubmittedResponseCount.ToString()
+                }));
         }
 
         if (canManageSetup && activeSeries.Length > 0)
@@ -2654,7 +2674,12 @@ public sealed class ProductSurfaceReadStore(
                     "Open reports",
                     Priority: 55,
                     CampaignSeriesId: scoreSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["name"] = scoreSeries.Name,
+                        ["count"] = unscoredCount.ToString()
+                    }));
             }
         }
 
@@ -2676,7 +2701,12 @@ public sealed class ProductSurfaceReadStore(
                     "Open exports",
                     Priority: 60,
                     CampaignSeriesId: exportSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["name"] = exportSeries.Name,
+                        ["count"] = exportCount.ToString()
+                    }));
             }
         }
 
@@ -2696,7 +2726,8 @@ public sealed class ProductSurfaceReadStore(
                     $"/app/campaign-series/{wavesSeries.Id}/waves",
                     "Open waves",
                     Priority: 70,
-                    CampaignSeriesId: wavesSeries.Id));
+                    CampaignSeriesId: wavesSeries.Id,
+                    Params: new Dictionary<string, string> { ["name"] = wavesSeries.Name }));
             }
         }
 
@@ -2714,7 +2745,11 @@ public sealed class ProductSurfaceReadStore(
                     "/app/team",
                     "Open Team",
                     Priority: 80,
-                    RequiredPermission: PlatformPermissions.TeamManage));
+                    RequiredPermission: PlatformPermissions.TeamManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["count"] = pendingProviderLinkCount.ToString()
+                    }));
             }
         }
 
@@ -2728,7 +2763,12 @@ public sealed class ProductSurfaceReadStore(
                 "campaign_series",
                 "/app/campaign-series",
                 "Open campaign series",
-                Priority: 100));
+                Priority: 100,
+                Params: new Dictionary<string, string>
+                {
+                    ["series"] = totals.CampaignSeriesCount.ToString(),
+                    ["responses"] = totals.SubmittedResponseCount.ToString()
+                }));
         }
 
         return new WorkspaceCommandCenterResponse(
