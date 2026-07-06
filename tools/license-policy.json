@@ -9,6 +9,7 @@
     "ISC"
   ],
   "conditionalLicenseExpressions": [
+    "OFL-1.1",
     "MPL-2.0",
     "LGPL-2.1-only",
     "LGPL-2.1-or-later",
@@ -28,6 +29,13 @@
     "GPL-"
   ],
   "reviewedDependencies": [
+    {
+      "ecosystem": "npm",
+      "namePattern": "^@fontsource(-variable)?/",
+      "license": "OFL-1.1",
+      "approvedAs": "OFL-1.1",
+      "reason": "SIL Open Font License fonts (Archivo, Source Serif 4, IBM Plex Mono) served as app assets; OFL permits bundling and use, restrictions apply only to selling fonts standalone."
+    },
     {
       "ecosystem": "npm",
       "name": "minimatch",

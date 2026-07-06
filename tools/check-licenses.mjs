@@ -132,7 +132,10 @@ export function runLicenseCheck(options = {}) {
   const dependencies = [];
 
   if (!options.skipNpm) {
-    const npmLockPaths = options.npmLockPaths ?? [path.join(repoRoot, 'apps', 'web', 'package-lock.json')];
+    const npmLockPaths = options.npmLockPaths ?? [
+      path.join(repoRoot, 'apps', 'web', 'package-lock.json'),
+      path.join(repoRoot, 'apps', 'validatedscale', 'package-lock.json')
+    ];
     for (const npmLockPath of npmLockPaths) {
       dependencies.push(...parseNpmLockDependencies(readJson(npmLockPath)));
     }
@@ -204,7 +207,8 @@ function collectDotnetDependencies(solutionPath) {
 }
 
 export function buildDotnetListPackageArgs(solutionPath) {
-  return ['list', solutionPath, 'package', '--include-transitive', '--format', 'json', '--no-restore'];
+  // SDK 9.0.3xx dropped '--no-restore' from 'dotnet list package'.
+  return ['list', solutionPath, 'package', '--include-transitive', '--format', 'json'];
 }
 
 function readNugetLicense(packageId, version) {
