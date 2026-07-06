@@ -7,6 +7,11 @@ import { expect, test } from '@playwright/test';
  */
 test.use({ baseURL: 'http://localhost:5174' });
 
+/** Interacting with a server-rendered form before hydration triggers a native submit. */
+async function waitForHydration(page: import('@playwright/test').Page) {
+	await page.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
+}
+
 test('anonymous: registration submit reaches the backend and shows the real reason', async ({ page }) => {
 	const apiCalls: string[] = [];
 	page.on('response', (response) => {
@@ -15,6 +20,7 @@ test('anonymous: registration submit reaches the backend and shows the real reas
 	});
 
 	await page.goto('/register');
+	await waitForHydration(page);
 	await page.getByRole('heading', { name: 'Create a workspace' }).waitFor();
 	await page.fill('#email', 'someone@example.org');
 	await page.fill('#org', 'Test Org');
@@ -30,6 +36,7 @@ test('anonymous: registration submit reaches the backend and shows the real reas
 
 test('anonymous: signin lookup reaches the backend', async ({ page }) => {
 	await page.goto('/signin');
+	await waitForHydration(page);
 	await page.fill('#email', 'nobody@example.org');
 	// the invariant is that the POST reaches the backend at all (pre-fix, the
 	// CSRF 401 aborted it client-side); the outcome may be an error message or
