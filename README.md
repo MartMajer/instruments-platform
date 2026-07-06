@@ -25,7 +25,13 @@ docker compose -f deploy/local/docker-compose.yml up -d
 PLATFORM_DESIGN_TIME_CONNECTION='Host=localhost;Port=5432;Database=instruments_platform_dev;Username=platform_app;Password=platform_app_dev' \
   dotnet ef database update --project src/Platform.Infrastructure --startup-project src/Platform.Infrastructure
 docker exec -i local-postgres-1 psql -U platform_app -d instruments_platform_dev < deploy/local/seed-dev.sql
+docker exec -i local-postgres-1 psql -v ON_ERROR_STOP=1 \
+  -v runtime_user=platform_app_runtime -v runtime_password=platform_app_runtime_dev \
+  -v worker_user=platform_app_worker -v worker_password=platform_app_worker_dev \
+  -U platform_app -d instruments_platform_dev < deploy/staging/runtime-role.sql
 ```
+
+The last step creates the non-superuser runtime/worker roles the dev API and worker connect as (`appsettings.Development.json`), mirroring staging. Without them RLS tenant isolation is silently bypassed locally, because the compose `POSTGRES_USER` is a superuser.
 
 The dev tenant id is `11111111-1111-4111-8111-111111111111` and the dev user is `dev@local.test` (`22222222-2222-4222-8222-222222222222`), matching the frontend development auth headers.
 

@@ -248,4 +248,10 @@ dotnet ef database update --project src/Platform.Infrastructure/Platform.Infrast
 Get-Content deploy/local/seed-dev.sql |
     Invoke-Compose -Arguments @('-f', 'deploy/local/docker-compose.yml', 'exec', '-T', 'postgres', 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'platform_app', '-d', 'instruments_platform_dev')
 
+# The API/Workers dev connection strings use non-superuser roles so RLS is
+# actually enforced locally (the compose POSTGRES_USER is a superuser, which
+# silently bypasses every tenant-isolation policy). Same script as staging.
+Get-Content deploy/staging/runtime-role.sql |
+    Invoke-Compose -Arguments @('-f', 'deploy/local/docker-compose.yml', 'exec', '-T', 'postgres', 'psql', '-v', 'ON_ERROR_STOP=1', '-v', 'runtime_user=platform_app_runtime', '-v', 'runtime_password=platform_app_runtime_dev', '-v', 'worker_user=platform_app_worker', '-v', 'worker_password=platform_app_worker_dev', '-U', 'platform_app', '-d', 'instruments_platform_dev')
+
 Write-Host 'Local development database is ready.'
