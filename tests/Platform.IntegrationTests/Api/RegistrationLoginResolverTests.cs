@@ -249,7 +249,9 @@ public sealed class RegistrationLoginResolverTests : IAsyncLifetime
 
         Assert.False(result.IsFailure);
         Assert.DoesNotContain("screen_hint=", result.Value.LoginUrl, StringComparison.Ordinal);
-        Assert.Contains("login_hint=owner%40example.test", result.Value.LoginUrl, StringComparison.Ordinal);
+        var loginQuery = QueryHelpers.ParseQuery(
+            new Uri(new Uri("https://app.example.test"), result.Value.LoginUrl).Query);
+        Assert.Equal("owner@example.test", loginQuery["login_hint"].Single());
     }
 
     [DockerFact]

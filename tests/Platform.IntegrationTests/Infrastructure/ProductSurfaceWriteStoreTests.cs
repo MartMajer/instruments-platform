@@ -699,7 +699,9 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("campaign.not_found", result.Error.Code);
+        // The tenant-scoped series lookup runs first, so a cross-tenant close fails on the
+        // series without revealing whether the campaign exists in the other tenant.
+        Assert.Equal("campaign_series.not_found", result.Error.Code);
     }
 
     [DockerFact]
