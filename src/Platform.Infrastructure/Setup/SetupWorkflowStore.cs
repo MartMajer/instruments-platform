@@ -954,7 +954,7 @@ public sealed class SetupWorkflowStore(
             document.Retire(publishedAt.AddTicks(1));
         }
 
-        db.ConsentDocuments.Add(new ConsentDocument(
+        var created = new ConsentDocument(
             PlatformIds.NewId(),
             tenantId,
             campaignSeriesId,
@@ -964,18 +964,11 @@ public sealed class SetupWorkflowStore(
             request.BodyMarkdown.Trim(),
             grantSource?.RequiredGrants ?? DefaultRequiredConsentGrants,
             grantSource?.OptionalGrants ?? DefaultOptionalConsentGrants,
-            publishedAt.AddTicks(2)));
+            publishedAt.AddTicks(2));
+        db.ConsentDocuments.Add(created);
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-
-        var created = await db.ConsentDocuments
-            .AsNoTracking()
-            .Where(
-                document => document.CampaignSeriesId == campaignSeriesId &&
-                    document.Locale == locale &&
-                    document.Version == version)
-            .SingleAsync(cancellationToken);
 
         return Result.Success(new ConsentDocumentSummaryResponse(
             created.Id,
