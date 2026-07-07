@@ -8,6 +8,7 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t } from '$lib/core/locale.svelte';
+	import { problemMessage } from '$lib/core/problem';
 	import { collectionGuidanceCopy, prerequisiteCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
@@ -81,8 +82,16 @@
 				(directory?.subjects ?? []).map((subject) => [subject.id, subject.displayName ?? subject.id])
 			);
 			await read(true);
-		} catch {
-			linkError = t('Respondent links could not be created. The wave must be launched and have recipients.');
+		} catch (cause) {
+			linkError = problemMessage(
+				cause,
+				{
+					'identified_queue.target_assignments_required': t(
+						'Personal queue links need target-aware recipients (like manager review). Self-report identified waves invite by email instead.'
+					)
+				},
+				t('Respondent links could not be created. The wave must be launched and have recipients.')
+			);
 		} finally {
 			linkBusy = null;
 		}
