@@ -4,6 +4,12 @@
 	import { session, loadSession, logoutUrl } from '$lib/core/session.svelte';
 	import DialogHost from '$lib/ui/DialogHost.svelte';
 	import { initLocale, localeState, setLocale, t } from '$lib/core/locale.svelte';
+	import {
+		createGovernanceApi,
+		type OperationalNotificationResponse
+	} from '$lib/api/governance';
+	import { api } from '$lib/core/client';
+	import { formatDateTime, humanizeToken } from '$lib/core/format';
 
 	let { children } = $props();
 
@@ -28,17 +34,60 @@
 			: page.url.pathname.startsWith(item.href);
 	}
 
+	// operational notifications: failures need a place to appear
+	const governance = createGovernanceApi(api());
+	let bellOpen = $state(false);
+	let unreadCount = $state(0);
+	let notifications = $state<OperationalNotificationResponse[]>([]);
+
+	async function refreshSummary() {
+		try {
+			const summary = await governance.getOperationalNotificationSummary();
+			unreadCount = summary.unreadCount;
+		} catch {
+			// the bell stays quiet if the summary is unavailable
+		}
+	}
+
+	async function toggleBell() {
+		bellOpen = !bellOpen;
+		if (bellOpen) {
+			try {
+				const list = await governance.listOperationalNotifications(15);
+				notifications = list.notifications;
+			} catch {
+				notifications = [];
+			}
+		}
+	}
+
+	async function markAllRead() {
+		try {
+			await governance.markAllOperationalNotificationsRead();
+			await refreshSummary();
+			const list = await governance.listOperationalNotifications(15);
+			notifications = list.notifications;
+		} catch {
+			// leave the list as-is; the next open retries
+		}
+	}
+
 	onMount(async () => {
 		initLocale();
 		const current = await loadSession();
 		if (!current) {
 			location.assign('/signin');
+			return;
 		}
+		void refreshSummary();
 	});
 
 	function closeMenu(event: MouseEvent) {
 		if (menuOpen && event.target instanceof Element && !event.target.closest('.account')) {
 			menuOpen = false;
+		}
+		if (bellOpen && event.target instanceof Element && !event.target.closest('.bell-area')) {
+			bellOpen = false;
 		}
 	}
 </script>
@@ -63,6 +112,57 @@
 				{/each}
 			</nav>
 
+			<div class="bell-area">
+				<button
+					class="bell"
+					aria-haspopup="menu"
+					aria-expanded={bellOpen}
+					aria-label={t('System events')}
+					onclick={toggleBell}
+				>
+					<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+						<path
+							d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v2.8L2.3 11a.6.6 0 0 0 .53.9h10.34a.6.6 0 0 0 .53-.9l-1.2-2.2V6A4.5 4.5 0 0 0 8 1.5Z"
+							stroke="currentColor"
+							stroke-width="1.3"
+							stroke-linejoin="round"
+						/>
+						<path d="M6.5 14a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.3" />
+					</svg>
+					{#if unreadCount > 0}<span class="bell-count datum">{unreadCount}</span>{/if}
+				</button>
+
+				{#if bellOpen}
+					<div class="menu panel bell-menu" role="menu">
+						<div class="bell-head">
+							<span class="eyebrow">{t('System events')}</span>
+							{#if unreadCount > 0}
+								<button class="bell-mark" onclick={markAllRead}>{t('Mark all read')}</button>
+							{/if}
+						</div>
+						{#if notifications.length === 0}
+							<p class="bell-empty">{t('No system events. Failures and data-request updates appear here.')}</p>
+						{:else}
+							<ul class="bell-list">
+								{#each notifications as notification (notification.id)}
+									<li class:unread={!notification.readAt}>
+										<span class="bell-type" class:warn={notification.severity === 'warning'}>
+											{t(humanizeToken(notification.notificationType))}
+										</span>
+										<span class="datum bell-meta">
+											{formatDateTime(notification.createdAt)}
+											{#if notification.failureReasonCode}
+												· {t(humanizeToken(notification.failureReasonCode))}
+											{/if}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				{/if}
+			</div>
+
 			<div class="account">
 				<button
 					class="account-trigger"
@@ -77,6 +177,8 @@
 				{#if menuOpen}
 					<div class="menu panel" role="menu">
 						<a role="menuitem" href="/app/settings">{t('Workspace settings')}</a>
+						<a role="menuitem" href="/app/privacy">{t('Privacy & data requests')}</a>
+						<a role="menuitem" href="/app/help">{t('How ValidatedScale works')}</a>
 						<a role="menuitem" href={logoutUrl()}>{t('Sign out')}</a>
 						<div class="locale-row" role="group" aria-label="Language">
 							<button class:on={localeState.current === 'en'} onclick={() => setLocale('en')}>EN</button>
@@ -161,9 +263,103 @@
 		border-bottom-color: var(--color-stain-bright);
 	}
 
-	.account {
+	.bell-area {
 		position: relative;
 		margin-left: auto;
+	}
+
+	.bell {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.5rem;
+		background: none;
+		border: 0;
+		color: var(--color-topbar-ink, #fff);
+		cursor: pointer;
+		opacity: 0.85;
+	}
+
+	.bell:hover {
+		opacity: 1;
+	}
+
+	.bell-count {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		background: var(--color-stain);
+		color: #fff;
+		border-radius: 999px;
+		padding: 0.05rem 0.375rem;
+	}
+
+	.bell-menu {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 0.5rem);
+		width: 22rem;
+		max-height: 24rem;
+		overflow-y: auto;
+		padding: 0.875rem;
+		z-index: 30;
+	}
+
+	.bell-head {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 1rem;
+	}
+
+	.bell-mark {
+		font: inherit;
+		font-size: 0.75rem;
+		color: var(--color-stain);
+		background: none;
+		border: 0;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.bell-empty {
+		margin-top: 0.625rem;
+		font-size: 0.8125rem;
+		color: var(--color-ink-3);
+	}
+
+	.bell-list {
+		list-style: none;
+		margin-top: 0.5rem;
+	}
+
+	.bell-list li {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		padding: 0.5rem 0;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.bell-list li.unread .bell-type {
+		font-weight: 600;
+	}
+
+	.bell-type {
+		font-size: 0.8125rem;
+		color: var(--color-ink);
+	}
+
+	.bell-type.warn {
+		color: var(--color-danger);
+	}
+
+	.bell-meta {
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.account {
+		position: relative;
 	}
 
 	.account-trigger {

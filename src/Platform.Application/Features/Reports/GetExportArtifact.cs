@@ -60,6 +60,34 @@ public sealed class GetExportArtifactDownloadHandler(
     }
 }
 
+public sealed record GetExportArtifactCodebookQuery(Guid ArtifactId)
+    : IRequest<Result<ExportArtifactDownloadResponse>>;
+
+public sealed class GetExportArtifactCodebookValidator
+    : AbstractValidator<GetExportArtifactCodebookQuery>
+{
+    public GetExportArtifactCodebookValidator()
+    {
+        RuleFor(query => query.ArtifactId).NotEmpty();
+    }
+}
+
+public sealed class GetExportArtifactCodebookHandler(
+    ICurrentTenant currentTenant,
+    IReportProofExportStore store)
+    : IRequestHandler<GetExportArtifactCodebookQuery, Result<ExportArtifactDownloadResponse>>
+{
+    public Task<Result<ExportArtifactDownloadResponse>> Handle(
+        GetExportArtifactCodebookQuery query,
+        CancellationToken cancellationToken)
+    {
+        return store.GetExportArtifactCodebookDownloadAsync(
+            currentTenant.TenantId,
+            query.ArtifactId,
+            cancellationToken);
+    }
+}
+
 public sealed record GetExportArtifactSignedDownloadUrlQuery(Guid ArtifactId)
     : IRequest<Result<ExportArtifactSignedDownloadUrlResponse>>;
 

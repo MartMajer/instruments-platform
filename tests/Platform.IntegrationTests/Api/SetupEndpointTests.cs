@@ -2051,6 +2051,15 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
             return Task.FromResult(Result.Success(new SetupIdResponse(Guid.NewGuid())));
         }
 
+        public Task<Result<ConsentDocumentSummaryResponse>> PublishCampaignSeriesConsentDocumentAsync(
+            Guid tenantId,
+            Guid campaignSeriesId,
+            PublishConsentDocumentRequest request,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
         public Guid? SelectSetupTemplateTenantId { get; private set; }
 
         public Guid? SelectSetupTemplateCampaignSeriesId { get; private set; }

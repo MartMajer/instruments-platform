@@ -8,6 +8,8 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t } from '$lib/core/locale.svelte';
+	import { problemMessage } from '$lib/core/problem';
+	import { collectionGuidanceCopy, prerequisiteCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import CoverageMeter from '$lib/ui/CoverageMeter.svelte';
 	import { confirmDialog } from '$lib/ui/dialog.svelte';
@@ -46,6 +48,53 @@
 		if (!mintedLink) return;
 		await navigator.clipboard.writeText(mintedLink.url);
 		copied = true;
+	}
+
+	type QueueLink = {
+		respondentSubjectId: string;
+		assignmentCount: number;
+		url: string | null;
+		status: string;
+	};
+	let queueLinks = $state<{ campaignId: string; links: QueueLink[] } | null>(null);
+	let queueNames = $state<Record<string, string>>({});
+
+	/** Personal queue links for an identified wave — one per respondent, shown once. */
+	async function mintQueueLinks(campaignId: string) {
+		if (linkBusy) return;
+		linkBusy = campaignId;
+		linkError = null;
+
+		try {
+			const access = await setup.createCampaignIdentifiedQueueAccess(campaignId);
+			queueLinks = {
+				campaignId,
+				links: access.links.map((link) => ({
+					respondentSubjectId: link.respondentSubjectId,
+					assignmentCount: link.assignmentCount,
+					url: link.token ? `${location.origin}/r/${link.token}` : null,
+					status: link.status
+				}))
+			};
+			// resolve respondent names so the researcher knows whose link is whose
+			const directory = await product.listSubjects().catch(() => null);
+			queueNames = Object.fromEntries(
+				(directory?.subjects ?? []).map((subject) => [subject.id, subject.displayName ?? subject.id])
+			);
+			await read(true);
+		} catch (cause) {
+			linkError = problemMessage(
+				cause,
+				{
+					'identified_queue.target_assignments_required': t(
+						'Personal queue links need target-aware recipients (like manager review). Self-report identified waves invite by email instead.'
+					)
+				},
+				t('Respondent links could not be created. The wave must be launched and have recipients.')
+			);
+		} finally {
+			linkBusy = null;
+		}
 	}
 
 	let closeBusy = $state<string | null>(null);
@@ -133,8 +182,8 @@
 	<div class="inner">
 		<header class="head">
 			<p class="eyebrow crumbs">
-				<a href="/app/studies">Studies</a> /
-				<a href={`/app/studies/${seriesId}`}>{workspace?.series.name ?? 'Study'}</a>
+				<a href="/app/studies">{t('Studies')}</a> /
+				<a href={`/app/studies/${seriesId}`}>{workspace?.series.name ?? t('Study')}</a>
 			</p>
 
 			<div class="title-row">
@@ -202,7 +251,13 @@
 				</div>
 			</section>
 
-			<p class="guidance">{workspace.summary.collectionGuidance}</p>
+			<p class="guidance">
+				{collectionGuidanceCopy(
+					workspace.summary.collectionStatus,
+					workspace.summary.reportVisibilityStatus,
+					workspace.summary.collectionGuidance
+				)}
+			</p>
 
 			{#if workspace.groupCoverage && workspace.groupCoverage.groups.length > 0}
 				<section class="coverage">
@@ -222,8 +277,8 @@
 					</div>
 					{#if workspace.groupCoverage.unattributedSubmittedCount > 0}
 						<p class="unattributed">
-							{formatCount(workspace.groupCoverage.unattributedSubmittedCount)} submissions
-							are not attributed to a group.
+							{formatCount(workspace.groupCoverage.unattributedSubmittedCount)}
+							{t('submissions are not attributed to a group.')}
 						</p>
 					{/if}
 				</section>
@@ -250,7 +305,11 @@
 									<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
 										{t('Invite by email')}
 									</button>
-									{#if wave.openLinkAssignmentCount > 0}
+									{#if wave.responseIdentityMode.toLowerCase() === 'identified'}
+										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintQueueLinks(wave.id)}>
+											{t('Create respondent links')}
+										</button>
+									{:else if wave.openLinkAssignmentCount > 0}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
 											{t('Replace lost link')}
 										</button>
@@ -293,6 +352,32 @@
 								</div>
 							</li>
 						{/if}
+						{#if queueLinks?.campaignId === wave.id}
+							<li class="minted">
+								<div class="minted-inner">
+									<span class="eyebrow dim-label">
+										{t('Personal respondent links — shown once, deliver each to its person')}
+									</span>
+									<ul class="queue-links">
+										{#each queueLinks.links as link (link.respondentSubjectId)}
+											<li>
+												<span class="queue-who">
+													{queueNames[link.respondentSubjectId] ?? link.respondentSubjectId}
+													<span class="datum queue-count">
+														{formatCount(link.assignmentCount)} {t('to answer')}
+													</span>
+												</span>
+												{#if link.url}
+													<code class="datum minted-url">{link.url}</code>
+												{:else}
+													<span class="datum queue-count">{t(humanizeToken(link.status))}</span>
+												{/if}
+											</li>
+										{/each}
+									</ul>
+								</div>
+							</li>
+						{/if}
 					{:else}
 						<li class="none">{t('No waves launched yet. Launch from the protocol.')}</li>
 					{/each}
@@ -305,7 +390,7 @@
 					<h2 class="eyebrow dim-label">{t('Field notes')}</h2>
 					<ul>
 						{#each workspace.missingPrerequisites as item (item.code)}
-							<li>{item.message}</li>
+							<li>{prerequisiteCopy(item.code, item.message).text}</li>
 						{/each}
 					</ul>
 				</section>
@@ -599,6 +684,35 @@
 		word-break: break-all;
 		flex: 1;
 		min-width: 16rem;
+	}
+
+	.queue-links {
+		list-style: none;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.queue-links li {
+		display: flex;
+		align-items: baseline;
+		gap: 1rem;
+		flex-wrap: wrap;
+		padding: 0;
+		border: 0;
+	}
+
+	.queue-who {
+		min-width: 14rem;
+		color: var(--color-console-ink);
+		font-size: 0.875rem;
+	}
+
+	.queue-count {
+		margin-left: 0.5rem;
+		font-size: 0.75rem;
+		color: var(--color-console-ink-2, rgba(255, 255, 255, 0.55));
 	}
 
 	.link-error {

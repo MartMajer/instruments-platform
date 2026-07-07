@@ -62,16 +62,45 @@
 		const current = Array.isArray(value) ? (value as string[]) : [];
 		return current.indexOf(code);
 	}
+
+	// radio-pattern keyboard behavior for the scale: one tab stop, arrows move
+	// and select (matrix/single/multi use native inputs and need nothing extra)
+	function scaleTabIndex(step: number, index: number): number {
+		if (value !== undefined && value !== null && value !== '' && value !== 'NA') {
+			return String(value) === String(step) ? 0 : -1;
+		}
+		return index === 0 ? 0 : -1;
+	}
+
+	function onScaleKeydown(event: KeyboardEvent) {
+		const delta =
+			event.key === 'ArrowRight' || event.key === 'ArrowDown'
+				? 1
+				: event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+					? -1
+					: 0;
+		if (delta === 0) return;
+		event.preventDefault();
+		const buttons = [
+			...(event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('.scale-btn')
+		];
+		const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
+		const next = Math.min(Math.max((focused === -1 ? 0 : focused) + delta, 0), buttons.length - 1);
+		value = String(range[next]);
+		buttons[next]?.focus();
+	}
 </script>
 
 {#if question.type === 'likert' || question.type === 'nps'}
 	<div class="scale" role="radiogroup" aria-label={question.textDefault}>
-		<div class="scale-buttons">
-			{#each range as step (step)}
+		<div class="scale-buttons" onkeydown={onScaleKeydown} role="presentation">
+			{#each range as step, index (step)}
 				<button
 					type="button"
 					role="radio"
 					aria-checked={String(value) === String(step)}
+					aria-label={anchorFor(step) ? `${step} — ${anchorFor(step)}` : String(step)}
+					tabindex={scaleTabIndex(step, index)}
 					class="scale-btn datum"
 					class:on={String(value) === String(step)}
 					title={anchorFor(step) ?? undefined}
@@ -92,6 +121,7 @@
 				type="button"
 				class="na"
 				class:on={value === 'NA'}
+				aria-pressed={value === 'NA'}
 				onclick={() => (value = value === 'NA' ? '' : 'NA')}
 			>
 				{copy.naLabel}
@@ -158,7 +188,13 @@
 	<div class="choices" role="group" aria-label={question.textDefault}>
 		{#each options as option (option.code)}
 			{@const rank = rankOf(option.code)}
-			<button type="button" class="choice rank" class:on={rank >= 0} onclick={() => toggleRank(option.code)}>
+			<button
+				type="button"
+				class="choice rank"
+				class:on={rank >= 0}
+				aria-pressed={rank >= 0}
+				onclick={() => toggleRank(option.code)}
+			>
 				<span class="rank-n datum">{rank >= 0 ? rank + 1 : '·'}</span>
 				<span>{option.label}</span>
 			</button>
@@ -169,6 +205,7 @@
 		class="field"
 		type="number"
 		inputmode="numeric"
+		aria-label={question.textDefault}
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) => (value = event.currentTarget.value)}
 	/>
@@ -176,6 +213,7 @@
 	<input
 		class="field"
 		type="date"
+		aria-label={question.textDefault}
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) => (value = event.currentTarget.value)}
 	/>
@@ -183,6 +221,7 @@
 	<textarea
 		class="field"
 		rows="4"
+		aria-label={question.textDefault}
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) => (value = event.currentTarget.value)}
 	></textarea>
@@ -193,6 +232,7 @@
 	<input
 		class="field"
 		type="text"
+		aria-label={question.textDefault}
 		value={typeof value === 'string' ? value : ''}
 		oninput={(event) => (value = event.currentTarget.value)}
 	/>

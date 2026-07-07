@@ -9,6 +9,7 @@
 		resolveApiUrl
 	} from '$lib/api/session-headers';
 	import { api } from '$lib/core/client';
+	import { initLocale, localeState, setLocale, t } from '$lib/core/locale.svelte';
 	import { problemMessage } from '$lib/core/problem';
 
 	const registration = createRegistrationApi(api());
@@ -22,6 +23,7 @@
 	let error = $state<string | null>(null);
 
 	onMount(async () => {
+		initLocale();
 		try {
 			const session = await registration.getSession();
 			pendingEmail = session.email;
@@ -33,20 +35,28 @@
 
 	function describe(cause: unknown): string {
 		if (cause instanceof ApiError && cause.status === 409) {
-			return 'This email already belongs to a workspace. Sign in instead.';
+			return t('This email already belongs to a workspace. Sign in instead.');
 		}
 		if (cause instanceof ApiError && cause.status === 429) {
-			return 'Too many attempts. Wait a minute, then try again.';
+			return t('Too many attempts. Wait a minute, then try again.');
 		}
 		return problemMessage(
 			cause,
 			{
-				'registration.invalid_access_code': 'That access code was not accepted. Check it and try again.',
-				'registration.email_invalid': 'That email address does not look valid. Check it and try again.',
-				'registration.organization_invalid': 'That organization name was not accepted. Try a plainer one.',
-				'registration.invalid_return_url': 'Something went wrong with the sign-in redirect. Reload the page and try again.'
+				'registration.invalid_access_code': t(
+					'That access code was not accepted. Check it and try again.'
+				),
+				'registration.email_invalid': t(
+					'That email address does not look valid. Check it and try again.'
+				),
+				'registration.organization_invalid': t(
+					'That organization name was not accepted. Try a plainer one.'
+				),
+				'registration.invalid_return_url': t(
+					'Something went wrong with the sign-in redirect. Reload the page and try again.'
+				)
 			},
-			'Registration is unavailable right now. Try again shortly.'
+			t('Registration is unavailable right now. Try again shortly.')
 		);
 	}
 
@@ -99,36 +109,35 @@
 
 	<main class="panel card">
 		{#if phase === 'checking'}
-			<p class="hint" role="status">Checking your registration…</p>
+			<p class="hint" role="status">{t('Checking your registration…')}</p>
 		{:else if phase === 'complete'}
-			<h1 class="doc-title">Finish your workspace</h1>
+			<h1 class="doc-title">{t('Finish your workspace')}</h1>
 			<p class="hint">
-				Signed in as <strong class="datum">{pendingEmail}</strong>. Name the workspace and
-				confirm your access code.
+				{t('Signed in as')} <strong class="datum">{pendingEmail}</strong>.
+				{t('Name the workspace and confirm your access code.')}
 			</p>
 
 			<form onsubmit={complete}>
-				<label class="eyebrow" for="org">Organization</label>
+				<label class="eyebrow" for="org">{t('Organization')}</label>
 				<input id="org" required bind:value={organizationName} />
 
-				<label class="eyebrow" for="code">Access code</label>
+				<label class="eyebrow" for="code">{t('Access code')}</label>
 				<input id="code" required bind:value={accessCode} autocomplete="off" />
 
 				{#if error}<p class="error" role="alert">{error}</p>{/if}
 
 				<button class="btn btn-ink" type="submit" disabled={busy}>
-					{busy ? 'Creating workspace…' : 'Create workspace'}
+					{busy ? t('Creating workspace…') : t('Create workspace')}
 				</button>
 			</form>
 		{:else}
-			<h1 class="doc-title">Create a workspace</h1>
+			<h1 class="doc-title">{t('Create a workspace')}</h1>
 			<p class="hint">
-				A workspace holds your studies, people and evidence — isolated per organization. You
-				verify your email in the next step.
+				{t('A workspace holds your studies, people and evidence — isolated per organization. You verify your email in the next step.')}
 			</p>
 
 			<form onsubmit={start}>
-				<label class="eyebrow" for="email">Work email</label>
+				<label class="eyebrow" for="email">{t('Work email')}</label>
 				<input
 					id="email"
 					type="email"
@@ -138,24 +147,29 @@
 					placeholder="name@institution.org"
 				/>
 
-				<label class="eyebrow" for="org">Organization</label>
+				<label class="eyebrow" for="org">{t('Organization')}</label>
 				<input id="org" required bind:value={organizationName} />
 
-				<label class="eyebrow" for="code">Access code</label>
+				<label class="eyebrow" for="code">{t('Access code')}</label>
 				<input id="code" required bind:value={accessCode} autocomplete="off" />
 
 				{#if error}<p class="error" role="alert">{error}</p>{/if}
 
 				<button class="btn btn-ink" type="submit" disabled={busy}>
-					{busy ? 'Opening verification…' : 'Continue'}
+					{busy ? t('Opening verification…') : t('Continue')}
 				</button>
 			</form>
 
 			<p class="alt">
-				Already registered? <a href="/signin">Sign in</a>
+				{t('Already registered?')} <a href="/signin">{t('Sign in')}</a>
 			</p>
 		{/if}
 	</main>
+
+	<div class="lang" role="group" aria-label="Language / Jezik">
+		<button class:on={localeState.current === 'en'} onclick={() => setLocale('en')}>EN</button>
+		<button class:on={localeState.current === 'hr'} onclick={() => setLocale('hr')}>HR</button>
+	</div>
 </div>
 
 <style>
@@ -232,5 +246,28 @@
 
 	.alt a {
 		color: var(--color-stain);
+	}
+
+	.lang {
+		display: flex;
+		gap: 0.25rem;
+	}
+
+	.lang button {
+		font: inherit;
+		font-size: 0.75rem;
+		font-weight: 560;
+		letter-spacing: 0.04em;
+		padding: 0.25rem 0.625rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: none;
+		color: var(--color-ink-3);
+		cursor: pointer;
+	}
+
+	.lang button.on {
+		color: var(--color-stain);
+		border-color: var(--color-stain);
 	}
 </style>

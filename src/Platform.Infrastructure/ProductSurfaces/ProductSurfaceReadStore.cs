@@ -1672,6 +1672,7 @@ public sealed class ProductSurfaceReadStore(
             selectedCampaign,
             cancellationToken);
         var resultsDashboard = CreateResultsDashboard(resultsAnalytics);
+        var provenance = await LoadReportsProvenanceAsync(series, selectedCampaign, cancellationToken);
         var response = new CampaignSeriesReportsWorkspaceResponse(
             new CampaignSeriesReportsSeriesResponse(
                 series.Id,
@@ -1701,11 +1702,126 @@ public sealed class ProductSurfaceReadStore(
             campaignResponses,
             ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()),
             resultsAnalytics,
-            resultsDashboard);
+            resultsDashboard,
+            provenance);
 
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(response);
+    }
+
+    /// <summary>
+    /// Methods-section provenance for the selected wave, read from the ids the
+    /// launch snapshot pinned (never from the mutable current configuration).
+    /// </summary>
+    private async Task<CampaignSeriesReportsProvenanceResponse?> LoadReportsProvenanceAsync(
+        CampaignSeriesRow series,
+        CampaignSeriesReportsCampaignResponse? selectedCampaign,
+        CancellationToken cancellationToken)
+    {
+        if (selectedCampaign is null)
+        {
+            return null;
+        }
+
+        string? instrumentName = null;
+        string? instrumentVersion = null;
+        string? instrumentLocale = null;
+        int? questionCount = null;
+        if (selectedCampaign.LatestLaunchSnapshotId.HasValue)
+        {
+            var snapshotDetail = await (
+                    from snapshot in db.CampaignLaunchSnapshots.AsNoTracking()
+                    join version in db.TemplateVersions.AsNoTracking()
+                        on snapshot.TemplateVersionId equals version.Id
+                    join template in db.SurveyTemplates.AsNoTracking()
+                        on version.TemplateId equals template.Id
+                    where snapshot.Id == selectedCampaign.LatestLaunchSnapshotId.Value
+                    select new
+                    {
+                        template.Name,
+                        version.Semver,
+                        version.DefaultLocale,
+                        snapshot.TemplateQuestionCount
+                    })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (snapshotDetail is not null)
+            {
+                instrumentName = snapshotDetail.Name;
+                instrumentVersion = snapshotDetail.Semver;
+                instrumentLocale = snapshotDetail.DefaultLocale;
+                questionCount = snapshotDetail.TemplateQuestionCount;
+            }
+        }
+
+        string? scoringRuleKey = null;
+        string? scoringRuleVersion = null;
+        if (selectedCampaign.ScoringRuleId.HasValue)
+        {
+            var rule = await db.ScoringRules
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.ScoringRuleId.Value)
+                .Select(entity => new { entity.RuleKey, entity.RuleVersion })
+                .SingleOrDefaultAsync(cancellationToken);
+            scoringRuleKey = rule?.RuleKey;
+            scoringRuleVersion = rule?.RuleVersion;
+        }
+
+        string? consentVersion = null;
+        string? consentLocale = null;
+        string? consentTitle = null;
+        if (selectedCampaign.ConsentDocumentId.HasValue)
+        {
+            var consent = await db.ConsentDocuments
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.ConsentDocumentId.Value)
+                .Select(entity => new { entity.Version, entity.Locale, entity.Title })
+                .SingleOrDefaultAsync(cancellationToken);
+            consentVersion = consent?.Version;
+            consentLocale = consent?.Locale;
+            consentTitle = consent?.Title;
+        }
+
+        string? disclosureRule = null;
+        if (selectedCampaign.DisclosurePolicyId.HasValue)
+        {
+            disclosureRule = await db.DisclosurePolicies
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.DisclosurePolicyId.Value)
+                .Select(entity => entity.SuppressionStrategy)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        int? retentionYears = null;
+        if (selectedCampaign.RetentionPolicyId.HasValue)
+        {
+            retentionYears = await db.RetentionPolicies
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.RetentionPolicyId.Value)
+                .Select(entity => (int?)entity.RetainForYears)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return new CampaignSeriesReportsProvenanceResponse(
+            series.Name,
+            selectedCampaign.Name,
+            selectedCampaign.ResponseIdentityMode,
+            selectedCampaign.LatestLaunchAt,
+            selectedCampaign.ClosedAt,
+            selectedCampaign.DataFinality,
+            selectedCampaign.SubmittedResponseCount,
+            instrumentName,
+            instrumentVersion,
+            instrumentLocale,
+            questionCount,
+            scoringRuleKey,
+            scoringRuleVersion,
+            consentVersion,
+            consentLocale,
+            consentTitle,
+            selectedCampaign.DisclosureKMin,
+            disclosureRule,
+            retentionYears);
     }
 
     public async Task<Result<CampaignSeriesReportsWidgetManifestResponse>> GetCampaignSeriesReportsWidgetManifestAsync(
@@ -1804,6 +1920,22 @@ public sealed class ProductSurfaceReadStore(
             })
             .ToArray());
 
+        var dimensionLabels = await LoadResultsDimensionLabelsAsync(
+            campaigns.Select(campaign => campaign.ScoringRuleId),
+            cancellationToken);
+        if (dimensionLabels.Count > 0)
+        {
+            selectedOutputRows = selectedOutputRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+            groupRows = groupRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+            waveRows = waveRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+        }
+
         return new CampaignSeriesResultsAnalyticsResponse(
             selectedCampaign.Id,
             selectedCampaign.Name,
@@ -1813,6 +1945,59 @@ public sealed class ProductSurfaceReadStore(
             groupRows,
             waveRows,
             CreateResultsInsights(selectedCampaign, selectedOutputRows, groupRows, waveRows));
+    }
+
+    /// <summary>
+    /// Human labels for score output codes, read from the scoring rules'
+    /// compatibility metadata (<c>outputs: [{code, label}]</c>) when present.
+    /// </summary>
+    private async Task<Dictionary<string, string>> LoadResultsDimensionLabelsAsync(
+        IEnumerable<Guid?> scoringRuleIds,
+        CancellationToken cancellationToken)
+    {
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        var ids = scoringRuleIds.OfType<Guid>().Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return labels;
+        }
+
+        var compatibilityDocuments = await db.ScoringRules
+            .AsNoTracking()
+            .Where(rule => ids.Contains(rule.Id))
+            .Select(rule => rule.Compatibility)
+            .ToListAsync(cancellationToken);
+
+        foreach (var document in compatibilityDocuments)
+        {
+            try
+            {
+                using var parsed = JsonDocument.Parse(document);
+                if (!parsed.RootElement.TryGetProperty("outputs", out var outputs) ||
+                    outputs.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var output in outputs.EnumerateArray())
+                {
+                    if (output.TryGetProperty("code", out var code) &&
+                        output.TryGetProperty("label", out var label) &&
+                        code.ValueKind == JsonValueKind.String &&
+                        label.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(label.GetString()))
+                    {
+                        labels[code.GetString()!] = label.GetString()!;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // A malformed compatibility document never blocks results.
+            }
+        }
+
+        return labels;
     }
 
     private async Task<CampaignSeriesResultsGroupMatrixRowResponse[]> CreateResultsGroupMatrixRowsAsync(
@@ -2122,7 +2307,8 @@ public sealed class ProductSurfaceReadStore(
                 "score_outputs",
                 "ready",
                 $"{visibleOutputCount} visible result output{PluralSuffix(visibleOutputCount)} ready",
-                "Review mean, median, spread, range, and missing-answer coverage before sharing conclusions."));
+                "Review mean, median, spread, range, and missing-answer coverage before sharing conclusions.",
+                Count: visibleOutputCount));
         }
 
         if (groupRows.Count == 0)
@@ -2139,7 +2325,8 @@ public sealed class ProductSurfaceReadStore(
                 "groups",
                 "pending",
                 "Some groups are hidden",
-                $"Rows under the disclosure minimum of {selectedCampaign.DisclosureKMin ?? 0} responses are hidden."));
+                $"Rows under the disclosure minimum of {selectedCampaign.DisclosureKMin ?? 0} responses are hidden.",
+                Count: selectedCampaign.DisclosureKMin ?? 0));
         }
         else
         {
@@ -2152,7 +2339,8 @@ public sealed class ProductSurfaceReadStore(
                 "groups",
                 "ready",
                 $"{visibleGroupCount} group comparison{PluralSuffix(visibleGroupCount)} ready",
-                "Review group rows as aggregate comparisons only; do not use them to identify respondents."));
+                "Review group rows as aggregate comparisons only; do not use them to identify respondents.",
+                Count: visibleGroupCount));
         }
 
         var comparableWaveCount = waveRows
@@ -2167,7 +2355,8 @@ public sealed class ProductSurfaceReadStore(
                 "waves",
                 "ready",
                 $"{comparableWaveCount} measurements can be compared",
-                "Use wave rows for change-over-time review. Treat live measurements as preliminary.")
+                "Use wave rows for change-over-time review. Treat live measurements as preliminary.",
+                Count: comparableWaveCount)
             : new CampaignSeriesResultsInsightResponse(
                 "waves",
                 "pending",
@@ -2191,7 +2380,7 @@ public sealed class ProductSurfaceReadStore(
             .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
             .Select(row => new ResultsDashboardBarResponse(
                 $"output:{row.DimensionCode}",
-                row.DimensionCode,
+                row.DimensionLabel ?? row.DimensionCode,
                 row.DimensionCode,
                 row.Disclosure,
                 row.Disclosure == "visible" ? row.Mean : null,
@@ -2580,7 +2769,12 @@ public sealed class ProductSurfaceReadStore(
                     "/app/directory",
                     "Open Directory",
                     Priority: 20,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["subjects"] = directory.SubjectCount.ToString(),
+                        ["groups"] = directory.GroupCount.ToString()
+                    }));
             }
         }
 
@@ -2600,7 +2794,8 @@ public sealed class ProductSurfaceReadStore(
                     "Open setup",
                     Priority: 30,
                     CampaignSeriesId: setupSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string> { ["name"] = setupSeries.Name }));
             }
         }
 
@@ -2616,7 +2811,12 @@ public sealed class ProductSurfaceReadStore(
                 $"/app/campaign-series/{operationsSeries.Id}/operations",
                 "Open operations",
                 Priority: 40,
-                CampaignSeriesId: operationsSeries.Id));
+                CampaignSeriesId: operationsSeries.Id,
+                Params: new Dictionary<string, string>
+                {
+                    ["name"] = operationsSeries.Name,
+                    ["count"] = operationsSeries.LiveCampaignCount.ToString()
+                }));
         }
 
         var reportSeries = activeSeries.FirstOrDefault(item => item.SubmittedResponseCount > 0);
@@ -2631,7 +2831,12 @@ public sealed class ProductSurfaceReadStore(
                 $"/app/campaign-series/{reportSeries.Id}/reports",
                 "Open reports",
                 Priority: 50,
-                CampaignSeriesId: reportSeries.Id));
+                CampaignSeriesId: reportSeries.Id,
+                Params: new Dictionary<string, string>
+                {
+                    ["name"] = reportSeries.Name,
+                    ["count"] = reportSeries.SubmittedResponseCount.ToString()
+                }));
         }
 
         if (canManageSetup && activeSeries.Length > 0)
@@ -2654,7 +2859,12 @@ public sealed class ProductSurfaceReadStore(
                     "Open reports",
                     Priority: 55,
                     CampaignSeriesId: scoreSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["name"] = scoreSeries.Name,
+                        ["count"] = unscoredCount.ToString()
+                    }));
             }
         }
 
@@ -2676,7 +2886,12 @@ public sealed class ProductSurfaceReadStore(
                     "Open exports",
                     Priority: 60,
                     CampaignSeriesId: exportSeries.Id,
-                    RequiredPermission: PlatformPermissions.SetupManage));
+                    RequiredPermission: PlatformPermissions.SetupManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["name"] = exportSeries.Name,
+                        ["count"] = exportCount.ToString()
+                    }));
             }
         }
 
@@ -2696,7 +2911,8 @@ public sealed class ProductSurfaceReadStore(
                     $"/app/campaign-series/{wavesSeries.Id}/waves",
                     "Open waves",
                     Priority: 70,
-                    CampaignSeriesId: wavesSeries.Id));
+                    CampaignSeriesId: wavesSeries.Id,
+                    Params: new Dictionary<string, string> { ["name"] = wavesSeries.Name }));
             }
         }
 
@@ -2714,7 +2930,11 @@ public sealed class ProductSurfaceReadStore(
                     "/app/team",
                     "Open Team",
                     Priority: 80,
-                    RequiredPermission: PlatformPermissions.TeamManage));
+                    RequiredPermission: PlatformPermissions.TeamManage,
+                    Params: new Dictionary<string, string>
+                    {
+                        ["count"] = pendingProviderLinkCount.ToString()
+                    }));
             }
         }
 
@@ -2728,7 +2948,12 @@ public sealed class ProductSurfaceReadStore(
                 "campaign_series",
                 "/app/campaign-series",
                 "Open campaign series",
-                Priority: 100));
+                Priority: 100,
+                Params: new Dictionary<string, string>
+                {
+                    ["series"] = totals.CampaignSeriesCount.ToString(),
+                    ["responses"] = totals.SubmittedResponseCount.ToString()
+                }));
         }
 
         return new WorkspaceCommandCenterResponse(

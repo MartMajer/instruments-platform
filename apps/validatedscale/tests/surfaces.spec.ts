@@ -37,7 +37,6 @@ test('exports: library lists artifacts and downloads one', async ({ page }) => {
 });
 
 test('study: sample duplicates into an own editable study', async ({ page }) => {
-	// samples are the only duplicatable studies (backend rule); own studies hide the action
 	await page.goto('/app/studies');
 	await page.getByLabel('Find a study').fill('Ergonomics risk');
 	await page.locator('.bucket a.name').first().click();
@@ -48,11 +47,45 @@ test('study: sample duplicates into an own editable study', async ({ page }) => 
 	await page.getByRole('dialog').locator('input').fill(dupName);
 	await page.getByRole('dialog').getByRole('button', { name: 'Duplicate' }).click();
 	await expect(page.locator('h1')).toContainText(dupName, { timeout: 30_000 });
-	await expect(page.getByRole('button', { name: 'Duplicate as my study' })).not.toBeVisible();
+	// the copy is an own study: the sample-specific verb is gone, the own one remains
+	await expect(page.getByRole('button', { name: 'Duplicate study', exact: true })).toBeVisible();
 
 	await page.getByRole('button', { name: 'Archive study' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
 	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({ timeout: 15_000 });
+});
+
+test('study: an own study duplicates into a fresh draft with the protocol carried over', async ({
+	page
+}) => {
+	// source: a gallery study (own, with instrument + scoring attached)
+	await page.goto('/app/instruments');
+	await page.getByRole('button', { name: 'Use PHQ-4' }).click();
+	const sourceName = `Own dup source ${Date.now()}`;
+	await page.getByRole('dialog').locator('input').fill(sourceName);
+	await page.getByRole('dialog').getByRole('button', { name: 'Create study' }).click();
+	await page.waitForURL('**/app/studies/*', { timeout: 30_000 });
+	const sourceUrl = page.url();
+
+	await page.getByRole('button', { name: 'Duplicate study', exact: true }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Duplicate' }).click();
+	await expect(page.locator('h1')).toContainText('(copy)', { timeout: 30_000 });
+	// the protocol came along: instrument binding and scoring rule
+	await expect(page.locator('#instrument')).toContainText('PHQ-4');
+	await expect(page.locator('#scoring')).toContainText('phq4_score');
+
+	// clean up the copy, then the source
+	await page.getByRole('button', { name: 'Archive study' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
+	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({
+		timeout: 15_000
+	});
+	await page.goto(sourceUrl);
+	await page.getByRole('button', { name: 'Archive study' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
+	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({
+		timeout: 15_000
+	});
 });
 
 test('gallery: NMQ loads 27 yes/no items with choice-map scoring', async ({ page }) => {

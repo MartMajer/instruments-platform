@@ -5,7 +5,7 @@
 		type CampaignSeriesListItemResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
-	import { t, waveWord } from '$lib/core/locale.svelte';
+	import { localeState, t, waveWord } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -30,7 +30,8 @@
 		if (sampleBusy) return;
 		sampleBusy = true;
 		try {
-			await product.ensureSampleStudies();
+			// Example content arrives in the researcher's language.
+			await product.ensureSampleStudies(localeState.current === 'hr' ? 'hr-HR' : 'en');
 			await load();
 		} finally {
 			sampleBusy = false;
@@ -99,8 +100,10 @@
 
 <LoadState
 	state={loadState}
-	emptyTitle="No studies yet"
-	emptyBody="A study pairs one instrument with a cohort and one or more waves. Create your first one, or add three example studies with prefilled waves and responses to explore the product."
+	emptyTitle={t('No studies yet')}
+	emptyBody={t(
+		'A study pairs one instrument with a cohort and one or more waves. Create your first one, or add three example studies with prefilled waves and responses to explore the product.'
+	)}
 >
 	{#each buckets as bucket (bucket.key)}
 		<section class="bucket">

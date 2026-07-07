@@ -148,12 +148,8 @@ public sealed class ProductSurfaceWriteStore(
                 Error.NotFound("campaign_series.not_found", "Campaign series was not found."));
         }
 
-        if (!source.IsSample)
-        {
-            return Result.Failure<CampaignSeriesDuplicateResponse>(
-                Error.Conflict("campaign_series.not_sample", "Only sample studies can be duplicated."));
-        }
-
+        // Any study duplicates into a fresh own draft: the protocol is copied
+        // (instrument binding, policies, waves as drafts), responses are not.
         CampaignSeries copy;
         try
         {
@@ -170,7 +166,10 @@ public sealed class ProductSurfaceWriteStore(
                 studyDesignType: source.StudyDesignType,
                 studyIntendedUse: source.StudyIntendedUse,
                 studyInterpretationBoundary: source.StudyInterpretationBoundary,
-                studyOwnerNotes: source.StudyOwnerNotes);
+                studyOwnerNotes: source.StudyOwnerNotes,
+                // The instrument binding is part of the copied protocol; without it
+                // the copy loses its scoring binding and cannot launch new waves.
+                setupTemplateVersionId: source.SetupTemplateVersionId);
         }
         catch (ArgumentException exception)
         {

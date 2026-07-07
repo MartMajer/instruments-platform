@@ -43,7 +43,7 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 
 	// field: mint the open link
-	await page.getByRole('link', { name: 'Field' }).click();
+	await page.getByRole('link', { name: 'Field', exact: true }).click();
 	await page.getByRole('button', { name: 'Create open link' }).click();
 	const url = (await page.locator('.minted-url').textContent({ timeout: 15_000 }))?.trim();
 	expect(url).toContain('/r/');
@@ -52,6 +52,7 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
 	const respondent = await phone.newPage();
 	await respondent.goto(url!);
+	await respondent.waitForSelector('html[data-hydrated="true"]');
 	// the launched wave must carry the custom consent version published above
 	await expect(respondent.locator('.consent-version')).toContainText('v2.0.0');
 	await respondent.getByRole('checkbox').check();
@@ -66,6 +67,30 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	// field shows the submission
 	await page.reload();
 	await expect(page.locator('.tile.accent .value')).toHaveText('1', { timeout: 15_000 });
+
+	// evidence: methods-grade provenance for the launched wave, with the
+	// snapshot-pinned instrument, scoring rule, consent version and k policy
+	await page.getByRole('link', { name: 'Evidence' }).click();
+	const methods = page.locator('.methods');
+	await expect(methods).toContainText(`${studyName} questionnaire`, { timeout: 15_000 });
+	await expect(methods).toContainText('v1.0.0');
+	await expect(methods).toContainText('v2.0.0'); // the consent published above
+	await expect(methods).toContainText('k = 5');
+	await expect(methods).toContainText('Baseline');
+
+	// dimension rows carry the human label from the scoring rule metadata
+	// (a single response stays k-suppressed, so assert on the notes instead)
+	await expect(page.locator('.notes')).toContainText('hidden');
+
+	// queue the responses export and download data + codebook
+	await page.getByRole('button', { name: 'Responses CSV + codebook' }).click();
+	await expect(page.locator('.artifacts')).toContainText('responses.csv', { timeout: 20_000 });
+	const dataDownload = page.waitForEvent('download', { timeout: 20_000 });
+	await page.locator('.artifacts .dl', { hasText: 'Download' }).first().click();
+	expect((await dataDownload).suggestedFilename()).toContain('.csv');
+	const codebookDownload = page.waitForEvent('download', { timeout: 20_000 });
+	await page.locator('.artifacts .dl', { hasText: 'Codebook' }).first().click();
+	expect((await codebookDownload).suggestedFilename()).toContain('codebook.json');
 
 	// clean up: archive the test study so it never pollutes the portfolio
 	await page.getByRole('link', { name: 'Protocol' }).click();

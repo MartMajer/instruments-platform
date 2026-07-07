@@ -67,8 +67,8 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
             tenantDbScope,
             new SubmittedResponseScoreMaterializer(db));
 
-        var first = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
-        var second = await seeder.EnsureAsync(tenantId, actorUserId, CancellationToken.None);
+        var first = await seeder.EnsureAsync(tenantId, actorUserId, locale: null, CancellationToken.None);
+        var second = await seeder.EnsureAsync(tenantId, actorUserId, locale: null, CancellationToken.None);
 
         Assert.True(first.IsSuccess);
         Assert.Equal(3, first.Value.CreatedSampleStudyCount);
@@ -965,7 +965,10 @@ public sealed class ProductSurfaceReadStoreTests : IAsyncLifetime
         Assert.DoesNotContain("ana@example.test", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("user-001", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("source_prefix", json, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("99", json, StringComparison.OrdinalIgnoreCase);
+        // Tenant B's run is seeded with row counts of 99 as the cross-tenant canary.
+        // Assert on the typed rows: a substring scan trips whenever a random guid
+        // in the payload happens to contain "99".
+        Assert.DoesNotContain(result.Runs, run => run.RowCount == 99 || run.ImportedRowCount == 99);
     }
 
     [DockerFact]

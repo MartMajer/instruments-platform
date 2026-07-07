@@ -60,8 +60,11 @@ public sealed class SampleStudySeeder(
     public async Task<Result<EnsureSampleStudiesResponse>> EnsureAsync(
         Guid tenantId,
         Guid actorUserId,
+        string? locale,
         CancellationToken cancellationToken)
     {
+        var text = SampleLocaleText.For(locale);
+        var specs = SampleStudySpecs.For(text.IsCroatian);
         var createdSeriesIds = new List<Guid>();
 
         await using var transaction = await tenantDbScope.BeginTransactionAsync(
@@ -76,16 +79,18 @@ public sealed class SampleStudySeeder(
                 series.StudyKind == CampaignSeriesStudyKinds.Sample)
             .Select(series => new ExistingSampleSeries(series.Id, series.Name))
             .ToListAsync(cancellationToken);
-        var currentSampleNameSet = SampleStudySpecs.All
+        var currentSampleNameSet = specs
             .Select(spec => spec.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        // Samples in another locale (or from older spec versions) are replaced,
+        // so switching the app language and re-adding examples swaps the set.
         foreach (var staleSeries in existingSampleSeries.Where(series => !currentSampleNameSet.Contains(series.Name)))
         {
             await DeleteSampleStudyAsync(tenantId, staleSeries.Id, cancellationToken);
         }
 
-        foreach (var spec in SampleStudySpecs.All)
+        foreach (var spec in specs)
         {
             var existingSeries = existingSampleSeries.SingleOrDefault(series =>
                 string.Equals(series.Name, spec.Name, StringComparison.OrdinalIgnoreCase));
@@ -103,6 +108,7 @@ public sealed class SampleStudySeeder(
                 tenantId,
                 actorUserId,
                 spec,
+                text,
                 cancellationToken);
             createdSeriesIds.Add(seriesId);
         }
@@ -115,7 +121,7 @@ public sealed class SampleStudySeeder(
             .Select(series => new ExistingSampleSeries(series.Id, series.Name))
             .ToListAsync(cancellationToken);
 
-        foreach (var spec in SampleStudySpecs.All)
+        foreach (var spec in specs)
         {
             var series = sampleSeries.SingleOrDefault(
                 item => string.Equals(item.Name, spec.Name, StringComparison.OrdinalIgnoreCase));
@@ -399,6 +405,7 @@ public sealed class SampleStudySeeder(
         Guid tenantId,
         Guid actorUserId,
         SampleStudySpec spec,
+        SampleLocaleText text,
         CancellationToken cancellationToken)
     {
         var baseTime = DateTimeOffset.UtcNow.AddDays(-28);
@@ -409,23 +416,23 @@ public sealed class SampleStudySeeder(
             HashBytes($"{tenantId:N}:{spec.Key}:series-salt"),
             studyKind: CampaignSeriesStudyKinds.Sample,
             sampleScenario: spec.SampleScenario,
-            studyPurpose: $"Read-only sample showing the {spec.Name} workflow from setup through results.",
-            studyAudience: "Synthetic respondents generated for product evaluation.",
+            studyPurpose: text.PurposeFor(spec.Name),
+            studyAudience: text.StudyAudience,
             studyDesignType: spec.StudyDesignType,
             studyIntendedUse: CampaignSeriesStudyIntendedUseTypes.InternalReview,
-            studyInterpretationBoundary: "Synthetic sample data only. Use it to learn the product flow, not as external evidence.",
-            studyOwnerNotes: "Generated sample study for workspace onboarding.");
+            studyInterpretationBoundary: text.InterpretationBoundary,
+            studyOwnerNotes: text.OwnerNotes);
         var template = SurveyTemplate.CreateTenant(
             PlatformIds.NewId(),
             tenantId,
-            $"{spec.Name} questionnaire",
+            text.QuestionnaireNameFor(spec.Name),
             spec.TemplateDescription,
             createdBy: actorUserId);
         var templateVersion = TemplateVersion.CreateTenantDraft(
             PlatformIds.NewId(),
             template.Id,
             "1.0.0",
-            "en");
+            text.LocaleCode);
         templateVersion.Publish(actorUserId, baseTime.AddDays(1));
 
         var section = new TemplateSection(
@@ -443,7 +450,7 @@ public sealed class SampleStudySeeder(
             maxValue: 7,
             step: 1,
             naAllowed: false,
-            anchors: """[{"value":1,"label":"Strongly disagree"},{"value":7,"label":"Strongly agree"}]""");
+            anchors: text.AnchorsJson);
         var questions = spec.Questions
             .Select((question, index) => new TemplateQuestion(
                 PlatformIds.NewId(),
@@ -483,7 +490,7 @@ public sealed class SampleStudySeeder(
             JsonSerializer.Serialize(new
             {
                 sample_study = true,
-                interpretation = "Synthetic sample result outputs. Higher values indicate better self-reported conditions for this sample only.",
+                interpretation = text.ScoringInterpretation,
                 outputs = spec.Scores.Select(score => new { score.Code, score.Label }).ToArray()
             }, JsonOptions));
         scoringRule.Publish(actorUserId, baseTime.AddDays(1).AddMinutes(5));
@@ -492,10 +499,10 @@ public sealed class SampleStudySeeder(
             PlatformIds.NewId(),
             tenantId,
             series.Id,
-            "en",
+            text.LocaleCode,
             "1.0.0",
-            $"{spec.Name} sample consent",
-            "Synthetic read-only sample data for product walkthroughs.",
+            text.ConsentTitleFor(spec.Name),
+            text.ConsentBody,
             """["participation"]""",
             "[]",
             baseTime.AddDays(1));
@@ -532,7 +539,7 @@ public sealed class SampleStudySeeder(
         db.DisclosurePolicies.Add(disclosure);
         await db.SaveChangesAsync(cancellationToken);
 
-        var directory = CreateSampleDirectory(tenantId, series.Id, spec);
+        var directory = CreateSampleDirectory(tenantId, series.Id, spec, text);
         db.SubjectGroups.AddRange(directory.Groups);
         db.Subjects.AddRange(directory.Subjects);
         db.SubjectMemberships.AddRange(directory.Memberships);
@@ -571,7 +578,7 @@ public sealed class SampleStudySeeder(
                 templateVersion.Id,
                 scoringRule.Id,
                 spec.ResponseIdentityMode,
-                "en",
+                text.LocaleCode,
                 questions.Length,
                 scoringRule.DocumentHash,
                 """{"status":"ready","sample_study":true}""",
@@ -617,7 +624,7 @@ public sealed class SampleStudySeeder(
                     PlatformIds.NewId(),
                     tenantId,
                     assignment.Id,
-                    "en",
+                    text.LocaleCode,
                     participantCodeId,
                     startedAt: launchedAt.AddHours(2).AddMinutes(respondentIndex));
                 var answers = questions
@@ -657,7 +664,7 @@ public sealed class SampleStudySeeder(
                 sessions.Add(session);
             }
 
-            campaign.Close("Synthetic sample wave closed.", actorUserId, closedAt);
+            campaign.Close(text.WaveCloseReason, actorUserId, closedAt);
             db.ExportArtifacts.Add(CreateCampaignReportExport(
                 tenantId,
                 series,
@@ -770,7 +777,8 @@ public sealed class SampleStudySeeder(
     private static SampleDirectory CreateSampleDirectory(
         Guid tenantId,
         Guid campaignSeriesId,
-        SampleStudySpec spec)
+        SampleStudySpec spec,
+        SampleLocaleText text)
     {
         var groups = spec.Groups
             .Select(group => new SampleDirectoryGroup(
@@ -804,7 +812,7 @@ public sealed class SampleStudySeeder(
                     subjectId,
                     tenantId,
                     externalId: $"sample-{spec.Key}-{respondentIndex:0000}",
-                    displayName: $"Sample respondent {respondentIndex:0000}",
+                    displayName: text.RespondentNameFor(respondentIndex),
                     attributes: JsonSerializer.Serialize(new
                     {
                         sample_study = true,
@@ -1524,8 +1532,75 @@ public sealed class SampleStudySeeder(
     }
 }
 
+/// <summary>
+/// Locale-dependent strings the seeder composes outside the per-study specs.
+/// Example content must read believably in the researcher's language.
+/// </summary>
+internal sealed record SampleLocaleText(
+    bool IsCroatian,
+    string LocaleCode,
+    string AnchorsJson,
+    string StudyAudience,
+    string InterpretationBoundary,
+    string OwnerNotes,
+    string ScoringInterpretation,
+    string ConsentBody,
+    string WaveCloseReason,
+    string PurposeTemplate,
+    string QuestionnaireNameTemplate,
+    string ConsentTitleTemplate,
+    string RespondentNameTemplate)
+{
+    public static SampleLocaleText For(string? locale)
+    {
+        return locale is not null && locale.StartsWith("hr", StringComparison.OrdinalIgnoreCase)
+            ? Croatian
+            : English;
+    }
+
+    public string PurposeFor(string name) => string.Format(PurposeTemplate, name);
+
+    public string QuestionnaireNameFor(string name) => string.Format(QuestionnaireNameTemplate, name);
+
+    public string ConsentTitleFor(string name) => string.Format(ConsentTitleTemplate, name);
+
+    public string RespondentNameFor(int index) => string.Format(RespondentNameTemplate, index);
+
+    private static SampleLocaleText English { get; } = new(
+        IsCroatian: false,
+        LocaleCode: "en",
+        AnchorsJson: """[{"value":1,"label":"Strongly disagree"},{"value":7,"label":"Strongly agree"}]""",
+        StudyAudience: "Synthetic respondents generated for product evaluation.",
+        InterpretationBoundary: "Synthetic sample data only. Use it to learn the product flow, not as external evidence.",
+        OwnerNotes: "Generated sample study for workspace onboarding.",
+        ScoringInterpretation: "Synthetic sample result outputs. Higher values indicate better self-reported conditions for this sample only.",
+        ConsentBody: "Synthetic read-only sample data for product walkthroughs.",
+        WaveCloseReason: "Synthetic sample wave closed.",
+        PurposeTemplate: "Read-only sample showing the {0} workflow from setup through results.",
+        QuestionnaireNameTemplate: "{0} questionnaire",
+        ConsentTitleTemplate: "{0} sample consent",
+        RespondentNameTemplate: "Sample respondent {0:0000}");
+
+    private static SampleLocaleText Croatian { get; } = new(
+        IsCroatian: true,
+        LocaleCode: "hr-HR",
+        AnchorsJson: """[{"value":1,"label":"Uopće se ne slažem"},{"value":7,"label":"Potpuno se slažem"}]""",
+        StudyAudience: "Sintetički ispitanici stvoreni za isprobavanje proizvoda.",
+        InterpretationBoundary: "Isključivo sintetički ogledni podaci. Služe za upoznavanje s proizvodom, ne kao vanjski dokaz.",
+        OwnerNotes: "Automatski stvorena ogledna studija za upoznavanje s radnim prostorom.",
+        ScoringInterpretation: "Sintetički ogledni rezultati. Više vrijednosti označavaju bolje samoprocijenjene uvjete, samo za ovaj ogled.",
+        ConsentBody: "Sintetički ogledni podaci samo za čitanje, namijenjeni upoznavanju s proizvodom.",
+        WaveCloseReason: "Ogledni krug zatvoren.",
+        PurposeTemplate: "Ogledna studija samo za čitanje: prikazuje tijek rada studije „{0}“ od postavljanja do rezultata.",
+        QuestionnaireNameTemplate: "{0} — upitnik",
+        ConsentTitleTemplate: "{0} — ogledna privola",
+        RespondentNameTemplate: "Ogledni ispitanik {0:0000}");
+}
+
 internal static class SampleStudySpecs
 {
+    public static IReadOnlyList<SampleStudySpec> For(bool croatian) => croatian ? Croatian : All;
+
     public static IReadOnlyList<SampleStudySpec> All { get; } =
     [
         new(
@@ -1694,6 +1769,185 @@ internal static class SampleStudySpecs
                     ["recovery_time"] = 3.3
                 }),
                 new("Post-exam recovery", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 4.8,
+                    ["support_access"] = 4.5,
+                    ["assessment_clarity"] = 4.4,
+                    ["recovery_time"] = 4.2
+                })
+            ])
+    ];
+
+    // Croatian variants: same keys, score codes, group sizes and target means as
+    // the English set, so the seeded evidence (trends, k-suppression) is identical.
+    public static IReadOnlyList<SampleStudySpec> Croatian { get; } =
+    [
+        new(
+            "workload-recovery",
+            "Oporavak od radnog opterećenja nakon kadrovske promjene",
+            "Ogledna studija samo za čitanje: četiri zatvorena kruga prikupljanja nakon intervencije u radnom opterećenju.",
+            "Opterećenje i oporavak",
+            CampaignSeriesSampleScenarios.Longitudinal,
+            ResponseIdentityModes.AnonymousLongitudinal,
+            CampaignSeriesStudyDesignTypes.RepeatedLinkedChange,
+            [
+                new(SubjectGroupTypes.Team, "Operativa", 9, -0.25),
+                new(SubjectGroupTypes.Team, "Terenska služba", 7, -0.45),
+                new(SubjectGroupTypes.Team, "Podrška korisnicima", 8, 0.15),
+                new(SubjectGroupTypes.Team, "Noćna smjena", 4, -0.7)
+            ],
+            [
+                new("workload_manageability", "Savladivost radnog opterećenja", ["q01", "q02"]),
+                new("recovery_capacity", "Kapacitet oporavka", ["q03", "q04"]),
+                new("role_clarity", "Jasnoća uloge", ["q05", "q06"]),
+                new("support_access", "Dostupnost podrške", ["q07", "q08"])
+            ],
+            [
+                new("q01", "workload_manageability", "Prioritetne zadatke mogu dovršiti u raspoloživom vremenu."),
+                new("q02", "workload_manageability", "Neočekivani posao mogu obaviti bez stalnog prekovremenog rada."),
+                new("q03", "recovery_capacity", "Između zahtjevnih radnih razdoblja stignem se dovoljno oporaviti."),
+                new("q04", "recovery_capacity", "Pauze i vrijeme izvan posla ostvarivi su i u napornim tjednima."),
+                new("q05", "role_clarity", "Znam koji su zadaci najvažniji kad sve djeluje hitno."),
+                new("q06", "role_clarity", "Odgovornosti su dovoljno jasne da izbjegnemo dvostruki posao."),
+                new("q07", "support_access", "Moj tim ima konkretnu podršku kad opterećenje poraste."),
+                new("q08", "support_access", "Lako je zatražiti pomoć prije nego što opterećenje postane nesavladivo.")
+            ],
+            [
+                new("Početno stanje prije kadrovske promjene", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 3.8,
+                    ["recovery_capacity"] = 3.5,
+                    ["role_clarity"] = 4.1,
+                    ["support_access"] = 3.9
+                }),
+                new("Tjedan vršnog opterećenja", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 3.2,
+                    ["recovery_capacity"] = 3.1,
+                    ["role_clarity"] = 3.9,
+                    ["support_access"] = 3.5
+                }),
+                new("Nakon kadrovske promjene", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 4.6,
+                    ["recovery_capacity"] = 4.2,
+                    ["role_clarity"] = 4.7,
+                    ["support_access"] = 4.5
+                }),
+                new("Kontrolna provjera", new Dictionary<string, double>
+                {
+                    ["workload_manageability"] = 5.2,
+                    ["recovery_capacity"] = 4.9,
+                    ["role_clarity"] = 5.1,
+                    ["support_access"] = 5.0
+                })
+            ]),
+        new(
+            "ergonomics-risk",
+            "Ergonomski rizik i prilagođenost radnog mjesta",
+            "Ogledna studija samo za čitanje: promjene radnih mjesta, grupe iz imenika i skrivene male grupe.",
+            "Ergonomski uvjeti",
+            CampaignSeriesSampleScenarios.Completed,
+            ResponseIdentityModes.Identified,
+            CampaignSeriesStudyDesignTypes.RepeatedGroupTrend,
+            [
+                new(SubjectGroupTypes.Department, "Montažna linija", 9, -0.55),
+                new(SubjectGroupTypes.Department, "Uredska radna mjesta", 7, 0.2),
+                new(SubjectGroupTypes.Department, "Logistika", 6, -0.15),
+                new(SubjectGroupTypes.Department, "Laboratorij za prototipove", 4, -0.8)
+            ],
+            [
+                new("posture_support", "Potpora držanju tijela", ["q01", "q02"]),
+                new("equipment_fit", "Prilagođenost opreme", ["q03", "q04"]),
+                new("repetitive_load_control", "Kontrola ponavljajućeg opterećenja", ["q05", "q06"]),
+                new("reporting_confidence", "Povjerenje u prijavljivanje", ["q07", "q08"])
+            ],
+            [
+                new("q01", "posture_support", "Moje radno mjesto podržava udoban radni položaj."),
+                new("q02", "posture_support", "Tijekom dana mogu mijenjati radni položaj."),
+                new("q03", "equipment_fit", "Alati i oprema prilagođeni su zadatku."),
+                new("q04", "equipment_fit", "Zajednička oprema dostupna je u stanju koje omogućuje siguran rad."),
+                new("q05", "repetitive_load_control", "Ponavljajući ili nezgodni pokreti drže se pod kontrolom."),
+                new("q06", "repetitive_load_control", "Zadaci se rotiraju ili preoblikuju prije nego što se nelagoda nakupi."),
+                new("q07", "reporting_confidence", "Znam kako prijaviti i riješiti ergonomske probleme."),
+                new("q08", "reporting_confidence", "Na prijavljene ergonomske probleme stiže pravovremen odgovor.")
+            ],
+            [
+                new("Početni pregled radnih mjesta", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 4.0,
+                    ["equipment_fit"] = 3.7,
+                    ["repetitive_load_control"] = 3.4,
+                    ["reporting_confidence"] = 4.1
+                }),
+                new("Nakon prilagodbe opreme", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 4.9,
+                    ["equipment_fit"] = 5.1,
+                    ["repetitive_load_control"] = 4.2,
+                    ["reporting_confidence"] = 4.6
+                }),
+                new("Kontrolni pregled radnih mjesta", new Dictionary<string, double>
+                {
+                    ["posture_support"] = 5.5,
+                    ["equipment_fit"] = 5.6,
+                    ["repetitive_load_control"] = 4.9,
+                    ["reporting_confidence"] = 5.1
+                })
+            ]),
+        new(
+            "student-wellbeing",
+            "Dobrobit studenata i opterećenje provjerama znanja",
+            "Ogledna studija samo za čitanje: ponovljeno anonimno sudjelovanje kroz semestar.",
+            "Studijsko opterećenje i oporavak",
+            CampaignSeriesSampleScenarios.Longitudinal,
+            ResponseIdentityModes.AnonymousLongitudinal,
+            CampaignSeriesStudyDesignTypes.RepeatedLinkedChange,
+            [
+                new(SubjectGroupTypes.Cohort, "Studenti prve godine", 10, -0.2),
+                new(SubjectGroupTypes.Cohort, "Studenti završne godine", 8, -0.45),
+                new(SubjectGroupTypes.Cohort, "Izvanredni studenti", 7, 0.1),
+                new(SubjectGroupTypes.Cohort, "Mala seminarska grupa", 4, -0.65)
+            ],
+            [
+                new("study_load_manageability", "Savladivost studijskog opterećenja", ["q01", "q02"]),
+                new("support_access", "Dostupnost podrške", ["q03", "q04"]),
+                new("assessment_clarity", "Jasnoća ispitnih zahtjeva", ["q05", "q06"]),
+                new("recovery_time", "Vrijeme za oporavak", ["q07", "q08"])
+            ],
+            [
+                new("q01", "study_load_manageability", "Mogu pratiti očekivano studijsko opterećenje."),
+                new("q02", "study_load_manageability", "Tjedne studijske obveze djeluju ostvarivo uz ostale odgovornosti."),
+                new("q03", "support_access", "Znam gdje potražiti podršku kad pritisak studija poraste."),
+                new("q04", "support_access", "Podrška je dostupna dovoljno rano da problemi ne eskaliraju."),
+                new("q05", "assessment_clarity", "Ispitni zahtjevi jasni su prije nego što krenem s radom."),
+                new("q06", "assessment_clarity", "Raspored provjera znanja djeluje savladivo kroz sve kolegije."),
+                new("q07", "recovery_time", "Tijekom studijskog tjedna imam dovoljno vremena za oporavak."),
+                new("q08", "recovery_time", "Mogu se odmaknuti od studijskih obveza bez zaostajanja.")
+            ],
+            [
+                new("Početak semestra", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 5.2,
+                    ["support_access"] = 4.7,
+                    ["assessment_clarity"] = 4.8,
+                    ["recovery_time"] = 4.6
+                }),
+                new("Pritisak kolokvija", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 4.5,
+                    ["support_access"] = 4.3,
+                    ["assessment_clarity"] = 4.2,
+                    ["recovery_time"] = 4.0
+                }),
+                new("Ispitni tjedan", new Dictionary<string, double>
+                {
+                    ["study_load_manageability"] = 3.4,
+                    ["support_access"] = 3.8,
+                    ["assessment_clarity"] = 3.2,
+                    ["recovery_time"] = 3.3
+                }),
+                new("Oporavak nakon ispita", new Dictionary<string, double>
                 {
                     ["study_load_manageability"] = 4.8,
                     ["support_access"] = 4.5,

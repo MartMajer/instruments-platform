@@ -44,6 +44,8 @@ export type WorkspaceCommandCenterItemResponse = {
 	campaignSeriesId: string | null;
 	campaignId: string | null;
 	requiredPermission: string | null;
+	/** Values the title/description were composed from, for localized recomposition. */
+	params?: Record<string, string> | null;
 };
 
 export type TenantSettingsWorkspaceResponse = {
@@ -881,6 +883,7 @@ export type CampaignSeriesReportsWorkspaceResponse = {
 	campaigns: CampaignSeriesReportsCampaignResponse[];
 	scoreCoverage?: CampaignSeriesScoreCoverageResponse | null;
 	resultsAnalytics?: CampaignSeriesResultsAnalyticsResponse | null;
+	provenance?: CampaignSeriesReportsProvenanceResponse | null;
 	resultsDashboard?: CampaignSeriesResultsDashboardResponse | null;
 };
 
@@ -1055,6 +1058,8 @@ export type CampaignSeriesResultsScoreOutputResponse = {
 	nExpectedTotal: number | null;
 	missingPolicyStatusSummary: string | null;
 	suppressionReason: string | null;
+	/** Human label from the scoring rule's output metadata, when present. */
+	dimensionLabel?: string | null;
 };
 
 export type CampaignSeriesResultsGroupMatrixRowResponse = {
@@ -1070,6 +1075,7 @@ export type CampaignSeriesResultsGroupMatrixRowResponse = {
 	min: number | null;
 	max: number | null;
 	suppressionReason: string | null;
+	dimensionLabel?: string | null;
 };
 
 export type CampaignSeriesResultsWaveMatrixRowResponse = {
@@ -1091,6 +1097,29 @@ export type CampaignSeriesResultsWaveMatrixRowResponse = {
 	deltaFromPreviousMean: number | null;
 	deltaFromFirstMean: number | null;
 	comparisonState: string;
+	dimensionLabel?: string | null;
+};
+
+export type CampaignSeriesReportsProvenanceResponse = {
+	studyName: string;
+	waveName: string;
+	responseIdentityMode: string;
+	launchedAt: string | null;
+	closedAt: string | null;
+	dataFinality: string;
+	submittedResponseCount: number;
+	instrumentName: string | null;
+	instrumentVersion: string | null;
+	instrumentLocale: string | null;
+	questionCount: number | null;
+	scoringRuleKey: string | null;
+	scoringRuleVersion: string | null;
+	consentVersion: string | null;
+	consentLocale: string | null;
+	consentTitle: string | null;
+	disclosureKMin: number | null;
+	disclosureRule: string | null;
+	retentionYears: number | null;
 };
 
 export type CampaignSeriesResultsInsightResponse = {
@@ -1098,6 +1127,8 @@ export type CampaignSeriesResultsInsightResponse = {
 	severity: string;
 	title: string;
 	detail: string;
+	/** The one number the sentence was composed from (count or k), for localized recomposition. */
+	count?: number | null;
 };
 
 export type FinalityProvenanceWidgetData = {
@@ -1324,10 +1355,10 @@ export type CampaignSeriesWavesMissingPrerequisiteResponse = {
 
 export function createProductApi(client: ApiClient) {
 	return {
-		ensureSampleStudies: () =>
+		ensureSampleStudies: (locale?: string) =>
 			client.request<EnsureSampleStudiesResponse>(
 				'/sample-studies/ensure',
-				jsonRequest('POST', {})
+				jsonRequest('POST', locale ? { locale } : {})
 			),
 		getWorkspaceOverview: () => client.request<WorkspaceOverviewResponse>('/workspace-overview'),
 		getTenantSettings: () => client.request<TenantSettingsWorkspaceResponse>('/tenant-settings'),

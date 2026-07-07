@@ -327,6 +327,56 @@ public sealed class ScoringRuleValidatorTests
     }
 
     [Fact]
+    public void Compatibility_outputs_with_labels_for_known_scores_pass()
+    {
+        var request = ValidGraphRequest(
+            compatibility:
+            """
+            {
+              "outputs": [
+                { "code": "total", "label": "Total score (mean of items)" }
+              ]
+            }
+            """);
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal(["total"], result.Value.ScoreCodes);
+    }
+
+    [Fact]
+    public void Compatibility_outputs_label_for_unknown_score_is_rejected()
+    {
+        var request = ValidGraphRequest(
+            compatibility:
+            """
+            {
+              "outputs": [
+                { "code": "other", "label": "Not a score this rule produces" }
+              ]
+            }
+            """);
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.rule_compatibility_invalid", result.Error.Code);
+    }
+
+    [Fact]
+    public void Compatibility_outputs_entry_without_label_is_rejected()
+    {
+        var request = ValidGraphRequest(
+            compatibility: """{"outputs":[{"code":"total"}]}""");
+
+        var result = ScoringRuleValidator.Validate(request);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("score.rule_compatibility_invalid", result.Error.Code);
+    }
+
+    [Fact]
     public void Compatibility_entry_missing_rule_id_is_rejected()
     {
         var request = ValidGraphRequest(

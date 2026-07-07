@@ -9,6 +9,7 @@
 	import { createSetupApi, type LaunchReadinessResponse } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t, waveWord } from '$lib/core/locale.svelte';
+	import { prerequisiteCopy } from '$lib/core/backend-copy';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import Composer from '$lib/protocol/Composer.svelte';
 	import { confirmDialog, promptDialog } from '$lib/ui/dialog.svelte';
@@ -184,7 +185,7 @@
 
 	let groups = $state<{ id: string; name: string; memberCount: number }[]>([]);
 	let recipientsFor = $state<string | null>(null);
-	let recipientKind = $state<'self' | 'all_in_group'>('self');
+	let recipientKind = $state<'self' | 'all_in_group' | 'manager_review'>('self');
 	let recipientGroupId = $state('');
 	let recipientBusy = $state(false);
 	let recipientNote = $state<string | null>(null);
@@ -203,18 +204,46 @@
 		recipientBusy = true;
 		recipientNote = null;
 		try {
-			const rule =
-				recipientKind === 'all_in_group'
-					? { kind: 'all_in_group', role: 'group_member', group_id: recipientGroupId }
-					: { kind: 'self', role: 'self' };
-			const saved = await setup.updateCampaignRespondentRules(campaignId, {
-				rules: [{ rule: JSON.stringify(rule) }]
-			});
-			const pairs = saved.rules?.[0]?.assignmentPairCount ?? null;
-			recipientNote = pairs != null ? `Saved — ${pairs} recipients resolved from the directory.` : 'Recipients saved.';
+			let rules: { rule: string }[];
+			if (recipientKind === 'manager_review') {
+				// One rule per person with a manager: the manager answers about them.
+				const directory = await product.listSubjects();
+				const reports = (directory.subjects ?? []).filter(
+					(subject) => subject.managerSubjectId
+				);
+				if (reports.length === 0) {
+					recipientNote = t(
+						'Nobody in People has a manager yet. Add manager_external_id via CSV import first.'
+					);
+					recipientBusy = false;
+					return;
+				}
+				rules = reports.map((subject) => ({
+					rule: JSON.stringify({
+						kind: 'manager_of_target',
+						role: 'manager',
+						target_subject_id: subject.id
+					})
+				}));
+			} else {
+				const rule =
+					recipientKind === 'all_in_group'
+						? { kind: 'all_in_group', role: 'group_member', group_id: recipientGroupId }
+						: { kind: 'self', role: 'self' };
+				rules = [{ rule: JSON.stringify(rule) }];
+			}
+			const saved = await setup.updateCampaignRespondentRules(campaignId, { rules });
+			const pairs = (saved.rules ?? []).reduce(
+				(sum, rule) => sum + (rule.assignmentPairCount ?? 0),
+				0
+			);
+			recipientNote =
+				pairs > 0
+					? `${t('Saved —')} ${pairs} ${t('respondent–target pairs resolved from the directory.')}`
+					: t('Recipients saved.');
 			await load();
 		} catch {
-			recipientNote = 'Recipients could not be saved. Anonymous open-link waves do not need them.';
+			recipientNote = t('Recipients could not be saved. Anonymous open-link waves do not need them.');
 		} finally {
 			recipientBusy = false;
 		}
@@ -226,8 +255,10 @@
 	async function duplicateStudy() {
 		if (!hub || lifecycleBusy) return;
 		const name = await promptDialog({
-			title: t('Duplicate as my study'),
-			body: t('Copies this example into an editable study of your own — protocol included, responses not.'),
+			title: hub.isSample ? t('Duplicate as my study') : t('Duplicate study'),
+			body: hub.isSample
+				? t('Copies this example into an editable study of your own — protocol included, responses not.')
+				: t('The protocol is copied — instrument, scoring, policies. Waves and responses are not.'),
 			confirmLabel: t('Duplicate'),
 			initialValue: `${hub.name} (copy)`
 		});
@@ -238,7 +269,7 @@
 			const copy = await product.duplicateCampaignSeries(seriesId, { name: name.trim() });
 			location.assign(`/app/studies/${copy.id}`);
 		} catch {
-			lifecycleError = 'Duplication failed. Try again.';
+			lifecycleError = t('Duplication failed. Try again.');
 			lifecycleBusy = false;
 		}
 	}
@@ -268,22 +299,7 @@
 	}
 
 	/** Backend prerequisites speak backend ("campaign"); translate + point at the right chapter. */
-	function prerequisiteHint(code: string, message: string): { text: string; anchor: string | null } {
-		const lowered = `${code} ${message}`.toLowerCase();
-		if (lowered.includes('campaign')) {
-			return { text: t('This study has no wave yet. Add one in chapter 05 — Waves.'), anchor: '#waves' };
-		}
-		if (lowered.includes('template') || lowered.includes('instrument') || lowered.includes('question')) {
-			return { text: t('No instrument is attached yet. Compose or pick one in chapter 02 — Instrument.'), anchor: '#instrument' };
-		}
-		if (lowered.includes('scoring')) {
-			return { text: t('No scoring rule is bound. It is created with the questionnaire in chapter 02.'), anchor: '#instrument' };
-		}
-		if (lowered.includes('consent') || lowered.includes('retention') || lowered.includes('disclosure')) {
-			return { text: message, anchor: '#policies' };
-		}
-		return { text: message, anchor: null };
-	}
+	const prerequisiteHint = prerequisiteCopy;
 
 	function policyDetail(details: { label: string; value: string }[] | null | undefined, label: string): string | null {
 		return details?.find((d) => d.label.toLowerCase() === label.toLowerCase())?.value ?? null;
@@ -303,7 +319,7 @@
 	{#if hub && workspace}
 		<header class="head">
 			<p class="eyebrow">
-				<a href="/app/studies">Studies</a> / Protocol
+				<a href="/app/studies">{t('Studies')}</a> / {t('Protocol')}
 			</p>
 			<h1 class="doc-title">{hub.name}</h1>
 			<p class="datum registered">
@@ -355,8 +371,8 @@
 						</dl>
 					{:else if hub.campaigns.length > 0}
 						<p class="prose">
-							All {formatCount(hub.campaigns.length)} waves of this study have been launched.
-							Design settings are locked in each wave's snapshot.
+							{t('All waves of this study have been launched.')}
+							{t("Design settings are locked in each wave's snapshot.")}
 						</p>
 					{:else}
 						<p class="prose">
@@ -372,7 +388,7 @@
 					</p>
 					{#if hub.campaigns.some((c) => c.status.toLowerCase() === 'live')}
 						<p class="prose">
-							<a href={`/app/studies/${seriesId}/field`}>Open Field →</a>
+							<a href={`/app/studies/${seriesId}/field`}>{t('Open Field')} →</a>
 						</p>
 					{/if}
 				</section>
@@ -423,7 +439,7 @@
 									{/each}
 								</ol>
 							{:else}
-								<p class="prose">Loading items…</p>
+								<p class="prose">{t('Loading items…')}</p>
 							{/if}
 						{/if}
 					{:else}
@@ -467,7 +483,7 @@
 
 					<div class="consent-card">
 						<div class="policy-head">
-							<span class={policyChip(workspace.policies.consent.status)}>Consent</span>
+							<span class={policyChip(workspace.policies.consent.status)}>{t('Consent')}</span>
 							{#if workspace.policies.consent.version}
 								<span class="datum quiet">v{workspace.policies.consent.version}</span>
 							{/if}
@@ -511,8 +527,9 @@
 									{consentBusy ? t('Publishing…') : t('Publish — retires the current version')}
 								</button>
 								<p class="consent-hint">
-									Launched waves keep the consent version they launched with; this version binds
-									to waves launched after publishing. Grants carry over unchanged.
+									{t(
+										'Launched waves keep the consent version they launched with; this version binds to waves launched after publishing. Grants carry over unchanged.'
+									)}
 								</p>
 							</form>
 						{/if}
@@ -554,9 +571,10 @@
 										<div class="recipients-form">
 											<span class="eyebrow">{t('Who answers this wave')}</span>
 											<div class="recipients-controls">
-												<select bind:value={recipientKind} aria-label="Recipient rule">
+												<select bind:value={recipientKind} aria-label={t('Recipient rule')}>
 													<option value="self">{t('Everyone in the directory (about themselves)')}</option>
 													<option value="all_in_group">{t('Members of a group (about themselves)')}</option>
+													<option value="manager_review">{t('Managers (about each of their reports)')}</option>
 												</select>
 												{#if recipientKind === 'all_in_group'}
 													<select bind:value={recipientGroupId} aria-label="Group">
@@ -591,15 +609,15 @@
 						<form class="add-wave" onsubmit={addWave}>
 							<input
 								bind:value={waveName}
-								placeholder={`Wave ${(hub.campaigns.length ?? 0) + 1} — e.g. Baseline`}
-								aria-label="New wave name"
+								placeholder={`${t('Wave')} ${(hub.campaigns.length ?? 0) + 1} — ${t('e.g. Baseline')}`}
+								aria-label={t('New wave name')}
 							/>
-							<select bind:value={waveIdentityMode} aria-label="Identity mode">
-								<option value="anonymous">Anonymous</option>
-								<option value="anonymous_longitudinal">Anonymous longitudinal</option>
-								<option value="identified">Identified</option>
+							<select bind:value={waveIdentityMode} aria-label={t('Identity mode')}>
+								<option value="anonymous">{t('Anonymous')}</option>
+								<option value="anonymous_longitudinal">{t('Anonymous longitudinal')}</option>
+								<option value="identified">{t('Identified')}</option>
 							</select>
-							<select bind:value={waveLocale} aria-label="Wave language">
+							<select bind:value={waveLocale} aria-label={t('Wave language')}>
 								<option value="en">English</option>
 								<option value="hr-HR">Hrvatski</option>
 							</select>
@@ -655,11 +673,9 @@
 				<div class="panel governance">
 					<h2 class="eyebrow">{t('Study')}</h2>
 					<div class="lifecycle-actions">
-						{#if hub.isSample}
-							<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
-								{t('Duplicate as my study')}
-							</button>
-						{/if}
+						<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
+							{hub.isSample ? t('Duplicate as my study') : t('Duplicate study')}
+						</button>
 						<button class="quiet-action" disabled={lifecycleBusy} onclick={toggleArchive}>
 							{hub.archived ? t('Restore from archive') : t('Archive study')}
 						</button>

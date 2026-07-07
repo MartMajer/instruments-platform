@@ -239,6 +239,7 @@ public sealed class ReportPdfArtifactWorkerTests
         public Task<Result<ReportProofExportArtifactResponse>> RetryCampaignSeriesReportPdfArtifactAsync(Guid tenantId, Guid artifactId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ReportProofExportArtifactResponse>> GetExportArtifactAsync(Guid tenantId, Guid artifactId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ExportArtifactDownloadResponse>> GetExportArtifactDownloadAsync(Guid tenantId, Guid artifactId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<Result<ExportArtifactDownloadResponse>> GetExportArtifactCodebookDownloadAsync(Guid tenantId, Guid artifactId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<Result<ExportArtifactSignedDownloadUrlResponse>> GetExportArtifactSignedDownloadUrlAsync(Guid tenantId, Guid artifactId, TimeSpan expiresIn, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

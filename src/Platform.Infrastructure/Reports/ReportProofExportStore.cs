@@ -382,6 +382,54 @@ public sealed class ReportProofExportStore(
         return Result.Success(ToDownloadResponse(artifact));
     }
 
+    public async Task<Result<ExportArtifactDownloadResponse>> GetExportArtifactCodebookDownloadAsync(
+        Guid tenantId,
+        Guid artifactId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var artifact = await db.ExportArtifacts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.Id == artifactId, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (artifact is null)
+        {
+            return Result.Failure<ExportArtifactDownloadResponse>(ArtifactNotFound());
+        }
+
+        if (!CanDownloadArtifact(artifact))
+        {
+            return Result.Failure<ExportArtifactDownloadResponse>(ArtifactNotDownloadable());
+        }
+
+        // The codebook always lives on the artifact row, so this works the same
+        // whether the data file itself is inline or in external object storage.
+        var codebookJson = artifact.CodebookJson;
+        if (string.IsNullOrWhiteSpace(codebookJson) || codebookJson.Trim() == "{}")
+        {
+            return Result.Failure<ExportArtifactDownloadResponse>(
+                Error.NotFound(
+                    "export_artifact.codebook_unavailable",
+                    "This export artifact does not carry a codebook."));
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(codebookJson);
+        var baseName = Path.GetFileNameWithoutExtension(artifact.FileName);
+
+        return Result.Success(new ExportArtifactDownloadResponse(
+            artifact.Id,
+            $"{baseName}-codebook.json",
+            "application/json",
+            bytes.Length,
+            Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
+            codebookJson));
+    }
+
     public async Task<Result<ExportArtifactSignedDownloadUrlResponse>> GetExportArtifactSignedDownloadUrlAsync(
         Guid tenantId,
         Guid artifactId,

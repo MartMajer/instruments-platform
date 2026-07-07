@@ -357,7 +357,7 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
-    public async Task Duplicate_campaign_series_returns_conflict_for_own_source()
+    public async Task Duplicate_campaign_series_copies_an_own_source_into_a_fresh_own_draft()
     {
         var tenantId = Guid.NewGuid();
         var migratorOptions = CreateMigratorOptions();
@@ -376,9 +376,10 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
             new DuplicateCampaignSeriesRequest("Copy"),
             CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("campaign_series.not_sample", result.Error.Code);
-        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("Copy", result.Value.Name);
+        Assert.False(result.Value.IsSample);
+        Assert.Equal(ownSeries.Id, result.Value.SourceCampaignSeriesId);
     }
 
     [DockerFact]
@@ -699,7 +700,9 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("campaign.not_found", result.Error.Code);
+        // The tenant-scoped series lookup runs first, so a cross-tenant close fails on the
+        // series without revealing whether the campaign exists in the other tenant.
+        Assert.Equal("campaign_series.not_found", result.Error.Code);
     }
 
     [DockerFact]

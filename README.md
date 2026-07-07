@@ -1,115 +1,76 @@
 # instruments-platform
 
-Working repository for the v2 Instruments Platform.
+Working repository for **ValidatedScale** (v2 Instruments Platform): a validated-instrument engine for research-grade measurement — tenant-provided instruments plus a rights-cleared free gallery, EU-hosted, GDPR-native, en+hr.
 
 ## Structure
 
-- `docs/v2/` - product, architecture, roadmap, and handoff docs.
-- `apps/web/` - SvelteKit frontend tenant setup workspace.
-- `src/` - .NET 9 backend source.
-- `tests/` - .NET and frontend automated tests.
-- `deploy/` - local and future deployment infrastructure.
+- `apps/validatedscale/` — **the product frontend** (SvelteKit, port 5174 in dev). Researcher app, landing page, and the mobile respondent runner.
+- `apps/web/` — the previous frontend. **Retired reference code, read-only**; used as a behavior checklist, never edited.
+- `src/` — .NET 9 backend: `Platform.Api` (HTTP, port 5055), `Platform.Application` (vertical slices/CQRS-lite), `Platform.Domain`, `Platform.Infrastructure` (EF Core/Postgres, RLS tenancy, outbox/audit), `Platform.Workers` (outbox relay), `Platform.SharedKernel`.
+- `tests/` — .NET unit + integration tests, license-gate tests. Frontend unit/E2E tests live in `apps/validatedscale/`.
+- `deploy/` — `local/` dev Postgres, `staging/` VPS packaging. Deploys are owner-run.
+- `docs/` — product, architecture, and handoff docs (**a separate git repository**; orient from `docs/v2/80-agent-handoff/STATE.md`).
+- `tools/` — license gate and framework scripts.
 
-## Local Setup
+## Local development
 
-Install frontend dependencies and restore local .NET tools:
+One-time setup — Postgres, migrations, and the dev tenant/user seed:
 
-```powershell
-npm install --prefix apps/web
+```bash
+npm install --prefix apps/validatedscale
 dotnet tool restore
+# Windows: .\deploy\local\setup-dev-db.ps1
+# Linux/macOS equivalent:
+docker compose -f deploy/local/docker-compose.yml up -d
+PLATFORM_DESIGN_TIME_CONNECTION='Host=localhost;Port=5432;Database=instruments_platform_dev;Username=platform_app;Password=platform_app_dev' \
+  dotnet ef database update --project src/Platform.Infrastructure --startup-project src/Platform.Infrastructure
+docker exec -i local-postgres-1 psql -U platform_app -d instruments_platform_dev < deploy/local/seed-dev.sql
+docker exec -i local-postgres-1 psql -v ON_ERROR_STOP=1 \
+  -v runtime_user=platform_app_runtime -v runtime_password=platform_app_runtime_dev \
+  -v worker_user=platform_app_worker -v worker_password=platform_app_worker_dev \
+  -U platform_app -d instruments_platform_dev < deploy/staging/runtime-role.sql
 ```
 
-If restore fails due to package feed, DNS, or cache issues, run:
+The last step creates the non-superuser runtime/worker roles the dev API and worker connect as (`appsettings.Development.json`), mirroring staging. Without them RLS tenant isolation is silently bypassed locally, because the compose `POSTGRES_USER` is a superuser.
+
+The dev tenant id is `11111111-1111-4111-8111-111111111111` and the dev user is `dev@local.test` (`22222222-2222-4222-8222-222222222222`), matching the frontend development auth headers.
+
+Run the API (and optionally the worker for outbox processing):
 
 ```bash
-./tools/frameworks/fix-dotnet-restore.sh
+dotnet run --project src/Platform.Api        # http://localhost:5055
+dotnet run --project src/Platform.Workers    # optional, separate shell
 ```
 
-The script runs `dotnet restore` with repository-local cache/home paths, a connectivity check for NuGet, and a retry path with `--no-cache --disable-parallel`.
-
-Start local Postgres, apply migrations, and seed the local development tenant:
-
-```powershell
-.\deploy\local\setup-dev-db.ps1
-```
-
-The script uses tenant id `11111111-1111-4111-8111-111111111111`, matching the frontend development auth headers. If Docker was just installed and `docker` is not recognized, restart the shell so Docker Desktop updates `PATH`; the script also checks Docker Desktop's default install path.
-
-Manual migration command, if needed:
-
-```powershell
-$env:PLATFORM_DESIGN_TIME_CONNECTION='Host=localhost;Port=5432;Database=instruments_platform_dev;Username=platform_app;Password=platform_app_dev'
-dotnet ef database update --project src/Platform.Infrastructure/Platform.Infrastructure.csproj --startup-project src/Platform.Infrastructure/Platform.Infrastructure.csproj
-```
-
-Start the API:
-
-```powershell
-dotnet run --project src/Platform.Api
-```
-
-Start the worker in a separate shell when you want the outbox relay scheduler
-to process due rows locally:
-
-```powershell
-dotnet run --project src/Platform.Workers
-```
-
-Start the frontend in a second shell:
-
-```powershell
-$env:PUBLIC_DEV_AUTH_ENABLED='true'
-$env:PUBLIC_AUTH_LOGIN_URL='/auth/login'
-$env:PUBLIC_AUTH_LOGOUT_URL='/auth/logout'
-npm run dev --prefix apps/web -- --host 127.0.0.1
-```
-
-The frontend defaults to `http://localhost:5055`, matching the API HTTP launch profile. Override with `PUBLIC_API_BASE_URL` if needed. `PUBLIC_AUTH_LOGIN_URL` and `PUBLIC_AUTH_LOGOUT_URL` are provider-neutral placeholders until Q-020 chooses the production Auth0/Keycloak path.
-
-## Local Docker Deployment Proof
-
-DEP01-A adds a local staging-shaped Docker package for proving the current tenant-private path in containers:
-
-```powershell
-.\deploy\staging\start-local-staging.ps1
-.\deploy\staging\smoke-local-staging.ps1
-.\deploy\staging\stop-local-staging.ps1 -RemoveVolumes
-```
-
-The stack runs Postgres, a one-shot EF migrator, a one-shot seed step, the API, and the SvelteKit Node web server. It uses development auth defaults from `deploy/staging/env.example` and is not a production deployment, VPS runbook, TLS setup, backup plan, or final auth implementation.
-
-For portable VPS staging adaptation, see `docs/v2/40-ops/vps-staging-runbook.md`. The VPS package uses subdomain routing through nginx and keeps API/web services bound to loopback host ports.
-
-### Staging deployment command (single-line workflow)
-
-After changes are pushed, run:
+Run the frontend:
 
 ```bash
-git add -A && git commit -m "chore: staging workflow test" && git push origin main
-bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env
+cd apps/validatedscale
+PUBLIC_DEV_AUTH_ENABLED=true PUBLIC_API_BASE_URL=http://localhost:5055 npm run dev   # http://localhost:5174
 ```
 
-Or if you need to redeploy the VPS directly:
-
-```bash
-ssh codex@147.93.120.10 -p 23146 "cd /opt/instruments-platform && git pull --ff-only && bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env"
-
-# if setup-vps-ssh.sh alias is configured:
-# ssh instruments-vps-codex "cd /opt/instruments-platform && git pull --ff-only && bash deploy/staging/redeploy-vps-stack.sh --env-file deploy/staging/.env"
-```
+Dev CORS allows ports 5173 and 5174 (`src/Platform.Api/appsettings.Development.json` → `AllowedOrigins`; restart the API after changing it). Without `PUBLIC_DEV_AUTH_ENABLED` the app uses the real OIDC flow, same as `apps/web` did.
 
 ## Verification
 
-```powershell
+```bash
 dotnet build Platform.slnx
 dotnet test tests/Platform.UnitTests/Platform.UnitTests.csproj
 dotnet test tests/Platform.IntegrationTests/Platform.IntegrationTests.csproj
-npm run lint --prefix apps/web
-npm run check --prefix apps/web
-npm run test --prefix apps/web -- --run
-npm run build --prefix apps/web
+npm run check --prefix apps/validatedscale
+npm run test:unit --prefix apps/validatedscale -- --run
+npm run test:e2e --prefix apps/validatedscale   # needs the local API + seeded dev DB
+npm run build --prefix apps/validatedscale
 node --test tests/license-gate/check-licenses.test.mjs
 node tools/check-licenses.mjs
 ```
 
-The license gate writes attribution artifacts to `artifacts/dependency-licenses/`; that directory is generated output and is git-ignored.
+Notes:
+
+- Playwright manages its own web servers (a dev-auth server on 5173 and an auth-less one on 5174 for anonymous-visitor specs).
+- Database-backed integration tests (Testcontainers) are opt-in: `RUN_POSTGRES_INTEGRATION_TESTS=1` with Docker running.
+- The license gate scans both frontend lockfiles and the .NET solution, and writes attribution artifacts to `artifacts/dependency-licenses/` (git-ignored).
+
+## Staging
+
+Staging runs on a VPS via `deploy/staging/` (nginx subdomain routing; the `web` service builds `apps/validatedscale`). Deployment is **owner-run** (`deploy/staging/redeploy-vps-stack.sh`); testing is staging-first — commits land with announced hashes and any EF migrations flagged loudly. See `docs/v2/40-ops/vps-staging-runbook.md`.

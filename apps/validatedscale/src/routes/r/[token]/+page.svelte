@@ -42,6 +42,11 @@
 	const locale = $derived(respondentLocale(entry?.defaultLocale ?? 'en', localeOverride));
 	const copy = $derived(respondentCopy[locale]);
 
+	// screen readers must know the survey's language to pronounce it
+	$effect(() => {
+		document.documentElement.lang = locale.startsWith('hr') ? 'hr' : 'en';
+	});
+
 	const questions = $derived(
 		(entry?.questions ?? []).slice().sort((a, b) => a.ordinal - b.ordinal)
 	);

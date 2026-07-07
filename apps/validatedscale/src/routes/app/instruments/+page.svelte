@@ -70,7 +70,7 @@
 				engineMinVersion: '1.0.0',
 				document: entry.scoringDocument!,
 				produces: entry.scoringProduces!,
-				compatibility: '{}'
+				compatibility: JSON.stringify({ outputs: entry.scoringOutputs ?? [] })
 			});
 
 			useStep = 'Attaching to study…';
@@ -98,9 +98,10 @@
 		fullName: '',
 		domain: 'psychometric',
 		provenanceNote: '',
-		rightsStatus: 'tenant_attested',
+		// domain-known values: anything else is rejected as instrument.invalid
+		rightsStatus: 'attested_by_tenant',
 		validityLabel: 'tenant_provided',
-		licenseType: 'tenant_provided',
+		licenseType: 'unknown',
 		citationApa: ''
 	});
 
@@ -149,8 +150,7 @@
 		<p class="eyebrow">{t('Library')}</p>
 		<h1 class="doc-title">{t('Instruments')}</h1>
 		<p class="hint">
-			Instruments you provide, with your rights attestation. Nothing here is an official
-			platform publication of a named instrument.
+			{t('Instruments you provide, with your rights attestation. Nothing here is an official platform publication of a named instrument.')}
 		</p>
 	</div>
 	<button class="btn btn-ink" onclick={() => (importOpen = !importOpen)}>
@@ -171,17 +171,17 @@
 			</div>
 			<div class="field grow">
 				<label class="eyebrow" for="i-name">{t('Full name')}</label>
-				<input id="i-name" required bind:value={form.fullName} placeholder="Workplace Wellbeing Scale" />
+				<input id="i-name" required bind:value={form.fullName} placeholder={t('Workplace Wellbeing Scale')} />
 			</div>
 		</div>
 		<div class="field">
-			<label class="eyebrow" for="i-prov">Provenance & rights note</label>
+			<label class="eyebrow" for="i-prov">{t('Provenance & rights note')}</label>
 			<textarea
 				id="i-prov"
 				rows="2"
 				required
 				bind:value={form.provenanceNote}
-				placeholder="Where the instrument comes from and on what basis you may use it."
+				placeholder={t('Where the instrument comes from and on what basis you may use it.')}
 			></textarea>
 		</div>
 		<div class="field">
@@ -224,7 +224,7 @@
 				{#if entry.autoload}
 					<div class="g-actions">
 						<button class="btn btn-stain g-use" disabled={useBusy !== null} onclick={() => useInstrument(entry.code)}>
-							{useBusy === entry.code ? (useStep ?? 'Setting up…') : `${t('Use')} ${entry.code}`}
+							{useBusy === entry.code ? (useStep ?? t('Setting up…')) : `${t('Use')} ${entry.code}`}
 						</button>
 						<button class="g-preview-btn" onclick={() => (previewFor = entry.code)}>
 							{t('View all')} {entry.itemCount} {t('items')}
@@ -257,7 +257,7 @@
 						<span class="datum g-code">{entry.code}</span>
 						<h2 class="doc-title im-title">{entry.name}</h2>
 					</div>
-					<button class="im-close" aria-label="Close" onclick={() => (previewFor = null)}>×</button>
+					<button class="im-close" aria-label={t('Close')} onclick={() => (previewFor = null)}>×</button>
 				</div>
 				<ol class="g-items">
 					{#each entry.template.questions as question (question.code)}
@@ -269,7 +269,7 @@
 									<span class="datum g-scale">{scale.minValue}–{scale.maxValue}</span>
 								{/if}
 							{:else}
-								<span class="datum g-scale">yes / no</span>
+								<span class="datum g-scale">{t('yes / no')}</span>
 							{/if}
 						</li>
 					{/each}
@@ -287,8 +287,10 @@
 
 <LoadState
 	state={loadState}
-	emptyTitle="No instruments yet"
-	emptyBody="Import a validated instrument you have the right to use. It becomes available to your studies as tenant-provided content."
+	emptyTitle={t('No instruments yet')}
+	emptyBody={t(
+		'Import a validated instrument you have the right to use. It becomes available to your studies as tenant-provided content.'
+	)}
 >
 	<ul class="list">
 		{#each instruments as instrument (instrument.id)}

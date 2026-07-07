@@ -274,6 +274,17 @@ public static class ScoringRuleValidator
         foreach (var property in compatibility.EnumerateObject())
         {
             var propertyName = NormalizeCode(property.Name);
+            if (propertyName == "outputs")
+            {
+                var outputsValidation = ValidateCompatibilityOutputs(property.Value, scoreCodeSet);
+                if (outputsValidation.IsFailure)
+                {
+                    return outputsValidation;
+                }
+
+                continue;
+            }
+
             if (propertyName is not ("output_equivalent_with" or "descriptive_only_with" or "incompatible_with"))
             {
                 return CompatibilityFailure($"Scoring rule compatibility key '{property.Name}' is unsupported.");
@@ -292,6 +303,57 @@ public static class ScoringRuleValidator
                 {
                     return entryValidation;
                 }
+            }
+        }
+
+        return Result.Success(true);
+    }
+
+    /// <summary>
+    /// Optional human labels for score outputs: an array of {code, label} where
+    /// each code is one the rule actually produces. Reporting surfaces read
+    /// these labels; they never influence scoring.
+    /// </summary>
+    private static Result<bool> ValidateCompatibilityOutputs(
+        JsonElement outputs,
+        HashSet<string> scoreCodes)
+    {
+        if (outputs.ValueKind != JsonValueKind.Array)
+        {
+            return CompatibilityFailure("Scoring rule compatibility 'outputs' must be an array.");
+        }
+
+        foreach (var entry in outputs.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.Object)
+            {
+                return CompatibilityFailure("Scoring rule compatibility output must be a JSON object.");
+            }
+
+            var code = ReadRequiredString(
+                entry,
+                "code",
+                "score.rule_compatibility_invalid",
+                "Scoring rule compatibility output must declare code.");
+            if (code.IsFailure)
+            {
+                return Result.Failure<bool>(code.Error);
+            }
+
+            if (!scoreCodes.Contains(NormalizeCode(code.Value)))
+            {
+                return CompatibilityFailure(
+                    $"Scoring rule compatibility output '{code.Value}' is not a score this rule produces.");
+            }
+
+            var label = ReadRequiredString(
+                entry,
+                "label",
+                "score.rule_compatibility_invalid",
+                "Scoring rule compatibility output must declare label.");
+            if (label.IsFailure)
+            {
+                return Result.Failure<bool>(label.Error);
             }
         }
 

@@ -152,6 +152,49 @@
 
 	const validItems = $derived(items.filter((item) => item.text.trim().length > 0));
 
+	/* Bring-your-own instrument: paste a published scale from a paper.
+	   The import registers a private instrument (rights attested by the
+	   tenant, citation kept) and binds it to the questionnaire. */
+	let byoOpen = $state(false);
+	let byoText = $state('');
+	let byoName = $state('');
+	let byoCitation = $state('');
+	let byoAttested = $state(false);
+	let byoLoaded = $state<{ name: string; citation: string } | null>(null);
+
+	const byoLines = $derived(
+		byoText
+			.split('\n')
+			.map((line) => line.replace(/^\s*(?:\d+[.)]\s*|[-*]\s*)/, '').trim())
+			.filter((line) => line.length > 0)
+	);
+
+	function loadByoItems() {
+		if (byoLines.length === 0 || !byoAttested) return;
+		items = byoLines.map((line) => {
+			const reverse = /\((?:R|r)\)\s*$/.test(line);
+			return {
+				kind: 'likert' as ItemKind,
+				options: '',
+				reverse,
+				text: line.replace(/\s*\((?:R|r)\)\s*$/, '')
+			};
+		});
+		if (byoName.trim()) templateName = byoName.trim();
+		byoLoaded = { name: byoName.trim() || templateName, citation: byoCitation.trim() };
+		byoOpen = false;
+	}
+
+	// live scoring preview: what the bound rule will compute
+	const previewReverse = $derived(
+		validItems
+			.map((item, index) => ({ ...item, code: code(index) }))
+			.filter((item) => item.kind === 'likert' && item.reverse)
+			.map((item) => item.code)
+	);
+	const previewScaleCount = $derived(validItems.filter((item) => item.kind === 'likert').length);
+	const previewExample = $derived(`${scaleMax - 1} → ${scaleMin + scaleMax - (scaleMax - 1)}`);
+
 	function code(index: number): string {
 		return `Q${String(index + 1).padStart(2, '0')}`;
 	}
@@ -280,6 +323,24 @@
 				step = 'Saving items…';
 				await setup.updateTemplateVersionDraftContent(template.templateVersionId, content);
 			} else {
+				if (byoLoaded && !instrumentId) {
+					step = 'Registering your instrument…';
+					const suffix = Math.random().toString(36).slice(2, 7).toUpperCase();
+					const stem = slug().replace(/_score$/, '').toUpperCase().slice(0, 18).replace(/_+$/, '');
+					const imported = await setup.createPrivateInstrumentImport({
+						code: `${stem || 'BYO'}_${suffix}`,
+						version: '1.0',
+						fullName: byoLoaded.name || templateName.trim() || `${seriesName} instrument`,
+						domain: 'psychometric',
+						provenanceNote: 'Imported by the workspace through the composer paste-from-paper flow.',
+						rightsStatus: 'attested_by_tenant',
+						validityLabel: 'tenant_provided',
+						licenseType: 'unknown',
+						citationApa: byoLoaded.citation || null
+					});
+					instrumentId = imported.id;
+				}
+
 				step = 'Creating questionnaire…';
 				template = await setup.createTemplateVersion({
 					templateName: templateName.trim() || `${seriesName} questionnaire`,
@@ -304,7 +365,17 @@
 				engineMinVersion: '1.0.0',
 				document: scoringDocument(scaleRows),
 				produces: JSON.stringify({ scores: ['total'] }),
-				compatibility: '{}'
+				compatibility: JSON.stringify({
+					outputs: [
+						{
+							code: 'total',
+							label:
+								locale === 'hr-HR'
+									? `Ukupni rezultat (${calculation === 'mean' ? 'prosjek' : 'zbroj'} čestica)`
+									: `Total score (${calculation === 'mean' ? 'mean' : 'sum'} of items)`
+						}
+					]
+				})
 			});
 
 			step = 'Attaching to study…';
@@ -331,13 +402,51 @@
 					{preset.label}
 				</button>
 			{/each}
+			{#if !revise}
+				<button type="button" class="preset byo-toggle" onclick={() => (byoOpen = !byoOpen)}>
+					{byoOpen ? t('Close paste panel') : t('Paste from a paper')}
+				</button>
+			{/if}
 		</div>
 	</div>
+
+	{#if byoOpen && !revise}
+		<div class="byo">
+			<p class="byo-hint">
+				{t('One item per line, in order. End a line with (R) to mark it reverse-coded. Numbering and bullets are stripped.')}
+			</p>
+			<textarea
+				bind:value={byoText}
+				rows="8"
+				aria-label={t('Instrument items, one per line')}
+				placeholder={'1. I feel confident using the tool.\n2. The tool gets in my way. (R)\n…'}
+			></textarea>
+			<div class="row">
+				<div class="field grow">
+					<label class="eyebrow" for="byo-name">{t('Instrument name')}</label>
+					<input id="byo-name" bind:value={byoName} placeholder={t('As the paper names it')} />
+				</div>
+				<div class="field grow">
+					<label class="eyebrow" for="byo-cite">{t('Citation (recommended)')}</label>
+					<input id="byo-cite" bind:value={byoCitation} placeholder={t('Author (year). Title. Journal.')} />
+				</div>
+			</div>
+			<label class="byo-attest" class:on={byoAttested}>
+				<input type="checkbox" bind:checked={byoAttested} />
+				<span>
+					{t('My workspace holds the rights to use this item text. ValidatedScale ships no third-party instrument text of its own.')}
+				</span>
+			</label>
+			<button type="button" class="btn btn-ghost" disabled={byoLines.length === 0 || !byoAttested} onclick={loadByoItems}>
+				{t('Load')} {byoLines.length} {t('items')}
+			</button>
+		</div>
+	{/if}
 
 	<div class="row">
 		<div class="field grow">
 			<label class="eyebrow" for="tpl-name">{t('Questionnaire name')}</label>
-			<input id="tpl-name" bind:value={templateName} placeholder={`${seriesName} questionnaire`} />
+			<input id="tpl-name" bind:value={templateName} placeholder={`${seriesName} ${t('questionnaire')}`} />
 		</div>
 		<div class="field">
 			<label class="eyebrow" for="tpl-locale">{t('Language')}</label>
@@ -386,6 +495,17 @@
 				</select>
 			</div>
 		</div>
+		{#if previewScaleCount > 0}
+			<p class="score-preview">
+				<strong>{t('Scoring preview:')}</strong>
+				{t('one output')} — <code class="datum">total</code> =
+				{calculation === 'mean' ? t('mean of') : t('sum of')}
+				{previewScaleCount}
+				{t('scale items')}{previewReverse.length > 0
+					? `; ${t('reverse-coded')}: ${previewReverse.join(', ')} (${previewExample} ${t('on this scale')})`
+					: ''}. {t('Missing answers block the score (require-all).')}
+			</p>
+		{/if}
 	</fieldset>
 
 	<fieldset class="items">
@@ -397,10 +517,10 @@
 					class="grow"
 					bind:value={item.text}
 					placeholder={item.kind === 'likert'
-						? 'Statement the respondent rates on the scale'
+						? t('Statement the respondent rates on the scale')
 						: item.kind === 'text'
-							? 'Open question (free text, optional)'
-							: 'Question with answer options'}
+							? t('Open question (free text, optional)')
+							: t('Question with answer options')}
 					aria-label={`Item ${index + 1} text`}
 				/>
 				<select bind:value={item.kind} aria-label={`Item ${index + 1} type`}>
@@ -410,7 +530,7 @@
 					<option value="text">{t('Open text')}</option>
 				</select>
 				{#if item.kind === 'likert'}
-					<label class="reverse" class:on={item.reverse} title="Reverse-coded item">
+					<label class="reverse" class:on={item.reverse} title={t('Reverse-coded item')}>
 						<input type="checkbox" bind:checked={item.reverse} />
 						R
 					</label>
@@ -428,7 +548,7 @@
 				<input
 					class="options-input"
 					bind:value={item.options}
-					placeholder="Options, comma-separated — Day shift, Night shift, Rotating"
+					placeholder={t('Options, comma-separated — Day shift, Night shift, Rotating')}
 					aria-label={`Item ${index + 1} options`}
 				/>
 			{/if}
@@ -442,12 +562,16 @@
 
 	<div class="actions">
 		<button class="btn btn-stain" type="submit" disabled={busy || validItems.length === 0}>
-			{busy ? (step ?? 'Working…') : revise ? `Publish revised version (${validItems.length} items)` : `Create questionnaire (${validItems.length} items)`}
+			{busy
+				? (step ?? t('Working…'))
+				: revise
+					? `${t('Publish revised version')} (${validItems.length} ${t('items')})`
+					: `${t('Create questionnaire')} (${validItems.length} ${t('items')})`}
 		</button>
 		<p class="note">
 			{revise
-				? 'Publishes a new version and attaches it — waves already launched keep the version they launched with.'
-				: `Creates the questionnaire, publishes it, binds a ${calculation} score with reverse-coding, and attaches it to this study.`}
+				? t('Publishes a new version and attaches it — waves already launched keep the version they launched with.')
+				: `${t('Creates the questionnaire, publishes it, binds the score with reverse-coding, and attaches it to this study.')} (${calculation === 'mean' ? t('Mean of items') : t('Sum of items')})`}
 		</p>
 	</div>
 </form>
@@ -491,6 +615,55 @@
 		background: var(--color-stain);
 		border-color: var(--color-stain);
 		color: #fff;
+	}
+
+	.byo {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 1rem;
+		border: 1px dashed var(--color-stain-line);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+	}
+
+	.byo-hint {
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+	}
+
+	.byo textarea {
+		font: inherit;
+		font-size: 0.875rem;
+		padding: 0.625rem 0.75rem;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: var(--color-surface);
+		resize: vertical;
+	}
+
+	.byo-attest {
+		display: flex;
+		align-items: baseline;
+		gap: 0.625rem;
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+		cursor: pointer;
+	}
+
+	.byo-attest.on {
+		color: var(--color-ink);
+	}
+
+	.byo .btn {
+		align-self: flex-start;
+	}
+
+	.score-preview {
+		margin-top: 0.75rem;
+		font-size: 0.8125rem;
+		color: var(--color-ink-2);
+		line-height: 1.5;
 	}
 
 	fieldset {

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Platform.Application.Features.ParticipantCodes;
 using Platform.Application.Features.Retention;
 using Platform.Application.Tenancy;
@@ -31,7 +32,7 @@ public sealed class WithdrawalRuntimeStore(
         CancellationToken cancellationToken)
     {
         var targetKind = command.TargetKind.Trim();
-        if (targetKind != WithdrawalTargetKinds.ResponseSession)
+        if (targetKind is not (WithdrawalTargetKinds.ResponseSession or WithdrawalTargetKinds.IdentifiedSubject))
         {
             return Result.Failure<WithdrawalRequestResponse>(
                 Error.Validation(
@@ -59,6 +60,19 @@ public sealed class WithdrawalRuntimeStore(
 
         var requestedAt = DateTimeOffset.UtcNow;
         await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId, cancellationToken: cancellationToken);
+
+        if (targetKind == WithdrawalTargetKinds.IdentifiedSubject)
+        {
+            return await CreateIdentifiedSubjectWithdrawalRequestAsync(
+                tenantId,
+                command,
+                action.Value,
+                reasonCode.Value,
+                requestedAt,
+                transaction,
+                cancellationToken);
+        }
+
         var target = await LoadResponseSessionRequestContextAsync(command.TargetId, cancellationToken);
         if (target is null)
         {
@@ -122,6 +136,118 @@ public sealed class WithdrawalRuntimeStore(
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(ToRequestResponse(withdrawal, command.TargetId, idempotent: false));
+    }
+
+    /// <summary>
+    /// A person-level request (GDPR erasure/anonymization for an identified
+    /// respondent) becomes one reviewable event per study where the person has
+    /// identified sessions, because retention policies bind per series.
+    /// </summary>
+    private async Task<Result<WithdrawalRequestResponse>> CreateIdentifiedSubjectWithdrawalRequestAsync(
+        Guid tenantId,
+        CreateWithdrawalRequestCommand command,
+        string action,
+        string? reasonCode,
+        DateTimeOffset requestedAt,
+        IDbContextTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var subjectExists = await db.Subjects
+            .AsNoTracking()
+            .AnyAsync(subject => subject.Id == command.TargetId, cancellationToken);
+        if (!subjectExists)
+        {
+            return Result.Failure<WithdrawalRequestResponse>(
+                Error.NotFound("subject.not_found", "Subject was not found."));
+        }
+
+        var seriesIds = await (
+                from session in db.ResponseSessions
+                join assignment in db.Assignments on session.AssignmentId equals assignment.Id
+                join campaign in db.Campaigns on assignment.CampaignId equals campaign.Id
+                where assignment.RespondentSubjectId == command.TargetId &&
+                    campaign.CampaignSeriesId != null
+                select campaign.CampaignSeriesId!.Value)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToListAsync(cancellationToken);
+        if (seriesIds.Count == 0)
+        {
+            return Result.Failure<WithdrawalRequestResponse>(
+                Error.Validation(
+                    "withdrawal_request.no_identified_data",
+                    "This person has no identified response data to withdraw."));
+        }
+
+        WithdrawalEvent? first = null;
+        var firstIdempotent = false;
+        foreach (var campaignSeriesId in seriesIds)
+        {
+            var existing = await db.WithdrawalEvents
+                .AsNoTracking()
+                .Where(withdrawal =>
+                    withdrawal.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+                    withdrawal.SubjectId == command.TargetId &&
+                    withdrawal.CampaignSeriesId == campaignSeriesId &&
+                    withdrawal.ActionAfter == action &&
+                    (withdrawal.Status == WithdrawalEventStatuses.Requested ||
+                        withdrawal.Status == WithdrawalEventStatuses.Planned ||
+                        withdrawal.Status == WithdrawalEventStatuses.Processing))
+                .OrderBy(withdrawal => withdrawal.RequestedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (existing is not null)
+            {
+                if (first is null)
+                {
+                    first = existing;
+                    firstIdempotent = true;
+                }
+
+                continue;
+            }
+
+            var context = await LoadSeriesContextAsync(campaignSeriesId, requestedAt, cancellationToken);
+            if (context.IsFailure)
+            {
+                return Result.Failure<WithdrawalRequestResponse>(context.Error);
+            }
+
+            var sessionIds = MatchingIdentifiedSessionIds(campaignSeriesId, command.TargetId);
+            var consentRecordCount = await db.ConsentRecords
+                .Where(record =>
+                    record.SubjectId == command.TargetId &&
+                    db.Campaigns.Any(campaign =>
+                        campaign.Id == record.CampaignId &&
+                        campaign.CampaignSeriesId == campaignSeriesId))
+                .CountAsync(cancellationToken);
+            var withdrawal = WithdrawalEvent.RequestIdentifiedSubject(
+                PlatformIds.NewId(),
+                tenantId,
+                campaignSeriesId,
+                context.Value.RetentionPolicyId,
+                command.TargetId,
+                action,
+                requestedAt,
+                consentRecordCount,
+                await sessionIds.CountAsync(cancellationToken),
+                await db.Answers.Where(answer => sessionIds.Contains(answer.SessionId)).CountAsync(cancellationToken),
+                await db.ScoreRuns.Where(scoreRun => sessionIds.Contains(scoreRun.ResponseSessionId)).CountAsync(cancellationToken),
+                await db.Scores.Where(score => sessionIds.Contains(score.ResponseSessionId)).CountAsync(cancellationToken),
+                BuildRequestMetadata(command.ActorUserId, reasonCode));
+
+            db.WithdrawalEvents.Add(withdrawal);
+            AddWithdrawalRequestCreatedNotification(withdrawal);
+            if (first is null)
+            {
+                first = withdrawal;
+                firstIdempotent = false;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(ToRequestResponse(first!, command.TargetId, firstIdempotent));
     }
 
     public async Task<Result<WithdrawalRequestTokenIssueResponse>> IssueWithdrawalRequestTokenAsync(
@@ -325,8 +451,10 @@ public sealed class WithdrawalRuntimeStore(
         var withdrawals = await db.WithdrawalEvents
             .AsNoTracking()
             .Where(withdrawal =>
-                withdrawal.TargetKind == WithdrawalTargetKinds.ResponseSession &&
-                withdrawal.ResponseSessionId != null)
+                (withdrawal.TargetKind == WithdrawalTargetKinds.ResponseSession &&
+                    withdrawal.ResponseSessionId != null) ||
+                (withdrawal.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+                    withdrawal.SubjectId != null))
             .OrderByDescending(withdrawal => withdrawal.RequestedAt)
             .ThenBy(withdrawal => withdrawal.Id)
             .Take(RequestReviewLimit)
@@ -352,8 +480,10 @@ public sealed class WithdrawalRuntimeStore(
             .SingleOrDefaultAsync(
                 entity =>
                     entity.Id == requestId &&
-                    entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
-                    entity.ResponseSessionId != null,
+                    ((entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
+                        entity.ResponseSessionId != null) ||
+                    (entity.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+                        entity.SubjectId != null)),
                 cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
@@ -390,8 +520,10 @@ public sealed class WithdrawalRuntimeStore(
             .SingleOrDefaultAsync(
                 entity =>
                     entity.Id == requestId &&
-                    entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
-                    entity.ResponseSessionId != null,
+                    ((entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
+                        entity.ResponseSessionId != null) ||
+                    (entity.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+                        entity.SubjectId != null)),
                 cancellationToken);
         if (withdrawal is null)
         {
@@ -435,8 +567,10 @@ public sealed class WithdrawalRuntimeStore(
             .SingleOrDefaultAsync(
                 entity =>
                     entity.Id == requestId &&
-                    entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
-                    entity.ResponseSessionId != null,
+                    ((entity.TargetKind == WithdrawalTargetKinds.ResponseSession &&
+                        entity.ResponseSessionId != null) ||
+                    (entity.TargetKind == WithdrawalTargetKinds.IdentifiedSubject &&
+                        entity.SubjectId != null)),
                 cancellationToken);
         if (withdrawal is null)
         {
@@ -1338,7 +1472,9 @@ public sealed class WithdrawalRuntimeStore(
         return new WithdrawalRequestReviewResponse(
             withdrawal.Id,
             withdrawal.TargetKind,
-            withdrawal.ResponseSessionId!.Value,
+            withdrawal.TargetKind == WithdrawalTargetKinds.IdentifiedSubject
+                ? withdrawal.SubjectId!.Value
+                : withdrawal.ResponseSessionId!.Value,
             withdrawal.ActionAfter,
             withdrawal.Status,
             withdrawal.RequestedAt,
