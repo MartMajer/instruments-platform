@@ -705,6 +705,14 @@ export type CampaignInvitationDeliveriesResponse = {
 	deliveries: CampaignInvitationDeliveryResponse[];
 };
 
+export type CampaignIdentifiedInvitationResponse = {
+	campaignId: string;
+	invitedCount: number;
+	noEmailCount: number;
+	suppressedCount: number;
+	alreadyInvitedCount: number;
+};
+
 export type UnsubscribeEmailInvitationRequest = {
 	confirmed: boolean;
 	workspaceWide?: boolean;
@@ -1127,6 +1135,12 @@ export function createSetupApi(client: ApiClient) {
 		listCampaignInvitationDeliveries(campaignId: string) {
 			return client.request<CampaignInvitationDeliveriesResponse>(
 				`/campaigns/${campaignId}/invitation-deliveries`
+			);
+		},
+		sendCampaignIdentifiedInvitations(campaignId: string) {
+			return client.request<CampaignIdentifiedInvitationResponse>(
+				`/campaigns/${campaignId}/identified-invitations`,
+				jsonPost({})
 			);
 		},
 		unsubscribeEmailInvitation(token: string, workspaceWide = false) {

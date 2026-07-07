@@ -160,6 +160,43 @@
 		}
 	}
 
+	// identified email: send each named recipient their own private link
+	let identifiedInviteBusy = $state<string | null>(null);
+	let identifiedInviteResult = $state<{ campaignId: string; text: string } | null>(null);
+
+	async function sendIdentifiedInvitations(campaignId: string) {
+		if (identifiedInviteBusy) return;
+		identifiedInviteBusy = campaignId;
+		identifiedInviteResult = null;
+		try {
+			const result = await setup.sendCampaignIdentifiedInvitations(campaignId);
+			const parts = [`${formatCount(result.invitedCount)} ${t('invited by email')}`];
+			if (result.noEmailCount > 0)
+				parts.push(`${formatCount(result.noEmailCount)} ${t('have no email — share a link')}`);
+			if (result.alreadyInvitedCount > 0)
+				parts.push(`${formatCount(result.alreadyInvitedCount)} ${t('already invited')}`);
+			if (result.suppressedCount > 0)
+				parts.push(`${formatCount(result.suppressedCount)} ${t('on the do-not-contact list')}`);
+			identifiedInviteResult = { campaignId, text: parts.join(' · ') };
+			await read(true);
+		} catch (cause) {
+			identifiedInviteResult = {
+				campaignId,
+				text: problemMessage(
+					cause,
+					{
+						'identified_invitation.no_recipients': t(
+							'This wave has no recipients yet. Set them on the protocol first.'
+						)
+					},
+					t('Invitations could not be sent. Try again.')
+				)
+			};
+		} finally {
+			identifiedInviteBusy = null;
+		}
+	}
+
 	// per-recipient delivery view: which invites went out and where they landed
 	let deliveryFor = $state<string | null>(null);
 	let deliveryBusy = $state(false);
@@ -354,8 +391,11 @@
 										</button>
 									{/if}
 									{#if wave.responseIdentityMode.toLowerCase() === 'identified'}
+										<button class="link-btn" disabled={identifiedInviteBusy === wave.id} onclick={() => sendIdentifiedInvitations(wave.id)}>
+											{identifiedInviteBusy === wave.id ? t('Inviting…') : t('Invite people by email')}
+										</button>
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintQueueLinks(wave.id)}>
-											{t('Create respondent links')}
+											{t('Get links to share myself')}
 										</button>
 									{:else if wave.openLinkAssignmentCount > 0}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
@@ -393,6 +433,11 @@
 										{#if inviteResult}<span class="invite-result" role="status">{inviteResult}</span>{/if}
 									</div>
 								</div>
+							</li>
+						{/if}
+						{#if identifiedInviteResult?.campaignId === wave.id}
+							<li class="minted">
+								<p class="invite-result" role="status">{identifiedInviteResult.text}</p>
 							</li>
 						{/if}
 						{#if deliveryFor === wave.id}

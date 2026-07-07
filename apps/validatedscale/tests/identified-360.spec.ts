@@ -61,9 +61,20 @@ test('identified 360: a manager answers a queue of two reports', async ({ page, 
 
 	// 6. field: personal respondent links (Ana carries two assignments)
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
-	// identified waves invite through personal links, never email — no email affordance
+	// identified waves invite through personal links, never a pasted email list
 	await expect(page.getByRole('button', { name: 'Invite by email' })).toHaveCount(0);
-	await page.getByRole('button', { name: 'Create respondent links' }).click();
+
+	// identified email: send each person their own link, then see them queued by name
+	await page.getByRole('button', { name: 'Invite people by email' }).click();
+	await expect(page.locator('.invite-result').first()).toContainText('invited by email', {
+		timeout: 15_000
+	});
+	await page.locator('.link-actions', { hasText: 'Delivery' }).first().getByRole('button', { name: 'Delivery', exact: true }).click();
+	await expect(page.locator('.delivery-list li', { hasText: 'E2E 360 Ana' }).first()).toBeVisible({
+		timeout: 15_000
+	});
+
+	await page.getByRole('button', { name: 'Get links to share myself' }).click();
 	const anaRow = page.locator('.queue-links li', { hasText: 'E2E 360 Ana' });
 	await expect(anaRow).toContainText('2', { timeout: 15_000 });
 	const url = (await anaRow.locator('.minted-url').textContent())?.trim();
