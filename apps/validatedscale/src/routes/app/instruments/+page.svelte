@@ -98,9 +98,10 @@
 		fullName: '',
 		domain: 'psychometric',
 		provenanceNote: '',
-		rightsStatus: 'tenant_attested',
+		// domain-known values: anything else is rejected as instrument.invalid
+		rightsStatus: 'attested_by_tenant',
 		validityLabel: 'tenant_provided',
-		licenseType: 'tenant_provided',
+		licenseType: 'unknown',
 		citationApa: ''
 	});
 
