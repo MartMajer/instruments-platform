@@ -185,7 +185,7 @@
 
 	let groups = $state<{ id: string; name: string; memberCount: number }[]>([]);
 	let recipientsFor = $state<string | null>(null);
-	let recipientKind = $state<'self' | 'all_in_group'>('self');
+	let recipientKind = $state<'self' | 'all_in_group' | 'manager_review'>('self');
 	let recipientGroupId = $state('');
 	let recipientBusy = $state(false);
 	let recipientNote = $state<string | null>(null);
@@ -204,18 +204,46 @@
 		recipientBusy = true;
 		recipientNote = null;
 		try {
-			const rule =
-				recipientKind === 'all_in_group'
-					? { kind: 'all_in_group', role: 'group_member', group_id: recipientGroupId }
-					: { kind: 'self', role: 'self' };
-			const saved = await setup.updateCampaignRespondentRules(campaignId, {
-				rules: [{ rule: JSON.stringify(rule) }]
-			});
-			const pairs = saved.rules?.[0]?.assignmentPairCount ?? null;
-			recipientNote = pairs != null ? `Saved — ${pairs} recipients resolved from the directory.` : 'Recipients saved.';
+			let rules: { rule: string }[];
+			if (recipientKind === 'manager_review') {
+				// One rule per person with a manager: the manager answers about them.
+				const directory = await product.listSubjects();
+				const reports = (directory.subjects ?? []).filter(
+					(subject) => subject.managerSubjectId
+				);
+				if (reports.length === 0) {
+					recipientNote = t(
+						'Nobody in People has a manager yet. Add manager_external_id via CSV import first.'
+					);
+					recipientBusy = false;
+					return;
+				}
+				rules = reports.map((subject) => ({
+					rule: JSON.stringify({
+						kind: 'manager_of_target',
+						role: 'manager',
+						target_subject_id: subject.id
+					})
+				}));
+			} else {
+				const rule =
+					recipientKind === 'all_in_group'
+						? { kind: 'all_in_group', role: 'group_member', group_id: recipientGroupId }
+						: { kind: 'self', role: 'self' };
+				rules = [{ rule: JSON.stringify(rule) }];
+			}
+			const saved = await setup.updateCampaignRespondentRules(campaignId, { rules });
+			const pairs = (saved.rules ?? []).reduce(
+				(sum, rule) => sum + (rule.assignmentPairCount ?? 0),
+				0
+			);
+			recipientNote =
+				pairs > 0
+					? `${t('Saved —')} ${pairs} ${t('respondent–target pairs resolved from the directory.')}`
+					: t('Recipients saved.');
 			await load();
 		} catch {
-			recipientNote = 'Recipients could not be saved. Anonymous open-link waves do not need them.';
+			recipientNote = t('Recipients could not be saved. Anonymous open-link waves do not need them.');
 		} finally {
 			recipientBusy = false;
 		}
@@ -227,8 +255,10 @@
 	async function duplicateStudy() {
 		if (!hub || lifecycleBusy) return;
 		const name = await promptDialog({
-			title: t('Duplicate as my study'),
-			body: t('Copies this example into an editable study of your own — protocol included, responses not.'),
+			title: hub.isSample ? t('Duplicate as my study') : t('Duplicate study'),
+			body: hub.isSample
+				? t('Copies this example into an editable study of your own — protocol included, responses not.')
+				: t('The protocol is copied — instrument, scoring, policies. Waves and responses are not.'),
 			confirmLabel: t('Duplicate'),
 			initialValue: `${hub.name} (copy)`
 		});
@@ -239,7 +269,7 @@
 			const copy = await product.duplicateCampaignSeries(seriesId, { name: name.trim() });
 			location.assign(`/app/studies/${copy.id}`);
 		} catch {
-			lifecycleError = 'Duplication failed. Try again.';
+			lifecycleError = t('Duplication failed. Try again.');
 			lifecycleBusy = false;
 		}
 	}
@@ -541,9 +571,10 @@
 										<div class="recipients-form">
 											<span class="eyebrow">{t('Who answers this wave')}</span>
 											<div class="recipients-controls">
-												<select bind:value={recipientKind} aria-label="Recipient rule">
+												<select bind:value={recipientKind} aria-label={t('Recipient rule')}>
 													<option value="self">{t('Everyone in the directory (about themselves)')}</option>
 													<option value="all_in_group">{t('Members of a group (about themselves)')}</option>
+													<option value="manager_review">{t('Managers (about each of their reports)')}</option>
 												</select>
 												{#if recipientKind === 'all_in_group'}
 													<select bind:value={recipientGroupId} aria-label="Group">
@@ -642,11 +673,9 @@
 				<div class="panel governance">
 					<h2 class="eyebrow">{t('Study')}</h2>
 					<div class="lifecycle-actions">
-						{#if hub.isSample}
-							<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
-								{t('Duplicate as my study')}
-							</button>
-						{/if}
+						<button class="quiet-action" disabled={lifecycleBusy} onclick={duplicateStudy}>
+							{hub.isSample ? t('Duplicate as my study') : t('Duplicate study')}
+						</button>
 						<button class="quiet-action" disabled={lifecycleBusy} onclick={toggleArchive}>
 							{hub.archived ? t('Restore from archive') : t('Archive study')}
 						</button>
