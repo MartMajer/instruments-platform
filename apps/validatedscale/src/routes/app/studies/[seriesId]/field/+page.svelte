@@ -139,8 +139,22 @@
 			inviteResult = `${batch.createdInvitationCount} of ${batch.requestedRecipientCount} invitations queued.`;
 			inviteEmails = '';
 			await read(true);
-		} catch {
-			inviteResult = 'Invitations could not be queued. Check email readiness and try again.';
+		} catch (cause) {
+			// surface the real refusal reason instead of a phantom "readiness" check
+			inviteResult = problemMessage(
+				cause,
+				{
+					'invitation_batch.identity_mode_not_supported': t(
+						'Email invitations are for anonymous waves. This wave is identified — use “Create respondent links” to give each person their own link.'
+					),
+					'invitation_batch.open_link_access_active': t(
+						'This wave is collecting through its open link. A wave uses one channel — remove the open link to invite by email instead.'
+					),
+					'campaign.not_launched': t('Launch the wave before inviting respondents.'),
+					'invitation_batch.recipients_required': t('Add at least one email address.')
+				},
+				t('Invitations could not be queued. Try again.')
+			);
 		} finally {
 			inviteBusy = false;
 		}
@@ -302,9 +316,11 @@
 							</span>
 							{#if wave.status.toLowerCase() === 'live'}
 								<span class="link-actions">
-									<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
-										{t('Invite by email')}
-									</button>
+									{#if wave.responseIdentityMode.toLowerCase() !== 'identified'}
+										<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
+											{t('Invite by email')}
+										</button>
+									{/if}
 									{#if wave.responseIdentityMode.toLowerCase() === 'identified'}
 										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintQueueLinks(wave.id)}>
 											{t('Create respondent links')}
@@ -328,6 +344,7 @@
 							<li class="minted">
 								<div class="invite-inner">
 									<span class="eyebrow dim-label">{t('Invite respondents — one email per line')}</span>
+									<p class="invite-hint">{t('A wave collects one way: email invitations or a shared open link, not both.')}</p>
 									<textarea
 										rows="3"
 										bind:value={inviteEmails}
@@ -748,6 +765,12 @@
 	.invite-result {
 		font-size: 0.8125rem;
 		color: var(--color-console-dim);
+	}
+
+	.invite-hint {
+		font-size: 0.75rem;
+		color: var(--color-console-dim);
+		margin: -0.25rem 0 0;
 	}
 
 	.prereqs {

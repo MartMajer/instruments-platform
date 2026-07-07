@@ -61,6 +61,8 @@ test('identified 360: a manager answers a queue of two reports', async ({ page, 
 
 	// 6. field: personal respondent links (Ana carries two assignments)
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
+	// identified waves invite through personal links, never email — no email affordance
+	await expect(page.getByRole('button', { name: 'Invite by email' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Create respondent links' }).click();
 	const anaRow = page.locator('.queue-links li', { hasText: 'E2E 360 Ana' });
 	await expect(anaRow).toContainText('2', { timeout: 15_000 });

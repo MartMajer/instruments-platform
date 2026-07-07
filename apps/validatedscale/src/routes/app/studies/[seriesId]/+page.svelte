@@ -33,6 +33,8 @@
 	let waveLocale = $state('en');
 	let waveBusy = $state(false);
 	let waveError = $state<string | null>(null);
+	// post-action guidance: 'next-launch' after adding, 'live-field' after launching
+	let waveNote = $state<'next-launch' | 'live-field' | null>(null);
 
 	async function addWave(event: SubmitEvent) {
 		event.preventDefault();
@@ -50,6 +52,7 @@
 				defaultLocale: waveLocale
 			});
 			waveName = '';
+			waveNote = 'next-launch';
 			await load();
 		} catch {
 			waveError = 'The wave could not be created. Try again.';
@@ -123,6 +126,7 @@
 
 		try {
 			await setup.launchCampaign(launchCandidate.id);
+			waveNote = 'live-field';
 			await load();
 		} catch {
 			launchError = 'Launch failed. Check the readiness issues and try again.';
@@ -547,6 +551,17 @@
 
 				<section id="waves">
 					<h2><span class="datum ch">05</span> {t('Waves')}</h2>
+					{#if waveNote === 'live-field'}
+						<p class="next-step live" role="status">
+							<strong>{t('Your wave is live.')}</strong>
+							{t('Go to Field to share the respondent link or invite people by email.')}
+							<a class="next-cta" href={`/app/studies/${seriesId}/field`}>{t('Open Field')} →</a>
+						</p>
+					{:else if waveNote === 'next-launch'}
+						<p class="next-step" role="status">
+							{t('Wave added. Launch it in the Launch check on the right — then you’ll collect responses in Field.')}
+						</p>
+					{/if}
 					{#if waveMarks.length > 0}
 						<div class="waves-rail">
 							<WaveRail marks={waveMarks} />
@@ -1004,6 +1019,30 @@
 
 	.prose a {
 		color: var(--color-stain);
+	}
+
+	.next-step {
+		margin: 0 0 1rem;
+		padding: 0.75rem 0.875rem;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		color: var(--color-ink-2);
+		background: var(--color-surface-2, rgba(0, 0, 0, 0.03));
+		border-radius: var(--radius-instrument);
+	}
+
+	.next-step.live {
+		color: var(--color-ink);
+		background: var(--color-stain-wash);
+		border: 1px solid var(--color-stain-line);
+	}
+
+	.next-cta {
+		display: inline-block;
+		margin-left: 0.375rem;
+		font-weight: 560;
+		color: var(--color-stain);
+		white-space: nowrap;
 	}
 
 	.add-wave {
