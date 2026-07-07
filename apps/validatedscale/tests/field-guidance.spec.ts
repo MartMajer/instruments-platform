@@ -63,13 +63,13 @@ test('invite: an open-link wave refuses email invitations with the real reason, 
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
 
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	await page.getByRole('button', { name: 'Create open link' }).click();
 	await expect(page.locator('.minted-url')).toBeVisible({ timeout: 15_000 });
 
-	await page.getByRole('button', { name: 'Invite by email' }).click();
+	// with an open link active, an email invite is refused with the real reason
 	await page.getByLabel('Recipient emails').fill('someone@example.org');
-	await page.getByRole('button', { name: 'Queue invitations' }).click();
-	// the real reason — not the old phantom "email readiness"
+	await page.getByRole('button', { name: 'Invite by email' }).click();
 	const result = page.locator('.invite-result');
 	await expect(result).toContainText('open link', { timeout: 15_000 });
 	await expect(result).not.toContainText('readiness');
@@ -93,13 +93,12 @@ test('delivery: a queued email invitation shows up as a named recipient with a s
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
 
 	const email = `deliver.${Date.now()}@example.org`;
-	await page.getByRole('button', { name: 'Invite by email' }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	await page.getByLabel('Recipient emails').fill(email);
-	await page.getByRole('button', { name: 'Queue invitations' }).click();
-	await expect(page.locator('.invite-result')).toContainText('queued', { timeout: 15_000 });
+	await page.getByRole('button', { name: 'Invite by email' }).click();
+	await expect(page.locator('.invite-result')).toContainText('invited by email', { timeout: 15_000 });
 
-	// the "where did it go" answer: the recipient appears with a delivery status
-	await page.getByRole('button', { name: 'Delivery', exact: true }).click();
+	// the "where did it go" answer: the recipient appears in the same panel with a status
 	const row = page.locator('.delivery-list li', { hasText: email });
 	await expect(row).toBeVisible({ timeout: 15_000 });
 	await expect(row.locator('.st')).toBeVisible();

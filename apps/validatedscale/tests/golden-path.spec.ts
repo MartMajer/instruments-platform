@@ -44,6 +44,7 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 
 	// field: mint the open link
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	await page.getByRole('button', { name: 'Create open link' }).click();
 	const url = (await page.locator('.minted-url').textContent({ timeout: 15_000 }))?.trim();
 	expect(url).toContain('/r/');

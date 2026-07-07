@@ -59,26 +59,28 @@ test('identified 360: a manager answers a queue of two reports', async ({ page, 
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 	await expect(page.locator('#waves')).toContainText('Live', { timeout: 20_000 });
 
-	// 6. field: personal respondent links (Ana carries two assignments)
+	// 6. field: open the one invite & deliver panel
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	// identified waves invite through personal links, never a pasted email list
-	await expect(page.getByRole('button', { name: 'Invite by email' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Invite by email', exact: true })).toHaveCount(0);
 
-	// identified email: send each person their own link, then see them queued by name
-	await page.getByRole('button', { name: 'Invite people by email' }).click();
-	await expect(page.locator('.invite-result').first()).toContainText('invited by email', {
-		timeout: 15_000
-	});
-	await page.locator('.link-actions', { hasText: 'Delivery' }).first().getByRole('button', { name: 'Delivery', exact: true }).click();
-	await expect(page.locator('.delivery-list li', { hasText: 'E2E 360 Ana' }).first()).toBeVisible({
-		timeout: 15_000
-	});
-
+	// mint the shareable personal links first (raw links show only at creation)
 	await page.getByRole('button', { name: 'Get links to share myself' }).click();
 	const anaRow = page.locator('.queue-links li', { hasText: 'E2E 360 Ana' });
 	await expect(anaRow).toContainText('2', { timeout: 15_000 });
 	const url = (await anaRow.locator('.minted-url').textContent())?.trim();
 	expect(url).toContain('/r/');
+
+	// and identified email delivery: each person is emailed their own link and
+	// shows up by name in the same panel's delivery list
+	await page.getByRole('button', { name: 'Invite people by email' }).click();
+	await expect(page.locator('.invite-result').first()).toContainText('invited by email', {
+		timeout: 15_000
+	});
+	await expect(page.locator('.delivery-list li', { hasText: 'E2E 360 Ana' }).first()).toBeVisible({
+		timeout: 15_000
+	});
 
 	// 7. the manager's queue: consent once, then two assignments
 	const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });

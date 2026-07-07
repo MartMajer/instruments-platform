@@ -119,7 +119,6 @@
 		}
 	}
 
-	let inviteFor = $state<string | null>(null);
 	let inviteEmails = $state('');
 	let inviteBusy = $state(false);
 	let inviteResult = $state<string | null>(null);
@@ -136,9 +135,12 @@
 		inviteResult = null;
 		try {
 			const batch = await setup.createCampaignInvitationBatch(campaignId, { recipients });
-			inviteResult = `${batch.createdInvitationCount} of ${batch.requestedRecipientCount} invitations queued.`;
+			inviteResult = `${batch.createdInvitationCount} of ${batch.requestedRecipientCount} ${t('invited by email')}`;
 			inviteEmails = '';
+			// queued invitations don't send on their own — send them now
+			if (batch.createdInvitationCount > 0) await setup.processCampaignEmailDeliveries(campaignId);
 			await read(true);
+			await loadDeliveries(campaignId);
 		} catch (cause) {
 			// surface the real refusal reason instead of a phantom "readiness" check
 			inviteResult = problemMessage(
@@ -178,7 +180,10 @@
 			if (result.suppressedCount > 0)
 				parts.push(`${formatCount(result.suppressedCount)} ${t('on the do-not-contact list')}`);
 			identifiedInviteResult = { campaignId, text: parts.join(' · ') };
+			// queued invitations don't send on their own — send them now
+			if (result.invitedCount > 0) await setup.processCampaignEmailDeliveries(campaignId);
 			await read(true);
+			await loadDeliveries(campaignId);
 		} catch (cause) {
 			identifiedInviteResult = {
 				campaignId,
@@ -197,19 +202,26 @@
 		}
 	}
 
-	// per-recipient delivery view: which invites went out and where they landed
-	let deliveryFor = $state<string | null>(null);
+	// one expand per wave: the recipients & delivery panel
+	let manageFor = $state<string | null>(null);
 	let deliveryBusy = $state(false);
 	let deliveries = $state<
 		import('$lib/api/setup').CampaignInvitationDeliveriesResponse | null
 	>(null);
 
-	async function toggleDeliveries(campaignId: string) {
-		if (deliveryFor === campaignId) {
-			deliveryFor = null;
+	async function toggleManage(campaignId: string) {
+		if (manageFor === campaignId) {
+			manageFor = null;
 			return;
 		}
-		deliveryFor = campaignId;
+		manageFor = campaignId;
+		inviteEmails = '';
+		inviteResult = null;
+		identifiedInviteResult = null;
+		await loadDeliveries(campaignId);
+	}
+
+	async function loadDeliveries(campaignId: string) {
 		deliveryBusy = true;
 		deliveries = null;
 		try {
@@ -218,6 +230,24 @@
 			deliveries = null;
 		} finally {
 			deliveryBusy = false;
+		}
+	}
+
+	const queuedCount = $derived(deliveries?.queuedCount ?? 0);
+
+	// nothing auto-sends queued invitations, so the invite action triggers the
+	// send itself; this also backs a manual "Send queued" retry
+	let sendBusy = $state<string | null>(null);
+	async function sendQueued(campaignId: string) {
+		if (sendBusy) return;
+		sendBusy = campaignId;
+		try {
+			await setup.processCampaignEmailDeliveries(campaignId);
+		} catch {
+			// the delivery list reflects whatever state each notification reached
+		} finally {
+			sendBusy = null;
+			await loadDeliveries(campaignId);
 		}
 	}
 
@@ -385,29 +415,8 @@
 							</span>
 							{#if wave.status.toLowerCase() === 'live'}
 								<span class="link-actions">
-									{#if wave.responseIdentityMode.toLowerCase() !== 'identified'}
-										<button class="link-btn" onclick={() => (inviteFor = inviteFor === wave.id ? null : wave.id)}>
-											{t('Invite by email')}
-										</button>
-									{/if}
-									{#if wave.responseIdentityMode.toLowerCase() === 'identified'}
-										<button class="link-btn" disabled={identifiedInviteBusy === wave.id} onclick={() => sendIdentifiedInvitations(wave.id)}>
-											{identifiedInviteBusy === wave.id ? t('Inviting…') : t('Invite people by email')}
-										</button>
-										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintQueueLinks(wave.id)}>
-											{t('Get links to share myself')}
-										</button>
-									{:else if wave.openLinkAssignmentCount > 0}
-										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
-											{t('Replace lost link')}
-										</button>
-									{:else}
-										<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, false)}>
-											{t('Create open link')}
-										</button>
-									{/if}
-									<button class="link-btn" onclick={() => toggleDeliveries(wave.id)}>
-										{deliveryFor === wave.id ? t('Hide delivery') : t('Delivery')}
+									<button class="link-btn" onclick={() => toggleManage(wave.id)}>
+										{manageFor === wave.id ? t('Hide') : t('Invite & deliver')}
 									</button>
 									<button class="link-btn" disabled={closeBusy === wave.id} onclick={() => closeWave(wave.id, wave.name)}>
 										{closeBusy === wave.id ? t('Closing…') : t('Close wave')}
@@ -415,90 +424,112 @@
 								</span>
 							{/if}
 						</li>
-						{#if inviteFor === wave.id}
+						{#if manageFor === wave.id}
 							<li class="minted">
-								<div class="invite-inner">
-									<span class="eyebrow dim-label">{t('Invite respondents — one email per line')}</span>
-									<p class="invite-hint">{t('A wave collects one way: email invitations or a shared open link, not both.')}</p>
-									<textarea
-										rows="3"
-										bind:value={inviteEmails}
-										placeholder={'ana@example.org\nmarko@example.org'}
-										aria-label="Recipient emails"
-									></textarea>
-									<div class="invite-row">
-										<button class="link-btn" disabled={inviteBusy} onclick={() => sendInvitations(wave.id)}>
-											{inviteBusy ? t('Queueing…') : t('Queue invitations')}
-										</button>
-										{#if inviteResult}<span class="invite-result" role="status">{inviteResult}</span>{/if}
-									</div>
-								</div>
-							</li>
-						{/if}
-						{#if identifiedInviteResult?.campaignId === wave.id}
-							<li class="minted">
-								<p class="invite-result" role="status">{identifiedInviteResult.text}</p>
-							</li>
-						{/if}
-						{#if deliveryFor === wave.id}
-							<li class="minted">
-								<div class="invite-inner">
-									<span class="eyebrow dim-label">{t('Delivery — who was invited and where it landed')}</span>
-									{#if deliveryBusy}
-										<p class="hint-line">{t('Loading…')}</p>
-									{:else if deliveries && deliveries.deliveries.length > 0}
-										<ul class="delivery-list">
-											{#each deliveries.deliveries as row (row.notificationId)}
-												<li>
-													<span class="delivery-who">
-														{#if row.displayName}<strong>{row.displayName}</strong>{/if}
-														<span class="datum delivery-email">{row.recipient}</span>
-													</span>
-													<span class={deliveryStatusClass(row.status)}>{t(humanizeToken(row.status))}</span>
-													<span class="datum delivery-when">
-														{row.lastEventAt ? formatDateTime(row.lastEventAt) : ''}
-													</span>
-												</li>
-											{/each}
-										</ul>
-									{:else}
-										<p class="hint-line">{t('No email invitations on this wave yet.')}</p>
-									{/if}
-								</div>
-							</li>
-						{/if}
-						{#if mintedLink?.campaignId === wave.id}
-							<li class="minted">
-								<div class="minted-inner">
-									<span class="eyebrow dim-label">{t('Respondent link — shown once, save it now')}</span>
-									<code class="datum minted-url">{mintedLink.url}</code>
-									<button class="link-btn" onclick={copyLink}>{copied ? t('Copied') : t('Copy link')}</button>
-								</div>
-							</li>
-						{/if}
-						{#if queueLinks?.campaignId === wave.id}
-							<li class="minted">
-								<div class="minted-inner">
-									<span class="eyebrow dim-label">
-										{t('Personal respondent links — shown once, deliver each to its person')}
-									</span>
-									<ul class="queue-links">
-										{#each queueLinks.links as link (link.respondentSubjectId)}
-											<li>
-												<span class="queue-who">
-													{queueNames[link.respondentSubjectId] ?? link.respondentSubjectId}
-													<span class="datum queue-count">
-														{formatCount(link.assignmentCount)} {t('to answer')}
-													</span>
-												</span>
-												{#if link.url}
-													<code class="datum minted-url">{link.url}</code>
+								<div class="manage-panel">
+									<div class="manage-section">
+										<span class="eyebrow dim-label">{t('Invite')}</span>
+										{#if wave.responseIdentityMode.toLowerCase() === 'identified'}
+											<p class="invite-hint">{t('Email each person their own private link, or get the links to share yourself.')}</p>
+											<div class="manage-actions">
+												<button class="link-btn primary" disabled={identifiedInviteBusy === wave.id} onclick={() => sendIdentifiedInvitations(wave.id)}>
+													{identifiedInviteBusy === wave.id ? t('Sending…') : t('Invite people by email')}
+												</button>
+												<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintQueueLinks(wave.id)}>
+													{t('Get links to share myself')}
+												</button>
+											</div>
+											{#if identifiedInviteResult?.campaignId === wave.id}
+												<p class="invite-result" role="status">{identifiedInviteResult.text}</p>
+											{/if}
+										{:else}
+											<p class="invite-hint">{t('A wave collects one way: email invitations or a shared open link, not both.')}</p>
+											<textarea
+												rows="3"
+												bind:value={inviteEmails}
+												placeholder={'ana@example.org\nmarko@example.org'}
+												aria-label="Recipient emails"
+											></textarea>
+											<div class="manage-actions">
+												<button class="link-btn primary" disabled={inviteBusy} onclick={() => sendInvitations(wave.id)}>
+													{inviteBusy ? t('Sending…') : t('Invite by email')}
+												</button>
+												{#if wave.openLinkAssignmentCount > 0}
+													<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, true)}>
+														{t('Replace lost link')}
+													</button>
 												{:else}
-													<span class="datum queue-count">{t(humanizeToken(link.status))}</span>
+													<button class="link-btn" disabled={linkBusy === wave.id} onclick={() => mintLink(wave.id, false)}>
+														{t('Create open link')}
+													</button>
 												{/if}
-											</li>
-										{/each}
-									</ul>
+											</div>
+											{#if inviteResult}<p class="invite-result" role="status">{inviteResult}</p>{/if}
+										{/if}
+									</div>
+
+									{#if mintedLink?.campaignId === wave.id}
+										<div class="minted-inner">
+											<span class="eyebrow dim-label">{t('Respondent link — shown once, save it now')}</span>
+											<code class="datum minted-url">{mintedLink.url}</code>
+											<button class="link-btn" onclick={copyLink}>{copied ? t('Copied') : t('Copy link')}</button>
+										</div>
+									{/if}
+									{#if queueLinks?.campaignId === wave.id}
+										<div class="minted-inner">
+											<span class="eyebrow dim-label">
+												{t('Personal respondent links — shown once, deliver each to its person')}
+											</span>
+											<ul class="queue-links">
+												{#each queueLinks.links as link (link.respondentSubjectId)}
+													<li>
+														<span class="queue-who">
+															{queueNames[link.respondentSubjectId] ?? link.respondentSubjectId}
+															<span class="datum queue-count">
+																{formatCount(link.assignmentCount)} {t('to answer')}
+															</span>
+														</span>
+														{#if link.url}
+															<code class="datum minted-url">{link.url}</code>
+														{:else}
+															<span class="datum queue-count">{t(humanizeToken(link.status))}</span>
+														{/if}
+													</li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+
+									<div class="manage-section">
+										<div class="manage-head">
+											<span class="eyebrow dim-label">{t('Delivery — who was invited and where it landed')}</span>
+											{#if queuedCount > 0}
+												<button class="link-btn" disabled={sendBusy === wave.id} onclick={() => sendQueued(wave.id)}>
+													{sendBusy === wave.id ? t('Sending…') : `${t('Send queued')} (${formatCount(queuedCount)})`}
+												</button>
+											{/if}
+										</div>
+										{#if deliveryBusy}
+											<p class="hint-line">{t('Loading…')}</p>
+										{:else if deliveries && deliveries.deliveries.length > 0}
+											<ul class="delivery-list">
+												{#each deliveries.deliveries as row (row.notificationId)}
+													<li>
+														<span class="delivery-who">
+															{#if row.displayName}<strong>{row.displayName}</strong>{/if}
+															<span class="datum delivery-email">{row.recipient}</span>
+														</span>
+														<span class={deliveryStatusClass(row.status)}>{t(humanizeToken(row.status))}</span>
+														<span class="datum delivery-when">
+															{row.lastEventAt ? formatDateTime(row.lastEventAt) : ''}
+														</span>
+													</li>
+												{/each}
+											</ul>
+										{:else}
+											<p class="hint-line">{t('No email invitations on this wave yet.')}</p>
+										{/if}
+									</div>
 								</div>
 							</li>
 						{/if}
@@ -852,7 +883,7 @@
 		width: 100%;
 	}
 
-	.invite-inner textarea {
+	.manage-section textarea {
 		font-family: var(--font-mono);
 		font-size: 0.8125rem;
 		background: var(--color-console);
@@ -878,6 +909,43 @@
 		font-size: 0.75rem;
 		color: var(--color-console-dim);
 		margin: -0.25rem 0 0;
+	}
+
+	.manage-panel {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+		width: 100%;
+	}
+
+	.manage-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.manage-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.manage-actions {
+		display: flex;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
+	.link-btn.primary {
+		background: var(--color-stain);
+		border-color: var(--color-stain);
+		color: #fff;
+	}
+
+	.link-btn.primary:hover:not(:disabled) {
+		filter: brightness(1.08);
 	}
 
 	.delivery-list {

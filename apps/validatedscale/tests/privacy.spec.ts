@@ -73,7 +73,8 @@ test('privacy: a withdrawal request against real data is recorded, approved and 
 
 	// Ana answers her queue
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
-	await page.getByRole('button', { name: 'Create respondent links' }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
+	await page.getByRole('button', { name: 'Get links to share myself' }).click();
 	const anaRow = page.locator('.queue-links li', { hasText: 'E2E 360 Ana' });
 	await expect(anaRow).toBeVisible({ timeout: 15_000 });
 	const url = (await anaRow.locator('.minted-url').textContent())?.trim();

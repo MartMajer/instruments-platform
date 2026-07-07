@@ -68,13 +68,13 @@ test('revision: a launched wave keeps its snapshot while the next wave gets the 
 	await launchTwo.click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 
-	// mint both open links from Field
+	// mint both open links from Field (one expand panel per wave)
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
-	const waveOneRow = page.locator('.waves li', { hasText: 'Wave one' }).first();
-	await waveOneRow.getByRole('button', { name: 'Create open link' }).click();
+	await page.locator('.waves li', { hasText: 'Wave one' }).first().getByRole('button', { name: 'Invite & deliver' }).click();
+	await page.getByRole('button', { name: 'Create open link' }).click();
 	const urlOne = (await page.locator('.minted-url').textContent({ timeout: 15_000 }))?.trim();
-	const waveTwoRow = page.locator('.waves li', { hasText: 'Wave two' }).first();
-	await waveTwoRow.getByRole('button', { name: 'Create open link' }).click();
+	await page.locator('.waves li', { hasText: 'Wave two' }).first().getByRole('button', { name: 'Invite & deliver' }).click();
+	await page.getByRole('button', { name: 'Create open link' }).click();
 	await expect(page.locator('.minted-url')).not.toHaveText(urlOne!, { timeout: 15_000 });
 	const urlTwo = (await page.locator('.minted-url').textContent())?.trim();
 
@@ -129,6 +129,7 @@ test('disclosure: the k = 5 floor opens exactly at five responses, and a failed 
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	await page.getByRole('button', { name: 'Create open link' }).click();
 	const url = (await page.locator('.minted-url').textContent({ timeout: 15_000 }))?.trim();
 

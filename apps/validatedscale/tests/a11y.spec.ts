@@ -34,6 +34,7 @@ test('a11y: a respondent completes the survey with the keyboard alone', async ({
 	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
 
 	await page.getByRole('link', { name: 'Field', exact: true }).click();
+	await page.getByRole('button', { name: 'Invite & deliver' }).click();
 	await page.getByRole('button', { name: 'Create open link' }).click();
 	const url = (await page.locator('.minted-url').textContent({ timeout: 15_000 }))?.trim();
 
