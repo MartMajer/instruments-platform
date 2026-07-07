@@ -1,14 +1,22 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Platform.Api;
+using Platform.Infrastructure.Data;
 
 namespace Platform.IntegrationTests.Api;
 
 public sealed class WorkerHeartbeatHealthEndpointRegressionTests(WebApplicationFactory<Program> factory)
     : IClassFixture<WebApplicationFactory<Program>>
 {
+    private const string UnreachableConnectionString =
+        "Host=127.0.0.1;Port=1;Database=instruments_platform;Username=platform_app;Password=platform_app;Timeout=1;Command Timeout=1";
+
     [Fact]
     public async Task Ready_health_includes_worker_heartbeat_without_operational_details()
     {
@@ -18,8 +26,17 @@ public sealed class WorkerHeartbeatHealthEndpointRegressionTests(WebApplicationF
             {
                 configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:PlatformDb"] = "Host=127.0.0.1;Port=1;Database=instruments_platform;Username=platform_app;Password=platform_app;Timeout=1;Command Timeout=1"
+                    ["ConnectionStrings:PlatformDb"] = UnreachableConnectionString
                 });
+            });
+            builder.ConfigureTestServices(services =>
+            {
+                // With minimal hosting the in-memory configuration above is applied
+                // before the app's JSON providers, so a running local dev database
+                // would win over the unreachable connection string.
+                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
+                services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseNpgsql(UnreachableConnectionString));
             });
         }).CreateClient();
 
