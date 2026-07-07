@@ -9,6 +9,7 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { localeState, t } from '$lib/core/locale.svelte';
+	import { problemMessage } from '$lib/core/problem';
 	import { insightCopy } from '$lib/core/backend-copy';
 	import { downloadExportArtifact, downloadExportArtifactCodebook } from '$lib/core/download';
 	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
@@ -122,8 +123,20 @@
 			else await setup.createCampaignSeriesReportPdfArtifact(seriesId);
 			exportNote = t('Export queued. It appears below when ready.');
 			await load();
-		} catch {
-			exportNote = t('The export could not be queued. Try again.');
+		} catch (cause) {
+			// show the real refusal reason (house pattern: honest failures)
+			exportNote = problemMessage(
+				cause,
+				{
+					'report_pdf.browser_unavailable': t(
+						'The PDF renderer is not available in this environment. Report PDFs render on staging.'
+					),
+					'response_export.no_submitted_responses': t(
+						'There are no submitted responses to export yet.'
+					)
+				},
+				t('The export could not be queued. Try again.')
+			);
 		} finally {
 			exportBusy = null;
 		}

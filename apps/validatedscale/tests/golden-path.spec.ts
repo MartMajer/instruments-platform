@@ -52,6 +52,7 @@ test('researcher authors, launches, collects and sees evidence', async ({ page, 
 	const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
 	const respondent = await phone.newPage();
 	await respondent.goto(url!);
+	await respondent.waitForSelector('html[data-hydrated="true"]');
 	// the launched wave must carry the custom consent version published above
 	await expect(respondent.locator('.consent-version')).toContainText('v2.0.0');
 	await respondent.getByRole('checkbox').check();

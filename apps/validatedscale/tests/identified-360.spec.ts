@@ -71,6 +71,7 @@ test('identified 360: a manager answers a queue of two reports', async ({ page, 
 	const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
 	const respondent = await phone.newPage();
 	await respondent.goto(url!);
+	await respondent.waitForSelector('html[data-hydrated="true"]');
 	await respondent.getByRole('checkbox').check();
 	await respondent.getByRole('button', { name: 'Begin' }).click();
 	await expect(respondent.locator('.queue-list li')).toHaveCount(2, { timeout: 15_000 });

@@ -162,6 +162,8 @@ const HR: Record<string, string> = {
 	'years': 'godina',
 	'Codebook': 'Kodna knjiga',
 	'Export queued. It appears below when ready.': 'Izvoz je pokrenut. Pojavit će se ispod kad bude spreman.',
+	'The PDF renderer is not available in this environment. Report PDFs render on staging.': 'PDF preglednik nije dostupan u ovom okruženju. PDF izvještaji izrađuju se na stagingu.',
+	'There are no submitted responses to export yet.': 'Još nema predanih odgovora za izvoz.',
 	'The export could not be queued. Try again.': 'Izvoz nije bilo moguće pokrenuti. Pokušajte ponovno.',
 	'The download failed. Try again.': 'Preuzimanje nije uspjelo. Pokušajte ponovno.',
 	'The codebook download failed. Try again.': 'Preuzimanje kodne knjige nije uspjelo. Pokušajte ponovno.',
