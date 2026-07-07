@@ -8,10 +8,10 @@
 	} from '$lib/api/product';
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
-	import { t } from '$lib/core/locale.svelte';
+	import { localeState, t } from '$lib/core/locale.svelte';
 	import { insightCopy } from '$lib/core/backend-copy';
-	import { downloadExportArtifact } from '$lib/core/download';
-	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
+	import { downloadExportArtifact, downloadExportArtifactCodebook } from '$lib/core/download';
+	import { formatCount, formatDate, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
 	const product = createProductApi(api());
@@ -26,8 +26,62 @@
 
 	const analytics = $derived(workspace?.resultsAnalytics ?? null);
 	const dashboard = $derived(workspace?.resultsDashboard ?? null);
+	const provenance = $derived(workspace?.provenance ?? null);
 
 	const visibleOutputs = $derived(analytics?.scoreOutputs ?? []);
+
+	let methodsCopied = $state(false);
+
+	/** One citable paragraph describing this wave's evidence, en or hr. */
+	function methodsText(): string {
+		const p = provenance;
+		if (!p) return '';
+		const hr = localeState.current === 'hr';
+		const launched = p.launchedAt ? formatDate(p.launchedAt) : '—';
+		const closed = p.closedAt ? formatDate(p.closedAt) : hr ? 'još u tijeku' : 'still collecting';
+		const identity = t(humanizeToken(p.responseIdentityMode)).toLowerCase();
+		const instrument = p.instrumentName
+			? `„${p.instrumentName}” v${p.instrumentVersion ?? '?'}${p.questionCount ? ` (${p.questionCount} ${hr ? 'čestica' : 'items'})` : ''}`
+			: hr
+				? 'nije zabilježen'
+				: 'not recorded';
+		const scoring = p.scoringRuleKey ? `${p.scoringRuleKey} v${p.scoringRuleVersion ?? '?'}` : null;
+		const consent = p.consentVersion ? `${p.consentVersion} (${p.consentLocale ?? '?'})` : null;
+
+		if (hr) {
+			return (
+				`${p.studyName}: u krugu „${p.waveName}” prikupljeno je ${p.submittedResponseCount} predanih odgovora (${identity}), od ${launched} do ${closed}. ` +
+				`Instrument: ${instrument}.` +
+				(scoring ? ` Rezultati su izračunani pravilom bodovanja ${scoring}.` : '') +
+				(p.disclosureKMin
+					? ` Skupni rezultati prikazuju se samo za grupe od najmanje k = ${p.disclosureKMin} ispitanika; manje ćelije se potiskuju.`
+					: '') +
+				(consent ? ` Ispitanici su prihvatili verziju privole ${consent}.` : '') +
+				(p.retentionYears ? ` Podaci se čuvaju ${p.retentionYears} god.` : '')
+			);
+		}
+
+		return (
+			`${p.studyName}: wave “${p.waveName}” collected ${p.submittedResponseCount} submitted responses (${identity}), from ${launched} to ${closed}. ` +
+			`Instrument: ${instrument}.` +
+			(scoring ? ` Scores were computed by scoring rule ${scoring}.` : '') +
+			(p.disclosureKMin
+				? ` Aggregate results are disclosed only for groups of at least k = ${p.disclosureKMin} respondents; smaller cells are suppressed.`
+				: '') +
+			(consent ? ` Respondents accepted consent version ${consent}.` : '') +
+			(p.retentionYears ? ` Data are retained for ${p.retentionYears} years.` : '')
+		);
+	}
+
+	async function copyMethods() {
+		try {
+			await navigator.clipboard.writeText(methodsText());
+			methodsCopied = true;
+			setTimeout(() => (methodsCopied = false), 2000);
+		} catch {
+			exportNote = t('Could not reach the clipboard. Select and copy the text manually.');
+		}
+	}
 
 	const bars = $derived(dashboard?.outputBars ?? []);
 	const barMax = $derived(
@@ -66,10 +120,10 @@
 			if (kind === 'responses') await setup.createCampaignSeriesResponseExport(seriesId);
 			else if (kind === 'matrix') await setup.createCampaignSeriesResultsMatrixExport(seriesId);
 			else await setup.createCampaignSeriesReportPdfArtifact(seriesId);
-			exportNote = 'Export queued. It appears below when ready.';
+			exportNote = t('Export queued. It appears below when ready.');
 			await load();
 		} catch {
-			exportNote = 'The export could not be queued. Try again.';
+			exportNote = t('The export could not be queued. Try again.');
 		} finally {
 			exportBusy = null;
 		}
@@ -79,17 +133,25 @@
 		try {
 			await downloadExportArtifact(artifactId, fileName);
 		} catch {
-			exportNote = 'The download failed. Try again.';
+			exportNote = t('The download failed. Try again.');
+		}
+	}
+
+	async function downloadCodebook(artifactId: string) {
+		try {
+			await downloadExportArtifactCodebook(artifactId);
+		} catch {
+			exportNote = t('The codebook download failed. Try again.');
 		}
 	}
 
 	async function retry(artifactId: string) {
 		try {
 			await setup.retryCampaignSeriesReportPdfArtifact(artifactId);
-			exportNote = 'Retry queued.';
+			exportNote = t('Retry queued.');
 			await load();
 		} catch {
-			exportNote = 'The retry was not accepted.';
+			exportNote = t('The retry was not accepted.');
 		}
 	}
 
@@ -209,7 +271,10 @@
 									<tbody>
 										{#each visibleOutputs as row (row.dimensionCode)}
 											<tr class:suppressed={row.disclosure.toLowerCase() !== 'visible'}>
-												<td>{row.dimensionCode}</td>
+												<td>
+													{row.dimensionLabel ?? humanizeToken(row.dimensionCode)}
+													{#if row.dimensionLabel}<span class="datum dim-code">{row.dimensionCode}</span>{/if}
+												</td>
 												{#if row.disclosure.toLowerCase() === 'visible'}
 													<td class="num datum">{formatCount(row.scoreCount)}</td>
 													<td class="num datum">{fmt(row.mean)}</td>
@@ -246,7 +311,10 @@
 									<tbody>
 										{#each waveMatrix as [dimension, rows] (dimension)}
 											<tr>
-												<td>{dimension}</td>
+												<td>
+													{rows[0]?.dimensionLabel ?? humanizeToken(dimension)}
+													{#if rows[0]?.dimensionLabel}<span class="datum dim-code">{dimension}</span>{/if}
+												</td>
 												<td class="trend-cell">
 													{#if trendPoints(rows)}
 														<svg width="96" height="26" role="img" aria-label={`${dimension} mean across waves`}>
@@ -304,6 +372,64 @@
 				</div>
 
 				<aside class="side">
+					{#if provenance}
+						<div class="panel methods">
+							<h2 class="eyebrow">{t('Methods & provenance')}</h2>
+							<dl class="prov">
+								<div>
+									<dt>{t('Instrument')}</dt>
+									<dd>
+										{provenance.instrumentName ?? '—'}
+										{#if provenance.instrumentVersion}<span class="datum">v{provenance.instrumentVersion}</span>{/if}
+										{#if provenance.questionCount}· {formatCount(provenance.questionCount)} {t('items')}{/if}
+									</dd>
+								</div>
+								<div>
+									<dt>{t('Scoring rule')}</dt>
+									<dd>
+										{#if provenance.scoringRuleKey}
+											<span class="datum">{provenance.scoringRuleKey} v{provenance.scoringRuleVersion}</span>
+										{:else}—{/if}
+									</dd>
+								</div>
+								<div>
+									<dt>{t('Consent')}</dt>
+									<dd>
+										{#if provenance.consentVersion}
+											v{provenance.consentVersion} ({provenance.consentLocale})
+										{:else}—{/if}
+									</dd>
+								</div>
+								<div>
+									<dt>{t('Identity mode')}</dt>
+									<dd>{t(humanizeToken(provenance.responseIdentityMode))}</dd>
+								</div>
+								<div>
+									<dt>{t('Wave')}</dt>
+									<dd>
+										{provenance.waveName} · {formatDate(provenance.launchedAt)}
+										{#if provenance.closedAt}– {formatDate(provenance.closedAt)}{:else}– {t('collecting now')}{/if}
+									</dd>
+								</div>
+								<div>
+									<dt>{t('Disclosure')}</dt>
+									<dd>
+										k = {provenance.disclosureKMin ?? '—'} · {t('smaller cells suppressed')}
+									</dd>
+								</div>
+								{#if provenance.retentionYears}
+									<div>
+										<dt>{t('Retention')}</dt>
+										<dd>{provenance.retentionYears} {t('years')}</dd>
+									</div>
+								{/if}
+							</dl>
+							<button class="btn btn-ghost methods-copy" onclick={copyMethods}>
+								{methodsCopied ? t('Copied') : t('Copy methods text')}
+							</button>
+						</div>
+					{/if}
+
 					<div class="panel exports">
 						<h2 class="eyebrow">{t('Exports')}</h2>
 						<div class="export-actions">
@@ -330,7 +456,12 @@
 										</span>
 									</div>
 									{#if artifact.canDownload}
-										<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>{t('Download')}</button>
+										<span class="dl-group">
+											<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>{t('Download')}</button>
+											{#if artifact.format === 'csv_codebook'}
+												<button class="dl" onclick={() => downloadCodebook(artifact.id)}>{t('Codebook')}</button>
+											{/if}
+										</span>
 									{:else if artifact.status.toLowerCase() === 'failed'}
 										<button class="dl" onclick={() => retry(artifact.id)}>{t('Retry')}</button>
 									{/if}
@@ -569,6 +700,58 @@
 		font-size: 0.875rem;
 		color: var(--color-ink-2);
 		max-width: 56ch;
+	}
+
+	/* methods & provenance */
+	.methods {
+		padding: 1.25rem;
+		border-top: 3px solid var(--color-ink);
+		margin-bottom: 1.5rem;
+	}
+
+	.prov {
+		margin-top: 0.75rem;
+	}
+
+	.prov div {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.4rem 0;
+		border-bottom: 1px solid var(--color-line);
+		font-size: 0.8125rem;
+	}
+
+	.prov dt {
+		color: var(--color-ink-3);
+		flex-shrink: 0;
+	}
+
+	.prov dd {
+		text-align: right;
+		color: var(--color-ink);
+	}
+
+	.prov dd .datum {
+		font-size: 0.75rem;
+	}
+
+	.methods-copy {
+		margin-top: 0.875rem;
+		width: 100%;
+		justify-content: center;
+	}
+
+	.dim-code {
+		display: block;
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.dl-group {
+		display: flex;
+		gap: 0.5rem;
+		flex-shrink: 0;
 	}
 
 	/* exports */

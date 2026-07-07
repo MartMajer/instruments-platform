@@ -1276,6 +1276,17 @@ export function createSetupApi(client: ApiClient) {
 				byteSize: response.byteSize,
 				content: response.body
 			} satisfies ExportArtifactDownloadResponse;
+		},
+		async downloadExportArtifactCodebook(artifactId: string) {
+			const response = await client.requestBlob(`/export-artifacts/${artifactId}/codebook`);
+
+			return {
+				artifactId,
+				fileName: parseContentDispositionFileName(response.contentDisposition),
+				contentType: response.contentType,
+				byteSize: response.byteSize,
+				content: response.body
+			} satisfies ExportArtifactDownloadResponse;
 		}
 	};
 }

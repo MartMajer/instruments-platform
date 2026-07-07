@@ -304,7 +304,17 @@
 				engineMinVersion: '1.0.0',
 				document: scoringDocument(scaleRows),
 				produces: JSON.stringify({ scores: ['total'] }),
-				compatibility: '{}'
+				compatibility: JSON.stringify({
+					outputs: [
+						{
+							code: 'total',
+							label:
+								locale === 'hr-HR'
+									? `Ukupni rezultat (${calculation === 'mean' ? 'prosjek' : 'zbroj'} čestica)`
+									: `Total score (${calculation === 'mean' ? 'mean' : 'sum'} of items)`
+						}
+					]
+				})
 			});
 
 			step = 'Attaching to study…';

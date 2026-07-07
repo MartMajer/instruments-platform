@@ -70,7 +70,7 @@
 				engineMinVersion: '1.0.0',
 				document: entry.scoringDocument!,
 				produces: entry.scoringProduces!,
-				compatibility: '{}'
+				compatibility: JSON.stringify({ outputs: entry.scoringOutputs ?? [] })
 			});
 
 			useStep = 'Attaching to study…';

@@ -7,7 +7,7 @@
 	import { createSetupApi } from '$lib/api/setup';
 	import { api } from '$lib/core/client';
 	import { t } from '$lib/core/locale.svelte';
-	import { downloadExportArtifact } from '$lib/core/download';
+	import { downloadExportArtifact, downloadExportArtifactCodebook } from '$lib/core/download';
 	import { formatCount, formatDateTime, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -31,7 +31,15 @@
 		try {
 			await downloadExportArtifact(artifactId, fileName);
 		} catch {
-			note = 'The download failed. Try again.';
+			note = t('The download failed. Try again.');
+		}
+	}
+
+	async function downloadCodebook(artifactId: string) {
+		try {
+			await downloadExportArtifactCodebook(artifactId);
+		} catch {
+			note = t('The codebook download failed. Try again.');
 		}
 	}
 
@@ -102,6 +110,9 @@
 							<td class="act">
 								{#if artifact.canDownload}
 									<button class="dl" onclick={() => download(artifact.id, artifact.fileName)}>{t('Download')}</button>
+									{#if artifact.format === 'csv_codebook'}
+										<button class="dl" onclick={() => downloadCodebook(artifact.id)}>{t('Codebook')}</button>
+									{/if}
 								{/if}
 							</td>
 						</tr>

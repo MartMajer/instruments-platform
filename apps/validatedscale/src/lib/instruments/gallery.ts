@@ -38,6 +38,8 @@ export type GalleryInstrument = {
 	scoringDocument?: string;
 	scoringProduces?: string;
 	scoringKey?: string;
+	/** Human labels for score outputs, stored on the rule so Evidence can display them. */
+	scoringOutputs?: { code: string; label: string }[];
 };
 
 const FOUR_POINT_ANCHORS = JSON.stringify([
@@ -276,6 +278,7 @@ export const gallery: GalleryInstrument[] = [
 			{ code: 'total', items: GAD7_ITEMS.map((_, i) => `Q${String(i + 1).padStart(2, '0')}`) }
 		]),
 		scoringProduces: JSON.stringify({ scores: ['total'] }),
+		scoringOutputs: [{ code: 'total', label: 'GAD-7 total (0–21)' }],
 		template: {
 			sections: [
 				{
@@ -324,6 +327,11 @@ export const gallery: GalleryInstrument[] = [
 			{ code: 'total', items: ['Q01', 'Q02', 'Q03', 'Q04'] }
 		]),
 		scoringProduces: JSON.stringify({ scores: ['anxiety', 'depression', 'total'] }),
+		scoringOutputs: [
+			{ code: 'anxiety', label: 'Anxiety subscore (0–6)' },
+			{ code: 'depression', label: 'Depression subscore (0–6)' },
+			{ code: 'total', label: 'PHQ-4 total (0–12)' }
+		],
 		template: {
 			sections: [
 				{
@@ -388,6 +396,7 @@ export const gallery: GalleryInstrument[] = [
 			missing_data: { defaults: { strategy: 'require_all' } }
 		}),
 		scoringProduces: JSON.stringify({ scores: ['total'] }),
+		scoringOutputs: [{ code: 'total', label: 'Raw TLX — mean of six ratings (0–20)' }],
 		template: {
 			sections: [{ ordinal: 1, code: 'MAIN', titleDefault: 'Task load' }],
 			scales: TLX.map((dimension, i) => ({
@@ -431,6 +440,9 @@ export const gallery: GalleryInstrument[] = [
 		scoringKey: 'nmq_regions_affected',
 		scoringDocument: nmqScoring(),
 		scoringProduces: JSON.stringify({ scores: ['regions_affected'] }),
+		scoringOutputs: [
+			{ code: 'regions_affected', label: 'Body regions with trouble, last 12 months (0–9)' }
+		],
 		template: nmqTemplate()
 	},
 	{

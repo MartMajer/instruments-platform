@@ -18,10 +18,25 @@ export async function downloadExportArtifact(artifactId: string, fileName?: stri
 	}
 
 	const file = await setup.downloadExportArtifactCsv(artifactId);
-	const url = URL.createObjectURL(file.content);
+	saveBlob(file.content, file.fileName || fileName || `export-${artifactId}.csv`);
+}
+
+/**
+ * Download the codebook that documents a CSV export (variables, question text,
+ * scales, reverse-coding, missing treatment). Served straight from the
+ * artifact record, so it works with or without object storage.
+ */
+export async function downloadExportArtifactCodebook(artifactId: string): Promise<void> {
+	const setup = createSetupApi(api());
+	const file = await setup.downloadExportArtifactCodebook(artifactId);
+	saveBlob(file.content, file.fileName || `export-${artifactId}-codebook.json`);
+}
+
+function saveBlob(content: Blob, fileName: string) {
+	const url = URL.createObjectURL(content);
 	const anchor = document.createElement('a');
 	anchor.href = url;
-	anchor.download = file.fileName || fileName || `export-${artifactId}.csv`;
+	anchor.download = fileName;
 	document.body.appendChild(anchor);
 	anchor.click();
 	anchor.remove();

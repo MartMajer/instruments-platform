@@ -883,6 +883,7 @@ export type CampaignSeriesReportsWorkspaceResponse = {
 	campaigns: CampaignSeriesReportsCampaignResponse[];
 	scoreCoverage?: CampaignSeriesScoreCoverageResponse | null;
 	resultsAnalytics?: CampaignSeriesResultsAnalyticsResponse | null;
+	provenance?: CampaignSeriesReportsProvenanceResponse | null;
 	resultsDashboard?: CampaignSeriesResultsDashboardResponse | null;
 };
 
@@ -1057,6 +1058,8 @@ export type CampaignSeriesResultsScoreOutputResponse = {
 	nExpectedTotal: number | null;
 	missingPolicyStatusSummary: string | null;
 	suppressionReason: string | null;
+	/** Human label from the scoring rule's output metadata, when present. */
+	dimensionLabel?: string | null;
 };
 
 export type CampaignSeriesResultsGroupMatrixRowResponse = {
@@ -1072,6 +1075,7 @@ export type CampaignSeriesResultsGroupMatrixRowResponse = {
 	min: number | null;
 	max: number | null;
 	suppressionReason: string | null;
+	dimensionLabel?: string | null;
 };
 
 export type CampaignSeriesResultsWaveMatrixRowResponse = {
@@ -1093,6 +1097,29 @@ export type CampaignSeriesResultsWaveMatrixRowResponse = {
 	deltaFromPreviousMean: number | null;
 	deltaFromFirstMean: number | null;
 	comparisonState: string;
+	dimensionLabel?: string | null;
+};
+
+export type CampaignSeriesReportsProvenanceResponse = {
+	studyName: string;
+	waveName: string;
+	responseIdentityMode: string;
+	launchedAt: string | null;
+	closedAt: string | null;
+	dataFinality: string;
+	submittedResponseCount: number;
+	instrumentName: string | null;
+	instrumentVersion: string | null;
+	instrumentLocale: string | null;
+	questionCount: number | null;
+	scoringRuleKey: string | null;
+	scoringRuleVersion: string | null;
+	consentVersion: string | null;
+	consentLocale: string | null;
+	consentTitle: string | null;
+	disclosureKMin: number | null;
+	disclosureRule: string | null;
+	retentionYears: number | null;
 };
 
 export type CampaignSeriesResultsInsightResponse = {
