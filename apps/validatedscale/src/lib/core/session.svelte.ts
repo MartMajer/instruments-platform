@@ -43,5 +43,12 @@ export function loginUrl(tenantId?: string | null, loginHint?: string | null): s
 }
 
 export function logoutUrl(): string {
-	return createLogoutUrlFromEnv(env);
+	const base = createLogoutUrlFromEnv(env);
+	// /auth/logout lives on the API origin; without an absolute web-origin
+	// returnUrl it redirects to "/" on the API host. Send the browser home,
+	// the same way sign-in/register pass an absolute returnUrl.
+	const origin = globalThis.location?.origin;
+	if (!origin) return base;
+	const separator = base.includes('?') ? '&' : '?';
+	return `${base}${separator}returnUrl=${encodeURIComponent(`${origin}/`)}`;
 }
