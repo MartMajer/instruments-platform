@@ -5,13 +5,17 @@ using Platform.SharedKernel;
 
 namespace Platform.Application.Features.ProductSurfaces;
 
-public sealed record EnsureSampleStudiesCommand : IRequest<Result<EnsureSampleStudiesResponse>>;
+// Locale selects the language of the example content ("en" default, "hr"/"hr-HR"
+// for Croatian); example studies should read believably in the researcher's language.
+public sealed record EnsureSampleStudiesCommand(string? Locale = null)
+    : IRequest<Result<EnsureSampleStudiesResponse>>;
 
 public interface ISampleStudySeeder
 {
     Task<Result<EnsureSampleStudiesResponse>> EnsureAsync(
         Guid tenantId,
         Guid actorUserId,
+        string? locale,
         CancellationToken cancellationToken);
 }
 
@@ -34,6 +38,7 @@ public sealed class EnsureSampleStudiesHandler(
         return seeder.EnsureAsync(
             currentTenant.TenantId,
             currentActor.UserId.Value,
+            command.Locale,
             cancellationToken);
     }
 }

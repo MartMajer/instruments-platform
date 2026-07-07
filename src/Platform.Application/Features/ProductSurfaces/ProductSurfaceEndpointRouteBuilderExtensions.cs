@@ -291,10 +291,13 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
     }
 
     private static async Task<IResult> EnsureSampleStudies(
+        EnsureSampleStudiesRequest? request,
         ISender sender,
         CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new EnsureSampleStudiesCommand(), cancellationToken);
+        var result = await sender.Send(
+            new EnsureSampleStudiesCommand(request?.Locale),
+            cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

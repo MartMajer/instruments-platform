@@ -14,6 +14,8 @@ public sealed record WorkspaceStudyCollectionsResponse(
     IReadOnlyList<CampaignSeriesListItemResponse> SampleStudies,
     IReadOnlyList<CampaignSeriesListItemResponse> OwnStudies);
 
+public sealed record EnsureSampleStudiesRequest(string? Locale = null);
+
 public sealed record EnsureSampleStudiesResponse(
     Guid TenantId,
     int ExistingSampleStudyCount,
