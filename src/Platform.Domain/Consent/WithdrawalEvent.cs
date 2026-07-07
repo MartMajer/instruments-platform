@@ -279,6 +279,42 @@ public sealed class WithdrawalEvent
             metadataJson);
     }
 
+    public static WithdrawalEvent RequestIdentifiedSubject(
+        Guid id,
+        Guid tenantId,
+        Guid campaignSeriesId,
+        Guid retentionPolicyId,
+        Guid subjectId,
+        string actionAfter,
+        DateTimeOffset requestedAt,
+        int consentRecordCount,
+        int responseSessionCount,
+        int answerCount,
+        int scoreRunCount,
+        int scoreCount,
+        string metadataJson = "{}")
+    {
+        return new WithdrawalEvent(
+            id,
+            tenantId,
+            campaignSeriesId,
+            retentionPolicyId,
+            WithdrawalTargetKinds.IdentifiedSubject,
+            WithdrawalScopes.CampaignSeries,
+            actionAfter,
+            WithdrawalEventStatuses.Requested,
+            requestedAt,
+            subjectId,
+            participantCodeId: null,
+            responseSessionId: null,
+            consentRecordCount,
+            responseSessionCount,
+            answerCount,
+            scoreRunCount,
+            scoreCount,
+            metadataJson);
+    }
+
     public void ApproveRequest(string metadataJson)
     {
         if (Status != WithdrawalEventStatuses.Requested)
