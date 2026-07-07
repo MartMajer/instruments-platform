@@ -18,85 +18,175 @@ function kindOf(id: string): string {
 	return seriesKind ? seriesKind[1] : '';
 }
 
-/** Localized title + description for a Today command-center item. */
+/**
+ * Localized title + description for a Today command-center item.
+ *
+ * Recomposed in both locales: the backend's own sentences speak backend
+ * vocabulary (campaign series, Operations, Reports) while the product speaks
+ * study/wave/Field/Evidence. Unknown item kinds fall back to the backend text.
+ */
 export function commandCopy(item: WorkspaceCommandCenterItemResponse): {
 	title: string;
 	description: string;
+	action: string;
 } {
-	if (localeState.current !== 'hr') {
-		return { title: item.title, description: item.description };
-	}
-
+	const hr = localeState.current === 'hr';
 	const p = item.params ?? {};
 	const name = p.name ?? '';
 	const count = Number(p.count ?? '0');
+	const one = count === 1;
 
-	switch (kindOf(item.id)) {
+	const actions: Record<string, [en: string, hr: string]> = {
+		create: ['Open Studies', 'Otvori Studije'],
+		directory: ['Open People', 'Otvori Ljude'],
+		setup: ['Open the protocol', 'Otvori protokol'],
+		operations: ['Open Field', 'Otvori Prikupljanje'],
+		reports: ['Open Evidence', 'Otvori Nalaze'],
+		score_remediation: ['Open Evidence', 'Otvori Nalaze'],
+		exports: ['Open exports', 'Otvori izvoze'],
+		waves: ['Open waves', 'Otvori krugove'],
+		team: ['Open Team', 'Otvori Tim'],
+		review: ['Open Studies', 'Otvori Studije']
+	};
+	const kind = kindOf(item.id);
+	const action = actions[kind] ? actions[kind][hr ? 1 : 0] : t(item.actionLabel);
+	const text = commandText(item, kind, hr, name, count, one, p);
+
+	return { ...text, action };
+}
+
+function commandText(
+	item: WorkspaceCommandCenterItemResponse,
+	kind: string,
+	hr: boolean,
+	name: string,
+	count: number,
+	one: boolean,
+	p: Record<string, string>
+): { title: string; description: string } {
+	switch (kind) {
 		case 'create':
 			// The backend offers the create verb only to setup managers.
-			return item.requiredPermission
+			if (item.requiredPermission) {
+				return hr
+					? {
+							title: 'Stvorite prvu studiju',
+							description: 'Za početak stvorite studiju u ovom radnom prostoru.'
+						}
+					: {
+							title: 'Create your first study',
+							description: 'Start by registering a study in this workspace.'
+						};
+			}
+			return hr
 				? {
-						title: 'Stvorite prvu studiju',
-						description: 'Za početak stvorite studiju u ovom radnom prostoru.'
-					}
-				: {
 						title: 'Još nema studija',
 						description: 'Ovaj radni prostor još nema aktivnih studija.'
+					}
+				: {
+						title: 'No studies yet',
+						description: 'This workspace has no active studies yet.'
 					};
 		case 'directory': {
 			const subjects = Number(p.subjects ?? '0');
 			const groups = Number(p.groups ?? '0');
-			return {
-				title: 'Postavite Ljude',
-				description: `Imenik ima ${subjects} ${hrPlural(subjects, 'osobu', 'osobe', 'osoba')} i ${groups} ${hrPlural(groups, 'grupu', 'grupe', 'grupa')}. Dodajte popis prije nego što pravila sudjelovanja počnu ovisiti o njemu.`
-			};
+			return hr
+				? {
+						title: 'Postavite Ljude',
+						description: `Imenik ima ${subjects} ${hrPlural(subjects, 'osobu', 'osobe', 'osoba')} i ${groups} ${hrPlural(groups, 'grupu', 'grupe', 'grupa')}. Dodajte popis prije nego što pravila sudjelovanja počnu ovisiti o njemu.`
+					}
+				: {
+						title: 'Set up People',
+						description: `People holds ${subjects} ${subjects === 1 ? 'person' : 'people'} and ${groups} ${groups === 1 ? 'group' : 'groups'}. Add your roster before participation rules depend on it.`
+					};
 		}
 		case 'setup':
-			return {
-				title: `Dovršite postavljanje: ${name}`,
-				description: 'Ova studija još nema konfiguriran krug.'
-			};
+			return hr
+				? {
+						title: `Dovršite postavljanje: ${name}`,
+						description: 'Ova studija još nema konfiguriran krug.'
+					}
+				: {
+						title: `Finish setting up: ${name}`,
+						description: 'This study has no wave configured yet.'
+					};
 		case 'operations':
-			return {
-				title: `Pratite prikupljanje: ${name}`,
-				description: `${count} ${hrPlural(count, 'aktivni krug', 'aktivna kruga', 'aktivnih krugova')} možete pratiti u Prikupljanju.`
-			};
+			return hr
+				? {
+						title: `Pratite prikupljanje: ${name}`,
+						description: `${count} ${hrPlural(count, 'aktivni krug', 'aktivna kruga', 'aktivnih krugova')} možete pratiti u Prikupljanju.`
+					}
+				: {
+						title: `Watch the field: ${name}`,
+						description: `${count} live ${one ? 'wave is' : 'waves are'} collecting — watch in Field.`
+					};
 		case 'reports':
-			return {
-				title: `Pregledajte nalaze: ${name}`,
-				description: `${count} ${hrPlural(count, 'predani odgovor čeka', 'predana odgovora čekaju', 'predanih odgovora čeka')} pregled u Nalazima.`
-			};
+			return hr
+				? {
+						title: `Pregledajte nalaze: ${name}`,
+						description: `${count} ${hrPlural(count, 'predani odgovor čeka', 'predana odgovora čekaju', 'predanih odgovora čeka')} pregled u Nalazima.`
+					}
+				: {
+						title: `Review evidence: ${name}`,
+						description: `${count} submitted ${one ? 'response is' : 'responses are'} ready in Evidence.`
+					};
 		case 'score_remediation':
-			return {
-				title: `Dovršite bodovanje: ${name}`,
-				description: `${count} ${hrPlural(count, 'predani odgovor još nema', 'predana odgovora još nemaju', 'predanih odgovora još nema')} uspješno bodovanje.`
-			};
+			return hr
+				? {
+						title: `Dovršite bodovanje: ${name}`,
+						description: `${count} ${hrPlural(count, 'predani odgovor još nema', 'predana odgovora još nemaju', 'predanih odgovora još nema')} uspješno bodovanje.`
+					}
+				: {
+						title: `Finish scoring: ${name}`,
+						description: `${count} submitted ${one ? 'response has' : 'responses have'} no successful score run yet.`
+					};
 		case 'exports':
-			return {
-				title: `Pregledajte izvoze: ${name}`,
-				description: `${count} ${hrPlural(count, 'izvoz čeka', 'izvoza čekaju', 'izvoza čeka')} u Nalazima.`
-			};
+			return hr
+				? {
+						title: `Pregledajte izvoze: ${name}`,
+						description: `${count} ${hrPlural(count, 'izvoz čeka', 'izvoza čekaju', 'izvoza čeka')} u Nalazima.`
+					}
+				: {
+						title: `Review exports: ${name}`,
+						description: `${count} ${one ? 'export is' : 'exports are'} waiting in Evidence.`
+					};
 		case 'waves':
-			return {
-				title: `Usporedite krugove: ${name}`,
-				description:
-					'Ova studija ima najmanje dva anonimna longitudinalna kruga spremna za usporedbu.'
-			};
+			return hr
+				? {
+						title: `Usporedite krugove: ${name}`,
+						description:
+							'Ova studija ima najmanje dva anonimna longitudinalna kruga spremna za usporedbu.'
+					}
+				: {
+						title: `Compare waves: ${name}`,
+						description:
+							'This study has at least two anonymous longitudinal waves ready to compare.'
+					};
 		case 'team':
-			return {
-				title: 'Pregledajte pristup tima',
-				description: `${count} ${hrPlural(count, 'član tima još čeka', 'člana tima još čekaju', 'članova tima još čeka')} poveznicu s prijavom.`
-			};
+			return hr
+				? {
+						title: 'Pregledajte pristup tima',
+						description: `${count} ${hrPlural(count, 'član tima još čeka', 'člana tima još čekaju', 'članova tima još čeka')} poveznicu s prijavom.`
+					}
+				: {
+						title: 'Review pending team access',
+						description: `${count} team ${one ? 'member still needs' : 'members still need'} an identity-provider link.`
+					};
 		case 'review': {
 			const series = Number(p.series ?? '0');
 			const responses = Number(p.responses ?? '0');
-			return {
-				title: 'Pregledajte studije',
-				description: `Radni prostor ima ${series} ${hrPlural(series, 'studiju', 'studije', 'studija')} i ${responses} ${hrPlural(responses, 'predani odgovor', 'predana odgovora', 'predanih odgovora')}.`
-			};
+			return hr
+				? {
+						title: 'Pregledajte studije',
+						description: `Radni prostor ima ${series} ${hrPlural(series, 'studiju', 'studije', 'studija')} i ${responses} ${hrPlural(responses, 'predani odgovor', 'predana odgovora', 'predanih odgovora')}.`
+					}
+				: {
+						title: 'Review your studies',
+						description: `The workspace holds ${series} ${series === 1 ? 'study' : 'studies'} and ${responses} submitted ${responses === 1 ? 'response' : 'responses'}.`
+					};
 		}
 		default:
-			// Unknown item kind: show the backend English rather than guessing.
+			// Unknown item kind: show the backend text rather than guessing.
 			return { title: item.title, description: item.description };
 	}
 }

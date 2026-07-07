@@ -5,7 +5,7 @@
 		type CampaignSeriesListItemResponse
 	} from '$lib/api/product';
 	import { api } from '$lib/core/client';
-	import { t, waveWord } from '$lib/core/locale.svelte';
+	import { localeState, t, waveWord } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
 
@@ -30,7 +30,8 @@
 		if (sampleBusy) return;
 		sampleBusy = true;
 		try {
-			await product.ensureSampleStudies();
+			// Example content arrives in the researcher's language.
+			await product.ensureSampleStudies(localeState.current === 'hr' ? 'hr-HR' : 'en');
 			await load();
 		} finally {
 			sampleBusy = false;

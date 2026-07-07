@@ -1328,10 +1328,10 @@ export type CampaignSeriesWavesMissingPrerequisiteResponse = {
 
 export function createProductApi(client: ApiClient) {
 	return {
-		ensureSampleStudies: () =>
+		ensureSampleStudies: (locale?: string) =>
 			client.request<EnsureSampleStudiesResponse>(
 				'/sample-studies/ensure',
-				jsonRequest('POST', {})
+				jsonRequest('POST', locale ? { locale } : {})
 			),
 		getWorkspaceOverview: () => client.request<WorkspaceOverviewResponse>('/workspace-overview'),
 		getTenantSettings: () => client.request<TenantSettingsWorkspaceResponse>('/tenant-settings'),

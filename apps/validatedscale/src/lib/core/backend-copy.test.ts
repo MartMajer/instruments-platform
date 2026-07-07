@@ -26,11 +26,22 @@ function item(
 afterEach(() => setLocale('en'));
 
 describe('commandCopy', () => {
-	it('returns backend text untouched in en', () => {
+	it('recomposes en items in product vocabulary (wave/Field, not campaign/Operations)', () => {
 		const copy = commandCopy(
-			item({ id: 'series.0f8fad5bd9cb469fa16540890a29acdf.operations' })
+			item({
+				id: 'series.0f8fad5bd9cb469fa16540890a29acdf.operations',
+				params: { name: 'Pilot', count: '1' }
+			})
 		);
-		expect(copy).toEqual({ title: 'English title', description: 'English description' });
+		expect(copy.title).toBe('Watch the field: Pilot');
+		expect(copy.description).toBe('1 live wave is collecting — watch in Field.');
+	});
+
+	it('returns backend text untouched for unknown kinds in en', () => {
+		const copy = commandCopy(item({ id: 'brand.new_kind' }));
+		expect(copy.title).toBe('English title');
+		expect(copy.description).toBe('English description');
+		expect(copy.action).toBe('Open campaign series');
 	});
 
 	it('recomposes operations items in hr with paukal agreement', () => {
@@ -66,7 +77,16 @@ describe('commandCopy', () => {
 	it('falls back to backend text for unknown ids in hr', () => {
 		setLocale('hr');
 		const copy = commandCopy(item({ id: 'brand.new_kind' }));
-		expect(copy).toEqual({ title: 'English title', description: 'English description' });
+		expect(copy.title).toBe('English title');
+		expect(copy.description).toBe('English description');
+	});
+
+	it('localizes the action verb per kind', () => {
+		const en = commandCopy(item({ id: 'directory.setup' }));
+		expect(en.action).toBe('Open People');
+		setLocale('hr');
+		const hr = commandCopy(item({ id: 'directory.setup' }));
+		expect(hr.action).toBe('Otvori Ljude');
 	});
 });
 

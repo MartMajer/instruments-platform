@@ -154,6 +154,8 @@ const HR: Record<string, string> = {
 	'No invitations have been sent yet. Invite respondents by email on a live wave.': 'Pozivnice još nisu poslane. Pozovite ispitanike e-poštom na aktivnom krugu.',
 	'submissions are not attributed to a group.': 'predanih odgovora nije pripisano nijednoj grupi.',
 	'Connected to': 'Povezano s',
+	'Start here': 'Krenite ovdje',
+	'Register your first study, or add three example studies with waves and responses to see the product working.': 'Registrirajte prvu studiju ili dodajte tri primjera studija s krugovima i odgovorima da vidite proizvod u radu.',
 	'Queued': 'U redu čekanja',
 	'Rendering': 'Izrada u tijeku',
 	'Below disclosure minimum': 'Ispod praga objavljivanja',

@@ -12,6 +12,18 @@
 
 	let overview = $state<WorkspaceOverviewResponse | null>(null);
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
+	let sampleBusy = $state(false);
+
+	async function addExamples() {
+		if (sampleBusy) return;
+		sampleBusy = true;
+		try {
+			await product.ensureSampleStudies(localeState.current === 'hr' ? 'hr-HR' : 'en');
+			overview = await product.getWorkspaceOverview();
+		} finally {
+			sampleBusy = false;
+		}
+	}
 
 	const today = $derived(
 		new Intl.DateTimeFormat(localeState.current === 'hr' ? 'hr-HR' : 'en-GB', {
@@ -75,6 +87,21 @@
 	{#if overview}
 		<div class="grid">
 			<section class="main">
+				{#if overview.totals.campaignSeriesCount === 0}
+					<div class="first-run panel">
+						<h2 class="eyebrow">{t('Start here')}</h2>
+						<p>
+							{t('Register your first study, or add three example studies with waves and responses to see the product working.')}
+						</p>
+						<div class="first-run-actions">
+							<a class="btn btn-ink" href="/app/studies/new">{t('Register a study')}</a>
+							<button class="btn btn-ghost" disabled={sampleBusy} onclick={addExamples}>
+								{sampleBusy ? t('Adding…') : t('Add example studies')}
+							</button>
+						</div>
+					</div>
+				{/if}
+
 				<h2 class="eyebrow">{t('Needs attention')}</h2>
 				{#if attention.length === 0}
 					<p class="quiet">{t('Nothing needs your attention. The field runs itself today.')}</p>
@@ -87,7 +114,7 @@
 									<strong>{copy.title}</strong>
 									<p>{copy.description}</p>
 								</div>
-								<a class="btn btn-ghost" href={mapPlatformRoute(item.route)}>{t(item.actionLabel)}</a>
+								<a class="btn btn-ghost" href={mapPlatformRoute(item.route)}>{copy.action}</a>
 							</li>
 						{/each}
 					</ol>
@@ -174,6 +201,29 @@
 		font-size: 0.9375rem;
 		color: var(--color-ink-3);
 		margin-top: 0.75rem;
+	}
+
+	.first-run {
+		margin-bottom: 2.5rem;
+		padding: 1.5rem;
+		border-top: 3px solid var(--color-stain);
+	}
+
+	.first-run p {
+		margin-top: 0.5rem;
+		font-size: 0.9375rem;
+		color: var(--color-ink-2);
+		max-width: 52ch;
+	}
+
+	.first-run-actions {
+		margin-top: 1rem;
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	.first-run-actions a {
+		text-decoration: none;
 	}
 
 	.attention {
