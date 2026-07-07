@@ -397,6 +397,8 @@ const HR: Record<string, string> = {
 	'Recipient rule': 'Pravilo primatelja',
 	'Privacy': 'Privatnost',
 	'Privacy & data requests': 'Privatnost i zahtjevi ispitanika',
+	'Guide': 'Vodič',
+	'How ValidatedScale works': 'Kako ValidatedScale radi',
 	'Respondent rights, operable: withdrawal requests reviewed and executed with an audit trail, and a do-not-contact list every invitation send honors.': 'Prava ispitanika, provediva u praksi: zahtjevi za povlačenje pregledavaju se i izvršavaju s revizijskim tragom, a popis "ne kontaktirati" poštuje se pri svakom slanju pozivnica.',
 	'Withdrawal requests': 'Zahtjevi za povlačenje',
 	'Record a request': 'Zabilježi zahtjev',

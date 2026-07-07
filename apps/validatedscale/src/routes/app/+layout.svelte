@@ -178,6 +178,7 @@
 					<div class="menu panel" role="menu">
 						<a role="menuitem" href="/app/settings">{t('Workspace settings')}</a>
 						<a role="menuitem" href="/app/privacy">{t('Privacy & data requests')}</a>
+						<a role="menuitem" href="/app/help">{t('How ValidatedScale works')}</a>
 						<a role="menuitem" href={logoutUrl()}>{t('Sign out')}</a>
 						<div class="locale-row" role="group" aria-label="Language">
 							<button class:on={localeState.current === 'en'} onclick={() => setLocale('en')}>EN</button>
