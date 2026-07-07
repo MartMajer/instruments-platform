@@ -2022,6 +2022,7 @@ public sealed class SetupWorkflowStore(
 
         var suppressedRecipients = await LoadSuppressedEmailRecipientsAsync(
             tenantId,
+            campaign.CampaignSeriesId,
             normalizedRecipients.Value,
             cancellationToken);
         if (suppressedRecipients.Count > 0)
@@ -2468,6 +2469,7 @@ public sealed class SetupWorkflowStore(
 
     private async Task<IReadOnlyList<string>> LoadSuppressedEmailRecipientsAsync(
         Guid tenantId,
+        Guid? campaignSeriesId,
         IReadOnlyCollection<string> recipients,
         CancellationToken cancellationToken)
     {
@@ -2476,12 +2478,16 @@ public sealed class SetupWorkflowStore(
             return [];
         }
 
+        // A recipient is blocked for this study when a suppression is either
+        // workspace-global (null) or scoped to this same study.
         var manuallySuppressedRecipients = await db.EmailSuppressions
             .AsNoTracking()
             .Where(suppression =>
                 suppression.TenantId == tenantId &&
                 suppression.ReleasedAt == null &&
-                recipients.Contains(suppression.Recipient))
+                recipients.Contains(suppression.Recipient) &&
+                (suppression.CampaignSeriesId == null ||
+                    (campaignSeriesId != null && suppression.CampaignSeriesId == campaignSeriesId)))
             .Select(suppression => suppression.Recipient)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -2842,6 +2848,7 @@ public sealed class SetupWorkflowStore(
 
         var suppressedRecipients = await LoadSuppressedEmailRecipientsAsync(
             tenantId,
+            campaign.CampaignSeriesId,
             pendingRecipients.Select(recipient => recipient.Recipient).ToArray(),
             cancellationToken);
         if (suppressedRecipients.Count > 0)

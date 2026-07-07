@@ -2960,13 +2960,17 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             builder.Property(suppression => suppression.ReleaseReason)
                 .HasColumnName("release_reason")
                 .HasMaxLength(EmailSuppression.ReleaseReasonMaxLength);
+            // null = workspace-global; a study id scopes the suppression to one study
+            builder.Property(suppression => suppression.CampaignSeriesId).HasColumnName("campaign_series_id");
 
             builder.Ignore(suppression => suppression.Active);
 
-            builder.HasIndex(suppression => new { suppression.TenantId, suppression.Recipient })
+            // one active suppression per (recipient, scope): a recipient may hold
+            // a global row and per-study rows at once (globals dedup in app logic)
+            builder.HasIndex(suppression => new { suppression.TenantId, suppression.Recipient, suppression.CampaignSeriesId })
                 .IsUnique()
                 .HasFilter("released_at IS NULL")
-                .HasDatabaseName("ux_email_suppression_tenant_id_recipient_active");
+                .HasDatabaseName("ux_email_suppression_tenant_id_recipient_series_active");
             builder.HasIndex(suppression => new { suppression.TenantId, suppression.CreatedAt })
                 .HasDatabaseName("ix_email_suppression_tenant_id_created_at");
 

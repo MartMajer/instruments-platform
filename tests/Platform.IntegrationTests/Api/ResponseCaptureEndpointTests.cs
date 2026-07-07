@@ -991,9 +991,11 @@ public sealed class ResponseCaptureEndpointTests(WebApplicationFactory<Program> 
 
         public Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
             string token,
+            bool workspaceWide,
             CancellationToken cancellationToken)
         {
-            return Task.FromResult(Result.Success(new EmailInvitationUnsubscribeResponse("suppressed")));
+            return Task.FromResult(Result.Success(
+                new EmailInvitationUnsubscribeResponse("suppressed", workspaceWide ? "workspace" : "study")));
         }
 
         public Task<Result<OpenLinkEntryResponse>> GetIdentifiedEntryAsync(

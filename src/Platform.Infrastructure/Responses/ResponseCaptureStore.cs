@@ -598,6 +598,7 @@ public sealed class ResponseCaptureStore(
 
     public async Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
         string token,
+        bool workspaceWide,
         CancellationToken cancellationToken)
     {
         var parsed = OpenLinkTokens.ParseTenant(token);
@@ -626,15 +627,29 @@ public sealed class ResponseCaptureStore(
             return OpenLinkNotAvailable<EmailInvitationUnsubscribeResponse>();
         }
 
+        // The study the invitation belongs to. Unsubscribe defaults to this
+        // study only; "workspace-wide" makes it global (series = null).
+        var invitationSeriesId = await db.Campaigns
+            .AsNoTracking()
+            .Where(campaign => campaign.Id == invitationToken.CampaignId)
+            .Select(campaign => campaign.CampaignSeriesId)
+            .SingleOrDefaultAsync(cancellationToken);
+        var scopeSeriesId = workspaceWide ? (Guid?)null : invitationSeriesId;
+        var scope = workspaceWide || scopeSeriesId is null ? "workspace" : "study";
+
         var suppressedAt = DateTimeOffset.UtcNow;
-        var existingSuppression = await db.EmailSuppressions
-            .SingleOrDefaultAsync(
+        // Already covered if a global suppression exists, or (for a study-scoped
+        // request) a suppression already scopes this same study.
+        var alreadyCovered = await db.EmailSuppressions
+            .AnyAsync(
                 suppression =>
                     suppression.TenantId == parsed.Value.TenantId &&
                     suppression.Recipient == invitationToken.Recipient &&
-                    suppression.ReleasedAt == null,
+                    suppression.ReleasedAt == null &&
+                    (suppression.CampaignSeriesId == null ||
+                        (scopeSeriesId != null && suppression.CampaignSeriesId == scopeSeriesId)),
                 cancellationToken);
-        if (existingSuppression is null)
+        if (!alreadyCovered)
         {
             db.EmailSuppressions.Add(new EmailSuppression(
                 PlatformIds.NewId(),
@@ -643,8 +658,19 @@ public sealed class ResponseCaptureStore(
                 EmailSuppression.RecipientUnsubscribedReason,
                 EmailSuppression.RespondentInvitationSource,
                 note: null,
-                suppressedAt));
+                suppressedAt,
+                campaignSeriesId: scopeSeriesId));
         }
+
+        // Cancel this recipient's queued/failed invitations: all of them for a
+        // workspace unsubscribe, only this study's for a study-scoped one.
+        var seriesCampaignIds = scopeSeriesId is null
+            ? null
+            : await db.Campaigns
+                .AsNoTracking()
+                .Where(campaign => campaign.TenantId == parsed.Value.TenantId && campaign.CampaignSeriesId == scopeSeriesId)
+                .Select(campaign => campaign.Id)
+                .ToListAsync(cancellationToken);
 
         var pendingNotifications = await db.Notifications
             .Where(notification =>
@@ -652,6 +678,7 @@ public sealed class ResponseCaptureStore(
                 notification.Channel == NotificationChannels.Email &&
                 notification.TemplateCode == Notification.InvitationTemplateCode &&
                 notification.Recipient == invitationToken.Recipient &&
+                (seriesCampaignIds == null || seriesCampaignIds.Contains(notification.CampaignId)) &&
                 (notification.Status == NotificationStatuses.Queued ||
                     notification.Status == NotificationStatuses.Failed))
             .ToListAsync(cancellationToken);
@@ -681,7 +708,7 @@ public sealed class ResponseCaptureStore(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return Result.Success(new EmailInvitationUnsubscribeResponse("unsubscribed"));
+        return Result.Success(new EmailInvitationUnsubscribeResponse("unsubscribed", scope));
     }
 
     public async Task<Result<ResponseSessionResponse>> CreateOpenLinkSessionAsync(

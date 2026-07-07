@@ -61,9 +61,9 @@ public sealed record IdentifiedQueueAssignmentResponse(
     Guid? SessionId,
     DateTimeOffset? SubmittedAt);
 
-public sealed record EmailInvitationUnsubscribeResponse(string Status);
+public sealed record EmailInvitationUnsubscribeResponse(string Status, string Scope);
 
-public sealed record UnsubscribeEmailInvitationRequest(bool Confirmed);
+public sealed record UnsubscribeEmailInvitationRequest(bool Confirmed, bool WorkspaceWide = false);
 
 public sealed record ConsentDocumentResponse(
     Guid Id,

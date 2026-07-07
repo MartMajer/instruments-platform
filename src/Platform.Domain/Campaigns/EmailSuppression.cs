@@ -25,7 +25,8 @@ public sealed class EmailSuppression
         string reason,
         string source,
         string? note,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        Guid? campaignSeriesId = null)
     {
         Id = id;
         TenantId = tenantId;
@@ -34,11 +35,16 @@ public sealed class EmailSuppression
         Source = NormalizeBounded(source, nameof(source), SourceMaxLength);
         Note = NormalizeOptionalBounded(note, NoteMaxLength);
         CreatedAt = createdAt;
+        // null = workspace-global (bounce, complaint, manual). A study id scopes
+        // the suppression to one study so other studies may still invite the address.
+        CampaignSeriesId = campaignSeriesId;
     }
 
     public Guid Id { get; private set; }
 
     public Guid TenantId { get; private set; }
+
+    public Guid? CampaignSeriesId { get; private set; }
 
     public string Recipient { get; private set; } = string.Empty;
 

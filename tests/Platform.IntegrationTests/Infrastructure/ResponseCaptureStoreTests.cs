@@ -158,6 +158,80 @@ public sealed class ResponseCaptureStoreTests : IAsyncLifetime
         Assert.True(submit.IsFailure);
     }
 
+    [DockerFact]
+    public async Task UnsubscribeEmailInvitation_scopes_to_the_study_by_default_and_workspace_wide_when_requested()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+
+        var tenantId = Guid.NewGuid();
+        var template = SurveyTemplate.CreateTenant(Guid.NewGuid(), tenantId, "Unsub pulse");
+        var version = TemplateVersion.CreateTenantDraft(Guid.NewGuid(), template.Id, "1.0.0", "en");
+        var series = new CampaignSeries(Guid.NewGuid(), tenantId, "Unsubscribe study", CreateCodeSalt());
+        var campaign = new Campaign(
+            Guid.NewGuid(),
+            tenantId,
+            version.Id,
+            "Unsubscribe campaign",
+            ResponseIdentityModes.Anonymous,
+            campaignSeriesId: series.Id,
+            status: CampaignStatuses.Live,
+            schedule: """{"kind":"one_shot"}""");
+
+        var studyIssue = OpenLinkTokens.IssueInvitation(tenantId);
+        var workspaceIssue = OpenLinkTokens.IssueInvitation(tenantId);
+        var studyToken = new InvitationToken(
+            Guid.NewGuid(), tenantId, campaign.Id, studyIssue.TokenHash,
+            InvitationTokenChannels.Email, recipient: "scoped@example.test",
+            expiresAt: DateTimeOffset.UtcNow.AddDays(7));
+        var workspaceToken = new InvitationToken(
+            Guid.NewGuid(), tenantId, campaign.Id, workspaceIssue.TokenHash,
+            InvitationTokenChannels.Email, recipient: "global@example.test",
+            expiresAt: DateTimeOffset.UtcNow.AddDays(7));
+
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            var scope = new TenantDbScope(seed);
+            await using var transaction = await scope.BeginTransactionAsync(tenantId);
+            seed.Tenants.Add(new Tenant(tenantId, $"unsub-{tenantId:N}"[..20], "Unsub tenant"));
+            seed.SurveyTemplates.Add(template);
+            seed.TemplateVersions.Add(version);
+            seed.CampaignSeries.Add(series);
+            seed.Campaigns.Add(campaign);
+            seed.InvitationTokens.AddRange(studyToken, workspaceToken);
+            await seed.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var store = CreateStore(db);
+
+        // default: unsubscribe is scoped to the invitation's study
+        var scoped = await store.UnsubscribeEmailInvitationAsync(studyIssue.RawToken, workspaceWide: false, CancellationToken.None);
+        Assert.True(scoped.IsSuccess);
+        Assert.Equal("study", scoped.Value.Scope);
+
+        // explicit workspace-wide: global suppression (series = null)
+        var global = await store.UnsubscribeEmailInvitationAsync(workspaceIssue.RawToken, workspaceWide: true, CancellationToken.None);
+        Assert.True(global.IsSuccess);
+        Assert.Equal("workspace", global.Value.Scope);
+
+        await using var verify = new ApplicationDbContext(options);
+        var verifyScope = new TenantDbScope(verify);
+        await using var verifyTransaction = await verifyScope.BeginTransactionAsync(tenantId);
+        var suppressions = await verify.EmailSuppressions
+            .Where(suppression => suppression.TenantId == tenantId)
+            .ToListAsync();
+        await verifyTransaction.CommitAsync();
+
+        var scopedRow = Assert.Single(suppressions, s => s.Recipient == "scoped@example.test");
+        Assert.Equal(series.Id, scopedRow.CampaignSeriesId);
+        Assert.Equal(EmailSuppression.RecipientUnsubscribedReason, scopedRow.Reason);
+
+        var globalRow = Assert.Single(suppressions, s => s.Recipient == "global@example.test");
+        Assert.Null(globalRow.CampaignSeriesId);
+    }
+
     public Task InitializeAsync()
     {
         return _postgres.StartAsync();

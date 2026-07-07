@@ -4,7 +4,7 @@ using Platform.SharedKernel;
 
 namespace Platform.Application.Features.Responses;
 
-public sealed record UnsubscribeEmailInvitationCommand(string Token, bool Confirmed)
+public sealed record UnsubscribeEmailInvitationCommand(string Token, bool Confirmed, bool WorkspaceWide = false)
     : IRequest<Result<EmailInvitationUnsubscribeResponse>>;
 
 public sealed class UnsubscribeEmailInvitationValidator : AbstractValidator<UnsubscribeEmailInvitationCommand>
@@ -25,6 +25,6 @@ public sealed class UnsubscribeEmailInvitationHandler(IResponseCaptureStore stor
         UnsubscribeEmailInvitationCommand command,
         CancellationToken cancellationToken)
     {
-        return store.UnsubscribeEmailInvitationAsync(command.Token, cancellationToken);
+        return store.UnsubscribeEmailInvitationAsync(command.Token, command.WorkspaceWide, cancellationToken);
     }
 }

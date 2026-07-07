@@ -58,13 +58,34 @@ public sealed class NotificationDeliveryStore(
             query = query.Where(suppression => suppression.ReleasedAt == null);
         }
 
-        var suppressions = await query
+        var suppressionEntities = await query
             .OrderBy(suppression => suppression.ReleasedAt != null)
             .ThenByDescending(suppression => suppression.CreatedAt)
             .ThenBy(suppression => suppression.Recipient)
             .Take(requestedLimit)
-            .Select(suppression => ToEmailSuppressionResponse(suppression))
             .ToListAsync(cancellationToken);
+
+        // resolve study names for the study-scoped rows so the list reads
+        // "This study: <name>" rather than a bare id (global rows stay null)
+        var scopedSeriesIds = suppressionEntities
+            .Where(suppression => suppression.CampaignSeriesId is not null)
+            .Select(suppression => suppression.CampaignSeriesId!.Value)
+            .Distinct()
+            .ToList();
+        var seriesNames = scopedSeriesIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await db.CampaignSeries
+                .AsNoTracking()
+                .Where(series => series.TenantId == tenantId && scopedSeriesIds.Contains(series.Id))
+                .ToDictionaryAsync(series => series.Id, series => series.Name, cancellationToken);
+
+        var suppressions = suppressionEntities
+            .Select(suppression => ToEmailSuppressionResponse(
+                suppression,
+                suppression.CampaignSeriesId is Guid seriesId && seriesNames.TryGetValue(seriesId, out var name)
+                    ? name
+                    : null))
+            .ToList();
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -1556,7 +1577,9 @@ public sealed class NotificationDeliveryStore(
         return true;
     }
 
-    private static EmailSuppressionResponse ToEmailSuppressionResponse(EmailSuppression suppression)
+    private static EmailSuppressionResponse ToEmailSuppressionResponse(
+        EmailSuppression suppression,
+        string? campaignSeriesName = null)
     {
         return new EmailSuppressionResponse(
             suppression.Id,
@@ -1567,7 +1590,9 @@ public sealed class NotificationDeliveryStore(
             suppression.CreatedAt,
             suppression.ReleasedAt,
             suppression.ReleaseReason,
-            suppression.ReleasedAt is null);
+            suppression.ReleasedAt is null,
+            suppression.CampaignSeriesId,
+            campaignSeriesName);
     }
 
     private static bool TryNormalizeEmail(string value, out string normalized)

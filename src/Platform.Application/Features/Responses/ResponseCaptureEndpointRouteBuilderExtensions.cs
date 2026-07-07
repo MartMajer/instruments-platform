@@ -161,7 +161,7 @@ public static class ResponseCaptureEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(
-            new UnsubscribeEmailInvitationCommand(token, request?.Confirmed == true),
+            new UnsubscribeEmailInvitationCommand(token, request?.Confirmed == true, request?.WorkspaceWide == true),
             cancellationToken);
 
         return ResponseCaptureHttpResults.ToOk(result);

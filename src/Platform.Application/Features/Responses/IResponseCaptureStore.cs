@@ -37,6 +37,7 @@ public interface IResponseCaptureStore
 
     Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
         string token,
+        bool workspaceWide,
         CancellationToken cancellationToken);
 
     Task<Result<ResponseSessionResponse>> CreateOpenLinkSessionAsync(

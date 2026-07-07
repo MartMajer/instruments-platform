@@ -111,7 +111,9 @@ public sealed record EmailSuppressionResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ReleasedAt,
     string? ReleaseReason,
-    bool Active);
+    bool Active,
+    Guid? CampaignSeriesId = null,
+    string? CampaignSeriesName = null);
 
 public sealed record AddEmailSuppressionRequest(
     string Recipient,
