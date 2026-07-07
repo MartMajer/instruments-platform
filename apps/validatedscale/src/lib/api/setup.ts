@@ -683,10 +683,12 @@ export type IdentifiedQueueAssignmentResponse = {
 
 export type EmailInvitationUnsubscribeResponse = {
 	status: string;
+	scope: string;
 };
 
 export type UnsubscribeEmailInvitationRequest = {
 	confirmed: boolean;
+	workspaceWide?: boolean;
 };
 
 export type ConsentDocumentResponse = {
@@ -1103,10 +1105,10 @@ export function createSetupApi(client: ApiClient) {
 		getOpenLinkEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/open-links/${token}`);
 		},
-		unsubscribeEmailInvitation(token: string) {
+		unsubscribeEmailInvitation(token: string, workspaceWide = false) {
 			return client.request<EmailInvitationUnsubscribeResponse>(
 				`/respondent/open-links/${token}/unsubscribe`,
-				jsonPost({ confirmed: true } satisfies UnsubscribeEmailInvitationRequest)
+				jsonPost({ confirmed: true, workspaceWide } satisfies UnsubscribeEmailInvitationRequest)
 			);
 		},
 		getIdentifiedEntry(token: string) {

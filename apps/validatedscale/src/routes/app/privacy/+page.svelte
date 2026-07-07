@@ -266,7 +266,7 @@
 			{/if}
 		</div>
 		<p class="hint">
-			{t('Invitations are never sent to suppressed addresses. Bounces land here automatically; add addresses yourself for opt-out requests.')}
+			{t('Invitations are never sent to suppressed addresses. When someone unsubscribes it applies to that study only; bounces and spam complaints apply to every study. Addresses you add here apply everywhere.')}
 		</p>
 
 		<form class="author-row suppress-form" onsubmit={addSuppression}>
@@ -287,6 +287,7 @@
 					<thead>
 						<tr>
 							<th>{t('Email')}</th>
+							<th>{t('Applies to')}</th>
 							<th>{t('Reason')}</th>
 							<th>{t('Source')}</th>
 							<th>{t('Since')}</th>
@@ -298,6 +299,13 @@
 						{#each suppressions.suppressions as suppression (suppression.id)}
 							<tr>
 								<td>{suppression.recipient}</td>
+								<td>
+									{#if suppression.campaignSeriesName}
+										{suppression.campaignSeriesName}
+									{:else}
+										<span class="dim">{t('All studies')}</span>
+									{/if}
+								</td>
 								<td>{t(humanizeToken(suppression.reason))}</td>
 								<td>{t(humanizeToken(suppression.source))}</td>
 								<td class="datum">{formatDateTime(suppression.createdAt)}</td>
@@ -365,6 +373,10 @@
 	.quiet {
 		margin-top: 0.75rem;
 		font-size: 0.9375rem;
+		color: var(--color-ink-3);
+	}
+
+	.dim {
 		color: var(--color-ink-3);
 	}
 

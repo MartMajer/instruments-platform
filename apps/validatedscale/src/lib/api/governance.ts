@@ -66,6 +66,8 @@ export type EmailSuppressionResponse = {
 	releasedAt: string | null;
 	releaseReason: string | null;
 	active: boolean;
+	campaignSeriesId: string | null;
+	campaignSeriesName: string | null;
 };
 
 export type ListEmailSuppressionsResponse = {
