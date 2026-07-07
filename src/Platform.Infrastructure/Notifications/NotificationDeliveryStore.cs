@@ -1007,18 +1007,38 @@ public sealed class NotificationDeliveryStore(
                 continue;
             }
 
-            var issued = OpenLinkTokens.IssueInvitation(tenantId);
+            // identified recipients get their own queue link (resolves to the
+            // person's assignments); anonymous recipients get a fresh entry link
+            InvitationToken linkToken;
+            OpenLinkTokenIssue issued;
+            if (assignment.RespondentSubjectId is Guid respondentSubjectId)
+            {
+                issued = OpenLinkTokens.IssueIdentifiedQueue(tenantId);
+                linkToken = new InvitationToken(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    notification.CampaignId,
+                    issued.TokenHash,
+                    InvitationTokenChannels.IdentifiedQueue,
+                    respondentSubjectId: respondentSubjectId);
+            }
+            else
+            {
+                issued = OpenLinkTokens.IssueInvitation(tenantId);
+                linkToken = new InvitationToken(
+                    PlatformIds.NewId(),
+                    tenantId,
+                    notification.CampaignId,
+                    issued.TokenHash,
+                    InvitationTokenChannels.Email,
+                    notification.Recipient,
+                    assignmentId: assignment.Id);
+            }
+
             var respondentPath = $"/r/{issued.RawToken}";
             var respondentUrl = BuildPublicAppUrl(respondentPath);
             var unsubscribeUrl = BuildPublicAppUrl($"{respondentPath}/unsubscribe");
-            db.InvitationTokens.Add(new InvitationToken(
-                PlatformIds.NewId(),
-                tenantId,
-                notification.CampaignId,
-                issued.TokenHash,
-                InvitationTokenChannels.Email,
-                notification.Recipient,
-                assignmentId: assignment.Id));
+            db.InvitationTokens.Add(linkToken);
 
             var (subject, bodyText) = ResolveInvitationEmailContent(
                 customTemplates,
@@ -1290,11 +1310,18 @@ public sealed class NotificationDeliveryStore(
         }
 
         if (assignment.TenantId != notification.TenantId ||
-            assignment.CampaignId != notification.CampaignId ||
-            !assignment.Anonymous ||
-            !assignment.InviteTokenId.HasValue)
+            assignment.CampaignId != notification.CampaignId)
         {
-            throw new InvalidOperationException("Notification assignment is not an anonymous invitation.");
+            throw new InvalidOperationException("Notification assignment does not match the notification.");
+        }
+
+        // anonymous invitations carry their own invite token; identified ones
+        // carry the respondent subject the queue link is minted for at send time
+        var anonymousInvite = assignment.Anonymous && assignment.InviteTokenId.HasValue;
+        var identifiedInvite = !assignment.Anonymous && assignment.RespondentSubjectId.HasValue;
+        if (!anonymousInvite && !identifiedInvite)
+        {
+            throw new InvalidOperationException("Notification assignment is not an invitation.");
         }
 
         return assignment;

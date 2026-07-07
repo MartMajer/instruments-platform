@@ -271,6 +271,13 @@ public sealed record CampaignIdentifiedQueueAccessResponse(
     int ExistingAccessCount,
     IReadOnlyList<CampaignIdentifiedQueueAccessLinkResponse> Links);
 
+public sealed record CampaignIdentifiedInvitationResponse(
+    Guid CampaignId,
+    int InvitedCount,
+    int NoEmailCount,
+    int SuppressedCount,
+    int AlreadyInvitedCount);
+
 public sealed record CampaignIdentifiedQueueAccessLinkResponse(
     Guid InvitationTokenId,
     Guid RespondentSubjectId,

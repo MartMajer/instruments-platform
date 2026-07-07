@@ -1958,6 +1958,169 @@ public sealed class SetupWorkflowStore(
             links));
     }
 
+    /// <summary>
+    /// Emails each identified respondent their own private link. Recipients come
+    /// from the wave's assignments (materialised from recipient rules at launch);
+    /// the worker mints each person's queue token at send time. People without an
+    /// email, on the do-not-contact list, or already invited are skipped.
+    /// </summary>
+    public async Task<Result<CampaignIdentifiedInvitationResponse>> SendCampaignIdentifiedInvitationsAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var campaign = await db.Campaigns
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.TenantId == tenantId && entity.Id == campaignId, cancellationToken);
+        if (campaign is null)
+        {
+            return Result.Failure<CampaignIdentifiedInvitationResponse>(
+                Error.NotFound("campaign.not_found", "Campaign was not found."));
+        }
+
+        var snapshot = await db.CampaignLaunchSnapshots
+            .AsNoTracking()
+            .SingleOrDefaultAsync(entity => entity.TenantId == tenantId && entity.CampaignId == campaignId, cancellationToken);
+        if (campaign.Status != CampaignStatuses.Live || snapshot is null)
+        {
+            return Result.Failure<CampaignIdentifiedInvitationResponse>(
+                Error.Validation("campaign.not_launched", "Campaign must be launched before inviting respondents."));
+        }
+
+        if (snapshot.ResponseIdentityMode != ResponseIdentityModes.Identified)
+        {
+            return Result.Failure<CampaignIdentifiedInvitationResponse>(
+                Error.Validation(
+                    "identified_invitation.identity_mode_not_supported",
+                    "This wave is not identified. Anonymous waves invite by pasted email list instead."));
+        }
+
+        var assignments = await db.Assignments
+            .AsNoTracking()
+            .Where(assignment =>
+                assignment.TenantId == tenantId &&
+                assignment.CampaignId == campaignId &&
+                !assignment.Anonymous &&
+                assignment.RespondentSubjectId != null)
+            .OrderBy(assignment => assignment.RespondentSubjectId)
+            .ThenBy(assignment => assignment.CreatedAt)
+            .ToListAsync(cancellationToken);
+        if (assignments.Count == 0)
+        {
+            return Result.Failure<CampaignIdentifiedInvitationResponse>(
+                Error.Validation(
+                    "identified_invitation.no_recipients",
+                    "This wave has no identified recipients. Set recipients on the protocol first."));
+        }
+
+        // one representative assignment per respondent (the queue link resolves the rest)
+        var representativeByRespondent = assignments
+            .GroupBy(assignment => assignment.RespondentSubjectId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+        var respondentIds = representativeByRespondent.Keys.ToList();
+
+        var subjects = await db.Subjects
+            .AsNoTracking()
+            .Where(subject => subject.TenantId == tenantId && respondentIds.Contains(subject.Id))
+            .Select(subject => new { subject.Id, subject.Email })
+            .ToListAsync(cancellationToken);
+        var emailByRespondent = subjects
+            .Where(subject => !string.IsNullOrWhiteSpace(subject.Email))
+            .ToDictionary(subject => subject.Id, subject => subject.Email!.Trim().ToLowerInvariant());
+
+        var candidateEmails = emailByRespondent.Values.Distinct().ToList();
+        var suppressed = new HashSet<string>(
+            await LoadSuppressedEmailRecipientsAsync(tenantId, campaign.CampaignSeriesId, candidateEmails, cancellationToken),
+            StringComparer.Ordinal);
+
+        var alreadyInvited = new HashSet<string>(
+            await db.Notifications
+                .AsNoTracking()
+                .Where(notification =>
+                    notification.TenantId == tenantId &&
+                    notification.CampaignId == campaignId &&
+                    notification.Channel == NotificationChannels.Email &&
+                    notification.TemplateCode == Notification.InvitationTemplateCode &&
+                    (notification.Status == NotificationStatuses.Queued ||
+                        notification.Status == NotificationStatuses.Sent ||
+                        notification.Status == NotificationStatuses.Failed))
+                .Select(notification => notification.Recipient)
+                .ToListAsync(cancellationToken),
+            StringComparer.Ordinal);
+
+        var invited = 0;
+        var noEmail = 0;
+        var suppressedCount = 0;
+        var alreadyCount = 0;
+
+        foreach (var respondentId in respondentIds)
+        {
+            if (!emailByRespondent.TryGetValue(respondentId, out var email))
+            {
+                noEmail++;
+                continue;
+            }
+
+            if (suppressed.Contains(email))
+            {
+                suppressedCount++;
+                continue;
+            }
+
+            if (!alreadyInvited.Add(email))
+            {
+                alreadyCount++;
+                continue;
+            }
+
+            var representative = representativeByRespondent[respondentId];
+            var notification = Notification.QueueEmailInvitation(
+                PlatformIds.NewId(),
+                tenantId,
+                campaignId,
+                representative.Id,
+                email);
+            db.Notifications.Add(notification);
+            outboxEventBuffer?.Enqueue(CreateIdentifiedInvitationEmailQueuedMessage(notification, representative));
+            invited++;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(new CampaignIdentifiedInvitationResponse(
+            campaignId,
+            invited,
+            noEmail,
+            suppressedCount,
+            alreadyCount));
+    }
+
+    private static OutboxMessage CreateIdentifiedInvitationEmailQueuedMessage(
+        Notification notification,
+        Assignment assignment)
+    {
+        // same event as the anonymous path minus the token id — the worker mints
+        // the identified queue token at send time, so none exists yet
+        return new OutboxMessage(
+            notification.Id,
+            NotificationAggregateType,
+            InvitationEmailQueuedEventType,
+            OutboxPayload.Create(new Dictionary<string, object?>
+            {
+                ["schema_version"] = 1,
+                ["notification_id"] = notification.Id,
+                ["campaign_id"] = notification.CampaignId,
+                ["assignment_id"] = assignment.Id,
+                ["channel"] = notification.Channel,
+                ["template_code"] = notification.TemplateCode
+            }));
+    }
+
     public async Task<Result<CampaignInvitationBatchResponse>> CreateCampaignInvitationBatchAsync(
         Guid tenantId,
         Guid campaignId,

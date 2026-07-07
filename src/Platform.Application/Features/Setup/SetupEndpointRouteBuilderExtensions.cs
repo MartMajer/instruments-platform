@@ -157,6 +157,12 @@ public static class SetupEndpointRouteBuilderExtensions
             .WithName("CreateCampaignIdentifiedQueueAccess")
             .WithTags("Setup");
 
+        app.MapPost("/campaigns/{id:guid}/identified-invitations", SendCampaignIdentifiedInvitations)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("SendCampaignIdentifiedInvitations")
+            .WithTags("Setup");
+
         app.MapPost("/campaigns/{id:guid}/invitation-batches", CreateCampaignInvitationBatch)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -438,6 +444,16 @@ public static class SetupEndpointRouteBuilderExtensions
         return SetupHttpResults.ToCreated(
             result,
             value => $"/campaigns/{value.CampaignId}/identified-queue-access");
+    }
+
+    private static async Task<IResult> SendCampaignIdentifiedInvitations(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new SendCampaignIdentifiedInvitationsCommand(id), cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
     }
 
     private static async Task<IResult> CreateCampaignInvitationBatch(

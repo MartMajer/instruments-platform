@@ -2276,6 +2276,15 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                 $"/r/{token}")));
         }
 
+        public Task<Result<CampaignIdentifiedInvitationResponse>> SendCampaignIdentifiedInvitationsAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(
+                new CampaignIdentifiedInvitationResponse(campaignId, 0, 0, 0, 0)));
+        }
+
         public Task<Result<CampaignIdentifiedQueueAccessResponse>> CreateCampaignIdentifiedQueueAccessAsync(
             Guid tenantId,
             Guid campaignId,
