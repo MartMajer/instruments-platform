@@ -743,10 +743,14 @@
 	.prov dd {
 		text-align: right;
 		color: var(--color-ink);
+		/* let long unbroken ids (scoring-rule slugs) wrap instead of overflowing */
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 
 	.prov dd .datum {
 		font-size: 0.75rem;
+		overflow-wrap: anywhere;
 	}
 
 	.methods-copy {
