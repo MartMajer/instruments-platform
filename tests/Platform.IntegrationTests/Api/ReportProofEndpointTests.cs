@@ -1245,6 +1245,19 @@ public sealed class ReportProofEndpointTests(WebApplicationFactory<Program> fact
                     Error.NotFound("export_artifact.not_found", "Export artifact was not found.")));
         }
 
+        public Task<Result<ExportArtifactDownloadResponse>> GetExportArtifactCodebookDownloadAsync(
+            Guid tenantId,
+            Guid artifactId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(expectedArtifactId, artifactId);
+
+            return Task.FromResult(
+                downloadResult ??
+                Result.Failure<ExportArtifactDownloadResponse>(
+                    Error.NotFound("export_artifact.not_found", "Export artifact was not found.")));
+        }
+
         public Task<Result<ExportArtifactSignedDownloadUrlResponse>> GetExportArtifactSignedDownloadUrlAsync(
             Guid tenantId,
             Guid artifactId,

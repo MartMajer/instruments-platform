@@ -65,6 +65,11 @@ public interface IReportProofExportStore
         Guid artifactId,
         CancellationToken cancellationToken);
 
+    Task<Result<ExportArtifactDownloadResponse>> GetExportArtifactCodebookDownloadAsync(
+        Guid tenantId,
+        Guid artifactId,
+        CancellationToken cancellationToken);
+
     Task<Result<ExportArtifactSignedDownloadUrlResponse>> GetExportArtifactSignedDownloadUrlAsync(
         Guid tenantId,
         Guid artifactId,

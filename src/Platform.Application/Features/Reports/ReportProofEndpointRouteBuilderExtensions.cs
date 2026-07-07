@@ -61,6 +61,12 @@ public static class ReportProofEndpointRouteBuilderExtensions
             .WithName("DownloadExportArtifact")
             .WithTags("Reports");
 
+        app.MapGet("/export-artifacts/{artifactId:guid}/codebook", DownloadExportArtifactCodebook)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("DownloadExportArtifactCodebook")
+            .WithTags("Reports");
+
         app.MapGet("/export-artifacts/{artifactId:guid}/signed-download-url", GetExportArtifactSignedDownloadUrl)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -120,6 +126,16 @@ public static class ReportProofEndpointRouteBuilderExtensions
         CancellationToken cancellationToken)
     {
         var result = await sender.Send(new GetExportArtifactDownloadQuery(artifactId), cancellationToken);
+
+        return ReportProofHttpResults.ToFile(result);
+    }
+
+    private static async Task<IResult> DownloadExportArtifactCodebook(
+        Guid artifactId,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetExportArtifactCodebookQuery(artifactId), cancellationToken);
 
         return ReportProofHttpResults.ToFile(result);
     }
