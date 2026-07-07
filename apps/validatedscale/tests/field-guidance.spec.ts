@@ -79,3 +79,33 @@ test('invite: an open-link wave refuses email invitations with the real reason, 
 	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
 	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({ timeout: 15_000 });
 });
+
+test('delivery: a queued email invitation shows up as a named recipient with a status', async ({
+	page
+}) => {
+	test.setTimeout(90_000);
+	// anonymous wave, no open link → email invitations are allowed
+	await makeStudyWithWave(page, `Delivery view ${Date.now()}`, 'anonymous');
+	const launch = page.getByRole('button', { name: /Launch Baseline/ });
+	await expect(launch).toBeVisible({ timeout: 20_000 });
+	await launch.click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Launch' }).click();
+	await page.getByRole('link', { name: 'Field', exact: true }).click();
+
+	const email = `deliver.${Date.now()}@example.org`;
+	await page.getByRole('button', { name: 'Invite by email' }).click();
+	await page.getByLabel('Recipient emails').fill(email);
+	await page.getByRole('button', { name: 'Queue invitations' }).click();
+	await expect(page.locator('.invite-result')).toContainText('queued', { timeout: 15_000 });
+
+	// the "where did it go" answer: the recipient appears with a delivery status
+	await page.getByRole('button', { name: 'Delivery', exact: true }).click();
+	const row = page.locator('.delivery-list li', { hasText: email });
+	await expect(row).toBeVisible({ timeout: 15_000 });
+	await expect(row.locator('.st')).toBeVisible();
+
+	await page.getByRole('link', { name: 'Protocol' }).click();
+	await page.getByRole('button', { name: 'Archive study' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click();
+	await expect(page.getByRole('button', { name: 'Restore from archive' })).toBeVisible({ timeout: 15_000 });
+});

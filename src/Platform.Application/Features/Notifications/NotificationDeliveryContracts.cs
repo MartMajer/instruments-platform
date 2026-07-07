@@ -96,6 +96,23 @@ public sealed record NotificationDeliveryProofResponse(
     string? RespondentPath,
     string? Error);
 
+public sealed record CampaignInvitationDeliveryResponse(
+    Guid NotificationId,
+    string Recipient,
+    string? DisplayName,
+    string Status,
+    DateTimeOffset? LastEventAt,
+    string? Error);
+
+public sealed record CampaignInvitationDeliveriesResponse(
+    Guid CampaignId,
+    int QueuedCount,
+    int SentCount,
+    int DeliveredCount,
+    int BouncedCount,
+    int FailedCount,
+    IReadOnlyList<CampaignInvitationDeliveryResponse> Deliveries);
+
 public sealed record ListEmailSuppressionsResponse(
     int RequestedLimit,
     int ActiveCount,

@@ -686,6 +686,25 @@ export type EmailInvitationUnsubscribeResponse = {
 	scope: string;
 };
 
+export type CampaignInvitationDeliveryResponse = {
+	notificationId: string;
+	recipient: string;
+	displayName: string | null;
+	status: string;
+	lastEventAt: string | null;
+	error: string | null;
+};
+
+export type CampaignInvitationDeliveriesResponse = {
+	campaignId: string;
+	queuedCount: number;
+	sentCount: number;
+	deliveredCount: number;
+	bouncedCount: number;
+	failedCount: number;
+	deliveries: CampaignInvitationDeliveryResponse[];
+};
+
 export type UnsubscribeEmailInvitationRequest = {
 	confirmed: boolean;
 	workspaceWide?: boolean;
@@ -1104,6 +1123,11 @@ export function createSetupApi(client: ApiClient) {
 		},
 		getOpenLinkEntry(token: string) {
 			return client.request<OpenLinkEntryResponse>(`/respondent/open-links/${token}`);
+		},
+		listCampaignInvitationDeliveries(campaignId: string) {
+			return client.request<CampaignInvitationDeliveriesResponse>(
+				`/campaigns/${campaignId}/invitation-deliveries`
+			);
 		},
 		unsubscribeEmailInvitation(token: string, workspaceWide = false) {
 			return client.request<EmailInvitationUnsubscribeResponse>(

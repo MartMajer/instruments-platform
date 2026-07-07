@@ -54,6 +54,12 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
             .WithName("GetCampaignEmailDeliveryRepairReadiness")
             .WithTags("Setup");
 
+        app.MapGet("/campaigns/{id:guid}/invitation-deliveries", ListCampaignInvitationDeliveries)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("ListCampaignInvitationDeliveries")
+            .WithTags("Setup");
+
         app.MapGet("/email-suppressions", ListEmailSuppressions)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -168,6 +174,18 @@ public static class NotificationDeliveryEndpointRouteBuilderExtensions
     {
         var result = await sender.Send(
             new GetCampaignEmailDeliveryRepairReadinessQuery(id),
+            cancellationToken);
+
+        return SetupHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> ListCampaignInvitationDeliveries(
+        Guid id,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new ListCampaignInvitationDeliveriesQuery(id),
             cancellationToken);
 
         return SetupHttpResults.ToOk(result);

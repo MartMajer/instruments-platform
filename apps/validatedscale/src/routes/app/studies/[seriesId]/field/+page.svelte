@@ -160,6 +160,38 @@
 		}
 	}
 
+	// per-recipient delivery view: which invites went out and where they landed
+	let deliveryFor = $state<string | null>(null);
+	let deliveryBusy = $state(false);
+	let deliveries = $state<
+		import('$lib/api/setup').CampaignInvitationDeliveriesResponse | null
+	>(null);
+
+	async function toggleDeliveries(campaignId: string) {
+		if (deliveryFor === campaignId) {
+			deliveryFor = null;
+			return;
+		}
+		deliveryFor = campaignId;
+		deliveryBusy = true;
+		deliveries = null;
+		try {
+			deliveries = await setup.listCampaignInvitationDeliveries(campaignId);
+		} catch {
+			deliveries = null;
+		} finally {
+			deliveryBusy = false;
+		}
+	}
+
+	function deliveryStatusClass(status: string): string {
+		const s = status.toLowerCase();
+		if (s === 'sent') return 'st sent';
+		if (s === 'bounced') return 'st bounced';
+		if (s === 'failed') return 'st failed';
+		return 'st queued';
+	}
+
 	let workspace = $state<CampaignSeriesOperationsWorkspaceResponse | null>(null);
 	let loadState = $state<'loading' | 'error' | 'ready'>('loading');
 	let lastReadAt = $state<Date | null>(null);
@@ -334,6 +366,9 @@
 											{t('Create open link')}
 										</button>
 									{/if}
+									<button class="link-btn" onclick={() => toggleDeliveries(wave.id)}>
+										{deliveryFor === wave.id ? t('Hide delivery') : t('Delivery')}
+									</button>
 									<button class="link-btn" disabled={closeBusy === wave.id} onclick={() => closeWave(wave.id, wave.name)}>
 										{closeBusy === wave.id ? t('Closing…') : t('Close wave')}
 									</button>
@@ -357,6 +392,33 @@
 										</button>
 										{#if inviteResult}<span class="invite-result" role="status">{inviteResult}</span>{/if}
 									</div>
+								</div>
+							</li>
+						{/if}
+						{#if deliveryFor === wave.id}
+							<li class="minted">
+								<div class="invite-inner">
+									<span class="eyebrow dim-label">{t('Delivery — who was invited and where it landed')}</span>
+									{#if deliveryBusy}
+										<p class="hint-line">{t('Loading…')}</p>
+									{:else if deliveries && deliveries.deliveries.length > 0}
+										<ul class="delivery-list">
+											{#each deliveries.deliveries as row (row.notificationId)}
+												<li>
+													<span class="delivery-who">
+														{#if row.displayName}<strong>{row.displayName}</strong>{/if}
+														<span class="datum delivery-email">{row.recipient}</span>
+													</span>
+													<span class={deliveryStatusClass(row.status)}>{t(humanizeToken(row.status))}</span>
+													<span class="datum delivery-when">
+														{row.lastEventAt ? formatDateTime(row.lastEventAt) : ''}
+													</span>
+												</li>
+											{/each}
+										</ul>
+									{:else}
+										<p class="hint-line">{t('No email invitations on this wave yet.')}</p>
+									{/if}
 								</div>
 							</li>
 						{/if}
@@ -771,6 +833,69 @@
 		font-size: 0.75rem;
 		color: var(--color-console-dim);
 		margin: -0.25rem 0 0;
+	}
+
+	.delivery-list {
+		list-style: none;
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.delivery-list li {
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		align-items: baseline;
+		gap: 1rem;
+		padding: 0;
+		border: 0;
+	}
+
+	.delivery-who {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.delivery-email {
+		font-size: 0.75rem;
+		color: var(--color-console-dim);
+	}
+
+	.delivery-when {
+		font-size: 0.7rem;
+		color: var(--color-console-dim);
+		white-space: nowrap;
+	}
+
+	.st {
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+		white-space: nowrap;
+	}
+
+	.st.queued {
+		color: #b8b8c4;
+		background: rgba(255, 255, 255, 0.07);
+	}
+
+	.st.sent {
+		color: #8fb8ff;
+		background: rgba(120, 150, 255, 0.14);
+	}
+
+	.st.bounced {
+		color: #eec06a;
+		background: rgba(220, 160, 50, 0.16);
+	}
+
+	.st.failed {
+		color: #f0a3a0;
+		background: rgba(220, 90, 80, 0.16);
 	}
 
 	.prereqs {

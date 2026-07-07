@@ -38,6 +38,64 @@ public sealed class NotificationDeliveryStore(
     private static readonly TimeSpan ProviderEventPastLimit = TimeSpan.FromDays(90);
     private readonly EmailDeliveryOptions deliveryOptions = emailDeliveryOptions?.Value ?? new EmailDeliveryOptions();
 
+    public async Task<Result<CampaignInvitationDeliveriesResponse>> ListCampaignInvitationDeliveriesAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        // one row per invited recipient with its delivery state; the subject
+        // join names identified recipients, and stays null for anonymous ones
+        var rows = await (
+                from notification in db.Notifications.AsNoTracking()
+                where notification.TenantId == tenantId &&
+                    notification.CampaignId == campaignId &&
+                    notification.Channel == NotificationChannels.Email &&
+                    notification.TemplateCode == Notification.InvitationTemplateCode
+                join assignment in db.Assignments.AsNoTracking()
+                    on notification.AssignmentId equals assignment.Id into assignmentJoin
+                from assignment in assignmentJoin.DefaultIfEmpty()
+                join subject in db.Subjects.AsNoTracking()
+                    on assignment.RespondentSubjectId equals subject.Id into subjectJoin
+                from subject in subjectJoin.DefaultIfEmpty()
+                orderby notification.CreatedAt, notification.Id
+                select new
+                {
+                    notification.Id,
+                    notification.Recipient,
+                    notification.Status,
+                    notification.SentAt,
+                    notification.UpdatedAt,
+                    notification.Error,
+                    DisplayName = subject != null ? subject.DisplayName : null
+                })
+            .ToListAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        var deliveries = rows
+            .Select(row => new CampaignInvitationDeliveryResponse(
+                row.Id,
+                row.Recipient,
+                row.DisplayName,
+                row.Status,
+                row.SentAt ?? row.UpdatedAt,
+                row.Error))
+            .ToList();
+
+        return Result.Success(new CampaignInvitationDeliveriesResponse(
+            campaignId,
+            deliveries.Count(delivery => delivery.Status == NotificationStatuses.Queued),
+            deliveries.Count(delivery => delivery.Status == NotificationStatuses.Sent),
+            DeliveredCount: 0,
+            deliveries.Count(delivery => delivery.Status == NotificationStatuses.Bounced),
+            deliveries.Count(delivery => delivery.Status == NotificationStatuses.Failed),
+            deliveries));
+    }
+
     public async Task<Result<ListEmailSuppressionsResponse>> ListEmailSuppressionsAsync(
         Guid tenantId,
         int limit,

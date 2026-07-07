@@ -2454,6 +2454,15 @@ public sealed class SetupEndpointTests(WebApplicationFactory<Program> factory)
                   RequeuedCount: 0)));
           }
 
+        public Task<Result<CampaignInvitationDeliveriesResponse>> ListCampaignInvitationDeliveriesAsync(
+            Guid tenantId,
+            Guid campaignId,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Result.Success(new CampaignInvitationDeliveriesResponse(
+                campaignId, 0, 0, 0, 0, 0, [])));
+        }
+
         public Task<Result<CampaignEmailDeliveryRepairReadinessResponse>> GetCampaignEmailDeliveryRepairReadinessAsync(
             Guid tenantId,
             Guid campaignId,

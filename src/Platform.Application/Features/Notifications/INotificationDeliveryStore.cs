@@ -16,6 +16,11 @@ public interface INotificationDeliveryStore
         RequeueFailedCampaignEmailDeliveriesRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<CampaignInvitationDeliveriesResponse>> ListCampaignInvitationDeliveriesAsync(
+        Guid tenantId,
+        Guid campaignId,
+        CancellationToken cancellationToken);
+
     Task<Result<CampaignEmailDeliveryRepairReadinessResponse>> GetCampaignEmailDeliveryRepairReadinessAsync(
         Guid tenantId,
         Guid campaignId,
