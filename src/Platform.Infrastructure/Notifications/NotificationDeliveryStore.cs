@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using Azure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -1121,11 +1123,15 @@ public sealed class NotificationDeliveryStore(
                 emailDeliveryOptions?.Value.FromAddress,
                 workItem.Recipient);
             var error = SanitizeDeliveryError(failureClass);
+            // The provider's HTTP status + error code (e.g. Azure "DomainNotLinked")
+            // are the actionable bits and carry no secrets — log them explicitly.
             logger?.LogWarning(
-                "Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
+                "Campaign invitation email delivery failed. Provider={Provider}; FailureClass={FailureClass}; ExceptionType={ExceptionType}; ProviderStatus={ProviderStatus}; ProviderErrorCode={ProviderErrorCode}; SmtpStatusCode={SmtpStatusCode}; InnerExceptionType={InnerExceptionType}.",
                 provider,
                 failureClass,
                 exception.GetType().Name,
+                exception is RequestFailedException requestFailed ? requestFailed.Status.ToString(CultureInfo.InvariantCulture) : "none",
+                exception is RequestFailedException requestFailedCode ? requestFailedCode.ErrorCode ?? "none" : "none",
                 exception is SmtpException smtpException
                     ? smtpException.StatusCode.ToString()
                     : "none",
@@ -2039,6 +2045,13 @@ public sealed class NotificationDeliveryStore(
         if (string.Equals(provider, EmailDeliveryProviderNames.Smtp, StringComparison.OrdinalIgnoreCase))
         {
             return EmailDeliveryProviderNames.Smtp;
+        }
+
+        // Azure Communication Email must survive sanitization, or every ACS
+        // failure is misclassified as a generic smtp_unknown.
+        if (string.Equals(provider, EmailDeliveryProviderNames.AzureCommunicationEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return EmailDeliveryProviderNames.AzureCommunicationEmail;
         }
 
         return UnknownProvider;

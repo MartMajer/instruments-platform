@@ -121,8 +121,16 @@ public static class EmailDeliveryFailureClassifier
             return AzureCommunicationEmailRateLimited;
         }
 
-        if ((Contains(message, "sender") || Contains(message, "domain")) &&
-            (Contains(message, "verify") || Contains(message, "verified") || Contains(message, "not allowed")))
+        // Azure error codes for an unusable sender: DomainNotLinked,
+        // SenderDomainNotVerified, InvalidSenderUsername, etc.
+        if (Contains(message, "domainnotlinked") ||
+            Contains(message, "not linked") ||
+            Contains(message, "invalidsender") ||
+            Contains(message, "invalid sender") ||
+            Contains(message, "invalidfromaddress") ||
+            ((Contains(message, "sender") || Contains(message, "domain") || Contains(message, "from address")) &&
+                (Contains(message, "verify") || Contains(message, "verified") || Contains(message, "not allowed") ||
+                    Contains(message, "not found") || Contains(message, "not registered"))))
         {
             return AzureCommunicationEmailSenderDomainRejected;
         }

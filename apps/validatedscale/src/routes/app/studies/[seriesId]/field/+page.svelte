@@ -521,7 +521,7 @@
 														</span>
 														<span class={deliveryStatusClass(row.status)}>{t(humanizeToken(row.status))}</span>
 														<span class="datum delivery-when">
-															{row.lastEventAt ? formatDateTime(row.lastEventAt) : ''}
+															{#if row.error}{t(humanizeToken(row.error))}{:else if row.lastEventAt}{formatDateTime(row.lastEventAt)}{/if}
 														</span>
 													</li>
 												{/each}
