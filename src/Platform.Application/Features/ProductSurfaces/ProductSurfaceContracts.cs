@@ -593,7 +593,34 @@ public sealed record CampaignSeriesReportsWorkspaceResponse(
     IReadOnlyList<CampaignSeriesReportsCampaignResponse> Campaigns,
     CampaignSeriesScoreCoverageResponse? ScoreCoverage = null,
     CampaignSeriesResultsAnalyticsResponse? ResultsAnalytics = null,
-    CampaignSeriesResultsDashboardResponse? ResultsDashboard = null);
+    CampaignSeriesResultsDashboardResponse? ResultsDashboard = null,
+    CampaignSeriesReportsProvenanceResponse? Provenance = null);
+
+/// <summary>
+/// Everything a researcher needs to describe the selected wave's evidence in a
+/// methods section: instrument, scoring, consent and disclosure identities as
+/// they were snapshot-pinned at launch.
+/// </summary>
+public sealed record CampaignSeriesReportsProvenanceResponse(
+    string StudyName,
+    string WaveName,
+    string ResponseIdentityMode,
+    DateTimeOffset? LaunchedAt,
+    DateTimeOffset? ClosedAt,
+    string DataFinality,
+    int SubmittedResponseCount,
+    string? InstrumentName,
+    string? InstrumentVersion,
+    string? InstrumentLocale,
+    int? QuestionCount,
+    string? ScoringRuleKey,
+    string? ScoringRuleVersion,
+    string? ConsentVersion,
+    string? ConsentLocale,
+    string? ConsentTitle,
+    int? DisclosureKMin,
+    string? DisclosureRule,
+    int? RetentionYears);
 
 public sealed record CampaignSeriesReportsSeriesResponse(
     Guid Id,
@@ -890,7 +917,9 @@ public sealed record CampaignSeriesResultsScoreOutputResponse(
     int? NValidTotal,
     int? NExpectedTotal,
     string? MissingPolicyStatusSummary,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    // Human label from the scoring rule's output metadata, when the rule carries one.
+    string? DimensionLabel = null);
 
 public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
     string GroupType,
@@ -904,7 +933,8 @@ public sealed record CampaignSeriesResultsGroupMatrixRowResponse(
     decimal? StandardDeviation,
     decimal? Min,
     decimal? Max,
-    string? SuppressionReason);
+    string? SuppressionReason,
+    string? DimensionLabel = null);
 
 public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
     Guid CampaignId,
@@ -924,7 +954,8 @@ public sealed record CampaignSeriesResultsWaveMatrixRowResponse(
     string? SuppressionReason,
     decimal? DeltaFromPreviousMean = null,
     decimal? DeltaFromFirstMean = null,
-    string ComparisonState = "not_comparable");
+    string ComparisonState = "not_comparable",
+    string? DimensionLabel = null);
 
 public sealed record CampaignSeriesResultsInsightResponse(
     string Kind,

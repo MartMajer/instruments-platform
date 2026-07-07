@@ -1672,6 +1672,7 @@ public sealed class ProductSurfaceReadStore(
             selectedCampaign,
             cancellationToken);
         var resultsDashboard = CreateResultsDashboard(resultsAnalytics);
+        var provenance = await LoadReportsProvenanceAsync(series, selectedCampaign, cancellationToken);
         var response = new CampaignSeriesReportsWorkspaceResponse(
             new CampaignSeriesReportsSeriesResponse(
                 series.Id,
@@ -1701,11 +1702,126 @@ public sealed class ProductSurfaceReadStore(
             campaignResponses,
             ScoreCoverageSummary.Create(scoreCoverageInputs.Values.ToArray()),
             resultsAnalytics,
-            resultsDashboard);
+            resultsDashboard,
+            provenance);
 
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(response);
+    }
+
+    /// <summary>
+    /// Methods-section provenance for the selected wave, read from the ids the
+    /// launch snapshot pinned (never from the mutable current configuration).
+    /// </summary>
+    private async Task<CampaignSeriesReportsProvenanceResponse?> LoadReportsProvenanceAsync(
+        CampaignSeriesRow series,
+        CampaignSeriesReportsCampaignResponse? selectedCampaign,
+        CancellationToken cancellationToken)
+    {
+        if (selectedCampaign is null)
+        {
+            return null;
+        }
+
+        string? instrumentName = null;
+        string? instrumentVersion = null;
+        string? instrumentLocale = null;
+        int? questionCount = null;
+        if (selectedCampaign.LatestLaunchSnapshotId.HasValue)
+        {
+            var snapshotDetail = await (
+                    from snapshot in db.CampaignLaunchSnapshots.AsNoTracking()
+                    join version in db.TemplateVersions.AsNoTracking()
+                        on snapshot.TemplateVersionId equals version.Id
+                    join template in db.SurveyTemplates.AsNoTracking()
+                        on version.TemplateId equals template.Id
+                    where snapshot.Id == selectedCampaign.LatestLaunchSnapshotId.Value
+                    select new
+                    {
+                        template.Name,
+                        version.Semver,
+                        version.DefaultLocale,
+                        snapshot.TemplateQuestionCount
+                    })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (snapshotDetail is not null)
+            {
+                instrumentName = snapshotDetail.Name;
+                instrumentVersion = snapshotDetail.Semver;
+                instrumentLocale = snapshotDetail.DefaultLocale;
+                questionCount = snapshotDetail.TemplateQuestionCount;
+            }
+        }
+
+        string? scoringRuleKey = null;
+        string? scoringRuleVersion = null;
+        if (selectedCampaign.ScoringRuleId.HasValue)
+        {
+            var rule = await db.ScoringRules
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.ScoringRuleId.Value)
+                .Select(entity => new { entity.RuleKey, entity.RuleVersion })
+                .SingleOrDefaultAsync(cancellationToken);
+            scoringRuleKey = rule?.RuleKey;
+            scoringRuleVersion = rule?.RuleVersion;
+        }
+
+        string? consentVersion = null;
+        string? consentLocale = null;
+        string? consentTitle = null;
+        if (selectedCampaign.ConsentDocumentId.HasValue)
+        {
+            var consent = await db.ConsentDocuments
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.ConsentDocumentId.Value)
+                .Select(entity => new { entity.Version, entity.Locale, entity.Title })
+                .SingleOrDefaultAsync(cancellationToken);
+            consentVersion = consent?.Version;
+            consentLocale = consent?.Locale;
+            consentTitle = consent?.Title;
+        }
+
+        string? disclosureRule = null;
+        if (selectedCampaign.DisclosurePolicyId.HasValue)
+        {
+            disclosureRule = await db.DisclosurePolicies
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.DisclosurePolicyId.Value)
+                .Select(entity => entity.SuppressionStrategy)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        int? retentionYears = null;
+        if (selectedCampaign.RetentionPolicyId.HasValue)
+        {
+            retentionYears = await db.RetentionPolicies
+                .AsNoTracking()
+                .Where(entity => entity.Id == selectedCampaign.RetentionPolicyId.Value)
+                .Select(entity => (int?)entity.RetainForYears)
+                .SingleOrDefaultAsync(cancellationToken);
+        }
+
+        return new CampaignSeriesReportsProvenanceResponse(
+            series.Name,
+            selectedCampaign.Name,
+            selectedCampaign.ResponseIdentityMode,
+            selectedCampaign.LatestLaunchAt,
+            selectedCampaign.ClosedAt,
+            selectedCampaign.DataFinality,
+            selectedCampaign.SubmittedResponseCount,
+            instrumentName,
+            instrumentVersion,
+            instrumentLocale,
+            questionCount,
+            scoringRuleKey,
+            scoringRuleVersion,
+            consentVersion,
+            consentLocale,
+            consentTitle,
+            selectedCampaign.DisclosureKMin,
+            disclosureRule,
+            retentionYears);
     }
 
     public async Task<Result<CampaignSeriesReportsWidgetManifestResponse>> GetCampaignSeriesReportsWidgetManifestAsync(
@@ -1804,6 +1920,22 @@ public sealed class ProductSurfaceReadStore(
             })
             .ToArray());
 
+        var dimensionLabels = await LoadResultsDimensionLabelsAsync(
+            campaigns.Select(campaign => campaign.ScoringRuleId),
+            cancellationToken);
+        if (dimensionLabels.Count > 0)
+        {
+            selectedOutputRows = selectedOutputRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+            groupRows = groupRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+            waveRows = waveRows
+                .Select(row => row with { DimensionLabel = dimensionLabels.GetValueOrDefault(row.DimensionCode) })
+                .ToArray();
+        }
+
         return new CampaignSeriesResultsAnalyticsResponse(
             selectedCampaign.Id,
             selectedCampaign.Name,
@@ -1813,6 +1945,59 @@ public sealed class ProductSurfaceReadStore(
             groupRows,
             waveRows,
             CreateResultsInsights(selectedCampaign, selectedOutputRows, groupRows, waveRows));
+    }
+
+    /// <summary>
+    /// Human labels for score output codes, read from the scoring rules'
+    /// compatibility metadata (<c>outputs: [{code, label}]</c>) when present.
+    /// </summary>
+    private async Task<Dictionary<string, string>> LoadResultsDimensionLabelsAsync(
+        IEnumerable<Guid?> scoringRuleIds,
+        CancellationToken cancellationToken)
+    {
+        var labels = new Dictionary<string, string>(StringComparer.Ordinal);
+        var ids = scoringRuleIds.OfType<Guid>().Distinct().ToArray();
+        if (ids.Length == 0)
+        {
+            return labels;
+        }
+
+        var compatibilityDocuments = await db.ScoringRules
+            .AsNoTracking()
+            .Where(rule => ids.Contains(rule.Id))
+            .Select(rule => rule.Compatibility)
+            .ToListAsync(cancellationToken);
+
+        foreach (var document in compatibilityDocuments)
+        {
+            try
+            {
+                using var parsed = JsonDocument.Parse(document);
+                if (!parsed.RootElement.TryGetProperty("outputs", out var outputs) ||
+                    outputs.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var output in outputs.EnumerateArray())
+                {
+                    if (output.TryGetProperty("code", out var code) &&
+                        output.TryGetProperty("label", out var label) &&
+                        code.ValueKind == JsonValueKind.String &&
+                        label.ValueKind == JsonValueKind.String &&
+                        !string.IsNullOrWhiteSpace(label.GetString()))
+                    {
+                        labels[code.GetString()!] = label.GetString()!;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // A malformed compatibility document never blocks results.
+            }
+        }
+
+        return labels;
     }
 
     private async Task<CampaignSeriesResultsGroupMatrixRowResponse[]> CreateResultsGroupMatrixRowsAsync(
@@ -2195,7 +2380,7 @@ public sealed class ProductSurfaceReadStore(
             .ThenBy(row => row.DimensionCode, StringComparer.Ordinal)
             .Select(row => new ResultsDashboardBarResponse(
                 $"output:{row.DimensionCode}",
-                row.DimensionCode,
+                row.DimensionLabel ?? row.DimensionCode,
                 row.DimensionCode,
                 row.Disclosure,
                 row.Disclosure == "visible" ? row.Mean : null,
