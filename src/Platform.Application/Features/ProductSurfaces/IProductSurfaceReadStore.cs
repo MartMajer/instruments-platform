@@ -14,6 +14,10 @@ public interface IProductSurfaceReadStore
         Guid tenantId,
         CancellationToken cancellationToken);
 
+    Task<Result<TenantSettingsAppBrandingResponse>> GetTenantAppBrandingAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken);
+
     Task<Result<TenantAppBrandingLogoAsset>> GetTenantAppBrandingLogoAsync(
         Guid tenantId,
         CancellationToken cancellationToken);

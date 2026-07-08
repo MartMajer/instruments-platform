@@ -50,6 +50,12 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("UploadTenantAppBrandingLogo")
             .WithTags("ProductSurfaces");
 
+        app.MapGet("/tenant-settings/app-branding", GetTenantAppBranding)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember)
+            .WithName("GetTenantAppBranding")
+            .WithTags("ProductSurfaces");
+
         app.MapGet("/tenant-settings/app-branding/logo", GetTenantAppBrandingLogo)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember)
@@ -366,6 +372,15 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         var result = await sender.Send(
             new UploadTenantAppBrandingLogoCommand(request.ContentType, read.Value),
             cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> GetTenantAppBranding(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetTenantAppBrandingQuery(), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
     }

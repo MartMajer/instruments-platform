@@ -191,6 +191,45 @@ public sealed class ProductSurfaceReadStore(
         });
     }
 
+    public async Task<Result<TenantSettingsAppBrandingResponse>> GetTenantAppBrandingAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var row = await db.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantId && tenant.DeletedAt == null)
+            .Select(tenant => new
+            {
+                tenant.Name,
+                tenant.ReportBrandingOrganizationLabel,
+                tenant.AppBrandingAccentColorHex,
+                tenant.AppBrandingLogoObjectKey,
+                tenant.AppBrandingLogoContentType,
+                tenant.AppBrandingUpdatedAt
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (row is null)
+        {
+            return Result.Failure<TenantSettingsAppBrandingResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        return Result.Success(TenantAppBrandingResponseFactory.Create(
+            row.ReportBrandingOrganizationLabel,
+            row.Name,
+            row.AppBrandingAccentColorHex,
+            row.AppBrandingLogoObjectKey,
+            row.AppBrandingLogoContentType,
+            row.AppBrandingUpdatedAt));
+    }
+
     public async Task<Result<TenantAppBrandingLogoAsset>> GetTenantAppBrandingLogoAsync(
         Guid tenantId,
         CancellationToken cancellationToken)

@@ -1407,6 +1407,8 @@ export function createProductApi(client: ApiClient) {
 				headers: { 'content-type': file.type || 'application/octet-stream' },
 				body: file
 			}),
+		getTenantAppBranding: () =>
+			client.request<TenantSettingsAppBrandingResponse>('/tenant-settings/app-branding'),
 		getTenantAppBrandingLogoBlob: () =>
 			client.requestBlob('/tenant-settings/app-branding/logo'),
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),

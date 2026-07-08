@@ -540,6 +540,39 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Get_tenant_app_branding_returns_branding_metadata()
+    {
+        var tenantId = Guid.NewGuid();
+        var response = TenantAppBrandingResponseFactory.Create(
+            organizationLabel: "Algebra Research",
+            tenantName: "Algebra Research",
+            accentColorHex: "#2b5fd9",
+            logoObjectKey: "tenant-branding/x/logo.png",
+            logoContentType: "image/png",
+            updatedAt: DateTimeOffset.Parse("2026-07-08T09:00:00+00:00"));
+        var readStore = new FakeProductSurfaceReadStore
+        {
+            AppBrandingResult = Result.Success(response)
+        };
+        using var client = CreateClient(readStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/tenant-settings/app-branding",
+            tenantId,
+            permissions: null);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantSettingsAppBrandingResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("#2b5fd9", payload.AccentColorHex);
+        Assert.Equal("#2b5fd9", payload.EffectiveAccentColorHex);
+        Assert.True(payload.HasLogo);
+        Assert.Equal(tenantId, readStore.TenantId);
+    }
+
+    [Fact]
     public async Task Get_tenant_app_branding_logo_returns_not_found_when_unset()
     {
         var tenantId = Guid.NewGuid();
@@ -3071,6 +3104,17 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                         []),
                     [],
                     [])));
+        }
+
+        public Result<TenantSettingsAppBrandingResponse>? AppBrandingResult { get; init; }
+
+        public Task<Result<TenantSettingsAppBrandingResponse>> GetTenantAppBrandingAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+
+            return Task.FromResult(AppBrandingResult ?? Result.Success(TenantSettingsAppBrandingResponse.Empty));
         }
 
         public Result<TenantAppBrandingLogoAsset>? AppBrandingLogoResult { get; init; }

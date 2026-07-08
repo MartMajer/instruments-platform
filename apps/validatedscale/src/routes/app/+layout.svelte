@@ -8,12 +8,46 @@
 		createGovernanceApi,
 		type OperationalNotificationResponse
 	} from '$lib/api/governance';
+	import { createProductApi } from '$lib/api/product';
 	import { api } from '$lib/core/client';
+	import { isHexColor } from '$lib/core/contrast';
 	import { formatDateTime, humanizeToken } from '$lib/core/format';
 
 	let { children } = $props();
 
 	let menuOpen = $state(false);
+
+	// Tenant app-shell branding — the researcher app takes the tenant's accent
+	// and logo. The backend hands back an already contrast-guarded accent; we map
+	// it onto the shell's accent tokens (a lightened variant for the dark topbar),
+	// so the topbar underline, primary buttons and accent chrome all follow it.
+	const product = createProductApi(api());
+	let brandStyle = $state('');
+	let brandLogoUrl = $state<string | null>(null);
+	let brandOrgLabel = $state('');
+
+	async function loadBranding() {
+		try {
+			const branding = await product.getTenantAppBranding();
+			brandOrgLabel = branding.orgLabel;
+			const accent = branding.effectiveAccentColorHex;
+			if (accent && isHexColor(accent)) {
+				brandStyle =
+					`--tenant-accent:${accent};` +
+					`--color-stain:${accent};` +
+					`--color-stain-wash:color-mix(in oklab, ${accent} 12%, white);` +
+					`--color-stain-deep:color-mix(in oklab, ${accent} 78%, black);` +
+					`--color-stain-line:color-mix(in oklab, ${accent} 30%, white);` +
+					`--color-stain-bright:color-mix(in oklab, ${accent} 55%, white);`;
+			}
+			if (branding.hasLogo) {
+				const blob = await product.getTenantAppBrandingLogoBlob();
+				brandLogoUrl = URL.createObjectURL(blob.body);
+			}
+		} catch {
+			// No branding is a normal state; the shell keeps its own identity.
+		}
+	}
 
 	const nav = [
 		{ href: '/app', label: 'Today', exact: true },
@@ -80,6 +114,7 @@
 			return;
 		}
 		void refreshSummary();
+		void loadBranding();
 	});
 
 	function closeMenu(event: MouseEvent) {
@@ -97,11 +132,15 @@
 <DialogHost />
 
 {#if session.status === 'authenticated'}
-	<div class="app">
+	<div class="app" style={brandStyle}>
 		<header class="topbar">
 			<a class="brand" href="/app">
-				<img src="/logo.svg" alt="" class="brand-logo" />
-				<span class="eyebrow brand-word">ValidatedScale</span>
+				{#if brandLogoUrl}
+					<img src={brandLogoUrl} alt={brandOrgLabel} class="brand-logo tenant" />
+				{:else}
+					<img src="/logo.svg" alt="" class="brand-logo" />
+					<span class="eyebrow brand-word">ValidatedScale</span>
+				{/if}
 			</a>
 
 			<nav aria-label="Primary">
@@ -229,6 +268,15 @@
 		width: 1.375rem;
 		height: 1.375rem;
 		border-radius: 4px;
+	}
+
+	/* A tenant logo may be wider than tall; let it size to its aspect ratio. */
+	.brand-logo.tenant {
+		width: auto;
+		height: 1.5rem;
+		max-width: 11rem;
+		border-radius: 3px;
+		object-fit: contain;
 	}
 
 	.brand-word {
