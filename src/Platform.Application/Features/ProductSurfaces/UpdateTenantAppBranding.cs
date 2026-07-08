@@ -24,6 +24,23 @@ public sealed class UpdateTenantAppBrandingValidator : AbstractValidator<UpdateT
             .Must(Tenant.IsAppBrandingLogoContentType)
             .When(command => !string.IsNullOrWhiteSpace(command.Request.LogoObjectKey))
             .WithMessage("Logo content type is not supported.");
+
+        RuleFor(command => command.Request.TopbarColorHex)
+            .Must(Tenant.IsAppBrandingAccentColorHex)
+            .When(command => !string.IsNullOrWhiteSpace(command.Request.TopbarColorHex))
+            .WithMessage("Topbar color must be a hex color token.");
+        RuleFor(command => command.Request.BackgroundColorHex)
+            .Must(Tenant.IsAppBrandingAccentColorHex)
+            .When(command => !string.IsNullOrWhiteSpace(command.Request.BackgroundColorHex))
+            .WithMessage("Background color must be a hex color token.");
+        RuleFor(command => command.Request.SurfaceColorHex)
+            .Must(Tenant.IsAppBrandingAccentColorHex)
+            .When(command => !string.IsNullOrWhiteSpace(command.Request.SurfaceColorHex))
+            .WithMessage("Surface color must be a hex color token.");
+        RuleFor(command => command.Request.InkColorHex)
+            .Must(Tenant.IsAppBrandingAccentColorHex)
+            .When(command => !string.IsNullOrWhiteSpace(command.Request.InkColorHex))
+            .WithMessage("Text color must be a hex color token.");
     }
 }
 

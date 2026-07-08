@@ -61,11 +61,43 @@ public sealed record TenantSettingsWorkspaceResponse(
 }
 
 /// <summary>
+/// A fully-resolved, legibility-guarded palette. Every field is a concrete
+/// <c>#rrggbb</c> the frontend maps onto platform CSS custom properties — no
+/// tenant CSS, only scalar values fill our own widget.
+/// </summary>
+public sealed record AppBrandingThemeResponse(
+    string Accent,
+    string OnAccent,
+    string AccentOnTopbar,
+    string Topbar,
+    string TopbarInk,
+    string Background,
+    string Surface,
+    string Ink)
+{
+    public static AppBrandingThemeResponse From(Platform.Domain.Tenancy.ResolvedAppBrandingTheme theme)
+    {
+        return new AppBrandingThemeResponse(
+            theme.Accent,
+            theme.OnAccent,
+            theme.AccentOnTopbar,
+            theme.Topbar,
+            theme.TopbarInk,
+            theme.Background,
+            theme.Surface,
+            theme.Ink);
+    }
+
+    public static AppBrandingThemeResponse Default { get; } =
+        From(Platform.Domain.Tenancy.AppBrandingTheme.Resolve(new Platform.Domain.Tenancy.AppBrandingThemeTokens()));
+}
+
+/// <summary>
 /// The authenticated view of the tenant's respondent/app-shell branding. Carries
-/// both the raw accent the tenant picked and the contrast-guarded accent that is
-/// actually applied, so the Settings preview can show the picker at their choice
-/// and the mock at the legible result. The logo bytes are not embedded here —
-/// the editor loads them from <c>GET /tenant-settings/app-branding/logo</c>.
+/// the raw anchor colors the tenant picked (for the Settings pickers), the
+/// resolved guarded <see cref="Theme"/> the app actually applies, and the resolved
+/// <see cref="Defaults"/> for picker placeholders. The logo bytes are not embedded
+/// here — the editor loads them from <c>GET /tenant-settings/app-branding/logo</c>.
 /// </summary>
 public sealed record TenantSettingsAppBrandingResponse(
     string OrgLabel,
@@ -78,8 +110,16 @@ public sealed record TenantSettingsAppBrandingResponse(
     IReadOnlyList<string> AllowedLogoContentTypes,
     int MaxLogoBytes,
     int MaxLogoDimension,
-    DateTimeOffset? UpdatedAt)
+    DateTimeOffset? UpdatedAt,
+    string? TopbarColorHex = null,
+    string? BackgroundColorHex = null,
+    string? SurfaceColorHex = null,
+    string? InkColorHex = null)
 {
+    public AppBrandingThemeResponse Theme { get; init; } = AppBrandingThemeResponse.Default;
+
+    public AppBrandingThemeResponse Defaults { get; init; } = AppBrandingThemeResponse.Default;
+
     public static TenantSettingsAppBrandingResponse Empty { get; } = new(
         OrgLabel: string.Empty,
         AccentColorHex: null,
@@ -97,7 +137,11 @@ public sealed record TenantSettingsAppBrandingResponse(
 public sealed record UpdateTenantAppBrandingRequest(
     string AccentColorHex,
     string? LogoObjectKey = null,
-    string? LogoContentType = null);
+    string? LogoContentType = null,
+    string? TopbarColorHex = null,
+    string? BackgroundColorHex = null,
+    string? SurfaceColorHex = null,
+    string? InkColorHex = null);
 
 public sealed record TenantAppBrandingLogoUploadResponse(
     string LogoObjectKey,

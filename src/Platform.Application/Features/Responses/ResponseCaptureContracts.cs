@@ -47,7 +47,8 @@ public sealed record OpenLinkEntryResponse(
 public sealed record RespondentBrandingResponse(
     string OrgLabel,
     string? AccentColorHex,
-    string? LogoDataUri);
+    string? LogoDataUri,
+    Platform.Application.Features.ProductSurfaces.AppBrandingThemeResponse? Theme = null);
 
 public sealed record IdentifiedQueueResponse(
     Guid CampaignId,

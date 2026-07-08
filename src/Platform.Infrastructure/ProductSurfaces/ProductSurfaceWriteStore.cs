@@ -111,7 +111,11 @@ public sealed class ProductSurfaceWriteStore(
                 request.LogoObjectKey,
                 request.LogoContentType,
                 actorUserId,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                request.TopbarColorHex,
+                request.BackgroundColorHex,
+                request.SurfaceColorHex,
+                request.InkColorHex);
         }
         catch (ArgumentException exception)
         {
@@ -128,7 +132,11 @@ public sealed class ProductSurfaceWriteStore(
             tenant.AppBrandingAccentColorHex,
             tenant.AppBrandingLogoObjectKey,
             tenant.AppBrandingLogoContentType,
-            tenant.AppBrandingUpdatedAt));
+            tenant.AppBrandingUpdatedAt,
+            tenant.AppBrandingTopbarColorHex,
+            tenant.AppBrandingBackgroundColorHex,
+            tenant.AppBrandingSurfaceColorHex,
+            tenant.AppBrandingInkColorHex));
     }
 
     public async Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(

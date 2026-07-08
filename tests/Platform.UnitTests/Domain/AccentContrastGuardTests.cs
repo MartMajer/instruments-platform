@@ -62,4 +62,34 @@ public sealed class AccentContrastGuardTests
     {
         Assert.Equal("not-a-color", AccentContrastGuard.EnsureLegibleOnWhite("not-a-color"));
     }
+
+    [Theory]
+    [InlineData("#333333", "#111111")] // dark on dark — must lighten
+    [InlineData("#eeeeee", "#ffffff")] // light on white — must darken
+    [InlineData("#1f4fd1", "#151c25")] // mid accent on the dark topbar
+    public void Ensure_legible_raises_contrast_against_any_background(string fg, string bg)
+    {
+        var corrected = AccentContrastGuard.EnsureLegible(fg, bg);
+
+        Assert.True(
+            AccentContrastGuard.ContrastRatio(corrected, bg) >= AccentContrastGuard.MinimumContrastRatio,
+            $"{corrected} on {bg} still fails contrast");
+    }
+
+    [Fact]
+    public void Ensure_legible_leaves_a_passing_pair_untouched()
+    {
+        Assert.Equal("#000000", AccentContrastGuard.EnsureLegible("#000000", "#ffffff"));
+        Assert.Equal("#ffffff", AccentContrastGuard.EnsureLegible("#ffffff", "#000000"));
+    }
+
+    [Theory]
+    [InlineData("#111111", "#ffffff")] // dark surface wants white text
+    [InlineData("#0b1220", "#ffffff")]
+    [InlineData("#ffffff", "#141c25")] // light surface wants dark ink
+    [InlineData("#f2f4f8", "#141c25")]
+    public void Readable_text_on_picks_the_higher_contrast_option(string background, string expected)
+    {
+        Assert.Equal(expected, AccentContrastGuard.ReadableTextOn(background));
+    }
 }

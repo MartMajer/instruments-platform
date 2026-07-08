@@ -118,6 +118,51 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Update_tenant_app_branding_persists_the_full_theme_and_resolves_it()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "theme-tenant");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        var result = await store.UpdateTenantAppBrandingAsync(
+            tenantId,
+            Guid.NewGuid(),
+            new UpdateTenantAppBrandingRequest(
+                "#12b3a6",
+                LogoObjectKey: null,
+                LogoContentType: null,
+                TopbarColorHex: "#0b1e3f",
+                BackgroundColorHex: "#0d1117",
+                SurfaceColorHex: "#111827",
+                InkColorHex: "#e6edf3"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("#111827", result.Value.SurfaceColorHex);
+        Assert.Equal("#0b1e3f", result.Value.TopbarColorHex);
+        // The resolved theme keeps every foreground legible on its surface.
+        var theme = result.Value.Theme;
+        Assert.True(AccentContrastGuard.ContrastRatio(theme.Ink, theme.Surface) >= 4.5);
+        Assert.True(AccentContrastGuard.ContrastRatio(theme.Accent, theme.Surface) >= 4.5);
+        Assert.True(AccentContrastGuard.ContrastRatio(theme.TopbarInk, theme.Topbar) >= 4.5);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Tenants.SingleAsync(tenant => tenant.Id == tenantId);
+        Assert.Equal("#111827", persisted.AppBrandingSurfaceColorHex);
+        Assert.Equal("#0d1117", persisted.AppBrandingBackgroundColorHex);
+        Assert.Equal("#e6edf3", persisted.AppBrandingInkColorHex);
+        Assert.Equal("#0b1e3f", persisted.AppBrandingTopbarColorHex);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Update_tenant_app_branding_with_blank_logo_key_clears_the_logo()
     {
         var tenantId = Guid.NewGuid();

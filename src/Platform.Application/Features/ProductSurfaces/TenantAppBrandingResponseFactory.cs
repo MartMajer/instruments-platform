@@ -4,9 +4,9 @@ namespace Platform.Application.Features.ProductSurfaces;
 
 /// <summary>
 /// Builds the authenticated app-branding view from stored tenant columns,
-/// pre-computing the contrast-guarded accent so the Settings preview and the
-/// write response agree on what respondents actually see. One source of truth
-/// for the read store and the write store alike.
+/// resolving the anchor colors into the contrast-guarded palette the app applies
+/// (via <see cref="AppBrandingTheme"/>). One source of truth for the read store
+/// and the write store alike.
 /// </summary>
 public static class TenantAppBrandingResponseFactory
 {
@@ -16,11 +16,23 @@ public static class TenantAppBrandingResponseFactory
         string? accentColorHex,
         string? logoObjectKey,
         string? logoContentType,
-        DateTimeOffset? updatedAt)
+        DateTimeOffset? updatedAt,
+        string? topbarColorHex = null,
+        string? backgroundColorHex = null,
+        string? surfaceColorHex = null,
+        string? inkColorHex = null)
     {
+        var tokens = new AppBrandingThemeTokens(
+            accentColorHex,
+            topbarColorHex,
+            backgroundColorHex,
+            surfaceColorHex,
+            inkColorHex);
+        var theme = AppBrandingTheme.Resolve(tokens);
+
         var effectiveAccent = string.IsNullOrWhiteSpace(accentColorHex)
             ? null
-            : AccentContrastGuard.EnsureLegibleOnWhite(accentColorHex);
+            : theme.Accent;
 
         var orgLabel = string.IsNullOrWhiteSpace(organizationLabel) ? tenantName : organizationLabel!;
 
@@ -35,6 +47,14 @@ public static class TenantAppBrandingResponseFactory
             Tenant.AppBrandingAllowedLogoContentTypes,
             TenantAppBrandingLogo.MaxBytes,
             TenantAppBrandingLogo.MaxDimension,
-            updatedAt);
+            updatedAt,
+            topbarColorHex,
+            backgroundColorHex,
+            surfaceColorHex,
+            inkColorHex)
+        {
+            Theme = AppBrandingThemeResponse.From(theme),
+            Defaults = AppBrandingThemeResponse.Default
+        };
     }
 }

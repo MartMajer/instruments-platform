@@ -97,7 +97,11 @@ public sealed class ProductSurfaceReadStore(
                 tenant.AppBrandingAccentColorHex,
                 tenant.AppBrandingLogoObjectKey,
                 tenant.AppBrandingLogoContentType,
-                tenant.AppBrandingUpdatedAt))
+                tenant.AppBrandingUpdatedAt,
+                tenant.AppBrandingTopbarColorHex,
+                tenant.AppBrandingBackgroundColorHex,
+                tenant.AppBrandingSurfaceColorHex,
+                tenant.AppBrandingInkColorHex))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (tenantSettings is null)
@@ -207,6 +211,10 @@ public sealed class ProductSurfaceReadStore(
                 tenant.Name,
                 tenant.ReportBrandingOrganizationLabel,
                 tenant.AppBrandingAccentColorHex,
+                tenant.AppBrandingTopbarColorHex,
+                tenant.AppBrandingBackgroundColorHex,
+                tenant.AppBrandingSurfaceColorHex,
+                tenant.AppBrandingInkColorHex,
                 tenant.AppBrandingLogoObjectKey,
                 tenant.AppBrandingLogoContentType,
                 tenant.AppBrandingUpdatedAt
@@ -227,7 +235,11 @@ public sealed class ProductSurfaceReadStore(
             row.AppBrandingAccentColorHex,
             row.AppBrandingLogoObjectKey,
             row.AppBrandingLogoContentType,
-            row.AppBrandingUpdatedAt));
+            row.AppBrandingUpdatedAt,
+            row.AppBrandingTopbarColorHex,
+            row.AppBrandingBackgroundColorHex,
+            row.AppBrandingSurfaceColorHex,
+            row.AppBrandingInkColorHex));
     }
 
     public async Task<Result<TenantAppBrandingLogoAsset>> GetTenantAppBrandingLogoAsync(
@@ -3290,7 +3302,11 @@ public sealed class ProductSurfaceReadStore(
             tenant.AppBrandingAccentColorHex,
             tenant.AppBrandingLogoObjectKey,
             tenant.AppBrandingLogoContentType,
-            tenant.AppBrandingUpdatedAt);
+            tenant.AppBrandingUpdatedAt,
+            tenant.AppBrandingTopbarColorHex,
+            tenant.AppBrandingBackgroundColorHex,
+            tenant.AppBrandingSurfaceColorHex,
+            tenant.AppBrandingInkColorHex);
     }
 
     private sealed record TenantSettingsTenantRow(
@@ -3303,7 +3319,11 @@ public sealed class ProductSurfaceReadStore(
         string? AppBrandingAccentColorHex,
         string? AppBrandingLogoObjectKey,
         string? AppBrandingLogoContentType,
-        DateTimeOffset? AppBrandingUpdatedAt);
+        DateTimeOffset? AppBrandingUpdatedAt,
+        string? AppBrandingTopbarColorHex,
+        string? AppBrandingBackgroundColorHex,
+        string? AppBrandingSurfaceColorHex,
+        string? AppBrandingInkColorHex);
 
     private async Task<CampaignSeriesListItemResponse[]> LoadSeriesListItemsAsync(
         int? take,

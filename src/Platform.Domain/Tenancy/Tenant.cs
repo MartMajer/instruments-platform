@@ -59,6 +59,14 @@ public sealed class Tenant
 
     public string? AppBrandingAccentColorHex { get; private set; }
 
+    public string? AppBrandingTopbarColorHex { get; private set; }
+
+    public string? AppBrandingBackgroundColorHex { get; private set; }
+
+    public string? AppBrandingSurfaceColorHex { get; private set; }
+
+    public string? AppBrandingInkColorHex { get; private set; }
+
     public string? AppBrandingLogoObjectKey { get; private set; }
 
     public string? AppBrandingLogoContentType { get; private set; }
@@ -113,9 +121,17 @@ public sealed class Tenant
         string? logoObjectKey,
         string? logoContentType,
         Guid updatedBy,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        string? topbarColorHex = null,
+        string? backgroundColorHex = null,
+        string? surfaceColorHex = null,
+        string? inkColorHex = null)
     {
         AppBrandingAccentColorHex = NormalizeAppBrandingAccentColorHex(accentColorHex);
+        AppBrandingTopbarColorHex = NormalizeOptionalAppBrandingColorHex(topbarColorHex);
+        AppBrandingBackgroundColorHex = NormalizeOptionalAppBrandingColorHex(backgroundColorHex);
+        AppBrandingSurfaceColorHex = NormalizeOptionalAppBrandingColorHex(surfaceColorHex);
+        AppBrandingInkColorHex = NormalizeOptionalAppBrandingColorHex(inkColorHex);
 
         if (string.IsNullOrWhiteSpace(logoObjectKey))
         {
@@ -214,6 +230,22 @@ public sealed class Tenant
         if (!IsAppBrandingAccentColorHex(normalized))
         {
             throw new ArgumentException("App branding accent color must be a hex color token.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeOptionalAppBrandingColorHex(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        if (!IsAppBrandingAccentColorHex(normalized))
+        {
+            throw new ArgumentException("App branding color must be a hex color token.", nameof(value));
         }
 
         return normalized;

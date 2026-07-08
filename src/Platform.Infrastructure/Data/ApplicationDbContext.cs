@@ -181,6 +181,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                     "ck_tenant_app_branding_accent_color_hex",
                     "app_branding_accent_color_hex IS NULL OR app_branding_accent_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
                 table.HasCheckConstraint(
+                    "ck_tenant_app_branding_topbar_color_hex",
+                    "app_branding_topbar_color_hex IS NULL OR app_branding_topbar_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
+                    "ck_tenant_app_branding_background_color_hex",
+                    "app_branding_background_color_hex IS NULL OR app_branding_background_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
+                    "ck_tenant_app_branding_surface_color_hex",
+                    "app_branding_surface_color_hex IS NULL OR app_branding_surface_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
+                    "ck_tenant_app_branding_ink_color_hex",
+                    "app_branding_ink_color_hex IS NULL OR app_branding_ink_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
                     "ck_tenant_app_branding_logo_content_type",
                     "app_branding_logo_content_type IS NULL OR app_branding_logo_content_type IN ('image/png','image/jpeg','image/webp')");
             });
@@ -205,6 +217,18 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasColumnName("report_branding_updated_at");
             builder.Property(tenant => tenant.AppBrandingAccentColorHex)
                 .HasColumnName("app_branding_accent_color_hex")
+                .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.AppBrandingTopbarColorHex)
+                .HasColumnName("app_branding_topbar_color_hex")
+                .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.AppBrandingBackgroundColorHex)
+                .HasColumnName("app_branding_background_color_hex")
+                .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.AppBrandingSurfaceColorHex)
+                .HasColumnName("app_branding_surface_color_hex")
+                .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.AppBrandingInkColorHex)
+                .HasColumnName("app_branding_ink_color_hex")
                 .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
             builder.Property(tenant => tenant.AppBrandingLogoObjectKey)
                 .HasColumnName("app_branding_logo_object_key")

@@ -1,77 +1,108 @@
 namespace Platform.Domain.Tenancy;
 
 /// <summary>
-/// The contrast guard for tenant accent colors. A tenant's chosen accent lands
-/// on the respondent surface as a button background carrying white label text,
-/// and as accent-colored marks on white surfaces. Both roles reduce to the same
-/// requirement: the accent must have enough WCAG contrast against white. If the
-/// tenant picks a color too light to be legible there, this derives a legible,
-/// hue-preserving darker variant rather than rejecting the choice (owner
-/// decision, 2026-07-08: auto-adjust, don't reject). Pure and deterministic so
-/// it can be unit-tested and pre-computed server-side.
+/// The contrast engine for tenant branding. Tenant-chosen colors must stay
+/// legible wherever they land: accent as a button background and as marks on a
+/// surface, primary text on a card, foreground on the topbar. Rather than
+/// rejecting a poor pick, this derives a legible variant (owner decision,
+/// 2026-07-08: auto-adjust). Pure and deterministic so it can be unit-tested and
+/// pre-computed server-side, then mirrored client-side for the live preview.
 /// </summary>
 public static class AccentContrastGuard
 {
     /// <summary>WCAG 2.1 AA contrast ratio for normal-size text.</summary>
     public const double MinimumContrastRatio = 4.5;
 
-    private const double DarkenStep = 0.96;
-    private const int MaxDarkenIterations = 128;
+    private const double NudgeStep = 0.04;
+    private const int MaxIterations = 160;
 
     private static readonly Rgb White = new(255, 255, 255);
+    private static readonly Rgb Black = new(0, 0, 0);
+
+    // The app's near-black ink (#141c25), used as the dark option for readable text.
+    private static readonly Rgb DarkInk = new(20, 28, 37);
 
     /// <summary>
-    /// Returns an accent hex (lowercase <c>#rrggbb</c>) guaranteed to meet the
-    /// AA contrast ratio against white, darkening the input toward black in
-    /// hue-preserving steps only if it falls short. A color that already passes
-    /// is returned unchanged (normalized). An unparseable input is returned as
-    /// given — callers pass values already validated by <see cref="Tenant"/>.
+    /// Returns <paramref name="foregroundHex"/> nudged toward black or white
+    /// (whichever raises contrast against <paramref name="backgroundHex"/>) until
+    /// it meets AA, or the input unchanged if it already passes. Unparseable
+    /// input is returned as given — callers pass validated hex.
     /// </summary>
-    public static string EnsureLegibleOnWhite(string accentHex)
+    public static string EnsureLegible(
+        string foregroundHex,
+        string backgroundHex,
+        double minimumRatio = MinimumContrastRatio)
     {
-        if (!TryParseHex(accentHex, out var rgb))
+        if (!TryParseHex(foregroundHex, out var fg) || !TryParseHex(backgroundHex, out var bg))
         {
-            return accentHex;
+            return foregroundHex;
         }
 
-        if (Contrast(rgb, White) >= MinimumContrastRatio)
+        if (Contrast(fg, bg) >= minimumRatio)
         {
-            return ToHex(rgb);
+            return ToHex(fg);
         }
 
-        var current = rgb;
-        for (var iteration = 0; iteration < MaxDarkenIterations; iteration++)
+        var target = Contrast(Black, bg) >= Contrast(White, bg) ? Black : White;
+        var current = fg;
+        for (var iteration = 0; iteration < MaxIterations; iteration++)
         {
-            current = new Rgb(
-                (int)Math.Round(current.R * DarkenStep),
-                (int)Math.Round(current.G * DarkenStep),
-                (int)Math.Round(current.B * DarkenStep));
-
-            if (Contrast(current, White) >= MinimumContrastRatio)
+            current = Nudge(current, target, NudgeStep);
+            if (Contrast(current, bg) >= minimumRatio)
             {
                 return ToHex(current);
             }
 
-            if (current is { R: 0, G: 0, B: 0 })
+            if (current.Equals(target))
             {
                 break;
             }
         }
 
-        // Black is the highest-contrast fallback against white and always passes.
-        return ToHex(new Rgb(0, 0, 0));
+        return ToHex(target);
     }
 
-    /// <summary>The WCAG contrast ratio of the accent against white (1.0–21.0).</summary>
+    /// <summary>The higher-contrast of white or the app's dark ink against the given surface.</summary>
+    public static string ReadableTextOn(string backgroundHex)
+    {
+        if (!TryParseHex(backgroundHex, out var bg))
+        {
+            return "#ffffff";
+        }
+
+        return Contrast(White, bg) >= Contrast(DarkInk, bg) ? "#ffffff" : ToHex(DarkInk);
+    }
+
+    /// <summary>The WCAG contrast ratio between two colors (1.0–21.0).</summary>
+    public static double ContrastRatio(string aHex, string bHex)
+    {
+        return TryParseHex(aHex, out var a) && TryParseHex(bHex, out var b) ? Contrast(a, b) : 1.0;
+    }
+
+    /// <summary>Convenience for accent-on-white (button text is white; marks sit on white).</summary>
+    public static string EnsureLegibleOnWhite(string accentHex)
+    {
+        return EnsureLegible(accentHex, "#ffffff");
+    }
+
+    /// <summary>The contrast ratio of the accent against white (1.0–21.0).</summary>
     public static double ContrastAgainstWhite(string accentHex)
     {
-        return TryParseHex(accentHex, out var rgb) ? Contrast(rgb, White) : 1.0;
+        return ContrastRatio(accentHex, "#ffffff");
     }
 
     /// <summary>Whether the accent already meets AA contrast against white.</summary>
     public static bool IsLegibleOnWhite(string accentHex)
     {
         return ContrastAgainstWhite(accentHex) >= MinimumContrastRatio;
+    }
+
+    private static Rgb Nudge(Rgb from, Rgb target, double fraction)
+    {
+        return new Rgb(
+            (int)Math.Round(from.R + ((target.R - from.R) * fraction)),
+            (int)Math.Round(from.G + ((target.G - from.G) * fraction)),
+            (int)Math.Round(from.B + ((target.B - from.B) * fraction)));
     }
 
     private static double Contrast(Rgb a, Rgb b)

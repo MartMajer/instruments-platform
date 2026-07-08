@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Platform.Application.Features.ParticipantCodes;
+using Platform.Application.Features.ProductSurfaces;
 using Platform.Application.Features.Responses;
 using Platform.Application.Tenancy;
 using Platform.Domain.Campaigns;
@@ -2520,6 +2521,10 @@ public sealed class ResponseCaptureStore(
                 tenant.Name,
                 tenant.ReportBrandingOrganizationLabel,
                 tenant.AppBrandingAccentColorHex,
+                tenant.AppBrandingTopbarColorHex,
+                tenant.AppBrandingBackgroundColorHex,
+                tenant.AppBrandingSurfaceColorHex,
+                tenant.AppBrandingInkColorHex,
                 tenant.AppBrandingLogoObjectKey,
                 tenant.AppBrandingLogoContentType
             })
@@ -2530,9 +2535,13 @@ public sealed class ResponseCaptureStore(
             return null;
         }
 
-        var accent = string.IsNullOrWhiteSpace(branding.AppBrandingAccentColorHex)
-            ? null
-            : AccentContrastGuard.EnsureLegibleOnWhite(branding.AppBrandingAccentColorHex);
+        var tokens = new AppBrandingThemeTokens(
+            branding.AppBrandingAccentColorHex,
+            branding.AppBrandingTopbarColorHex,
+            branding.AppBrandingBackgroundColorHex,
+            branding.AppBrandingSurfaceColorHex,
+            branding.AppBrandingInkColorHex);
+        var hasTheme = AppBrandingTheme.HasAnyToken(tokens);
 
         string? logoDataUri = null;
         if (!string.IsNullOrWhiteSpace(branding.AppBrandingLogoObjectKey) &&
@@ -2546,16 +2555,18 @@ public sealed class ResponseCaptureStore(
             }
         }
 
-        if (accent is null && logoDataUri is null)
+        if (!hasTheme && logoDataUri is null)
         {
             return null;
         }
+
+        var theme = hasTheme ? AppBrandingThemeResponse.From(AppBrandingTheme.Resolve(tokens)) : null;
 
         var orgLabel = string.IsNullOrWhiteSpace(branding.ReportBrandingOrganizationLabel)
             ? branding.Name
             : branding.ReportBrandingOrganizationLabel;
 
-        return new RespondentBrandingResponse(orgLabel, accent, logoDataUri);
+        return new RespondentBrandingResponse(orgLabel, theme?.Accent, logoDataUri, theme);
     }
 
     private static ConsentDocumentResponse ToConsentDocumentResponse(ConsentDocument document)
