@@ -297,8 +297,8 @@
 		position: absolute;
 		right: 0;
 		top: calc(100% + 0.5rem);
-		width: 22rem;
-		max-height: 24rem;
+		width: min(22rem, calc(100vw - 1.5rem));
+		max-height: min(24rem, 70vh);
 		overflow-y: auto;
 		padding: 0.875rem;
 		z-index: 30;
@@ -391,6 +391,7 @@
 		right: 0;
 		top: calc(100% + 0.5rem);
 		min-width: 13rem;
+		max-width: calc(100vw - 1.5rem);
 		padding: 0.375rem;
 		z-index: 30;
 		box-shadow: 0 8px 24px rgb(20 28 38 / 0.14);
@@ -461,12 +462,37 @@
 
 	@media (max-width: 44rem) {
 		.topbar {
-			gap: 0.75rem;
+			gap: 0.5rem;
 			padding: 0 0.75rem;
+		}
+
+		/* only the nav scrolls — brand, bell and profile stay reachable */
+		.topbar nav {
+			min-width: 0;
 			overflow-x: auto;
+			scrollbar-width: none;
+		}
+
+		.topbar nav::-webkit-scrollbar {
+			display: none;
+		}
+
+		.topbar nav a {
+			padding: 0 0.625rem;
+			white-space: nowrap;
 		}
 
 		.account-email {
+			display: none;
+		}
+
+		.content {
+			padding: 1.25rem 1rem 3rem;
+		}
+	}
+
+	@media (max-width: 26rem) {
+		.brand-word {
 			display: none;
 		}
 	}

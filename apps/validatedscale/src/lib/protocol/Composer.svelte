@@ -798,4 +798,22 @@
 		font-size: 0.8125rem;
 		color: var(--color-danger);
 	}
+
+	/* on narrow screens an item's text takes the full row and its type/flags
+	   wrap underneath, instead of the row overflowing the card */
+	@media (max-width: 34rem) {
+		.item-row {
+			flex-wrap: wrap;
+			row-gap: 0.5rem;
+		}
+
+		.item-row input.grow {
+			flex: 1 1 100%;
+			min-width: 0;
+		}
+
+		.field.small {
+			width: 4rem;
+		}
+	}
 </style>

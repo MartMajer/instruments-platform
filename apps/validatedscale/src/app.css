@@ -76,6 +76,19 @@
 		min-height: 100dvh;
 	}
 
+	/* mobile safety net: media and code never force the page wider than the screen */
+	img,
+	svg,
+	video,
+	canvas {
+		max-width: 100%;
+		height: auto;
+	}
+
+	pre {
+		overflow-x: auto;
+	}
+
 	::selection {
 		background: var(--color-stain);
 		color: #fff;

@@ -847,7 +847,7 @@
 
 	.facts div {
 		display: grid;
-		grid-template-columns: 10rem 1fr;
+		grid-template-columns: 10rem minmax(0, 1fr);
 		gap: 1rem;
 		padding: 0.5rem 0;
 		border-bottom: 1px dashed var(--color-line);
@@ -1271,7 +1271,9 @@
 
 	@media (max-width: 62rem) {
 		.body {
-			grid-template-columns: 1fr;
+			/* minmax(0, …) lets the column shrink below its content so wide
+			   children (composer, prose) wrap instead of overflowing */
+			grid-template-columns: minmax(0, 1fr);
 		}
 
 		.ruler {

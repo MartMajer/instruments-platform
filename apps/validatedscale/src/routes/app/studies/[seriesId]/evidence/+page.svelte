@@ -867,7 +867,7 @@
 
 	@media (max-width: 58rem) {
 		.grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
 		}
 
 		.exports {
