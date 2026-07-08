@@ -75,6 +75,84 @@ public sealed class ProductSurfaceWriteStoreTests : IAsyncLifetime
     }
 
     [DockerFact]
+    public async Task Update_tenant_app_branding_persists_tokens_and_returns_contrast_guarded_accent()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "brand-tenant");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        // A pure-yellow accent is illegible against white button text, so the
+        // returned effective accent must be darkened while the raw pick is kept.
+        var result = await store.UpdateTenantAppBrandingAsync(
+            tenantId,
+            actorUserId,
+            new UpdateTenantAppBrandingRequest(
+                "#FFFF00",
+                "tenant-branding/x/logo-abc.png",
+                "image/png"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.ToString());
+        Assert.Equal("#ffff00", result.Value.AccentColorHex);
+        Assert.NotNull(result.Value.EffectiveAccentColorHex);
+        Assert.NotEqual("#ffff00", result.Value.EffectiveAccentColorHex);
+        Assert.True(result.Value.HasLogo);
+        Assert.Equal("image/png", result.Value.LogoContentType);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Tenants.SingleAsync(tenant => tenant.Id == tenantId);
+        Assert.Equal("#ffff00", persisted.AppBrandingAccentColorHex);
+        Assert.Equal("tenant-branding/x/logo-abc.png", persisted.AppBrandingLogoObjectKey);
+        Assert.Equal("image/png", persisted.AppBrandingLogoContentType);
+        Assert.Equal(actorUserId, persisted.AppBrandingUpdatedBy);
+        Assert.NotNull(persisted.AppBrandingUpdatedAt);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
+    public async Task Update_tenant_app_branding_with_blank_logo_key_clears_the_logo()
+    {
+        var tenantId = Guid.NewGuid();
+        var migratorOptions = CreateMigratorOptions();
+        await PrepareDatabaseAsync(migratorOptions);
+        var runtimeOptions = CreateRuntimeOptions();
+        await SeedTenantAsync(runtimeOptions, tenantId, "brand-tenant");
+
+        await using var db = new ApplicationDbContext(runtimeOptions);
+        var store = new ProductSurfaceWriteStore(db, new TenantDbScope(db));
+
+        await store.UpdateTenantAppBrandingAsync(
+            tenantId,
+            Guid.NewGuid(),
+            new UpdateTenantAppBrandingRequest("#2b5fd9", "tenant-branding/x/logo.png", "image/png"),
+            CancellationToken.None);
+        var cleared = await store.UpdateTenantAppBrandingAsync(
+            tenantId,
+            Guid.NewGuid(),
+            new UpdateTenantAppBrandingRequest("#2b5fd9"),
+            CancellationToken.None);
+
+        Assert.True(cleared.IsSuccess, cleared.Error.ToString());
+        Assert.False(cleared.Value.HasLogo);
+
+        await using var verificationDb = new ApplicationDbContext(runtimeOptions);
+        var tenantDbScope = new TenantDbScope(verificationDb);
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(tenantId);
+        var persisted = await verificationDb.Tenants.SingleAsync(tenant => tenant.Id == tenantId);
+        Assert.Null(persisted.AppBrandingLogoObjectKey);
+        Assert.Null(persisted.AppBrandingLogoContentType);
+        await transaction.CommitAsync();
+    }
+
+    [DockerFact]
     public async Task Rename_campaign_series_updates_name_under_tenant_scope()
     {
         var tenantId = Guid.NewGuid();

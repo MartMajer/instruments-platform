@@ -9,6 +9,7 @@ using Platform.Domain.Consent;
 using Platform.Domain.Responses;
 using Platform.Domain.Subjects;
 using Platform.Domain.Templates;
+using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
 using Platform.Infrastructure.Scoring;
 using Platform.Infrastructure.Tenancy;
@@ -21,7 +22,8 @@ public sealed class ResponseCaptureStore(
     ITenantDbScope tenantDbScope,
     IParticipantCodeStore? participantCodeStore = null,
     ICurrentTenant? currentTenant = null,
-    SubmittedResponseScoreMaterializer? scoreMaterializer = null) : IResponseCaptureStore
+    SubmittedResponseScoreMaterializer? scoreMaterializer = null,
+    Platform.Application.Features.Reports.IExportArtifactObjectStore? brandingAssetStore = null) : IResponseCaptureStore
 {
     private readonly SubmittedResponseScoreMaterializer submittedScoreMaterializer =
         scoreMaterializer ?? new SubmittedResponseScoreMaterializer(db);
@@ -581,6 +583,8 @@ public sealed class ResponseCaptureStore(
             .Where(scale => scaleIds.Contains(scale.Id))
             .ToDictionaryAsync(scale => scale.Id, cancellationToken);
 
+        var branding = await ResolveRespondentBrandingAsync(parsed.Value.TenantId, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new OpenLinkEntryResponse(
@@ -593,7 +597,8 @@ public sealed class ResponseCaptureStore(
             resolved.Value.Snapshot.ResponseIdentityMode == ResponseIdentityModes.AnonymousLongitudinal,
             resolved.Value.Snapshot.DefaultLocale,
             ToConsentDocumentResponse(consentDocument),
-            questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray(),
+            branding));
     }
 
     public async Task<Result<EmailInvitationUnsubscribeResponse>> UnsubscribeEmailInvitationAsync(
@@ -918,6 +923,8 @@ public sealed class ResponseCaptureStore(
             .Where(scale => scaleIds.Contains(scale.Id))
             .ToDictionaryAsync(scale => scale.Id, cancellationToken);
 
+        var branding = await ResolveRespondentBrandingAsync(parsed.Value.TenantId, cancellationToken);
+
         await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new OpenLinkEntryResponse(
@@ -930,7 +937,8 @@ public sealed class ResponseCaptureStore(
             RequiresParticipantCode: false,
             resolved.Value.Snapshot.DefaultLocale,
             ToConsentDocumentResponse(consentDocument),
-            questions.Select(question => ToQuestionResponse(question, scales)).ToArray()));
+            questions.Select(question => ToQuestionResponse(question, scales)).ToArray(),
+            branding));
     }
 
     public async Task<Result<ResponseSessionResponse>> CreateIdentifiedEntrySessionAsync(
@@ -2334,6 +2342,8 @@ public sealed class ResponseCaptureStore(
                     .OrderByDescending(session => session.SubmittedAt ?? session.StartedAt ?? session.CreatedAt)
                     .First());
 
+        var branding = await ResolveRespondentBrandingAsync(tenantId, cancellationToken);
+
         return Result.Success(new IdentifiedQueueResponse(
             resolved.Campaign.Id,
             resolved.Snapshot.TemplateVersionId,
@@ -2356,7 +2366,8 @@ public sealed class ResponseCaptureStore(
                     target is null ? null : ToQueueSubjectResponse(target),
                     responseSession?.Id,
                     responseSession?.SubmittedAt);
-            }).ToArray()));
+            }).ToArray(),
+            branding));
     }
 
     private async Task<Result<bool>> MarkIdentifiedEntryTokenUsedAsync(
@@ -2488,6 +2499,63 @@ public sealed class ResponseCaptureStore(
             session.SubmittedAt,
             session.TimeTakenMs,
             publicHandle);
+    }
+
+    /// <summary>
+    /// Resolves the tenant's respondent branding for an anonymous surface. The
+    /// tenant id here is always the one parsed from the token — never anything a
+    /// client sent — so a respondent can only ever see the branding of the org
+    /// whose link they hold. Returns null when the tenant set no accent and no
+    /// logo, leaving the runner on its default chrome.
+    /// </summary>
+    private async Task<RespondentBrandingResponse?> ResolveRespondentBrandingAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var branding = await db.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantId && tenant.DeletedAt == null)
+            .Select(tenant => new
+            {
+                tenant.Name,
+                tenant.ReportBrandingOrganizationLabel,
+                tenant.AppBrandingAccentColorHex,
+                tenant.AppBrandingLogoObjectKey,
+                tenant.AppBrandingLogoContentType
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (branding is null)
+        {
+            return null;
+        }
+
+        var accent = string.IsNullOrWhiteSpace(branding.AppBrandingAccentColorHex)
+            ? null
+            : AccentContrastGuard.EnsureLegibleOnWhite(branding.AppBrandingAccentColorHex);
+
+        string? logoDataUri = null;
+        if (!string.IsNullOrWhiteSpace(branding.AppBrandingLogoObjectKey) &&
+            !string.IsNullOrWhiteSpace(branding.AppBrandingLogoContentType) &&
+            brandingAssetStore is not null)
+        {
+            var bytes = await brandingAssetStore.ReadAsync(branding.AppBrandingLogoObjectKey, cancellationToken);
+            if (bytes.IsSuccess)
+            {
+                logoDataUri = $"data:{branding.AppBrandingLogoContentType};base64,{Convert.ToBase64String(bytes.Value)}";
+            }
+        }
+
+        if (accent is null && logoDataUri is null)
+        {
+            return null;
+        }
+
+        var orgLabel = string.IsNullOrWhiteSpace(branding.ReportBrandingOrganizationLabel)
+            ? branding.Name
+            : branding.ReportBrandingOrganizationLabel;
+
+        return new RespondentBrandingResponse(orgLabel, accent, logoDataUri);
     }
 
     private static ConsentDocumentResponse ToConsentDocumentResponse(ConsentDocument document)

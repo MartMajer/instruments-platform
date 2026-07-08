@@ -84,6 +84,53 @@ public sealed class ProductSurfaceWriteStore(
             ]));
     }
 
+    public async Task<Result<TenantSettingsAppBrandingResponse>> UpdateTenantAppBrandingAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantAppBrandingRequest request,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            actorUserId,
+            cancellationToken: cancellationToken);
+
+        var tenant = await db.Tenants
+            .SingleOrDefaultAsync(entity => entity.Id == tenantId && entity.DeletedAt == null, cancellationToken);
+
+        if (tenant is null)
+        {
+            return Result.Failure<TenantSettingsAppBrandingResponse>(
+                Error.NotFound("tenant.not_found", "Tenant was not found."));
+        }
+
+        try
+        {
+            tenant.UpdateAppBranding(
+                request.AccentColorHex,
+                request.LogoObjectKey,
+                request.LogoContentType,
+                actorUserId,
+                DateTimeOffset.UtcNow);
+        }
+        catch (ArgumentException exception)
+        {
+            return Result.Failure<TenantSettingsAppBrandingResponse>(
+                Error.Validation("tenant_app_branding.invalid", exception.Message));
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Result.Success(TenantAppBrandingResponseFactory.Create(
+            tenant.ReportBrandingOrganizationLabel,
+            tenant.Name,
+            tenant.AppBrandingAccentColorHex,
+            tenant.AppBrandingLogoObjectKey,
+            tenant.AppBrandingLogoContentType,
+            tenant.AppBrandingUpdatedAt));
+    }
+
     public async Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
         Guid tenantId,
         Guid campaignSeriesId,

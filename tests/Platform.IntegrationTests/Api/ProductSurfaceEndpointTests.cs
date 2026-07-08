@@ -482,6 +482,101 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
     }
 
     [Fact]
+    public async Task Update_tenant_app_branding_endpoint_requires_setup_manage_permission()
+    {
+        var tenantId = Guid.NewGuid();
+        var writeStore = new FakeProductSurfaceWriteStore();
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/app-branding",
+            tenantId,
+            permissions: null);
+        request.Content = JsonContent.Create(new UpdateTenantAppBrandingRequest("#2b5fd9"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, httpResponse.StatusCode);
+        Assert.Equal(0, writeStore.CallCount);
+    }
+
+    [Fact]
+    public async Task Update_tenant_app_branding_endpoint_returns_updated_branding()
+    {
+        var tenantId = Guid.NewGuid();
+        var actorUserId = Guid.NewGuid();
+        var response = TenantAppBrandingResponseFactory.Create(
+            organizationLabel: "Algebra Research",
+            tenantName: "Algebra Research",
+            accentColorHex: "#2b5fd9",
+            logoObjectKey: "tenant-branding/x/logo.png",
+            logoContentType: "image/png",
+            updatedAt: DateTimeOffset.Parse("2026-07-08T09:00:00+00:00"));
+        var writeStore = new FakeProductSurfaceWriteStore(
+            updateTenantAppBrandingResult: Result.Success(response));
+        using var client = CreateClient(new FakeProductSurfaceReadStore(), writeStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Put,
+            "/tenant-settings/app-branding",
+            tenantId,
+            actorUserId,
+            permissions: "setup.manage");
+        request.Content = JsonContent.Create(new UpdateTenantAppBrandingRequest(
+            "#2b5fd9",
+            "tenant-branding/x/logo.png",
+            "image/png"));
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        var payload = await httpResponse.Content.ReadFromJsonAsync<TenantSettingsAppBrandingResponse>();
+        Assert.NotNull(payload);
+        Assert.Equal("Algebra Research", payload.OrgLabel);
+        Assert.Equal("#2b5fd9", payload.AccentColorHex);
+        Assert.True(payload.HasLogo);
+        Assert.Equal(tenantId, writeStore.TenantId);
+        Assert.Equal(actorUserId, writeStore.ActorUserId);
+        Assert.Equal("#2b5fd9", writeStore.UpdateTenantAppBrandingRequest?.AccentColorHex);
+    }
+
+    [Fact]
+    public async Task Get_tenant_app_branding_logo_returns_not_found_when_unset()
+    {
+        var tenantId = Guid.NewGuid();
+        using var client = CreateClient(new FakeProductSurfaceReadStore());
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/tenant-settings/app-branding/logo",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, httpResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_tenant_app_branding_logo_streams_bytes_with_content_type()
+    {
+        var tenantId = Guid.NewGuid();
+        byte[] bytes = [0x89, 0x50, 0x4E, 0x47];
+        var readStore = new FakeProductSurfaceReadStore
+        {
+            AppBrandingLogoResult = Result.Success(new TenantAppBrandingLogoAsset(bytes, "image/png"))
+        };
+        using var client = CreateClient(readStore);
+        using var request = AuthenticatedRequest(
+            HttpMethod.Get,
+            "/tenant-settings/app-branding/logo",
+            tenantId);
+
+        var httpResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, httpResponse.StatusCode);
+        Assert.Equal("image/png", httpResponse.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(bytes, await httpResponse.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
     public async Task Export_artifact_library_endpoint_returns_safe_inventory()
     {
         var tenantId = Guid.NewGuid();
@@ -2978,6 +3073,18 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
                     [])));
         }
 
+        public Result<TenantAppBrandingLogoAsset>? AppBrandingLogoResult { get; init; }
+
+        public Task<Result<TenantAppBrandingLogoAsset>> GetTenantAppBrandingLogoAsync(
+            Guid tenantId,
+            CancellationToken cancellationToken)
+        {
+            TenantId = tenantId;
+
+            return Task.FromResult(AppBrandingLogoResult ?? Result.Failure<TenantAppBrandingLogoAsset>(
+                Error.NotFound("app_branding_logo.not_found", "No logo has been set for this workspace.")));
+        }
+
         public Task<CampaignSeriesListResponse> ListCampaignSeriesAsync(
             Guid tenantId,
             CampaignSeriesPortfolioQuery query,
@@ -3211,6 +3318,7 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
         Result<DirectoryImportRuleResponse>? saveMicrosoftGraphDirectoryImportRuleResult = null,
         Result<DirectoryImportRuleResponse>? archiveMicrosoftGraphDirectoryImportRuleResult = null,
         Result<TenantSettingsReportBrandingResponse>? updateTenantReportBrandingResult = null,
+        Result<TenantSettingsAppBrandingResponse>? updateTenantAppBrandingResult = null,
         Result<TenantEmailTemplateSettingsResponse>? updateTenantEmailTemplateResult = null,
         Result<ResetEmailTemplateResponse>? resetTenantEmailTemplateResult = null)
         : IProductSurfaceWriteStore
@@ -3263,6 +3371,8 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
 
         public UpdateTenantReportBrandingRequest? UpdateTenantReportBrandingRequest { get; private set; }
 
+        public UpdateTenantAppBrandingRequest? UpdateTenantAppBrandingRequest { get; private set; }
+
         public int CallCount { get; private set; }
 
         public Task<Result<TenantSettingsReportBrandingResponse>> UpdateTenantReportBrandingAsync(
@@ -3279,6 +3389,22 @@ public sealed class ProductSurfaceEndpointTests(WebApplicationFactory<Program> f
             return Task.FromResult(updateTenantReportBrandingResult ??
                 Result.Failure<TenantSettingsReportBrandingResponse>(
                     Error.Validation("tenant_report_branding.invalid", "Report branding is invalid.")));
+        }
+
+        public Task<Result<TenantSettingsAppBrandingResponse>> UpdateTenantAppBrandingAsync(
+            Guid tenantId,
+            Guid actorUserId,
+            UpdateTenantAppBrandingRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            TenantId = tenantId;
+            ActorUserId = actorUserId;
+            UpdateTenantAppBrandingRequest = request;
+
+            return Task.FromResult(updateTenantAppBrandingResult ??
+                Result.Failure<TenantSettingsAppBrandingResponse>(
+                    Error.Validation("tenant_app_branding.invalid", "App branding is invalid.")));
         }
 
         public Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(

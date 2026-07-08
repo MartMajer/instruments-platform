@@ -22,7 +22,8 @@ namespace Platform.Infrastructure.ProductSurfaces;
 public sealed class ProductSurfaceReadStore(
     ApplicationDbContext db,
     ITenantDbScope tenantDbScope,
-    RespondentRuleResolver? respondentRuleResolver = null) : IProductSurfaceReadStore
+    RespondentRuleResolver? respondentRuleResolver = null,
+    Platform.Application.Features.Reports.IExportArtifactObjectStore? brandingAssetStore = null) : IProductSurfaceReadStore
 {
     private const string DirectoryImportStaleAttribute = "directory_import_stale";
     private const string DirectoryImportStaleAtAttribute = "directory_import_stale_at";
@@ -92,7 +93,11 @@ public sealed class ProductSurfaceReadStore(
                 tenant.ReportBrandingOrganizationLabel,
                 tenant.ReportBrandingReportTitle,
                 tenant.ReportBrandingAccentColorHex,
-                tenant.ReportBrandingLayoutVariant))
+                tenant.ReportBrandingLayoutVariant,
+                tenant.AppBrandingAccentColorHex,
+                tenant.AppBrandingLogoObjectKey,
+                tenant.AppBrandingLogoContentType,
+                tenant.AppBrandingUpdatedAt))
             .SingleOrDefaultAsync(cancellationToken);
 
         if (tenantSettings is null)
@@ -180,7 +185,52 @@ public sealed class ProductSurfaceReadStore(
                 exportArtifactCount),
             CreateTenantSettingsReportBranding(tenantSettings),
             TenantEmailTemplateSettingsFactory.Create(customEmailTemplates),
-            CreateTenantSettingsManagementLinks()));
+            CreateTenantSettingsManagementLinks())
+        {
+            AppBranding = CreateTenantSettingsAppBranding(tenantSettings)
+        });
+    }
+
+    public async Task<Result<TenantAppBrandingLogoAsset>> GetTenantAppBrandingLogoAsync(
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await tenantDbScope.BeginTransactionAsync(
+            tenantId,
+            cancellationToken: cancellationToken);
+
+        var logo = await db.Tenants
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantId && tenant.DeletedAt == null)
+            .Select(tenant => new
+            {
+                tenant.AppBrandingLogoObjectKey,
+                tenant.AppBrandingLogoContentType
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        if (logo?.AppBrandingLogoObjectKey is null ||
+            string.IsNullOrWhiteSpace(logo.AppBrandingLogoContentType))
+        {
+            return Result.Failure<TenantAppBrandingLogoAsset>(
+                Error.NotFound("app_branding_logo.not_found", "No logo has been set for this workspace."));
+        }
+
+        if (brandingAssetStore is null)
+        {
+            return Result.Failure<TenantAppBrandingLogoAsset>(
+                Error.Conflict("app_branding_logo.unavailable", "The branding asset store is unavailable."));
+        }
+
+        var bytes = await brandingAssetStore.ReadAsync(logo.AppBrandingLogoObjectKey, cancellationToken);
+        if (bytes.IsFailure)
+        {
+            return Result.Failure<TenantAppBrandingLogoAsset>(bytes.Error);
+        }
+
+        return Result.Success(new TenantAppBrandingLogoAsset(bytes.Value, logo.AppBrandingLogoContentType));
     }
 
     public async Task<ExportArtifactLibraryResponse> ListExportArtifactsAsync(
@@ -3193,13 +3243,28 @@ public sealed class ProductSurfaceReadStore(
             : Tenant.DefaultReportBrandingLayoutVariant;
     }
 
+    private static TenantSettingsAppBrandingResponse CreateTenantSettingsAppBranding(TenantSettingsTenantRow tenant)
+    {
+        return TenantAppBrandingResponseFactory.Create(
+            tenant.ReportBrandingOrganizationLabel,
+            tenant.TenantName,
+            tenant.AppBrandingAccentColorHex,
+            tenant.AppBrandingLogoObjectKey,
+            tenant.AppBrandingLogoContentType,
+            tenant.AppBrandingUpdatedAt);
+    }
+
     private sealed record TenantSettingsTenantRow(
         TenantSettingsProfileResponse Profile,
         string TenantName,
         string? ReportBrandingOrganizationLabel,
         string? ReportBrandingReportTitle,
         string? ReportBrandingAccentColorHex,
-        string? ReportBrandingLayoutVariant);
+        string? ReportBrandingLayoutVariant,
+        string? AppBrandingAccentColorHex,
+        string? AppBrandingLogoObjectKey,
+        string? AppBrandingLogoContentType,
+        DateTimeOffset? AppBrandingUpdatedAt);
 
     private async Task<CampaignSeriesListItemResponse[]> LoadSeriesListItemsAsync(
         int? take,

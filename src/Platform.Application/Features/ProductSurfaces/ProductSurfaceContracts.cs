@@ -56,7 +56,57 @@ public sealed record TenantSettingsWorkspaceResponse(
     IReadOnlyList<TenantSettingsManagementLinkResponse> ManagementLinks)
 {
     public IReadOnlyList<string> SupportedLocales { get; init; } = TenantEmailTemplateSettingsFactory.SupportedLocales;
+
+    public TenantSettingsAppBrandingResponse AppBranding { get; init; } = TenantSettingsAppBrandingResponse.Empty;
 }
+
+/// <summary>
+/// The authenticated view of the tenant's respondent/app-shell branding. Carries
+/// both the raw accent the tenant picked and the contrast-guarded accent that is
+/// actually applied, so the Settings preview can show the picker at their choice
+/// and the mock at the legible result. The logo bytes are not embedded here —
+/// the editor loads them from <c>GET /tenant-settings/app-branding/logo</c>.
+/// </summary>
+public sealed record TenantSettingsAppBrandingResponse(
+    string OrgLabel,
+    string? AccentColorHex,
+    string? EffectiveAccentColorHex,
+    bool HasLogo,
+    string? LogoContentType,
+    string DefaultAccentColorHex,
+    IReadOnlyList<string> AllowedLogoContentTypes,
+    int MaxLogoBytes,
+    int MaxLogoDimension,
+    DateTimeOffset? UpdatedAt)
+{
+    public static TenantSettingsAppBrandingResponse Empty { get; } = new(
+        OrgLabel: string.Empty,
+        AccentColorHex: null,
+        EffectiveAccentColorHex: null,
+        HasLogo: false,
+        LogoContentType: null,
+        DefaultAccentColorHex: Platform.Domain.Tenancy.Tenant.DefaultAppBrandingAccentColorHex,
+        AllowedLogoContentTypes: Platform.Domain.Tenancy.Tenant.AppBrandingAllowedLogoContentTypes,
+        MaxLogoBytes: TenantAppBrandingLogo.MaxBytes,
+        MaxLogoDimension: TenantAppBrandingLogo.MaxDimension,
+        UpdatedAt: null);
+}
+
+public sealed record UpdateTenantAppBrandingRequest(
+    string AccentColorHex,
+    string? LogoObjectKey = null,
+    string? LogoContentType = null);
+
+public sealed record TenantAppBrandingLogoUploadResponse(
+    string LogoObjectKey,
+    string LogoContentType,
+    int Width,
+    int Height,
+    int ByteSize);
+
+public sealed record TenantAppBrandingLogoAsset(
+    byte[] Content,
+    string ContentType);
 
 public sealed record TenantSettingsProfileResponse(
     Guid TenantId,

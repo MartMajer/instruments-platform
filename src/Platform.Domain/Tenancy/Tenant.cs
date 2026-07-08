@@ -9,6 +9,22 @@ public sealed class Tenant
     public const string DefaultReportBrandingAccentColorHex = "#2563eb";
     public const string DefaultReportBrandingLayoutVariant = "standard";
 
+    // App-level (respondent + shell) branding — ADR-0017's typed-token model
+    // extended to the product surface. Distinct columns from report branding so
+    // the two stay independent (a report reskin never touches the survey chrome).
+    public const int AppBrandingAccentColorHexLength = 7;
+    public const int AppBrandingLogoObjectKeyMaxLength = 512;
+    public const int AppBrandingLogoContentTypeMaxLength = 128;
+
+    // Suggested starting accent for the Settings picker when a tenant has none
+    // set — the platform "stain" identity color the runner falls back to.
+    public const string DefaultAppBrandingAccentColorHex = "#4530a6";
+
+    // Allow-list for platform-hosted logos. No SVG in v1: SVG can carry script,
+    // so it needs sanitization/rasterization before it can join this list.
+    public static readonly IReadOnlyList<string> AppBrandingAllowedLogoContentTypes =
+        ["image/png", "image/jpeg", "image/webp"];
+
     private Tenant()
     {
     }
@@ -40,6 +56,16 @@ public sealed class Tenant
     public string? ReportBrandingLayoutVariant { get; private set; }
 
     public DateTimeOffset? ReportBrandingUpdatedAt { get; private set; }
+
+    public string? AppBrandingAccentColorHex { get; private set; }
+
+    public string? AppBrandingLogoObjectKey { get; private set; }
+
+    public string? AppBrandingLogoContentType { get; private set; }
+
+    public DateTimeOffset? AppBrandingUpdatedAt { get; private set; }
+
+    public Guid? AppBrandingUpdatedBy { get; private set; }
 
     public string Region { get; private set; } = "eu";
 
@@ -74,6 +100,52 @@ public sealed class Tenant
         ReportBrandingLayoutVariant = NormalizeLayoutVariant(layoutVariant);
         ReportBrandingUpdatedAt = updatedAt;
         UpdatedAt = updatedAt;
+    }
+
+    /// <summary>
+    /// Set the respondent/app-shell branding tokens. Accent is a strict hex; the
+    /// logo (nullable) is a platform-hosted object key + an allow-listed content
+    /// type. Passing a blank object key clears the logo. The org label is not a
+    /// v1 app-branding token — it is reused from the report-branding label / name.
+    /// </summary>
+    public void UpdateAppBranding(
+        string accentColorHex,
+        string? logoObjectKey,
+        string? logoContentType,
+        Guid updatedBy,
+        DateTimeOffset updatedAt)
+    {
+        AppBrandingAccentColorHex = NormalizeAppBrandingAccentColorHex(accentColorHex);
+
+        if (string.IsNullOrWhiteSpace(logoObjectKey))
+        {
+            AppBrandingLogoObjectKey = null;
+            AppBrandingLogoContentType = null;
+        }
+        else
+        {
+            AppBrandingLogoObjectKey = RequiredText(
+                logoObjectKey,
+                AppBrandingLogoObjectKeyMaxLength,
+                "App branding logo object key is required.",
+                "App branding logo object key is too long.");
+            AppBrandingLogoContentType = NormalizeAppBrandingLogoContentType(logoContentType);
+        }
+
+        AppBrandingUpdatedBy = updatedBy;
+        AppBrandingUpdatedAt = updatedAt;
+        UpdatedAt = updatedAt;
+    }
+
+    public static bool IsAppBrandingAccentColorHex(string? value)
+    {
+        return IsReportBrandingAccentColorHex(value);
+    }
+
+    public static bool IsAppBrandingLogoContentType(string? value)
+    {
+        var candidate = value?.Trim().ToLowerInvariant();
+        return candidate is not null && AppBrandingAllowedLogoContentTypes.Contains(candidate);
     }
 
     public static bool IsReportBrandingLayoutVariantKnown(string? value)
@@ -131,6 +203,28 @@ public sealed class Tenant
         if (!IsReportBrandingAccentColorHex(normalized))
         {
             throw new ArgumentException("Report branding accent color must be a hex color token.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeAppBrandingAccentColorHex(string value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        if (!IsAppBrandingAccentColorHex(normalized))
+        {
+            throw new ArgumentException("App branding accent color must be a hex color token.", nameof(value));
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeAppBrandingLogoContentType(string? value)
+    {
+        var normalized = (value ?? string.Empty).Trim().ToLowerInvariant();
+        if (!IsAppBrandingLogoContentType(normalized))
+        {
+            throw new ArgumentException("App branding logo content type is not supported.", nameof(value));
         }
 
         return normalized;

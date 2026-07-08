@@ -34,7 +34,20 @@ public sealed record OpenLinkEntryResponse(
     bool RequiresParticipantCode,
     string DefaultLocale,
     ConsentDocumentResponse ConsentDocument,
-    IReadOnlyList<RespondentQuestionResponse> Questions);
+    IReadOnlyList<RespondentQuestionResponse> Questions,
+    RespondentBrandingResponse? Branding = null);
+
+/// <summary>
+/// The tenant's typed branding as a respondent sees it, resolved server-side
+/// from the link/invitation token → campaign → series → tenant. The accent is
+/// already contrast-guarded; the logo is embedded as a self-contained data URI
+/// so there is no logo URL a respondent could use to probe another tenant. Null
+/// when the tenant has set neither an accent nor a logo.
+/// </summary>
+public sealed record RespondentBrandingResponse(
+    string OrgLabel,
+    string? AccentColorHex,
+    string? LogoDataUri);
 
 public sealed record IdentifiedQueueResponse(
     Guid CampaignId,
@@ -46,7 +59,8 @@ public sealed record IdentifiedQueueResponse(
     ConsentDocumentResponse ConsentDocument,
     IReadOnlyList<RespondentQuestionResponse> Questions,
     IdentifiedQueueSubjectResponse Respondent,
-    IReadOnlyList<IdentifiedQueueAssignmentResponse> Assignments);
+    IReadOnlyList<IdentifiedQueueAssignmentResponse> Assignments,
+    RespondentBrandingResponse? Branding = null);
 
 public sealed record IdentifiedQueueSubjectResponse(
     Guid Id,

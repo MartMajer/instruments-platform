@@ -38,6 +38,24 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
             .WithName("UpdateTenantReportBranding")
             .WithTags("ProductSurfaces");
 
+        app.MapPut("/tenant-settings/app-branding", UpdateTenantAppBranding)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UpdateTenantAppBranding")
+            .WithTags("ProductSurfaces");
+
+        app.MapPost("/tenant-settings/app-branding/logo", UploadTenantAppBrandingLogo)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
+            .WithName("UploadTenantAppBrandingLogo")
+            .WithTags("ProductSurfaces");
+
+        app.MapGet("/tenant-settings/app-branding/logo", GetTenantAppBrandingLogo)
+            .RequireTenantContext()
+            .RequireAuthorization(PlatformPolicies.TenantMember)
+            .WithName("GetTenantAppBrandingLogo")
+            .WithTags("ProductSurfaces");
+
         app.MapPut("/tenant-settings/email-templates/{templateCode}/{locale}", UpdateTenantEmailTemplate)
             .RequireTenantContext()
             .RequireAuthorization(PlatformPolicies.TenantMember, SetupManagePolicy)
@@ -319,6 +337,80 @@ public static class ProductSurfaceEndpointRouteBuilderExtensions
         var result = await sender.Send(new UpdateTenantReportBrandingCommand(request), cancellationToken);
 
         return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> UpdateTenantAppBranding(
+        UpdateTenantAppBrandingRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new UpdateTenantAppBrandingCommand(request), cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> UploadTenantAppBrandingLogo(
+        HttpRequest request,
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        // Raw-body upload (Content-Type: image/*) rather than multipart form, so
+        // it clears the app's cookie CSRF check without the minimal-API form
+        // antiforgery machinery. The body is bounded well under any DoS concern.
+        var read = await ReadBoundedBodyAsync(request, TenantAppBrandingLogo.MaxBytes, cancellationToken);
+        if (read.IsFailure)
+        {
+            return ProductSurfaceHttpResults.ToOk(read);
+        }
+
+        var result = await sender.Send(
+            new UploadTenantAppBrandingLogoCommand(request.ContentType, read.Value),
+            cancellationToken);
+
+        return ProductSurfaceHttpResults.ToOk(result);
+    }
+
+    private static async Task<IResult> GetTenantAppBrandingLogo(
+        ISender sender,
+        CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetTenantAppBrandingLogoQuery(), cancellationToken);
+        if (result.IsFailure)
+        {
+            return ProductSurfaceHttpResults.ToOk(result);
+        }
+
+        return Results.File(result.Value.Content, result.Value.ContentType);
+    }
+
+    private static async Task<Platform.SharedKernel.Result<byte[]>> ReadBoundedBodyAsync(
+        HttpRequest request,
+        int maxBytes,
+        CancellationToken cancellationToken)
+    {
+        if (request.ContentLength is > 0 and var declared && declared > maxBytes)
+        {
+            return Platform.SharedKernel.Result.Failure<byte[]>(Platform.SharedKernel.Error.Validation(
+                "app_branding_logo.too_large",
+                $"Logo exceeds the {maxBytes / 1024} KB limit."));
+        }
+
+        using var buffer = new MemoryStream();
+        var chunk = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = await request.Body.ReadAsync(chunk, cancellationToken)) > 0)
+        {
+            if (buffer.Length + bytesRead > maxBytes)
+            {
+                return Platform.SharedKernel.Result.Failure<byte[]>(Platform.SharedKernel.Error.Validation(
+                    "app_branding_logo.too_large",
+                    $"Logo exceeds the {maxBytes / 1024} KB limit."));
+            }
+
+            await buffer.WriteAsync(chunk.AsMemory(0, bytesRead), cancellationToken);
+        }
+
+        return Platform.SharedKernel.Result.Success(buffer.ToArray());
     }
 
     private static async Task<IResult> UpdateTenantEmailTemplate(

@@ -10,6 +10,12 @@ public interface IProductSurfaceWriteStore
         UpdateTenantReportBrandingRequest request,
         CancellationToken cancellationToken);
 
+    Task<Result<TenantSettingsAppBrandingResponse>> UpdateTenantAppBrandingAsync(
+        Guid tenantId,
+        Guid actorUserId,
+        UpdateTenantAppBrandingRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<CampaignSeriesRenameResponse>> RenameCampaignSeriesAsync(
         Guid tenantId,
         Guid campaignSeriesId,

@@ -177,6 +177,12 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 table.HasCheckConstraint(
                     "ck_tenant_report_branding_layout_variant",
                     "report_branding_layout_variant IS NULL OR report_branding_layout_variant IN ('standard','compact','compliance')");
+                table.HasCheckConstraint(
+                    "ck_tenant_app_branding_accent_color_hex",
+                    "app_branding_accent_color_hex IS NULL OR app_branding_accent_color_hex ~ '^#[0-9A-Fa-f]{6}$'");
+                table.HasCheckConstraint(
+                    "ck_tenant_app_branding_logo_content_type",
+                    "app_branding_logo_content_type IS NULL OR app_branding_logo_content_type IN ('image/png','image/jpeg','image/webp')");
             });
             builder.HasKey(tenant => tenant.Id).HasName("pk_tenant");
 
@@ -197,6 +203,19 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasMaxLength(Tenant.ReportBrandingLayoutVariantMaxLength);
             builder.Property(tenant => tenant.ReportBrandingUpdatedAt)
                 .HasColumnName("report_branding_updated_at");
+            builder.Property(tenant => tenant.AppBrandingAccentColorHex)
+                .HasColumnName("app_branding_accent_color_hex")
+                .HasMaxLength(Tenant.AppBrandingAccentColorHexLength);
+            builder.Property(tenant => tenant.AppBrandingLogoObjectKey)
+                .HasColumnName("app_branding_logo_object_key")
+                .HasMaxLength(Tenant.AppBrandingLogoObjectKeyMaxLength);
+            builder.Property(tenant => tenant.AppBrandingLogoContentType)
+                .HasColumnName("app_branding_logo_content_type")
+                .HasMaxLength(Tenant.AppBrandingLogoContentTypeMaxLength);
+            builder.Property(tenant => tenant.AppBrandingUpdatedAt)
+                .HasColumnName("app_branding_updated_at");
+            builder.Property(tenant => tenant.AppBrandingUpdatedBy)
+                .HasColumnName("app_branding_updated_by");
             builder.Property(tenant => tenant.Region).HasColumnName("region").HasMaxLength(32).IsRequired();
             builder.Property(tenant => tenant.DefaultLocale).HasColumnName("default_locale").HasMaxLength(16).IsRequired();
             builder.Property(tenant => tenant.Status).HasColumnName("status").HasMaxLength(32).IsRequired();

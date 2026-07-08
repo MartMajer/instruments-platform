@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Platform.Application.Features.ProductSurfaces;
 using Platform.Application.Features.Responses;
 using Platform.Domain.Campaigns;
 using Platform.Domain.Consent;
@@ -8,6 +10,8 @@ using Platform.Domain.Subjects;
 using Platform.Domain.Templates;
 using Platform.Domain.Tenancy;
 using Platform.Infrastructure.Data;
+using Platform.Infrastructure.ProductSurfaces;
+using Platform.Infrastructure.Reports;
 using Platform.Infrastructure.Responses;
 using Platform.Infrastructure.Tenancy;
 using Platform.IntegrationTests.Support;
@@ -230,6 +234,86 @@ public sealed class ResponseCaptureStoreTests : IAsyncLifetime
 
         var globalRow = Assert.Single(suppressions, s => s.Recipient == "global@example.test");
         Assert.Null(globalRow.CampaignSeriesId);
+    }
+
+    [DockerFact]
+    public async Task Respondent_branding_is_token_scoped_and_never_leaks_across_tenants()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+        var a = await SeedIdentifiedQueueAsync(options);
+        var b = await SeedIdentifiedQueueAsync(options);
+
+        var root = Path.Combine(Path.GetTempPath(), "vs-branding-test", Guid.NewGuid().ToString("N"));
+        var objectStore = new LocalExportArtifactObjectStore(
+            Options.Create(new ExportArtifactObjectStoreOptions { RootPath = root }));
+
+        byte[] logoA = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 1, 1, 1];
+        byte[] logoB = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 2, 2, 2, 2];
+        var keyA = $"tenant-branding/{a.TenantId:N}/logo-a.png";
+        var keyB = $"tenant-branding/{b.TenantId:N}/logo-b.png";
+        await objectStore.StoreAsync(keyA, logoA, CancellationToken.None);
+        await objectStore.StoreAsync(keyB, logoB, CancellationToken.None);
+
+        await using (var brandDb = new ApplicationDbContext(options))
+        {
+            var writeStore = new ProductSurfaceWriteStore(brandDb, new TenantDbScope(brandDb));
+            await writeStore.UpdateTenantAppBrandingAsync(
+                a.TenantId,
+                Guid.NewGuid(),
+                new UpdateTenantAppBrandingRequest("#2b5fd9", keyA, "image/png"),
+                CancellationToken.None);
+            await writeStore.UpdateTenantAppBrandingAsync(
+                b.TenantId,
+                Guid.NewGuid(),
+                new UpdateTenantAppBrandingRequest("#0e7a5f", keyB, "image/png"),
+                CancellationToken.None);
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var store = new ResponseCaptureStore(db, new TenantDbScope(db), brandingAssetStore: objectStore);
+
+        var brandedA = await store.GetIdentifiedQueueAsync(a.Token, CancellationToken.None);
+        var brandedB = await store.GetIdentifiedQueueAsync(b.Token, CancellationToken.None);
+
+        Assert.True(brandedA.IsSuccess);
+        Assert.True(brandedB.IsSuccess);
+
+        var dataUriA = $"data:image/png;base64,{Convert.ToBase64String(logoA)}";
+        var dataUriB = $"data:image/png;base64,{Convert.ToBase64String(logoB)}";
+
+        // Tenant A's token resolves only tenant A's accent and logo.
+        Assert.NotNull(brandedA.Value.Branding);
+        Assert.Equal("#2b5fd9", brandedA.Value.Branding!.AccentColorHex);
+        Assert.Equal(dataUriA, brandedA.Value.Branding.LogoDataUri);
+        Assert.NotEqual("#0e7a5f", brandedA.Value.Branding.AccentColorHex);
+        Assert.NotEqual(dataUriB, brandedA.Value.Branding.LogoDataUri);
+
+        // Tenant B's token resolves only tenant B's accent and logo.
+        Assert.NotNull(brandedB.Value.Branding);
+        Assert.Equal("#0e7a5f", brandedB.Value.Branding!.AccentColorHex);
+        Assert.Equal(dataUriB, brandedB.Value.Branding.LogoDataUri);
+        Assert.NotEqual("#2b5fd9", brandedB.Value.Branding.AccentColorHex);
+        Assert.NotEqual(dataUriA, brandedB.Value.Branding.LogoDataUri);
+
+        // Nothing in tenant A's payload carries tenant B's logo bytes.
+        var serializedA = JsonSerializer.Serialize(brandedA.Value);
+        Assert.DoesNotContain(Convert.ToBase64String(logoB), serializedA);
+    }
+
+    [DockerFact]
+    public async Task Respondent_branding_is_null_when_the_tenant_has_set_none()
+    {
+        var options = CreateOptions();
+        await PrepareDatabaseAsync(options);
+        var fixture = await SeedIdentifiedQueueAsync(options);
+        await using var db = new ApplicationDbContext(options);
+        var store = CreateStore(db);
+
+        var result = await store.GetIdentifiedQueueAsync(fixture.Token, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Branding);
     }
 
     public Task InitializeAsync()
