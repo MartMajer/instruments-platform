@@ -10,6 +10,7 @@
 		type ResponseSessionResponse
 	} from '$lib/api/setup';
 	import { api } from '$lib/core/client';
+	import { applyThemeVars, themeStyle } from '$lib/core/branding';
 	import { deserializeAnswer, isAnswered, serializeAnswer } from '$lib/respondent/answers';
 	import { respondentCopy, respondentLocale } from '$lib/respondent/copy';
 	import QuestionField from '$lib/respondent/QuestionField.svelte';
@@ -42,38 +43,26 @@
 	const locale = $derived(respondentLocale(entry?.defaultLocale ?? 'en', localeOverride));
 	const copy = $derived(respondentCopy[locale]);
 
-	// Tenant branding — typed tokens only. The accent arrives already
-	// contrast-guarded from the backend; we still hard-gate it to a validated
-	// hex before it touches CSS, so nothing but a scalar can reach a style rule
-	// (the ADR-0017 "no tenant-authored CSS" boundary). The logo is a
+	// Tenant branding — typed tokens only. The palette arrives already
+	// contrast-guarded from the backend; themeStyle() hard-gates every value to a
+	// validated hex before it touches CSS, so nothing but scalars can reach a
+	// style rule (the ADR-0017 "no tenant-authored CSS" boundary). The logo is a
 	// platform-served data URI; we only render image data URIs.
 	const branding = $derived(entry?.branding ?? null);
-	const brandAccent = $derived(
-		branding?.accentColorHex && /^#[0-9a-fA-F]{6}$/.test(branding.accentColorHex)
-			? branding.accentColorHex
-			: null
-	);
+	const brandStyle = $derived(themeStyle(branding?.theme));
 	const brandLogo = $derived(
 		branding?.logoDataUri && branding.logoDataUri.startsWith('data:image/')
 			? branding.logoDataUri
 			: null
-	);
-	// Map the single validated accent onto the runner's existing accent tokens so
-	// every accent-driven rule (buttons, ticks, kicker, selected state) follows.
-	const brandStyle = $derived(
-		brandAccent
-			? `--tenant-accent:${brandAccent};` +
-					`--color-stain:${brandAccent};` +
-					`--color-stain-wash:color-mix(in oklab, ${brandAccent} 12%, white);` +
-					`--color-stain-deep:color-mix(in oklab, ${brandAccent} 78%, black);` +
-					`--color-stain-line:color-mix(in oklab, ${brandAccent} 32%, white);`
-			: undefined
 	);
 
 	// screen readers must know the survey's language to pronounce it
 	$effect(() => {
 		document.documentElement.lang = locale.startsWith('hr') ? 'hr' : 'en';
 	});
+
+	// Theme the whole survey document (full-bleed background included).
+	$effect(() => applyThemeVars(document.documentElement, brandStyle));
 
 	const questions = $derived(
 		(entry?.questions ?? []).slice().sort((a, b) => a.ordinal - b.ordinal)
@@ -309,7 +298,7 @@
 
 <svelte:head><title>{entry?.name ?? 'Survey'} — ValidatedScale</title></svelte:head>
 
-<div class="canvas" style={brandStyle}>
+<div class="canvas">
 	{#if branding && (brandLogo || branding.orgLabel)}
 		<header class="brand">
 			{#if brandLogo}
@@ -795,8 +784,8 @@
 		top: 0.8rem;
 		width: 0.9rem;
 		height: 1.1rem;
-		border-right: 3px solid #fff;
-		border-bottom: 3px solid #fff;
+		border-right: 3px solid var(--tenant-on-accent, #fff);
+		border-bottom: 3px solid var(--tenant-on-accent, #fff);
 		transform: rotate(40deg);
 	}
 

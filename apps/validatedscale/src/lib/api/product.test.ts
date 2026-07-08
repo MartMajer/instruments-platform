@@ -1740,7 +1740,31 @@ const sampleTenantSettings: TenantSettingsWorkspaceResponse = {
 		allowedLogoContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
 		maxLogoBytes: 262144,
 		maxLogoDimension: 1024,
-		updatedAt: null
+		updatedAt: null,
+		topbarColorHex: null,
+		backgroundColorHex: null,
+		surfaceColorHex: null,
+		inkColorHex: null,
+		theme: {
+			accent: '#4530a6',
+			onAccent: '#ffffff',
+			accentOnTopbar: '#9c8bf5',
+			topbar: '#151c25',
+			topbarInk: '#ffffff',
+			background: '#f2f4f8',
+			surface: '#ffffff',
+			ink: '#151c25'
+		},
+		defaults: {
+			accent: '#4530a6',
+			onAccent: '#ffffff',
+			accentOnTopbar: '#9c8bf5',
+			topbar: '#151c25',
+			topbarInk: '#ffffff',
+			background: '#f2f4f8',
+			surface: '#ffffff',
+			ink: '#151c25'
+		}
 	},
 	managementLinks: [
 		{

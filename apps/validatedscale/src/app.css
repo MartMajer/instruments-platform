@@ -91,7 +91,7 @@
 
 	::selection {
 		background: var(--color-stain);
-		color: #fff;
+		color: var(--tenant-on-accent, #fff);
 	}
 
 	:focus-visible {
@@ -192,7 +192,9 @@
 
 	.btn-ink {
 		background: var(--color-ink);
-		color: #fff;
+		/* Ink is a background here; pair its label with the surface so a light-ink
+		   (dark) theme keeps the button legible. The resolver guards ink↔surface. */
+		color: var(--color-surface, #fff);
 	}
 
 	.btn-ink:hover {
@@ -211,7 +213,7 @@
 
 	.btn-stain {
 		background: var(--color-stain);
-		color: #fff;
+		color: var(--tenant-on-accent, #fff);
 	}
 
 	.btn-stain:hover {

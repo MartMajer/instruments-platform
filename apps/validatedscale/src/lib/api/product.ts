@@ -1,4 +1,5 @@
 import type { ApiClient } from './client';
+import type { AppBrandingTheme } from '$lib/core/branding';
 
 export type WorkspaceOverviewResponse = {
 	tenantId: string;
@@ -68,12 +69,22 @@ export type TenantSettingsAppBrandingResponse = {
 	maxLogoBytes: number;
 	maxLogoDimension: number;
 	updatedAt: string | null;
+	topbarColorHex: string | null;
+	backgroundColorHex: string | null;
+	surfaceColorHex: string | null;
+	inkColorHex: string | null;
+	theme: AppBrandingTheme;
+	defaults: AppBrandingTheme;
 };
 
 export type UpdateTenantAppBrandingRequest = {
 	accentColorHex: string;
 	logoObjectKey?: string | null;
 	logoContentType?: string | null;
+	topbarColorHex?: string | null;
+	backgroundColorHex?: string | null;
+	surfaceColorHex?: string | null;
+	inkColorHex?: string | null;
 };
 
 export type TenantAppBrandingLogoUploadResponse = {

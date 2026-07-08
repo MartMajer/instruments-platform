@@ -1,4 +1,5 @@
 import type { ApiClient } from './client';
+import type { AppBrandingTheme } from '$lib/core/branding';
 
 export type SetupIdResponse = {
 	id: string;
@@ -644,6 +645,7 @@ export type RespondentBrandingResponse = {
 	orgLabel: string;
 	accentColorHex: string | null;
 	logoDataUri: string | null;
+	theme?: AppBrandingTheme | null;
 };
 
 export type OpenLinkEntryResponse = {

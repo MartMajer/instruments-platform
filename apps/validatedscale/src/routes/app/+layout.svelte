@@ -10,17 +10,17 @@
 	} from '$lib/api/governance';
 	import { createProductApi } from '$lib/api/product';
 	import { api } from '$lib/core/client';
-	import { isHexColor } from '$lib/core/contrast';
+	import { applyThemeVars, themeStyle } from '$lib/core/branding';
 	import { formatDateTime, humanizeToken } from '$lib/core/format';
 
 	let { children } = $props();
 
 	let menuOpen = $state(false);
 
-	// Tenant app-shell branding — the researcher app takes the tenant's accent
-	// and logo. The backend hands back an already contrast-guarded accent; we map
-	// it onto the shell's accent tokens (a lightened variant for the dark topbar),
-	// so the topbar underline, primary buttons and accent chrome all follow it.
+	// Tenant app-shell branding — the researcher app takes the tenant's full
+	// palette (topbar, background, surface, text, accent) and logo. The backend
+	// hands back an already contrast-guarded theme; themeStyle() maps it onto the
+	// platform CSS custom properties (validated hex only — no tenant CSS).
 	const product = createProductApi(api());
 	let brandStyle = $state('');
 	let brandLogoUrl = $state<string | null>(null);
@@ -30,15 +30,9 @@
 		try {
 			const branding = await product.getTenantAppBranding();
 			brandOrgLabel = branding.orgLabel;
-			const accent = branding.effectiveAccentColorHex;
-			if (accent && isHexColor(accent)) {
-				brandStyle =
-					`--tenant-accent:${accent};` +
-					`--color-stain:${accent};` +
-					`--color-stain-wash:color-mix(in oklab, ${accent} 12%, white);` +
-					`--color-stain-deep:color-mix(in oklab, ${accent} 78%, black);` +
-					`--color-stain-line:color-mix(in oklab, ${accent} 30%, white);` +
-					`--color-stain-bright:color-mix(in oklab, ${accent} 55%, white);`;
+			if (branding.accentColorHex || branding.topbarColorHex || branding.backgroundColorHex ||
+				branding.surfaceColorHex || branding.inkColorHex) {
+				brandStyle = themeStyle(branding.theme);
 			}
 			if (branding.hasLogo) {
 				const blob = await product.getTenantAppBrandingLogoBlob();
@@ -48,6 +42,10 @@
 			// No branding is a normal state; the shell keeps its own identity.
 		}
 	}
+
+	// Theme the whole /app document (full-bleed background included), lifting the
+	// tokens cleanly when the shell unmounts.
+	$effect(() => applyThemeVars(document.documentElement, brandStyle));
 
 	const nav = [
 		{ href: '/app', label: 'Today', exact: true },
@@ -132,11 +130,12 @@
 <DialogHost />
 
 {#if session.status === 'authenticated'}
-	<div class="app" style={brandStyle}>
+	<div class="app">
 		<header class="topbar">
 			<a class="brand" href="/app">
 				{#if brandLogoUrl}
 					<img src={brandLogoUrl} alt={brandOrgLabel} class="brand-logo tenant" />
+					<span class="cobrand" title={t('Powered by ValidatedScale')}>ValidatedScale</span>
 				{:else}
 					<img src="/logo.svg" alt="" class="brand-logo" />
 					<span class="eyebrow brand-word">ValidatedScale</span>
@@ -252,8 +251,8 @@
 		gap: 2rem;
 		height: 3.25rem;
 		padding: 0 1.5rem;
-		background: var(--color-ink);
-		color: #fff;
+		background: var(--color-topbar, var(--color-ink));
+		color: var(--color-topbar-ink, #fff);
 	}
 
 	.brand {
@@ -279,8 +278,22 @@
 		object-fit: contain;
 	}
 
+	/* Co-brand: a small retained ValidatedScale attribution beside the tenant logo. */
+	.cobrand {
+		font-family: var(--font-ui);
+		font-variation-settings: 'wdth' 115;
+		font-size: 0.625rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: color-mix(in oklab, var(--color-topbar-ink, #fff) 52%, transparent);
+		padding-left: 0.5rem;
+		margin-left: 0.125rem;
+		border-left: 1px solid color-mix(in oklab, var(--color-topbar-ink, #fff) 24%, transparent);
+	}
+
 	.brand-word {
-		color: #fff;
+		color: var(--color-topbar-ink, #fff);
 		font-size: 0.8125rem;
 	}
 
@@ -296,18 +309,18 @@
 		padding: 0 0.875rem;
 		font-size: 0.875rem;
 		font-weight: 520;
-		color: rgb(255 255 255 / 0.72);
+		color: color-mix(in oklab, var(--color-topbar-ink, #fff) 72%, transparent);
 		text-decoration: none;
 		border-bottom: 2px solid transparent;
 		border-top: 2px solid transparent;
 	}
 
 	.topbar nav a:hover {
-		color: #fff;
+		color: var(--color-topbar-ink, #fff);
 	}
 
 	.topbar nav a.active {
-		color: #fff;
+		color: var(--color-topbar-ink, #fff);
 		border-bottom-color: var(--color-stain-bright);
 	}
 
@@ -336,7 +349,7 @@
 		font-size: 0.6875rem;
 		font-weight: 600;
 		background: var(--color-stain);
-		color: #fff;
+		color: var(--tenant-on-accent, #fff);
 		border-radius: 999px;
 		padding: 0.05rem 0.375rem;
 	}
