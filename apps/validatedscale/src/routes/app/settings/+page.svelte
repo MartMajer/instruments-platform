@@ -8,7 +8,8 @@
 	} from '$lib/api/product';
 	import { ApiError } from '$lib/api/client';
 	import { api } from '$lib/core/client';
-	import { ensureLegibleOnWhite, isHexColor } from '$lib/core/contrast';
+	import { DEFAULT_BRANDING_TOKENS, resolveTheme, themeStyle } from '$lib/core/branding';
+	import { isHexColor } from '$lib/core/contrast';
 	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -27,9 +28,12 @@
 	let brandBusy = $state(false);
 	let brandNote = $state<string | null>(null);
 
-	// Respondent (app) branding
-	let appAccent = $state('#4530a6');
-	let appAccentDefault = $state('#4530a6');
+	// Respondent + app-shell branding — the full surface palette.
+	let appAccent = $state<string>(DEFAULT_BRANDING_TOKENS.accent);
+	let appTopbar = $state<string>(DEFAULT_BRANDING_TOKENS.topbar);
+	let appBackground = $state<string>(DEFAULT_BRANDING_TOKENS.background);
+	let appSurface = $state<string>(DEFAULT_BRANDING_TOKENS.surface);
+	let appInk = $state<string>(DEFAULT_BRANDING_TOKENS.ink);
 	let appOrgLabel = $state('');
 	let appLogoObjectKey = $state<string | null>(null);
 	let appLogoContentType = $state<string | null>(null);
@@ -44,19 +48,29 @@
 	let appNote = $state<string | null>(null);
 	let appError = $state<string | null>(null);
 
-	// Live preview: the accent the runner would actually apply (contrast-guarded).
-	const appPreviewAccent = $derived(
-		isHexColor(appAccent) ? ensureLegibleOnWhite(appAccent) : appAccentDefault
+	// Live preview: the exact palette respondents and the shell would receive,
+	// resolved (contrast-guarded) with the same rules as the backend.
+	const appPreviewTheme = $derived(
+		resolveTheme({
+			accent: appAccent,
+			topbar: appTopbar,
+			background: appBackground,
+			surface: appSurface,
+			ink: appInk
+		})
 	);
+	const appPreviewStyle = $derived(themeStyle(appPreviewTheme));
 	const appAccentAdjusted = $derived(
-		isHexColor(appAccent) && appPreviewAccent.toLowerCase() !== appAccent.toLowerCase()
+		isHexColor(appAccent) && appPreviewTheme.accent.toLowerCase() !== appAccent.toLowerCase()
 	);
-	const appPreviewStyle = $derived(
-		`--tenant-accent:${appPreviewAccent};` +
-			`--color-stain:${appPreviewAccent};` +
-			`--color-stain-wash:color-mix(in oklab, ${appPreviewAccent} 12%, white);` +
-			`--color-stain-deep:color-mix(in oklab, ${appPreviewAccent} 78%, black);`
-	);
+
+	function resetAppColors() {
+		appAccent = DEFAULT_BRANDING_TOKENS.accent;
+		appTopbar = DEFAULT_BRANDING_TOKENS.topbar;
+		appBackground = DEFAULT_BRANDING_TOKENS.background;
+		appSurface = DEFAULT_BRANDING_TOKENS.surface;
+		appInk = DEFAULT_BRANDING_TOKENS.ink;
+	}
 
 	function revokeLogoPreview() {
 		if (appLogoPreview?.startsWith('blob:')) {
@@ -87,8 +101,11 @@
 			brandLayout = settingsResponse.reportBranding.layoutVariant;
 
 			const app = settingsResponse.appBranding;
-			appAccentDefault = app.defaultAccentColorHex;
-			appAccent = app.accentColorHex ?? app.defaultAccentColorHex;
+			appAccent = app.accentColorHex ?? app.defaults.accent;
+			appTopbar = app.topbarColorHex ?? app.defaults.topbar;
+			appBackground = app.backgroundColorHex ?? app.defaults.background;
+			appSurface = app.surfaceColorHex ?? app.defaults.surface;
+			appInk = app.inkColorHex ?? app.defaults.ink;
 			appOrgLabel = app.orgLabel;
 			appLogoObjectKey = app.logoObjectKey;
 			appLogoContentType = app.logoContentType;
@@ -211,7 +228,11 @@
 			const saved = await product.updateTenantAppBranding({
 				accentColorHex: appAccent,
 				logoObjectKey,
-				logoContentType
+				logoContentType,
+				topbarColorHex: appTopbar,
+				backgroundColorHex: appBackground,
+				surfaceColorHex: appSurface,
+				inkColorHex: appInk
 			});
 
 			appLogoObjectKey = saved.logoObjectKey;
@@ -219,7 +240,7 @@
 			appLogoFile = null;
 			appLogoRemoved = false;
 			appLogoDirty = false;
-			appNote = t('Saved. Respondents now see this branding.');
+			appNote = t('Saved. Your app and respondents now use this branding.');
 		} catch (error) {
 			appError = appBrandingErrorMessage(error);
 		} finally {
@@ -296,19 +317,10 @@
 				</form>
 			</section>
 
-			<section class="panel block">
-				<h2 class="eyebrow">{t('Respondent branding')}</h2>
-				<p class="brand-hint">{t('Your logo and accent appear in the survey your respondents answer.')}</p>
+			<section class="panel block app-branding">
+				<h2 class="eyebrow">{t('App & respondent branding')}</h2>
+				<p class="brand-hint">{t('Your logo and colors theme the researcher app and the survey your respondents answer.')}</p>
 				<form class="brand-form" onsubmit={saveAppBranding}>
-					<label class="eyebrow" for="a-accent">{t('Accent')}</label>
-					<div class="accent-row">
-						<input id="a-accent" type="color" bind:value={appAccent} aria-label="Respondent accent color" />
-						<span class="datum">{appAccent}</span>
-						{#if appAccentAdjusted}
-							<span class="adjust-note" title={t('Adjusted for legibility (WCAG AA)')}>→ {appPreviewAccent}</span>
-						{/if}
-					</div>
-
 					<label class="eyebrow" for="a-logo">{t('Logo')}</label>
 					<input
 						id="a-logo"
@@ -325,26 +337,76 @@
 						</button>
 					{/if}
 
+					<div class="swatches">
+						<label class="swatch">
+							<span class="eyebrow">{t('Accent')}</span>
+							<span class="swatch-row">
+								<input type="color" bind:value={appAccent} aria-label="Accent color" />
+								<span class="datum">{appAccent}</span>
+							</span>
+							{#if appAccentAdjusted}
+								<span class="adjust-note" title={t('Adjusted for legibility (WCAG AA)')}>→ {appPreviewTheme.accent}</span>
+							{/if}
+						</label>
+						<label class="swatch">
+							<span class="eyebrow">{t('Topbar')}</span>
+							<span class="swatch-row">
+								<input type="color" bind:value={appTopbar} aria-label="Topbar color" />
+								<span class="datum">{appTopbar}</span>
+							</span>
+						</label>
+						<label class="swatch">
+							<span class="eyebrow">{t('Background')}</span>
+							<span class="swatch-row">
+								<input type="color" bind:value={appBackground} aria-label="Background color" />
+								<span class="datum">{appBackground}</span>
+							</span>
+						</label>
+						<label class="swatch">
+							<span class="eyebrow">{t('Surface')}</span>
+							<span class="swatch-row">
+								<input type="color" bind:value={appSurface} aria-label="Surface color" />
+								<span class="datum">{appSurface}</span>
+							</span>
+						</label>
+						<label class="swatch">
+							<span class="eyebrow">{t('Text')}</span>
+							<span class="swatch-row">
+								<input type="color" bind:value={appInk} aria-label="Text color" />
+								<span class="datum">{appInk}</span>
+							</span>
+						</label>
+					</div>
+					<button type="button" class="btn btn-ghost tiny" onclick={resetAppColors}>
+						{t('Reset colors')}
+					</button>
+
 					<div class="preview" style={appPreviewStyle}>
-						<span class="preview-label eyebrow">{t('Respondent preview')}</span>
-						<div class="preview-card">
-							<div class="preview-brandhead">
+						<span class="preview-label eyebrow">{t('Live preview')}</span>
+						<div class="preview-shell">
+							<div class="preview-topbar">
 								{#if appLogoPreview}
 									<img class="preview-logo" src={appLogoPreview} alt={appOrgLabel} />
 								{:else}
-									<span class="preview-org">{appOrgLabel}</span>
+									<span class="preview-org">{appOrgLabel || 'ValidatedScale'}</span>
 								{/if}
+								<span class="preview-nav active">{t('Today')}</span>
+								<span class="preview-nav">{t('Studies')}</span>
 							</div>
-							<p class="preview-kicker eyebrow">{t('You are invited to take part in')}</p>
-							<p class="preview-title">{appOrgLabel || t('Your study')}</p>
-							<button class="btn btn-stain preview-begin" type="button" tabindex="-1">{t('Begin')}</button>
+							<div class="preview-body">
+								<div class="preview-card">
+									<p class="preview-kicker eyebrow">{t('You are invited to take part in')}</p>
+									<p class="preview-title">{appOrgLabel || t('Your study')}</p>
+									<button class="btn btn-stain preview-begin" type="button" tabindex="-1">{t('Begin')}</button>
+								</div>
+							</div>
 						</div>
 					</div>
 
 					{#if appError}<p class="error-note" role="alert">{appError}</p>{/if}
 					{#if appNote}<p class="note" role="status">{appNote}</p>{/if}
 					<button class="btn btn-ink" type="submit" disabled={appBusy}>
-						{appBusy ? t('Saving…') : t('Save respondent branding')}
+						{appBusy ? t('Saving…') : t('Save app branding')}
 					</button>
 				</form>
 			</section>
@@ -523,7 +585,42 @@
 		color: var(--color-danger);
 	}
 
-	/* Live respondent preview — mirrors the runner header + primary action. */
+	/* Colour swatches: one picker per surface. */
+	.swatches {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+		gap: 0.5rem 0.875rem;
+		margin-top: 0.25rem;
+	}
+
+	.swatch {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.swatch-row {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.swatch-row input[type='color'] {
+		width: 2.25rem;
+		height: 1.75rem;
+		padding: 0;
+		border: 1px solid var(--color-line-2);
+		border-radius: var(--radius-instrument);
+		background: none;
+	}
+
+	.swatch .datum {
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	/* Live preview — a miniature of the app shell + the survey card, themed with
+	   the resolved (guarded) palette applied to the .preview container. */
 	.preview {
 		margin-top: 0.75rem;
 	}
@@ -531,6 +628,42 @@
 	.preview-label {
 		display: block;
 		margin-bottom: 0.375rem;
+	}
+
+	.preview-shell {
+		border: 1px solid var(--color-line);
+		border-radius: var(--radius-instrument);
+		overflow: hidden;
+	}
+
+	.preview-topbar {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		height: 2.5rem;
+		padding: 0 0.875rem;
+		background: var(--color-topbar);
+		color: var(--color-topbar-ink);
+	}
+
+	.preview-nav {
+		font-size: 0.75rem;
+		font-weight: 520;
+		color: color-mix(in oklab, var(--color-topbar-ink) 70%, transparent);
+		border-bottom: 2px solid transparent;
+		height: 100%;
+		display: inline-flex;
+		align-items: center;
+	}
+
+	.preview-nav.active {
+		color: var(--color-topbar-ink);
+		border-bottom-color: var(--color-stain-bright);
+	}
+
+	.preview-body {
+		background: var(--color-ground);
+		padding: 1rem;
 	}
 
 	.preview-card {
@@ -541,26 +674,22 @@
 		background: var(--color-surface);
 	}
 
-	.preview-brandhead {
-		min-height: 1.75rem;
-		display: flex;
-		align-items: center;
-		padding-bottom: 0.5rem;
-		margin-bottom: 0.625rem;
-		border-bottom: 1px solid var(--color-line);
-	}
-
 	.preview-logo {
-		max-height: 1.75rem;
+		max-height: 1.5rem;
 		width: auto;
-		max-width: 9rem;
+		max-width: 8rem;
 		object-fit: contain;
 	}
 
 	.preview-org {
 		font-weight: 620;
 		font-size: 0.8125rem;
-		color: var(--color-stain);
+		color: var(--color-topbar-ink);
+		margin-right: auto;
+	}
+
+	.preview-topbar .preview-logo {
+		margin-right: auto;
 	}
 
 	.preview-kicker {

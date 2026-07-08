@@ -1,4 +1,4 @@
-import { isHexColor } from './contrast';
+import { ensureLegible, isHexColor, readableTextOn } from './contrast';
 
 /**
  * A fully-resolved, contrast-guarded tenant palette from the backend. Every value
@@ -15,6 +15,53 @@ export type AppBrandingTheme = {
 	surface: string;
 	ink: string;
 };
+
+/** The anchor colors a tenant may set; any missing one falls back to the default. */
+export type AppBrandingTokens = {
+	accent?: string | null;
+	topbar?: string | null;
+	background?: string | null;
+	surface?: string | null;
+	ink?: string | null;
+};
+
+export const DEFAULT_BRANDING_TOKENS = {
+	accent: '#4530a6',
+	topbar: '#151c25',
+	background: '#f2f4f8',
+	surface: '#ffffff',
+	ink: '#151c25'
+} as const;
+
+/**
+ * Client-side mirror of the backend AppBrandingTheme resolver, for the Settings
+ * live preview only (the backend stays the source of truth for what ships).
+ * Surfaces are honored as chosen; foregrounds are contrast-guarded against the
+ * surface they land on. Deterministic — same result as the server.
+ */
+export function resolveTheme(tokens: AppBrandingTokens): AppBrandingTheme {
+	const surface = coalesce(tokens.surface, DEFAULT_BRANDING_TOKENS.surface);
+	const background = coalesce(tokens.background, DEFAULT_BRANDING_TOKENS.background);
+	const topbar = coalesce(tokens.topbar, DEFAULT_BRANDING_TOKENS.topbar);
+	const accentRaw = coalesce(tokens.accent, DEFAULT_BRANDING_TOKENS.accent);
+	const inkRaw = coalesce(tokens.ink, DEFAULT_BRANDING_TOKENS.ink);
+	const accent = ensureLegible(accentRaw, surface);
+
+	return {
+		accent,
+		onAccent: readableTextOn(accent),
+		accentOnTopbar: ensureLegible(accentRaw, topbar),
+		topbar,
+		topbarInk: readableTextOn(topbar),
+		background,
+		surface,
+		ink: ensureLegible(inkRaw, surface)
+	};
+}
+
+function coalesce(value: string | null | undefined, fallback: string): string {
+	return isHexColor(value) ? value.trim().toLowerCase() : fallback;
+}
 
 /**
  * Builds the inline CSS-custom-property string that themes a surface. Every token

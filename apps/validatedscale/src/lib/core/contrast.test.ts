@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { contrastWithWhite, ensureLegibleOnWhite, isLegibleOnWhite } from './contrast';
+import {
+	contrastRatio,
+	contrastWithWhite,
+	ensureLegible,
+	ensureLegibleOnWhite,
+	isLegibleOnWhite,
+	readableTextOn
+} from './contrast';
 
 describe('contrast guard (client mirror of the backend)', () => {
 	it('leaves already-legible accents unchanged', () => {
@@ -31,5 +38,20 @@ describe('contrast guard (client mirror of the backend)', () => {
 	it('matches known WCAG contrast anchors', () => {
 		expect(contrastWithWhite('#000000')).toBeCloseTo(21, 0);
 		expect(contrastWithWhite('#ffffff')).toBeCloseTo(1, 1);
+	});
+
+	it('ensureLegible raises contrast against any background', () => {
+		for (const [fg, bg] of [
+			['#333333', '#111111'],
+			['#eeeeee', '#ffffff'],
+			['#1f4fd1', '#151c25']
+		]) {
+			expect(contrastRatio(ensureLegible(fg, bg), bg)).toBeGreaterThanOrEqual(4.5);
+		}
+	});
+
+	it('readableTextOn picks the higher-contrast option', () => {
+		expect(readableTextOn('#111111')).toBe('#ffffff');
+		expect(readableTextOn('#ffffff')).toBe('#141c25');
 	});
 });

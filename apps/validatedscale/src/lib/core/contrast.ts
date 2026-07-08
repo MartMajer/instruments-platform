@@ -12,9 +12,14 @@
 
 const MINIMUM_CONTRAST_RATIO = 4.5;
 const DARKEN_STEP = 0.96;
-const MAX_ITERATIONS = 128;
+const NUDGE_STEP = 0.04;
+const MAX_ITERATIONS = 160;
 
 type Rgb = [number, number, number];
+
+const WHITE: Rgb = [255, 255, 255];
+const BLACK: Rgb = [0, 0, 0];
+const DARK_INK: Rgb = [20, 28, 37]; // #141c25
 
 export function isHexColor(value: string | null | undefined): value is string {
 	return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.trim());
@@ -54,6 +59,48 @@ export function ensureLegibleOnWhite(hex: string): string {
 	}
 
 	return '#000000';
+}
+
+/** Contrast ratio between two hex colors (1–21). Mirrors the backend engine. */
+export function contrastRatio(aHex: string, bHex: string): number {
+	const a = parseHex(aHex);
+	const b = parseHex(bHex);
+	if (!a || !b) return 1;
+	return contrast(a, b);
+}
+
+/** Nudge a foreground toward black/white until it meets AA against a background. */
+export function ensureLegible(foregroundHex: string, backgroundHex: string): string {
+	const fg = parseHex(foregroundHex);
+	const bg = parseHex(backgroundHex);
+	if (!fg || !bg) return foregroundHex;
+	if (contrast(fg, bg) >= MINIMUM_CONTRAST_RATIO) return toHex(fg);
+
+	const target = contrast(BLACK, bg) >= contrast(WHITE, bg) ? BLACK : WHITE;
+	let current = fg;
+	for (let i = 0; i < MAX_ITERATIONS; i++) {
+		current = [
+			Math.round(current[0] + (target[0] - current[0]) * NUDGE_STEP),
+			Math.round(current[1] + (target[1] - current[1]) * NUDGE_STEP),
+			Math.round(current[2] + (target[2] - current[2]) * NUDGE_STEP)
+		];
+		if (contrast(current, bg) >= MINIMUM_CONTRAST_RATIO) return toHex(current);
+		if (current[0] === target[0] && current[1] === target[1] && current[2] === target[2]) break;
+	}
+	return toHex(target);
+}
+
+/** White or the app's dark ink, whichever reads better on the background. */
+export function readableTextOn(backgroundHex: string): string {
+	const bg = parseHex(backgroundHex);
+	if (!bg) return '#ffffff';
+	return contrast(WHITE, bg) >= contrast(DARK_INK, bg) ? '#ffffff' : toHex(DARK_INK);
+}
+
+function contrast(a: Rgb, b: Rgb): number {
+	const la = relativeLuminance(a);
+	const lb = relativeLuminance(b);
+	return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
 function relativeLuminanceContrast(rgb: Rgb): number {

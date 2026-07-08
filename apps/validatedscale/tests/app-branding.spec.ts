@@ -104,14 +104,14 @@ test('the researcher topbar carries the tenant logo and accent', async ({ page, 
 	await expect(page.locator('.topbar .cobrand')).toBeVisible();
 });
 
-test('the Settings editor previews the guarded accent and preserves the logo on save', async ({
+test('the Settings editor previews the full guarded palette and preserves the logo on save', async ({
 	page,
 	request
 }) => {
 	await brandTenant(request, '#1f4fd1');
 
 	await page.goto('/app/settings');
-	const panel = page.locator('section', { hasText: 'Respondent branding' });
+	const panel = page.locator('section', { hasText: 'App & respondent branding' });
 	await expect(panel).toBeVisible();
 
 	await expect(panel.locator('.preview-logo')).toBeVisible();
@@ -120,17 +120,27 @@ test('the Settings editor previews the guarded accent and preserves the logo on 
 		31, 79, 209
 	]);
 
-	await setColor(panel.locator('#a-accent'), '#ffe100');
+	// A near-yellow accent auto-corrects in the live preview.
+	await setColor(panel.locator('input[aria-label="Accent color"]'), '#ffe100');
 	await expect(panel.locator('.adjust-note')).toBeVisible();
 	const corrected = parseRgb(await begin.evaluate((el) => getComputedStyle(el).backgroundColor));
 	expect(corrected).not.toEqual([255, 225, 0]);
 	expect(contrastWithWhite(corrected)).toBeGreaterThanOrEqual(4.5);
 
+	// A dark surface repaints the preview card, live.
+	await setColor(panel.locator('input[aria-label="Surface color"]'), '#141c2b');
+	const cardBg = parseRgb(
+		await panel.locator('.preview-card').evaluate((el) => getComputedStyle(el).backgroundColor)
+	);
+	expect(cardBg).toEqual([20, 28, 43]);
+
+	await setColor(panel.locator('input[aria-label="Accent color"]'), '#1f4fd1');
 	await panel.screenshot({ path: 'test-results/app-branding/settings-editor.png' });
 
-	await setColor(panel.locator('#a-accent'), '#1f4fd1');
-	await panel.getByRole('button', { name: 'Save respondent branding' }).click();
-	await expect(panel.getByText('Saved. Respondents now see this branding.')).toBeVisible({
+	// Reset the surface, then save — the logo is preserved (accent-only change).
+	await setColor(panel.locator('input[aria-label="Surface color"]'), '#ffffff');
+	await panel.getByRole('button', { name: 'Save app branding' }).click();
+	await expect(panel.getByText('Saved. Your app and respondents now use this branding.')).toBeVisible({
 		timeout: 10_000
 	});
 
