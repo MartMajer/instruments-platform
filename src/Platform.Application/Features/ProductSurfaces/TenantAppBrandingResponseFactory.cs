@@ -29,6 +29,7 @@ public static class TenantAppBrandingResponseFactory
             accentColorHex,
             effectiveAccent,
             HasLogo: !string.IsNullOrWhiteSpace(logoObjectKey),
+            logoObjectKey,
             logoContentType,
             Tenant.DefaultAppBrandingAccentColorHex,
             Tenant.AppBrandingAllowedLogoContentTypes,

@@ -1729,6 +1729,19 @@ const sampleTenantSettings: TenantSettingsWorkspaceResponse = {
 		layoutVariant: 'standard',
 		deferredCustomizations: ['logo_upload', 'custom_fonts', 'product_shell_theming']
 	},
+	appBranding: {
+		orgLabel: 'Occupational Health Lab',
+		accentColorHex: null,
+		effectiveAccentColorHex: null,
+		hasLogo: false,
+		logoObjectKey: null,
+		logoContentType: null,
+		defaultAccentColorHex: '#4530a6',
+		allowedLogoContentTypes: ['image/png', 'image/jpeg', 'image/webp'],
+		maxLogoBytes: 262144,
+		maxLogoDimension: 1024,
+		updatedAt: null
+	},
 	managementLinks: [
 		{
 			id: 'campaign-series',

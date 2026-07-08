@@ -52,7 +52,36 @@ export type TenantSettingsWorkspaceResponse = {
 	profile: TenantSettingsProfileResponse;
 	counts: TenantSettingsWorkspaceCountsResponse;
 	reportBranding: TenantSettingsReportBrandingResponse;
+	appBranding: TenantSettingsAppBrandingResponse;
 	managementLinks: TenantSettingsManagementLinkResponse[];
+};
+
+export type TenantSettingsAppBrandingResponse = {
+	orgLabel: string;
+	accentColorHex: string | null;
+	effectiveAccentColorHex: string | null;
+	hasLogo: boolean;
+	logoObjectKey: string | null;
+	logoContentType: string | null;
+	defaultAccentColorHex: string;
+	allowedLogoContentTypes: string[];
+	maxLogoBytes: number;
+	maxLogoDimension: number;
+	updatedAt: string | null;
+};
+
+export type UpdateTenantAppBrandingRequest = {
+	accentColorHex: string;
+	logoObjectKey?: string | null;
+	logoContentType?: string | null;
+};
+
+export type TenantAppBrandingLogoUploadResponse = {
+	logoObjectKey: string;
+	logoContentType: string;
+	width: number;
+	height: number;
+	byteSize: number;
 };
 
 export type TenantSettingsProfileResponse = {
@@ -1367,6 +1396,19 @@ export function createProductApi(client: ApiClient) {
 				'/tenant-settings/report-branding',
 				jsonRequest('PUT', request)
 			),
+		updateTenantAppBranding: (request: UpdateTenantAppBrandingRequest) =>
+			client.request<TenantSettingsAppBrandingResponse>(
+				'/tenant-settings/app-branding',
+				jsonRequest('PUT', request)
+			),
+		uploadTenantAppBrandingLogo: (file: Blob) =>
+			client.request<TenantAppBrandingLogoUploadResponse>('/tenant-settings/app-branding/logo', {
+				method: 'POST',
+				headers: { 'content-type': file.type || 'application/octet-stream' },
+				body: file
+			}),
+		getTenantAppBrandingLogoBlob: () =>
+			client.requestBlob('/tenant-settings/app-branding/logo'),
 		listExportArtifacts: () => client.request<ExportArtifactLibraryResponse>('/export-artifacts'),
 		listTenantMembers: () => client.request<TenantMemberRosterResponse>('/tenant-members'),
 		listTenantRoles: () => client.request<TenantRoleListResponse>('/tenant-roles'),

@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import {
 		createProductApi,
 		type TenantMemberRosterResponse,
 		type TenantRoleListResponse,
 		type TenantSettingsWorkspaceResponse
 	} from '$lib/api/product';
+	import { ApiError } from '$lib/api/client';
 	import { api } from '$lib/core/client';
+	import { ensureLegibleOnWhite, isHexColor } from '$lib/core/contrast';
 	import { t } from '$lib/core/locale.svelte';
 	import { formatCount, formatDate, humanizeToken } from '$lib/core/format';
 	import LoadState from '$lib/ui/LoadState.svelte';
@@ -24,6 +26,45 @@
 	let brandLayout = $state('');
 	let brandBusy = $state(false);
 	let brandNote = $state<string | null>(null);
+
+	// Respondent (app) branding
+	let appAccent = $state('#4530a6');
+	let appAccentDefault = $state('#4530a6');
+	let appOrgLabel = $state('');
+	let appLogoObjectKey = $state<string | null>(null);
+	let appLogoContentType = $state<string | null>(null);
+	let appAllowedTypes = $state<string[]>(['image/png', 'image/jpeg', 'image/webp']);
+	let appMaxBytes = $state(262144);
+	let appMaxDim = $state(1024);
+	let appLogoPreview = $state<string | null>(null);
+	let appLogoFile = $state<File | null>(null);
+	let appLogoDirty = $state(false);
+	let appLogoRemoved = $state(false);
+	let appBusy = $state(false);
+	let appNote = $state<string | null>(null);
+	let appError = $state<string | null>(null);
+
+	// Live preview: the accent the runner would actually apply (contrast-guarded).
+	const appPreviewAccent = $derived(
+		isHexColor(appAccent) ? ensureLegibleOnWhite(appAccent) : appAccentDefault
+	);
+	const appAccentAdjusted = $derived(
+		isHexColor(appAccent) && appPreviewAccent.toLowerCase() !== appAccent.toLowerCase()
+	);
+	const appPreviewStyle = $derived(
+		`--tenant-accent:${appPreviewAccent};` +
+			`--color-stain:${appPreviewAccent};` +
+			`--color-stain-wash:color-mix(in oklab, ${appPreviewAccent} 12%, white);` +
+			`--color-stain-deep:color-mix(in oklab, ${appPreviewAccent} 78%, black);`
+	);
+
+	function revokeLogoPreview() {
+		if (appLogoPreview?.startsWith('blob:')) {
+			URL.revokeObjectURL(appLogoPreview);
+		}
+	}
+
+	onDestroy(revokeLogoPreview);
 
 	let memberEmail = $state('');
 	let memberRole = $state('');
@@ -44,6 +85,30 @@
 			brandTitle = settingsResponse.reportBranding.reportTitle;
 			brandAccent = settingsResponse.reportBranding.accentColorHex;
 			brandLayout = settingsResponse.reportBranding.layoutVariant;
+
+			const app = settingsResponse.appBranding;
+			appAccentDefault = app.defaultAccentColorHex;
+			appAccent = app.accentColorHex ?? app.defaultAccentColorHex;
+			appOrgLabel = app.orgLabel;
+			appLogoObjectKey = app.logoObjectKey;
+			appLogoContentType = app.logoContentType;
+			appAllowedTypes = app.allowedLogoContentTypes;
+			appMaxBytes = app.maxLogoBytes;
+			appMaxDim = app.maxLogoDimension;
+			appLogoFile = null;
+			appLogoRemoved = false;
+			appLogoDirty = false;
+			revokeLogoPreview();
+			appLogoPreview = null;
+			if (app.hasLogo) {
+				product
+					.getTenantAppBrandingLogoBlob()
+					.then((blob) => {
+						appLogoPreview = URL.createObjectURL(blob.body);
+					})
+					.catch(() => {});
+			}
+
 			memberRole ||= rolesResponse?.roles[0]?.code ?? '';
 			loadState = 'ready';
 		} catch {
@@ -71,6 +136,94 @@
 			brandNote = 'Branding could not be saved. Check the values.';
 		} finally {
 			brandBusy = false;
+		}
+	}
+
+	function onAppLogoSelected(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0] ?? null;
+		appError = null;
+		if (!file) return;
+
+		if (!appAllowedTypes.includes(file.type)) {
+			appError = t('Logo must be a PNG, JPEG, or WebP image.');
+			input.value = '';
+			return;
+		}
+		if (file.size > appMaxBytes) {
+			appError = `${t('Logo is too large — the limit is')} ${Math.round(appMaxBytes / 1024)} KB.`;
+			input.value = '';
+			return;
+		}
+
+		revokeLogoPreview();
+		appLogoFile = file;
+		appLogoRemoved = false;
+		appLogoDirty = true;
+		appLogoPreview = URL.createObjectURL(file);
+	}
+
+	function removeAppLogo() {
+		revokeLogoPreview();
+		appLogoFile = null;
+		appLogoRemoved = true;
+		appLogoDirty = true;
+		appLogoPreview = null;
+	}
+
+	function appBrandingErrorMessage(error: unknown): string {
+		if (error instanceof ApiError && error.body && typeof error.body === 'object') {
+			const detail = (error.body as { detail?: unknown }).detail;
+			if (typeof detail === 'string' && detail.length > 0) {
+				return detail;
+			}
+		}
+		return t('Branding could not be saved. Check the values.');
+	}
+
+	async function saveAppBranding(event: SubmitEvent) {
+		event.preventDefault();
+		if (appBusy) return;
+		if (!isHexColor(appAccent)) {
+			appError = t('Pick an accent color.');
+			return;
+		}
+
+		appBusy = true;
+		appNote = null;
+		appError = null;
+
+		try {
+			let logoObjectKey = appLogoObjectKey;
+			let logoContentType = appLogoContentType;
+
+			if (appLogoDirty) {
+				if (appLogoRemoved) {
+					logoObjectKey = null;
+					logoContentType = null;
+				} else if (appLogoFile) {
+					const uploaded = await product.uploadTenantAppBrandingLogo(appLogoFile);
+					logoObjectKey = uploaded.logoObjectKey;
+					logoContentType = uploaded.logoContentType;
+				}
+			}
+
+			const saved = await product.updateTenantAppBranding({
+				accentColorHex: appAccent,
+				logoObjectKey,
+				logoContentType
+			});
+
+			appLogoObjectKey = saved.logoObjectKey;
+			appLogoContentType = saved.logoContentType;
+			appLogoFile = null;
+			appLogoRemoved = false;
+			appLogoDirty = false;
+			appNote = t('Saved. Respondents now see this branding.');
+		} catch (error) {
+			appError = appBrandingErrorMessage(error);
+		} finally {
+			appBusy = false;
 		}
 	}
 
@@ -139,6 +292,59 @@
 					{#if brandNote}<p class="note" role="status">{brandNote}</p>{/if}
 					<button class="btn btn-ink" type="submit" disabled={brandBusy}>
 						{brandBusy ? t('Saving…') : t('Save branding')}
+					</button>
+				</form>
+			</section>
+
+			<section class="panel block">
+				<h2 class="eyebrow">{t('Respondent branding')}</h2>
+				<p class="brand-hint">{t('Your logo and accent appear in the survey your respondents answer.')}</p>
+				<form class="brand-form" onsubmit={saveAppBranding}>
+					<label class="eyebrow" for="a-accent">{t('Accent')}</label>
+					<div class="accent-row">
+						<input id="a-accent" type="color" bind:value={appAccent} aria-label="Respondent accent color" />
+						<span class="datum">{appAccent}</span>
+						{#if appAccentAdjusted}
+							<span class="adjust-note" title={t('Adjusted for legibility (WCAG AA)')}>→ {appPreviewAccent}</span>
+						{/if}
+					</div>
+
+					<label class="eyebrow" for="a-logo">{t('Logo')}</label>
+					<input
+						id="a-logo"
+						type="file"
+						accept="image/png,image/jpeg,image/webp"
+						onchange={onAppLogoSelected}
+					/>
+					<p class="logo-hint">
+						{t('PNG, JPEG or WebP')} · ≤ {Math.round(appMaxBytes / 1024)} KB · ≤ {appMaxDim}px
+					</p>
+					{#if appLogoPreview}
+						<button type="button" class="btn btn-ghost tiny" onclick={removeAppLogo}>
+							{t('Remove logo')}
+						</button>
+					{/if}
+
+					<div class="preview" style={appPreviewStyle}>
+						<span class="preview-label eyebrow">{t('Respondent preview')}</span>
+						<div class="preview-card">
+							<div class="preview-brandhead">
+								{#if appLogoPreview}
+									<img class="preview-logo" src={appLogoPreview} alt={appOrgLabel} />
+								{:else}
+									<span class="preview-org">{appOrgLabel}</span>
+								{/if}
+							</div>
+							<p class="preview-kicker eyebrow">{t('You are invited to take part in')}</p>
+							<p class="preview-title">{appOrgLabel || t('Your study')}</p>
+							<button class="btn btn-stain preview-begin" type="button" tabindex="-1">{t('Begin')}</button>
+						</div>
+					</div>
+
+					{#if appError}<p class="error-note" role="alert">{appError}</p>{/if}
+					{#if appNote}<p class="note" role="status">{appNote}</p>{/if}
+					<button class="btn btn-ink" type="submit" disabled={appBusy}>
+						{appBusy ? t('Saving…') : t('Save respondent branding')}
 					</button>
 				</form>
 			</section>
@@ -286,6 +492,91 @@
 	.brand-form .btn {
 		align-self: flex-start;
 		margin-top: 0.375rem;
+	}
+
+	.brand-hint,
+	.logo-hint {
+		font-size: 0.75rem;
+		color: var(--color-ink-3);
+		margin-top: 0.25rem;
+	}
+
+	.brand-hint {
+		margin-top: 0.5rem;
+	}
+
+	.adjust-note {
+		font-family: var(--font-mono);
+		font-size: 0.6875rem;
+		color: var(--color-ink-3);
+	}
+
+	.btn.tiny {
+		align-self: flex-start;
+		font-size: 0.75rem;
+		padding: 0.25rem 0.625rem;
+		margin-top: 0;
+	}
+
+	.error-note {
+		font-size: 0.8125rem;
+		color: var(--color-danger);
+	}
+
+	/* Live respondent preview — mirrors the runner header + primary action. */
+	.preview {
+		margin-top: 0.75rem;
+	}
+
+	.preview-label {
+		display: block;
+		margin-bottom: 0.375rem;
+	}
+
+	.preview-card {
+		border: 1px solid var(--color-line);
+		border-top: 3px solid var(--color-stain);
+		border-radius: var(--radius-instrument);
+		padding: 0.875rem 1rem 1rem;
+		background: var(--color-surface);
+	}
+
+	.preview-brandhead {
+		min-height: 1.75rem;
+		display: flex;
+		align-items: center;
+		padding-bottom: 0.5rem;
+		margin-bottom: 0.625rem;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.preview-logo {
+		max-height: 1.75rem;
+		width: auto;
+		max-width: 9rem;
+		object-fit: contain;
+	}
+
+	.preview-org {
+		font-weight: 620;
+		font-size: 0.8125rem;
+		color: var(--color-stain);
+	}
+
+	.preview-kicker {
+		color: var(--color-stain);
+	}
+
+	.preview-title {
+		font-family: var(--font-doc);
+		font-size: 1.0625rem;
+		margin: 0.125rem 0 0.75rem;
+		color: var(--color-ink);
+	}
+
+	.preview-begin {
+		font-size: 0.8125rem;
+		padding: 0.4375rem 1.125rem;
 	}
 
 	.note {
