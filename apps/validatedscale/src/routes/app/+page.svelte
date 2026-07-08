@@ -242,6 +242,15 @@
 		border-bottom: 1px solid var(--color-line);
 	}
 
+	/* CTA buttons align to a consistent width and never wrap to two lines,
+	   so rows don't look ragged when labels differ in length */
+	.attention li > a.btn {
+		flex-shrink: 0;
+		white-space: nowrap;
+		min-width: 8.5rem;
+		text-align: center;
+	}
+
 	.attention strong {
 		font-weight: 580;
 	}
