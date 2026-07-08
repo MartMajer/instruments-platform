@@ -42,6 +42,34 @@
 	const locale = $derived(respondentLocale(entry?.defaultLocale ?? 'en', localeOverride));
 	const copy = $derived(respondentCopy[locale]);
 
+	// Tenant branding — typed tokens only. The accent arrives already
+	// contrast-guarded from the backend; we still hard-gate it to a validated
+	// hex before it touches CSS, so nothing but a scalar can reach a style rule
+	// (the ADR-0017 "no tenant-authored CSS" boundary). The logo is a
+	// platform-served data URI; we only render image data URIs.
+	const branding = $derived(entry?.branding ?? null);
+	const brandAccent = $derived(
+		branding?.accentColorHex && /^#[0-9a-fA-F]{6}$/.test(branding.accentColorHex)
+			? branding.accentColorHex
+			: null
+	);
+	const brandLogo = $derived(
+		branding?.logoDataUri && branding.logoDataUri.startsWith('data:image/')
+			? branding.logoDataUri
+			: null
+	);
+	// Map the single validated accent onto the runner's existing accent tokens so
+	// every accent-driven rule (buttons, ticks, kicker, selected state) follows.
+	const brandStyle = $derived(
+		brandAccent
+			? `--tenant-accent:${brandAccent};` +
+					`--color-stain:${brandAccent};` +
+					`--color-stain-wash:color-mix(in oklab, ${brandAccent} 12%, white);` +
+					`--color-stain-deep:color-mix(in oklab, ${brandAccent} 78%, black);` +
+					`--color-stain-line:color-mix(in oklab, ${brandAccent} 32%, white);`
+			: undefined
+	);
+
 	// screen readers must know the survey's language to pronounce it
 	$effect(() => {
 		document.documentElement.lang = locale.startsWith('hr') ? 'hr' : 'en';
@@ -82,7 +110,8 @@
 							requiresParticipantCode: false,
 							defaultLocale: queue.defaultLocale,
 							consentDocument: queue.consentDocument,
-							questions: queue.questions
+							questions: queue.questions,
+							branding: queue.branding
 						};
 					} catch {
 						phase = 'gone';
@@ -280,7 +309,16 @@
 
 <svelte:head><title>{entry?.name ?? 'Survey'} — ValidatedScale</title></svelte:head>
 
-<div class="canvas">
+<div class="canvas" style={brandStyle}>
+	{#if branding && (brandLogo || branding.orgLabel)}
+		<header class="brand">
+			{#if brandLogo}
+				<img class="brand-logo" src={brandLogo} alt={branding.orgLabel} />
+			{:else}
+				<span class="brand-label">{branding.orgLabel}</span>
+			{/if}
+		</header>
+	{/if}
 	{#if phase === 'loading'}
 		<div class="notice" role="status">
 			<span class="rail-h boot" aria-hidden="true"></span>
@@ -438,6 +476,32 @@
 		padding: 1.25rem 1rem 5rem;
 		max-width: 44rem;
 		margin: 0 auto;
+	}
+
+	/* Tenant brand header: logo or org label, above the study sheet. */
+	.brand {
+		display: flex;
+		align-items: center;
+		min-height: 2.25rem;
+		padding-bottom: 0.5rem;
+		margin-bottom: 0.25rem;
+		border-bottom: 1px solid var(--color-line);
+	}
+
+	.brand-logo {
+		max-height: 2.25rem;
+		width: auto;
+		max-width: min(60%, 12rem);
+		object-fit: contain;
+	}
+
+	.brand-label {
+		font-family: var(--font-ui);
+		font-variation-settings: 'wdth' 110;
+		font-weight: 620;
+		font-size: 0.9375rem;
+		letter-spacing: -0.01em;
+		color: var(--color-stain);
 	}
 
 	.notice {

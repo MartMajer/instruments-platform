@@ -640,6 +640,12 @@ export type RespondentQuestionResponse = {
 	payload?: string | null;
 };
 
+export type RespondentBrandingResponse = {
+	orgLabel: string;
+	accentColorHex: string | null;
+	logoDataUri: string | null;
+};
+
 export type OpenLinkEntryResponse = {
 	campaignId: string;
 	assignmentId: string;
@@ -651,6 +657,7 @@ export type OpenLinkEntryResponse = {
 	defaultLocale: string;
 	consentDocument: ConsentDocumentResponse;
 	questions: RespondentQuestionResponse[];
+	branding?: RespondentBrandingResponse | null;
 };
 
 export type IdentifiedQueueResponse = {
@@ -664,6 +671,7 @@ export type IdentifiedQueueResponse = {
 	questions: RespondentQuestionResponse[];
 	respondent: IdentifiedQueueSubjectResponse;
 	assignments: IdentifiedQueueAssignmentResponse[];
+	branding?: RespondentBrandingResponse | null;
 };
 
 export type IdentifiedQueueSubjectResponse = {
